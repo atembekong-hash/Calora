@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
 import {
   cancelHydrationReminders,
@@ -19,7 +20,7 @@ const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.
 ];
 
 export default function ProfileScreen() {
-  const { colors, themePreference, setThemePreference, profile, healthConnected, setHealthConnected, exportData, clearAllData, syncState, savedMeals, saveMeal, hydrationReminders, setHydrationReminders } = useCalora();
+  const { colors, themePreference, setThemePreference, profile, healthConnected, setHealthConnected, exportData, clearAllData, syncState, savedMeals, saveMeal, hydrationReminders, setHydrationReminders, livingMemory } = useCalora();
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | null>(null);
@@ -300,6 +301,26 @@ export default function ProfileScreen() {
         </View>
         {savedMeals.length === 0 ? <View style={[styles.emptySaved, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={require('../../assets/images/calora-profile-header.jpg')} contentFit="cover" style={styles.emptySavedImage} /><View style={styles.emptySavedCopy}><Text style={[styles.emptySavedTitle, { color: colors.foreground }]}>Your repeatable meals</Text><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>Create one for a repeatable lunch, dinner, or recipe.</Text></View></View> : <View style={styles.savedList}>{savedMeals.map((meal) => <View key={meal.id} style={[styles.savedItem, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name={meal.kind === 'recipe' ? 'book-open' : 'bookmark'} size={16} color={colors.accentForeground} /></View><View style={{ flex: 1 }}><Text style={[styles.settingTitle, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.protein}g protein · {meal.kind}</Text></View></View>)}</View>}
 
+        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 4 }]}>Living memory</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Review the small, confirmed signals Calora keeps on this device.</Text>
+        <Pressable
+          accessibilityLabel="Review living memory"
+          testID="review-living-memory"
+          onPress={() => router.push('/memory')}
+          style={[styles.memoryShortcut, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <View style={[styles.settingIcon, { backgroundColor: colors.accent }]}>
+            <Feather name="layers" size={17} color={colors.accentForeground} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.settingTitle, { color: colors.foreground }]}>What Calora remembers</Text>
+            <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
+              {Object.keys(livingMemory.mealObservations).length + Object.keys(livingMemory.waterObservations).length + Object.keys(livingMemory.moodObservations).length + Object.keys(livingMemory.activityObservations).length + Object.keys(livingMemory.plannerObservations).length > 0 ? 'Review, correct, or forget individual signals.' : 'Nothing remembered yet.'}
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+        </Pressable>
+
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Trust & privacy</Text>
         <View style={[styles.connectionRow, { backgroundColor: colors.accent }]}>
           <View style={[styles.connectionIcon, { backgroundColor: colors.primary }]}><Feather name="activity" size={17} color={colors.primaryForeground} /></View>
@@ -474,6 +495,7 @@ const styles = StyleSheet.create({
   emptySavedTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12, marginBottom: 3 },
   savedList: { gap: 8 },
   savedItem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 17, padding: 11 },
+  memoryShortcut: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 12, marginBottom: 8 },
   savedModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, marginTop: 'auto' },
   savedKindRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   savedKind: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingVertical: 10 },

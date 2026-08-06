@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildLivingMemory, emptyLivingMemory, mergeLivingMemory, removeMealObservation, upsertMealObservation, upsertPlannerObservations, upsertWaterObservation } from '../livingMemory';
+import { buildLivingMemory, emptyLivingMemory, forgetLivingObservation, mergeLivingMemory, removeMealObservation, upsertMealObservation, upsertPlannerObservations, upsertWaterObservation } from '../livingMemory';
 import type { FoodLog } from '@/context/CaloraContext';
 
 const log = (id: string, date = '2026-08-06'): FoodLog => ({
@@ -80,5 +80,27 @@ describe('living memory', () => {
       { id: 'planned-1', day: '2026-08-07', meal: 'Dinner', name: 'Dinner', image: '', serving: '1', calories: 400, proteinG: 20, carbsG: 40, fatG: 12, ingredients: [], description: '' },
     ]);
     expect(memory.plannerObservations).toEqual({ 'planned-1': { day: '2026-08-07', meal: 'Dinner' } });
+  });
+
+  it('forgets a signal without changing its source record and keeps it forgotten after reload', () => {
+    const source = buildLivingMemory({
+      logs: [log('meal-1')],
+      waterLogs: { '2026-08-06': 16 },
+      moodLogs: {},
+      activityLogs: {},
+      plannerMeals: [],
+    });
+    const forgotten = forgetLivingObservation(source, 'meal', 'meal-1');
+    expect(forgotten.mealObservations).toEqual({});
+    expect(forgotten.forgotten.meals).toEqual(['meal-1']);
+    expect(mergeLivingMemory(forgotten, source).mealObservations).toEqual({});
+  });
+
+  it('makes an explicitly edited source visible again', () => {
+    const source = buildLivingMemory({ logs: [log('meal-1')], waterLogs: {}, moodLogs: {}, activityLogs: {}, plannerMeals: [] });
+    const forgotten = forgetLivingObservation(source, 'meal', 'meal-1');
+    const edited = upsertMealObservation(forgotten, 'meal-1', '2026-08-07', 'Lunch');
+    expect(edited.forgotten.meals).toEqual([]);
+    expect(edited.mealObservations['meal-1']).toEqual({ date: '2026-08-07', meal: 'Lunch' });
   });
 });

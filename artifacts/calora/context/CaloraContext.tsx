@@ -34,6 +34,7 @@ import {
   mergeLivingMemory,
   removeMealObservation,
   replacePlannerObservations,
+  forgetLivingObservation as forgetMemoryObservation,
   upsertActivityObservation,
   upsertMealObservation,
   upsertMoodObservation,
@@ -178,6 +179,7 @@ type CaloraContextValue = {
   coachMessages: CoachMessage[];
   livingState: LivingState;
   livingMemory: LivingMemory;
+  forgetLivingObservation: (kind: 'meal' | 'water' | 'mood' | 'activity' | 'planner', id: string) => void;
   setCoachConsentAccepted: (accepted: boolean) => void;
   setCoachMessages: (messages: CoachMessage[]) => void;
   clearCoachHistory: () => void;
@@ -641,6 +643,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     coachMessages,
     livingState,
      livingMemory,
+      forgetLivingObservation: (kind, id) => {
+       setLivingMemory((current) => ({ ...forgetMemoryObservation(current, kind, id) }));
+       queueMutation('settings', 'upsert');
+     },
     setHydrationReminders: (prefs: HydrationReminderPrefs) => {
       setHydrationRemindersState(prefs);
     },
