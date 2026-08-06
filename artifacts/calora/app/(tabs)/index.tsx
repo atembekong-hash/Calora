@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -19,6 +19,7 @@ import { router } from 'expo-router';
 import { useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { mealOrder, verifiedFoods } from '@/data/foods';
+import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 
 const dateKey = (date: Date) => {
   const year = date.getFullYear();
@@ -435,6 +436,7 @@ export default function HomeScreen() {
   const [showAdd, setShowAdd] = useState(false);
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
   const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const target = profile?.calorieTarget ?? 2000;
   const selectedLogs = logs.filter((log) => log.date === selectedDate || (!log.date && isToday(selectedDate)));
   const selectedTotals = useMemo(() => selectedLogs.reduce((sum, log) => ({
@@ -452,6 +454,12 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowAdd(true);
   };
+
+  useEffect(() => {
+    if (!saveNotice) return;
+    const timeout = setTimeout(() => setSaveNotice(null), 2200);
+    return () => clearTimeout(timeout);
+  }, [saveNotice]);
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
@@ -510,9 +518,9 @@ export default function HomeScreen() {
           mealsLogged={mealsLogged}
           mealNames={mealNames}
           mood={moodLogs[selectedDate]}
-          onAddWater={() => { addWater(selectedDate, 8); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          onAddWater={() => { addWater(selectedDate, 8); setSaveNotice('Water check-in added for this day.'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
           onAddMeal={openAdd}
-          onMood={(mood) => { setMood(selectedDate, mood); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
+          onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
         />
 
         <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -563,6 +571,7 @@ export default function HomeScreen() {
       </ScrollView>
       <AddFoodModal visible={showAdd} entryDate={selectedDate} onClose={() => setShowAdd(false)} />
       <EditLogModal log={editingLog} onClose={() => setEditingLog(null)} />
+      <LocalSaveNotice visible={Boolean(saveNotice)} message={saveNotice ?? ''} colors={colors} />
     </View>
   );
 }

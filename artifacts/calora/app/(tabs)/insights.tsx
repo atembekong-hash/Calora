@@ -6,6 +6,7 @@ import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, V
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
+import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 
 type WeekDay = {
   date: string;
@@ -148,6 +149,7 @@ export default function InsightsScreen() {
   const insets = useSafeAreaInsets();
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const verifiedCount = logs.filter((log) => log.confidence >= 90).length;
   const latestWeight = weights[weights.length - 1]?.kg ?? profile?.weightKg ?? 76;
   const startingWeight = profile?.weightKg ?? latestWeight;
@@ -168,6 +170,11 @@ export default function InsightsScreen() {
   const averageWeekCalories = weekDays.filter((day) => day.kcal > 0).length
     ? Math.round(weekDays.reduce((sum, day) => sum + day.kcal, 0) / weekDays.filter((day) => day.kcal > 0).length)
     : 0;
+  useEffect(() => {
+    if (!saveNotice) return;
+    const timeout = setTimeout(() => setSaveNotice(null), 2200);
+    return () => clearTimeout(timeout);
+  }, [saveNotice]);
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
@@ -342,9 +349,13 @@ export default function InsightsScreen() {
                 return (
                   <Pressable
                     key={option.value}
-                    accessibilityLabel={`${option.label} activity today`}
+                    accessibilityLabel={`${option.label} activity today${selected ? ', selected' : ''}`}
+                    accessibilityState={{ selected }}
                     testID={`activity-${option.value}`}
-                    onPress={() => setActivity(todayKey, option.value)}
+                    onPress={() => {
+                      setActivity(todayKey, option.value);
+                      setSaveNotice(`${option.label} movement check-in saved.`);
+                    }}
                     style={[styles.activityOption, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}
                   >
                     <Feather name={option.icon as keyof typeof Feather.glyphMap} size={14} color={selected ? colors.primaryForeground : colors.mutedForeground} />
@@ -395,11 +406,12 @@ export default function InsightsScreen() {
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today’s weight</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>A single weigh-in is just a data point. Calora looks for a trend.</Text>
             <TextInput value={weightInput} onChangeText={setWeightInput} keyboardType="decimal-pad" placeholder={`${latestWeight.toFixed(1)} kg`} placeholderTextColor={colors.mutedForeground} style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
-            <Pressable accessibilityLabel="Save weight" onPress={() => { const value = Number(weightInput); if (value > 0) { addWeight(value); setWeightInput(''); setShowWeight(false); } }} style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></Pressable>
+            <Pressable accessibilityLabel="Save weight" onPress={() => { const value = Number(weightInput); if (value > 0) { addWeight(value); setWeightInput(''); setShowWeight(false); setSaveNotice('Weight check-in saved locally.'); } }} style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></Pressable>
             <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
           </View>
         </View>
       </Modal>
+      <LocalSaveNotice visible={Boolean(saveNotice)} message={saveNotice ?? ''} colors={colors} />
     </View>
   );
 }
