@@ -536,6 +536,284 @@ export interface PlannerGenerateResponse {
   meals: PlannerMeal[];
 }
 
+export type CoachMessageRole = typeof CoachMessageRole[keyof typeof CoachMessageRole];
+
+
+export const CoachMessageRole = {
+  user: 'user',
+  assistant: 'assistant',
+} as const;
+
+export interface CoachMessage {
+  role: CoachMessageRole;
+  /**
+     * @minLength 1
+     * @maxLength 3000
+     */
+  content: string;
+}
+
+export interface CoachDateRange {
+  start: string;
+  end: string;
+}
+
+export type CoachContextProfileGoal = typeof CoachContextProfileGoal[keyof typeof CoachContextProfileGoal];
+
+
+export const CoachContextProfileGoal = {
+  lose: 'lose',
+  maintain: 'maintain',
+  gain: 'gain',
+} as const;
+
+export type CoachContextProfileActivity = typeof CoachContextProfileActivity[keyof typeof CoachContextProfileActivity];
+
+
+export const CoachContextProfileActivity = {
+  low: 'low',
+  moderate: 'moderate',
+  high: 'high',
+} as const;
+
+export type CoachContextProfileDiet = typeof CoachContextProfileDiet[keyof typeof CoachContextProfileDiet];
+
+
+export const CoachContextProfileDiet = {
+  Everything: 'Everything',
+  Vegetarian: 'Vegetarian',
+  Vegan: 'Vegan',
+  High_protein: 'High protein',
+} as const;
+
+export type CoachContextProfile = {
+  name?: string;
+  goal?: CoachContextProfileGoal;
+  activity?: CoachContextProfileActivity;
+  diet?: CoachContextProfileDiet;
+  /** @minimum 0 */
+  calorieTarget?: number;
+  /** @minimum 0 */
+  weightKg?: number;
+  /** @minimum 0 */
+  targetWeightKg?: number;
+  /** @minimum 0 */
+  age?: number;
+} | null;
+
+export type CoachContextDailySummariesItem = {
+  date: string;
+  /** @minimum 0 */
+  calories: number;
+  /** @minimum 0 */
+  proteinG: number;
+  /** @minimum 0 */
+  carbsG: number;
+  /** @minimum 0 */
+  fatG: number;
+  /** @minimum 0 */
+  fiberG?: number;
+  /** @minimum 0 */
+  sugarG?: number;
+  /** @minimum 0 */
+  sodiumMg?: number;
+  /** @minimum 0 */
+  meals: number;
+  /** @minimum 0 */
+  waterOunces: number;
+  mood?: string | null;
+  activity?: string | null;
+  hasData: boolean;
+};
+
+export type CoachContextRecentEntriesItem = {
+  date: string;
+  meal: string;
+  /** @maxLength 160 */
+  name: string;
+  /** @minimum 0 */
+  calories: number;
+  /** @minimum 0 */
+  proteinG: number;
+  /** @minimum 0 */
+  carbsG: number;
+  /** @minimum 0 */
+  fatG: number;
+  /** @minimum 0 */
+  fiberG?: number;
+  /** @minimum 0 */
+  sugarG?: number;
+  /** @minimum 0 */
+  sodiumMg?: number;
+  source: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  confidence: number;
+};
+
+export type CoachContextWellness = {
+  /** @minimum 0 */
+  waterAverageOunces: number;
+  /** @minimum 0 */
+  waterLoggedDays: number;
+  /** @minimum 0 */
+  moodLoggedDays: number;
+  /** @minimum 0 */
+  activityLoggedDays: number;
+  /** @minimum 0 */
+  weightEntries: number;
+  /** @minimum 0 */
+  latestWeightKg: number | null;
+  weightChangeKg?: number | null;
+};
+
+export type CoachContextPlanning = {
+  /** @minimum 0 */
+  plannedMealCount: number;
+  /** @minimum 0 */
+  shoppingItemCount: number;
+  /**
+     * @maxItems 20
+     * @items.maxLength 120
+     */
+  savedMealNames: string[];
+  /** @minimum 0 */
+  savedRecipeCount: number;
+};
+
+export type CoachContextFoodMemory = {
+  /** @minimum 0 */
+  acceptedCount: number;
+  /**
+     * @maxItems 20
+     * @items.maxLength 120
+     */
+  repeatPatterns: string[];
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  verifiedShare: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  estimatedShare: number;
+};
+
+export interface CoachContext {
+  /** @minimum 1 */
+  schemaVersion: number;
+  generatedAt: string;
+  currentDate: string;
+  dateRange: CoachDateRange;
+  profile: CoachContextProfile;
+  /** @maxItems 31 */
+  dailySummaries: CoachContextDailySummariesItem[];
+  /** @maxItems 80 */
+  recentEntries: CoachContextRecentEntriesItem[];
+  wellness: CoachContextWellness;
+  planning: CoachContextPlanning;
+  foodMemory: CoachContextFoodMemory;
+  /** @maxItems 20 */
+  missingData: string[];
+}
+
+export interface CoachRespondInput {
+  context: CoachContext;
+  /**
+     * @minItems 1
+     * @maxItems 12
+     */
+  messages: CoachMessage[];
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  currentScreen: string;
+}
+
+export type CoachObservationConfidence = typeof CoachObservationConfidence[keyof typeof CoachObservationConfidence];
+
+
+export const CoachObservationConfidence = {
+  high: 'high',
+  medium: 'medium',
+  limited: 'limited',
+} as const;
+
+export interface CoachObservation {
+  /** @maxLength 500 */
+  text: string;
+  confidence: CoachObservationConfidence;
+  /** @maxItems 6 */
+  evidenceKeys: string[];
+}
+
+export type CoachActionKind = typeof CoachActionKind[keyof typeof CoachActionKind];
+
+
+export const CoachActionKind = {
+  navigate: 'navigate',
+  prepare: 'prepare',
+} as const;
+
+export type CoachActionDestination = typeof CoachActionDestination[keyof typeof CoachActionDestination];
+
+
+export const CoachActionDestination = {
+  home: 'home',
+  progress: 'progress',
+  recipes: 'recipes',
+  planner: 'planner',
+  scan: 'scan',
+  profile: 'profile',
+} as const;
+
+export type CoachActionParams = {[key: string]: string};
+
+export interface CoachAction {
+  id: string;
+  /** @maxLength 80 */
+  label: string;
+  kind: CoachActionKind;
+  destination: CoachActionDestination;
+  params?: CoachActionParams;
+  confirmationRequired: boolean;
+}
+
+export type CoachResponseSafetyState = typeof CoachResponseSafetyState[keyof typeof CoachResponseSafetyState];
+
+
+export const CoachResponseSafetyState = {
+  normal: 'normal',
+  caution: 'caution',
+  support_redirect: 'support_redirect',
+} as const;
+
+export type CoachResponseContextCoverage = {
+  usedSections: string[];
+  missingSections: string[];
+};
+
+export interface CoachResponse {
+  /** @maxLength 2000 */
+  message: string;
+  /** @maxItems 4 */
+  observations: CoachObservation[];
+  /** @maxItems 3 */
+  actions: CoachAction[];
+  safetyState: CoachResponseSafetyState;
+  /**
+     * @maxItems 4
+     * @items.maxLength 240
+     */
+  limitations: string[];
+  contextCoverage: CoachResponseContextCoverage;
+}
+
 export type DateQueryParameter = string;
 
 export type ListDiaryEntriesParams = {

@@ -702,6 +702,228 @@ export const GeneratePlannerResponse = zod.object({
 
 
 /**
+ * Interprets a bounded, user-controlled Calora context snapshot and
+ * returns structured guidance with evidence and allowlisted destinations.
+ * Coach responses do not mutate diary, planner, or profile data.
+ * @summary Respond to a context-aware nutrition coaching request
+ */
+
+export const respondCoachBodyContextProfileCalorieTargetMin = 0;
+
+export const respondCoachBodyContextProfileWeightKgMin = 0;
+
+export const respondCoachBodyContextProfileTargetWeightKgMin = 0;
+
+export const respondCoachBodyContextProfileAgeMin = 0;
+
+export const respondCoachBodyContextDailySummariesItemCaloriesMin = 0;
+
+export const respondCoachBodyContextDailySummariesItemProteinGMin = 0;
+
+export const respondCoachBodyContextDailySummariesItemCarbsGMin = 0;
+
+export const respondCoachBodyContextDailySummariesItemFatGMin = 0;
+
+export const respondCoachBodyContextDailySummariesItemFiberGMin = 0;
+
+export const respondCoachBodyContextDailySummariesItemSugarGMin = 0;
+
+export const respondCoachBodyContextDailySummariesItemSodiumMgMin = 0;
+
+export const respondCoachBodyContextDailySummariesItemMealsMin = 0;
+
+export const respondCoachBodyContextDailySummariesItemWaterOuncesMin = 0;
+
+export const respondCoachBodyContextDailySummariesMax = 31;
+
+export const respondCoachBodyContextRecentEntriesItemNameMax = 160;
+
+export const respondCoachBodyContextRecentEntriesItemCaloriesMin = 0;
+
+export const respondCoachBodyContextRecentEntriesItemProteinGMin = 0;
+
+export const respondCoachBodyContextRecentEntriesItemCarbsGMin = 0;
+
+export const respondCoachBodyContextRecentEntriesItemFatGMin = 0;
+
+export const respondCoachBodyContextRecentEntriesItemFiberGMin = 0;
+
+export const respondCoachBodyContextRecentEntriesItemSugarGMin = 0;
+
+export const respondCoachBodyContextRecentEntriesItemSodiumMgMin = 0;
+
+export const respondCoachBodyContextRecentEntriesItemConfidenceMin = 0;
+export const respondCoachBodyContextRecentEntriesItemConfidenceMax = 100;
+
+export const respondCoachBodyContextRecentEntriesMax = 80;
+
+export const respondCoachBodyContextWellnessWaterAverageOuncesMin = 0;
+
+export const respondCoachBodyContextWellnessWaterLoggedDaysMin = 0;
+
+export const respondCoachBodyContextWellnessMoodLoggedDaysMin = 0;
+
+export const respondCoachBodyContextWellnessActivityLoggedDaysMin = 0;
+
+export const respondCoachBodyContextWellnessWeightEntriesMin = 0;
+
+export const respondCoachBodyContextWellnessLatestWeightKgMin = 0;
+
+export const respondCoachBodyContextPlanningPlannedMealCountMin = 0;
+
+export const respondCoachBodyContextPlanningShoppingItemCountMin = 0;
+
+export const respondCoachBodyContextPlanningSavedMealNamesItemMax = 120;
+
+export const respondCoachBodyContextPlanningSavedMealNamesMax = 20;
+
+export const respondCoachBodyContextPlanningSavedRecipeCountMin = 0;
+
+export const respondCoachBodyContextFoodMemoryAcceptedCountMin = 0;
+
+export const respondCoachBodyContextFoodMemoryRepeatPatternsItemMax = 120;
+
+export const respondCoachBodyContextFoodMemoryRepeatPatternsMax = 20;
+
+export const respondCoachBodyContextFoodMemoryVerifiedShareMin = 0;
+export const respondCoachBodyContextFoodMemoryVerifiedShareMax = 100;
+
+export const respondCoachBodyContextFoodMemoryEstimatedShareMin = 0;
+export const respondCoachBodyContextFoodMemoryEstimatedShareMax = 100;
+
+export const respondCoachBodyContextMissingDataMax = 20;
+
+export const respondCoachBodyMessagesItemContentMax = 3000;
+
+export const respondCoachBodyMessagesMax = 12;
+
+export const respondCoachBodyCurrentScreenMax = 64;
+
+
+
+export const RespondCoachBody = zod.object({
+  "context": zod.object({
+  "schemaVersion": zod.number().int().min(1),
+  "generatedAt": zod.coerce.date(),
+  "currentDate": zod.coerce.date(),
+  "dateRange": zod.object({
+  "start": zod.coerce.date(),
+  "end": zod.coerce.date()
+}),
+  "profile": zod.object({
+  "name": zod.string().optional(),
+  "goal": zod.enum(['lose', 'maintain', 'gain']).optional(),
+  "activity": zod.enum(['low', 'moderate', 'high']).optional(),
+  "diet": zod.enum(['Everything', 'Vegetarian', 'Vegan', 'High protein']).optional(),
+  "calorieTarget": zod.number().int().min(respondCoachBodyContextProfileCalorieTargetMin).optional(),
+  "weightKg": zod.number().min(respondCoachBodyContextProfileWeightKgMin).optional(),
+  "targetWeightKg": zod.number().min(respondCoachBodyContextProfileTargetWeightKgMin).optional(),
+  "age": zod.number().int().min(respondCoachBodyContextProfileAgeMin).optional()
+}).nullable(),
+  "dailySummaries": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "calories": zod.number().min(respondCoachBodyContextDailySummariesItemCaloriesMin),
+  "proteinG": zod.number().min(respondCoachBodyContextDailySummariesItemProteinGMin),
+  "carbsG": zod.number().min(respondCoachBodyContextDailySummariesItemCarbsGMin),
+  "fatG": zod.number().min(respondCoachBodyContextDailySummariesItemFatGMin),
+  "fiberG": zod.number().min(respondCoachBodyContextDailySummariesItemFiberGMin).optional(),
+  "sugarG": zod.number().min(respondCoachBodyContextDailySummariesItemSugarGMin).optional(),
+  "sodiumMg": zod.number().min(respondCoachBodyContextDailySummariesItemSodiumMgMin).optional(),
+  "meals": zod.number().int().min(respondCoachBodyContextDailySummariesItemMealsMin),
+  "waterOunces": zod.number().min(respondCoachBodyContextDailySummariesItemWaterOuncesMin),
+  "mood": zod.string().nullish(),
+  "activity": zod.string().nullish(),
+  "hasData": zod.boolean()
+})).max(respondCoachBodyContextDailySummariesMax),
+  "recentEntries": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "meal": zod.string(),
+  "name": zod.string().max(respondCoachBodyContextRecentEntriesItemNameMax),
+  "calories": zod.number().min(respondCoachBodyContextRecentEntriesItemCaloriesMin),
+  "proteinG": zod.number().min(respondCoachBodyContextRecentEntriesItemProteinGMin),
+  "carbsG": zod.number().min(respondCoachBodyContextRecentEntriesItemCarbsGMin),
+  "fatG": zod.number().min(respondCoachBodyContextRecentEntriesItemFatGMin),
+  "fiberG": zod.number().min(respondCoachBodyContextRecentEntriesItemFiberGMin).optional(),
+  "sugarG": zod.number().min(respondCoachBodyContextRecentEntriesItemSugarGMin).optional(),
+  "sodiumMg": zod.number().min(respondCoachBodyContextRecentEntriesItemSodiumMgMin).optional(),
+  "source": zod.string(),
+  "confidence": zod.number().int().min(respondCoachBodyContextRecentEntriesItemConfidenceMin).max(respondCoachBodyContextRecentEntriesItemConfidenceMax)
+})).max(respondCoachBodyContextRecentEntriesMax),
+  "wellness": zod.object({
+  "waterAverageOunces": zod.number().min(respondCoachBodyContextWellnessWaterAverageOuncesMin),
+  "waterLoggedDays": zod.number().int().min(respondCoachBodyContextWellnessWaterLoggedDaysMin),
+  "moodLoggedDays": zod.number().int().min(respondCoachBodyContextWellnessMoodLoggedDaysMin),
+  "activityLoggedDays": zod.number().int().min(respondCoachBodyContextWellnessActivityLoggedDaysMin),
+  "weightEntries": zod.number().int().min(respondCoachBodyContextWellnessWeightEntriesMin),
+  "latestWeightKg": zod.number().min(respondCoachBodyContextWellnessLatestWeightKgMin).nullable(),
+  "weightChangeKg": zod.number().nullish()
+}),
+  "planning": zod.object({
+  "plannedMealCount": zod.number().int().min(respondCoachBodyContextPlanningPlannedMealCountMin),
+  "shoppingItemCount": zod.number().int().min(respondCoachBodyContextPlanningShoppingItemCountMin),
+  "savedMealNames": zod.array(zod.string().max(respondCoachBodyContextPlanningSavedMealNamesItemMax)).max(respondCoachBodyContextPlanningSavedMealNamesMax),
+  "savedRecipeCount": zod.number().int().min(respondCoachBodyContextPlanningSavedRecipeCountMin)
+}),
+  "foodMemory": zod.object({
+  "acceptedCount": zod.number().int().min(respondCoachBodyContextFoodMemoryAcceptedCountMin),
+  "repeatPatterns": zod.array(zod.string().max(respondCoachBodyContextFoodMemoryRepeatPatternsItemMax)).max(respondCoachBodyContextFoodMemoryRepeatPatternsMax),
+  "verifiedShare": zod.number().int().min(respondCoachBodyContextFoodMemoryVerifiedShareMin).max(respondCoachBodyContextFoodMemoryVerifiedShareMax),
+  "estimatedShare": zod.number().int().min(respondCoachBodyContextFoodMemoryEstimatedShareMin).max(respondCoachBodyContextFoodMemoryEstimatedShareMax)
+}),
+  "missingData": zod.array(zod.string()).max(respondCoachBodyContextMissingDataMax)
+}),
+  "messages": zod.array(zod.object({
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string().min(1).max(respondCoachBodyMessagesItemContentMax)
+})).min(1).max(respondCoachBodyMessagesMax),
+  "currentScreen": zod.string().min(1).max(respondCoachBodyCurrentScreenMax)
+})
+
+export const respondCoachResponseMessageMax = 2000;
+
+export const respondCoachResponseObservationsItemTextMax = 500;
+
+export const respondCoachResponseObservationsItemEvidenceKeysMax = 6;
+
+export const respondCoachResponseObservationsMax = 4;
+
+export const respondCoachResponseActionsItemLabelMax = 80;
+
+export const respondCoachResponseActionsItemParamsMaxOne = 120;
+
+export const respondCoachResponseActionsMax = 3;
+
+export const respondCoachResponseLimitationsItemMax = 240;
+
+export const respondCoachResponseLimitationsMax = 4;
+
+
+
+export const RespondCoachResponse = zod.object({
+  "message": zod.string().max(respondCoachResponseMessageMax),
+  "observations": zod.array(zod.object({
+  "text": zod.string().max(respondCoachResponseObservationsItemTextMax),
+  "confidence": zod.enum(['high', 'medium', 'limited']),
+  "evidenceKeys": zod.array(zod.string()).max(respondCoachResponseObservationsItemEvidenceKeysMax)
+})).max(respondCoachResponseObservationsMax),
+  "actions": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string().max(respondCoachResponseActionsItemLabelMax),
+  "kind": zod.enum(['navigate', 'prepare']),
+  "destination": zod.enum(['home', 'progress', 'recipes', 'planner', 'scan', 'profile']),
+  "params": zod.record(zod.string(), zod.string().max(respondCoachResponseActionsItemParamsMaxOne)).optional(),
+  "confirmationRequired": zod.boolean()
+})).max(respondCoachResponseActionsMax),
+  "safetyState": zod.enum(['normal', 'caution', 'support_redirect']),
+  "limitations": zod.array(zod.string().max(respondCoachResponseLimitationsItemMax)).max(respondCoachResponseLimitationsMax),
+  "contextCoverage": zod.object({
+  "usedSections": zod.array(zod.string()),
+  "missingSections": zod.array(zod.string())
+})
+})
+
+
+/**
  * @summary Request a portable data export
  */
 export const RequestDataExportResponse = zod.object({

@@ -28,6 +28,8 @@ tags:
     description: Smart camera capture and food recognition
   - name: planner
     description: Personalized weekly meal planning
+  - name: coach
+    description: Context-aware nutrition coaching
 paths:
   /healthz:
     get:
@@ -347,6 +349,32 @@ paths:
           description: Invalid planner input
         "502":
           description: Planner provider unavailable
+  /v1/coach/respond:
+    post:
+      operationId: respondCoach
+      tags: [coach]
+      summary: Respond to a context-aware nutrition coaching request
+      description: |
+        Interprets a bounded, user-controlled Calora context snapshot and
+        returns structured guidance with evidence and allowlisted destinations.
+        Coach responses do not mutate diary, planner, or profile data.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachRespondInput"
+      responses:
+        "200":
+          description: Structured coach response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachResponse"
+        "400":
+          description: Invalid coach input
+        "502":
+          description: Coach provider unavailable
   /v1/privacy/export:
     post:
       operationId: requestDataExport
@@ -717,4 +745,177 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PlannerMeal"
+    CoachMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role: { type: string, enum: [user, assistant] }
+        content: { type: string, minLength: 1, maxLength: 3000 }
+    CoachDateRange:
+      type: object
+      required: [start, end]
+      properties:
+        start: { type: string, format: date }
+        end: { type: string, format: date }
+    CoachContext:
+      type: object
+      required: [schemaVersion, generatedAt, currentDate, dateRange, profile, dailySummaries, recentEntries, wellness, planning, foodMemory, missingData]
+      properties:
+        schemaVersion: { type: integer, minimum: 1 }
+        generatedAt: { type: string, format: date-time }
+        currentDate: { type: string, format: date }
+        dateRange: { $ref: "#/components/schemas/CoachDateRange" }
+        profile:
+          type: object
+          nullable: true
+          properties:
+            name: { type: string }
+            goal: { type: string, enum: [lose, maintain, gain] }
+            activity: { type: string, enum: [low, moderate, high] }
+            diet: { type: string, enum: [Everything, Vegetarian, Vegan, High protein] }
+            calorieTarget: { type: integer, minimum: 0 }
+            weightKg: { type: number, minimum: 0 }
+            targetWeightKg: { type: number, minimum: 0 }
+            age: { type: integer, minimum: 0 }
+        dailySummaries:
+          type: array
+          maxItems: 31
+          items:
+            type: object
+            required: [date, calories, proteinG, carbsG, fatG, meals, waterOunces, hasData]
+            properties:
+              date: { type: string, format: date }
+              calories: { type: number, minimum: 0 }
+              proteinG: { type: number, minimum: 0 }
+              carbsG: { type: number, minimum: 0 }
+              fatG: { type: number, minimum: 0 }
+              fiberG: { type: number, minimum: 0 }
+              sugarG: { type: number, minimum: 0 }
+              sodiumMg: { type: number, minimum: 0 }
+              meals: { type: integer, minimum: 0 }
+              waterOunces: { type: number, minimum: 0 }
+              mood: { type: string, nullable: true }
+              activity: { type: string, nullable: true }
+              hasData: { type: boolean }
+        recentEntries:
+          type: array
+          maxItems: 80
+          items:
+            type: object
+            required: [date, meal, name, calories, proteinG, carbsG, fatG, source, confidence]
+            properties:
+              date: { type: string, format: date }
+              meal: { type: string }
+              name: { type: string, maxLength: 160 }
+              calories: { type: number, minimum: 0 }
+              proteinG: { type: number, minimum: 0 }
+              carbsG: { type: number, minimum: 0 }
+              fatG: { type: number, minimum: 0 }
+              fiberG: { type: number, minimum: 0 }
+              sugarG: { type: number, minimum: 0 }
+              sodiumMg: { type: number, minimum: 0 }
+              source: { type: string }
+              confidence: { type: integer, minimum: 0, maximum: 100 }
+        wellness:
+          type: object
+          required: [waterAverageOunces, waterLoggedDays, moodLoggedDays, activityLoggedDays, weightEntries, latestWeightKg]
+          properties:
+            waterAverageOunces: { type: number, minimum: 0 }
+            waterLoggedDays: { type: integer, minimum: 0 }
+            moodLoggedDays: { type: integer, minimum: 0 }
+            activityLoggedDays: { type: integer, minimum: 0 }
+            weightEntries: { type: integer, minimum: 0 }
+            latestWeightKg: { type: number, minimum: 0, nullable: true }
+            weightChangeKg: { type: number, nullable: true }
+        planning:
+          type: object
+          required: [plannedMealCount, shoppingItemCount, savedMealNames, savedRecipeCount]
+          properties:
+            plannedMealCount: { type: integer, minimum: 0 }
+            shoppingItemCount: { type: integer, minimum: 0 }
+            savedMealNames:
+              type: array
+              maxItems: 20
+              items: { type: string, maxLength: 120 }
+            savedRecipeCount: { type: integer, minimum: 0 }
+        foodMemory:
+          type: object
+          required: [acceptedCount, repeatPatterns, verifiedShare, estimatedShare]
+          properties:
+            acceptedCount: { type: integer, minimum: 0 }
+            repeatPatterns:
+              type: array
+              maxItems: 20
+              items: { type: string, maxLength: 120 }
+            verifiedShare: { type: integer, minimum: 0, maximum: 100 }
+            estimatedShare: { type: integer, minimum: 0, maximum: 100 }
+        missingData:
+          type: array
+          maxItems: 20
+          items: { type: string }
+    CoachRespondInput:
+      type: object
+      required: [context, messages, currentScreen]
+      properties:
+        context:
+          $ref: "#/components/schemas/CoachContext"
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/CoachMessage"
+        currentScreen: { type: string, minLength: 1, maxLength: 64 }
+    CoachObservation:
+      type: object
+      required: [text, confidence, evidenceKeys]
+      properties:
+        text: { type: string, maxLength: 500 }
+        confidence: { type: string, enum: [high, medium, limited] }
+        evidenceKeys:
+          type: array
+          maxItems: 6
+          items: { type: string }
+    CoachAction:
+      type: object
+      required: [id, label, kind, destination, confirmationRequired]
+      properties:
+        id: { type: string }
+        label: { type: string, maxLength: 80 }
+        kind: { type: string, enum: [navigate, prepare] }
+        destination: { type: string, enum: [home, progress, recipes, planner, scan, profile] }
+        params:
+          type: object
+          additionalProperties: { type: string, maxLength: 120 }
+        confirmationRequired: { type: boolean }
+    CoachResponse:
+      type: object
+      required: [message, observations, actions, safetyState, limitations, contextCoverage]
+      properties:
+        message: { type: string, maxLength: 2000 }
+        observations:
+          type: array
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/CoachObservation"
+        actions:
+          type: array
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/CoachAction"
+        safetyState: { type: string, enum: [normal, caution, support_redirect] }
+        limitations:
+          type: array
+          maxItems: 4
+          items: { type: string, maxLength: 240 }
+        contextCoverage:
+          type: object
+          required: [usedSections, missingSections]
+          properties:
+            usedSections:
+              type: array
+              items: { type: string }
+            missingSections:
+              type: array
+              items: { type: string }
 

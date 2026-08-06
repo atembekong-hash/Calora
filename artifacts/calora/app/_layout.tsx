@@ -27,6 +27,7 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerBackTitle: 'Back', contentStyle: { backgroundColor: 'transparent' } }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="coach" options={{ headerShown: false }} />
     </Stack>
   );
 }

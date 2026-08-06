@@ -7,3 +7,4 @@
 - [Daily wellness tracking](daily-wellness-tracking.md) — water and mood are optional per-day local entries; meal count is derived from approved diary logs.
 - [Progress motion](progress-motion.md) — Progress uses restrained entrance, fill, pulse, and bar animations around trustworthy weekly signals.
 - [Local save feedback](local-save-feedback.md) — local wellness actions should acknowledge saves briefly without blocking the logging flow.
+- [Coach safety boundary](coach-safety-boundary.md) — Coach receives bounded local context and may only return evidence-backed guidance plus allowlisted navigation.
