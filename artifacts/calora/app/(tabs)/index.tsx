@@ -76,6 +76,17 @@ const routineStageCopy: Record<ReturnType<typeof useCalora>['livingState']['rout
   },
 };
 
+const livingCategoryLabel: Record<ReturnType<typeof useCalora>['livingState']['category'], string> = {
+  first_day: 'First step',
+  early_habit: 'Early habit',
+  emerging_routine: 'Emerging rhythm',
+  consistent_routine: 'Steady rhythm',
+  returning_after_gap: 'Welcome back',
+  incomplete_day: 'Open day',
+  plan_ready: 'Plan-ready',
+  reflection_ready: 'Reflection-ready',
+};
+
 function LivingRhythmCard({
   colors,
   livingState,
@@ -102,7 +113,7 @@ function LivingRhythmCard({
           <Text style={[styles.livingRhythmTitle, { color: colors.foreground }]}>{copy.title}</Text>
         </View>
         <View style={[styles.livingRhythmStage, { backgroundColor: colors.muted }]}>
-          <Text style={[styles.livingRhythmStageText, { color: colors.mutedForeground }]}>{livingState.focus}</Text>
+          <Text style={[styles.livingRhythmStageText, { color: colors.mutedForeground }]}>{livingCategoryLabel[livingState.category]}</Text>
         </View>
       </View>
       <Text style={[styles.livingRhythmBody, { color: colors.mutedForeground }]}>{copy.body}</Text>
@@ -604,7 +615,7 @@ export default function HomeScreen() {
 
         <View style={[styles.heroCard, { backgroundColor: colors.hero }]}>
           <View style={styles.heroTop}>
-            <View>
+            <View style={styles.heroTopCopy}>
               <Text style={[styles.heroEyebrow, { color: colors.heroMuted }]}>TODAY'S FUEL</Text>
               <Text style={[styles.heroTitle, { color: colors.onHero }]}>{livingState.headline}</Text>
             </View>
@@ -741,8 +752,9 @@ const styles = StyleSheet.create({
   avatarText: { fontFamily: 'Inter_700Bold', fontSize: 16 },
   heroCard: { borderRadius: 26, padding: 20, marginBottom: 16 },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  heroTopCopy: { flex: 1, paddingRight: 10 },
   heroEyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 7 },
-  heroTitle: { fontFamily: 'Inter_700Bold', fontSize: 22, letterSpacing: -0.4 },
+  heroTitle: { fontFamily: 'Inter_700Bold', fontSize: 22, letterSpacing: -0.4, flexShrink: 1 },
   trustBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 12 },
   trustText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   heroMetrics: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 24 },
