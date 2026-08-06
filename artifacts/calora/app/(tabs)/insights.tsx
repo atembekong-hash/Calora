@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Mood, useCalora } from '@/context/CaloraContext';
+import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 
 type WeekDay = {
   date: string;
@@ -15,6 +15,7 @@ type WeekDay = {
   meals: number;
   water: number;
   mood?: Mood;
+  activity?: DailyActivity;
   hasData: boolean;
 };
 
@@ -30,7 +31,7 @@ function dateKeyFromDate(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-function getWeekDays(logs: ReturnType<typeof useCalora>['logs'], waterLogs: ReturnType<typeof useCalora>['waterLogs'], moodLogs: ReturnType<typeof useCalora>['moodLogs'], target: number): WeekDay[] {
+function getWeekDays(logs: ReturnType<typeof useCalora>['logs'], waterLogs: ReturnType<typeof useCalora>['waterLogs'], moodLogs: ReturnType<typeof useCalora>['moodLogs'], activityLogs: ReturnType<typeof useCalora>['activityLogs'], target: number): WeekDay[] {
   const today = new Date();
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date(today);
@@ -47,7 +48,8 @@ function getWeekDays(logs: ReturnType<typeof useCalora>['logs'], waterLogs: Retu
       meals,
       water: waterLogs[dateKey] ?? 0,
       mood: moodLogs[dateKey],
-      hasData: dayLogs.length > 0 || Boolean(waterLogs[dateKey]) || Boolean(moodLogs[dateKey]),
+      activity: activityLogs[dateKey],
+      hasData: dayLogs.length > 0 || Boolean(waterLogs[dateKey]) || Boolean(moodLogs[dateKey]) || Boolean(activityLogs[dateKey]),
     };
   });
 }
@@ -95,10 +97,11 @@ function AnimatedTrackFill({ percentage, color, trackColor }: { percentage: numb
   return <View style={[styles.miniTrack, { backgroundColor: trackColor }]}><Animated.View style={[styles.miniFill, { backgroundColor: color }, animatedStyle]} /></View>;
 }
 
-function WeeklyPatternsCard({ colors, days, target }: { colors: ReturnType<typeof useCalora>['colors']; days: WeekDay[]; target: number }) {
+function WeeklyPatternsCard({ colors, days }: { colors: ReturnType<typeof useCalora>['colors']; days: WeekDay[] }) {
   const loggedDays = days.filter((day) => day.hasData).length;
   const waterDays = days.filter((day) => day.water > 0).length;
   const moodDays = days.filter((day) => day.mood).length;
+  const activityDays = days.filter((day) => day.activity).length;
   const averageWater = waterDays ? Math.round(days.reduce((sum, day) => sum + day.water, 0) / waterDays) : 0;
   const averageCalories = days.filter((day) => day.kcal > 0).length
     ? Math.round(days.reduce((sum, day) => sum + day.kcal, 0) / days.filter((day) => day.kcal > 0).length)
@@ -133,7 +136,7 @@ function WeeklyPatternsCard({ colors, days, target }: { colors: ReturnType<typeo
       <View style={styles.patternStats}>
         <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageWater} fl oz</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. water</Text></View>
         <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageCalories ? averageCalories.toLocaleString() : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. kcal</Text></View>
-        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{moodDays}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>mood check-ins</Text></View>
+        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{activityDays}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>movement days</Text></View>
       </View>
       <Text style={[styles.patternNote, { color: colors.mutedForeground }]}>No entry is a negative score. Keep building a picture that feels useful to you.</Text>
     </View>
@@ -141,7 +144,7 @@ function WeeklyPatternsCard({ colors, days, target }: { colors: ReturnType<typeo
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, profile, waterLogs, moodLogs } = useCalora();
+  const { colors, logs, weights, addWeight, profile, waterLogs, moodLogs, activityLogs, setActivity } = useCalora();
   const insets = useSafeAreaInsets();
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
@@ -160,7 +163,7 @@ export default function InsightsScreen() {
   const moodToday = moodLogs[todayKey];
   const moodLabel = moodToday ? moodToday.charAt(0).toUpperCase() + moodToday.slice(1) : 'Not logged';
   const target = profile?.calorieTarget ?? 2000;
-  const weekDays = getWeekDays(logs, waterLogs, moodLogs, target);
+  const weekDays = getWeekDays(logs, waterLogs, moodLogs, activityLogs, target);
   const signalDays = weekDays.filter((day) => day.hasData).length;
   const averageWeekCalories = weekDays.filter((day) => day.kcal > 0).length
     ? Math.round(weekDays.reduce((sum, day) => sum + day.kcal, 0) / weekDays.filter((day) => day.kcal > 0).length)
@@ -272,7 +275,7 @@ export default function InsightsScreen() {
         </AnimatedReveal>
 
         <AnimatedReveal delay={360}>
-          <WeeklyPatternsCard colors={colors} days={weekDays} target={target} />
+          <WeeklyPatternsCard colors={colors} days={weekDays} />
         </AnimatedReveal>
 
         <View style={styles.sectionHeader}>
@@ -316,6 +319,46 @@ export default function InsightsScreen() {
           </View>
         </AnimatedReveal>
 
+        <AnimatedReveal delay={520}>
+          <View style={[styles.checkinCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.signalCardHeader}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Daily check-ins</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Optional context for your weekly trend.</Text>
+              </View>
+              <View style={[styles.signalIcon, { backgroundColor: colors.accent }]}>
+                <Feather name="edit-3" size={15} color={colors.accentForeground} />
+              </View>
+            </View>
+            <Text style={[styles.checkinLabel, { color: colors.mutedForeground }]}>MOVEMENT TODAY</Text>
+            <View style={styles.activityOptions}>
+              {([
+                { value: 'rest', label: 'Rest', icon: 'moon' },
+                { value: 'light', label: 'Light', icon: 'sun' },
+                { value: 'moderate', label: 'Moderate', icon: 'activity' },
+                { value: 'high', label: 'High', icon: 'zap' },
+              ] as const).map((option) => {
+                const selected = activityLogs[todayKey] === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    accessibilityLabel={`${option.label} activity today`}
+                    testID={`activity-${option.value}`}
+                    onPress={() => setActivity(todayKey, option.value)}
+                    style={[styles.activityOption, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}
+                  >
+                    <Feather name={option.icon as keyof typeof Feather.glyphMap} size={14} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+                    <Text style={[styles.activityOptionText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{option.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={[styles.checkinHint, { color: colors.mutedForeground }]}>
+              {activityLogs[todayKey] ? 'Saved on this device. You can change it anytime.' : 'Nothing is assumed when you leave this blank.'}
+            </Text>
+          </View>
+        </AnimatedReveal>
+
         <View style={styles.weightHeader}>
           <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your trend matters more than a single day</Text></View>
           <Pressable accessibilityLabel="Log weight" onPress={() => setShowWeight(true)} style={[styles.weightButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.weightButtonText, { color: colors.primaryForeground }]}>Log</Text></Pressable>
@@ -323,7 +366,7 @@ export default function InsightsScreen() {
         <AnimatedReveal delay={540}>
         <View style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.weightValue, { color: colors.foreground }]}>{latestWeight.toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>kg</Text></Text>
-          <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length > 1 ? `${weights.length} weigh-ins recorded locally` : 'Add a few weigh-ins to unlock trend guidance'}</Text>
+          <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length > 1 ? `${weights.length} weigh-ins recorded locally` : 'Optional · add a few weigh-ins to unlock trend guidance'}</Text>
           <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '54%' : '10%' }]} /></View>
         </View>
         </AnimatedReveal>
@@ -434,6 +477,12 @@ const styles = StyleSheet.create({
   patternStatValue: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   patternStatLabel: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 3 },
   patternNote: { borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.14)', paddingTop: 10, marginTop: 13, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
+  checkinCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginTop: 24 },
+  checkinLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, letterSpacing: 1.1, marginBottom: 8 },
+  activityOptions: { flexDirection: 'row', gap: 7 },
+  activityOption: { flex: 1, minHeight: 58, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 13, paddingHorizontal: 3, gap: 5 },
+  activityOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 },
+  checkinHint: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, marginTop: 11 },
   signalCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginTop: 24 },
   signalCardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 15 },
   signalIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },

@@ -60,6 +60,8 @@ export type WeightEntry = { id: string; date: string; kg: number; source: 'manua
 export type Mood = 'energized' | 'good' | 'okay' | 'low' | 'stressed';
 export type WaterLog = Record<string, number>;
 export type MoodLog = Record<string, Mood>;
+export type DailyActivity = 'rest' | 'light' | 'moderate' | 'high';
+export type ActivityLog = Record<string, DailyActivity>;
 export type SavedMeal = { id: string; name: string; kind: 'meal' | 'recipe'; foodIds: string[]; calories: number; protein: number; carbs: number; fat: number };
 export type CaloraRecipe = {
   id: string;
@@ -119,6 +121,7 @@ type CaloraState = {
   weights: WeightEntry[];
   waterLogs: WaterLog;
   moodLogs: MoodLog;
+  activityLogs: ActivityLog;
   savedMeals: SavedMeal[];
   localRecipes: CaloraRecipe[];
   savedRecipeIds: string[];
@@ -141,6 +144,7 @@ type CaloraContextValue = {
   weights: WeightEntry[];
   waterLogs: WaterLog;
   moodLogs: MoodLog;
+  activityLogs: ActivityLog;
   savedMeals: SavedMeal[];
   localRecipes: CaloraRecipe[];
   savedRecipeIds: string[];
@@ -160,6 +164,7 @@ type CaloraContextValue = {
   addWeight: (kg: number, source?: WeightEntry['source']) => void;
   addWater: (date: string, ounces?: number) => void;
   setMood: (date: string, mood: Mood) => void;
+  setActivity: (date: string, activity: DailyActivity) => void;
   saveMeal: (meal: Omit<SavedMeal, 'id'>) => void;
   saveRecipe: (recipe: Omit<CaloraRecipe, 'id'>) => void;
   toggleSavedRecipe: (recipeId: string) => void;
@@ -279,6 +284,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   ]);
   const [waterLogs, setWaterLogs] = useState<WaterLog>({});
   const [moodLogs, setMoodLogs] = useState<MoodLog>({});
+  const [activityLogs, setActivityLogs] = useState<ActivityLog>({});
   const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
   const [localRecipes, setLocalRecipes] = useState<CaloraRecipe[]>([]);
   const [savedRecipeIds, setSavedRecipeIds] = useState<string[]>([]);
@@ -314,6 +320,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         if (saved.weights) setWeights(saved.weights);
          if (saved.waterLogs) setWaterLogs(saved.waterLogs);
          if (saved.moodLogs) setMoodLogs(saved.moodLogs);
+          if (saved.activityLogs) setActivityLogs(saved.activityLogs);
         if (saved.savedMeals) setSavedMeals(saved.savedMeals.map((meal) => ({ ...meal, kind: meal.kind ?? 'meal' })));
         if (saved.localRecipes) setLocalRecipes(saved.localRecipes);
         if (saved.savedRecipeIds) setSavedRecipeIds(saved.savedRecipeIds);
@@ -339,6 +346,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       weights,
       waterLogs,
       moodLogs,
+      activityLogs,
       savedMeals,
       localRecipes,
       savedRecipeIds,
@@ -357,7 +365,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       hydrationReminders,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => undefined);
-  }, [consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationReminders, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+  }, [activityLogs, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationReminders, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -368,6 +376,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     weights,
     waterLogs,
     moodLogs,
+    activityLogs,
     savedMeals,
     localRecipes,
     savedRecipeIds,
@@ -525,6 +534,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       setMoodLogs((current) => ({ ...current, [date]: mood }));
       queueMutation('settings', 'upsert');
     },
+    setActivity: (date, activity) => {
+      setActivityLogs((current) => ({ ...current, [date]: activity }));
+      queueMutation('settings', 'upsert');
+    },
     saveMeal: (meal) => {
       setSavedMeals((current) => [...current, { ...meal, id: makeId('meal') }]);
       queueMutation('savedMeal', 'upsert');
@@ -557,13 +570,14 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     setHealthConnected,
     clearOutbox: () => setOutbox([]),
-     exportData: async () => JSON.stringify({ profile, logs, weights, waterLogs, moodLogs, savedMeals, localRecipes, savedRecipeIds, plannerWeekStart, plannerMeals, shoppingItems, foodDrafts, foodMemories, repeatPatterns, memoryCorrections, consentAccepted }, null, 2),
+      exportData: async () => JSON.stringify({ profile, logs, weights, waterLogs, moodLogs, activityLogs, savedMeals, localRecipes, savedRecipeIds, plannerWeekStart, plannerMeals, shoppingItems, foodDrafts, foodMemories, repeatPatterns, memoryCorrections, consentAccepted }, null, 2),
     clearAllData: async () => {
       await AsyncStorage.removeItem(STORAGE_KEY);
       setLogs([]);
       setWeights([]);
       setWaterLogs({});
       setMoodLogs({});
+      setActivityLogs({});
       setSavedMeals([]);
       setLocalRecipes([]);
       setSavedRecipeIds([]);
@@ -597,7 +611,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       queueMutation('settings', 'upsert');
     },
     toggleShoppingItem: (itemId) => setShoppingItems((items) => items.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item)),
-    }), [consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationReminders, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+    }), [activityLogs, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationReminders, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }
