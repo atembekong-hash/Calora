@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -127,6 +128,7 @@ export default function CoachScreen() {
   const insets = useSafeAreaInsets();
   const respondCoach = useRespondCoach();
   const [composer, setComposer] = useState('');
+  const [menuVisible, setMenuVisible] = useState(false);
   const [turns, setTurns] = useState<DisplayTurn[]>(() => coachMessages.map((message, index) => ({
     id: `saved-${index}`,
     role: message.role,
@@ -186,6 +188,13 @@ export default function CoachScreen() {
     void sendMessage('Give me a calm, useful read on my nutrition and wellness this week.');
   };
 
+  const clearConversation = () => {
+    clearCoachHistory();
+    setTurns([]);
+    setComposer('');
+    setMenuVisible(false);
+  };
+
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <KeyboardAwareScrollViewCompat
@@ -201,11 +210,14 @@ export default function CoachScreen() {
             <Text style={[styles.title, { color: colors.foreground }]}>Calora Coach</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Your food, wellness, and planning context in one place.</Text>
           </View>
-          {coachConsentAccepted && (
-            <Pressable accessibilityLabel="Clear Coach history" onPress={clearCoachHistory} style={[styles.clearButton, { backgroundColor: colors.muted }]}>
-              <Feather name="trash-2" size={15} color={colors.mutedForeground} />
-            </Pressable>
-          )}
+          <Pressable
+            accessibilityLabel="Open Coach main menu"
+            testID="coach-main-menu"
+            onPress={() => setMenuVisible(true)}
+            style={({ pressed }) => [styles.menuButton, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}
+          >
+            <Feather name="menu" size={19} color={colors.foreground} />
+          </Pressable>
         </View>
 
         {!coachConsentAccepted ? (
@@ -294,6 +306,98 @@ export default function CoachScreen() {
           </Pressable>
         </View>
       )}
+
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <View style={styles.menuOverlay}>
+          <Pressable
+            accessibilityLabel="Close Coach main menu"
+            testID="coach-menu-backdrop"
+            onPress={() => setMenuVisible(false)}
+            style={styles.menuBackdrop}
+          />
+          <View style={[styles.menuSheet, { backgroundColor: colors.background, paddingTop: insets.top + 14, paddingBottom: insets.bottom + 14 }]}>
+            <View style={styles.menuHeader}>
+              <View style={styles.menuTitleGroup}>
+                <View style={[styles.menuTitleIcon, { backgroundColor: colors.accent }]}>
+                  <Feather name="message-square" size={16} color={colors.accentForeground} />
+                </View>
+                <View>
+                  <Text style={[styles.menuEyebrow, { color: colors.primary }]}>CALORA COACH</Text>
+                  <Text style={[styles.menuTitle, { color: colors.foreground }]}>Chat history</Text>
+                </View>
+              </View>
+              <Pressable
+                accessibilityLabel="Close Coach menu"
+                testID="coach-menu-close"
+                onPress={() => setMenuVisible(false)}
+                style={[styles.menuCloseButton, { backgroundColor: colors.muted }]}
+              >
+                <Feather name="x" size={17} color={colors.foreground} />
+              </Pressable>
+            </View>
+
+            {coachConsentAccepted ? (
+              <>
+                <Pressable
+                  accessibilityLabel="Start a new Coach chat"
+                  testID="coach-new-chat"
+                  onPress={clearConversation}
+                  style={({ pressed }) => [styles.newChatButton, { backgroundColor: colors.primary, opacity: pressed ? 0.72 : 1 }]}
+                >
+                  <Feather name="plus" size={16} color={colors.primaryForeground} />
+                  <Text style={[styles.newChatText, { color: colors.primaryForeground }]}>New chat</Text>
+                </Pressable>
+
+                <Text style={[styles.historyLabel, { color: colors.mutedForeground }]}>THIS CHAT</Text>
+                {coachMessages.length > 0 ? (
+                  <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    {coachMessages.slice(-8).map((message, index) => (
+                      <View key={`${message.role}-${index}`} style={[styles.historyRow, index > 0 && { borderTopColor: colors.border, borderTopWidth: 1 }]}>
+                        <View style={[styles.historyRole, { backgroundColor: message.role === 'user' ? colors.primary : colors.accent }]}>
+                          <Feather name={message.role === 'user' ? 'user' : 'zap'} size={11} color={message.role === 'user' ? colors.primaryForeground : colors.accentForeground} />
+                        </View>
+                        <View style={styles.historyCopy}>
+                          <Text style={[styles.historyRoleText, { color: colors.mutedForeground }]}>{message.role === 'user' ? 'You' : 'Calora Coach'}</Text>
+                          <Text numberOfLines={2} style={[styles.historyMessage, { color: colors.foreground }]}>{message.content}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={[styles.emptyHistory, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Feather name="message-circle" size={20} color={colors.mutedForeground} />
+                    <Text style={[styles.emptyHistoryTitle, { color: colors.foreground }]}>No chats yet</Text>
+                    <Text style={[styles.emptyHistoryBody, { color: colors.mutedForeground }]}>Your Coach conversations will appear here on this device.</Text>
+                  </View>
+                )}
+
+                {coachMessages.length > 0 && (
+                  <Pressable
+                    accessibilityLabel="Clear Coach chat history"
+                    testID="coach-clear-history"
+                    onPress={clearConversation}
+                    style={({ pressed }) => [styles.clearHistoryButton, { borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}
+                  >
+                    <Feather name="trash-2" size={14} color={colors.mutedForeground} />
+                    <Text style={[styles.clearHistoryText, { color: colors.mutedForeground }]}>Clear chat history</Text>
+                  </Pressable>
+                )}
+              </>
+            ) : (
+              <View style={[styles.emptyHistory, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Feather name="lock" size={20} color={colors.mutedForeground} />
+                <Text style={[styles.emptyHistoryTitle, { color: colors.foreground }]}>Chat history is private</Text>
+                <Text style={[styles.emptyHistoryBody, { color: colors.mutedForeground }]}>Continue to Coach to save and revisit conversations on this device.</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -306,7 +410,7 @@ const styles = StyleSheet.create({
   eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.2, marginBottom: 4 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 25, letterSpacing: -0.6 },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginTop: 4 },
-  clearButton: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  menuButton: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   consentCard: { borderRadius: 25, padding: 20 },
   coachMark: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   consentTitle: { fontFamily: 'Inter_700Bold', fontSize: 23, letterSpacing: -0.4 },
@@ -348,4 +452,27 @@ const styles = StyleSheet.create({
   composerDock: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, paddingHorizontal: 16, paddingTop: 9 },
   composer: { flex: 1, minHeight: 45, maxHeight: 100, borderWidth: 1, borderRadius: 15, paddingHorizontal: 13, paddingVertical: 11, fontFamily: 'Inter_400Regular', fontSize: 13 },
   sendButton: { width: 45, height: 45, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  menuOverlay: { flex: 1, flexDirection: 'row' },
+  menuBackdrop: { flex: 1, backgroundColor: 'rgba(8,22,15,0.46)' },
+  menuSheet: { width: '86%', maxWidth: 390, paddingHorizontal: 18, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: -5, height: 0 }, elevation: 12 },
+  menuHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
+  menuTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  menuTitleIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  menuEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 1.15, marginBottom: 3 },
+  menuTitle: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.3 },
+  menuCloseButton: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  newChatButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, paddingVertical: 13, marginBottom: 25 },
+  newChatText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  historyLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.15, marginBottom: 9 },
+  historyCard: { borderWidth: 1, borderRadius: 17, overflow: 'hidden' },
+  historyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingHorizontal: 11, paddingVertical: 11 },
+  historyRole: { width: 24, height: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  historyCopy: { flex: 1 },
+  historyRoleText: { fontFamily: 'Inter_700Bold', fontSize: 9, marginBottom: 3 },
+  historyMessage: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
+  emptyHistory: { borderWidth: 1, borderRadius: 17, alignItems: 'center', paddingHorizontal: 20, paddingVertical: 25 },
+  emptyHistoryTitle: { fontFamily: 'Inter_700Bold', fontSize: 13, marginTop: 10 },
+  emptyHistoryBody: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 5 },
+  clearHistoryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderRadius: 13, paddingVertical: 12, marginTop: 14 },
+  clearHistoryText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
 });

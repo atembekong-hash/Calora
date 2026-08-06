@@ -8,3 +8,4 @@
 - [Progress motion](progress-motion.md) — Progress uses restrained entrance, fill, pulse, and bar animations around trustworthy weekly signals.
 - [Local save feedback](local-save-feedback.md) — local wellness actions should acknowledge saves briefly without blocking the logging flow.
 - [Coach safety boundary](coach-safety-boundary.md) — Coach receives bounded local context and may only return evidence-backed guidance plus allowlisted navigation.
+- [Coach chat menu](coach-chat-menu.md) — the Coach header menu owns local history, new-chat, and clear-history actions without changing Coach’s safety boundary.
