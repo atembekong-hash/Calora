@@ -454,12 +454,16 @@ export const listRecipesQueryCategoryMax = 80;
 export const listRecipesQueryLimitDefault = 12;
 export const listRecipesQueryLimitMax = 30;
 
+export const listRecipesQueryOffsetDefault = 0;
+export const listRecipesQueryOffsetMin = 0;
+
 
 
 export const ListRecipesQueryParams = zod.object({
   "query": zod.coerce.string().max(listRecipesQueryQueryMax).optional(),
   "category": zod.coerce.string().max(listRecipesQueryCategoryMax).optional(),
-  "limit": zod.coerce.number().int().min(1).max(listRecipesQueryLimitMax).default(listRecipesQueryLimitDefault)
+  "limit": zod.coerce.number().int().min(1).max(listRecipesQueryLimitMax).default(listRecipesQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(listRecipesQueryOffsetMin).default(listRecipesQueryOffsetDefault)
 })
 
 export const ListRecipesResponse = zod.object({

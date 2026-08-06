@@ -55,13 +55,15 @@ router.get("/v1/recipes", async (req, res) => {
     const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
     const parsedLimit = Number(req.query.limit ?? 12);
     const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 30) : 12;
+    const parsedOffset = Number(req.query.offset ?? 0);
+    const offset = Number.isFinite(parsedOffset) ? Math.max(Math.floor(parsedOffset), 0) : 0;
     const url = query
       ? `${API_ROOT}/search.php?s=${encodeURIComponent(query)}`
       : category
         ? `${API_ROOT}/filter.php?c=${encodeURIComponent(category)}`
         : `${API_ROOT}/filter.php?c=Vegetarian`;
     const data = await fetchJson(url);
-    const recipes = (data.meals ?? []).slice(0, limit).map(toRecipe);
+    const recipes = (data.meals ?? []).slice(offset, offset + limit).map(toRecipe);
     res.json({ source: SOURCE, recipes });
   } catch (error) {
     res.status(502).json({ message: error instanceof Error ? error.message : "Recipe provider unavailable" });

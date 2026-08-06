@@ -20,4 +20,8 @@ category?: string;
  * @maximum 30
  */
 limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
 };

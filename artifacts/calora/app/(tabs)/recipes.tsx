@@ -1,8 +1,8 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Keyboard, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGetRecipe, useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
@@ -10,6 +10,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 
 const categories = ['For you', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert'];
+const RECIPE_PAGE_SIZE = 18;
 
 function recipeKey(recipe: Recipe | CaloraRecipe) {
   return recipe.id;
@@ -275,18 +276,47 @@ export default function RecipesScreen() {
   const [category, setCategory] = useState('For you');
   const [selected, setSelected] = useState<Recipe | CaloraRecipe | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [remoteOffset, setRemoteOffset] = useState(0);
+  const [remoteRecipes, setRemoteRecipes] = useState<Recipe[]>([]);
+  const [hasMoreRemote, setHasMoreRemote] = useState(true);
+  const loadingMoreRef = useRef(false);
   const remainingCalories = Math.max((profile?.calorieTarget ?? 2000) - logs.filter((log) => log.date === new Date().toISOString().slice(0, 10)).reduce((sum, log) => sum + log.calories, 0), 0);
   const localMatches = useMemo(() => localRecipes.filter((recipe) => {
     const haystack = `${recipe.name} ${recipe.category ?? ''} ${recipe.tags.join(' ')} ${recipe.ingredients.join(' ')}`.toLowerCase();
     return haystack.includes(search.toLowerCase()) && (category === 'For you' || category === 'My recipes' || recipe.category === category);
   }), [category, localRecipes, search]);
-  const recipesQuery = useListRecipes({ query: search || undefined, category: category === 'For you' || category === 'My recipes' ? undefined : category, limit: 18 }, { query: { queryKey: ['recipes', search, category], staleTime: 1000 * 60 * 10 } });
-  const remoteRecipes = recipesQuery.data?.recipes ?? [];
+  const recipesQuery = useListRecipes({ query: search || undefined, category: category === 'For you' || category === 'My recipes' ? undefined : category, limit: RECIPE_PAGE_SIZE, offset: remoteOffset }, { query: { queryKey: ['recipes', search, category, remoteOffset], staleTime: 1000 * 60 * 10 } });
+  useEffect(() => {
+    setRemoteOffset(0);
+    setRemoteRecipes([]);
+    setHasMoreRemote(true);
+    loadingMoreRef.current = false;
+  }, [search, category]);
+  useEffect(() => {
+    const page = recipesQuery.data?.recipes;
+    if (!page) return;
+    setRemoteRecipes((current) => {
+      if (remoteOffset === 0) return page;
+      const existing = new Set(current.map((recipe) => recipe.id));
+      return [...current, ...page.filter((recipe) => !existing.has(recipe.id))];
+    });
+    setHasMoreRemote(page.length === RECIPE_PAGE_SIZE);
+    loadingMoreRef.current = false;
+  }, [recipesQuery.data, remoteOffset]);
   const visibleRemote = category === 'My recipes' ? [] : remoteRecipes;
   const savedRecipes = [...localRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
+  const loadMoreRecipes = () => {
+    if (category === 'My recipes' || !hasMoreRemote || recipesQuery.isFetching || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setRemoteOffset((current) => current + RECIPE_PAGE_SIZE);
+  };
+  const handleRecipeScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 520) loadMoreRecipes();
+  };
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false} onScroll={handleRecipeScroll} scrollEventThrottle={16} decelerationRate="normal">
         <View style={styles.recipeHeader}>
           <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
           <LinearGradient
@@ -319,8 +349,8 @@ export default function RecipesScreen() {
 
         {savedRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your shortlist, ready when you are.</Text></View></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedRecipes.slice(0, 6).map((recipe) => <View key={recipeKey(recipe)} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} /></View>)}</ScrollView></>}
 
-        <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching ? 'Refreshing the cookbook…' : `${visibleRemote.length + localMatches.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
-        {recipesQuery.isLoading ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes from open sources…</Text></View> : recipesQuery.isError ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>The cookbook is offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your saved and personal recipes remain available. Try again when a connection is available.</Text></View> : <View style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</View>}
+        <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : `${visibleRemote.length + localMatches.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
+        {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes from open sources…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>The cookbook is offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your saved and personal recipes remain available. Try again when a connection is available.</Text></View> : <><View style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</View>{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Bringing in more recipes…</Text></View>}</>}
         <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is provided by TheMealDB. Recipes remain attributed to their source; Calora’s nutrition confidence is shown separately.</Text>
       </ScrollView>
       <RecipeDetailModal recipe={selected} onClose={() => setSelected(null)} />
@@ -386,6 +416,7 @@ const styles = StyleSheet.create({
   cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.12)' },
   sourceText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 8 },
   loadingState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 10 },
+  loadMoreState: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 18 },
   loadingText: { fontFamily: 'Inter_400Regular', fontSize: 11 },
   emptyState: { borderWidth: 1, borderRadius: 18, padding: 18, alignItems: 'center' },
   emptyTitle: { fontFamily: 'Inter_700Bold', fontSize: 14, marginTop: 10 },
