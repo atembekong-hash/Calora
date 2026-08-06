@@ -455,6 +455,32 @@ export default function HomeScreen() {
     setShowAdd(true);
   };
 
+  const handleLivingAction = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (livingState.action.kind === 'log_meal') {
+      openAdd();
+      return;
+    }
+    if (livingState.action.kind === 'add_water') {
+      addWater(selectedDate, 8);
+      setSaveNotice('Water check-in added for this day.');
+      return;
+    }
+    if (livingState.action.kind === 'view_progress') {
+      router.navigate('/(tabs)/insights');
+      return;
+    }
+    router.navigate('/(tabs)/planner');
+  };
+
+  const livingActionIcon = livingState.action.kind === 'add_water'
+    ? 'droplet'
+    : livingState.action.kind === 'view_progress'
+      ? 'bar-chart-2'
+      : livingState.action.kind === 'open_planner'
+        ? 'calendar'
+        : 'plus';
+
   useEffect(() => {
     if (!saveNotice) return;
     const timeout = setTimeout(() => setSaveNotice(null), 2200);
@@ -513,6 +539,23 @@ export default function HomeScreen() {
               <Text style={[styles.heroHint, { color: colors.heroMuted }]}>{livingState.reason}</Text>
             </View>
           </View>
+          <Pressable
+            accessibilityLabel={livingState.action.label}
+            accessibilityRole="button"
+            testID="living-state-action"
+            onPress={handleLivingAction}
+            style={({ pressed }) => [
+              styles.livingAction,
+              {
+                backgroundColor: colors.primary,
+                opacity: pressed ? 0.78 : 1,
+              },
+            ]}
+          >
+            <Feather name={livingActionIcon} size={16} color={colors.primaryForeground} />
+            <Text style={[styles.livingActionText, { color: colors.primaryForeground }]}>{livingState.action.label}</Text>
+            <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
+          </Pressable>
         </View>
 
         <View style={styles.quickActions}>
@@ -623,6 +666,8 @@ const styles = StyleSheet.create({
   heroTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   heroFill: { height: 7, borderRadius: 4 },
   heroHint: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 10 },
+  livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 42, borderRadius: 14, paddingHorizontal: 14, marginTop: 20 },
+  livingActionText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   quickActions: { flexDirection: 'row', gap: 10, marginBottom: 22 },
   quickAction: { flex: 1, minHeight: 88, borderWidth: 1, borderRadius: 18, padding: 12, justifyContent: 'space-between' },
   quickIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
