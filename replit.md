@@ -1,6 +1,6 @@
-# [Project name]
+# Calora
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Calora is a calm, fast calorie tracker for iOS and Android with verified food provenance, low-friction logging, adaptive insights, and transparent premium pricing.
 
 ## Run & Operate
 
@@ -10,6 +10,7 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- Mobile preview: `pnpm --filter @workspace/calora run dev`
 
 ## Stack
 
@@ -22,15 +23,20 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/calora` — Expo mobile app
+- `artifacts/calora/context/CaloraContext.tsx` — local-first diary and theme state
+- `artifacts/calora/constants/colors.ts` — Calora light and dark semantic tokens
+- `docs/product-strategy.md` — competitive audit, scorecard, gaps, and verified-food schema
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The first build is local-first with AsyncStorage so logging remains useful offline and does not pretend a backend is complete.
+- Food suggestions carry provenance and confidence in the UI; photo results remain estimates until reviewed.
+- Premium pricing is displayed plainly at $9.99/month and $69.99/year; native billing is intentionally not faked until a billing provider is connected.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Calora gives users a daily calorie and macro view, verified food shortcuts, photo-assisted capture, manual quick add, weekly insights, adaptive-target framing, and explicit light/dark/system appearance controls.
 
 ## User preferences
 
