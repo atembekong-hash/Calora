@@ -21,11 +21,15 @@ function isLocalRecipe(recipe: Recipe | CaloraRecipe): recipe is CaloraRecipe {
 
 function RecipeImage({ recipe, height = 160 }: { recipe: Recipe | CaloraRecipe; height?: number }) {
   return recipe.image ? (
-    <Image source={{ uri: recipe.image }} contentFit="cover" transition={180} style={[styles.recipeImage, { height }]} />
+    <Image source={{ uri: recipe.image }} contentFit="cover" transition={180} cachePolicy="memory-disk" style={[styles.recipeImage, { height }]} />
   ) : (
     <View style={[styles.recipeImage, styles.imageFallback, { height }]}>
-      <Feather name="book-open" size={26} color="#9dd7bd" />
-      <Text style={styles.imageFallbackText}>Calora recipe</Text>
+      <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={['rgba(18,34,24,0.18)', 'rgba(18,34,24,0.82)']} style={StyleSheet.absoluteFillObject} />
+      <View style={styles.imageFallbackCopy}>
+        <Feather name="book-open" size={22} color="#d4eadc" />
+        <Text style={styles.imageFallbackText}>Calora recipe</Text>
+      </View>
     </View>
   );
 }
@@ -368,6 +372,7 @@ const styles = StyleSheet.create({
   recipeCard: { borderWidth: 1, borderRadius: 19, overflow: 'hidden' },
   recipeImage: { width: '100%', backgroundColor: '#1d4539' },
   imageFallback: { alignItems: 'center', justifyContent: 'center' },
+  imageFallbackCopy: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   imageFallbackText: { color: '#9dd7bd', fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 6 },
   saveButton: { position: 'absolute', right: 10, top: 10, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   localBadge: { position: 'absolute', left: 10, bottom: 10, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 4 },

@@ -53,6 +53,8 @@ export default function InsightsScreen() {
         </View>
 
         <View style={[styles.adaptiveCard, { backgroundColor: colors.hero }]}>
+          <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={styles.adaptiveTexture} />
+          <LinearGradient colors={['rgba(20,63,52,0.04)', 'rgba(20,63,52,0.62)']} style={styles.adaptiveTextureOverlay} />
           <View style={[styles.iconCircle, { backgroundColor: 'rgba(157,215,189,0.15)' }]}>
             <Feather name="activity" size={20} color={colors.heroMuted} />
           </View>
@@ -178,7 +180,9 @@ const styles = StyleSheet.create({
   eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.7 },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, marginTop: 8, marginBottom: 22, maxWidth: 330 },
-  adaptiveCard: { borderRadius: 24, padding: 19, marginBottom: 14 },
+  adaptiveCard: { borderRadius: 24, padding: 19, marginBottom: 14, overflow: 'hidden', position: 'relative' },
+  adaptiveTexture: { ...StyleSheet.absoluteFillObject, opacity: 0.22 },
+  adaptiveTextureOverlay: { ...StyleSheet.absoluteFillObject },
   iconCircle: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   cardEyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.2, marginBottom: 7 },
   adaptiveTitle: { fontFamily: 'Inter_700Bold', fontSize: 19, letterSpacing: -0.3, marginBottom: 8 },

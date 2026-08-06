@@ -172,7 +172,7 @@ export default function ProfileScreen() {
           <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved meals</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Keep repeatable meals one tap away.</Text></View>
           <Pressable accessibilityLabel="Create saved meal" onPress={() => setSavedMealModal(true)} style={[styles.connectButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.connectButtonText, { color: colors.primaryForeground }]}>Create</Text></Pressable>
         </View>
-        {savedMeals.length === 0 ? <View style={[styles.emptySaved, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="bookmark" size={18} color={colors.mutedForeground} /><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>No saved meals yet. Create one for a repeatable lunch, dinner, or recipe.</Text></View> : <View style={styles.savedList}>{savedMeals.map((meal) => <View key={meal.id} style={[styles.savedItem, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name={meal.kind === 'recipe' ? 'book-open' : 'bookmark'} size={16} color={colors.accentForeground} /></View><View style={{ flex: 1 }}><Text style={[styles.settingTitle, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.protein}g protein · {meal.kind}</Text></View></View>)}</View>}
+        {savedMeals.length === 0 ? <View style={[styles.emptySaved, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={require('../../assets/images/calora-profile-header.jpg')} contentFit="cover" style={styles.emptySavedImage} /><View style={styles.emptySavedCopy}><Text style={[styles.emptySavedTitle, { color: colors.foreground }]}>Your repeatable meals</Text><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>Create one for a repeatable lunch, dinner, or recipe.</Text></View></View> : <View style={styles.savedList}>{savedMeals.map((meal) => <View key={meal.id} style={[styles.savedItem, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name={meal.kind === 'recipe' ? 'book-open' : 'bookmark'} size={16} color={colors.accentForeground} /></View><View style={{ flex: 1 }}><Text style={[styles.settingTitle, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.protein}g protein · {meal.kind}</Text></View></View>)}</View>}
 
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Trust & privacy</Text>
         <View style={[styles.connectionRow, { backgroundColor: colors.accent }]}>
@@ -342,7 +342,10 @@ const styles = StyleSheet.create({
   connectButton: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
   connectButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
   savedHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 25, marginBottom: 10 },
-  emptySaved: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderRadius: 17, padding: 13 },
+  emptySaved: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 10 },
+  emptySavedImage: { width: 58, height: 58, borderRadius: 13 },
+  emptySavedCopy: { flex: 1 },
+  emptySavedTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12, marginBottom: 3 },
   savedList: { gap: 8 },
   savedItem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 17, padding: 11 },
   savedModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, marginTop: 'auto' },

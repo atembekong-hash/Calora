@@ -361,7 +361,7 @@ export default function HomeScreen() {
           <Pressable accessibilityLabel="Next diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() + 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={17} color={colors.foreground} /></Pressable>
         </View>
         <View style={[styles.logCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {!selectedLogs.length && <View style={styles.emptyDiary}><Feather name="calendar" size={22} color={colors.mutedForeground} /><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>Nothing logged yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal for this day and it will stay here offline.</Text></View>}
+          {!selectedLogs.length && <View style={styles.emptyDiary}><View style={styles.emptyDiaryVisual}><Image source={require('../../assets/images/calora-home-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} /><LinearGradient colors={['rgba(18,34,24,0.1)', 'rgba(18,34,24,0.68)']} style={StyleSheet.absoluteFillObject} /><View style={styles.emptyDiaryVisualLabel}><Feather name="sunrise" size={12} color="#d4eadc" /><Text style={styles.emptyDiaryVisualText}>MAKE SPACE FOR A MEAL</Text></View></View><Feather name="calendar" size={22} color={colors.mutedForeground} /><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>Nothing logged yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal for this day and it will stay here offline.</Text></View>}
           {mealOrder.map((meal) => {
             const mealLogs = selectedLogs.filter((log) => log.meal === meal);
             if (!mealLogs.length) return null;
@@ -452,6 +452,9 @@ const styles = StyleSheet.create({
   mealCalories: { fontFamily: 'Inter_700Bold', fontSize: 14 },
   kcalLabel: { fontFamily: 'Inter_400Regular', fontSize: 9, marginLeft: -7, marginTop: 18 },
   emptyDiary: { alignItems: 'center', paddingVertical: 26, gap: 5 },
+   emptyDiaryVisual: { width: '100%', height: 68, borderRadius: 15, overflow: 'hidden', marginBottom: 8 },
+   emptyDiaryVisualLabel: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 6, padding: 10 },
+   emptyDiaryVisualText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 1.1 },
   emptyDiaryTitle: { fontFamily: 'Inter_700Bold', fontSize: 14, marginTop: 3 },
   emptyDiaryBody: { fontFamily: 'Inter_400Regular', fontSize: 11, textAlign: 'center', maxWidth: 230 },
   footerNote: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: 18 },

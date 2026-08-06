@@ -45,7 +45,7 @@ function MealCard({
       delayLongPress={420}
       style={({ pressed }) => [styles.mealCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.78 : 1 }]}
     >
-      <Image source={{ uri: meal.image }} contentFit="cover" transition={160} style={styles.mealImage} />
+      <Image source={meal.image ? { uri: meal.image } : require('../../assets/images/calora-plan-header.jpg')} contentFit="cover" transition={160} cachePolicy="memory-disk" style={styles.mealImage} />
       <View style={styles.mealCardBody}>
         <View style={styles.mealCardTop}>
           <View style={[styles.mealTypeBadge, { backgroundColor: colors.accent }]}>
@@ -233,7 +233,7 @@ export default function PlannerScreen() {
         <Pressable accessibilityLabel="Generate my week" onPress={() => void generate()} disabled={generating} style={[styles.generateButton, { backgroundColor: colors.primary, opacity: generating ? 0.72 : 1 }]}>{generating ? <ActivityIndicator color={colors.primaryForeground} /> : <Feather name="star" size={17} color={colors.primaryForeground} />}<Text style={[styles.generateText, { color: colors.primaryForeground }]}>{generating ? 'Building your week…' : 'Generate My Week'}</Text><Feather name="arrow-up-right" size={16} color={colors.primaryForeground} /></Pressable>
         {generationMessage && <View accessibilityLiveRegion="polite" style={[styles.generationStatus, { backgroundColor: colors.accent }]}><Feather name="check-circle" size={16} color={colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
         <View style={styles.dayHeading}><View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{dayFormatter.format(parseDate(selectedDay))}'s meals</Text><Text style={[styles.dayHeadingCaption, { color: colors.mutedForeground }]}>Long press a meal to move or copy it.</Text></View><Text style={[styles.dayTotal, { color: colors.primary }]}>{Math.round(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))} kcal</Text></View>
-        <View style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} onPress={() => setDetail(meal)} onLongPress={() => planActions(meal)} /> : <View key={type} style={[styles.emptyMeal, { borderColor: colors.border }]}><Text style={[styles.emptyMealLabel, { color: colors.mutedForeground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Tap Generate My Week to fill this spot.</Text></View>; })}
+         <View style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} onPress={() => setDetail(meal)} onLongPress={() => planActions(meal)} /> : <View key={type} style={[styles.emptyMeal, { borderColor: colors.border }]}><Image source={require('../../assets/images/calora-plan-header.jpg')} contentFit="cover" style={styles.emptyMealImage} /><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.mutedForeground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Tap Generate My Week to fill this spot.</Text></View></View>; })}
         </View>
         <View style={[styles.tipCard, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.tipText, { color: colors.foreground }]}>Planning is a suggestion, not a promise. Swap anything that does not fit your day.</Text></View>
       </ScrollView>
@@ -298,7 +298,7 @@ export default function PlannerScreen() {
             ) : (
               detail && (
                 <>
-                  <Image source={{ uri: detail.image }} contentFit="cover" style={styles.detailImage} />
+                  <Image source={detail.image ? { uri: detail.image } : require('../../assets/images/calora-plan-header.jpg')} contentFit="cover" style={styles.detailImage} />
                   <View style={styles.detailBody}>
                     <View style={styles.detailTitleRow}>
                       <View style={{ flex: 1 }}>
@@ -391,7 +391,9 @@ const styles = StyleSheet.create({
   mealName: { fontFamily: 'Inter_700Bold', fontSize: 14, lineHeight: 18, marginTop: 8 },
   macroLine: { flexDirection: 'row', gap: 8, marginTop: 8 },
   macroText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 },
-  emptyMeal: { minHeight: 62, borderRadius: 15, borderWidth: 1, borderStyle: 'dashed', padding: 12, justifyContent: 'center' },
+  emptyMeal: { minHeight: 62, borderRadius: 15, borderWidth: 1, borderStyle: 'dashed', padding: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  emptyMealImage: { width: 48, height: 46, borderRadius: 10, opacity: 0.8 },
+  emptyMealCopy: { flex: 1 },
   emptyMealLabel: { fontFamily: 'Inter_700Bold', fontSize: 11 },
   emptyMealText: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 3 },
   tipCard: { marginTop: 14, padding: 13, borderRadius: 15, flexDirection: 'row', gap: 9 },

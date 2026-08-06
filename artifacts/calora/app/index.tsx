@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -76,6 +77,10 @@ export default function OnboardingScreen() {
             <Text style={[styles.eyebrow, { color: colors.primary }]}>A STEADIER WAY TO TRACK</Text>
             <Text style={[styles.title, { color: colors.foreground }]}>Make food data feel human.</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>Calora keeps the numbers useful and the experience gentle. Start with your goal, then we’ll shape the day around you.</Text>
+            <View style={styles.welcomeVisual}>
+              <Image source={require('../assets/images/calora-onboarding-visual.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+              <View style={styles.welcomeVisualOverlay}><Feather name="sunrise" size={13} color="#d4eadc" /><Text style={styles.welcomeVisualText}>START WITH TRUST</Text></View>
+            </View>
             <View style={[styles.welcomeCard, { backgroundColor: colors.hero }]}>
               <View style={[styles.welcomeIcon, { backgroundColor: 'rgba(157,215,189,0.16)' }]}><Feather name="shield" size={22} color={colors.heroMuted} /></View>
               <Text style={[styles.welcomeTitle, { color: colors.onHero }]}>Trust is a feature.</Text>
@@ -169,6 +174,9 @@ const styles = StyleSheet.create({
   eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1.4, marginBottom: 12 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 31, lineHeight: 36, letterSpacing: -1, maxWidth: 340 },
   body: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 21, marginTop: 12, maxWidth: 340 },
+  welcomeVisual: { height: 128, borderRadius: 22, overflow: 'hidden', marginTop: 25, backgroundColor: '#1b3022' },
+  welcomeVisualOverlay: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 6, padding: 13, backgroundColor: 'rgba(18,34,24,0.22)' },
+  welcomeVisualText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.2 },
   welcomeCard: { borderRadius: 24, padding: 20, marginTop: 38 },
   welcomeIcon: { width: 43, height: 43, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   welcomeTitle: { fontFamily: 'Inter_700Bold', fontSize: 19, marginBottom: 8 },
