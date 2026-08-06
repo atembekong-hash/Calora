@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGetRecipe, useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
-import { router } from 'expo-router';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 
 const categories = ['For you', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert'];
@@ -65,76 +64,135 @@ function RecipeCard({ recipe, colors, saved, onPress, onSave }: { recipe: Recipe
   );
 }
 
+function ReviewComponent({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (c: FoodMemoryComponent) => void }) {
+  return (
+    <View style={[styles.reviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.reviewCardHeader}>
+        <View style={[styles.reviewCardIcon, { backgroundColor: component.provenance === 'recipe_personal' ? colors.hero : colors.accent }]}>
+          <Feather name={component.provenance === 'recipe_personal' ? 'book-open' : 'book'} size={15} color={component.provenance === 'recipe_personal' ? colors.heroMuted : colors.accentForeground} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.reviewCardName, { color: colors.foreground }]}>{component.name}</Text>
+          <Text style={[styles.reviewCardSource, { color: colors.mutedForeground }]}>{component.sourceLabel} · {component.confidence}% confidence</Text>
+        </View>
+      </View>
+      <View style={styles.reviewNutritionRow}>
+        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{Math.round(component.calories * component.eatenFraction)}</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
+        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{Math.round(component.proteinG * component.eatenFraction)}g</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
+        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{Math.round(component.carbsG * component.eatenFraction)}g</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
+        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{Math.round(component.fatG * component.eatenFraction)}g</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
+      </View>
+      <Text style={[styles.reviewFieldLabel, { color: colors.mutedForeground }]}>How much did you eat?</Text>
+      <View style={styles.reviewFractionRow}>
+        <Pressable accessibilityLabel="Decrease portion" onPress={() => onChange({ ...component, eatenFraction: Math.max(0.25, component.eatenFraction - 0.25) })} style={[styles.reviewFractionButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={14} color={colors.foreground} /></Pressable>
+        <Text style={[styles.reviewFractionValue, { color: colors.foreground }]}>{Math.round(component.eatenFraction * 100)}%</Text>
+        <Pressable accessibilityLabel="Increase portion" onPress={() => onChange({ ...component, eatenFraction: Math.min(1, component.eatenFraction + 0.25) })} style={[styles.reviewFractionButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
+      </View>
+      {component.reviewQuestions.length > 0 && <Text style={[styles.reviewQuestion, { color: colors.warning }]}>{component.reviewQuestions[0]}</Text>}
+    </View>
+  );
+}
 function RecipeDetailModal({ recipe, onClose }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void }) {
-  const { colors, profile, createFoodMemorySourceDraft, savedRecipeIds, toggleSavedRecipe } = useCalora();
+  const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts } = useCalora();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const remoteRecipeId = recipe && !local ? recipe.id : '';
   const detailQuery = useGetRecipe(remoteRecipeId, { query: { queryKey: ['recipe', remoteRecipeId], enabled: Boolean(remoteRecipeId), staleTime: 1000 * 60 * 30 } });
   const detail = detailQuery.data ?? recipe;
+  const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
+  const reviewDraft = reviewDraftId ? (foodDrafts.find((d) => d.id === reviewDraftId) ?? null) : null;
+
   if (!detail) return null;
   const canLog = Boolean(detail.calories && detail.calories > 0);
-  const saveToDiary = () => {
+
+  const openReview = () => {
     if (!canLog) return;
-    const component: FoodMemoryComponent = {
-      id: `recipe-component-${detail.id}`,
-      name: detail.name,
-      serving: '1 recipe serving',
-      calories: detail.calories ?? 0,
-      proteinG: detail.proteinG ?? 0,
-      carbsG: detail.carbsG ?? 0,
-      fatG: detail.fatG ?? 0,
-      included: true,
-      eatenFraction: 1,
-      provenance: local ? 'recipe_personal' : 'recipe_imported',
-      sourceLabel: local ? 'Created in Calora' : `Open source · ${detail.source}`,
-      confidence: local ? 92 : 68,
-      confidenceDimensions: { identity: local ? 96 : 82, portion: 82, nutritionSource: local ? 88 : 52, preparation: 78 },
-      assumptions: [
-        local ? 'Nutrition is based on your personal recipe entry.' : 'Nutrition is not verified by Calora.',
-        detail.ingredients?.length ? `Ingredients: ${detail.ingredients.slice(0, 5).join(', ')}` : 'Recipe ingredients were not provided.',
-      ],
-      reviewQuestions: ['Is one recipe serving the amount you ate?'],
-    };
-    const draft = createFoodMemorySourceDraft({
-      inputType: 'recipe',
-      title: detail.name,
-      date: new Date().toISOString().slice(0, 10),
-      meal: 'Dinner',
-      components: [component],
-      sourceLabel: component.sourceLabel,
-      provenance: component.provenance,
-      reviewQuestions: component.reviewQuestions,
-    });
-    onClose();
-    router.navigate({ pathname: '/(tabs)/scan', params: { draftId: draft.id } });
+    const draft = createRecipeDraft(detail, new Date().toISOString().slice(0, 10), 'Dinner');
+    setReviewDraftId(draft.id);
   };
+
+  const updateComponent = (component: FoodMemoryComponent) => {
+    if (!reviewDraft) return;
+    updateFoodMemoryDraft(reviewDraft.id, reviewDraft.components.map((item) => item.id === component.id ? component : item));
+  };
+
+  const acceptDraft = () => {
+    if (!reviewDraft) return;
+    acceptFoodMemory(reviewDraft.id);
+    setReviewDraftId(null);
+    onClose();
+  };
+
+  const dismissReview = () => {
+    if (reviewDraft) rejectFoodMemory(reviewDraft.id);
+    setReviewDraftId(null);
+  };
+
+  const handleClose = () => {
+    if (reviewDraft) rejectFoodMemory(reviewDraft.id);
+    setReviewDraftId(null);
+    onClose();
+  };
+
   return (
-    <Modal visible={recipe !== null} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={recipe !== null} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
         <View style={[styles.detailSheet, { backgroundColor: colors.background }]}>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
-            <View style={styles.detailTop}>
-              <Pressable accessibilityLabel="Close recipe details" onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
-              <Pressable accessibilityLabel={`${savedRecipeIds.includes(detail.id) ? 'Remove' : 'Save'} recipe`} onPress={() => toggleSavedRecipe(detail.id)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="bookmark" size={17} color={savedRecipeIds.includes(detail.id) ? colors.primary : colors.foreground} /></Pressable>
-            </View>
-            <RecipeImage recipe={detail} height={210} />
-            <View style={styles.detailCopy}>
-              <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{local ? 'YOUR RECIPE' : `${detail.source.toUpperCase()} RECIPE`}</Text>
-              <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
-              <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{detail.area ? `${detail.area} cuisine` : 'A recipe for your collection'}{detail.category ? ` · ${detail.category}` : ''}</Text>
-              <View style={[styles.nutritionStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View><Text style={[styles.nutritionValue, { color: detail.calories ? colors.foreground : colors.warning }]}>{detail.calories ? `${Math.round(detail.calories)}` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal / serving</Text></View>
-                <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.proteinG ? `${Math.round(detail.proteinG)}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
-                <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.prepMinutes ? `${detail.prepMinutes}m` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>prep</Text></View>
+          {reviewDraft ? (
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 30 }}>
+              <View style={styles.reviewHeader}>
+                <View>
+                  <Text style={[styles.detailEyebrow, { color: colors.primary }]}>RECIPE REVIEW</Text>
+                  <Text style={[styles.detailTitle, { color: colors.foreground }]}>{reviewDraft.title}</Text>
+                </View>
+                <Pressable accessibilityLabel="Cancel review" onPress={dismissReview} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
               </View>
-              {!canLog && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>This open-source recipe does not include verified nutrition yet. You can save it, then add your own nutrition before logging.</Text></View>}
-              {detail.ingredients?.length ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Ingredients</Text>{detail.ingredients.map((ingredient) => <View key={ingredient} style={styles.ingredientRow}><View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} /><Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient}</Text></View>)}</> : null}
-              {detail.instructions ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Method</Text><Text style={[styles.instructions, { color: colors.mutedForeground }]}>{detail.instructions}</Text></> : null}
-              <Text style={[styles.attribution, { color: colors.mutedForeground }]}>Recipe source: {detail.source}. Calora does not claim third-party recipe content as its own.</Text>
-              <Pressable accessibilityLabel={canLog ? 'Add recipe to diary' : 'Save recipe for nutrition review'} onPress={canLog ? saveToDiary : () => { toggleSavedRecipe(detail.id); onClose(); }} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today’s diary' : 'diary'}` : 'Save for later'}</Text></Pressable>
-              <Pressable accessibilityLabel="Open recipe source" onPress={() => Linking.openURL(detail.sourceUrl)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.primary }]}>View source attribution</Text><Feather name="external-link" size={13} color={colors.primary} /></Pressable>
-            </View>
-          </ScrollView>
+              <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Adjust your portion before it reaches your diary.</Text>
+              {reviewDraft.assumptions.length > 0 && (
+                <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}>
+                  <Feather name="info" size={14} color={colors.accentForeground} />
+                  <Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' · ')}</Text>
+                </View>
+              )}
+              {reviewDraft.components.map((component) => (
+                <ReviewComponent key={component.id} component={component} colors={colors} onChange={updateComponent} />
+              ))}
+              <View style={[styles.reviewTotalCard, { backgroundColor: colors.hero }]}>
+                <View><Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{Math.round(reviewDraft.nutrition.calories)} kcal</Text></View>
+                <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {Math.round(reviewDraft.nutrition.proteinG)}g · C {Math.round(reviewDraft.nutrition.carbsG)}g · F {Math.round(reviewDraft.nutrition.fatG)}g</Text>
+              </View>
+              <Pressable accessibilityLabel="Approve and add recipe to diary" onPress={acceptDraft} style={[styles.primaryAction, { backgroundColor: colors.primary }]}>
+                <Feather name="check-circle" size={16} color={colors.primaryForeground} />
+                <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Approve and add to diary</Text>
+              </Pressable>
+              <Pressable accessibilityLabel="Cancel recipe log" onPress={dismissReview} style={styles.sourceAction}>
+                <Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Not this meal</Text>
+              </Pressable>
+            </ScrollView>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+              <View style={styles.detailTop}>
+                <Pressable accessibilityLabel="Close recipe details" onPress={handleClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+                <Pressable accessibilityLabel={`${savedRecipeIds.includes(detail.id) ? 'Remove' : 'Save'} recipe`} onPress={() => toggleSavedRecipe(detail.id)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="bookmark" size={17} color={savedRecipeIds.includes(detail.id) ? colors.primary : colors.foreground} /></Pressable>
+              </View>
+              <RecipeImage recipe={detail} height={210} />
+              <View style={styles.detailCopy}>
+                <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{local ? 'YOUR RECIPE' : `${detail.source.toUpperCase()} RECIPE`}</Text>
+                <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
+                <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{detail.area ? `${detail.area} cuisine` : 'A recipe for your collection'}{detail.category ? ` · ${detail.category}` : ''}</Text>
+                <View style={[styles.nutritionStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View><Text style={[styles.nutritionValue, { color: detail.calories ? colors.foreground : colors.warning }]}>{detail.calories ? `${Math.round(detail.calories)}` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal / serving</Text></View>
+                  <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.proteinG ? `${Math.round(detail.proteinG)}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
+                  <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.prepMinutes ? `${detail.prepMinutes}m` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>prep</Text></View>
+                </View>
+                {!canLog && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>This open-source recipe does not include verified nutrition yet. You can save it, then add your own nutrition before logging.</Text></View>}
+                {detail.ingredients?.length ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Ingredients</Text>{detail.ingredients.map((ingredient) => <View key={ingredient} style={styles.ingredientRow}><View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} /><Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient}</Text></View>)}</> : null}
+                {detail.instructions ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Method</Text><Text style={[styles.instructions, { color: colors.mutedForeground }]}>{detail.instructions}</Text></> : null}
+                <Text style={[styles.attribution, { color: colors.mutedForeground }]}>Recipe source: {detail.source}. Calora does not claim third-party recipe content as its own.</Text>
+                <Pressable accessibilityLabel={canLog ? 'Add recipe to diary' : 'Save recipe for nutrition review'} onPress={canLog ? openReview : () => { toggleSavedRecipe(detail.id); onClose(); }} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today\'s diary' : 'diary'}` : 'Save for later'}</Text></Pressable>
+                <Pressable accessibilityLabel="Open recipe source" onPress={() => Linking.openURL(detail.sourceUrl)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.primary }]}>View source attribution</Text><Feather name="external-link" size={13} color={colors.primary} /></Pressable>
+              </View>
+            </ScrollView>
+          )}
         </View>
       </View>
     </Modal>
@@ -327,6 +385,27 @@ const styles = StyleSheet.create({
   emptyTitle: { fontFamily: 'Inter_700Bold', fontSize: 14, marginTop: 10 },
   emptyText: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 6 },
   footerNote: { fontFamily: 'Inter_400Regular', fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 22 },
+  reviewHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 },
+  reviewSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginBottom: 14 },
+  assumptionCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 11, borderRadius: 13, marginBottom: 12 },
+  assumptionText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
+  reviewCard: { borderWidth: 1, borderRadius: 18, padding: 14, marginBottom: 11 },
+  reviewCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  reviewCardIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  reviewCardName: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  reviewCardSource: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 3 },
+  reviewNutritionRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 13, paddingVertical: 11, borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(120,120,120,0.15)' },
+  reviewNutritionValue: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  reviewNutritionLabel: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 2 },
+  reviewFieldLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 11, marginBottom: 6 },
+  reviewFractionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  reviewFractionButton: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  reviewFractionValue: { width: 42, textAlign: 'center', fontFamily: 'Inter_700Bold', fontSize: 12 },
+  reviewQuestion: { fontFamily: 'Inter_600SemiBold', fontSize: 10, lineHeight: 15, marginTop: 9 },
+  reviewTotalCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 16, padding: 14, marginTop: 4, marginBottom: 4 },
+  reviewTotalLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1 },
+  reviewTotalValue: { fontFamily: 'Inter_700Bold', fontSize: 20, marginTop: 3 },
+  reviewTotalMacros: { fontFamily: 'Inter_600SemiBold', fontSize: 10, textAlign: 'right' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   detailSheet: { maxHeight: '94%', borderTopLeftRadius: 27, borderTopRightRadius: 27, overflow: 'hidden' },
   detailTop: { position: 'absolute', zIndex: 2, top: 12, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' },

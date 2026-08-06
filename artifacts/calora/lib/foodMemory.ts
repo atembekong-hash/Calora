@@ -265,6 +265,56 @@ export function memorySignature(memory: Pick<FoodMemoryDraft, 'title' | 'compone
   return [memory.title.trim().toLowerCase().replace(/\s+/g, ' '), ...parts].join('|');
 }
 
+export function recipeToDraft(
+  recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean },
+  date: string,
+  meal: FoodMemoryDraft['meal'],
+  now = new Date().toISOString(),
+): FoodMemoryDraft {
+  const inputType: FoodMemoryInputType = 'recipe';
+  const provenance: FoodMemoryProvenance = recipe.isLocal ? 'recipe_personal' : 'recipe_imported';
+  const confidence = recipe.isLocal ? 92 : 68;
+  const component: FoodMemoryComponent = {
+    id: `${recipe.id}-component`,
+    name: recipe.name,
+    serving: '1 recipe serving',
+    calories: recipe.calories ?? 0,
+    proteinG: recipe.proteinG ?? 0,
+    carbsG: recipe.carbsG ?? 0,
+    fatG: recipe.fatG ?? 0,
+    included: true,
+    eatenFraction: 1,
+    provenance,
+    sourceLabel: recipe.source,
+    confidence,
+    confidenceDimensions: { identity: confidence, portion: confidence, nutritionSource: confidence, preparation: confidence },
+    assumptions: [],
+    reviewQuestions: recipe.isLocal ? [] : ['Confirm the serving size matches your actual portion.'],
+  };
+  const nutrition = nutritionForComponents([component], now);
+  return {
+    id: `memory-draft-recipe-${recipe.id}`,
+    schemaVersion: FOOD_MEMORY_SCHEMA_VERSION,
+    inputType,
+    status: 'draft',
+    title: recipe.name,
+    date,
+    meal,
+    components: [component],
+    nutrition,
+    originalNutrition: { ...nutrition },
+    provenance,
+    sourceLabel: recipe.source,
+    confidence,
+    confidenceDimensions: component.confidenceDimensions,
+    assumptions: recipe.isLocal ? [] : [`Open-source recipe from ${recipe.source}. Nutrition may vary by preparation.`],
+    reviewQuestions: component.reviewQuestions,
+    imageRetention: 'not_collected',
+    createdAt: now,
+    updatedAt: now,
+    correctionIds: [],
+  };
+}
 export function migrateFoodMemories(saved: Partial<{
   foodDrafts: FoodMemoryDraft[];
   foodMemories: AcceptedFoodMemory[];
@@ -330,4 +380,53 @@ export function migrateFoodMemories(saved: Partial<{
     };
   });
   return { foodDrafts: [], foodMemories: memories, repeatPatterns: [], memoryCorrections: [] };
+}
+
+export function plannerMealToDraft(
+  meal: { id: string; name: string; calories: number; proteinG: number; carbsG: number; fatG: number; meal: FoodMemoryDraft['meal']; day: string },
+  now = new Date().toISOString(),
+): FoodMemoryDraft {
+  const inputType: FoodMemoryInputType = 'planner';
+  const provenance: FoodMemoryProvenance = 'planner_estimate';
+  const confidence = 72;
+  const component: FoodMemoryComponent = {
+    id: `${meal.id}-component`,
+    name: meal.name,
+    serving: '1 planned serving',
+    calories: meal.calories,
+    proteinG: meal.proteinG,
+    carbsG: meal.carbsG,
+    fatG: meal.fatG,
+    included: true,
+    eatenFraction: 1,
+    provenance,
+    sourceLabel: 'Weekly planner',
+    confidence,
+    confidenceDimensions: { identity: confidence, portion: confidence, nutritionSource: confidence, preparation: confidence },
+    assumptions: ['Planned meal — actual portion may differ.'],
+    reviewQuestions: ['Did you eat the full planned portion?'],
+  };
+  const nutrition = nutritionForComponents([component], now);
+  return {
+    id: `memory-draft-planner-${meal.id}`,
+    schemaVersion: FOOD_MEMORY_SCHEMA_VERSION,
+    inputType,
+    status: 'draft',
+    title: meal.name,
+    date: meal.day,
+    meal: meal.meal,
+    components: [component],
+    nutrition,
+    originalNutrition: { ...nutrition },
+    provenance,
+    sourceLabel: 'Weekly planner',
+    confidence,
+    confidenceDimensions: component.confidenceDimensions,
+    assumptions: [`Planned for ${meal.day}. Logged portion may differ from plan.`],
+    reviewQuestions: ['Did you eat the full planned portion?'],
+    imageRetention: 'not_collected',
+    createdAt: now,
+    updatedAt: now,
+    correctionIds: [],
+  };
 }

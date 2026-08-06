@@ -14,12 +14,13 @@ import {
   memorySignature,
   migrateFoodMemories,
   nutritionForComponents,
+  plannerMealToDraft,
   provenanceForCapture,
+  recipeToDraft,
   sourceComponentsToDraft,
   updateDraftComponents,
 } from '@/lib/foodMemory';
 import type { CaptureAnalysis } from '@workspace/api-client-react';
-
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 export type Goal = 'lose' | 'maintain' | 'gain';
@@ -150,6 +151,8 @@ type CaloraContextValue = {
   repeatPatterns: RepeatPattern[];
   createFoodMemoryDraft: (analysis: CaptureAnalysis, date?: string, meal?: MealType) => FoodMemoryDraft;
   createFoodMemorySourceDraft: (input: Parameters<typeof sourceComponentsToDraft>[0]) => FoodMemoryDraft;
+  createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean }, date?: string, meal?: MealType) => FoodMemoryDraft;
+  createPlannerDraft: (meal: PlannerMeal) => FoodMemoryDraft;
   updateFoodMemoryDraft: (draftId: string, components: FoodMemoryComponent[]) => void;
   acceptFoodMemory: (draftId: string) => FoodLog | null;
   rejectFoodMemory: (draftId: string) => void;
@@ -428,6 +431,16 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },
+    createRecipeDraft: (recipe, date = today, meal = 'Dinner') => {
+      const draft = recipeToDraft(recipe, date, meal);
+      setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
+      return draft;
+    },
+    createPlannerDraft: (meal) => {
+      const draft = plannerMealToDraft(meal);
+      setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
+      return draft;
+    },
     updateFoodMemoryDraft: (draftId, components) => {
       setFoodDrafts((current) => current.map((draft) => draft.id === draftId ? updateDraftComponents(draft, components) : draft));
     },
@@ -576,6 +589,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }
+
 
 export function useCalora() {
   const context = useContext(CaloraContext);

@@ -7,7 +7,6 @@ import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Tex
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 import { createStarterPlannerMeals, getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
-import { router } from 'expo-router';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
@@ -94,14 +93,16 @@ function SummaryBar({ meals, target, colors }: { meals: PlannerMeal[]; target: n
 }
 
 export default function PlannerScreen() {
-  const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, movePlannerMeal, toggleShoppingItem, createFoodMemorySourceDraft } = useCalora();
+  const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, movePlannerMeal, toggleShoppingItem, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts } = useCalora();
   const insets = useSafeAreaInsets();
   const generatePlanner = useGeneratePlanner();
   const [selectedDay, setSelectedDay] = useState(new Date().toISOString().slice(0, 10));
   const [detail, setDetail] = useState<PlannerMeal | null>(null);
+  const [plannerReviewDraftId, setPlannerReviewDraftId] = useState<string | null>(null);
   const [shoppingVisible, setShoppingVisible] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
+  const plannerReviewDraft = plannerReviewDraftId ? (foodDrafts.find((d) => d.id === plannerReviewDraftId) ?? null) : null;
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => plannerDate(plannerWeekStart, index)), [plannerWeekStart]);
   const today = new Date().toISOString().slice(0, 10);
@@ -177,36 +178,25 @@ export default function PlannerScreen() {
   };
 
   const addToDiary = (meal: PlannerMeal) => {
+    const draft = createPlannerDraft(meal);
+    setPlannerReviewDraftId(draft.id);
+  };
+
+  const updatePlannerComponent = (component: FoodMemoryComponent) => {
+    if (!plannerReviewDraft) return;
+    updateFoodMemoryDraft(plannerReviewDraft.id, plannerReviewDraft.components.map((item) => item.id === component.id ? component : item));
+  };
+
+  const acceptPlannerDraft = () => {
+    if (!plannerReviewDraft) return;
+    acceptFoodMemory(plannerReviewDraft.id);
+    setPlannerReviewDraftId(null);
     setDetail(null);
-    const component: FoodMemoryComponent = {
-      id: `planner-component-${meal.id}`,
-      name: meal.name,
-      serving: '1 planned serving',
-      calories: meal.calories,
-      proteinG: meal.proteinG,
-      carbsG: meal.carbsG,
-      fatG: meal.fatG,
-      included: true,
-      eatenFraction: 1,
-      provenance: 'planner_estimate',
-      sourceLabel: 'Weekly planner estimate',
-      confidence: 72,
-      confidenceDimensions: { identity: 82, portion: 70, nutritionSource: 68, preparation: 66 },
-      assumptions: ['Planned meal nutrition is an estimate. Review the serving before it counts.', `Ingredients: ${meal.ingredients.slice(0, 5).join(', ')}`],
-      reviewQuestions: ['Is this the serving size you ate?'],
-    };
-    const draft = createFoodMemorySourceDraft({
-      inputType: 'planner',
-      title: meal.name,
-      date: meal.day,
-      meal: meal.meal,
-      components: [component],
-      sourceLabel: component.sourceLabel,
-      provenance: component.provenance,
-      assumptions: component.assumptions,
-      reviewQuestions: component.reviewQuestions,
-    });
-    router.navigate({ pathname: '/(tabs)/scan', params: { draftId: draft.id } });
+  };
+
+  const dismissPlannerReview = () => {
+    if (plannerReviewDraft) rejectFoodMemory(plannerReviewDraft.id);
+    setPlannerReviewDraftId(null);
   };
 
   return (
@@ -247,8 +237,95 @@ export default function PlannerScreen() {
         </View>
         <View style={[styles.tipCard, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.tipText, { color: colors.foreground }]}>Planning is a suggestion, not a promise. Swap anything that does not fit your day.</Text></View>
       </ScrollView>
-      <Modal visible={detail !== null} transparent animationType="slide" onRequestClose={() => setDetail(null)}>
-        <View style={styles.modalBackdrop}><View style={[styles.detailSheet, { backgroundColor: colors.background }]}><View style={styles.sheetHandle} />{detail && <><Image source={{ uri: detail.image }} contentFit="cover" style={styles.detailImage} /><View style={styles.detailBody}><View style={styles.detailTitleRow}><View style={{ flex: 1 }}><Text style={[styles.detailEyebrow, { color: colors.primary }]}>{detail.meal.toUpperCase()} · {dateFormatter.format(parseDate(detail.day))}</Text><Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text></View><Pressable accessibilityLabel="Close meal detail" onPress={() => setDetail(null)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View><Text style={[styles.detailDescription, { color: colors.mutedForeground }]}>{detail.description}</Text><View style={styles.detailStats}><Text style={[styles.detailStat, { color: colors.foreground }]}>{Math.round(detail.calories)} kcal</Text><Text style={[styles.detailStat, { color: colors.protein }]}>P {Math.round(detail.proteinG)}g</Text><Text style={[styles.detailStat, { color: colors.carbs }]}>C {Math.round(detail.carbsG)}g</Text><Text style={[styles.detailStat, { color: colors.fat }]}>F {Math.round(detail.fatG)}g</Text></View><Text style={[styles.ingredientsLabel, { color: colors.foreground }]}>Ingredients</Text><Text style={[styles.ingredientsText, { color: colors.mutedForeground }]}>{detail.ingredients.join(' · ')}</Text><Pressable accessibilityLabel={`Add ${detail.name} to diary`} onPress={() => addToDiary(detail)} style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={16} color={colors.primaryForeground} /><Text style={[styles.addDiaryText, { color: colors.primaryForeground }]}>Add to diary</Text></Pressable></View></>}</View></View>
+      <Modal visible={detail !== null} transparent animationType="slide" onRequestClose={() => { dismissPlannerReview(); setDetail(null); }}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.detailSheet, { backgroundColor: colors.background }]}>
+            <View style={styles.sheetHandle} />
+            {detail && plannerReviewDraft ? (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 30 }}>
+                <View style={styles.reviewTitleRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.detailEyebrow, { color: colors.primary }]}>PLANNER REVIEW · {dateFormatter.format(parseDate(detail.day))}</Text>
+                    <Text style={[styles.detailTitle, { color: colors.foreground }]}>{plannerReviewDraft.title}</Text>
+                  </View>
+                  <Pressable accessibilityLabel="Cancel planner review" onPress={dismissPlannerReview} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+                </View>
+                <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Adjust your portion before it reaches your diary.</Text>
+                {plannerReviewDraft.assumptions.length > 0 && (
+                  <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}>
+                    <Feather name="info" size={14} color={colors.accentForeground} />
+                    <Text style={[styles.assumptionText, { color: colors.foreground }]}>{plannerReviewDraft.assumptions.join(' · ')}</Text>
+                  </View>
+                )}
+                {plannerReviewDraft.components.map((component) => (
+                  <View key={component.id} style={[styles.reviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View style={styles.reviewCardHeader}>
+                      <View style={[styles.reviewCardIcon, { backgroundColor: colors.hero }]}>
+                        <Feather name="calendar" size={15} color={colors.heroMuted} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.reviewCardName, { color: colors.foreground }]}>{component.name}</Text>
+                        <Text style={[styles.reviewCardSource, { color: colors.mutedForeground }]}>{component.sourceLabel} · {component.confidence}% confidence</Text>
+                      </View>
+                    </View>
+                    <View style={styles.reviewNutritionRow}>
+                      <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{Math.round(component.calories * component.eatenFraction)}</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
+                      <View><Text style={[styles.reviewNutritionValue, { color: colors.protein }]}>{Math.round(component.proteinG * component.eatenFraction)}g</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
+                      <View><Text style={[styles.reviewNutritionValue, { color: colors.carbs }]}>{Math.round(component.carbsG * component.eatenFraction)}g</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
+                      <View><Text style={[styles.reviewNutritionValue, { color: colors.fat }]}>{Math.round(component.fatG * component.eatenFraction)}g</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
+                    </View>
+                    <Text style={[styles.reviewFieldLabel, { color: colors.mutedForeground }]}>How much did you eat?</Text>
+                    <View style={styles.reviewFractionRow}>
+                      <Pressable accessibilityLabel="Decrease portion" onPress={() => updatePlannerComponent({ ...component, eatenFraction: Math.max(0.25, component.eatenFraction - 0.25) })} style={[styles.reviewFractionButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={14} color={colors.foreground} /></Pressable>
+                      <Text style={[styles.reviewFractionValue, { color: colors.foreground }]}>{Math.round(component.eatenFraction * 100)}%</Text>
+                      <Pressable accessibilityLabel="Increase portion" onPress={() => updatePlannerComponent({ ...component, eatenFraction: Math.min(1, component.eatenFraction + 0.25) })} style={[styles.reviewFractionButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
+                    </View>
+                    {component.reviewQuestions.length > 0 && <Text style={[styles.reviewQuestion, { color: colors.warning }]}>{component.reviewQuestions[0]}</Text>}
+                  </View>
+                ))}
+                <View style={[styles.reviewTotalCard, { backgroundColor: colors.hero }]}>
+                  <View><Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{Math.round(plannerReviewDraft.nutrition.calories)} kcal</Text></View>
+                  <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {Math.round(plannerReviewDraft.nutrition.proteinG)}g · C {Math.round(plannerReviewDraft.nutrition.carbsG)}g · F {Math.round(plannerReviewDraft.nutrition.fatG)}g</Text>
+                </View>
+                <Pressable accessibilityLabel="Approve and add planned meal to diary" onPress={acceptPlannerDraft} style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}>
+                  <Feather name="check-circle" size={16} color={colors.primaryForeground} />
+                  <Text style={[styles.addDiaryText, { color: colors.primaryForeground }]}>Approve and add to diary</Text>
+                </Pressable>
+                <Pressable accessibilityLabel="Cancel planned meal log" onPress={dismissPlannerReview} style={styles.dismissButton}>
+                  <Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Not this meal</Text>
+                </Pressable>
+              </ScrollView>
+            ) : (
+              detail && (
+                <>
+                  <Image source={{ uri: detail.image }} contentFit="cover" style={styles.detailImage} />
+                  <View style={styles.detailBody}>
+                    <View style={styles.detailTitleRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{detail.meal.toUpperCase()} · {dateFormatter.format(parseDate(detail.day))}</Text>
+                        <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
+                      </View>
+                      <Pressable accessibilityLabel="Close meal detail" onPress={() => setDetail(null)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+                    </View>
+                    <Text style={[styles.detailDescription, { color: colors.mutedForeground }]}>{detail.description}</Text>
+                    <View style={styles.detailStats}>
+                      <Text style={[styles.detailStat, { color: colors.foreground }]}>{Math.round(detail.calories)} kcal</Text>
+                      <Text style={[styles.detailStat, { color: colors.protein }]}>P {Math.round(detail.proteinG)}g</Text>
+                      <Text style={[styles.detailStat, { color: colors.carbs }]}>C {Math.round(detail.carbsG)}g</Text>
+                      <Text style={[styles.detailStat, { color: colors.fat }]}>F {Math.round(detail.fatG)}g</Text>
+                    </View>
+                    <Text style={[styles.ingredientsLabel, { color: colors.foreground }]}>Ingredients</Text>
+                    <Text style={[styles.ingredientsText, { color: colors.mutedForeground }]}>{detail.ingredients.join(' · ')}</Text>
+                    <Pressable accessibilityLabel={`Add ${detail.name} to diary`} onPress={() => addToDiary(detail)} style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}>
+                      <Feather name="plus" size={16} color={colors.primaryForeground} />
+                      <Text style={[styles.addDiaryText, { color: colors.primaryForeground }]}>Add to diary</Text>
+                    </Pressable>
+                  </View>
+                </>
+              )
+            )}
+          </View>
+        </View>
       </Modal>
       <Modal visible={shoppingVisible} transparent animationType="slide" onRequestClose={() => setShoppingVisible(false)}>
         <View style={styles.modalBackdrop}><View style={[styles.shoppingSheet, { backgroundColor: colors.background }]}><View style={styles.sheetHandle} /><View style={styles.shoppingHeader}><View><Text style={[styles.detailEyebrow, { color: colors.primary }]}>AUTO-GENERATED</Text><Text style={[styles.detailTitle, { color: colors.foreground }]}>Shopping list</Text></View><Pressable accessibilityLabel="Close shopping list" onPress={() => setShoppingVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View><Text style={[styles.shoppingSubtitle, { color: colors.mutedForeground }]}>Ingredients from this week's planned meals.</Text><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 25 }}>{shoppingItems.map((item) => <Pressable key={item.id} accessibilityLabel={`${item.checked ? 'Uncheck' : 'Check'} ${item.name}`} onPress={() => toggleShoppingItem(item.id)} style={[styles.shoppingRow, { borderBottomColor: colors.border }]}><View style={[styles.checkbox, { borderColor: item.checked ? colors.success : colors.input, backgroundColor: item.checked ? colors.success : 'transparent' }]}>{item.checked && <Feather name="check" size={13} color={colors.primaryForeground} />}</View><Text style={[styles.shoppingName, { color: item.checked ? colors.mutedForeground : colors.foreground, textDecorationLine: item.checked ? 'line-through' : 'none' }]}>{item.name}</Text><Text style={[styles.shoppingQuantity, { color: colors.mutedForeground }]}>{item.quantity}×</Text></Pressable>)}</ScrollView></View></View>
@@ -335,6 +412,29 @@ const styles = StyleSheet.create({
   ingredientsText: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 17, marginTop: 6 },
   addDiaryButton: { minHeight: 46, borderRadius: 14, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', marginTop: 19 },
   addDiaryText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  reviewTitleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 },
+  reviewSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginBottom: 14 },
+  assumptionCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 11, borderRadius: 13, marginBottom: 12 },
+  assumptionText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
+  reviewCard: { borderWidth: 1, borderRadius: 18, padding: 14, marginBottom: 11 },
+  reviewCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  reviewCardIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  reviewCardName: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  reviewCardSource: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 3 },
+  reviewNutritionRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 13, paddingVertical: 11, borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(120,120,120,0.15)' },
+  reviewNutritionValue: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  reviewNutritionLabel: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 2 },
+  reviewFieldLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 11, marginBottom: 6 },
+  reviewFractionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  reviewFractionButton: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  reviewFractionValue: { width: 42, textAlign: 'center', fontFamily: 'Inter_700Bold', fontSize: 12 },
+  reviewQuestion: { fontFamily: 'Inter_600SemiBold', fontSize: 10, lineHeight: 15, marginTop: 9 },
+  reviewTotalCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 16, padding: 14, marginTop: 4, marginBottom: 4 },
+  reviewTotalLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1 },
+  reviewTotalValue: { fontFamily: 'Inter_700Bold', fontSize: 20, marginTop: 3 },
+  reviewTotalMacros: { fontFamily: 'Inter_600SemiBold', fontSize: 10, textAlign: 'right' },
+  dismissButton: { alignItems: 'center', paddingVertical: 13 },
+  dismissText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   shoppingSheet: { maxHeight: '80%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
   shoppingHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   shoppingSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 8, marginBottom: 12 },
