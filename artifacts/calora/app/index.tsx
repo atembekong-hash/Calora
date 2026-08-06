@@ -1,9 +1,9 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useCalora, ActivityLevel, DietPreference, Goal, Profile } from '@/context/CaloraContext';
 
 const goals: { key: Goal; label: string; body: string; icon: keyof typeof Feather.glyphMap }[] = [
@@ -19,7 +19,7 @@ const activities: { key: ActivityLevel; label: string; body: string }[] = [
 const diets: DietPreference[] = ['Everything', 'Vegetarian', 'Vegan', 'High protein'];
 
 export default function OnboardingScreen() {
-  const { colors, onboardingComplete, completeOnboarding } = useCalora();
+  const { colors, onboardingComplete, hydrated, hydrationError, retryHydration, completeOnboarding } = useCalora();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState<Goal>('lose');
@@ -31,10 +31,6 @@ export default function OnboardingScreen() {
   const [weight, setWeight] = useState('76');
   const [targetWeight, setTargetWeight] = useState('68');
   const [consent, setConsent] = useState(false);
-
-  useEffect(() => {
-    if (onboardingComplete) router.replace('/(tabs)');
-  }, [onboardingComplete]);
 
   const calorieTarget = useMemo(() => {
     const weightNumber = Number(weight) || 76;
@@ -57,10 +53,39 @@ export default function OnboardingScreen() {
       calorieTarget,
     };
     completeOnboarding(profile, consent);
-    router.replace('/(tabs)');
   };
 
   const next = () => setStep((current) => Math.min(current + 1, 4));
+
+  if (!hydrated) {
+    return (
+      <View style={[styles.loadingPage, { backgroundColor: colors.background }]}>
+        <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
+          <Feather name="sun" size={18} color={colors.primaryForeground} />
+        </View>
+        <Text style={[styles.loadingBrand, { color: colors.foreground }]}>calora</Text>
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 18 }} />
+        <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading your local rhythm…</Text>
+      </View>
+    );
+  }
+
+  if (hydrationError) {
+    return (
+      <View style={[styles.loadingPage, { backgroundColor: colors.background, paddingHorizontal: 28 }]}>
+        <View style={[styles.errorIcon, { backgroundColor: colors.muted }]}>
+          <Feather name="refresh-cw" size={20} color={colors.primary} />
+        </View>
+        <Text style={[styles.errorTitle, { color: colors.foreground }]}>Your local data needs another try.</Text>
+        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>{hydrationError}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Retry loading local data" onPress={retryHydration} style={[styles.retryButton, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.retryButtonText, { color: colors.primaryForeground }]}>Try again</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (onboardingComplete) return <Redirect href="/(tabs)" />;
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
@@ -164,6 +189,14 @@ export default function OnboardingScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
+  loadingPage: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingBrand: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.4, marginTop: 10 },
+  loadingText: { fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 9 },
+  errorIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  errorTitle: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.4, textAlign: 'center' },
+  errorText: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, marginTop: 8, maxWidth: 310, textAlign: 'center' },
+  retryButton: { borderRadius: 14, minWidth: 150, paddingHorizontal: 22, paddingVertical: 13, alignItems: 'center', marginTop: 22 },
+  retryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   content: { paddingHorizontal: 22, flexGrow: 1 },
   progressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   brandMark: { width: 31, height: 31, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ef6b4f' },

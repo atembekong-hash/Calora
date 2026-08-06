@@ -11,6 +11,7 @@ import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { router } from 'expo-router';
+import { dateKey } from '@/lib/dates';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
@@ -122,7 +123,7 @@ export default function PlannerScreen() {
   const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, livingState } = useCalora();
   const insets = useSafeAreaInsets();
   const generatePlanner = useGeneratePlanner();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dateKey();
   const [viewWeekStart, setViewWeekStart] = useState(plannerWeekStart);
   const [selectedDay, setSelectedDay] = useState(() => {
     const persistedWeekDays = Array.from({ length: 7 }, (_, index) => plannerDate(plannerWeekStart, index));

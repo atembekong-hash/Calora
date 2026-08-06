@@ -173,6 +173,12 @@ describe('buildAcceptResult — review approval', () => {
     expect(memory.diaryLogId).toBe(log.id);
   });
 
+  it('preserves planner provenance on the accepted diary entry', () => {
+    const draft = makeDraft({ plannerMealId: 'planned-meal-1' });
+    const { log } = buildAcceptResult(draft, nextId('log'), LATER);
+    expect(log.plannerMealId).toBe('planned-meal-1');
+  });
+
   it('memory.status is "accepted"', () => {
     const draft = makeDraft();
     const { memory } = buildAcceptResult(draft, nextId('log'), LATER);

@@ -29,6 +29,8 @@ type LivingMemorySources = {
   plannerMeals: PlannerMeal[];
 };
 
+export type RememberedSources = LivingMemorySources;
+
 export function emptyLivingMemory(): LivingMemory {
   return {
     schemaVersion: LIVING_MEMORY_SCHEMA_VERSION,
@@ -60,6 +62,17 @@ export function buildLivingMemory(sources: LivingMemorySources): LivingMemory {
     memory.plannerObservations[meal.id] = { day: meal.day, meal: meal.meal };
   });
   return memory;
+}
+
+export function filterForgottenSources(memory: LivingMemory, sources: LivingMemorySources): RememberedSources {
+  const forgotten = memory.forgotten;
+  return {
+    logs: sources.logs.filter((log) => !forgotten.meals.includes(log.id)),
+    waterLogs: Object.fromEntries(Object.entries(sources.waterLogs).filter(([date]) => !forgotten.water.includes(date))),
+    moodLogs: Object.fromEntries(Object.entries(sources.moodLogs).filter(([date]) => !forgotten.mood.includes(date))),
+    activityLogs: Object.fromEntries(Object.entries(sources.activityLogs).filter(([date]) => !forgotten.activity.includes(date))),
+    plannerMeals: sources.plannerMeals.filter((meal) => !forgotten.planner.includes(meal.id)),
+  };
 }
 
 function applyForgotten(memory: LivingMemory, forgotten: LivingMemory['forgotten']): LivingMemory {

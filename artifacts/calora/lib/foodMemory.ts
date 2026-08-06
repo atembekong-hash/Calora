@@ -64,6 +64,8 @@ export type FoodMemoryDraft = {
   createdAt: string;
   updatedAt: string;
   correctionIds: string[];
+  plannerMealId?: string;
+  sourceRecipeId?: string;
 };
 
 export type AcceptedFoodMemory = FoodMemoryDraft & {
@@ -329,6 +331,7 @@ export function recipeToDraft(
     createdAt: now,
     updatedAt: now,
     correctionIds: [],
+    sourceRecipeId: recipe.id,
   };
 }
 export function migrateFoodMemories(saved: Partial<{
@@ -444,5 +447,6 @@ export function plannerMealToDraft(
     createdAt: now,
     updatedAt: now,
     correctionIds: [],
+    plannerMealId: meal.id,
   };
 }

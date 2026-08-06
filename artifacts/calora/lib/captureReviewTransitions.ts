@@ -36,6 +36,8 @@ export type FoodLog = {
   serving: string;
   notes?: string;
   memoryId?: string;
+  plannerMealId?: string;
+  sourceRecipeId?: string;
   nutritionSnapshot?: {
     calories: number;
     proteinG: number;
@@ -100,6 +102,8 @@ export function buildAcceptResult(
     serving,
     notes: `${draft.sourceLabel} · Review approved`,
     memoryId: draft.id,
+    plannerMealId: draft.plannerMealId,
+    sourceRecipeId: draft.sourceRecipeId,
     nutritionSnapshot: snapshot,
   };
 

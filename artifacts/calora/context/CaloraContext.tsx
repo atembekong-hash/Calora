@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
@@ -27,6 +27,7 @@ import {
   updateRepeatPatterns,
 } from '@/lib/captureReviewTransitions';
 import type { CaptureAnalysis } from '@workspace/api-client-react';
+import { dateKey } from '@/lib/dates';
 import { deriveLivingState, type LivingState } from '@/lib/livingState';
 import {
   buildLivingMemory,
@@ -39,6 +40,7 @@ import {
   upsertMealObservation,
   upsertMoodObservation,
   upsertWaterObservation,
+  filterForgottenSources,
   type LivingMemory,
 } from '@/lib/livingMemory';
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -67,6 +69,8 @@ export type FoodLog = {
   preparation?: string;
   notes?: string;
   memoryId?: string;
+  plannerMealId?: string;
+  sourceRecipeId?: string;
   nutritionSnapshot?: { calories: number; proteinG: number; carbsG: number; fatG: number; capturedAt: string };
 };
 
@@ -96,7 +100,7 @@ export type CaloraRecipe = {
   sourceUrl: string;
   isLocal?: boolean;
 };
-export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean };
+export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean; sourceMealIds?: string[] };
 
 export type Profile = {
   name: string;
@@ -167,6 +171,8 @@ type CaloraContextValue = {
   savedRecipeIds: string[];
   profile: Profile | null;
   onboardingComplete: boolean;
+  hydrated: boolean;
+  hydrationError: string | null;
   themePreference: ThemePreference;
   mode: 'light' | 'dark';
   colors: typeof colors.light;
@@ -200,6 +206,7 @@ type CaloraContextValue = {
   clearOutbox: () => void;
   exportData: () => Promise<string>;
   clearAllData: () => Promise<void>;
+  retryHydration: () => void;
   plannerWeekStart: string;
   plannerMeals: PlannerMeal[];
   shoppingItems: ShoppingItem[];
@@ -222,7 +229,8 @@ type CaloraContextValue = {
 };
 
 const STORAGE_KEY = '@calora/local-state-v2';
-const today = new Date().toISOString().slice(0, 10);
+const STORAGE_SCHEMA_VERSION = 2;
+const today = dateKey();
 
 // foodSourceForMemory moved to lib/captureReviewTransitions.ts
 
@@ -338,8 +346,13 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     plannerMeals,
   }));
   const [hydrated, setHydrated] = useState(false);
+  const [hydrationError, setHydrationError] = useState<string | null>(null);
+  const [hydrationAttempt, setHydrationAttempt] = useState(0);
+  const storageWriteQueue = useRef(Promise.resolve());
 
   useEffect(() => {
+    setHydrationError(null);
+    setHydrated(false);
     AsyncStorage.getItem(STORAGE_KEY)
       .then((raw) => {
         if (!raw) return;
@@ -378,12 +391,14 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
          if (saved.coachConsentAccepted !== undefined) setCoachConsentAccepted(saved.coachConsentAccepted);
          if (saved.coachMessages) setCoachMessages(saved.coachMessages);
       })
-      .catch(() => undefined)
+      .catch(() => {
+        setHydrationError('Calora could not load your saved local data. Your data was not changed.');
+      })
       .finally(() => setHydrated(true));
-  }, []);
+  }, [hydrationAttempt]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || hydrationError) return;
     const state: CaloraState = {
       onboardingComplete,
       profile,
@@ -402,7 +417,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       plannerWeekStart,
       plannerMeals,
       shoppingItems,
-      schemaVersion: 1,
+      schemaVersion: STORAGE_SCHEMA_VERSION,
       foodDrafts,
       foodMemories,
       repeatPatterns,
@@ -412,23 +427,32 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       coachMessages,
       livingMemory,
     };
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => undefined);
-  }, [activityLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationReminders, livingMemory, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+     storageWriteQueue.current = storageWriteQueue.current
+       .catch(() => undefined)
+       .then(() => AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)));
+  }, [activityLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
     setOutbox((current) => [...current, { id: makeId('mutation'), entity, operation, createdAt: new Date().toISOString() }]);
   };
-  const livingState = useMemo(() => deriveLivingState({
-    profile,
+  const rememberedSources = useMemo(() => filterForgottenSources(livingMemory, {
     logs,
     waterLogs,
     moodLogs,
     activityLogs,
-    repeatPatterns,
     plannerMeals,
+  }), [activityLogs, livingMemory, logs, moodLogs, plannerMeals, waterLogs]);
+  const rememberedFoodMemories = useMemo(
+    () => foodMemories.filter((memory) => !memory.diaryLogId || !livingMemory.forgotten.meals.includes(memory.diaryLogId)),
+    [foodMemories, livingMemory],
+  );
+  const livingState = useMemo(() => deriveLivingState({
+    profile,
+    ...rememberedSources,
+    repeatPatterns,
     onboardingComplete,
-  }), [activityLogs, logs, moodLogs, onboardingComplete, plannerMeals, profile, repeatPatterns, waterLogs]);
+  }), [onboardingComplete, profile, rememberedSources, repeatPatterns]);
 
   const value = useMemo<CaloraContextValue>(() => ({
     logs,
@@ -441,6 +465,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     savedRecipeIds,
     profile,
     onboardingComplete,
+    hydrated,
+    hydrationError,
     themePreference,
     mode,
     colors: mode === 'dark' ? colors.dark : colors.light,
@@ -450,7 +476,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     plannerMeals,
     shoppingItems,
     foodDrafts,
-    foodMemories,
+    foodMemories: rememberedFoodMemories,
     repeatPatterns,
     healthConnected,
     addLog: (log) => {
@@ -486,7 +512,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       };
       const acceptedMemory: AcceptedFoodMemory = {
         id: `memory-${id}`,
-        schemaVersion: 1,
+       schemaVersion: 1,
         inputType: log.source === 'Recipe' ? 'recipe' : log.source === 'Manual' ? 'manual' : 'text',
         status: 'accepted',
         title: log.name,
@@ -559,6 +585,13 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     acceptFoodMemory: (draftId) => {
       const draft = foodDrafts.find((item) => item.id === draftId && item.status === 'draft');
       if (!draft) return null;
+      if (draft.plannerMealId) {
+        const existingPlannerLog = logs.find((log) => log.plannerMealId === draft.plannerMealId);
+        if (existingPlannerLog) {
+          setFoodDrafts((current) => current.filter((item) => item.id !== draftId));
+          return existingPlannerLog;
+        }
+      }
       const logId = makeId('log');
       const acceptedAt = new Date().toISOString();
       const { log, memory } = buildAcceptResult(draft, logId, acceptedAt);
@@ -653,9 +686,36 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     setHealthConnected,
     clearOutbox: () => setOutbox([]),
-      exportData: async () => JSON.stringify({ profile, logs, weights, waterLogs, moodLogs, activityLogs, savedMeals, localRecipes, savedRecipeIds, plannerWeekStart, plannerMeals, shoppingItems, foodDrafts, foodMemories, repeatPatterns, memoryCorrections, livingMemory, consentAccepted, coachConsentAccepted, coachMessages }, null, 2),
+      exportData: async () => JSON.stringify({
+        schemaVersion: STORAGE_SCHEMA_VERSION,
+        profile,
+        logs,
+        weights,
+        waterLogs,
+        moodLogs,
+        activityLogs,
+        savedMeals,
+        localRecipes,
+        savedRecipeIds,
+        plannerWeekStart,
+        plannerMeals,
+        shoppingItems,
+        foodDrafts,
+        foodMemories,
+        repeatPatterns,
+        memoryCorrections,
+        livingMemory,
+        hydrationReminders,
+        healthConnected,
+        consentAccepted,
+        coachConsentAccepted,
+        coachMessages,
+      }, null, 2),
     clearAllData: async () => {
-      await AsyncStorage.removeItem(STORAGE_KEY);
+      storageWriteQueue.current = storageWriteQueue.current
+        .catch(() => undefined)
+        .then(() => AsyncStorage.removeItem(STORAGE_KEY));
+      await storageWriteQueue.current;
       setLogs([]);
       setWeights([]);
       setWaterLogs({});
@@ -679,6 +739,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
        setCoachConsentAccepted(false);
        setCoachMessages([]);
     },
+     retryHydration: () => {
+       setHydrated(false);
+       setHydrationAttempt((current) => current + 1);
+     },
     setPlannerMeals: (weekStart, meals) => {
       const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
       setPlannerWeekStart(weekStart);
@@ -716,7 +780,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      setCoachConsentAccepted: (accepted) => setCoachConsentAccepted(accepted),
      setCoachMessages: (messages) => setCoachMessages(messages.slice(-12)),
      clearCoachHistory: () => setCoachMessages([]),
-     }), [activityLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationReminders, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+     }), [activityLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

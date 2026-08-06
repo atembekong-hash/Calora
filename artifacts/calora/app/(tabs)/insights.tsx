@@ -1,25 +1,16 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { router } from 'expo-router';
-
-type WeekDay = {
-  date: string;
-  day: string;
-  kcal: number;
-  value: number;
-  meals: number;
-  water: number;
-  mood?: Mood;
-  activity?: DailyActivity;
-  hasData: boolean;
-};
+import { dateKey } from '@/lib/dates';
+import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
+import { filterForgottenSources } from '@/lib/livingMemory';
 
 const moodColors: Record<Mood, string> = {
   energized: '#e5ad55',
@@ -28,33 +19,6 @@ const moodColors: Record<Mood, string> = {
   low: '#9875c7',
   stressed: '#ef6b4f',
 };
-
-function dateKeyFromDate(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function getWeekDays(logs: ReturnType<typeof useCalora>['logs'], waterLogs: ReturnType<typeof useCalora>['waterLogs'], moodLogs: ReturnType<typeof useCalora>['moodLogs'], activityLogs: ReturnType<typeof useCalora>['activityLogs'], target: number): WeekDay[] {
-  const today = new Date();
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (6 - index));
-    const dateKey = dateKeyFromDate(date);
-    const dayLogs = logs.filter((log) => log.date === dateKey);
-    const kcal = dayLogs.reduce((total, log) => total + log.calories, 0);
-    const meals = new Set(dayLogs.map((log) => log.meal)).size;
-    return {
-      date: dateKey,
-      day: new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date),
-      kcal,
-      value: kcal ? Math.min((kcal / target) * 100, 100) : 0,
-      meals,
-      water: waterLogs[dateKey] ?? 0,
-      mood: moodLogs[dateKey],
-      activity: activityLogs[dateKey],
-      hasData: dayLogs.length > 0 || Boolean(waterLogs[dateKey]) || Boolean(moodLogs[dateKey]) || Boolean(activityLogs[dateKey]),
-    };
-  });
-}
 
 function AnimatedReveal({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
   const progress = useSharedValue(0);
@@ -99,7 +63,7 @@ function AnimatedTrackFill({ percentage, color, trackColor }: { percentage: numb
   return <View style={[styles.miniTrack, { backgroundColor: trackColor }]}><Animated.View style={[styles.miniFill, { backgroundColor: color }, animatedStyle]} /></View>;
 }
 
-function WeeklyPatternsCard({ colors, days }: { colors: ReturnType<typeof useCalora>['colors']; days: WeekDay[] }) {
+function WeeklyPatternsCard({ colors, days }: { colors: ReturnType<typeof useCalora>['colors']; days: WeeklySignalDay[] }) {
   const loggedDays = days.filter((day) => day.hasData).length;
   const waterDays = days.filter((day) => day.water > 0).length;
   const moodDays = days.filter((day) => day.mood).length;
@@ -146,31 +110,37 @@ function WeeklyPatternsCard({ colors, days }: { colors: ReturnType<typeof useCal
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, profile, waterLogs, moodLogs, activityLogs, setActivity } = useCalora();
+  const { colors, logs, weights, addWeight, profile, waterLogs, moodLogs, activityLogs, setActivity, livingMemory, plannerMeals } = useCalora();
   const insets = useSafeAreaInsets();
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
-  const verifiedCount = logs.filter((log) => log.confidence >= 90).length;
+  const remembered = useMemo(
+    () => filterForgottenSources(livingMemory, { logs, waterLogs, moodLogs, activityLogs, plannerMeals }),
+    [activityLogs, livingMemory, logs, moodLogs, plannerMeals, waterLogs],
+  );
+  const dataTrust = trustScore(remembered.logs);
   const latestWeight = weights[weights.length - 1]?.kg ?? profile?.weightKg ?? 76;
   const startingWeight = profile?.weightKg ?? latestWeight;
   const weightDelta = latestWeight - startingWeight;
-  const loggedToday = logs.filter((log) => log.date === new Date().toISOString().slice(0, 10));
+  const todayKey = dateKey();
+  const loggedToday = remembered.logs.filter((log) => log.date === todayKey);
   const nutrientTotals = loggedToday.reduce((totals, log) => ({
     fiber: totals.fiber + (log.fiber ?? 0),
     sugar: totals.sugar + (log.sugar ?? 0),
     sodium: totals.sodium + (log.sodium ?? 0),
   }), { fiber: 0, sugar: 0, sodium: 0 });
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const waterToday = waterLogs[todayKey] ?? 0;
-  const moodToday = moodLogs[todayKey];
+  const waterToday = remembered.waterLogs[todayKey] ?? 0;
+  const moodToday = remembered.moodLogs[todayKey];
   const moodLabel = moodToday ? moodToday.charAt(0).toUpperCase() + moodToday.slice(1) : 'Not logged';
   const target = profile?.calorieTarget ?? 2000;
-  const weekDays = getWeekDays(logs, waterLogs, moodLogs, activityLogs, target);
-  const signalDays = weekDays.filter((day) => day.hasData).length;
-  const averageWeekCalories = weekDays.filter((day) => day.kcal > 0).length
-    ? Math.round(weekDays.reduce((sum, day) => sum + day.kcal, 0) / weekDays.filter((day) => day.kcal > 0).length)
-    : 0;
+  const weeklySignals = useMemo(
+    () => deriveWeeklySignals(remembered.logs, remembered.waterLogs, remembered.moodLogs, remembered.activityLogs, target, todayKey),
+    [remembered, target, todayKey],
+  );
+  const weekDays = weeklySignals.days;
+  const signalDays = weeklySignals.trackedDays;
+  const averageWeekCalories = weeklySignals.averageCalories;
   useEffect(() => {
     if (!saveNotice) return;
     const timeout = setTimeout(() => setSaveNotice(null), 2200);
@@ -233,11 +203,11 @@ export default function InsightsScreen() {
 
         <AnimatedReveal delay={150} style={styles.statRow}>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.foreground }]}>6.2</Text>
+            <Text style={[styles.statValue, { color: colors.foreground }]}>{weeklySignals.foodDays}</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>days logged</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.foreground }]}>{verifiedCount * 8 + 68}%</Text>
+            <Text style={[styles.statValue, { color: colors.foreground }]}>{dataTrust === null ? '—' : `${dataTrust}%`}</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>data trust</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -365,7 +335,7 @@ export default function InsightsScreen() {
                 { value: 'moderate', label: 'Moderate', icon: 'activity' },
                 { value: 'high', label: 'High', icon: 'zap' },
               ] as const).map((option) => {
-                const selected = activityLogs[todayKey] === option.value;
+                const selected = remembered.activityLogs[todayKey] === option.value;
                 return (
                   <Pressable
                     key={option.value}
@@ -385,7 +355,7 @@ export default function InsightsScreen() {
               })}
             </View>
             <Text style={[styles.checkinHint, { color: colors.mutedForeground }]}>
-              {activityLogs[todayKey] ? 'Saved on this device. You can change it anytime.' : 'Nothing is assumed when you leave this blank.'}
+              {remembered.activityLogs[todayKey] ? 'Saved on this device. You can change it anytime.' : 'Nothing is assumed when you leave this blank.'}
             </Text>
           </View>
         </AnimatedReveal>
@@ -398,7 +368,7 @@ export default function InsightsScreen() {
         <View style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.weightValue, { color: colors.foreground }]}>{latestWeight.toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>kg</Text></Text>
           <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length > 1 ? `${weights.length} weigh-ins recorded locally` : 'Optional · add a few weigh-ins to unlock trend guidance'}</Text>
-          <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '54%' : '10%' }]} /></View>
+          <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '100%' : '0%' }]} /></View>
         </View>
         </AnimatedReveal>
 

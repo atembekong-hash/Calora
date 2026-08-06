@@ -11,28 +11,9 @@ import type {
   WaterLog,
 } from '@/context/CaloraContext';
 import type { AcceptedFoodMemory, RepeatPattern } from '@/lib/foodMemory';
+import { dateKey, dateList, rollingDateRange } from '@/lib/dates';
 
 type PlannerLike = { day: string; meal: string; name: string };
-
-const dayKey = (date: Date) => date.toISOString().slice(0, 10);
-
-function dateDaysAgo(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return dayKey(date);
-}
-
-function dateRange(days: number) {
-  return { start: dateDaysAgo(days - 1), end: dayKey(new Date()) };
-}
-
-function buildDateList(days: number) {
-  return Array.from({ length: days }, (_, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (days - index - 1));
-    return dayKey(date);
-  });
-}
 
 function sumLogs(logs: FoodLog[]) {
   return logs.reduce((total, log) => ({
@@ -87,7 +68,7 @@ export function buildCoachContext({
   foodMemories: AcceptedFoodMemory[];
   repeatPatterns: RepeatPattern[];
 }): CoachContext {
-  const days = buildDateList(30);
+  const days = dateList(dateKey(), 30);
   const recentEntries = logs
     .filter((log) => days.includes(log.date))
     .slice(-80)
@@ -134,8 +115,8 @@ export function buildCoachContext({
   return {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
-    currentDate: dayKey(new Date()),
-    dateRange: dateRange(30),
+    currentDate: dateKey(),
+    dateRange: rollingDateRange(30),
     profile: profile ? {
       name: profile.name,
       goal: profile.goal,

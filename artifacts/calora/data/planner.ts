@@ -1,5 +1,6 @@
 import type { PlannerMeal } from '@workspace/api-client-react';
 import type { ShoppingItem } from '@/context/CaloraContext';
+import { addDays, dateFromKey, dateKey } from '@/lib/dates';
 
 export const plannerMealTypes: PlannerMeal['meal'][] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -195,9 +196,7 @@ export function getPlannerWeekStart(date = new Date()) {
 }
 
 export function plannerDate(weekStart: string, offset: number) {
-  const date = new Date(`${weekStart}T12:00:00`);
-  date.setDate(date.getDate() + offset);
-  return date.toISOString().slice(0, 10);
+  return addDays(weekStart, offset);
 }
 
 export function createStarterPlannerMeals(weekStart = getPlannerWeekStart()): PlannerMeal[] {
@@ -216,9 +215,20 @@ export function createStarterPlannerMeals(weekStart = getPlannerWeekStart()): Pl
 }
 
 export function buildShoppingItems(meals: PlannerMeal[], checkedByName = new Map<string, boolean>()): ShoppingItem[] {
-  const quantities = new Map<string, number>();
-  meals.forEach((meal) => meal.ingredients.forEach((ingredient) => quantities.set(ingredient, (quantities.get(ingredient) ?? 0) + 1)));
+  const quantities = new Map<string, { name: string; quantity: number; sourceMealIds: string[] }>();
+  meals.forEach((meal) => meal.ingredients.forEach((ingredient) => {
+    const name = ingredient.trim().replace(/\s+/g, ' ');
+    const key = name.toLocaleLowerCase();
+    const current = quantities.get(key) ?? { name, quantity: 0, sourceMealIds: [] };
+    current.quantity += 1;
+    if (!current.sourceMealIds.includes(meal.id)) current.sourceMealIds.push(meal.id);
+    quantities.set(key, current);
+  }));
   return Array.from(quantities.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([name, quantity], index) => ({ id: `shop-${index}-${name}`, name, quantity, checked: checkedByName.get(name) ?? false }));
+    .map(([key, item]) => ({
+      id: `shop-${key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
+      ...item,
+      checked: checkedByName.get(key) ?? checkedByName.get(item.name) ?? false,
+    }));
 }

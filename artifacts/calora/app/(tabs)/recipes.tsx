@@ -12,6 +12,7 @@ import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { dateKey } from '@/lib/dates';
 
 const categories = ['For you', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert'];
 const RECIPE_PAGE_SIZE = 18;
@@ -109,7 +110,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   const detail = detailQuery.data ?? recipe;
   const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
   const [planVisible, setPlanVisible] = useState(false);
-  const [planDay, setPlanDay] = useState(new Date().toISOString().slice(0, 10));
+  const [planDay, setPlanDay] = useState(dateKey());
   const [planMealType, setPlanMealType] = useState<PlannerMeal['meal']>('Dinner');
   const reviewDraft = reviewDraftId ? (foodDrafts.find((d) => d.id === reviewDraftId) ?? null) : null;
 
@@ -118,7 +119,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
 
   const openReview = () => {
     if (!canLog) return;
-    const draft = createRecipeDraft(detail, new Date().toISOString().slice(0, 10), 'Dinner');
+    const draft = createRecipeDraft(detail, dateKey(), 'Dinner');
     setReviewDraftId(draft.id);
   };
 
@@ -146,7 +147,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   };
 
   const openPlanPicker = () => {
-    setPlanDay(new Date().toISOString().slice(0, 10));
+    setPlanDay(dateKey());
     setPlanVisible(true);
   };
 
@@ -345,7 +346,7 @@ export default function RecipesScreen() {
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
   const loadingMoreRef = useRef(false);
   const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
-  const remainingCalories = Math.max((profile?.calorieTarget ?? 2000) - logs.filter((log) => log.date === new Date().toISOString().slice(0, 10)).reduce((sum, log) => sum + log.calories, 0), 0);
+  const remainingCalories = Math.max((profile?.calorieTarget ?? 2000) - logs.filter((log) => log.date === dateKey()).reduce((sum, log) => sum + log.calories, 0), 0);
   const localMatches = useMemo(() => localRecipes.filter((recipe) => {
     const haystack = `${recipe.name} ${recipe.category ?? ''} ${recipe.tags.join(' ')} ${recipe.ingredients.join(' ')}`.toLowerCase();
     return haystack.includes(search.toLowerCase()) && (category === 'For you' || category === 'My recipes' || recipe.category === category);

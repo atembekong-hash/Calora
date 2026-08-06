@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildLivingMemory, emptyLivingMemory, forgetLivingObservation, mergeLivingMemory, removeMealObservation, upsertMealObservation, upsertPlannerObservations, upsertWaterObservation } from '../livingMemory';
+import { buildLivingMemory, emptyLivingMemory, filterForgottenSources, forgetLivingObservation, mergeLivingMemory, removeMealObservation, upsertMealObservation, upsertPlannerObservations, upsertWaterObservation } from '../livingMemory';
 import type { FoodLog } from '@/context/CaloraContext';
 
 const log = (id: string, date = '2026-08-06'): FoodLog => ({
@@ -102,5 +102,26 @@ describe('living memory', () => {
     const edited = upsertMealObservation(forgotten, 'meal-1', '2026-08-07', 'Lunch');
     expect(edited.forgotten.meals).toEqual([]);
     expect(edited.mealObservations['meal-1']).toEqual({ date: '2026-08-07', meal: 'Lunch' });
+  });
+
+  it('filters forgotten signals for adaptive consumers without deleting source records', () => {
+    const source = buildLivingMemory({
+      logs: [log('meal-1')],
+      waterLogs: { '2026-08-06': 16 },
+      moodLogs: { '2026-08-06': 'good' },
+      activityLogs: {},
+      plannerMeals: [],
+    });
+    const forgotten = forgetLivingObservation(forgetLivingObservation(source, 'meal', 'meal-1'), 'water', '2026-08-06');
+    const filtered = filterForgottenSources(forgotten, {
+      logs: [log('meal-1')],
+      waterLogs: { '2026-08-06': 16 },
+      moodLogs: { '2026-08-06': 'good' },
+      activityLogs: {},
+      plannerMeals: [],
+    });
+    expect(filtered.logs).toEqual([]);
+    expect(filtered.waterLogs).toEqual({});
+    expect(filtered.moodLogs).toEqual({ '2026-08-06': 'good' });
   });
 });

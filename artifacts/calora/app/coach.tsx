@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { buildCoachContext } from '@/lib/coachContext';
+import { filterForgottenSources } from '@/lib/livingMemory';
 import { useCalora } from '@/context/CaloraContext';
 
 type DisplayTurn = {
@@ -119,6 +120,7 @@ export default function CoachScreen() {
     savedRecipeIds,
     foodMemories,
     repeatPatterns,
+    livingMemory,
     coachConsentAccepted,
     setCoachConsentAccepted,
     coachMessages,
@@ -135,21 +137,22 @@ export default function CoachScreen() {
     content: message.content,
   })));
 
+  const remembered = useMemo(() => filterForgottenSources(livingMemory, { logs, waterLogs, moodLogs, activityLogs, plannerMeals }), [activityLogs, livingMemory, logs, moodLogs, plannerMeals, waterLogs]);
   const context = useMemo(() => buildCoachContext({
     profile,
-    logs,
-    waterLogs,
-    moodLogs,
-    activityLogs,
+    logs: remembered.logs,
+    waterLogs: remembered.waterLogs,
+    moodLogs: remembered.moodLogs,
+    activityLogs: remembered.activityLogs,
     weights,
-    plannerMeals,
+    plannerMeals: remembered.plannerMeals,
     shoppingItems,
     savedMeals,
     localRecipes,
     savedRecipeIds,
     foodMemories,
     repeatPatterns,
-  }), [activityLogs, foodMemories, localRecipes, logs, moodLogs, plannerMeals, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, waterLogs, weights]);
+  }), [activityLogs, foodMemories, localRecipes, moodLogs, plannerMeals, profile, remembered, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, waterLogs, weights]);
 
   const sendMessage = async (value = composer.trim()) => {
     if (!value || respondCoach.isPending) return;

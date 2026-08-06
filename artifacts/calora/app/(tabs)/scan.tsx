@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { router, useLocalSearchParams } from 'expo-router';
+import { dateKey } from '@/lib/dates';
 
 type ScanMode = 'auto' | 'barcode' | 'food' | 'label';
 
@@ -59,7 +60,7 @@ export default function ScanScreen() {
   const { colors, foodDrafts, createFoodMemoryDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory } = useCalora();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ date?: string; draftId?: string }>();
-  const entryDate = typeof params.date === 'string' ? params.date : new Date().toISOString().slice(0, 10);
+  const entryDate = typeof params.date === 'string' ? params.date : dateKey();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [mode, setMode] = useState<ScanMode>('auto');

@@ -20,6 +20,7 @@ import { useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { trustScore } from '@/lib/weeklySignals';
 
 const dateKey = (date: Date) => {
   const year = date.getFullYear();
@@ -536,6 +537,7 @@ export default function HomeScreen() {
   const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const target = profile?.calorieTarget ?? 2000;
+  const dataTrust = trustScore(logs);
   const selectedLogs = logs.filter((log) => log.date === selectedDate || (!log.date && isToday(selectedDate)));
   const selectedTotals = useMemo(() => selectedLogs.reduce((sum, log) => ({
     calories: sum.calories + log.calories,
@@ -621,7 +623,7 @@ export default function HomeScreen() {
             </View>
             <View style={[styles.trustBadge, { backgroundColor: 'rgba(157,215,189,0.16)' }]}>
               <Feather name="shield" size={13} color={colors.heroMuted} />
-              <Text style={[styles.trustText, { color: colors.heroMuted }]}>92% trusted</Text>
+               <Text style={[styles.trustText, { color: colors.heroMuted }]}>{dataTrust === null ? 'No trust score yet' : `${dataTrust}% trusted`}</Text>
             </View>
           </View>
           <View style={styles.heroMetrics}>

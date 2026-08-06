@@ -13,3 +13,4 @@
 - [Living memory ledger](living-memory-ledger.md) — reliable local memory must be normalized from confirmed sources before any memory becomes visible in the interface.
 - [Planner week context](planner-week-context.md) — browsing, shopping, and planner memory must share one explicit viewed-week source of truth.
 - [Planner editing principles](planner-editing-principles.md) — explicit edit mode and custom insertion must use the shared local mutation path.
+- [Local persistence recovery](local-persistence-recovery.md) — hydration failures must block autosave, and destructive clears must serialize behind pending writes.

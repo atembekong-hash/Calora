@@ -7,6 +7,7 @@ import type {
   WaterLog,
 } from '@/context/CaloraContext';
 import type { RepeatPattern } from '@/lib/foodMemory';
+import { addDays, dateKey, dateList } from '@/lib/dates';
 
 export type LivingTimePeriod = 'morning' | 'midday' | 'afternoon' | 'evening';
 export type RoutineStage = 'first_day' | 'building' | 'emerging' | 'consistent' | 'returning';
@@ -65,18 +66,12 @@ type LivingStateInput = {
   now?: Date;
 };
 
-const dateKey = (date: Date) => date.toISOString().slice(0, 10);
-
 function daysAgo(now: Date, count: number) {
-  const date = new Date(now);
-  date.setDate(date.getDate() - count);
-  return dateKey(date);
+  return addDays(dateKey(now), -count);
 }
 
 function daysFrom(now: Date, count: number) {
-  const date = new Date(now);
-  date.setDate(date.getDate() + count);
-  return dateKey(date);
+  return addDays(dateKey(now), count);
 }
 
 function getTimePeriod(hour: number): LivingTimePeriod {
@@ -116,8 +111,8 @@ function getRoutineStage({
 export function deriveLivingState(input: LivingStateInput): LivingState {
   const now = input.now ?? new Date();
   const currentDate = dateKey(now);
-  const recentDates = new Set(Array.from({ length: 7 }, (_, index) => daysAgo(now, index)));
-  const last14Dates = new Set(Array.from({ length: 14 }, (_, index) => daysAgo(now, index)));
+  const recentDates = new Set(dateList(dateKey(now), 7, -6));
+  const last14Dates = new Set(dateList(dateKey(now), 14, -13));
   const next7Dates = new Set(Array.from({ length: 7 }, (_, index) => daysFrom(now, index + 1)));
   const recentLogs = input.logs.filter((log) => recentDates.has(log.date));
   const last14Logs = input.logs.filter((log) => last14Dates.has(log.date));
