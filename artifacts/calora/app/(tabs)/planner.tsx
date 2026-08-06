@@ -3,12 +3,13 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { router } from 'expo-router';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
@@ -34,12 +35,16 @@ function MealCard({
   onPress,
   onLog,
   onActions,
+  editMode,
+  onEdit,
 }: {
   meal: PlannerMeal;
   colors: ReturnType<typeof useCalora>['colors'];
   onPress: () => void;
   onLog: () => void;
   onActions: () => void;
+  editMode: boolean;
+  onEdit: () => void;
 }) {
   return (
     <View style={[styles.mealCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -64,6 +69,7 @@ function MealCard({
             <Feather name="plus" size={13} color={colors.primaryForeground} />
             <Text style={[styles.logMealButtonText, { color: colors.primaryForeground }]}>Log</Text>
           </Pressable>
+            {editMode && <Pressable accessibilityLabel={`Edit ${meal.name}`} onPress={onEdit} style={[styles.editMealButton, { borderColor: colors.primary }]}><Feather name="edit-2" size={12} color={colors.primary} /><Text style={[styles.editMealButtonText, { color: colors.primary }]}>Edit</Text></Pressable>}
         </View>
       </View>
     </View>
@@ -129,6 +135,22 @@ export default function PlannerScreen() {
   const [actionMode, setActionMode] = useState<'move' | 'copy' | null>(null);
   const [addingMealType, setAddingMealType] = useState<PlannerMeal['meal'] | null>(null);
   const [replaceMeal, setReplaceMeal] = useState<PlannerMeal | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editMeal, setEditMeal] = useState<PlannerMeal | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editServing, setEditServing] = useState('');
+  const [editCalories, setEditCalories] = useState('');
+  const [editProtein, setEditProtein] = useState('');
+  const [editCarbs, setEditCarbs] = useState('');
+  const [editFat, setEditFat] = useState('');
+  const [customMealType, setCustomMealType] = useState<PlannerMeal['meal'] | null>(null);
+  const [customName, setCustomName] = useState('');
+  const [customServing, setCustomServing] = useState('1 serving');
+  const [customCalories, setCustomCalories] = useState('');
+  const [customProtein, setCustomProtein] = useState('');
+  const [customCarbs, setCustomCarbs] = useState('');
+  const [customFat, setCustomFat] = useState('');
+  const [customIngredients, setCustomIngredients] = useState('');
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -174,6 +196,65 @@ export default function PlannerScreen() {
     updatePlannerMeals(next);
     setAddingMealType(null);
     acknowledge(`${template.name} added to your plan.`);
+  };
+
+  const beginEditMeal = (meal: PlannerMeal) => {
+    setEditMeal(meal);
+    setEditName(meal.name);
+    setEditServing(meal.serving);
+    setEditCalories(String(Math.round(meal.calories)));
+    setEditProtein(String(Math.round(meal.proteinG)));
+    setEditCarbs(String(Math.round(meal.carbsG)));
+    setEditFat(String(Math.round(meal.fatG)));
+  };
+
+  const saveEditedMeal = () => {
+    if (!editMeal || !editName.trim()) return;
+    const next = plannerMeals.map((meal) => meal.id === editMeal.id ? {
+      ...meal,
+      name: editName.trim(),
+      serving: editServing.trim() || '1 serving',
+      calories: Math.max(0, Number(editCalories) || 0),
+      proteinG: Math.max(0, Number(editProtein) || 0),
+      carbsG: Math.max(0, Number(editCarbs) || 0),
+      fatG: Math.max(0, Number(editFat) || 0),
+    } : meal);
+    updatePlannerMeals(next);
+    setEditMeal(null);
+    acknowledge(`${editName.trim()} updated and saved locally.`);
+  };
+
+  const openCustomMeal = (mealType: PlannerMeal['meal']) => {
+    setAddingMealType(null);
+    setCustomMealType(mealType);
+    setCustomName('');
+    setCustomServing('1 serving');
+    setCustomCalories('');
+    setCustomProtein('');
+    setCustomCarbs('');
+    setCustomFat('');
+    setCustomIngredients('');
+  };
+
+  const saveCustomMeal = () => {
+    if (!customMealType || !customName.trim()) return;
+    const custom: PlannerMeal = {
+      id: `custom-${Date.now()}`,
+      day: selectedDay,
+      meal: customMealType,
+      name: customName.trim(),
+      image: '',
+      serving: customServing.trim() || '1 serving',
+      calories: Math.max(0, Number(customCalories) || 0),
+      proteinG: Math.max(0, Number(customProtein) || 0),
+      carbsG: Math.max(0, Number(customCarbs) || 0),
+      fatG: Math.max(0, Number(customFat) || 0),
+      ingredients: customIngredients.split(/[,;\n]/).map((item) => item.trim()).filter(Boolean),
+      description: 'A custom meal added to your plan.',
+    };
+    updatePlannerMeals([...plannerMeals.filter((meal) => !(meal.day === selectedDay && meal.meal === customMealType)), custom]);
+    setCustomMealType(null);
+    acknowledge(`${custom.name} added to your plan.`);
   };
 
   const removeMealFromPlan = (meal: PlannerMeal) => {
@@ -296,13 +377,13 @@ export default function PlannerScreen() {
             <Feather name="arrow-up-right" size={17} color={colors.primary} />
           </Pressable>
         </View>
-        <View style={styles.weekHeader}>
+         <View style={styles.weekHeader}>
           <Pressable accessibilityLabel="Previous week" onPress={() => shiftWeek(-1)} style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={18} color={colors.foreground} /></Pressable>
           <View style={styles.weekRangeCopy}>
             <Text style={[styles.weekRange, { color: colors.foreground }]}>{formatRange(viewWeekStart)}</Text>
             {viewWeekStart !== getPlannerWeekStart() && <Pressable accessibilityLabel="Return to this week" onPress={goToToday}><Text style={[styles.todayLink, { color: colors.primary }]}>Today</Text></Pressable>}
           </View>
-          <Pressable accessibilityLabel="Next week" onPress={() => shiftWeek(1)} style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={18} color={colors.foreground} /></Pressable>
+           <View style={styles.weekHeaderActions}><Pressable accessibilityLabel="Next week" onPress={() => shiftWeek(1)} style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={18} color={colors.foreground} /></Pressable><Pressable accessibilityLabel={editMode ? 'Done editing plan' : 'Edit plan'} onPress={() => setEditMode((value) => !value)} style={[styles.editModeButton, { backgroundColor: editMode ? colors.primary : colors.muted }]}><Feather name={editMode ? 'check' : 'edit-2'} size={14} color={editMode ? colors.primaryForeground : colors.foreground} /><Text style={[styles.editModeText, { color: editMode ? colors.primaryForeground : colors.foreground }]}>{editMode ? 'Done' : 'Edit'}</Text></Pressable></View>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayRail}>
           {weekDays.map((day) => {
@@ -315,7 +396,7 @@ export default function PlannerScreen() {
          <Pressable accessibilityLabel="Generate my week" onPress={() => void generate()} disabled={generating} style={[styles.generateButton, { backgroundColor: colors.primary, opacity: generating ? 0.72 : 1 }]}>{generating ? <ActivityIndicator color={colors.primaryForeground} /> : <Feather name="zap" size={17} color={colors.primaryForeground} />}<View style={styles.generateCopy}><Text style={[styles.generateText, { color: colors.primaryForeground }]}>{generating ? 'Building your week…' : 'Suggest meals for open spots'}</Text><Text style={[styles.generateHint, { color: colors.primaryForeground }]}>Your choices stay in place</Text></View><Feather name="arrow-up-right" size={16} color={colors.primaryForeground} /></Pressable>
         {generationMessage && <View accessibilityLiveRegion="polite" style={[styles.generationStatus, { backgroundColor: colors.accent }]}><Feather name="check-circle" size={16} color={colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
          <View style={styles.dayHeading}><View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{dayFormatter.format(parseDate(selectedDay))}'s meals</Text><Text style={[styles.dayHeadingCaption, { color: colors.mutedForeground }]}>Tap a meal to see it. Use Log or ··· to change the plan.</Text></View><Text style={[styles.dayTotal, { color: colors.primary }]}>{Math.round(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))} kcal</Text></View>
-          <View style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={17} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Choose something, or leave this open.</Text></View><Feather name="chevron-right" size={16} color={colors.mutedForeground} /></Pressable>; })}
+           <View style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={17} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Choose something, or leave this open.</Text></View><Feather name="chevron-right" size={16} color={colors.mutedForeground} /></Pressable>; })}
         </View>
         <View style={[styles.tipCard, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.tipText, { color: colors.foreground }]}>Planning is a suggestion, not a promise. Swap anything that does not fit your day.</Text></View>
          <SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} />
@@ -471,9 +552,10 @@ export default function PlannerScreen() {
              <View style={styles.sheetHandle} />
              <SheetHeader eyebrow={`${dayFormatter.format(parseDate(selectedDay)).toUpperCase()} · ${addingMealType ?? ''}`} title="Add something that fits" onClose={() => setAddingMealType(null)} colors={colors} />
              <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>A few good starting points. You can replace this anytime.</Text>
-             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.catalogList}>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.catalogList}>
                {plannerCatalog.filter((meal) => meal.meal === addingMealType).map((meal) => <Pressable key={meal.id} accessibilityLabel={`Add ${meal.name} to plan`} onPress={() => addMealToPlan(meal, selectedDay, addingMealType!)} style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: meal.image }} contentFit="cover" style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="plus-circle" size={19} color={colors.primary} /></Pressable>)}
              </ScrollView>
+              <Pressable accessibilityLabel={`Create custom ${addingMealType}`} onPress={() => openCustomMeal(addingMealType!)} style={[styles.customMealButton, { borderColor: colors.primary }]}><Feather name="edit-3" size={15} color={colors.primary} /><Text style={[styles.customMealButtonText, { color: colors.primary }]}>Create a custom meal</Text></Pressable>
              <Pressable accessibilityLabel={`Leave ${addingMealType} open`} onPress={() => { setAddingMealType(null); acknowledge(`${addingMealType} left open for real life.`); }} style={styles.leaveOpenButton}><Text style={[styles.leaveOpenText, { color: colors.mutedForeground }]}>Leave this slot open</Text></Pressable>
            </View>
          </View>
@@ -490,6 +572,58 @@ export default function PlannerScreen() {
            </View>
          </View>
        </Modal>
+        <Modal visible={editMeal !== null} transparent animationType="slide" onRequestClose={() => setEditMeal(null)}>
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.formSheet, { backgroundColor: colors.background }]}>
+              <View style={styles.sheetHandle} />
+              <SheetHeader eyebrow="EDIT PLANNED MEAL" title={editMeal?.name ?? ''} onClose={() => setEditMeal(null)} colors={colors} />
+              <KeyboardAwareScrollViewCompat
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.formContent}
+                bottomOffset={28}
+              >
+                <Text style={[styles.formHint, { color: colors.mutedForeground }]}>Adjust the serving and nutrition that appear in your plan. This does not change a diary entry already logged.</Text>
+                <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Meal name</Text>
+                <TextInput accessibilityLabel="Edit meal name" value={editName} onChangeText={setEditName} placeholder="Meal name" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+                <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Serving</Text>
+                <TextInput accessibilityLabel="Edit serving" value={editServing} onChangeText={setEditServing} placeholder="1 serving" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+                <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Nutrition per serving</Text>
+                <View style={styles.formNumberGrid}>
+                  {([['Calories', editCalories, setEditCalories], ['Protein g', editProtein, setEditProtein], ['Carbs g', editCarbs, setEditCarbs], ['Fat g', editFat, setEditFat]] as const).map(([label, value, setter]) => <View key={label} style={styles.formNumberField}><Text style={[styles.numberInputLabel, { color: colors.mutedForeground }]}>{label}</Text><TextInput accessibilityLabel={`Edit ${label}`} value={value} onChangeText={setter} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}
+                </View>
+                <Pressable accessibilityLabel="Save planned meal edits" onPress={saveEditedMeal} disabled={!editName.trim()} style={[styles.formSaveButton, { backgroundColor: colors.primary, opacity: editName.trim() ? 1 : 0.5 }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Save changes</Text></Pressable>
+                <Pressable accessibilityLabel="Cancel planned meal edits" onPress={() => setEditMeal(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
+              </KeyboardAwareScrollViewCompat>
+            </View>
+          </View>
+        </Modal>
+        <Modal visible={customMealType !== null} transparent animationType="slide" onRequestClose={() => setCustomMealType(null)}>
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.formSheet, { backgroundColor: colors.background }]}>
+              <View style={styles.sheetHandle} />
+              <SheetHeader eyebrow={`${customMealType?.toUpperCase() ?? ''} · ${dateFormatter.format(parseDate(selectedDay))}`} title="Create a custom meal" onClose={() => setCustomMealType(null)} colors={colors} />
+              <KeyboardAwareScrollViewCompat
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.formContent}
+                bottomOffset={28}
+              >
+                <Text style={[styles.formHint, { color: colors.mutedForeground }]}>Add something personal without losing the calm structure of your plan.</Text>
+                <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Meal name</Text>
+                <TextInput accessibilityLabel="Custom meal name" value={customName} onChangeText={setCustomName} placeholder="e.g. Sunday chili" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+                <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Serving</Text>
+                <TextInput accessibilityLabel="Custom meal serving" value={customServing} onChangeText={setCustomServing} placeholder="1 serving" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+                <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Nutrition per serving</Text>
+                <View style={styles.formNumberGrid}>
+                  {([['Calories', customCalories, setCustomCalories], ['Protein g', customProtein, setCustomProtein], ['Carbs g', customCarbs, setCustomCarbs], ['Fat g', customFat, setCustomFat]] as const).map(([label, value, setter]) => <View key={label} style={styles.formNumberField}><Text style={[styles.numberInputLabel, { color: colors.mutedForeground }]}>{label}</Text><TextInput accessibilityLabel={`Custom ${label}`} value={value} onChangeText={setter} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}
+                </View>
+                <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Ingredients (optional)</Text>
+                <TextInput accessibilityLabel="Custom meal ingredients" value={customIngredients} onChangeText={setCustomIngredients} multiline placeholder="Separate ingredients with commas" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+                <Pressable accessibilityLabel="Save custom meal" onPress={saveCustomMeal} disabled={!customName.trim()} style={[styles.formSaveButton, { backgroundColor: colors.primary, opacity: customName.trim() ? 1 : 0.5 }]}><Feather name="plus" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Add to plan</Text></Pressable>
+                <Pressable accessibilityLabel="Cancel custom meal" onPress={() => setCustomMealType(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
+              </KeyboardAwareScrollViewCompat>
+            </View>
+          </View>
+        </Modal>
     </View>
   );
 }
@@ -514,7 +648,10 @@ const styles = StyleSheet.create({
   shoppingCountText: { fontFamily: 'Inter_700Bold', fontSize: 9 },
   weekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 11 },
   weekArrow: { width: 31, height: 31, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  weekHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   weekRange: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  editModeButton: { minHeight: 31, borderRadius: 11, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  editModeText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
   dayRail: { gap: 8, paddingBottom: 13 },
   dayPill: { width: 47, height: 66, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   dayName: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
@@ -554,6 +691,8 @@ const styles = StyleSheet.create({
   macroText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 },
   logMealButton: { marginLeft: 'auto', minHeight: 26, borderRadius: 9, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 3 },
   logMealButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
+  editMealButton: { minHeight: 26, borderRadius: 9, paddingHorizontal: 7, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 3 },
+  editMealButtonText: { fontFamily: 'Inter_700Bold', fontSize: 9 },
   emptyMeal: { minHeight: 62, borderRadius: 15, borderWidth: 1, borderStyle: 'dashed', padding: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
   emptyMealImage: { width: 48, height: 46, borderRadius: 10, opacity: 0.8 },
   emptySlotIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
@@ -598,6 +737,20 @@ const styles = StyleSheet.create({
   catalogMeta: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 4 },
   leaveOpenButton: { alignItems: 'center', paddingVertical: 12 },
   leaveOpenText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  customMealButton: { minHeight: 43, borderRadius: 13, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 5 },
+  customMealButtonText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  formSheet: { maxHeight: '91%', borderTopLeftRadius: 27, borderTopRightRadius: 27, paddingHorizontal: 20 },
+  formContent: { paddingBottom: 28 },
+  formHint: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginBottom: 15 },
+  inputLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 10, marginBottom: 6 },
+  numberInputLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, marginBottom: 5 },
+  formInput: { minHeight: 44, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, fontFamily: 'Inter_400Regular', fontSize: 12 },
+  formNumberGrid: { flexDirection: 'row', gap: 8 },
+  formNumberField: { flex: 1 },
+  multilineInput: { minHeight: 76, paddingTop: 12, textAlignVertical: 'top' },
+  formSaveButton: { minHeight: 47, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 20 },
+  formSaveText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  formCancelButton: { alignItems: 'center', paddingVertical: 14 },
   detailImage: { height: 220, width: '100%' },
   detailBody: { padding: 20 },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#b7c5bc', alignSelf: 'center', marginVertical: 11 },
