@@ -7,4 +7,4 @@ Calora’s adaptive UI should derive from existing local data through a determin
 
 **Why:** A stateful companion feels trustworthy only when the same evidence produces the same calm response, missing history is not treated as failure, and competing suggestions resolve predictably.
 
-**How to apply:** Keep the engine pure and testable with an injectable current time. Do not persist derived state or ask AI to classify routine maturity. Add visible behavior only after the shared state and its priority rules are covered by tests.
+**How to apply:** Keep the engine pure and testable with an injectable current time. Do not persist derived state or ask AI to classify routine maturity. Home may expose a compact current-rhythm summary; keep detailed weekly pattern analysis on Progress so the surfaces do not compete.

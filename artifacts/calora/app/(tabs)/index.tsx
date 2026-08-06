@@ -53,6 +53,93 @@ function IconButton({ icon, label, onPress, colors }: { icon: keyof typeof Feath
   );
 }
 
+const routineStageCopy: Record<ReturnType<typeof useCalora>['livingState']['routineStage'], { title: string; body: string }> = {
+  first_day: {
+    title: 'A first step is enough',
+    body: 'One real entry gives your rhythm somewhere to begin.',
+  },
+  building: {
+    title: 'Building a useful picture',
+    body: 'Small signals are starting to show what fits your day.',
+  },
+  emerging: {
+    title: 'A rhythm is emerging',
+    body: 'Your recent entries are giving Calora more context to work with.',
+  },
+  consistent: {
+    title: 'A steady routine is taking shape',
+    body: 'Your recent history is becoming easier to read.',
+  },
+  returning: {
+    title: 'A gentle return',
+    body: 'Your earlier history is still here. Start from where you are.',
+  },
+};
+
+function LivingRhythmCard({
+  colors,
+  livingState,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  livingState: ReturnType<typeof useCalora>['livingState'];
+}) {
+  const copy = routineStageCopy[livingState.routineStage];
+  const waterProgress = Math.min(livingState.signal.waterToday / 64, 1);
+  const weekProgress = Math.min(livingState.signal.loggedDaysLast7 / 7, 1);
+
+  return (
+    <View
+      testID="living-rhythm-card"
+      accessibilityLabel={`${copy.title}. ${livingState.signal.mealsToday} meals today, ${livingState.signal.waterToday} fluid ounces of water today, ${livingState.signal.loggedDaysLast7} days tracked this week.`}
+      style={[styles.livingRhythmCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+    >
+      <View style={styles.livingRhythmHeader}>
+        <View style={[styles.livingRhythmIcon, { backgroundColor: colors.accent }]}>
+          <Feather name="activity" size={16} color={colors.accentForeground} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.livingRhythmEyebrow, { color: colors.mutedForeground }]}>TODAY'S RHYTHM</Text>
+          <Text style={[styles.livingRhythmTitle, { color: colors.foreground }]}>{copy.title}</Text>
+        </View>
+        <View style={[styles.livingRhythmStage, { backgroundColor: colors.muted }]}>
+          <Text style={[styles.livingRhythmStageText, { color: colors.mutedForeground }]}>{livingState.focus}</Text>
+        </View>
+      </View>
+      <Text style={[styles.livingRhythmBody, { color: colors.mutedForeground }]}>{copy.body}</Text>
+      <View style={styles.livingRhythmSignals}>
+        <View style={styles.livingRhythmSignal}>
+          <Text style={[styles.livingRhythmValue, { color: colors.foreground }]}>{livingState.signal.mealsToday}</Text>
+          <Text style={[styles.livingRhythmLabel, { color: colors.mutedForeground }]}>meals today</Text>
+        </View>
+        <View style={[styles.livingRhythmDivider, { backgroundColor: colors.border }]} />
+        <View style={styles.livingRhythmSignal}>
+          <Text style={[styles.livingRhythmValue, { color: colors.foreground }]}>{livingState.signal.waterToday}</Text>
+          <Text style={[styles.livingRhythmLabel, { color: colors.mutedForeground }]}>fl oz today</Text>
+        </View>
+        <View style={[styles.livingRhythmDivider, { backgroundColor: colors.border }]} />
+        <View style={styles.livingRhythmSignal}>
+          <Text style={[styles.livingRhythmValue, { color: colors.foreground }]}>{livingState.signal.loggedDaysLast7}<Text style={styles.livingRhythmUnit}>/7</Text></Text>
+          <Text style={[styles.livingRhythmLabel, { color: colors.mutedForeground }]}>days tracked</Text>
+        </View>
+      </View>
+      <View style={styles.livingRhythmTracks}>
+        <View style={styles.livingRhythmTrackGroup}>
+          <Text style={[styles.livingRhythmTrackLabel, { color: colors.mutedForeground }]}>water</Text>
+          <View style={[styles.livingRhythmTrack, { backgroundColor: colors.muted }]}>
+            <View style={[styles.livingRhythmFill, { backgroundColor: colors.primary, width: `${waterProgress * 100}%` }]} />
+          </View>
+        </View>
+        <View style={styles.livingRhythmTrackGroup}>
+          <Text style={[styles.livingRhythmTrackLabel, { color: colors.mutedForeground }]}>week</Text>
+          <View style={[styles.livingRhythmTrack, { backgroundColor: colors.muted }]}>
+            <View style={[styles.livingRhythmFill, { backgroundColor: colors.success, width: `${weekProgress * 100}%` }]} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: Recipe) => void }) {
   const { data, isLoading, isError } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10 } });
   const recipes = data?.recipes ?? [];
@@ -558,6 +645,8 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+        <LivingRhythmCard colors={colors} livingState={livingState} />
+
         <View style={styles.quickActions}>
           <IconButton icon="camera" label="Photo log" onPress={openAdd} colors={colors} />
           <IconButton icon="search" label="Search foods" onPress={openAdd} colors={colors} />
@@ -668,6 +757,25 @@ const styles = StyleSheet.create({
   heroHint: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 10 },
   livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 42, borderRadius: 14, paddingHorizontal: 14, marginTop: 20 },
   livingActionText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  livingRhythmCard: { borderWidth: 1, borderRadius: 22, padding: 16, marginBottom: 20 },
+  livingRhythmHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  livingRhythmIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  livingRhythmEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1, marginBottom: 3 },
+  livingRhythmTitle: { fontFamily: 'Inter_700Bold', fontSize: 16, letterSpacing: -0.2 },
+  livingRhythmStage: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6 },
+  livingRhythmStageText: { fontFamily: 'Inter_600SemiBold', fontSize: 9, textTransform: 'capitalize' },
+  livingRhythmBody: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginTop: 11, maxWidth: 300 },
+  livingRhythmSignals: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
+  livingRhythmSignal: { flex: 1 },
+  livingRhythmValue: { fontFamily: 'Inter_700Bold', fontSize: 18, letterSpacing: -0.3 },
+  livingRhythmUnit: { fontFamily: 'Inter_500Medium', fontSize: 11 },
+  livingRhythmLabel: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 3 },
+  livingRhythmDivider: { width: 1, height: 28, marginHorizontal: 12 },
+  livingRhythmTracks: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  livingRhythmTrackGroup: { flex: 1, gap: 5 },
+  livingRhythmTrackLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.7 },
+  livingRhythmTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  livingRhythmFill: { height: 6, borderRadius: 3 },
   quickActions: { flexDirection: 'row', gap: 10, marginBottom: 22 },
   quickAction: { flex: 1, minHeight: 88, borderWidth: 1, borderRadius: 18, padding: 12, justifyContent: 'space-between' },
   quickIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
