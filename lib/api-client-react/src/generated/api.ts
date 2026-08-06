@@ -28,9 +28,12 @@ import type {
   HealthStatus,
   ListDiaryEntries200,
   ListDiaryEntriesParams,
+  ListRecipesParams,
   ListWeightsParams,
   Profile,
   ProfileInput,
+  Recipe,
+  RecipeList,
   SearchFoods200,
   SearchFoodsParams,
   SyncRequest,
@@ -899,6 +902,167 @@ export const useSyncOutbox = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getSyncOutboxMutationOptions(options));
     }
+
+export const getListRecipesUrl = (params?: ListRecipesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/recipes?${stringifiedParams}` : `/api/v1/recipes`
+}
+
+/**
+ * @summary Browse open-source recipes
+ */
+export const listRecipes = async (params?: ListRecipesParams, options?: Parameters<typeof customFetch>[1]): Promise<RecipeList> => {
+
+  return customFetch<RecipeList>(getListRecipesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRecipesQueryKey = (params?: ListRecipesParams,) => {
+    return [
+    `/api/v1/recipes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListRecipesQueryOptions = <TData = Awaited<ReturnType<typeof listRecipes>>, TError = ErrorType<unknown>>(params?: ListRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRecipesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRecipes>>> = ({ signal }) => listRecipes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRecipes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRecipesQueryResult = NonNullable<Awaited<ReturnType<typeof listRecipes>>>
+export type ListRecipesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Browse open-source recipes
+ */
+
+export function useListRecipes<TData = Awaited<ReturnType<typeof listRecipes>>, TError = ErrorType<unknown>>(
+ params?: ListRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRecipesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRecipeUrl = (recipeId: string,) => {
+
+
+
+
+  return `/api/v1/recipes/${recipeId}`
+}
+
+/**
+ * @summary Get an open-source recipe detail
+ */
+export const getRecipe = async (recipeId: string, options?: Parameters<typeof customFetch>[1]): Promise<Recipe> => {
+
+  return customFetch<Recipe>(getGetRecipeUrl(recipeId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRecipeQueryKey = (recipeId: string,) => {
+    return [
+    `/api/v1/recipes/${recipeId}`
+    ] as const;
+    }
+
+
+export const getGetRecipeQueryOptions = <TData = Awaited<ReturnType<typeof getRecipe>>, TError = ErrorType<unknown>>(recipeId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecipe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRecipeQueryKey(recipeId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecipe>>> = ({ signal }) => getRecipe(recipeId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: recipeId !== null && recipeId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRecipe>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRecipeQueryResult = NonNullable<Awaited<ReturnType<typeof getRecipe>>>
+export type GetRecipeQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get an open-source recipe detail
+ */
+
+export function useGetRecipe<TData = Awaited<ReturnType<typeof getRecipe>>, TError = ErrorType<unknown>>(
+ recipeId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecipe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRecipeQueryOptions(recipeId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getRequestDataExportUrl = () => {
 

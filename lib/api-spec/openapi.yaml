@@ -22,6 +22,8 @@ tags:
     description: Offline outbox synchronization
   - name: privacy
     description: Data export and deletion
+  - name: recipes
+    description: Open-source recipe discovery
 paths:
   /healthz:
     get:
@@ -242,6 +244,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncResponse"
+  /v1/recipes:
+    get:
+      operationId: listRecipes
+      tags: [recipes]
+      summary: Browse open-source recipes
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema: { type: string, maxLength: 120 }
+        - name: category
+          in: query
+          required: false
+          schema: { type: string, maxLength: 80 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 30, default: 12 }
+      responses:
+        "200":
+          description: Recipe cards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeList"
+  /v1/recipes/{recipeId}:
+    get:
+      operationId: getRecipe
+      tags: [recipes]
+      summary: Get an open-source recipe detail
+      parameters:
+        - name: recipeId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Recipe detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
   /v1/privacy/export:
     post:
       operationId: requestDataExport
@@ -436,4 +480,36 @@ components:
       required: [status]
       properties:
         status: { type: string, enum: [queued, complete] }
+    RecipeList:
+      type: object
+      required: [recipes, source]
+      properties:
+        source: { type: string }
+        recipes:
+          type: array
+          items: { $ref: "#/components/schemas/Recipe" }
+    Recipe:
+      type: object
+      required: [id, name, source, sourceUrl]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        image: { type: string, format: uri, nullable: true }
+        category: { type: string, nullable: true }
+        area: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        instructions: { type: string, nullable: true }
+        ingredients:
+          type: array
+          items: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        prepMinutes: { type: integer, nullable: true }
+        calories: { type: number, nullable: true }
+        proteinG: { type: number, nullable: true }
+        carbsG: { type: number, nullable: true }
+        fatG: { type: number, nullable: true }
+        source: { type: string }
+        sourceUrl: { type: string, format: uri }
 

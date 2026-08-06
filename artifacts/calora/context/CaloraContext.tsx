@@ -32,6 +32,25 @@ export type FoodLog = {
 
 export type WeightEntry = { id: string; date: string; kg: number; source: 'manual' | 'health' };
 export type SavedMeal = { id: string; name: string; kind: 'meal' | 'recipe'; foodIds: string[]; calories: number; protein: number; carbs: number; fat: number };
+export type CaloraRecipe = {
+  id: string;
+  name: string;
+  image?: string | null;
+  category?: string | null;
+  area?: string | null;
+  description?: string | null;
+  instructions?: string | null;
+  ingredients: string[];
+  tags: string[];
+  prepMinutes?: number | null;
+  calories?: number | null;
+  proteinG?: number | null;
+  carbsG?: number | null;
+  fatG?: number | null;
+  source: string;
+  sourceUrl: string;
+  isLocal?: boolean;
+};
 
 export type Profile = {
   name: string;
@@ -59,6 +78,8 @@ type CaloraState = {
   logs: FoodLog[];
   weights: WeightEntry[];
   savedMeals: SavedMeal[];
+  localRecipes: CaloraRecipe[];
+  savedRecipeIds: string[];
   themePreference: ThemePreference;
   healthConnected: boolean;
   consentAccepted: boolean;
@@ -69,6 +90,8 @@ type CaloraContextValue = {
   logs: FoodLog[];
   weights: WeightEntry[];
   savedMeals: SavedMeal[];
+  localRecipes: CaloraRecipe[];
+  savedRecipeIds: string[];
   profile: Profile | null;
   onboardingComplete: boolean;
   themePreference: ThemePreference;
@@ -82,6 +105,8 @@ type CaloraContextValue = {
   removeLog: (id: string) => void;
   addWeight: (kg: number, source?: WeightEntry['source']) => void;
   saveMeal: (meal: Omit<SavedMeal, 'id'>) => void;
+  saveRecipe: (recipe: Omit<CaloraRecipe, 'id'>) => void;
+  toggleSavedRecipe: (recipeId: string) => void;
   setThemePreference: (preference: ThemePreference) => void;
   completeOnboarding: (profile: Profile, consentAccepted: boolean) => void;
   updateProfile: (patch: Partial<Profile>) => void;
@@ -178,6 +203,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     { id: 'weight-1', date: today, kg: 76, source: 'manual' },
   ]);
   const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
+  const [localRecipes, setLocalRecipes] = useState<CaloraRecipe[]>([]);
+  const [savedRecipeIds, setSavedRecipeIds] = useState<string[]>([]);
   const [themePreference, setThemePreference] = useState<ThemePreference>('system');
   const [healthConnected, setHealthConnected] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
@@ -194,6 +221,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         if (saved.logs) setLogs(saved.logs.map((log) => ({ ...log, date: log.date ?? today, serving: log.serving ?? '1 serving' })));
         if (saved.weights) setWeights(saved.weights);
         if (saved.savedMeals) setSavedMeals(saved.savedMeals.map((meal) => ({ ...meal, kind: meal.kind ?? 'meal' })));
+        if (saved.localRecipes) setLocalRecipes(saved.localRecipes);
+        if (saved.savedRecipeIds) setSavedRecipeIds(saved.savedRecipeIds);
         if (saved.themePreference) setThemePreference(saved.themePreference);
         if (saved.healthConnected !== undefined) setHealthConnected(saved.healthConnected);
         if (saved.consentAccepted !== undefined) setConsentAccepted(saved.consentAccepted);
@@ -211,13 +240,15 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       logs,
       weights,
       savedMeals,
+      localRecipes,
+      savedRecipeIds,
       themePreference,
       healthConnected,
       consentAccepted,
       outbox,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => undefined);
-  }, [consentAccepted, healthConnected, hydrated, logs, onboardingComplete, outbox, profile, savedMeals, themePreference, weights]);
+  }, [consentAccepted, healthConnected, hydrated, localRecipes, logs, onboardingComplete, outbox, profile, savedMeals, savedRecipeIds, themePreference, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -227,6 +258,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     logs,
     weights,
     savedMeals,
+    localRecipes,
+    savedRecipeIds,
     profile,
     onboardingComplete,
     themePreference,
@@ -255,6 +288,14 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       setSavedMeals((current) => [...current, { ...meal, id: makeId('meal') }]);
       queueMutation('savedMeal', 'upsert');
     },
+    saveRecipe: (recipe) => {
+      setLocalRecipes((current) => [...current, { ...recipe, id: makeId('recipe'), isLocal: true }]);
+      queueMutation('savedMeal', 'upsert');
+    },
+    toggleSavedRecipe: (recipeId) => {
+      setSavedRecipeIds((current) => current.includes(recipeId) ? current.filter((id) => id !== recipeId) : [...current, recipeId]);
+      queueMutation('savedMeal', 'upsert');
+    },
     setThemePreference: (preference) => {
       setThemePreference(preference);
       queueMutation('settings', 'upsert');
@@ -271,18 +312,20 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     setHealthConnected,
     clearOutbox: () => setOutbox([]),
-    exportData: async () => JSON.stringify({ profile, logs, weights, savedMeals, consentAccepted }, null, 2),
+    exportData: async () => JSON.stringify({ profile, logs, weights, savedMeals, localRecipes, savedRecipeIds, consentAccepted }, null, 2),
     clearAllData: async () => {
       await AsyncStorage.removeItem(STORAGE_KEY);
       setLogs([]);
       setWeights([]);
       setSavedMeals([]);
+      setLocalRecipes([]);
+      setSavedRecipeIds([]);
       setProfile(null);
       setOnboardingComplete(false);
       setConsentAccepted(false);
       setOutbox([]);
     },
-  }), [consentAccepted, healthConnected, hydrated, logs, mode, onboardingComplete, outbox, profile, savedMeals, themePreference, weights]);
+  }), [consentAccepted, healthConnected, hydrated, localRecipes, logs, mode, onboardingComplete, outbox, profile, savedMeals, savedRecipeIds, themePreference, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

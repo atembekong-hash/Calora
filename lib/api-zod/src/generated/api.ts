@@ -445,6 +445,77 @@ export const SyncOutboxResponse = zod.object({
 
 
 /**
+ * @summary Browse open-source recipes
+ */
+export const listRecipesQueryQueryMax = 120;
+
+export const listRecipesQueryCategoryMax = 80;
+
+export const listRecipesQueryLimitDefault = 12;
+export const listRecipesQueryLimitMax = 30;
+
+
+
+export const ListRecipesQueryParams = zod.object({
+  "query": zod.coerce.string().max(listRecipesQueryQueryMax).optional(),
+  "category": zod.coerce.string().max(listRecipesQueryCategoryMax).optional(),
+  "limit": zod.coerce.number().int().min(1).max(listRecipesQueryLimitMax).default(listRecipesQueryLimitDefault)
+})
+
+export const ListRecipesResponse = zod.object({
+  "source": zod.string(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "image": zod.string().url().nullish(),
+  "category": zod.string().nullish(),
+  "area": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "instructions": zod.string().nullish(),
+  "ingredients": zod.array(zod.string()).optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "prepMinutes": zod.number().int().nullish(),
+  "calories": zod.number().nullish(),
+  "proteinG": zod.number().nullish(),
+  "carbsG": zod.number().nullish(),
+  "fatG": zod.number().nullish(),
+  "source": zod.string(),
+  "sourceUrl": zod.string().url()
+}))
+})
+
+
+/**
+ * @summary Get an open-source recipe detail
+ */
+
+
+
+export const GetRecipeParams = zod.object({
+  "recipeId": zod.coerce.string().min(1)
+})
+
+export const GetRecipeResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "image": zod.string().url().nullish(),
+  "category": zod.string().nullish(),
+  "area": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "instructions": zod.string().nullish(),
+  "ingredients": zod.array(zod.string()).optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "prepMinutes": zod.number().int().nullish(),
+  "calories": zod.number().nullish(),
+  "proteinG": zod.number().nullish(),
+  "carbsG": zod.number().nullish(),
+  "fatG": zod.number().nullish(),
+  "source": zod.string(),
+  "sourceUrl": zod.string().url()
+})
+
+
+/**
  * @summary Request a portable data export
  */
 export const RequestDataExportResponse = zod.object({

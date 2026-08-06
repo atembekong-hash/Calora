@@ -284,6 +284,30 @@ export interface DeletionRequest {
   status: DeletionRequestStatus;
 }
 
+export interface Recipe {
+  id: string;
+  name: string;
+  image?: string | null;
+  category?: string | null;
+  area?: string | null;
+  description?: string | null;
+  instructions?: string | null;
+  ingredients?: string[];
+  tags?: string[];
+  prepMinutes?: number | null;
+  calories?: number | null;
+  proteinG?: number | null;
+  carbsG?: number | null;
+  fatG?: number | null;
+  source: string;
+  sourceUrl: string;
+}
+
+export interface RecipeList {
+  source: string;
+  recipes: Recipe[];
+}
+
 export type DateQueryParameter = string;
 
 export type ListDiaryEntriesParams = {
@@ -316,4 +340,20 @@ export type SearchFoods200 = {
 export type ListWeightsParams = {
 from?: string;
 to?: string;
+};
+
+export type ListRecipesParams = {
+/**
+ * @maxLength 120
+ */
+query?: string;
+/**
+ * @maxLength 80
+ */
+category?: string;
+/**
+ * @minimum 1
+ * @maximum 30
+ */
+limit?: number;
 };
