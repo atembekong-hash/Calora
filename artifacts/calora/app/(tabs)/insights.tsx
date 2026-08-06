@@ -1,4 +1,6 @@
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,9 +34,23 @@ export default function InsightsScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.eyebrow, { color: colors.mutedForeground }]}>THE BIGGER PICTURE</Text>
-        <Text style={[styles.title, { color: colors.foreground }]}>Your insights</Text>
-        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Patterns, not pressure. Use the signal to make tomorrow easier.</Text>
+        <View style={styles.heroHeader}>
+          <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+          <LinearGradient
+            colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.78)', 'rgba(18,34,24,0.18)']}
+            locations={[0, 0.58, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={styles.heroContent}>
+            <View style={styles.heroBadge}>
+              <Feather name="activity" size={12} color="#d4eadc" />
+              <Text style={styles.heroBadgeText}>WEEKLY SIGNAL</Text>
+            </View>
+            <Text style={styles.heroEyebrow}>THE BIGGER PICTURE</Text>
+            <Text style={styles.heroTitle}>Your insights</Text>
+            <Text style={styles.heroSubtitle}>Patterns, not pressure. Use the signal to make tomorrow easier.</Text>
+          </View>
+        </View>
 
         <View style={[styles.adaptiveCard, { backgroundColor: colors.hero }]}>
           <View style={[styles.iconCircle, { backgroundColor: 'rgba(157,215,189,0.15)' }]}>
@@ -152,6 +168,13 @@ export default function InsightsScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
+  heroHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
+  heroContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
+  heroBadge: { position: 'absolute', top: 17, right: 17, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
+  heroBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1 },
+  heroEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 6 },
+  heroTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.7 },
+  heroSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, marginTop: 7, maxWidth: 285 },
   eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.7 },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, marginTop: 8, marginBottom: 22, maxWidth: 330 },

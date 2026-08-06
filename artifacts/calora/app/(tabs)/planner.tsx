@@ -1,6 +1,7 @@
 import { useGeneratePlanner, type PlannerMeal } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -211,9 +212,23 @@ export default function PlannerScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 106 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View><Text style={[styles.eyebrow, { color: colors.primary }]}>YOUR WEEK, MADE CALM</Text><Text style={[styles.title, { color: colors.foreground }]}>Weekly planner</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A good plan leaves room for real life.</Text></View>
-          <Pressable accessibilityLabel="Open shopping list" onPress={() => setShoppingVisible(true)} style={[styles.shoppingButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="shopping-bag" size={18} color={colors.foreground} />{uncheckedShopping > 0 && <View style={[styles.shoppingCount, { backgroundColor: colors.primary }]}><Text style={[styles.shoppingCountText, { color: colors.primaryForeground }]}>{uncheckedShopping}</Text></View>}</Pressable>
+        <View style={styles.heroHeader}>
+          <Image source={require('../../assets/images/calora-plan-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+          <LinearGradient
+            colors={['rgba(20,26,21,0.97)', 'rgba(20,26,21,0.72)', 'rgba(20,26,21,0.16)']}
+            locations={[0, 0.58, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={styles.heroContent}>
+            <View style={styles.heroBadge}>
+              <Feather name="calendar" size={12} color="#d4eadc" />
+              <Text style={styles.heroBadgeText}>PLAN WITH INTENT</Text>
+            </View>
+            <Text style={styles.heroEyebrow}>YOUR WEEK, MADE CALM</Text>
+            <Text style={styles.heroTitle}>Weekly planner</Text>
+            <Text style={styles.heroSubtitle}>A good plan leaves room for real life.</Text>
+          </View>
+          <Pressable accessibilityLabel="Open shopping list" onPress={() => setShoppingVisible(true)} style={styles.heroShoppingButton}><Feather name="shopping-bag" size={18} color="#ffffff" />{uncheckedShopping > 0 && <View style={[styles.shoppingCount, { backgroundColor: colors.primary }]}><Text style={[styles.shoppingCountText, { color: colors.primaryForeground }]}>{uncheckedShopping}</Text></View>}</Pressable>
         </View>
         <View style={styles.weekHeader}><Pressable accessibilityLabel="Previous week" onPress={() => shiftWeek(-1)} style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={18} color={colors.foreground} /></Pressable><Text style={[styles.weekRange, { color: colors.foreground }]}>{formatRange(plannerWeekStart)}</Text><Pressable accessibilityLabel="Next week" onPress={() => shiftWeek(1)} style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={18} color={colors.foreground} /></Pressable></View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayRail}>
@@ -246,6 +261,14 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
   content: { paddingHorizontal: 20 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 },
+  heroHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 15, backgroundColor: '#141a15', position: 'relative' },
+  heroContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
+  heroBadge: { position: 'absolute', top: 17, left: 19, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
+  heroBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1 },
+  heroEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 6 },
+  heroTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.7 },
+  heroSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, marginTop: 7, maxWidth: 250 },
+  heroShoppingButton: { position: 'absolute', top: 16, right: 16, width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,26,21,0.52)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)' },
   eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1.3, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.8 },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, marginTop: 6 },
