@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Keyboard, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -224,9 +225,25 @@ export default function RecipesScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <View><Text style={[styles.eyebrow, { color: colors.mutedForeground }]}>THE CALORA COOKBOOK</Text><Text style={[styles.title, { color: colors.foreground }]}>Recipes</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Good food, with enough context to trust it.</Text></View>
-          <Pressable accessibilityLabel="Create your own recipe" onPress={() => setShowCreate(true)} style={[styles.createButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={15} color={colors.primaryForeground} /><Text style={[styles.createButtonText, { color: colors.primaryForeground }]}>Create</Text></Pressable>
+        <View style={styles.recipeHeader}>
+          <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+          <LinearGradient
+            colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']}
+            locations={[0, 0.58, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={styles.recipeHeaderContent}>
+            <View style={styles.recipeHeaderTop}>
+              <View style={styles.recipeHeaderBadge}>
+                <Feather name="book-open" size={12} color="#d4eadc" />
+                <Text style={styles.recipeHeaderBadgeText}>THE CALORA COOKBOOK</Text>
+              </View>
+              <Pressable accessibilityLabel="Create your own recipe" onPress={() => setShowCreate(true)} style={styles.recipeHeaderCreate}><Feather name="plus" size={15} color="#ffffff" /><Text style={styles.recipeHeaderCreateText}>Create</Text></Pressable>
+            </View>
+            <Text style={styles.recipeHeaderEyebrow}>GOOD FOOD, WITH CONTEXT</Text>
+            <Text style={styles.recipeHeaderTitle}>Recipes</Text>
+            <Text style={styles.recipeHeaderSubtitle}>Discover meals worth making, with enough context to trust them.</Text>
+          </View>
         </View>
         <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input }]}><Feather name="search" size={17} color={colors.mutedForeground} /><TextInput accessibilityLabel="Search recipes" value={search} onChangeText={setSearch} placeholder="Search recipes, ingredients, cuisines" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />{search ? <Pressable accessibilityLabel="Clear recipe search" onPress={() => setSearch('')}><Feather name="x-circle" size={16} color={colors.mutedForeground} /></Pressable> : null}</View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{categories.map((item) => <Pressable key={item} accessibilityLabel={`Recipe category ${item}`} onPress={() => setCategory(item)} style={[styles.categoryChip, { backgroundColor: category === item ? colors.primary : colors.card, borderColor: category === item ? colors.primary : colors.border }]}><Text style={[styles.categoryText, { color: category === item ? colors.primaryForeground : colors.mutedForeground }]}>{item}</Text></Pressable>)}<Pressable accessibilityLabel="Recipe category My recipes" onPress={() => setCategory('My recipes')} style={[styles.categoryChip, { backgroundColor: category === 'My recipes' ? colors.primary : colors.card, borderColor: category === 'My recipes' ? colors.primary : colors.border }]}><Text style={[styles.categoryText, { color: category === 'My recipes' ? colors.primaryForeground : colors.mutedForeground }]}>My recipes</Text></Pressable></ScrollView>
@@ -259,6 +276,16 @@ export default function RecipesScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
+  recipeHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
+  recipeHeaderContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
+  recipeHeaderTop: { position: 'absolute', top: 16, left: 19, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  recipeHeaderBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
+  recipeHeaderBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1 },
+  recipeHeaderCreate: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(20,26,21,0.58)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)' },
+  recipeHeaderCreateText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 10 },
+  recipeHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.3, marginBottom: 6 },
+  recipeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 29, letterSpacing: -0.8 },
+  recipeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, marginTop: 7, maxWidth: 290 },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
   eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 29, letterSpacing: -0.8 },

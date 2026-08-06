@@ -1,4 +1,6 @@
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,8 +61,23 @@ export default function ProfileScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.eyebrow, { color: colors.mutedForeground }]}>YOUR SPACE</Text>
-        <Text style={[styles.title, { color: colors.foreground }]}>Profile & settings</Text>
+        <View style={styles.profileHeader}>
+          <Image source={require('../../assets/images/calora-profile-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+          <LinearGradient
+            colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']}
+            locations={[0, 0.58, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={styles.profileHeaderContent}>
+            <View style={styles.profileHeaderBadge}>
+              <Feather name="user" size={12} color="#d4eadc" />
+              <Text style={styles.profileHeaderBadgeText}>YOUR SPACE</Text>
+            </View>
+            <Text style={styles.profileHeaderEyebrow}>CALORA, YOUR WAY</Text>
+            <Text style={styles.profileHeaderTitle}>Profile & settings</Text>
+            <Text style={styles.profileHeaderSubtitle}>A quieter place to shape the experience around you.</Text>
+          </View>
+        </View>
         <View style={[styles.profileCard, { backgroundColor: colors.hero }]}>
           <View style={[styles.largeAvatar, { backgroundColor: colors.primary }]}>
             <Text style={[styles.largeAvatarText, { color: colors.primaryForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>
@@ -262,6 +279,13 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
+  profileHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
+  profileHeaderContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
+  profileHeaderBadge: { position: 'absolute', top: 17, right: 17, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
+  profileHeaderBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1 },
+  profileHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 6 },
+  profileHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 27, letterSpacing: -0.7 },
+  profileHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, marginTop: 7, maxWidth: 280 },
   eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.7, marginBottom: 20 },
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 23, padding: 16, marginBottom: 26 },

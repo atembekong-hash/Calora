@@ -1,5 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -284,14 +286,18 @@ export default function HomeScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 104 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.topRow}>
-          <View>
-            <Text style={[styles.dateKicker, { color: colors.mutedForeground }]}>{formatDateLabel(selectedDate)}</Text>
-            <Text style={[styles.greeting, { color: colors.foreground }]}>Good morning, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
+        <View style={styles.homeHeader}>
+          <Image source={require('../../assets/images/calora-home-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+          <LinearGradient colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
+          <View style={styles.homeHeaderContent}>
+            <View style={styles.homeHeaderTop}>
+              <View style={styles.homeHeaderBadge}><Feather name="sunrise" size={12} color="#d4eadc" /><Text style={styles.homeHeaderBadgeText}>DAILY RHYTHM</Text></View>
+              <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={styles.homeHeaderAvatar}><Text style={styles.homeHeaderAvatarText}>{profile?.name?.charAt(0) ?? 'A'}</Text></Pressable>
+            </View>
+            <Text style={styles.homeHeaderEyebrow}>{formatDateLabel(selectedDate)}</Text>
+            <Text style={styles.homeHeaderTitle}>Good morning, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
+            <Text style={styles.homeHeaderSubtitle}>A steady pace beats a perfect day.</Text>
           </View>
-          <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={[styles.avatar, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.avatarText, { color: colors.accentForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>
-          </Pressable>
         </View>
 
         <View style={[styles.heroCard, { backgroundColor: colors.hero }]}>
@@ -380,6 +386,16 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
+  homeHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 16, backgroundColor: '#1b3022' },
+  homeHeaderContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
+  homeHeaderTop: { position: 'absolute', top: 16, left: 19, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  homeHeaderBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
+  homeHeaderBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1 },
+  homeHeaderAvatar: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  homeHeaderAvatarText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 15 },
+  homeHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.2, marginBottom: 6 },
+  homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 26, letterSpacing: -0.7 },
+  homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 7 },
   scrollContent: { paddingHorizontal: 20 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
   dateKicker: { fontFamily: 'Inter_600SemiBold', fontSize: 11, letterSpacing: 1.1, marginBottom: 6 },
