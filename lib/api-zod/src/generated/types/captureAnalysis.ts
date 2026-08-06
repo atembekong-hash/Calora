@@ -5,9 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CaptureAnalysisImageRetention } from './captureAnalysisImageRetention';
 import type { CaptureAnalysisMode } from './captureAnalysisMode';
 import type { CaptureAnalysisStatus } from './captureAnalysisStatus';
 import type { CaptureCandidate } from './captureCandidate';
+import type { CaptureComponent } from './captureComponent';
 
 export interface CaptureAnalysis {
   sessionId: string;
@@ -17,4 +19,8 @@ export interface CaptureAnalysis {
   reviewMessage: string;
   provider: string;
   candidates: CaptureCandidate[];
+  components?: CaptureComponent[];
+  assumptions?: string[];
+  reviewQuestions?: string[];
+  imageRetention?: CaptureAnalysisImageRetention;
 }

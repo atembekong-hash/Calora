@@ -603,6 +603,38 @@ components:
         provenance: { type: string }
         sourceLabel: { type: string }
         editable: { type: boolean }
+    CaptureConfidence:
+      type: object
+      required: [identity, portion, nutritionSource, preparation]
+      properties:
+        identity: { type: integer, minimum: 0, maximum: 100 }
+        portion: { type: integer, minimum: 0, maximum: 100 }
+        nutritionSource: { type: integer, minimum: 0, maximum: 100 }
+        preparation: { type: integer, minimum: 0, maximum: 100 }
+    CaptureNutritionRange:
+      type: object
+      required: [caloriesLow, caloriesHigh]
+      properties:
+        caloriesLow: { type: number, minimum: 0 }
+        caloriesHigh: { type: number, minimum: 0 }
+    CaptureComponent:
+      allOf:
+        - $ref: "#/components/schemas/CaptureCandidate"
+        - type: object
+          required: [componentId, included, eatenFraction, confidenceDimensions]
+          properties:
+            componentId: { type: string }
+            preparation: { type: string, nullable: true }
+            included: { type: boolean }
+            eatenFraction: { type: number, minimum: 0, maximum: 1 }
+            confidenceDimensions: { $ref: "#/components/schemas/CaptureConfidence" }
+            assumptions:
+              type: array
+              items: { type: string }
+            nutritionRange: { $ref: "#/components/schemas/CaptureNutritionRange" }
+            reviewQuestions:
+              type: array
+              items: { type: string }
     CaptureAnalysis:
       type: object
       required: [sessionId, mode, status, title, candidates, reviewMessage, provider]
@@ -617,6 +649,19 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CaptureCandidate"
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/CaptureComponent"
+        assumptions:
+          type: array
+          items: { type: string }
+        reviewQuestions:
+          type: array
+          items: { type: string }
+        imageRetention:
+          type: string
+          enum: [delete_after_analysis, local_only, retained_with_consent]
     PlannerProfile:
       type: object
       required: [goal, activity, diet, calorieTarget]

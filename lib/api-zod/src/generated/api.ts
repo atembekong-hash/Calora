@@ -15,8 +15,6 @@ import * as zod from 'zod';
 export const HealthCheckResponse = zod.object({
   "status": zod.string()
 })
-
-
 /**
  * @summary Get the current profile
  */
@@ -91,7 +89,6 @@ export const UpdateProfileBody = zod.object({
   "calorieTarget": zod.number().int().min(updateProfileBodyCalorieTargetMin).max(updateProfileBodyCalorieTargetMax),
   "consentVersion": zod.string().min(1)
 })
-
 export const updateProfileResponseOneNameMax = 120;
 
 export const updateProfileResponseOneAgeMin = 13;
@@ -134,7 +131,6 @@ export const UpdateProfileResponse = zod.object({
 export const ListDiaryEntriesQueryParams = zod.object({
   "date": zod.date()
 })
-
 
 
 export const listDiaryEntriesResponseEntriesItemOneCaloriesMin = 0;
@@ -549,6 +545,36 @@ export const analyzeCaptureResponseCandidatesItemFatGMin = 0;
 export const analyzeCaptureResponseCandidatesItemConfidenceMin = 0;
 export const analyzeCaptureResponseCandidatesItemConfidenceMax = 100;
 
+export const analyzeCaptureResponseComponentsItemOneCaloriesMin = 0;
+
+export const analyzeCaptureResponseComponentsItemOneProteinGMin = 0;
+
+export const analyzeCaptureResponseComponentsItemOneCarbsGMin = 0;
+
+export const analyzeCaptureResponseComponentsItemOneFatGMin = 0;
+
+export const analyzeCaptureResponseComponentsItemOneConfidenceMin = 0;
+export const analyzeCaptureResponseComponentsItemOneConfidenceMax = 100;
+
+export const analyzeCaptureResponseComponentsItemTwoEatenFractionMin = 0;
+export const analyzeCaptureResponseComponentsItemTwoEatenFractionMax = 1;
+
+export const analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsIdentityMin = 0;
+export const analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsIdentityMax = 100;
+
+export const analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPortionMin = 0;
+export const analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPortionMax = 100;
+
+export const analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsNutritionSourceMin = 0;
+export const analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsNutritionSourceMax = 100;
+
+export const analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPreparationMin = 0;
+export const analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPreparationMax = 100;
+
+export const analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesLowMin = 0;
+
+export const analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesHighMin = 0;
+
 
 
 export const AnalyzeCaptureResponse = zod.object({
@@ -571,7 +597,41 @@ export const AnalyzeCaptureResponse = zod.object({
   "provenance": zod.string(),
   "sourceLabel": zod.string(),
   "editable": zod.boolean()
-}))
+})),
+  "components": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string().nullish(),
+  "serving": zod.string(),
+  "calories": zod.number().min(analyzeCaptureResponseComponentsItemOneCaloriesMin),
+  "proteinG": zod.number().min(analyzeCaptureResponseComponentsItemOneProteinGMin),
+  "carbsG": zod.number().min(analyzeCaptureResponseComponentsItemOneCarbsGMin),
+  "fatG": zod.number().min(analyzeCaptureResponseComponentsItemOneFatGMin),
+  "confidence": zod.number().int().min(analyzeCaptureResponseComponentsItemOneConfidenceMin).max(analyzeCaptureResponseComponentsItemOneConfidenceMax),
+  "provenance": zod.string(),
+  "sourceLabel": zod.string(),
+  "editable": zod.boolean()
+}).and(zod.object({
+  "componentId": zod.string(),
+  "preparation": zod.string().nullish(),
+  "included": zod.boolean(),
+  "eatenFraction": zod.number().min(analyzeCaptureResponseComponentsItemTwoEatenFractionMin).max(analyzeCaptureResponseComponentsItemTwoEatenFractionMax),
+  "confidenceDimensions": zod.object({
+  "identity": zod.number().int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsIdentityMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsIdentityMax),
+  "portion": zod.number().int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPortionMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPortionMax),
+  "nutritionSource": zod.number().int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsNutritionSourceMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsNutritionSourceMax),
+  "preparation": zod.number().int().min(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPreparationMin).max(analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPreparationMax)
+}),
+  "assumptions": zod.array(zod.string()).optional(),
+  "nutritionRange": zod.object({
+  "caloriesLow": zod.number().min(analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesLowMin),
+  "caloriesHigh": zod.number().min(analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesHighMin)
+}).optional(),
+  "reviewQuestions": zod.array(zod.string()).optional()
+}))).optional(),
+  "assumptions": zod.array(zod.string()).optional(),
+  "reviewQuestions": zod.array(zod.string()).optional(),
+  "imageRetention": zod.enum(['delete_after_analysis', 'local_only', 'retained_with_consent']).optional()
 })
 
 

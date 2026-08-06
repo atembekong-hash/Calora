@@ -7,11 +7,15 @@
  */
 
 export * from './captureAnalysis';
+export * from './captureAnalysisImageRetention';
 export * from './captureAnalysisMode';
 export * from './captureAnalysisStatus';
 export * from './captureAnalyzeInput';
 export * from './captureAnalyzeInputMode';
 export * from './captureCandidate';
+export * from './captureComponent';
+export * from './captureConfidence';
+export * from './captureNutritionRange';
 export * from './dateQueryParameter';
 export * from './deletionRequest';
 export * from './deletionRequestStatus';

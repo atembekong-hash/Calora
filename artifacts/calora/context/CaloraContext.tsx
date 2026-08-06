@@ -4,6 +4,20 @@ import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart } from '@/data/planner';
+import {
+  type AcceptedFoodMemory,
+  type FoodMemoryCorrection,
+  type FoodMemoryDraft,
+  type FoodMemoryComponent,
+  type RepeatPattern,
+  captureAnalysisToDraft,
+  memorySignature,
+  migrateFoodMemories,
+  nutritionForComponents,
+  provenanceForCapture,
+  updateDraftComponents,
+} from '@/lib/foodMemory';
+import type { CaptureAnalysis } from '@workspace/api-client-react';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
@@ -30,6 +44,8 @@ export type FoodLog = {
   serving: string;
   preparation?: string;
   notes?: string;
+  memoryId?: string;
+  nutritionSnapshot?: { calories: number; proteinG: number; carbsG: number; fatG: number; capturedAt: string };
 };
 
 export type WeightEntry = { id: string; date: string; kg: number; source: 'manual' | 'health' };
@@ -76,6 +92,7 @@ export type OutboxMutation = {
 };
 
 type CaloraState = {
+  schemaVersion?: number;
   onboardingComplete: boolean;
   profile: Profile | null;
   logs: FoodLog[];
@@ -90,6 +107,10 @@ type CaloraState = {
   plannerWeekStart: string;
   plannerMeals: PlannerMeal[];
   shoppingItems: ShoppingItem[];
+  foodDrafts: FoodMemoryDraft[];
+  foodMemories: AcceptedFoodMemory[];
+  repeatPatterns: RepeatPattern[];
+  memoryCorrections: FoodMemoryCorrection[];
 };
 
 type CaloraContextValue = {
@@ -123,6 +144,14 @@ type CaloraContextValue = {
   plannerWeekStart: string;
   plannerMeals: PlannerMeal[];
   shoppingItems: ShoppingItem[];
+  foodDrafts: FoodMemoryDraft[];
+  foodMemories: AcceptedFoodMemory[];
+  repeatPatterns: RepeatPattern[];
+  createFoodMemoryDraft: (analysis: CaptureAnalysis, date?: string, meal?: MealType) => FoodMemoryDraft;
+  updateFoodMemoryDraft: (draftId: string, components: FoodMemoryComponent[]) => void;
+  acceptFoodMemory: (draftId: string) => FoodLog | null;
+  rejectFoodMemory: (draftId: string) => void;
+  teachRepeatMemory: (memoryId: string) => void;
   setPlannerMeals: (weekStart: string, meals: PlannerMeal[]) => void;
   movePlannerMeal: (mealId: string, day: string, copy: boolean) => void;
   toggleShoppingItem: (itemId: string) => void;
@@ -130,6 +159,14 @@ type CaloraContextValue = {
 
 const STORAGE_KEY = '@calora/local-state-v2';
 const today = new Date().toISOString().slice(0, 10);
+
+function foodSourceForMemory(source: AcceptedFoodMemory['provenance']): FoodSource {
+  if (source === 'verified_barcode') return 'Barcode verified';
+  if (source === 'verified_provider' || source === 'verified_label') return 'USDA verified';
+  if (source === 'recipe_imported' || source === 'recipe_personal') return 'Recipe';
+  if (source === 'manual') return 'Manual';
+  return 'Photo estimate';
+}
 
 const starterLogs: FoodLog[] = [
   {
@@ -224,6 +261,11 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [plannerWeekStart, setPlannerWeekStart] = useState(getPlannerWeekStart());
   const [plannerMeals, setPlannerMealsState] = useState<PlannerMeal[]>(() => createStarterPlannerMeals());
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(() => buildShoppingItems(plannerMeals));
+  const starterMemoryState = useMemo(() => migrateFoodMemories(undefined, starterLogs), []);
+  const [foodDrafts, setFoodDrafts] = useState<FoodMemoryDraft[]>(starterMemoryState.foodDrafts);
+  const [foodMemories, setFoodMemories] = useState<AcceptedFoodMemory[]>(starterMemoryState.foodMemories);
+  const [repeatPatterns, setRepeatPatterns] = useState<RepeatPattern[]>(starterMemoryState.repeatPatterns);
+  const [memoryCorrections, setMemoryCorrections] = useState<FoodMemoryCorrection[]>(starterMemoryState.memoryCorrections);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -233,7 +275,13 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         const saved = JSON.parse(raw) as Partial<CaloraState>;
         if (saved.onboardingComplete !== undefined) setOnboardingComplete(saved.onboardingComplete);
         if (saved.profile) setProfile(saved.profile);
-        if (saved.logs) setLogs(saved.logs.map((log) => ({ ...log, date: log.date ?? today, serving: log.serving ?? '1 serving' })));
+         const normalizedLogs = saved.logs?.map((log) => ({ ...log, date: log.date ?? today, serving: log.serving ?? '1 serving' })) ?? starterLogs;
+         if (saved.logs) setLogs(normalizedLogs);
+         const migratedMemories = migrateFoodMemories(saved, normalizedLogs);
+         setFoodDrafts(migratedMemories.foodDrafts);
+         setFoodMemories(migratedMemories.foodMemories);
+         setRepeatPatterns(migratedMemories.repeatPatterns);
+         setMemoryCorrections(migratedMemories.memoryCorrections);
         if (saved.weights) setWeights(saved.weights);
         if (saved.savedMeals) setSavedMeals(saved.savedMeals.map((meal) => ({ ...meal, kind: meal.kind ?? 'meal' })));
         if (saved.localRecipes) setLocalRecipes(saved.localRecipes);
@@ -267,9 +315,14 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       plannerWeekStart,
       plannerMeals,
       shoppingItems,
+      schemaVersion: 1,
+      foodDrafts,
+      foodMemories,
+      repeatPatterns,
+      memoryCorrections,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => undefined);
-  }, [consentAccepted, healthConnected, hydrated, localRecipes, logs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, savedMeals, savedRecipeIds, shoppingItems, themePreference, weights]);
+  }, [consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, localRecipes, logs, memoryCorrections, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -291,9 +344,67 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     plannerWeekStart,
     plannerMeals,
     shoppingItems,
+    foodDrafts,
+    foodMemories,
+    repeatPatterns,
     healthConnected,
     addLog: (log) => {
-      setLogs((current) => [...current, { ...log, id: makeId('log') }]);
+      const id = makeId('log');
+      const capturedAt = new Date().toISOString();
+      const nextLog = {
+        ...log,
+        id,
+        nutritionSnapshot: {
+          calories: log.calories,
+          proteinG: log.protein,
+          carbsG: log.carbs,
+          fatG: log.fat,
+          capturedAt,
+        },
+      };
+      const component: FoodMemoryComponent = {
+        id: `${id}-component`,
+        name: log.name,
+        serving: log.serving,
+        calories: log.calories,
+        proteinG: log.protein,
+        carbsG: log.carbs,
+        fatG: log.fat,
+        included: true,
+        eatenFraction: 1,
+        provenance: provenanceForCapture(log.source, log.source === 'Recipe' ? 'recipe' : log.source === 'Manual' ? 'manual' : 'text'),
+        sourceLabel: log.source,
+        confidence: log.confidence,
+        confidenceDimensions: { identity: log.confidence, portion: log.confidence, nutritionSource: log.confidence, preparation: log.confidence },
+        assumptions: [],
+        reviewQuestions: [],
+      };
+      const acceptedMemory: AcceptedFoodMemory = {
+        id: `memory-${id}`,
+        schemaVersion: 1,
+        inputType: log.source === 'Recipe' ? 'recipe' : log.source === 'Manual' ? 'manual' : 'text',
+        status: 'accepted',
+        title: log.name,
+        date: log.date,
+        meal: log.meal,
+        components: [component],
+        nutrition: nextLog.nutritionSnapshot,
+        originalNutrition: nextLog.nutritionSnapshot,
+        provenance: component.provenance,
+        sourceLabel: log.source,
+        confidence: log.confidence,
+        confidenceDimensions: component.confidenceDimensions,
+        assumptions: [],
+        reviewQuestions: [],
+        imageRetention: 'not_collected',
+        createdAt: capturedAt,
+        updatedAt: capturedAt,
+        acceptedAt: capturedAt,
+        diaryLogId: id,
+        correctionIds: [],
+      };
+      setLogs((current) => [...current, nextLog]);
+      setFoodMemories((current) => [...current, acceptedMemory]);
       queueMutation('diaryEntry', 'upsert');
     },
     updateLog: (id, patch) => {
@@ -302,7 +413,88 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     removeLog: (id) => {
       setLogs((current) => current.filter((log) => log.id !== id));
+      setFoodMemories((current) => current.filter((memory) => memory.diaryLogId !== id));
       queueMutation('diaryEntry', 'delete');
+    },
+    createFoodMemoryDraft: (analysis, date = today, meal = 'Snack') => {
+      const draft = captureAnalysisToDraft(analysis, date, meal);
+      setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
+      return draft;
+    },
+    updateFoodMemoryDraft: (draftId, components) => {
+      setFoodDrafts((current) => current.map((draft) => draft.id === draftId ? updateDraftComponents(draft, components) : draft));
+    },
+    acceptFoodMemory: (draftId) => {
+      const draft = foodDrafts.find((item) => item.id === draftId && item.status === 'draft');
+      if (!draft) return null;
+      const id = makeId('log');
+      const acceptedAt = new Date().toISOString();
+      const snapshot = { ...draft.nutrition, capturedAt: acceptedAt };
+      const log: FoodLog = {
+        id,
+        name: draft.title,
+        date: draft.date,
+        meal: draft.meal,
+        calories: snapshot.calories,
+        protein: snapshot.proteinG,
+        carbs: snapshot.carbsG,
+        fat: snapshot.fatG,
+        source: foodSourceForMemory(draft.provenance),
+        confidence: draft.confidence,
+        time: 'Just now',
+        serving: draft.components.filter((component) => component.included).map((component) => component.serving).join(' + ') || '1 serving',
+        notes: `${draft.sourceLabel} · Review approved`,
+        memoryId: draft.id,
+        nutritionSnapshot: snapshot,
+      };
+      const memory: AcceptedFoodMemory = {
+        ...draft,
+        status: 'accepted',
+        nutrition: snapshot,
+        updatedAt: acceptedAt,
+        acceptedAt,
+        diaryLogId: id,
+      };
+      setLogs((current) => [...current, log]);
+      setFoodMemories((current) => [...current, memory]);
+      setFoodDrafts((current) => current.filter((item) => item.id !== draftId));
+      const signature = memorySignature(memory);
+      setRepeatPatterns((current) => {
+        const existing = current.find((pattern) => pattern.signature === signature);
+        if (existing) return current.map((pattern) => pattern.signature === signature ? { ...pattern, useCount: pattern.useCount + 1, lastAcceptedAt: acceptedAt, sourceMemoryId: memory.id } : pattern);
+        return [...current, {
+          id: makeId('repeat'),
+          signature,
+          title: memory.title,
+          componentNames: memory.components.filter((component) => component.included).map((component) => component.name),
+          serving: log.serving,
+          useCount: 1,
+          rejectedCount: 0,
+          lastAcceptedAt: acceptedAt,
+          sourceMemoryId: memory.id,
+        }];
+      });
+      queueMutation('diaryEntry', 'upsert');
+      return log;
+    },
+    rejectFoodMemory: (draftId) => {
+      setFoodDrafts((current) => current.map((draft) => draft.id === draftId ? { ...draft, status: 'rejected', updatedAt: new Date().toISOString() } : draft));
+    },
+    teachRepeatMemory: (memoryId) => {
+      const memory = foodMemories.find((item) => item.id === memoryId);
+      if (!memory) return;
+      const signature = memorySignature(memory);
+      setRepeatPatterns((current) => current.some((pattern) => pattern.signature === signature) ? current : [...current, {
+        id: makeId('repeat'),
+        signature,
+        title: memory.title,
+        componentNames: memory.components.filter((component) => component.included).map((component) => component.name),
+        serving: memory.components.filter((component) => component.included).map((component) => component.serving).join(' + '),
+        useCount: 1,
+        rejectedCount: 0,
+        lastAcceptedAt: memory.acceptedAt,
+        sourceMemoryId: memory.id,
+      }]);
     },
     addWeight: (kg, source = 'manual') => {
       setWeights((current) => [...current, { id: makeId('weight'), date: today, kg, source }]);
@@ -336,7 +528,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     setHealthConnected,
     clearOutbox: () => setOutbox([]),
-    exportData: async () => JSON.stringify({ profile, logs, weights, savedMeals, localRecipes, savedRecipeIds, plannerWeekStart, plannerMeals, shoppingItems, consentAccepted }, null, 2),
+     exportData: async () => JSON.stringify({ profile, logs, weights, savedMeals, localRecipes, savedRecipeIds, plannerWeekStart, plannerMeals, shoppingItems, foodDrafts, foodMemories, repeatPatterns, memoryCorrections, consentAccepted }, null, 2),
     clearAllData: async () => {
       await AsyncStorage.removeItem(STORAGE_KEY);
       setLogs([]);
@@ -350,6 +542,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       setOutbox([]);
       setPlannerMealsState([]);
       setShoppingItems([]);
+       setFoodDrafts([]);
+       setFoodMemories([]);
+       setRepeatPatterns([]);
+       setMemoryCorrections([]);
     },
     setPlannerMeals: (weekStart, meals) => {
       const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
@@ -369,7 +565,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       queueMutation('settings', 'upsert');
     },
     toggleShoppingItem: (itemId) => setShoppingItems((items) => items.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item)),
-  }), [consentAccepted, healthConnected, hydrated, localRecipes, logs, mode, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, savedMeals, savedRecipeIds, shoppingItems, themePreference, weights]);
+   }), [consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, localRecipes, logs, memoryCorrections, mode, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

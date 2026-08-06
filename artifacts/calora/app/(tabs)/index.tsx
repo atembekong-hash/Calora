@@ -1,5 +1,4 @@
 import * as Haptics from 'expo-haptics';
-import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import {
@@ -135,7 +134,6 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
   const [search, setSearch] = useState('');
   const [customName, setCustomName] = useState('');
   const [customCalories, setCustomCalories] = useState('');
-  const [loadingPhoto, setLoadingPhoto] = useState(false);
   const [captureMode, setCaptureMode] = useState<'search' | 'voice' | 'barcode'>('search');
   const filtered = verifiedFoods.filter((food) => food.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -163,27 +161,9 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
     onClose();
   };
 
-  const photoLog = async () => {
-    setLoadingPhoto(true);
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (!result.canceled) {
-      addLog({
-        name: 'Photo meal · review estimate',
-        date: entryDate,
-        meal: 'Lunch',
-        calories: 520,
-        protein: 29,
-        carbs: 48,
-        fat: 22,
-        source: 'Photo estimate',
-        confidence: 86,
-        time: 'Just now',
-        serving: '1 photo estimate',
-      });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onClose();
-    }
-    setLoadingPhoto(false);
+  const photoLog = () => {
+    onClose();
+    router.navigate({ pathname: '/(tabs)/scan', params: { date: entryDate } });
   };
 
   const addManual = () => {
@@ -223,7 +203,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
             </Pressable>
           </View>
           <Pressable accessibilityLabel="Log from photo" testID="photo-log-button" onPress={photoLog} style={[styles.photoButton, { backgroundColor: colors.hero }]}>
-            {loadingPhoto ? <ActivityIndicator color={colors.onHero} /> : <Feather name="camera" size={20} color={colors.heroMuted} />}
+            <Feather name="camera" size={20} color={colors.heroMuted} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.photoTitle, { color: colors.onHero }]}>Log from a photo</Text>
               <Text style={[styles.photoSubtitle, { color: colors.heroMuted }]}>Review an estimate before it counts</Text>

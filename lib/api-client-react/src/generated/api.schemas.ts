@@ -150,7 +150,6 @@ export type DiaryEntry = DiaryEntryInput & {
   id: string;
   updatedAt: string;
 };
-
 export type DiaryEntryPatchMeal = typeof DiaryEntryPatchMeal[keyof typeof DiaryEntryPatchMeal];
 
 
@@ -199,7 +198,6 @@ export type WeightEntry = WeightEntryInput & {
   id: string;
   createdAt: string;
 };
-
 export type SyncMutationEntity = typeof SyncMutationEntity[keyof typeof SyncMutationEntity];
 
 
@@ -356,6 +354,51 @@ export interface CaptureCandidate {
   editable: boolean;
 }
 
+export interface CaptureConfidence {
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  identity: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  portion: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  nutritionSource: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  preparation: number;
+}
+
+export interface CaptureNutritionRange {
+  /** @minimum 0 */
+  caloriesLow: number;
+  /** @minimum 0 */
+  caloriesHigh: number;
+}
+
+export type CaptureComponent = CaptureCandidate & ({
+  componentId: string;
+  preparation?: string | null;
+  included: boolean;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  eatenFraction: number;
+  confidenceDimensions: CaptureConfidence;
+  assumptions?: string[];
+  nutritionRange?: CaptureNutritionRange;
+  reviewQuestions?: string[];
+});
+
 export type CaptureAnalysisMode = typeof CaptureAnalysisMode[keyof typeof CaptureAnalysisMode];
 
 
@@ -372,6 +415,15 @@ export const CaptureAnalysisStatus = {
   unavailable: 'unavailable',
 } as const;
 
+export type CaptureAnalysisImageRetention = typeof CaptureAnalysisImageRetention[keyof typeof CaptureAnalysisImageRetention];
+
+
+export const CaptureAnalysisImageRetention = {
+  delete_after_analysis: 'delete_after_analysis',
+  local_only: 'local_only',
+  retained_with_consent: 'retained_with_consent',
+} as const;
+
 export interface CaptureAnalysis {
   sessionId: string;
   mode: CaptureAnalysisMode;
@@ -380,6 +432,10 @@ export interface CaptureAnalysis {
   reviewMessage: string;
   provider: string;
   candidates: CaptureCandidate[];
+  components?: CaptureComponent[];
+  assumptions?: string[];
+  reviewQuestions?: string[];
+  imageRetention?: CaptureAnalysisImageRetention;
 }
 
 export type PlannerProfileGoal = typeof PlannerProfileGoal[keyof typeof PlannerProfileGoal];
@@ -463,6 +519,7 @@ export interface PlannerGenerateResponse {
   message: string;
   meals: PlannerMeal[];
 }
+
 export type DateQueryParameter = string;
 
 export type ListDiaryEntriesParams = {

@@ -27,6 +27,24 @@ type CaptureCandidate = Nutrition & {
   editable: boolean;
 };
 
+type ConfidenceDimensions = {
+  identity: number;
+  portion: number;
+  nutritionSource: number;
+  preparation: number;
+};
+
+type CaptureComponent = CaptureCandidate & {
+  componentId: string;
+  preparation: string | null;
+  included: boolean;
+  eatenFraction: number;
+  confidenceDimensions: ConfidenceDimensions;
+  assumptions: string[];
+  nutritionRange: { caloriesLow: number; caloriesHigh: number };
+  reviewQuestions: string[];
+};
+
 function numberOrZero(value: unknown) {
   const number = typeof value === "number" ? value : Number(value);
   return Number.isFinite(number) && number >= 0 ? number : 0;
@@ -50,6 +68,31 @@ function ensureCandidate(candidate: Partial<CaptureCandidate>, index: number): C
     provenance: candidate.provenance || "Photo estimate",
     sourceLabel: candidate.sourceLabel || "Managed vision estimate",
     editable: true,
+  };
+}
+
+function confidence(value: unknown, fallback: number) {
+  return Math.min(Math.max(Math.round(numberOrZero(value) || fallback), 0), 100);
+}
+
+function ensureComponent(candidate: Partial<CaptureComponent>, index: number, provenance = "Photo estimate"): CaptureComponent {
+  const base = ensureCandidate({ ...candidate, provenance: candidate.provenance || provenance }, index);
+  const identity = confidence(candidate.confidenceDimensions?.identity, base.confidence);
+  const portion = confidence(candidate.confidenceDimensions?.portion, base.provenance === "Photo estimate" ? Math.max(base.confidence - 8, 0) : base.confidence);
+  const nutritionSource = confidence(candidate.confidenceDimensions?.nutritionSource, base.provenance.includes("verified") ? base.confidence : Math.max(base.confidence - 12, 0));
+  const preparation = confidence(candidate.confidenceDimensions?.preparation, base.provenance === "Photo estimate" ? Math.max(base.confidence - 15, 0) : base.confidence);
+  const low = numberOrZero(candidate.nutritionRange?.caloriesLow) || Math.max(0, Math.round(base.calories * (portion < 70 ? 0.75 : 0.9)));
+  const high = numberOrZero(candidate.nutritionRange?.caloriesHigh) || Math.round(base.calories * (portion < 70 ? 1.3 : 1.1));
+  return {
+    ...base,
+    componentId: candidate.componentId || base.id || `component-${index + 1}`,
+    preparation: candidate.preparation?.trim() || null,
+    included: candidate.included !== false,
+    eatenFraction: Math.min(Math.max(Number(candidate.eatenFraction ?? 1), 0), 1),
+    confidenceDimensions: { identity, portion, nutritionSource, preparation },
+    assumptions: Array.isArray(candidate.assumptions) ? candidate.assumptions.filter((item): item is string => typeof item === "string").slice(0, 6) : [],
+    nutritionRange: { caloriesLow: Math.min(low, high), caloriesHigh: Math.max(low, high) },
+    reviewQuestions: Array.isArray(candidate.reviewQuestions) ? candidate.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 4) : [],
   };
 }
 
@@ -97,7 +140,7 @@ async function lookupBarcode(barcode: string) {
   try {
     const search = await fetchJson(`${USDA_ROOT}/foods/search?api_key=${encodeURIComponent(USDA_KEY)}&query=${encodeURIComponent(barcode)}&pageSize=5&dataType=Branded,SR%20Legacy,Foundation`);
     const food = search.foods?.[0];
-    if (food && (String(food.gtinUpc ?? "").replace(/\D/g, "") === barcode || String(food.description ?? "").toLowerCase().includes(barcode))) {
+    if (food && String(food.gtinUpc ?? "").replace(/\D/g, "") === barcode) {
       const nutrients = new Map((food.foodNutrients ?? []).map((item: any) => [item.nutrientName, item.value]));
       const candidate = ensureCandidate({
         id: `usda-${food.fdcId ?? barcode}`,
@@ -123,11 +166,22 @@ async function lookupBarcode(barcode: string) {
 
 function parseVisionResponse(content: string) {
   const cleaned = content.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
-  const parsed = JSON.parse(cleaned) as { title?: string; candidates?: Partial<CaptureCandidate>[] };
-  const candidates = (parsed.candidates ?? []).slice(0, 8).map(ensureCandidate).filter((candidate) => candidate.name !== "Unidentified food");
+  const parsed = JSON.parse(cleaned) as {
+    title?: string;
+    candidates?: Partial<CaptureCandidate>[];
+    components?: Partial<CaptureComponent>[];
+    assumptions?: string[];
+    reviewQuestions?: string[];
+  };
+  const rawComponents = parsed.components ?? parsed.candidates ?? [];
+  const components = rawComponents.slice(0, 8).map((candidate, index) => ensureComponent(candidate, index)).filter((candidate) => candidate.name !== "Unidentified food");
+  const candidates = components.map(({ componentId: _componentId, preparation: _preparation, included: _included, eatenFraction: _eatenFraction, confidenceDimensions: _confidenceDimensions, assumptions: _assumptions, nutritionRange: _nutritionRange, reviewQuestions: _reviewQuestions, ...candidate }) => candidate);
   return {
-    title: parsed.title?.trim() || (candidates[0]?.name ?? "Food photo review"),
+    title: parsed.title?.trim() || (components[0]?.name ?? "Food photo review"),
     candidates,
+    components,
+    assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions.filter((item): item is string => typeof item === "string").slice(0, 8) : [],
+    reviewQuestions: Array.isArray(parsed.reviewQuestions) ? parsed.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 6) : components.flatMap((component) => component.reviewQuestions).slice(0, 6),
   };
 }
 
@@ -143,8 +197,8 @@ async function analyzeFoodPhoto(imageBase64: string) {
           "You are Calora's food recognition engine.",
           "Analyze any food, drink, packaged item, or mixed meal visible in the image.",
           "Do not refuse because the food is unfamiliar. Make the best reasonable estimate.",
-          "Return JSON only with this shape: { title: string, candidates: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence }] }.",
-          "For mixed meals, return one candidate per visually distinct food. Use confidence 0-100.",
+          "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
+          "For mixed meals, return one component per visually distinct food. Use separate 0-100 confidence values for identity, portion, nutritionSource, and preparation.",
           "Nutrition from an image is an estimate. Never describe it as verified.",
           "Use edible portion estimates and keep calories/macros non-negative.",
         ].join(" "),
@@ -154,7 +208,7 @@ async function analyzeFoodPhoto(imageBase64: string) {
         content: [
           {
             type: "text",
-            text: "Identify every food or drink you can see and estimate one serving for each.",
+            text: "Identify every food or drink you can see and estimate one serving for each. Ask only high-impact review questions such as uncertain sauce, serving size, or whether the whole meal was eaten.",
           },
           {
             type: "image_url",
@@ -205,6 +259,10 @@ router.post("/v1/capture/analyze", async (req, res) => {
           reviewMessage: "Product nutrition matched from a barcode. Confirm the serving before adding it.",
           provider: result.provider,
           candidates: [result.candidate],
+           components: [ensureComponent(result.candidate, 0, result.candidate.provenance)],
+           assumptions: [],
+           reviewQuestions: ["Is this the serving size you ate?"],
+           imageRetention: "delete_after_analysis",
         });
         return;
       }
@@ -241,6 +299,10 @@ router.post("/v1/capture/analyze", async (req, res) => {
         sourceLabel: "Managed vision estimate",
         editable: true,
       }, index)),
+       components: result.components,
+       assumptions: result.assumptions,
+       reviewQuestions: result.reviewQuestions,
+       imageRetention: "delete_after_analysis",
     });
   } catch (error) {
     res.status(502).json({ message: error instanceof Error ? error.message : "Capture provider unavailable" });

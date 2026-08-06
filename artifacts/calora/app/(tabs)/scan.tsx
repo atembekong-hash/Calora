@@ -1,4 +1,4 @@
-import { useAnalyzeCapture, type CaptureAnalysis, type CaptureCandidate } from '@workspace/api-client-react';
+import { useAnalyzeCapture, type CaptureAnalysis } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
@@ -6,40 +6,40 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useCalora, FoodSource } from '@/context/CaloraContext';
+import { useCalora } from '@/context/CaloraContext';
+import type { FoodMemoryComponent } from '@/lib/foodMemory';
+import { useLocalSearchParams } from 'expo-router';
 
 type ScanMode = 'auto' | 'barcode' | 'food';
 
-function provenanceToSource(provenance: string): FoodSource {
-  if (provenance === 'USDA verified') return 'USDA verified';
-  if (provenance === 'Barcode verified') return 'Barcode verified';
-  if (provenance === 'Brand verified') return 'Brand verified';
-  return 'Photo estimate';
-}
-
-function CandidateCard({ candidate, colors, onAdd }: { candidate: CaptureCandidate; colors: ReturnType<typeof useCalora>['colors']; onAdd: (candidate: CaptureCandidate) => void }) {
-  const [serving, setServing] = useState(candidate.serving);
+function CandidateCard({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (component: FoodMemoryComponent) => void }) {
   return (
-    <View style={[styles.candidateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={[styles.candidateCard, { backgroundColor: component.included ? colors.card : colors.muted, borderColor: colors.border }]}>
       <View style={styles.candidateHeader}>
-        <View style={[styles.candidateIcon, { backgroundColor: candidate.provenance === 'Photo estimate' ? colors.accent : colors.hero }]}>
-          <Feather name={candidate.provenance === 'Photo estimate' ? 'sun' : 'check'} size={17} color={candidate.provenance === 'Photo estimate' ? colors.accentForeground : colors.heroMuted} />
+        <View style={[styles.candidateIcon, { backgroundColor: component.provenance === 'photo_estimate' ? colors.accent : colors.hero }]}>
+          <Feather name={component.provenance === 'photo_estimate' ? 'sun' : 'check'} size={17} color={component.provenance === 'photo_estimate' ? colors.accentForeground : colors.heroMuted} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.candidateName, { color: colors.foreground }]}>{candidate.name}</Text>
-          <Text style={[styles.candidateBrand, { color: colors.mutedForeground }]}>{candidate.brand ? `${candidate.brand} · ` : ''}{candidate.sourceLabel}</Text>
+          <Text style={[styles.candidateName, { color: colors.foreground }]}>{component.name}</Text>
+          <Text style={[styles.candidateBrand, { color: colors.mutedForeground }]}>{component.brand ? `${component.brand} · ` : ''}{component.sourceLabel}</Text>
         </View>
-        <Text style={[styles.confidence, { color: candidate.provenance === 'Photo estimate' ? colors.warning : colors.success }]}>{candidate.confidence}%</Text>
+        <Text style={[styles.confidence, { color: component.provenance === 'photo_estimate' ? colors.warning : colors.success }]}>{component.confidence}%</Text>
       </View>
       <View style={styles.nutritionRow}>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(candidate.calories)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(candidate.proteinG)}g</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(candidate.carbsG)}g</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(candidate.fatG)}g</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(component.calories * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(component.proteinG * component.eatenFraction)}g</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(component.carbsG * component.eatenFraction)}g</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(component.fatG * component.eatenFraction)}g</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
       </View>
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serving to log</Text>
-      <TextInput accessibilityLabel={`Serving for ${candidate.name}`} value={serving} onChangeText={setServing} style={[styles.servingInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.input }]} />
-      <Pressable accessibilityLabel={`Add ${candidate.name} to diary`} onPress={() => onAdd({ ...candidate, serving })} style={[styles.addButton, { backgroundColor: colors.primary }]}><Feather name="plus-circle" size={16} color={colors.primaryForeground} /><Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>Add to diary</Text></Pressable>
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>How much did you eat?</Text>
+      <View style={styles.fractionRow}>
+        <Pressable accessibilityLabel={`Decrease ${component.name} portion`} onPress={() => onChange({ ...component, eatenFraction: Math.max(0, component.eatenFraction - 0.25) })} style={[styles.fractionButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={15} color={colors.foreground} /></Pressable>
+        <Text style={[styles.fractionValue, { color: colors.foreground }]}>{Math.round(component.eatenFraction * 100)}%</Text>
+        <Pressable accessibilityLabel={`Increase ${component.name} portion`} onPress={() => onChange({ ...component, eatenFraction: Math.min(1, component.eatenFraction + 0.25) })} style={[styles.fractionButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={15} color={colors.foreground} /></Pressable>
+        <TextInput accessibilityLabel={`Serving for ${component.name}`} value={component.serving} onChangeText={(serving) => onChange({ ...component, serving })} style={[styles.servingInput, { flex: 1, color: colors.foreground, backgroundColor: colors.background, borderColor: colors.input }]} />
+      </View>
+      <Pressable accessibilityLabel={`${component.included ? 'Remove' : 'Include'} ${component.name}`} onPress={() => onChange({ ...component, included: !component.included })} style={[styles.includeButton, { borderColor: colors.border }]}><Feather name={component.included ? 'eye-off' : 'eye'} size={14} color={colors.mutedForeground} /><Text style={[styles.includeButtonText, { color: colors.mutedForeground }]}>{component.included ? 'Remove from meal' : 'Include in meal'}</Text></Pressable>
+      {component.reviewQuestions.length ? <Text style={[styles.questionText, { color: colors.warning }]}>{component.reviewQuestions[0]}</Text> : null}
     </View>
   );
 }
@@ -56,17 +56,22 @@ function PermissionState({ colors, onRequest }: { colors: ReturnType<typeof useC
 }
 
 export default function ScanScreen() {
-  const { colors, addLog } = useCalora();
+  const { colors, foodDrafts, createFoodMemoryDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory } = useCalora();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ date?: string }>();
+  const entryDate = typeof params.date === 'string' ? params.date : new Date().toISOString().slice(0, 10);
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [mode, setMode] = useState<ScanMode>('auto');
   const [hasScanned, setHasScanned] = useState(false);
   const [analysis, setAnalysis] = useState<CaptureAnalysis | null>(null);
+  const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
   const analyzeCapture = useAnalyzeCapture();
+  const reviewDraft = foodDrafts.find((draft) => draft.id === reviewDraftId) ?? null;
 
   const showAnalysis = (next: CaptureAnalysis) => {
     setAnalysis(next);
+    if (next.status === 'review') setReviewDraftId(createFoodMemoryDraft(next, entryDate).id);
     setHasScanned(true);
     Haptics.notificationAsync(next.status === 'review' ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
   };
@@ -105,23 +110,24 @@ export default function ScanScreen() {
     if (base64) await analyze({ mode: 'food', imageBase64: base64 });
   };
 
-  const addCandidate = (candidate: CaptureCandidate) => {
-    addLog({
-      name: candidate.name,
-      date: new Date().toISOString().slice(0, 10),
-      meal: 'Snack',
-      calories: candidate.calories,
-      protein: candidate.proteinG,
-      carbs: candidate.carbsG,
-      fat: candidate.fatG,
-      source: provenanceToSource(candidate.provenance),
-      confidence: candidate.confidence,
-      time: 'Just now',
-      serving: candidate.serving,
-      notes: `${candidate.sourceLabel} · Capture ${analysis?.sessionId ?? 'local'}`,
-    });
+  const updateComponent = (component: FoodMemoryComponent) => {
+    if (!reviewDraft) return;
+    updateFoodMemoryDraft(reviewDraft.id, reviewDraft.components.map((item) => item.id === component.id ? component : item));
+  };
+
+  const acceptDraft = () => {
+    if (!reviewDraft) return;
+    acceptFoodMemory(reviewDraft.id);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setAnalysis(null);
+    setReviewDraftId(null);
+    setHasScanned(false);
+  };
+
+  const dismissDraft = () => {
+    if (reviewDraft) rejectFoodMemory(reviewDraft.id);
+    setAnalysis(null);
+    setReviewDraftId(null);
     setHasScanned(false);
   };
 
@@ -154,12 +160,12 @@ export default function ScanScreen() {
           </>
         )}
       </ScrollView>
-      <Modal visible={analysis !== null} transparent animationType="slide" onRequestClose={() => { setAnalysis(null); setHasScanned(false); }}>
+       <Modal visible={analysis !== null} transparent animationType="slide" onRequestClose={dismissDraft}>
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
-          <View style={[styles.resultSheet, { backgroundColor: colors.background }]}>
+        <View style={[styles.resultSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.resultHeader}><View><Text style={[styles.resultEyebrow, { color: colors.primary }]}>{analysis?.mode === 'barcode' ? 'BARCODE MATCH' : 'PHOTO REVIEW'}</Text><Text style={[styles.resultTitle, { color: colors.foreground }]}>{analysis?.title}</Text></View><Pressable accessibilityLabel="Close scan result" onPress={() => { setAnalysis(null); setHasScanned(false); }} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View>
-            {analysis?.status === 'unavailable' ? <View style={[styles.unavailableResult, { backgroundColor: colors.accent }]}><Feather name="help-circle" size={19} color={colors.accentForeground} /><Text style={[styles.unavailableResultText, { color: colors.foreground }]}>{analysis.reviewMessage}</Text></View> : <><Text style={[styles.reviewMessage, { color: colors.mutedForeground }]}>{analysis?.reviewMessage}</Text><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22 }}>{analysis?.candidates.map((candidate) => <CandidateCard key={candidate.id} candidate={candidate} colors={colors} onAdd={addCandidate} />)}</ScrollView></>}
+             {analysis?.status === 'unavailable' ? <View style={[styles.unavailableResult, { backgroundColor: colors.accent }]}><Feather name="help-circle" size={19} color={colors.accentForeground} /><Text style={[styles.unavailableResultText, { color: colors.foreground }]}>{analysis.reviewMessage}</Text></View> : <><Text style={[styles.reviewMessage, { color: colors.mutedForeground }]}>{analysis?.reviewMessage}</Text>{reviewDraft?.assumptions.length ? <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}><Feather name="info" size={15} color={colors.accentForeground} /><Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' · ')}</Text></View> : null}<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22 }}>{reviewDraft?.components.map((component) => <CandidateCard key={component.id} component={component} colors={colors} onChange={updateComponent} />)}<View style={[styles.totalCard, { backgroundColor: colors.hero }]}><View><Text style={[styles.totalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.totalValue, { color: colors.onHero }]}>{Math.round(reviewDraft?.nutrition.calories ?? 0)} kcal</Text></View><Text style={[styles.totalMacro, { color: colors.heroMuted }]}>P {Math.round(reviewDraft?.nutrition.proteinG ?? 0)}g · C {Math.round(reviewDraft?.nutrition.carbsG ?? 0)}g · F {Math.round(reviewDraft?.nutrition.fatG ?? 0)}g</Text></View><Pressable accessibilityLabel="Approve and add meal to diary" onPress={acceptDraft} style={[styles.addButton, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={16} color={colors.primaryForeground} /><Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>Approve and add to diary</Text></Pressable><Pressable accessibilityLabel="Discard food review" onPress={dismissDraft} style={styles.discardButton}><Text style={[styles.discardText, { color: colors.mutedForeground }]}>Not this meal</Text></Pressable></ScrollView></>}
           </View>
         </View>
       </Modal>
@@ -220,8 +226,22 @@ const styles = StyleSheet.create({
   nutritionLabel: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 2 },
   fieldLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, marginTop: 12, marginBottom: 5 },
   servingInput: { height: 40, borderWidth: 1, borderRadius: 11, paddingHorizontal: 10, fontFamily: 'Inter_400Regular', fontSize: 11 },
+  fractionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  fractionButton: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  fractionValue: { width: 42, textAlign: 'center', fontFamily: 'Inter_700Bold', fontSize: 12 },
+  includeButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: 10, paddingVertical: 8, marginTop: 9 },
+  includeButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  questionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10, lineHeight: 15, marginTop: 9 },
   addButton: { height: 44, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 11 },
   addButtonText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  assumptionCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 11, borderRadius: 13, marginBottom: 12 },
+  assumptionText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
+  totalCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderRadius: 16, padding: 14, marginTop: 4 },
+  totalLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1 },
+  totalValue: { fontFamily: 'Inter_700Bold', fontSize: 20, marginTop: 3 },
+  totalMacro: { fontFamily: 'Inter_600SemiBold', fontSize: 10, textAlign: 'right' },
+  discardButton: { alignItems: 'center', paddingVertical: 13 },
+  discardText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   unavailableResult: { flexDirection: 'row', gap: 9, padding: 12, borderRadius: 13, marginTop: 15 },
   unavailableResultText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
 });
