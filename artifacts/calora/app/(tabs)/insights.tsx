@@ -5,17 +5,52 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useCalora } from '@/context/CaloraContext';
+import { Mood, useCalora } from '@/context/CaloraContext';
 
-const days = [
-  { day: 'Fri', value: 72, kcal: '1,920' },
-  { day: 'Sat', value: 88, kcal: '2,040' },
-  { day: 'Sun', value: 64, kcal: '1,780' },
-  { day: 'Mon', value: 92, kcal: '1,980' },
-  { day: 'Tue', value: 78, kcal: '2,110' },
-  { day: 'Wed', value: 84, kcal: '1,870' },
-  { day: 'Thu', value: 79, kcal: '1,025' },
-];
+type WeekDay = {
+  date: string;
+  day: string;
+  kcal: number;
+  value: number;
+  meals: number;
+  water: number;
+  mood?: Mood;
+  hasData: boolean;
+};
+
+const moodColors: Record<Mood, string> = {
+  energized: '#e5ad55',
+  good: '#5dba7d',
+  okay: '#7394f2',
+  low: '#9875c7',
+  stressed: '#ef6b4f',
+};
+
+function dateKeyFromDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getWeekDays(logs: ReturnType<typeof useCalora>['logs'], waterLogs: ReturnType<typeof useCalora>['waterLogs'], moodLogs: ReturnType<typeof useCalora>['moodLogs'], target: number): WeekDay[] {
+  const today = new Date();
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (6 - index));
+    const dateKey = dateKeyFromDate(date);
+    const dayLogs = logs.filter((log) => log.date === dateKey);
+    const kcal = dayLogs.reduce((total, log) => total + log.calories, 0);
+    const meals = new Set(dayLogs.map((log) => log.meal)).size;
+    return {
+      date: dateKey,
+      day: new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date),
+      kcal,
+      value: kcal ? Math.min((kcal / target) * 100, 100) : 0,
+      meals,
+      water: waterLogs[dateKey] ?? 0,
+      mood: moodLogs[dateKey],
+      hasData: dayLogs.length > 0 || Boolean(waterLogs[dateKey]) || Boolean(moodLogs[dateKey]),
+    };
+  });
+}
 
 function AnimatedReveal({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
   const progress = useSharedValue(0);
@@ -60,6 +95,51 @@ function AnimatedTrackFill({ percentage, color, trackColor }: { percentage: numb
   return <View style={[styles.miniTrack, { backgroundColor: trackColor }]}><Animated.View style={[styles.miniFill, { backgroundColor: color }, animatedStyle]} /></View>;
 }
 
+function WeeklyPatternsCard({ colors, days, target }: { colors: ReturnType<typeof useCalora>['colors']; days: WeekDay[]; target: number }) {
+  const loggedDays = days.filter((day) => day.hasData).length;
+  const waterDays = days.filter((day) => day.water > 0).length;
+  const moodDays = days.filter((day) => day.mood).length;
+  const averageWater = waterDays ? Math.round(days.reduce((sum, day) => sum + day.water, 0) / waterDays) : 0;
+  const averageCalories = days.filter((day) => day.kcal > 0).length
+    ? Math.round(days.reduce((sum, day) => sum + day.kcal, 0) / days.filter((day) => day.kcal > 0).length)
+    : 0;
+  return (
+    <View style={[styles.patternCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.sectionHeader}>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weekly patterns</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>A gentle read on your last seven days.</Text>
+        </View>
+        <View style={[styles.patternBadge, { backgroundColor: colors.accent }]}>
+          <Feather name="trending-up" size={12} color={colors.accentForeground} />
+          <Text style={[styles.patternBadgeText, { color: colors.accentForeground }]}>{loggedDays} / 7 tracked</Text>
+        </View>
+      </View>
+      <View style={styles.patternChart}>
+        {days.map((day, index) => (
+          <View key={day.date} style={styles.patternColumn}>
+            <View style={[styles.patternTrack, { backgroundColor: colors.muted }]}>
+              {day.hasData && <Animated.View style={[styles.patternFill, { backgroundColor: day.kcal ? (day.value > 110 ? colors.warning : colors.success) : colors.primary, height: `${Math.max(day.kcal ? day.value : 16, 16)}%` }]} />}
+            </View>
+            <View style={[styles.patternMoodDot, { backgroundColor: day.mood ? moodColors[day.mood] : 'transparent', borderColor: day.mood ? moodColors[day.mood] : colors.border }]} />
+            <Text style={[styles.patternDay, { color: index === days.length - 1 ? colors.primary : colors.mutedForeground }]}>{day.day}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={[styles.patternLegend, { borderTopColor: colors.border }]}>
+        <View style={styles.patternLegendItem}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>logged days</Text></View>
+        <View style={styles.patternLegendItem}><View style={[styles.legendDot, { backgroundColor: '#9875c7' }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>mood check-in</Text></View>
+      </View>
+      <View style={styles.patternStats}>
+        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageWater} fl oz</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. water</Text></View>
+        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageCalories ? averageCalories.toLocaleString() : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. kcal</Text></View>
+        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{moodDays}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>mood check-ins</Text></View>
+      </View>
+      <Text style={[styles.patternNote, { color: colors.mutedForeground }]}>No entry is a negative score. Keep building a picture that feels useful to you.</Text>
+    </View>
+  );
+}
+
 export default function InsightsScreen() {
   const { colors, logs, weights, addWeight, profile, waterLogs, moodLogs } = useCalora();
   const insets = useSafeAreaInsets();
@@ -79,7 +159,12 @@ export default function InsightsScreen() {
   const waterToday = waterLogs[todayKey] ?? 0;
   const moodToday = moodLogs[todayKey];
   const moodLabel = moodToday ? moodToday.charAt(0).toUpperCase() + moodToday.slice(1) : 'Not logged';
-  const signalDays = new Set(logs.map((log) => log.date)).size;
+  const target = profile?.calorieTarget ?? 2000;
+  const weekDays = getWeekDays(logs, waterLogs, moodLogs, target);
+  const signalDays = weekDays.filter((day) => day.hasData).length;
+  const averageWeekCalories = weekDays.filter((day) => day.kcal > 0).length
+    ? Math.round(weekDays.reduce((sum, day) => sum + day.kcal, 0) / weekDays.filter((day) => day.kcal > 0).length)
+    : 0;
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
@@ -108,10 +193,10 @@ export default function InsightsScreen() {
           <PulseIcon colors={colors} />
           <Text style={[styles.cardEyebrow, { color: colors.heroMuted }]}>ADAPTIVE TARGET</Text>
           <Text style={[styles.adaptiveTitle, { color: colors.onHero }]}>Your target is working with you.</Text>
-          <Text style={[styles.adaptiveBody, { color: colors.heroMuted }]}>You’re averaging 1,940 kcal this week. Keep logging for 4 more days and Calora can make a more personal recommendation.</Text>
+            <Text style={[styles.adaptiveBody, { color: colors.heroMuted }]}>{averageWeekCalories ? `You’re averaging ${averageWeekCalories.toLocaleString()} kcal across ${signalDays} tracked ${signalDays === 1 ? 'day' : 'days'} this week.` : 'Keep logging to reveal a more personal weekly recommendation.'}</Text>
           <View style={styles.adaptiveFooter}>
-            <Text style={[styles.adaptiveFooterText, { color: colors.onHero }]}>4 / 7 days of signal</Text>
-             <AnimatedTrackFill percentage={57} color={colors.primary} trackColor="rgba(157,215,189,0.18)" />
+            <Text style={[styles.adaptiveFooterText, { color: colors.onHero }]}>{signalDays} / 7 days of signal</Text>
+             <AnimatedTrackFill percentage={(signalDays / 7) * 100} color={colors.primary} trackColor="rgba(157,215,189,0.18)" />
           </View>
         </View>
         </AnimatedReveal>
@@ -144,12 +229,12 @@ export default function InsightsScreen() {
               </View>
             </View>
             <View style={styles.rhythmGrid}>
-              {days.map((item, index) => (
-                <View key={item.day} style={styles.rhythmDay}>
+              {weekDays.map((item, index) => (
+                <View key={item.date} style={styles.rhythmDay}>
                   <View style={[styles.rhythmTrack, { backgroundColor: colors.muted }]}>
-                    <Animated.View style={[styles.rhythmFill, { backgroundColor: index === days.length - 1 ? colors.primary : colors.success, height: `${Math.max(item.value, 18)}%` }]} />
+                    {item.hasData && <Animated.View style={[styles.rhythmFill, { backgroundColor: index === weekDays.length - 1 ? colors.primary : colors.success, height: `${Math.max(item.meals ? item.meals * 25 : 14, 14)}%` }]} />}
                   </View>
-                  <Text style={[styles.rhythmDayLabel, { color: index === days.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
+                  <Text style={[styles.rhythmDayLabel, { color: index === weekDays.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
                 </View>
               ))}
             </View>
@@ -159,7 +244,7 @@ export default function InsightsScreen() {
         <View style={styles.sectionHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This week</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Calories against your {(profile?.calorieTarget ?? 2000).toLocaleString()} kcal target</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Calories against your {target.toLocaleString()} kcal target</Text>
           </View>
           <Pressable accessibilityLabel="Change insights range" style={[styles.rangeButton, { backgroundColor: colors.muted }]}>
             <Text style={[styles.rangeText, { color: colors.foreground }]}>7D</Text>
@@ -169,21 +254,25 @@ export default function InsightsScreen() {
         <AnimatedReveal delay={280}>
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.chart}>
-            {days.map((item, index) => (
-              <View key={item.day} style={styles.barColumn}>
-                <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.kcal}</Text>
+            {weekDays.map((item, index) => (
+              <View key={item.date} style={styles.barColumn}>
+                <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.hasData && item.kcal ? item.kcal.toLocaleString() : '—'}</Text>
                 <View style={[styles.barTrack, { backgroundColor: colors.muted }]}>
-                  <AnimatedBar value={item.value} color={index === 6 ? colors.primary : colors.success} delay={index * 65} />
+                  <AnimatedBar value={item.value} color={index === weekDays.length - 1 ? colors.primary : colors.success} delay={index * 65} />
                 </View>
-                <Text style={[styles.barDay, { color: index === 6 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
+                <Text style={[styles.barDay, { color: index === weekDays.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
               </View>
             ))}
           </View>
           <View style={[styles.chartLegend, { borderTopColor: colors.border }]}>
             <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>on target</Text></View>
-            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>Avg. 1,940 kcal</Text>
+            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{averageWeekCalories ? `Avg. ${averageWeekCalories.toLocaleString()} kcal` : 'No calorie average yet'}</Text>
           </View>
         </View>
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={360}>
+          <WeeklyPatternsCard colors={colors} days={weekDays} target={target} />
         </AnimatedReveal>
 
         <View style={styles.sectionHeader}>
@@ -330,6 +419,21 @@ const styles = StyleSheet.create({
   nutrientValue: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   nutrientTarget: { fontFamily: 'Inter_400Regular', fontSize: 9, minWidth: 88, textAlign: 'right' },
   nutrientNote: { borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.14)', paddingTop: 10, marginTop: 5, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
+  patternCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginBottom: 24 },
+  patternBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6 },
+  patternBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 9 },
+  patternChart: { height: 132, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 9, marginTop: 3 },
+  patternColumn: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end' },
+  patternTrack: { width: '100%', height: 92, borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
+  patternFill: { width: '100%', borderRadius: 6 },
+  patternMoodDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 1, marginTop: 8 },
+  patternDay: { fontFamily: 'Inter_600SemiBold', fontSize: 9, marginTop: 6 },
+  patternLegend: { borderTopWidth: 1, marginTop: 14, paddingTop: 11, flexDirection: 'row', justifyContent: 'space-between' },
+  patternLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  patternStats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 },
+  patternStatValue: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  patternStatLabel: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 3 },
+  patternNote: { borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.14)', paddingTop: 10, marginTop: 13, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
   signalCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginTop: 24 },
   signalCardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 15 },
   signalIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
