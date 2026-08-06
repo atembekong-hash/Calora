@@ -70,3 +70,29 @@ Use PostgreSQL for the canonical entities and a search index for normalized look
 - Use a verification queue with automated outlier checks plus human review for high-volume foods.
 - Never display “verified” without a source, method, and check date.
 - Separate estimated AI output from accepted diary data; AI candidates never become food truth automatically.
+
+## Launch handoff
+
+### Ready in the local-first mobile build
+
+- Onboarding, profile-based starting targets, consent acknowledgement, and resume-safe local persistence.
+- Date-aware diary with previous/next navigation, empty states, manual/search/verified/photo-estimate logging, one-screen editing, and deletion.
+- Saved meals and recipe templates, weekly insights, weight trend logging, macro and micronutrient views, and adaptive-target messaging.
+- Light, dark, and system themes; transparent $9.99/month and $69.99/year Plus presentation; export and local delete controls.
+- Persisted offline outbox records with an explicit waiting-for-connection state rather than a false synced state.
+- App icon, splash, Expo iOS/Android configuration, accessible labels for core actions, and verified end-to-end preview coverage.
+
+### Required before store submission
+
+- Attach a native billing provider and create the App Store/Google Play products before enabling purchases. The current UI intentionally does not take payment or imply an entitlement.
+- Add native HealthKit and Health Connect packages, permission copy, import provenance, last-sync timestamps, conflict handling, and disconnect/delete behavior.
+- Implement authenticated API route handlers and database migrations for the OpenAPI contracts, then connect the mobile outbox to conflict-safe reconciliation.
+- Add production account/auth, server-backed export/delete execution, consent history UI, privacy policy URL, support URL, store subscription metadata, and country-specific tax/legal review.
+- Replace photo-library estimates with a real reviewable recognition service and add native camera, barcode, and microphone capability flows.
+
+### Release acceptance
+
+1. Test onboarding, date navigation, edit/delete, saved-meal reuse, theme switching, export/delete, and permission-required states on both iOS and Android builds.
+2. Verify every paid path in sandbox stores: purchase, restore, renewal, cancellation/manage, pending, declined, unavailable-store, and entitlement expiration.
+3. Verify offline logging, app restart persistence, duplicate-safe sync retries, stale-write conflicts, and account deletion.
+4. Confirm nutrition copy remains non-clinical and that estimates cannot silently become verified food truth.

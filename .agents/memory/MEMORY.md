@@ -1,0 +1,1 @@
+- [Calora launch boundary](calora-launch-boundary.md) — the mobile preview is local-first and must keep native billing, health, and authenticated sync states explicit until integrations are connected.

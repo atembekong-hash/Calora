@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface Provenance {
+  source: string;
+  verifiedAt: Date | null;
+  /** @minimum 1 */
+  correctionVersion: number;
 }

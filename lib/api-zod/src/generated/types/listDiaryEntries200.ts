@@ -5,7 +5,9 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { DiaryEntry } from './diaryEntry';
 
-export interface HealthStatus {
-  status: string;
-}
+export type ListDiaryEntries200 = {
+  date: Date;
+  entries: DiaryEntry[];
+};

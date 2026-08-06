@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 
@@ -15,9 +15,20 @@ const days = [
 ];
 
 export default function InsightsScreen() {
-  const { colors, logs } = useCalora();
+  const { colors, logs, weights, addWeight, profile } = useCalora();
   const insets = useSafeAreaInsets();
+  const [showWeight, setShowWeight] = useState(false);
+  const [weightInput, setWeightInput] = useState('');
   const verifiedCount = logs.filter((log) => log.confidence >= 90).length;
+  const latestWeight = weights[weights.length - 1]?.kg ?? profile?.weightKg ?? 76;
+  const startingWeight = profile?.weightKg ?? latestWeight;
+  const weightDelta = latestWeight - startingWeight;
+  const loggedToday = logs.filter((log) => log.date === new Date().toISOString().slice(0, 10));
+  const nutrientTotals = loggedToday.reduce((totals, log) => ({
+    fiber: totals.fiber + (log.fiber ?? 0),
+    sugar: totals.sugar + (log.sugar ?? 0),
+    sodium: totals.sodium + (log.sodium ?? 0),
+  }), { fiber: 0, sugar: 0, sodium: 0 });
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
@@ -48,7 +59,7 @@ export default function InsightsScreen() {
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>data trust</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.success }]}>−0.4</Text>
+            <Text style={[styles.statValue, { color: weightDelta <= 0 ? colors.success : colors.warning }]}>{weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)}</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>kg trend</Text>
           </View>
         </View>
@@ -56,7 +67,7 @@ export default function InsightsScreen() {
         <View style={styles.sectionHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This week</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Calories against your 2,000 kcal target</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Calories against your {(profile?.calorieTarget ?? 2000).toLocaleString()} kcal target</Text>
           </View>
           <Pressable accessibilityLabel="Change insights range" style={[styles.rangeButton, { backgroundColor: colors.muted }]}>
             <Text style={[styles.rangeText, { color: colors.foreground }]}>7D</Text>
@@ -81,6 +92,31 @@ export default function InsightsScreen() {
           </View>
         </View>
 
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Nutrient balance</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Today’s logged foods, with estimates clearly labeled.</Text>
+          </View>
+        </View>
+        <View style={[styles.nutrientCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {[
+            { label: 'Fiber', value: `${Math.round(nutrientTotals.fiber)} g`, target: '25 g', color: colors.success },
+            { label: 'Sugar', value: `${Math.round(nutrientTotals.sugar)} g`, target: 'added + natural', color: colors.warning },
+            { label: 'Sodium', value: `${Math.round(nutrientTotals.sodium)} mg`, target: '2,300 mg guide', color: colors.primary },
+          ].map((item) => <View key={item.label} style={styles.nutrientRow}><View style={[styles.nutrientDot, { backgroundColor: item.color }]} /><Text style={[styles.nutrientLabel, { color: colors.foreground }]}>{item.label}</Text><Text style={[styles.nutrientValue, { color: colors.foreground }]}>{item.value}</Text><Text style={[styles.nutrientTarget, { color: colors.mutedForeground }]}>{item.target}</Text></View>)}
+          <Text style={[styles.nutrientNote, { color: colors.mutedForeground }]}>Micronutrients appear as verified foods are added; photo and manual entries remain estimates until reviewed.</Text>
+        </View>
+
+        <View style={styles.weightHeader}>
+          <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your trend matters more than a single day</Text></View>
+          <Pressable accessibilityLabel="Log weight" onPress={() => setShowWeight(true)} style={[styles.weightButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.weightButtonText, { color: colors.primaryForeground }]}>Log</Text></Pressable>
+        </View>
+        <View style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.weightValue, { color: colors.foreground }]}>{latestWeight.toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>kg</Text></Text>
+          <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length > 1 ? `${weights.length} weigh-ins recorded locally` : 'Add a few weigh-ins to unlock trend guidance'}</Text>
+          <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '54%' : '10%' }]} /></View>
+        </View>
+
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Built on trust</Text>
         <View style={[styles.trustRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.trustIcon, { backgroundColor: colors.accent }]}><Feather name="database" size={18} color={colors.accentForeground} /></View>
@@ -99,6 +135,17 @@ export default function InsightsScreen() {
           <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
         </View>
       </ScrollView>
+      <Modal visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)}>
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
+          <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today’s weight</Text>
+            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>A single weigh-in is just a data point. Calora looks for a trend.</Text>
+            <TextInput value={weightInput} onChangeText={setWeightInput} keyboardType="decimal-pad" placeholder={`${latestWeight.toFixed(1)} kg`} placeholderTextColor={colors.mutedForeground} style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+            <Pressable accessibilityLabel="Save weight" onPress={() => { const value = Number(weightInput); if (value > 0) { addWeight(value); setWeightInput(''); setShowWeight(false); } }} style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></Pressable>
+            <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -137,8 +184,33 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 7, height: 7, borderRadius: 4 },
   legendText: { fontFamily: 'Inter_400Regular', fontSize: 10 },
+  nutrientCard: { borderWidth: 1, borderRadius: 20, padding: 14, marginBottom: 1 },
+  nutrientRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8 },
+  nutrientDot: { width: 8, height: 8, borderRadius: 4 },
+  nutrientLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11, flex: 1 },
+  nutrientValue: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  nutrientTarget: { fontFamily: 'Inter_400Regular', fontSize: 9, minWidth: 88, textAlign: 'right' },
+  nutrientNote: { borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.14)', paddingTop: 10, marginTop: 5, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderRadius: 18, padding: 13, marginBottom: 9 },
   trustIcon: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   trustTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   trustBody: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, marginTop: 4 },
+  weightHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 25, marginBottom: 11 },
+  weightButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8 },
+  weightButtonText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  weightCard: { borderWidth: 1, borderRadius: 20, padding: 16 },
+  weightValue: { fontFamily: 'Inter_700Bold', fontSize: 28 },
+  weightUnit: { fontFamily: 'Inter_400Regular', fontSize: 12 },
+  weightHint: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 5 },
+  weightLine: { height: 7, borderRadius: 4, overflow: 'hidden', marginTop: 14 },
+  weightLineFill: { height: 7, borderRadius: 4 },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
+  weightModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 30 },
+  modalTitle: { fontFamily: 'Inter_700Bold', fontSize: 21 },
+  modalBody: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  weightInput: { borderWidth: 1, borderRadius: 14, height: 48, paddingHorizontal: 13, fontFamily: 'Inter_500Medium', fontSize: 16, marginTop: 17 },
+  saveWeight: { borderRadius: 14, alignItems: 'center', paddingVertical: 14, marginTop: 12 },
+  saveWeightText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  cancelWeight: { alignItems: 'center', paddingVertical: 13 },
+  cancelWeightText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
 });

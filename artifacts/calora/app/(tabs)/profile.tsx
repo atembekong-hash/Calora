@@ -1,8 +1,8 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ThemePreference, useCalora } from '@/context/CaloraContext';
+import { SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
 
 const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'system', label: 'System', icon: 'smartphone' },
@@ -11,10 +11,18 @@ const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.
 ];
 
 export default function ProfileScreen() {
-  const { colors, themePreference, setThemePreference } = useCalora();
+  const { colors, themePreference, setThemePreference, profile, healthConnected, setHealthConnected, exportData, clearAllData, syncState, savedMeals, saveMeal } = useCalora();
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | null>(null);
+  const [privacyModal, setPrivacyModal] = useState<'export' | 'delete' | null>(null);
+  const [savedMealModal, setSavedMealModal] = useState(false);
+  const [savedMealName, setSavedMealName] = useState('');
+  const [savedMealKind, setSavedMealKind] = useState<SavedMeal['kind']>('meal');
+  const [savedMealCalories, setSavedMealCalories] = useState('');
+  const [savedMealProtein, setSavedMealProtein] = useState('');
+  const [savedMealCarbs, setSavedMealCarbs] = useState('');
+  const [savedMealFat, setSavedMealFat] = useState('');
   const annualMonthlyEquivalent = (69.99 / 12).toFixed(2);
   const annualSavings = (9.99 * 12 - 69.99).toFixed(2);
   const selectedPrice = selectedPlan === 'annual' ? '$69.99' : '$9.99';
@@ -23,6 +31,30 @@ export default function ProfileScreen() {
   const handlePurchase = () => setBillingModal('purchase');
   const handleRestore = () => setBillingModal('restore');
   const handleManage = () => setBillingModal('manage');
+  const handleExport = async () => {
+    const data = await exportData();
+    setPrivacyModal('export');
+  };
+  const handleDelete = () => setPrivacyModal('delete');
+  const createSavedMeal = () => {
+    const calories = Number(savedMealCalories);
+    if (!savedMealName.trim() || !Number.isFinite(calories) || calories <= 0) return;
+    saveMeal({
+      name: savedMealName.trim(),
+      kind: savedMealKind,
+      foodIds: [],
+      calories,
+      protein: Number(savedMealProtein) || 0,
+      carbs: Number(savedMealCarbs) || 0,
+      fat: Number(savedMealFat) || 0,
+    });
+    setSavedMealName('');
+    setSavedMealCalories('');
+    setSavedMealProtein('');
+    setSavedMealCarbs('');
+    setSavedMealFat('');
+    setSavedMealModal(false);
+  };
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
@@ -31,11 +63,11 @@ export default function ProfileScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>Profile & settings</Text>
         <View style={[styles.profileCard, { backgroundColor: colors.hero }]}>
           <View style={[styles.largeAvatar, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.largeAvatarText, { color: colors.primaryForeground }]}>A</Text>
+            <Text style={[styles.largeAvatarText, { color: colors.primaryForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.profileName, { color: colors.onHero }]}>Alex Morgan</Text>
-            <Text style={[styles.profileSub, { color: colors.heroMuted }]}>Building a steadier relationship with food</Text>
+            <Text style={[styles.profileName, { color: colors.onHero }]}>{profile?.name ?? 'Your profile'}</Text>
+            <Text style={[styles.profileSub, { color: colors.heroMuted }]}>{profile ? `${profile.calorieTarget.toLocaleString()} kcal target · ${profile.diet}` : 'Finish onboarding to personalize Calora'}</Text>
           </View>
           <Feather name="edit-2" size={17} color={colors.heroMuted} />
         </View>
@@ -119,17 +151,36 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        <View style={styles.savedHeader}>
+          <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved meals</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Keep repeatable meals one tap away.</Text></View>
+          <Pressable accessibilityLabel="Create saved meal" onPress={() => setSavedMealModal(true)} style={[styles.connectButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.connectButtonText, { color: colors.primaryForeground }]}>Create</Text></Pressable>
+        </View>
+        {savedMeals.length === 0 ? <View style={[styles.emptySaved, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="bookmark" size={18} color={colors.mutedForeground} /><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>No saved meals yet. Create one for a repeatable lunch, dinner, or recipe.</Text></View> : <View style={styles.savedList}>{savedMeals.map((meal) => <View key={meal.id} style={[styles.savedItem, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name={meal.kind === 'recipe' ? 'book-open' : 'bookmark'} size={16} color={colors.accentForeground} /></View><View style={{ flex: 1 }}><Text style={[styles.settingTitle, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.protein}g protein · {meal.kind}</Text></View></View>)}</View>}
+
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Trust & privacy</Text>
+        <View style={[styles.connectionRow, { backgroundColor: colors.accent }]}>
+          <View style={[styles.connectionIcon, { backgroundColor: colors.primary }]}><Feather name="activity" size={17} color={colors.primaryForeground} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.settingTitle, { color: colors.foreground }]}>Health data</Text>
+            <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{healthConnected ? 'Connected · steps and weight can sync' : 'Not connected · Calora works offline without it'}</Text>
+          </View>
+          <Pressable accessibilityLabel={healthConnected ? 'Disconnect health data' : 'Connect health data'} onPress={() => {
+            setHealthConnected(!healthConnected);
+            Alert.alert(healthConnected ? 'Health disconnected' : 'Health connection ready', healthConnected ? 'Calora will stop reading health data.' : 'Native HealthKit and Health Connect permissions are required before live data can sync. No data has been read.');
+          }} style={[styles.connectButton, { backgroundColor: colors.card }]}><Text style={[styles.connectButtonText, { color: colors.primary }]}>{healthConnected ? 'Disconnect' : 'Connect'}</Text></Pressable>
+        </View>
         {[
+          { icon: 'download', title: 'Export your data', body: `Prepare a portable JSON copy · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExport },
+          { icon: 'trash-2', title: 'Delete local data', body: 'Remove this device’s diary and profile data.', onPress: handleDelete },
           { icon: 'shield', title: 'Your food data stays yours', body: 'Local-first logging with export and delete controls.' },
           { icon: 'eye-off', title: 'No surveillance ads', body: 'Your meals are never used to target advertisements.' },
           { icon: 'help-circle', title: 'Need a hand?', body: 'Reach a real person when something does not look right.' },
         ].map((item) => (
-          <View key={item.title} style={[styles.settingRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Pressable key={item.title} onPress={item.onPress} style={[styles.settingRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}><Feather name={item.icon as keyof typeof Feather.glyphMap} size={17} color={colors.primary} /></View>
             <View style={{ flex: 1 }}><Text style={[styles.settingTitle, { color: colors.foreground }]}>{item.title}</Text><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{item.body}</Text></View>
             <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-          </View>
+          </Pressable>
         ))}
         <Text style={[styles.version, { color: colors.mutedForeground }]}>Calora 1.0 preview · Made for steadier days</Text>
       </ScrollView>
@@ -162,6 +213,46 @@ export default function ProfileScreen() {
             }} style={styles.dialogSecondaryButton}>
               <Text style={[styles.dialogSecondaryText, { color: colors.primary }]}>How billing works</Text>
             </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={privacyModal !== null} transparent animationType="fade" onRequestClose={() => setPrivacyModal(null)}>
+        <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+          <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.dialogIcon, { backgroundColor: privacyModal === 'delete' ? colors.warning : colors.accent }]}>
+              <Feather name={privacyModal === 'delete' ? 'trash-2' : 'download'} size={20} color={privacyModal === 'delete' ? colors.foreground : colors.accentForeground} />
+            </View>
+            <Text style={[styles.dialogTitle, { color: colors.foreground }]}>
+              {privacyModal === 'delete' ? 'Delete local data?' : 'Your export is ready'}
+            </Text>
+            <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>
+              {privacyModal === 'delete'
+                ? 'This removes your diary, profile, weights, and saved meals from this device. This cannot be undone.'
+                : 'Calora prepared a portable JSON copy of your profile, diary, weights, and saved meals. A connected share/export surface will make the file downloadable in the next step.'}
+            </Text>
+            <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
+              <Feather name={privacyModal === 'delete' ? 'alert-triangle' : 'check-circle'} size={15} color={privacyModal === 'delete' ? colors.warning : colors.success} />
+              <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>
+                {privacyModal === 'delete' ? 'This action is permanent.' : 'No data was sent anywhere.'}
+              </Text>
+            </View>
+            {privacyModal === 'delete' && <Pressable accessibilityLabel="Delete everything" onPress={() => { setPrivacyModal(null); clearAllData(); }} style={[styles.dialogButton, { backgroundColor: colors.warning }]}><Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Delete everything</Text></Pressable>}
+            <Pressable accessibilityLabel="Close privacy dialog" onPress={() => setPrivacyModal(null)} style={[styles.dialogButton, { backgroundColor: privacyModal === 'delete' ? colors.muted : colors.primary }]}>
+              <Text style={[styles.dialogButtonText, { color: privacyModal === 'delete' ? colors.foreground : colors.primaryForeground }]}>{privacyModal === 'delete' ? 'Keep my data' : 'Done'}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={savedMealModal} transparent animationType="slide" onRequestClose={() => setSavedMealModal(false)}>
+        <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+          <View style={[styles.savedModal, { backgroundColor: colors.background }]}>
+            <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Create a saved template</Text>
+            <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>Add the numbers from a meal or recipe you make often. It will be stored offline and appear in the add-food sheet.</Text>
+            <View style={styles.savedKindRow}><Pressable onPress={() => setSavedMealKind('meal')} style={[styles.savedKind, { backgroundColor: savedMealKind === 'meal' ? colors.primary : colors.card, borderColor: savedMealKind === 'meal' ? colors.primary : colors.border }]}><Text style={[styles.savedKindText, { color: savedMealKind === 'meal' ? colors.primaryForeground : colors.mutedForeground }]}>Meal</Text></Pressable><Pressable onPress={() => setSavedMealKind('recipe')} style={[styles.savedKind, { backgroundColor: savedMealKind === 'recipe' ? colors.primary : colors.card, borderColor: savedMealKind === 'recipe' ? colors.primary : colors.border }]}><Text style={[styles.savedKindText, { color: savedMealKind === 'recipe' ? colors.primaryForeground : colors.mutedForeground }]}>Recipe</Text></Pressable></View>
+            <TextInput accessibilityLabel="Saved meal name" value={savedMealName} onChangeText={setSavedMealName} placeholder="Name, e.g. Sunday chili" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+            <View style={styles.savedNumbers}>{[['Calories', savedMealCalories, setSavedMealCalories], ['Protein g', savedMealProtein, setSavedMealProtein], ['Carbs g', savedMealCarbs, setSavedMealCarbs], ['Fat g', savedMealFat, setSavedMealFat]].map(([label, value, setter]) => <View key={label as string} style={styles.savedNumber}><Text style={[styles.savedNumberLabel, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput value={value as string} onChangeText={setter as (value: string) => void} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}</View>
+            <Pressable accessibilityLabel="Save meal template" onPress={createSavedMeal} style={[styles.dialogButton, { backgroundColor: colors.primary }]}><Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Save template</Text></Pressable>
+            <Pressable accessibilityLabel="Cancel saved meal" onPress={() => setSavedMealModal(false)} style={styles.dialogSecondaryButton}><Text style={[styles.dialogSecondaryText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
           </View>
         </View>
       </Modal>
@@ -222,6 +313,22 @@ const styles = StyleSheet.create({
   dialogSecondaryText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   settingRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 12, marginBottom: 8 },
   settingIcon: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
+  connectionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 17, padding: 12, marginBottom: 8 },
+  connectionIcon: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
+  connectButton: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
+  connectButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
+  savedHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 25, marginBottom: 10 },
+  emptySaved: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderRadius: 17, padding: 13 },
+  savedList: { gap: 8 },
+  savedItem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 17, padding: 11 },
+  savedModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, marginTop: 'auto' },
+  savedKindRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  savedKind: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingVertical: 10 },
+  savedKindText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  savedInput: { height: 44, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, fontFamily: 'Inter_400Regular', fontSize: 12 },
+  savedNumbers: { flexDirection: 'row', gap: 7, marginTop: 8 },
+  savedNumber: { flex: 1 },
+  savedNumberLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, marginBottom: 5 },
   settingTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   settingBody: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 4 },
   version: { fontFamily: 'Inter_400Regular', fontSize: 10, textAlign: 'center', marginTop: 18 },

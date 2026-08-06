@@ -5,7 +5,8 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProfileInput } from './profileInput';
 
-export interface HealthStatus {
-  status: string;
-}
+export type Profile = ProfileInput & {
+  updatedAt: Date;
+};

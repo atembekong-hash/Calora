@@ -13,10 +13,25 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useCalora, FoodLog, MealType } from '@/context/CaloraContext';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 
-const TARGET = 2000;
+const dateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const dateFromKey = (key: string) => {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const formatDateLabel = (key: string) => new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(dateFromKey(key)).toUpperCase();
+const isToday = (key: string) => key === dateKey(new Date());
+const formatShortDate = (key: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(dateFromKey(key));
 
 function IconButton({ icon, label, onPress, colors }: { icon: keyof typeof Feather.glyphMap; label: string; onPress: () => void; colors: ReturnType<typeof useCalora>['colors'] }) {
   return (
@@ -48,9 +63,9 @@ function MacroBar({ label, value, target, color, colors }: { label: string; valu
   );
 }
 
-function MealRow({ log, colors, onRemove }: { log: FoodLog; colors: ReturnType<typeof useCalora>['colors']; onRemove: () => void }) {
+function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typeof useCalora>['colors']; onEdit: () => void }) {
   return (
-    <Pressable onLongPress={onRemove} style={({ pressed }) => [styles.mealRow, { borderBottomColor: colors.border, opacity: pressed ? 0.75 : 1 }]}>
+    <Pressable accessibilityLabel={`Edit ${log.name}`} onPress={onEdit} style={({ pressed }) => [styles.mealRow, { borderBottomColor: colors.border, opacity: pressed ? 0.75 : 1 }]}>
       <View style={[styles.mealDot, { backgroundColor: log.meal === 'Breakfast' ? colors.warning : log.meal === 'Lunch' ? colors.success : colors.primary }]} />
       <View style={styles.mealInfo}>
         <Text style={[styles.mealName, { color: colors.foreground }]} numberOfLines={1}>{log.name}</Text>
@@ -64,20 +79,86 @@ function MealRow({ log, colors, onRemove }: { log: FoodLog; colors: ReturnType<t
       </View>
       <Text style={[styles.mealCalories, { color: colors.foreground }]}>{log.calories}</Text>
       <Text style={[styles.kcalLabel, { color: colors.mutedForeground }]}>kcal</Text>
+      <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
     </Pressable>
   );
 }
 
-function AddFoodModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { colors, addLog } = useCalora();
+function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => void }) {
+  const { colors, updateLog, removeLog } = useCalora();
+  const [name, setName] = useState(log?.name ?? '');
+  const [calories, setCalories] = useState(log ? `${log.calories}` : '');
+  const [meal, setMeal] = useState<MealType>(log?.meal ?? 'Snack');
+  const [serving, setServing] = useState(log?.serving ?? '1 serving');
+
+  React.useEffect(() => {
+    if (!log) return;
+    setName(log.name);
+    setCalories(`${log.calories}`);
+    setMeal(log.meal);
+    setServing(log.serving);
+  }, [log]);
+
+  const save = () => {
+    if (!log || !name.trim() || !Number(calories) || Number(calories) < 0) return;
+    updateLog(log.id, { name: name.trim(), calories: Number(calories), meal, serving });
+    onClose();
+  };
+
+  return (
+    <Modal visible={log !== null} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
+        <View style={[styles.editCard, { backgroundColor: colors.background }]}>
+          <View style={styles.modalHandle} />
+          <View style={styles.modalHeading}>
+            <View><Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit entry</Text><Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>Correct anything before it shapes your trend.</Text></View>
+            <Pressable accessibilityLabel="Close edit entry" onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+          </View>
+          <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Food name</Text>
+          <TextInput value={name} onChangeText={setName} style={[styles.editInput, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground }]} />
+          <View style={styles.editFields}>
+            <View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Calories</Text><TextInput value={calories} onChangeText={setCalories} keyboardType="number-pad" style={[styles.editInput, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground }]} /></View>
+            <View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serving</Text><TextInput value={serving} onChangeText={setServing} style={[styles.editInput, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground }]} /></View>
+          </View>
+          <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 14 }]}>Meal</Text>
+          <View style={styles.mealPicker}>{mealOrder.map((item) => <Pressable key={item} onPress={() => setMeal(item)} style={[styles.mealChoice, { backgroundColor: meal === item ? colors.primary : colors.card, borderColor: meal === item ? colors.primary : colors.border }]}><Text style={[styles.mealChoiceText, { color: meal === item ? colors.primaryForeground : colors.mutedForeground }]}>{item}</Text></Pressable>)}</View>
+          <Pressable accessibilityLabel="Save edited entry" onPress={save} style={[styles.saveEntry, { backgroundColor: colors.primary }]}><Text style={[styles.saveEntryText, { color: colors.primaryForeground }]}>Save changes</Text></Pressable>
+          <Pressable accessibilityLabel="Delete edited entry" onPress={() => { if (log) { removeLog(log.id); onClose(); } }} style={styles.deleteEntry}><Feather name="trash-2" size={15} color={colors.destructive} /><Text style={[styles.deleteEntryText, { color: colors.destructive }]}>Delete this entry</Text></Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClose: () => void; entryDate: string }) {
+  const { colors, addLog, savedMeals } = useCalora();
   const [search, setSearch] = useState('');
   const [customName, setCustomName] = useState('');
   const [customCalories, setCustomCalories] = useState('');
   const [loadingPhoto, setLoadingPhoto] = useState(false);
+  const [captureMode, setCaptureMode] = useState<'search' | 'voice' | 'barcode'>('search');
   const filtered = verifiedFoods.filter((food) => food.name.toLowerCase().includes(search.toLowerCase()));
 
   const chooseFood = (food: (typeof verifiedFoods)[number]) => {
-    addLog({ ...food, time: 'Just now' });
+    addLog({ ...food, date: entryDate, time: 'Just now', serving: food.serving });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onClose();
+  };
+
+  const chooseSavedMeal = (meal: (typeof savedMeals)[number]) => {
+    addLog({
+      name: meal.name,
+      date: entryDate,
+      meal: 'Dinner',
+      calories: meal.calories,
+      protein: meal.protein,
+      carbs: meal.carbs,
+      fat: meal.fat,
+      source: 'Recipe',
+      confidence: 92,
+      time: 'Just now',
+      serving: '1 saved portion',
+    });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onClose();
   };
@@ -88,6 +169,7 @@ function AddFoodModal({ visible, onClose }: { visible: boolean; onClose: () => v
     if (!result.canceled) {
       addLog({
         name: 'Photo meal · review estimate',
+        date: entryDate,
         meal: 'Lunch',
         calories: 520,
         protein: 29,
@@ -96,6 +178,7 @@ function AddFoodModal({ visible, onClose }: { visible: boolean; onClose: () => v
         source: 'Photo estimate',
         confidence: 86,
         time: 'Just now',
+        serving: '1 photo estimate',
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onClose();
@@ -108,6 +191,7 @@ function AddFoodModal({ visible, onClose }: { visible: boolean; onClose: () => v
     if (!customName.trim() || !Number.isFinite(kcal) || kcal <= 0) return;
     addLog({
       name: customName.trim(),
+      date: entryDate,
       meal: 'Snack',
       calories: kcal,
       protein: 0,
@@ -116,6 +200,7 @@ function AddFoodModal({ visible, onClose }: { visible: boolean; onClose: () => v
       source: 'Manual',
       confidence: 70,
       time: 'Just now',
+      serving: '1 serving',
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCustomName('');
@@ -130,7 +215,7 @@ function AddFoodModal({ visible, onClose }: { visible: boolean; onClose: () => v
           <View style={styles.modalHandle} />
           <View style={styles.modalHeading}>
             <View>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Add to today</Text>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Add to {isToday(entryDate) ? 'today' : formatShortDate(entryDate)}</Text>
               <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>Fast now. Precise when it matters.</Text>
             </View>
             <Pressable accessibilityLabel="Close add food" onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
@@ -145,6 +230,22 @@ function AddFoodModal({ visible, onClose }: { visible: boolean; onClose: () => v
             </View>
             <Feather name="arrow-up-right" size={18} color={colors.heroMuted} />
           </Pressable>
+          <View style={[styles.captureModes, { backgroundColor: colors.muted }]}>
+            <Pressable accessibilityLabel="Text food logging" onPress={() => setCaptureMode('search')} style={[styles.captureMode, captureMode === 'search' && { backgroundColor: colors.card }]}><Feather name="edit-3" size={14} color={captureMode === 'search' ? colors.primary : colors.mutedForeground} /><Text style={[styles.captureModeText, { color: captureMode === 'search' ? colors.foreground : colors.mutedForeground }]}>Text</Text></Pressable>
+            <Pressable accessibilityLabel="Voice food logging" onPress={() => setCaptureMode('voice')} style={[styles.captureMode, captureMode === 'voice' && { backgroundColor: colors.card }]}><Feather name="mic" size={14} color={captureMode === 'voice' ? colors.primary : colors.mutedForeground} /><Text style={[styles.captureModeText, { color: captureMode === 'voice' ? colors.foreground : colors.mutedForeground }]}>Voice</Text></Pressable>
+            <Pressable accessibilityLabel="Barcode food logging" onPress={() => setCaptureMode('barcode')} style={[styles.captureMode, captureMode === 'barcode' && { backgroundColor: colors.card }]}><Feather name="maximize" size={14} color={captureMode === 'barcode' ? colors.primary : colors.mutedForeground} /><Text style={[styles.captureModeText, { color: captureMode === 'barcode' ? colors.foreground : colors.mutedForeground }]}>Barcode</Text></Pressable>
+          </View>
+          {captureMode !== 'search' && <View style={[styles.unavailableCard, { backgroundColor: colors.accent }]}>
+            <Feather name={captureMode === 'voice' ? 'mic-off' : 'camera-off'} size={20} color={colors.accentForeground} />
+            <View style={{ flex: 1 }}><Text style={[styles.unavailableTitle, { color: colors.foreground }]}>{captureMode === 'voice' ? 'Voice capture needs permission' : 'Barcode scanning needs camera access'}</Text><Text style={[styles.unavailableBody, { color: colors.mutedForeground }]}>{captureMode === 'voice' ? 'In the native build, Calora will request microphone access and turn your words into a reviewable draft.' : 'In the native build, Calora will request camera access and look up a verified product by barcode.'}</Text></View>
+            <Pressable accessibilityLabel="Use text logging instead" onPress={() => setCaptureMode('search')}><Text style={[styles.useText, { color: colors.primary }]}>Use text</Text></Pressable>
+          </View>}
+          {savedMeals.length > 0 && <View>
+            <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 2 }]}>SAVED MEALS & RECIPES</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedMealRow}>
+              {savedMeals.map((meal) => <Pressable key={meal.id} accessibilityLabel={`Add saved ${meal.name}`} onPress={() => chooseSavedMeal(meal)} style={[styles.savedMealChip, { backgroundColor: colors.accent, borderColor: colors.border }]}><Feather name={meal.kind === 'recipe' ? 'book-open' : 'bookmark'} size={13} color={colors.accentForeground} /><View><Text style={[styles.savedMealName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.savedMealMeta, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.kind}</Text></View></Pressable>)}
+            </ScrollView>
+          </View>}
           <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input }]}>
             <Feather name="search" size={18} color={colors.mutedForeground} />
             <TextInput value={search} onChangeText={setSearch} placeholder="Search verified foods" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />
@@ -179,17 +280,21 @@ function AddFoodModal({ visible, onClose }: { visible: boolean; onClose: () => v
 }
 
 export default function HomeScreen() {
-  const { logs, colors, removeLog } = useCalora();
+  const { logs, colors, profile, syncState } = useCalora();
   const insets = useSafeAreaInsets();
   const [showAdd, setShowAdd] = useState(false);
-  const totals = useMemo(() => logs.reduce((sum, log) => ({
+  const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
+  const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
+  const target = profile?.calorieTarget ?? 2000;
+  const selectedLogs = logs.filter((log) => log.date === selectedDate || (!log.date && isToday(selectedDate)));
+  const selectedTotals = useMemo(() => selectedLogs.reduce((sum, log) => ({
     calories: sum.calories + log.calories,
     protein: sum.protein + log.protein,
     carbs: sum.carbs + log.carbs,
     fat: sum.fat + log.fat,
-  }), { calories: 0, protein: 0, carbs: 0, fat: 0 }), [logs]);
-  const remaining = Math.max(TARGET - totals.calories, 0);
-  const progress = Math.min(totals.calories / TARGET, 1);
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 }), [selectedLogs]);
+  const remaining = Math.max(target - selectedTotals.calories, 0);
+  const progress = Math.min(selectedTotals.calories / target, 1);
 
   const openAdd = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -201,11 +306,11 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 104 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
           <View>
-            <Text style={[styles.dateKicker, { color: colors.mutedForeground }]}>THURSDAY, AUGUST 6</Text>
-            <Text style={[styles.greeting, { color: colors.foreground }]}>Good morning, Alex</Text>
+            <Text style={[styles.dateKicker, { color: colors.mutedForeground }]}>{formatDateLabel(selectedDate)}</Text>
+            <Text style={[styles.greeting, { color: colors.foreground }]}>Good morning, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
           </View>
-          <Pressable accessibilityLabel="Profile shortcut" style={[styles.avatar, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.avatarText, { color: colors.accentForeground }]}>A</Text>
+          <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={[styles.avatar, { backgroundColor: colors.accent }]}>
+            <Text style={[styles.avatarText, { color: colors.accentForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>
           </Pressable>
         </View>
 
@@ -226,7 +331,7 @@ export default function HomeScreen() {
               <Text style={[styles.ringLabel, { color: colors.heroMuted }]}>left</Text>
             </View>
             <View style={styles.heroStats}>
-              <Text style={[styles.heroStatValue, { color: colors.onHero }]}>{totals.calories.toLocaleString()} <Text style={[styles.heroStatUnit, { color: colors.heroMuted }]}>/ {TARGET.toLocaleString()} kcal</Text></Text>
+              <Text style={[styles.heroStatValue, { color: colors.onHero }]}>{selectedTotals.calories.toLocaleString()} <Text style={[styles.heroStatUnit, { color: colors.heroMuted }]}>/ {target.toLocaleString()} kcal</Text></Text>
               <View style={[styles.heroTrack, { backgroundColor: 'rgba(157,215,189,0.18)' }]}>
                 <View style={[styles.heroFill, { width: `${progress * 100}%`, backgroundColor: colors.primary }]} />
               </View>
@@ -249,39 +354,46 @@ export default function HomeScreen() {
             </View>
             <Feather name="sliders" size={18} color={colors.mutedForeground} />
           </View>
-          <MacroBar label="Protein" value={totals.protein} target={130} color={colors.protein} colors={colors} />
-          <MacroBar label="Carbs" value={totals.carbs} target={220} color={colors.carbs} colors={colors} />
-          <MacroBar label="Fat" value={totals.fat} target={68} color={colors.fat} colors={colors} />
+          <MacroBar label="Protein" value={selectedTotals.protein} target={Math.round(target * 0.26 / 4)} color={colors.protein} colors={colors} />
+          <MacroBar label="Carbs" value={selectedTotals.carbs} target={Math.round(target * 0.44 / 4)} color={colors.carbs} colors={colors} />
+          <MacroBar label="Fat" value={selectedTotals.fat} target={Math.round(target * 0.3 / 9)} color={colors.fat} colors={colors} />
         </View>
 
         <View style={styles.mealHeader}>
           <View>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Today’s log</Text>
-            <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Long press a meal to remove it</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text>
+            <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Tap an entry to edit · {selectedLogs.length} logged</Text>
           </View>
           <Pressable onPress={openAdd} accessibilityLabel="Add meal" style={[styles.addMealButton, { backgroundColor: colors.primary }]}>
             <Feather name="plus" size={16} color={colors.primaryForeground} />
             <Text style={[styles.addMealText, { color: colors.primaryForeground }]}>Add</Text>
           </Pressable>
         </View>
+        <View style={[styles.dateNav, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Pressable accessibilityLabel="Previous diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() - 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={17} color={colors.foreground} /></Pressable>
+          <View style={{ alignItems: 'center' }}><Text style={[styles.dateNavLabel, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today' : formatShortDate(selectedDate)}</Text><Text style={[styles.dateNavSub, { color: colors.mutedForeground }]}>{selectedDate}</Text></View>
+          <Pressable accessibilityLabel="Next diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() + 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={17} color={colors.foreground} /></Pressable>
+        </View>
         <View style={[styles.logCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {!selectedLogs.length && <View style={styles.emptyDiary}><Feather name="calendar" size={22} color={colors.mutedForeground} /><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>Nothing logged yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal for this day and it will stay here offline.</Text></View>}
           {mealOrder.map((meal) => {
-            const mealLogs = logs.filter((log) => log.meal === meal);
+            const mealLogs = selectedLogs.filter((log) => log.meal === meal);
             if (!mealLogs.length) return null;
             return (
               <View key={meal}>
                 <Text style={[styles.mealGroup, { color: colors.mutedForeground }]}>{meal.toUpperCase()}</Text>
-                {mealLogs.map((log) => <MealRow key={log.id} log={log} colors={colors} onRemove={() => removeLog(log.id)} />)}
+                {mealLogs.map((log) => <MealRow key={log.id} log={log} colors={colors} onEdit={() => setEditingLog(log)} />)}
               </View>
             );
           })}
         </View>
         <View style={styles.footerNote}>
           <Feather name="check-circle" size={15} color={colors.success} />
-          <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>Core foods are sourced from verified nutrition data.</Text>
+          <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved on this device · waiting for a connection' : syncState === 'local' ? 'Saved on this device · ready to sync' : syncState === 'offline' ? 'Loading your local diary…' : 'Core foods are sourced from verified nutrition data.'}</Text>
         </View>
       </ScrollView>
-      <AddFoodModal visible={showAdd} onClose={() => setShowAdd(false)} />
+      <AddFoodModal visible={showAdd} entryDate={selectedDate} onClose={() => setShowAdd(false)} />
+      <EditLogModal log={editingLog} onClose={() => setEditingLog(null)} />
     </View>
   );
 }
@@ -314,6 +426,10 @@ const styles = StyleSheet.create({
   quickAction: { flex: 1, minHeight: 88, borderWidth: 1, borderRadius: 18, padding: 12, justifyContent: 'space-between' },
   quickIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   quickLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  dateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 17, padding: 8, marginBottom: 11 },
+  dateNavButton: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
+  dateNavLabel: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  dateNavSub: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 2 },
   sectionCard: { borderWidth: 1, borderRadius: 22, padding: 17, marginBottom: 24 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 17 },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, letterSpacing: -0.3 },
@@ -339,6 +455,9 @@ const styles = StyleSheet.create({
   verifiedText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 },
   mealCalories: { fontFamily: 'Inter_700Bold', fontSize: 14 },
   kcalLabel: { fontFamily: 'Inter_400Regular', fontSize: 9, marginLeft: -7, marginTop: 18 },
+  emptyDiary: { alignItems: 'center', paddingVertical: 26, gap: 5 },
+  emptyDiaryTitle: { fontFamily: 'Inter_700Bold', fontSize: 14, marginTop: 3 },
+  emptyDiaryBody: { fontFamily: 'Inter_400Regular', fontSize: 11, textAlign: 'center', maxWidth: 230 },
   footerNote: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: 18 },
   footerNoteText: { fontFamily: 'Inter_400Regular', fontSize: 11 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
@@ -362,4 +481,26 @@ const styles = StyleSheet.create({
   manualInput: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, height: 42, fontFamily: 'Inter_400Regular', fontSize: 12 },
   manualKcal: { width: 67, borderWidth: 1, borderRadius: 12, paddingHorizontal: 9, height: 42, fontFamily: 'Inter_400Regular', fontSize: 12 },
   manualAdd: { width: 43, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  captureModes: { flexDirection: 'row', borderRadius: 13, padding: 4, marginBottom: 13, gap: 3 },
+  captureMode: { flex: 1, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', borderRadius: 10, paddingVertical: 8 },
+  captureModeText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  unavailableCard: { flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 15, padding: 12, marginBottom: 12 },
+  unavailableTitle: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  unavailableBody: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 14, marginTop: 3 },
+  useText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
+  savedMealRow: { gap: 8, paddingVertical: 5, paddingBottom: 12 },
+  savedMealChip: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 13, paddingHorizontal: 10, paddingVertical: 8, minWidth: 142 },
+  savedMealName: { fontFamily: 'Inter_700Bold', fontSize: 10 },
+  savedMealMeta: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 2 },
+  editCard: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 11, paddingBottom: 28 },
+  fieldLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, marginBottom: 6 },
+  editInput: { height: 44, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, fontFamily: 'Inter_400Regular', fontSize: 13, marginBottom: 11 },
+  editFields: { flexDirection: 'row', gap: 9 },
+  mealPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
+  mealChoice: { borderWidth: 1, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8 },
+  mealChoiceText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  saveEntry: { alignItems: 'center', borderRadius: 13, paddingVertical: 13, marginTop: 13 },
+  saveEntryText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  deleteEntry: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: 14 },
+  deleteEntryText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
 });
