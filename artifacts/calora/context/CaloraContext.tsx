@@ -38,7 +38,6 @@ import {
   upsertActivityObservation,
   upsertMealObservation,
   upsertMoodObservation,
-  upsertPlannerObservations,
   upsertWaterObservation,
   type LivingMemory,
 } from '@/lib/livingMemory';
@@ -216,8 +215,10 @@ type CaloraContextValue = {
   rejectFoodMemory: (draftId: string) => void;
   teachRepeatMemory: (memoryId: string) => void;
   setPlannerMeals: (weekStart: string, meals: PlannerMeal[]) => void;
+  updatePlannerMeals: (meals: PlannerMeal[]) => void;
   movePlannerMeal: (mealId: string, day: string, copy: boolean) => void;
   toggleShoppingItem: (itemId: string) => void;
+  toggleShoppingItemByName: (name: string) => void;
 };
 
 const STORAGE_KEY = '@calora/local-state-v2';
@@ -686,6 +687,13 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       setLivingMemory((current) => replacePlannerObservations(current, meals));
       queueMutation('settings', 'upsert');
     },
+    updatePlannerMeals: (meals) => {
+      const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
+      setPlannerMealsState(meals);
+      setShoppingItems(buildShoppingItems(meals, previousChecks));
+      setLivingMemory((current) => replacePlannerObservations(current, meals));
+      queueMutation('settings', 'upsert');
+    },
     movePlannerMeal: (mealId, day, copy) => {
       const existing = plannerMeals.find((meal) => meal.id === mealId);
       if (!existing) return;
@@ -694,10 +702,17 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         : plannerMeals.map((meal) => meal.id === mealId ? { ...meal, day } : meal);
       setPlannerMealsState(next);
       setShoppingItems(buildShoppingItems(next, new Map(shoppingItems.map((item) => [item.name, item.checked]))));
-      setLivingMemory((current) => upsertPlannerObservations(current, next));
+      setLivingMemory((current) => replacePlannerObservations(current, next));
       queueMutation('settings', 'upsert');
     },
-    toggleShoppingItem: (itemId) => setShoppingItems((items) => items.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item)),
+    toggleShoppingItem: (itemId) => {
+      setShoppingItems((items) => items.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item));
+      queueMutation('settings', 'upsert');
+    },
+    toggleShoppingItemByName: (name) => {
+      setShoppingItems((items) => items.map((item) => item.name === name ? { ...item, checked: !item.checked } : item));
+      queueMutation('settings', 'upsert');
+    },
      setCoachConsentAccepted: (accepted) => setCoachConsentAccepted(accepted),
      setCoachMessages: (messages) => setCoachMessages(messages.slice(-12)),
      clearCoachHistory: () => setCoachMessages([]),
