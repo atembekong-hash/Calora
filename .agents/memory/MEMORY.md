@@ -4,3 +4,4 @@
 - [Planner generation fallback](planner-generation-fallback.md) — AI meal planning needs a bounded request with an explicit local starter-week fallback.
 - [Food Memory compatibility](food-memory-compatibility.md) — accepted memories coexist with legacy diary logs while snapshots keep historical nutrition stable.
 - [Calora image system](calora-image-system.md) — use editorial, food, and branded fallback imagery by surface, with data and trust always remaining primary.
+- [Daily wellness tracking](daily-wellness-tracking.md) — water and mood are optional per-day local entries; meal count is derived from approved diary logs.

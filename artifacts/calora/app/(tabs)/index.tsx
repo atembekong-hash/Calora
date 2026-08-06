@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Modal,
   Pressable,
   ScrollView,
@@ -15,7 +16,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useCalora, FoodLog, MealType } from '@/context/CaloraContext';
+import { useListRecipes, type Recipe } from '@workspace/api-client-react';
+import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 
 const dateKey = (date: Date) => {
@@ -47,6 +49,172 @@ function IconButton({ icon, label, onPress, colors }: { icon: keyof typeof Feath
       </View>
       <Text style={[styles.quickLabel, { color: colors.foreground }]}>{label}</Text>
     </Pressable>
+  );
+}
+
+function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: Recipe) => void }) {
+  const { data, isLoading, isError } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10 } });
+  const recipes = data?.recipes ?? [];
+  const carouselRef = React.useRef<FlatList<Recipe>>(null);
+  const [activeRecipe, setActiveRecipe] = useState(0);
+  const pageWidth = 322;
+  const snapToRecipe = (nextIndex: number) => {
+    const next = Math.max(0, Math.min(nextIndex, recipes.length - 1));
+    setActiveRecipe(next);
+    carouselRef.current?.scrollToIndex({ index: next, animated: true });
+  };
+
+  if (isError || (!isLoading && recipes.length === 0)) return null;
+
+  return (
+    <View style={[styles.recipeWidget, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.recipeWidgetHeader}>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>A little inspiration</Text>
+          <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Swipe for something worth making</Text>
+        </View>
+        <View style={styles.recipeWidgetHeaderActions}>
+          {recipes.length > 1 && <View style={styles.recipeWidgetNav}>
+            <Pressable accessibilityLabel="Previous dashboard recipe" onPress={() => snapToRecipe(activeRecipe - 1)} style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={15} color={colors.foreground} /></Pressable>
+            <Pressable accessibilityLabel="Next dashboard recipe" onPress={() => snapToRecipe(activeRecipe + 1)} style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={15} color={colors.foreground} /></Pressable>
+          </View>}
+          <View style={[styles.recipeWidgetBadge, { backgroundColor: colors.accent }]}>
+            <Feather name="book-open" size={13} color={colors.accentForeground} />
+            <Text style={[styles.recipeWidgetBadgeText, { color: colors.accentForeground }]}>RECIPES</Text>
+          </View>
+        </View>
+      </View>
+      {isLoading ? (
+        <View style={styles.recipeWidgetLoading}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding a meal for today…</Text></View>
+      ) : (
+        <FlatList
+          ref={carouselRef}
+          data={recipes}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          directionalLockEnabled
+          nestedScrollEnabled
+          snapToInterval={pageWidth}
+          snapToAlignment="start"
+          keyExtractor={(recipe) => recipe.id}
+          getItemLayout={(_, index) => ({ length: pageWidth, offset: pageWidth * index, index })}
+          onMomentumScrollEnd={(event) => {
+            const next = Math.max(0, Math.min(Math.round(event.nativeEvent.contentOffset.x / pageWidth), recipes.length - 1));
+            setActiveRecipe(next);
+          }}
+          renderItem={({ item: recipe }) => (
+            <View style={[styles.recipeWidgetCard, { backgroundColor: colors.hero }]}>
+              <Image
+                source={recipe.image ? { uri: recipe.image } : require('../../assets/images/calora-recipes-header.jpg')}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                style={styles.recipeWidgetImage}
+              />
+              <LinearGradient colors={['rgba(18,34,24,0.08)', 'rgba(18,34,24,0.88)']} style={StyleSheet.absoluteFillObject} />
+              <View style={styles.recipeWidgetCopy}>
+                <Text style={styles.recipeWidgetEyebrow}>{recipe.area ? `${recipe.area.toUpperCase()} · OPEN SOURCE` : 'OPEN SOURCE RECIPE'}</Text>
+                <Text numberOfLines={2} style={styles.recipeWidgetTitle}>{recipe.name}</Text>
+                <View style={styles.recipeWidgetFooter}>
+                  <Text style={styles.recipeWidgetMeta}>{recipe.calories ? `${Math.round(recipe.calories)} kcal` : 'Nutrition review needed'}</Text>
+                  <Pressable accessibilityLabel={`View recipe details for ${recipe.name}`} onPress={() => onOpen(recipe)} style={({ pressed }) => [styles.recipeWidgetAction, { opacity: pressed ? 0.72 : 1 }]}>
+                    <Text style={styles.recipeWidgetActionText}>View details</Text>
+                    <Feather name="arrow-up-right" size={13} color="#ffffff" />
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          )}
+        />
+      )}
+      {!isLoading && recipes.length > 1 && <View style={styles.recipeWidgetHint}><Feather name="more-horizontal" size={16} color={colors.mutedForeground} /><Text style={[styles.recipeWidgetHintText, { color: colors.mutedForeground }]}>Swipe or use the arrows to explore</Text></View>}
+    </View>
+  );
+}
+
+const moodOptions: Array<{ value: Mood; label: string; icon: keyof typeof Feather.glyphMap }> = [
+  { value: 'energized', label: 'Energized', icon: 'sun' },
+  { value: 'good', label: 'Good', icon: 'smile' },
+  { value: 'okay', label: 'Okay', icon: 'minus-circle' },
+  { value: 'low', label: 'Low', icon: 'cloud' },
+  { value: 'stressed', label: 'Stressed', icon: 'activity' },
+];
+
+function WellnessCards({
+  colors,
+  waterOunces,
+  mealsLogged,
+  mealNames,
+  mood,
+  onAddWater,
+  onAddMeal,
+  onMood,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  waterOunces: number;
+  mealsLogged: number;
+  mealNames: string[];
+  mood?: Mood;
+  onAddWater: () => void;
+  onAddMeal: () => void;
+  onMood: (mood: Mood) => void;
+}) {
+  const waterGoal = 64;
+  const filledGlasses = Math.min(Math.ceil(waterOunces / 8), waterGoal / 8);
+  return (
+    <View style={styles.wellnessSection}>
+      <View style={styles.wellnessRow}>
+        <View style={[styles.wellnessCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.wellnessCardHeader}>
+            <View style={[styles.wellnessIcon, { backgroundColor: '#e5f1ff' }]}><Feather name="droplet" size={15} color="#5d8edb" /></View>
+            <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Water</Text>
+          </View>
+          <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{waterOunces} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ {waterGoal} fl oz</Text></Text>
+          <View style={styles.waterSlots}>
+            {Array.from({ length: 8 }, (_, index) => (
+              <View key={index} style={[styles.waterSlot, { backgroundColor: index < filledGlasses ? '#8db8ed' : colors.muted }]} />
+            ))}
+          </View>
+            <Pressable accessibilityLabel="Log 8 fluid ounces of water" testID="log-water-button" onPress={onAddWater} style={({ pressed }) => [styles.wellnessAction, { backgroundColor: colors.accent, opacity: pressed ? 0.72 : 1 }]}>
+            <Feather name="plus" size={13} color={colors.accentForeground} /><Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>8 fl oz</Text>
+          </Pressable>
+        </View>
+
+        <View style={[styles.wellnessCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.wellnessCardHeader}>
+            <View style={[styles.wellnessIcon, { backgroundColor: '#fff0dc' }]}><Feather name="check-circle" size={15} color="#d7954e" /></View>
+            <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Meals logged</Text>
+          </View>
+          <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{mealsLogged} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ 4 today</Text></Text>
+          <Text numberOfLines={1} style={[styles.mealsLoggedNames, { color: colors.mutedForeground }]}>{mealNames.length ? mealNames.join(' · ') : 'No meals logged yet'}</Text>
+          <Pressable accessibilityLabel="Add a meal from the meals logged card" testID="wellness-add-meal-button" onPress={onAddMeal} style={({ pressed }) => [styles.wellnessAction, { backgroundColor: colors.accent, opacity: pressed ? 0.72 : 1 }]}>
+            <Feather name="plus" size={13} color={colors.accentForeground} /><Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>Add meal</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={[styles.moodCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.moodHeading}>
+          <View>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>How are you feeling?</Text>
+            <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{mood ? `Logged as ${moodOptions.find((item) => item.value === mood)?.label.toLowerCase()}.` : 'A quick check-in, whenever it feels useful.'}</Text>
+          </View>
+          <View style={[styles.wellnessIcon, { backgroundColor: '#f2eafd' }]}><Feather name="heart" size={15} color="#9875c7" /></View>
+        </View>
+        <View style={styles.moodOptions}>
+          {moodOptions.map((item) => {
+            const selected = mood === item.value;
+            return (
+              <Pressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} style={({ pressed }) => [styles.moodOption, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border, opacity: pressed ? 0.72 : 1 }]}>
+                <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+                <Text style={[styles.moodOptionText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -262,7 +430,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
 }
 
 export default function HomeScreen() {
-  const { logs, colors, profile, syncState } = useCalora();
+  const { logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood } = useCalora();
   const insets = useSafeAreaInsets();
   const [showAdd, setShowAdd] = useState(false);
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
@@ -275,6 +443,8 @@ export default function HomeScreen() {
     carbs: sum.carbs + log.carbs,
     fat: sum.fat + log.fat,
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 }), [selectedLogs]);
+  const mealsLogged = new Set(selectedLogs.map((log) => log.meal)).size;
+  const mealNames = Array.from(new Set(selectedLogs.map((log) => log.meal)));
   const remaining = Math.max(target - selectedTotals.calories, 0);
   const progress = Math.min(selectedTotals.calories / target, 1);
 
@@ -331,6 +501,19 @@ export default function HomeScreen() {
           <IconButton icon="search" label="Search foods" onPress={openAdd} colors={colors} />
           <IconButton icon="edit-3" label="Quick add" onPress={openAdd} colors={colors} />
         </View>
+
+        <RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} />
+
+        <WellnessCards
+          colors={colors}
+          waterOunces={waterLogs[selectedDate] ?? 0}
+          mealsLogged={mealsLogged}
+          mealNames={mealNames}
+          mood={moodLogs[selectedDate]}
+          onAddWater={() => { addWater(selectedDate, 8); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          onAddMeal={openAdd}
+          onMood={(mood) => { setMood(selectedDate, mood); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
+        />
 
         <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.sectionHeader}>
@@ -422,6 +605,45 @@ const styles = StyleSheet.create({
   quickAction: { flex: 1, minHeight: 88, borderWidth: 1, borderRadius: 18, padding: 12, justifyContent: 'space-between' },
   quickIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   quickLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  recipeWidget: { borderWidth: 1, borderRadius: 22, padding: 14, marginBottom: 24 },
+  recipeWidgetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
+  recipeWidgetHeaderActions: { alignItems: 'flex-end', gap: 7 },
+  recipeWidgetNav: { flexDirection: 'row', gap: 5 },
+  recipeWidgetNavButton: { width: 28, height: 28, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  recipeWidgetBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6 },
+  recipeWidgetBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 0.8 },
+  recipeWidgetPages: { },
+  recipeWidgetCard: { width: 322, height: 174, borderRadius: 17, overflow: 'hidden', position: 'relative' },
+  recipeWidgetImage: { ...StyleSheet.absoluteFillObject },
+  recipeWidgetCopy: { flex: 1, justifyContent: 'flex-end', padding: 15 },
+  recipeWidgetEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 1.1, marginBottom: 5 },
+  recipeWidgetTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 18, lineHeight: 22, letterSpacing: -0.3, maxWidth: 260 },
+  recipeWidgetFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
+  recipeWidgetMeta: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 10 },
+  recipeWidgetAction: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  recipeWidgetActionText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 10 },
+  recipeWidgetHint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 8 },
+  recipeWidgetHintText: { fontFamily: 'Inter_500Medium', fontSize: 10 },
+  recipeWidgetLoading: { height: 174, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  loadingText: { fontFamily: 'Inter_400Regular', fontSize: 11 },
+  wellnessSection: { gap: 12, marginBottom: 24 },
+  wellnessRow: { flexDirection: 'row', gap: 10 },
+  wellnessCard: { flex: 1, minHeight: 172, borderWidth: 1, borderRadius: 20, padding: 13 },
+  wellnessCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  wellnessIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  wellnessCardTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12, flexShrink: 1 },
+  wellnessValue: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.4 },
+  wellnessUnit: { fontFamily: 'Inter_400Regular', fontSize: 10, letterSpacing: 0 },
+  waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 25, marginTop: 10, marginBottom: 11 },
+  waterSlot: { flex: 1, height: 17, borderRadius: 4 },
+  mealsLoggedNames: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 13, minHeight: 17 },
+  wellnessAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 10, paddingVertical: 8, marginTop: 'auto' },
+  wellnessActionText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
+  moodCard: { borderWidth: 1, borderRadius: 20, padding: 15 },
+  moodHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 },
+  moodOptions: { flexDirection: 'row', gap: 6 },
+  moodOption: { flex: 1, minHeight: 50, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 2, gap: 3 },
+  moodOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 },
   dateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderRadius: 17, padding: 8, marginBottom: 11 },
   dateNavButton: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   dateNavLabel: { fontFamily: 'Inter_700Bold', fontSize: 13 },

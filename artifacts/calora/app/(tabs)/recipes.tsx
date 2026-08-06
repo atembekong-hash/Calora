@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useGetRecipe, useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -280,6 +281,7 @@ export default function RecipesScreen() {
   const [remoteRecipes, setRemoteRecipes] = useState<Recipe[]>([]);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
   const loadingMoreRef = useRef(false);
+  const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
   const remainingCalories = Math.max((profile?.calorieTarget ?? 2000) - logs.filter((log) => log.date === new Date().toISOString().slice(0, 10)).reduce((sum, log) => sum + log.calories, 0), 0);
   const localMatches = useMemo(() => localRecipes.filter((recipe) => {
     const haystack = `${recipe.name} ${recipe.category ?? ''} ${recipe.tags.join(' ')} ${recipe.ingredients.join(' ')}`.toLowerCase();
@@ -303,6 +305,13 @@ export default function RecipesScreen() {
     setHasMoreRemote(page.length === RECIPE_PAGE_SIZE);
     loadingMoreRef.current = false;
   }, [recipesQuery.data, remoteOffset]);
+  useEffect(() => {
+    if (!recipeId) return;
+    const matchingRecipe = [...localRecipes, ...remoteRecipes].find((recipe) => recipe.id === recipeId);
+    if (!matchingRecipe) return;
+    setSelected(matchingRecipe);
+    router.setParams({ recipeId: undefined });
+  }, [localRecipes, recipeId, remoteRecipes]);
   const visibleRemote = category === 'My recipes' ? [] : remoteRecipes;
   const savedRecipes = [...localRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
   const loadMoreRecipes = () => {
