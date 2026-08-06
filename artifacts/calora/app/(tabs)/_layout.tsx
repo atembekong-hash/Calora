@@ -19,17 +19,17 @@ function NativeTabLayout() {
         <Icon sf={{ default: 'house', selected: 'house.fill' }} />
         <Label>Home</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="insights">
-        <Icon sf={{ default: 'chart.bar.xaxis', selected: 'chart.bar.xaxis' }} />
-        <Label>Insights</Label>
+      <NativeTabs.Trigger name="recipes">
+        <Icon sf={{ default: 'book.closed', selected: 'book.closed.fill' }} />
+        <Label>Recipes</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="scan">
         <Icon sf={{ default: 'camera', selected: 'camera.fill' }} />
         <Label>Scan</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="recipes">
-        <Icon sf={{ default: 'book.closed', selected: 'book.closed.fill' }} />
-        <Label>Recipes</Label>
+      <NativeTabs.Trigger name="insights">
+        <Icon sf={{ default: 'chart.bar.xaxis', selected: 'chart.bar.xaxis' }} />
+        <Label>Insights</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }} />
@@ -90,6 +90,18 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="recipes"
+        options={{
+          title: 'Recipes',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="book.closed" tintColor={color} size={22} />
+            ) : (
+              <Feather name="book-open" size={21} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
         name="scan"
         options={{
           title: 'Scan',
@@ -110,18 +122,6 @@ function ClassicTabLayout() {
               <Text style={[styles.scanTabLabel, { color: colors.primary }]}>Scan</Text>
             </Pressable>
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="recipes"
-        options={{
-          title: 'Recipes',
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="book.closed" tintColor={color} size={22} />
-            ) : (
-              <Feather name="book-open" size={21} color={color} />
-            ),
         }}
       />
       <Tabs.Screen
