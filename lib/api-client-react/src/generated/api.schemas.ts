@@ -382,6 +382,87 @@ export interface CaptureAnalysis {
   candidates: CaptureCandidate[];
 }
 
+export type PlannerProfileGoal = typeof PlannerProfileGoal[keyof typeof PlannerProfileGoal];
+
+
+export const PlannerProfileGoal = {
+  lose: 'lose',
+  maintain: 'maintain',
+  gain: 'gain',
+} as const;
+
+export type PlannerProfileActivity = typeof PlannerProfileActivity[keyof typeof PlannerProfileActivity];
+
+
+export const PlannerProfileActivity = {
+  low: 'low',
+  moderate: 'moderate',
+  high: 'high',
+} as const;
+
+export type PlannerProfileDiet = typeof PlannerProfileDiet[keyof typeof PlannerProfileDiet];
+
+
+export const PlannerProfileDiet = {
+  Everything: 'Everything',
+  Vegetarian: 'Vegetarian',
+  Vegan: 'Vegan',
+  High_protein: 'High protein',
+} as const;
+
+export interface PlannerProfile {
+  goal: PlannerProfileGoal;
+  activity: PlannerProfileActivity;
+  diet: PlannerProfileDiet;
+  /**
+     * @minimum 800
+     * @maximum 10000
+     */
+  calorieTarget: number;
+}
+
+export interface PlannerGenerateInput {
+  weekStart: string;
+  profile: PlannerProfile;
+}
+
+export type PlannerMealMeal = typeof PlannerMealMeal[keyof typeof PlannerMealMeal];
+
+
+export const PlannerMealMeal = {
+  Breakfast: 'Breakfast',
+  Lunch: 'Lunch',
+  Dinner: 'Dinner',
+  Snack: 'Snack',
+} as const;
+
+export interface PlannerMeal {
+  id: string;
+  day: string;
+  meal: PlannerMealMeal;
+  name: string;
+  image: string;
+  serving: string;
+  /** @minimum 0 */
+  calories: number;
+  /** @minimum 0 */
+  proteinG: number;
+  /** @minimum 0 */
+  carbsG: number;
+  /** @minimum 0 */
+  fatG: number;
+  ingredients: string[];
+  description: string;
+  /** @minimum 0 */
+  prepMinutes?: number;
+}
+
+export interface PlannerGenerateResponse {
+  weekStart: string;
+  provider: string;
+  message: string;
+  meals: PlannerMeal[];
+}
 export type DateQueryParameter = string;
 
 export type ListDiaryEntriesParams = {

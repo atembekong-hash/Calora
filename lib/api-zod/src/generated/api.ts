@@ -16,6 +16,7 @@ export const HealthCheckResponse = zod.object({
   "status": zod.string()
 })
 
+
 /**
  * @summary Get the current profile
  */
@@ -570,6 +571,61 @@ export const AnalyzeCaptureResponse = zod.object({
   "provenance": zod.string(),
   "sourceLabel": zod.string(),
   "editable": zod.boolean()
+}))
+})
+
+
+/**
+ * Uses the user's goals and preferences to select a reviewable weekly
+ * meal plan from Calora's nutrition-labeled meal catalog. The client
+ * keeps the resulting plan locally for offline use.
+ * @summary Generate a personalized weekly meal plan
+ */
+export const generatePlannerBodyProfileCalorieTargetMin = 800;
+export const generatePlannerBodyProfileCalorieTargetMax = 10000;
+
+
+
+export const GeneratePlannerBody = zod.object({
+  "weekStart": zod.coerce.date(),
+  "profile": zod.object({
+  "goal": zod.enum(['lose', 'maintain', 'gain']),
+  "activity": zod.enum(['low', 'moderate', 'high']),
+  "diet": zod.enum(['Everything', 'Vegetarian', 'Vegan', 'High protein']),
+  "calorieTarget": zod.number().int().min(generatePlannerBodyProfileCalorieTargetMin).max(generatePlannerBodyProfileCalorieTargetMax)
+})
+})
+
+export const generatePlannerResponseMealsItemCaloriesMin = 0;
+
+export const generatePlannerResponseMealsItemProteinGMin = 0;
+
+export const generatePlannerResponseMealsItemCarbsGMin = 0;
+
+export const generatePlannerResponseMealsItemFatGMin = 0;
+
+export const generatePlannerResponseMealsItemPrepMinutesMin = 0;
+
+
+
+export const GeneratePlannerResponse = zod.object({
+  "weekStart": zod.coerce.date(),
+  "provider": zod.string(),
+  "message": zod.string(),
+  "meals": zod.array(zod.object({
+  "id": zod.string(),
+  "day": zod.coerce.date(),
+  "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']),
+  "name": zod.string(),
+  "image": zod.string().url(),
+  "serving": zod.string(),
+  "calories": zod.number().min(generatePlannerResponseMealsItemCaloriesMin),
+  "proteinG": zod.number().min(generatePlannerResponseMealsItemProteinGMin),
+  "carbsG": zod.number().min(generatePlannerResponseMealsItemCarbsGMin),
+  "fatG": zod.number().min(generatePlannerResponseMealsItemFatGMin),
+  "ingredients": zod.array(zod.string()),
+  "description": zod.string(),
+  "prepMinutes": zod.number().int().min(generatePlannerResponseMealsItemPrepMinutesMin).optional()
 }))
 })
 

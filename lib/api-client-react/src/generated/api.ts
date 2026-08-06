@@ -32,6 +32,8 @@ import type {
   ListDiaryEntriesParams,
   ListRecipesParams,
   ListWeightsParams,
+  PlannerGenerateInput,
+  PlannerGenerateResponse,
   Profile,
   ProfileInput,
   Recipe,
@@ -1139,6 +1141,80 @@ export const useAnalyzeCapture = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getAnalyzeCaptureMutationOptions(options));
+    }
+
+export const getGeneratePlannerUrl = () => {
+
+
+
+
+  return `/api/v1/planner/generate`
+}
+
+/**
+ * Uses the user's goals and preferences to select a reviewable weekly
+ * meal plan from Calora's nutrition-labeled meal catalog. The client
+ * keeps the resulting plan locally for offline use.
+ * @summary Generate a personalized weekly meal plan
+ */
+export const generatePlanner = async (plannerGenerateInput: PlannerGenerateInput, options?: Parameters<typeof customFetch>[1]): Promise<PlannerGenerateResponse> => {
+
+  return customFetch<PlannerGenerateResponse>(getGeneratePlannerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(plannerGenerateInput)
+  }
+);}
+
+
+
+
+
+export const getGeneratePlannerMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generatePlanner>>, TError,{data: BodyType<PlannerGenerateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generatePlanner>>, TError,{data: BodyType<PlannerGenerateInput>}, TContext> => {
+
+const mutationKey = ['generatePlanner'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generatePlanner>>, {data: BodyType<PlannerGenerateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  generatePlanner(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GeneratePlannerMutationResult = NonNullable<Awaited<ReturnType<typeof generatePlanner>>>
+    export type GeneratePlannerMutationBody = BodyType<PlannerGenerateInput>
+    export type GeneratePlannerMutationError = ErrorType<void>
+
+    /**
+ * @summary Generate a personalized weekly meal plan
+ */
+export const useGeneratePlanner = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generatePlanner>>, TError,{data: BodyType<PlannerGenerateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generatePlanner>>,
+        TError,
+        {data: BodyType<PlannerGenerateInput>},
+        TContext
+      > => {
+      return useMutation(getGeneratePlannerMutationOptions(options));
     }
 
 export const getRequestDataExportUrl = () => {

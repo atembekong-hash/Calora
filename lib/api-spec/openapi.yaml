@@ -26,6 +26,8 @@ tags:
     description: Open-source recipe discovery
   - name: capture
     description: Smart camera capture and food recognition
+  - name: planner
+    description: Personalized weekly meal planning
 paths:
   /healthz:
     get:
@@ -315,6 +317,32 @@ paths:
           description: Invalid capture input
         "502":
           description: Capture provider unavailable
+  /v1/planner/generate:
+    post:
+      operationId: generatePlanner
+      tags: [planner]
+      summary: Generate a personalized weekly meal plan
+      description: |
+        Uses the user's goals and preferences to select a reviewable weekly
+        meal plan from Calora's nutrition-labeled meal catalog. The client
+        keeps the resulting plan locally for offline use.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlannerGenerateInput"
+      responses:
+        "200":
+          description: Generated weekly meal plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerGenerateResponse"
+        "400":
+          description: Invalid planner input
+        "502":
+          description: Planner provider unavailable
   /v1/privacy/export:
     post:
       operationId: requestDataExport
@@ -589,4 +617,51 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CaptureCandidate"
+    PlannerProfile:
+      type: object
+      required: [goal, activity, diet, calorieTarget]
+      properties:
+        goal: { type: string, enum: [lose, maintain, gain] }
+        activity: { type: string, enum: [low, moderate, high] }
+        diet: { type: string, enum: [Everything, Vegetarian, Vegan, High protein] }
+        calorieTarget: { type: integer, minimum: 800, maximum: 10000 }
+    PlannerGenerateInput:
+      type: object
+      required: [weekStart, profile]
+      properties:
+        weekStart:
+          type: string
+          format: date
+        profile:
+          $ref: "#/components/schemas/PlannerProfile"
+    PlannerMeal:
+      type: object
+      required: [id, day, meal, name, image, serving, calories, proteinG, carbsG, fatG, ingredients, description]
+      properties:
+        id: { type: string }
+        day: { type: string, format: date }
+        meal: { type: string, enum: [Breakfast, Lunch, Dinner, Snack] }
+        name: { type: string }
+        image: { type: string, format: uri }
+        serving: { type: string }
+        calories: { type: number, minimum: 0 }
+        proteinG: { type: number, minimum: 0 }
+        carbsG: { type: number, minimum: 0 }
+        fatG: { type: number, minimum: 0 }
+        ingredients:
+          type: array
+          items: { type: string }
+        description: { type: string }
+        prepMinutes: { type: integer, minimum: 0 }
+    PlannerGenerateResponse:
+      type: object
+      required: [weekStart, provider, message, meals]
+      properties:
+        weekStart: { type: string, format: date }
+        provider: { type: string }
+        message: { type: string }
+        meals:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlannerMeal"
 

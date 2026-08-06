@@ -31,9 +31,9 @@ function NativeTabLayout() {
         <Icon sf={{ default: 'chart.bar.xaxis', selected: 'chart.bar.xaxis' }} />
         <Label>Insights</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }} />
-        <Label>You</Label>
+      <NativeTabs.Trigger name="planner">
+        <Icon sf={{ default: 'calendar', selected: 'calendar' }} />
+        <Label>Plan</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -137,17 +137,18 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="planner"
         options={{
-          title: 'You',
+          title: 'Plan',
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="person.crop.circle" tintColor={color} size={23} />
+              <SymbolView name="calendar" tintColor={color} size={23} />
             ) : (
-              <Feather name="user" size={22} color={color} />
+              <Feather name="calendar" size={22} color={color} />
             ),
         }}
       />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }

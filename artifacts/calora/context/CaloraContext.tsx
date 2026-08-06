@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
+import type { PlannerMeal } from '@workspace/api-client-react';
+import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart } from '@/data/planner';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
@@ -51,6 +53,7 @@ export type CaloraRecipe = {
   sourceUrl: string;
   isLocal?: boolean;
 };
+export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean };
 
 export type Profile = {
   name: string;
@@ -84,6 +87,9 @@ type CaloraState = {
   healthConnected: boolean;
   consentAccepted: boolean;
   outbox: OutboxMutation[];
+  plannerWeekStart: string;
+  plannerMeals: PlannerMeal[];
+  shoppingItems: ShoppingItem[];
 };
 
 type CaloraContextValue = {
@@ -114,6 +120,12 @@ type CaloraContextValue = {
   clearOutbox: () => void;
   exportData: () => Promise<string>;
   clearAllData: () => Promise<void>;
+  plannerWeekStart: string;
+  plannerMeals: PlannerMeal[];
+  shoppingItems: ShoppingItem[];
+  setPlannerMeals: (weekStart: string, meals: PlannerMeal[]) => void;
+  movePlannerMeal: (mealId: string, day: string, copy: boolean) => void;
+  toggleShoppingItem: (itemId: string) => void;
 };
 
 const STORAGE_KEY = '@calora/local-state-v2';
@@ -209,6 +221,9 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [healthConnected, setHealthConnected] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [outbox, setOutbox] = useState<OutboxMutation[]>([]);
+  const [plannerWeekStart, setPlannerWeekStart] = useState(getPlannerWeekStart());
+  const [plannerMeals, setPlannerMealsState] = useState<PlannerMeal[]>(() => createStarterPlannerMeals());
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(() => buildShoppingItems(plannerMeals));
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -227,6 +242,9 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         if (saved.healthConnected !== undefined) setHealthConnected(saved.healthConnected);
         if (saved.consentAccepted !== undefined) setConsentAccepted(saved.consentAccepted);
         if (saved.outbox) setOutbox(saved.outbox);
+        if (saved.plannerWeekStart) setPlannerWeekStart(saved.plannerWeekStart);
+        if (saved.plannerMeals) setPlannerMealsState(saved.plannerMeals);
+        if (saved.shoppingItems) setShoppingItems(saved.shoppingItems);
       })
       .catch(() => undefined)
       .finally(() => setHydrated(true));
@@ -246,9 +264,12 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       healthConnected,
       consentAccepted,
       outbox,
+      plannerWeekStart,
+      plannerMeals,
+      shoppingItems,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => undefined);
-  }, [consentAccepted, healthConnected, hydrated, localRecipes, logs, onboardingComplete, outbox, profile, savedMeals, savedRecipeIds, themePreference, weights]);
+  }, [consentAccepted, healthConnected, hydrated, localRecipes, logs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, savedMeals, savedRecipeIds, shoppingItems, themePreference, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -267,6 +288,9 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     colors: mode === 'dark' ? colors.dark : colors.light,
     syncState: hydrated ? (outbox.length > 0 ? 'needs-connection' : 'local') : 'offline',
     pendingMutations: outbox,
+    plannerWeekStart,
+    plannerMeals,
+    shoppingItems,
     healthConnected,
     addLog: (log) => {
       setLogs((current) => [...current, { ...log, id: makeId('log') }]);
@@ -312,7 +336,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     setHealthConnected,
     clearOutbox: () => setOutbox([]),
-    exportData: async () => JSON.stringify({ profile, logs, weights, savedMeals, localRecipes, savedRecipeIds, consentAccepted }, null, 2),
+    exportData: async () => JSON.stringify({ profile, logs, weights, savedMeals, localRecipes, savedRecipeIds, plannerWeekStart, plannerMeals, shoppingItems, consentAccepted }, null, 2),
     clearAllData: async () => {
       await AsyncStorage.removeItem(STORAGE_KEY);
       setLogs([]);
@@ -324,8 +348,28 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       setOnboardingComplete(false);
       setConsentAccepted(false);
       setOutbox([]);
+      setPlannerMealsState([]);
+      setShoppingItems([]);
     },
-  }), [consentAccepted, healthConnected, hydrated, localRecipes, logs, mode, onboardingComplete, outbox, profile, savedMeals, savedRecipeIds, themePreference, weights]);
+    setPlannerMeals: (weekStart, meals) => {
+      const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
+      setPlannerWeekStart(weekStart);
+      setPlannerMealsState(meals);
+      setShoppingItems(buildShoppingItems(meals, previousChecks));
+      queueMutation('settings', 'upsert');
+    },
+    movePlannerMeal: (mealId, day, copy) => {
+      const existing = plannerMeals.find((meal) => meal.id === mealId);
+      if (!existing) return;
+      const next = copy
+        ? [...plannerMeals, { ...existing, id: makeId('planned'), day }]
+        : plannerMeals.map((meal) => meal.id === mealId ? { ...meal, day } : meal);
+      setPlannerMealsState(next);
+      setShoppingItems(buildShoppingItems(next, new Map(shoppingItems.map((item) => [item.name, item.checked]))));
+      queueMutation('settings', 'upsert');
+    },
+    toggleShoppingItem: (itemId) => setShoppingItems((items) => items.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item)),
+  }), [consentAccepted, healthConnected, hydrated, localRecipes, logs, mode, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, savedMeals, savedRecipeIds, shoppingItems, themePreference, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }
