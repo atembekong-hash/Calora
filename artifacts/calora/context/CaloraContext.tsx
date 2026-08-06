@@ -3,6 +3,7 @@ import React, { createContext, ReactNode, useContext, useEffect, useMemo, useSta
 import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { PlannerMeal } from '@workspace/api-client-react';
+import type { HydrationReminderPrefs } from '@/lib/hydrationReminders';
 import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart } from '@/data/planner';
 import {
   type AcceptedFoodMemory,
@@ -101,6 +102,15 @@ export type OutboxMutation = {
   createdAt: string;
 };
 
+const DEFAULT_HYDRATION_PREFS: HydrationReminderPrefs = {
+  enabled: false,
+  wakeHour: 7,
+  wakeMinute: 0,
+  sleepHour: 22,
+  sleepMinute: 0,
+  intervalHours: 2,
+};
+
 type CaloraState = {
   schemaVersion?: number;
   onboardingComplete: boolean;
@@ -123,6 +133,7 @@ type CaloraState = {
   foodMemories: AcceptedFoodMemory[];
   repeatPatterns: RepeatPattern[];
   memoryCorrections: FoodMemoryCorrection[];
+  hydrationReminders: HydrationReminderPrefs;
 };
 
 type CaloraContextValue = {
@@ -141,6 +152,8 @@ type CaloraContextValue = {
   syncState: SyncState;
   pendingMutations: OutboxMutation[];
   healthConnected: boolean;
+  hydrationReminders: HydrationReminderPrefs;
+  setHydrationReminders: (prefs: HydrationReminderPrefs) => void;
   addLog: (log: Omit<FoodLog, 'id'>) => void;
   updateLog: (id: string, patch: Partial<FoodLog>) => void;
   removeLog: (id: string) => void;
@@ -281,6 +294,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [foodMemories, setFoodMemories] = useState<AcceptedFoodMemory[]>(starterMemoryState.foodMemories);
   const [repeatPatterns, setRepeatPatterns] = useState<RepeatPattern[]>(starterMemoryState.repeatPatterns);
   const [memoryCorrections, setMemoryCorrections] = useState<FoodMemoryCorrection[]>(starterMemoryState.memoryCorrections);
+  const [hydrationReminders, setHydrationRemindersState] = useState<HydrationReminderPrefs>(DEFAULT_HYDRATION_PREFS);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -310,6 +324,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         if (saved.plannerWeekStart) setPlannerWeekStart(saved.plannerWeekStart);
         if (saved.plannerMeals) setPlannerMealsState(saved.plannerMeals);
         if (saved.shoppingItems) setShoppingItems(saved.shoppingItems);
+        if (saved.hydrationReminders) setHydrationRemindersState(saved.hydrationReminders);
       })
       .catch(() => undefined)
       .finally(() => setHydrated(true));
@@ -339,9 +354,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       foodMemories,
       repeatPatterns,
       memoryCorrections,
+      hydrationReminders,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => undefined);
-  }, [consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+  }, [consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationReminders, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -535,6 +551,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       setProfile((current) => current ? { ...current, ...patch } : current);
       queueMutation('profile', 'upsert');
     },
+    hydrationReminders,
+    setHydrationReminders: (prefs: HydrationReminderPrefs) => {
+      setHydrationRemindersState(prefs);
+    },
     setHealthConnected,
     clearOutbox: () => setOutbox([]),
      exportData: async () => JSON.stringify({ profile, logs, weights, waterLogs, moodLogs, savedMeals, localRecipes, savedRecipeIds, plannerWeekStart, plannerMeals, shoppingItems, foodDrafts, foodMemories, repeatPatterns, memoryCorrections, consentAccepted }, null, 2),
@@ -557,6 +577,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
        setFoodMemories([]);
        setRepeatPatterns([]);
        setMemoryCorrections([]);
+       setHydrationRemindersState(DEFAULT_HYDRATION_PREFS);
     },
     setPlannerMeals: (weekStart, meals) => {
       const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
@@ -576,7 +597,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       queueMutation('settings', 'upsert');
     },
     toggleShoppingItem: (itemId) => setShoppingItems((items) => items.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item)),
-    }), [consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+    }), [consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationReminders, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

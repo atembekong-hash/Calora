@@ -2,9 +2,15 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
+import {
+  cancelHydrationReminders,
+  formatTime,
+  scheduleHydrationReminders,
+  type HydrationReminderPrefs,
+} from '@/lib/hydrationReminders';
 
 const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'system', label: 'System', icon: 'smartphone' },
@@ -13,11 +19,12 @@ const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.
 ];
 
 export default function ProfileScreen() {
-  const { colors, themePreference, setThemePreference, profile, healthConnected, setHealthConnected, exportData, clearAllData, syncState, savedMeals, saveMeal } = useCalora();
+  const { colors, themePreference, setThemePreference, profile, healthConnected, setHealthConnected, exportData, clearAllData, syncState, savedMeals, saveMeal, hydrationReminders, setHydrationReminders } = useCalora();
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | null>(null);
   const [privacyModal, setPrivacyModal] = useState<'export' | 'delete' | null>(null);
+  const [reminderStatus, setReminderStatus] = useState<'idle' | 'denied' | 'scheduled'>('idle');
   const [savedMealModal, setSavedMealModal] = useState(false);
   const [savedMealName, setSavedMealName] = useState('');
   const [savedMealKind, setSavedMealKind] = useState<SavedMeal['kind']>('meal');
@@ -29,6 +36,33 @@ export default function ProfileScreen() {
   const annualSavings = (9.99 * 12 - 69.99).toFixed(2);
   const selectedPrice = selectedPlan === 'annual' ? '$69.99' : '$9.99';
   const selectedPeriod = selectedPlan === 'annual' ? 'year' : 'month';
+
+  const applyReminderPrefs = async (next: HydrationReminderPrefs) => {
+    setHydrationReminders(next);
+    if (!next.enabled) {
+      await cancelHydrationReminders();
+      setReminderStatus('idle');
+      return;
+    }
+    const count = await scheduleHydrationReminders(next);
+    if (count === -1) {
+      setReminderStatus('denied');
+      Alert.alert(
+        'Notification permission needed',
+        'To receive hydration reminders, allow Calora to send notifications in your device settings.',
+      );
+    } else {
+      setReminderStatus('scheduled');
+    }
+  };
+
+  const nudgeHour = (field: 'wakeHour' | 'sleepHour', delta: number) => {
+    const next: HydrationReminderPrefs = {
+      ...hydrationReminders,
+      [field]: (hydrationReminders[field] + delta + 24) % 24,
+    };
+    applyReminderPrefs(next);
+  };
 
   const handlePurchase = () => setBillingModal('purchase');
   const handleRestore = () => setBillingModal('restore');
@@ -102,6 +136,98 @@ export default function ProfileScreen() {
             );
           })}
         </View>
+
+        {/* ── Hydration Reminders ── */}
+        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 4, marginBottom: 4 }]}>Reminders</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Optional nudges to keep your water intake steady.</Text>
+
+        <View style={[styles.reminderToggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.settingIcon, { backgroundColor: '#e5f1ff' }]}>
+            <Feather name="bell" size={17} color="#5d8edb" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.settingTitle, { color: colors.foreground }]}>Hydration reminders</Text>
+            <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
+              {hydrationReminders.enabled
+                ? reminderStatus === 'denied'
+                  ? 'Permission required in device settings'
+                  : `Every ${hydrationReminders.intervalHours}h · ${formatTime(hydrationReminders.wakeHour, hydrationReminders.wakeMinute)} – ${formatTime(hydrationReminders.sleepHour, hydrationReminders.sleepMinute)}`
+                : 'Off · tap to turn on'}
+            </Text>
+          </View>
+          <Switch
+            accessibilityLabel="Toggle hydration reminders"
+            testID="hydration-reminder-toggle"
+            value={hydrationReminders.enabled}
+            onValueChange={(val) => applyReminderPrefs({ ...hydrationReminders, enabled: val })}
+            trackColor={{ false: colors.muted, true: colors.primary }}
+            thumbColor={colors.primaryForeground}
+          />
+        </View>
+
+        {hydrationReminders.enabled && (
+          <View style={[styles.reminderSettings, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            {/* Wake time */}
+            <View style={styles.reminderTimeRow}>
+              <View style={[styles.reminderTimeIcon, { backgroundColor: '#fff0dc' }]}>
+                <Feather name="sun" size={14} color="#d7954e" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.reminderTimeLabel, { color: colors.mutedForeground }]}>WAKE TIME</Text>
+                <Text style={[styles.reminderTimeValue, { color: colors.foreground }]}>{formatTime(hydrationReminders.wakeHour, hydrationReminders.wakeMinute)}</Text>
+              </View>
+              <View style={styles.reminderNudge}>
+                <Pressable accessibilityLabel="Decrease wake hour" onPress={() => nudgeHour('wakeHour', -1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                <Pressable accessibilityLabel="Increase wake hour" onPress={() => nudgeHour('wakeHour', 1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+              </View>
+            </View>
+
+            <View style={[styles.reminderDivider, { backgroundColor: colors.border }]} />
+
+            {/* Sleep time */}
+            <View style={styles.reminderTimeRow}>
+              <View style={[styles.reminderTimeIcon, { backgroundColor: '#f2eafd' }]}>
+                <Feather name="moon" size={14} color="#9875c7" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.reminderTimeLabel, { color: colors.mutedForeground }]}>WIND-DOWN TIME</Text>
+                <Text style={[styles.reminderTimeValue, { color: colors.foreground }]}>{formatTime(hydrationReminders.sleepHour, hydrationReminders.sleepMinute)}</Text>
+              </View>
+              <View style={styles.reminderNudge}>
+                <Pressable accessibilityLabel="Decrease sleep hour" onPress={() => nudgeHour('sleepHour', -1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                <Pressable accessibilityLabel="Increase sleep hour" onPress={() => nudgeHour('sleepHour', 1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+              </View>
+            </View>
+
+            <View style={[styles.reminderDivider, { backgroundColor: colors.border }]} />
+
+            {/* Interval */}
+            <View style={styles.reminderIntervalRow}>
+              <Text style={[styles.reminderTimeLabel, { color: colors.mutedForeground, marginBottom: 8 }]}>REMIND EVERY</Text>
+              <View style={styles.intervalChips}>
+                {([1, 1.5, 2, 3] as const).map((h) => {
+                  const selected = hydrationReminders.intervalHours === h;
+                  return (
+                    <Pressable
+                      key={h}
+                      accessibilityLabel={`Remind every ${h} hours`}
+                      onPress={() => applyReminderPrefs({ ...hydrationReminders, intervalHours: h })}
+                      style={[styles.intervalChip, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}
+                    >
+                      <Text style={[styles.intervalChipText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{h}h</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Privacy note */}
+            <View style={[styles.reminderPrivacy, { backgroundColor: colors.muted }]}>
+              <Feather name="lock" size={12} color={colors.mutedForeground} />
+              <Text style={[styles.reminderPrivacyText, { color: colors.mutedForeground }]}>Reminders are scheduled on your device. No data is sent anywhere.</Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.planHeader}>
           <View>
@@ -359,4 +485,19 @@ const styles = StyleSheet.create({
   settingTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   settingBody: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 4 },
   version: { fontFamily: 'Inter_400Regular', fontSize: 10, textAlign: 'center', marginTop: 18 },
+  reminderToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 12, marginBottom: 8 },
+  reminderSettings: { borderWidth: 1, borderRadius: 17, padding: 14, marginBottom: 26, gap: 4 },
+  reminderTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 6 },
+  reminderTimeIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  reminderTimeLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1, marginBottom: 3 },
+  reminderTimeValue: { fontFamily: 'Inter_700Bold', fontSize: 15, letterSpacing: -0.3 },
+  reminderNudge: { flexDirection: 'row', gap: 6 },
+  nudgeButton: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  reminderDivider: { height: 1, marginVertical: 2 },
+  reminderIntervalRow: { paddingVertical: 6 },
+  intervalChips: { flexDirection: 'row', gap: 7 },
+  intervalChip: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingVertical: 9 },
+  intervalChipText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  reminderPrivacy: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginTop: 6 },
+  reminderPrivacyText: { fontFamily: 'Inter_400Regular', fontSize: 10, flex: 1 },
 });
