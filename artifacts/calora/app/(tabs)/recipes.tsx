@@ -45,12 +45,12 @@ function RecipeMeta({ recipe, colors }: { recipe: Recipe | CaloraRecipe; colors:
   );
 }
 
-function RecipeCard({ recipe, colors, saved, onPress, onSave }: { recipe: Recipe | CaloraRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void }) {
+function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160 }: { recipe: Recipe | CaloraRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void; imageHeight?: number }) {
   const local = isLocalRecipe(recipe);
   return (
     <Pressable accessibilityLabel={`Open ${recipe.name}`} onPress={onPress} style={({ pressed }) => [styles.recipeCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.82 : 1 }]}>
       <View>
-        <RecipeImage recipe={recipe} />
+        <RecipeImage recipe={recipe} height={imageHeight} />
         <Pressable accessibilityLabel={`${saved ? 'Remove' : 'Save'} ${recipe.name}`} onPress={onSave} style={[styles.saveButton, { backgroundColor: colors.card }]}>
           <Feather name={saved ? 'bookmark' : 'bookmark'} size={16} color={saved ? colors.primary : colors.foreground} />
         </Pressable>
@@ -320,7 +320,7 @@ export default function RecipesScreen() {
         {savedRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your shortlist, ready when you are.</Text></View></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedRecipes.slice(0, 6).map((recipe) => <View key={recipeKey(recipe)} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} /></View>)}</ScrollView></>}
 
         <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching ? 'Refreshing the cookbook…' : `${visibleRemote.length + localMatches.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
-        {recipesQuery.isLoading ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes from open sources…</Text></View> : recipesQuery.isError ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>The cookbook is offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your saved and personal recipes remain available. Try again when a connection is available.</Text></View> : <View style={styles.recipeGrid}>{localMatches.map((recipe) => <RecipeCard key={recipe.id} recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} />)}{visibleRemote.map((recipe) => <RecipeCard key={recipe.id} recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} />)}</View>}
+        {recipesQuery.isLoading ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes from open sources…</Text></View> : recipesQuery.isError ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>The cookbook is offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your saved and personal recipes remain available. Try again when a connection is available.</Text></View> : <View style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</View>}
         <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is provided by TheMealDB. Recipes remain attributed to their source; Calora’s nutrition confidence is shown separately.</Text>
       </ScrollView>
       <RecipeDetailModal recipe={selected} onClose={() => setSelected(null)} />
@@ -368,7 +368,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, letterSpacing: -0.3 },
   sectionCaption: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 4 },
   horizontalCards: { gap: 11, paddingBottom: 25 },
-  recipeGrid: { gap: 12 },
+  recipeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
+  recipeGridCard: { width: '48.35%' },
   recipeCard: { borderWidth: 1, borderRadius: 19, overflow: 'hidden' },
   recipeImage: { width: '100%', backgroundColor: '#1d4539' },
   imageFallback: { alignItems: 'center', justifyContent: 'center' },
@@ -377,13 +378,13 @@ const styles = StyleSheet.create({
   saveButton: { position: 'absolute', right: 10, top: 10, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   localBadge: { position: 'absolute', left: 10, bottom: 10, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 4 },
   localBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 0.7 },
-  cardContent: { padding: 13 },
-  recipeName: { fontFamily: 'Inter_700Bold', fontSize: 14, lineHeight: 18, minHeight: 36 },
-  recipeMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  recipeKcal: { fontFamily: 'Inter_700Bold', fontSize: 10 },
-  recipeMetaText: { fontFamily: 'Inter_400Regular', fontSize: 10 },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.12)' },
-  sourceText: { fontFamily: 'Inter_400Regular', fontSize: 9 },
+  cardContent: { padding: 10 },
+  recipeName: { fontFamily: 'Inter_700Bold', fontSize: 12, lineHeight: 16, minHeight: 32 },
+  recipeMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 },
+  recipeKcal: { fontFamily: 'Inter_700Bold', fontSize: 9 },
+  recipeMetaText: { fontFamily: 'Inter_400Regular', fontSize: 9 },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.12)' },
+  sourceText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 8 },
   loadingState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 10 },
   loadingText: { fontFamily: 'Inter_400Regular', fontSize: 11 },
   emptyState: { borderWidth: 1, borderRadius: 18, padding: 18, alignItems: 'center' },
