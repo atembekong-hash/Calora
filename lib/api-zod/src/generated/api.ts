@@ -15,6 +15,8 @@ import * as zod from 'zod';
 export const HealthCheckResponse = zod.object({
   "status": zod.string()
 })
+
+
 /**
  * @summary Get the current profile
  */
@@ -89,6 +91,7 @@ export const UpdateProfileBody = zod.object({
   "calorieTarget": zod.number().int().min(updateProfileBodyCalorieTargetMin).max(updateProfileBodyCalorieTargetMax),
   "consentVersion": zod.string().min(1)
 })
+
 export const updateProfileResponseOneNameMax = 120;
 
 export const updateProfileResponseOneAgeMin = 13;
@@ -131,6 +134,7 @@ export const UpdateProfileResponse = zod.object({
 export const ListDiaryEntriesQueryParams = zod.object({
   "date": zod.date()
 })
+
 
 
 export const listDiaryEntriesResponseEntriesItemOneCaloriesMin = 0;
@@ -523,14 +527,17 @@ export const analyzeCaptureBodyBarcodeMax = 32;
 
 export const analyzeCaptureBodyImageBase64Max = 12000000;
 
+export const analyzeCaptureBodyTextInputMax = 2000;
+
 export const analyzeCaptureBodyClientSessionIdMax = 120;
 
 
 
 export const AnalyzeCaptureBody = zod.object({
-  "mode": zod.enum(['auto', 'barcode', 'food']),
+  "mode": zod.enum(['auto', 'barcode', 'food', 'text', 'nutrition_label', 'voice', 'receipt']),
   "barcode": zod.string().min(analyzeCaptureBodyBarcodeMin).max(analyzeCaptureBodyBarcodeMax).optional(),
   "imageBase64": zod.string().max(analyzeCaptureBodyImageBase64Max).optional().describe('JPEG or PNG image bytes encoded as base64 without a data URI prefix'),
+  "textInput": zod.string().max(analyzeCaptureBodyTextInputMax).optional().describe('Natural-language food description (text and voice modes) or any supplementary description'),
   "clientSessionId": zod.string().max(analyzeCaptureBodyClientSessionIdMax).optional()
 })
 
@@ -579,7 +586,7 @@ export const analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesHighMi
 
 export const AnalyzeCaptureResponse = zod.object({
   "sessionId": zod.string(),
-  "mode": zod.enum(['barcode', 'food']),
+  "mode": zod.enum(['barcode', 'food', 'text', 'nutrition_label', 'voice', 'receipt']),
   "status": zod.enum(['review', 'unavailable']),
   "title": zod.string(),
   "reviewMessage": zod.string(),
@@ -705,3 +712,5 @@ export const RequestDataExportResponse = zod.object({
 export const RequestDataDeletionResponse = zod.object({
   "status": zod.enum(['queued', 'complete'])
 })
+
+

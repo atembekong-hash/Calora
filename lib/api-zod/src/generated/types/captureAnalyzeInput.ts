@@ -19,6 +19,11 @@ export interface CaptureAnalyzeInput {
      * @maxLength 12000000
      */
   imageBase64?: string;
+  /**
+     * Natural-language food description (text and voice modes) or any supplementary description
+     * @maxLength 2000
+     */
+  textInput?: string;
   /** @maxLength 120 */
   clientSessionId?: string;
 }

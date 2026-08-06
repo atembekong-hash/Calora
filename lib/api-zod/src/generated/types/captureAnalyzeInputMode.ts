@@ -13,4 +13,8 @@ export const CaptureAnalyzeInputMode = {
   auto: 'auto',
   barcode: 'barcode',
   food: 'food',
+  text: 'text',
+  nutrition_label: 'nutrition_label',
+  voice: 'voice',
+  receipt: 'receipt',
 } as const;

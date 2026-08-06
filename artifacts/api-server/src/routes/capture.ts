@@ -8,6 +8,7 @@ const OPEN_FOOD_FACTS_ROOT = "https://world.openfoodfacts.org/api/v2";
 const USDA_ROOT = "https://api.nal.usda.gov/fdc/v1";
 const USDA_KEY = process.env.USDA_FOODDATA_API_KEY ?? "DEMO_KEY";
 const VISION_MODEL = "gpt-5.6-terra";
+const TEXT_MODEL = "gpt-4o-mini";
 
 type Nutrition = {
   calories: number;
@@ -185,6 +186,73 @@ function parseVisionResponse(content: string) {
   };
 }
 
+async function analyzeTextInput(textInput: string) {
+  const completion = await openai.chat.completions.create({
+    model: TEXT_MODEL,
+    max_completion_tokens: 2048,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: [
+          "You are Calora's food recognition engine.",
+          "Parse natural-language food descriptions into structured nutrition estimates.",
+          "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
+          "Use USDA average values for the described food if no brand is specified. Split mixed meals into one component per distinct item.",
+          "Confidence guidance for text input: identity 70-88, portion 55-75 (serving size is uncertain), nutritionSource 60-78, preparation 65-82.",
+          "Never describe nutrition as verified. Always ask at least one review question about portion size.",
+          "Keep calories and macros non-negative. Use edible portion estimates.",
+        ].join(" "),
+      },
+      {
+        role: "user",
+        content: `Parse this food description and estimate nutrition per item: "${textInput}"`,
+      },
+    ],
+  });
+  const content = completion.choices[0]?.message?.content;
+  if (!content) throw new Error("Text provider returned no analysis");
+  return parseVisionResponse(content);
+}
+
+async function analyzeNutritionLabel(imageBase64: string) {
+  const completion = await openai.chat.completions.create({
+    model: VISION_MODEL,
+    max_completion_tokens: 2048,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: [
+          "You are Calora's nutrition label reader.",
+          "Extract the exact nutrition facts from the visible nutrition label in the image.",
+          "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, provenance, sourceLabel, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
+          "Set provenance to 'Nutrition label' and sourceLabel to 'Label extract' for each component.",
+          "When the label is clearly legible: identity 92, nutritionSource 95, portion 70 (user may eat a different amount), preparation 85.",
+          "If the label is partially obscured or unclear, reduce confidence and add a review question to verify values.",
+          "Always ask one review question about whether the portion eaten matches the label serving size.",
+        ].join(" "),
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Read the nutrition label and extract the product name, brand, serving size, and macronutrients (calories, protein, carbohydrates, fat).",
+          },
+          {
+            type: "image_url",
+            image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: "high" },
+          },
+        ],
+      },
+    ],
+  });
+  const content = completion.choices[0]?.message?.content;
+  if (!content) throw new Error("Label reader returned no analysis");
+  return parseVisionResponse(content);
+}
+
 async function analyzeFoodPhoto(imageBase64: string) {
   const completion = await openai.chat.completions.create({
     model: VISION_MODEL,
@@ -234,6 +302,46 @@ router.post("/v1/capture/analyze", async (req, res) => {
   const barcode = body.barcode ? normalizeBarcode(body.barcode) : "";
   const hasBarcode = barcode.length >= 8;
   const hasImage = Boolean(body.imageBase64);
+  const hasText = Boolean(body.textInput?.trim());
+
+  // Graceful degradation for voice — no audio transcription provider is connected.
+  if (body.mode === "voice") {
+    res.json({
+      sessionId: body.clientSessionId || randomUUID(),
+      mode: "voice",
+      status: "unavailable",
+      title: "Voice capture unavailable",
+      reviewMessage: "Voice capture requires a speech-to-text provider that is not yet connected. Type your meal description instead and Calora will estimate the nutrition.",
+      provider: "None",
+      candidates: [],
+      imageRetention: "not_collected",
+    });
+    return;
+  }
+
+  // Graceful degradation for receipt — no receipt parsing provider is connected.
+  if (body.mode === "receipt") {
+    res.json({
+      sessionId: body.clientSessionId || randomUUID(),
+      mode: "receipt",
+      status: "unavailable",
+      title: "Receipt scan unavailable",
+      reviewMessage: "Receipt scanning is not yet available. Take a food photo or type what you ate instead.",
+      provider: "None",
+      candidates: [],
+      imageRetention: "not_collected",
+    });
+    return;
+  }
+
+  if (body.mode === "text" && !hasText) {
+    res.status(400).json({ message: "A food description is required for text mode" });
+    return;
+  }
+  if (body.mode === "nutrition_label" && !hasImage) {
+    res.status(400).json({ message: "A label image is required for nutrition_label mode" });
+    return;
+  }
   if (body.mode === "barcode" && !hasBarcode) {
     res.status(400).json({ message: "A valid barcode is required for barcode mode" });
     return;
@@ -248,6 +356,64 @@ router.post("/v1/capture/analyze", async (req, res) => {
   }
 
   try {
+    // Text mode — parse natural-language description with AI.
+    if (body.mode === "text" && hasText) {
+      const result = await analyzeTextInput(body.textInput!.trim());
+      res.json({
+        sessionId: body.clientSessionId || randomUUID(),
+        mode: "text",
+        status: result.candidates.length ? "review" : "unavailable",
+        title: result.title,
+        reviewMessage: "Nutrition is estimated from your description. Review the foods and portions before adding them.",
+        provider: "Managed language model",
+        candidates: result.candidates.map((candidate, index) => ensureCandidate({
+          ...candidate,
+          id: `text-${index + 1}`,
+          provenance: "Text estimate",
+          sourceLabel: "Managed language model",
+          editable: true,
+        }, index)),
+        components: result.components.map((component, index) => ensureComponent({
+          ...component,
+          provenance: "Text estimate",
+          sourceLabel: "Managed language model",
+        }, index, "Text estimate")),
+        assumptions: result.assumptions,
+        reviewQuestions: result.reviewQuestions,
+        imageRetention: "not_collected",
+      });
+      return;
+    }
+
+    // Nutrition label mode — extract structured values from a label image.
+    if (body.mode === "nutrition_label" && body.imageBase64) {
+      const result = await analyzeNutritionLabel(body.imageBase64);
+      res.json({
+        sessionId: body.clientSessionId || randomUUID(),
+        mode: "nutrition_label",
+        status: result.candidates.length ? "review" : "unavailable",
+        title: result.title,
+        reviewMessage: "Nutrition extracted from the label. Confirm the serving size matches what you actually ate.",
+        provider: "Managed vision (label reader)",
+        candidates: result.candidates.map((candidate, index) => ensureCandidate({
+          ...candidate,
+          id: `label-${index + 1}`,
+          provenance: candidate.provenance || "Nutrition label",
+          sourceLabel: candidate.sourceLabel || "Label extract",
+          editable: true,
+        }, index)),
+        components: result.components.map((component, index) => ensureComponent({
+          ...component,
+          provenance: component.provenance || "Nutrition label",
+          sourceLabel: component.sourceLabel || "Label extract",
+        }, index, "Nutrition label")),
+        assumptions: result.assumptions,
+        reviewQuestions: result.reviewQuestions,
+        imageRetention: "delete_after_analysis",
+      });
+      return;
+    }
+
     if (hasBarcode && (body.mode === "auto" || body.mode === "barcode")) {
       const result = await lookupBarcode(barcode);
       if (result) {

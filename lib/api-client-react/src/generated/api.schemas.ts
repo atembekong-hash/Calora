@@ -78,6 +78,7 @@ export interface ProfileInput {
 export type Profile = ProfileInput & {
   updatedAt: string;
 };
+
 export interface Provenance {
   source: string;
   verifiedAt: string | null;
@@ -150,6 +151,7 @@ export type DiaryEntry = DiaryEntryInput & {
   id: string;
   updatedAt: string;
 };
+
 export type DiaryEntryPatchMeal = typeof DiaryEntryPatchMeal[keyof typeof DiaryEntryPatchMeal];
 
 
@@ -198,6 +200,7 @@ export type WeightEntry = WeightEntryInput & {
   id: string;
   createdAt: string;
 };
+
 export type SyncMutationEntity = typeof SyncMutationEntity[keyof typeof SyncMutationEntity];
 
 
@@ -313,6 +316,10 @@ export const CaptureAnalyzeInputMode = {
   auto: 'auto',
   barcode: 'barcode',
   food: 'food',
+  text: 'text',
+  nutrition_label: 'nutrition_label',
+  voice: 'voice',
+  receipt: 'receipt',
 } as const;
 
 export interface CaptureAnalyzeInput {
@@ -327,6 +334,11 @@ export interface CaptureAnalyzeInput {
      * @maxLength 12000000
      */
   imageBase64?: string;
+  /**
+     * Natural-language food description (text and voice modes) or any supplementary description
+     * @maxLength 2000
+     */
+  textInput?: string;
   /** @maxLength 120 */
   clientSessionId?: string;
 }
@@ -405,6 +417,10 @@ export type CaptureAnalysisMode = typeof CaptureAnalysisMode[keyof typeof Captur
 export const CaptureAnalysisMode = {
   barcode: 'barcode',
   food: 'food',
+  text: 'text',
+  nutrition_label: 'nutrition_label',
+  voice: 'voice',
+  receipt: 'receipt',
 } as const;
 
 export type CaptureAnalysisStatus = typeof CaptureAnalysisStatus[keyof typeof CaptureAnalysisStatus];
@@ -543,6 +559,7 @@ barcode?: string;
  */
 limit?: number;
 };
+
 export type SearchFoods200 = {
   items: FoodItem[];
   provenance: Provenance;
@@ -568,3 +585,4 @@ category?: string;
  */
 limit?: number;
 };
+

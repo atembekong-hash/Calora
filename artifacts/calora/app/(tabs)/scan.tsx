@@ -1,4 +1,4 @@
-import { useAnalyzeCapture, type CaptureAnalysis } from '@workspace/api-client-react';
+import { useAnalyzeCapture, type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
@@ -10,7 +10,7 @@ import { useCalora } from '@/context/CaloraContext';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { router, useLocalSearchParams } from 'expo-router';
 
-type ScanMode = 'auto' | 'barcode' | 'food';
+type ScanMode = 'auto' | 'barcode' | 'food' | 'label';
 
 function CandidateCard({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (component: FoodMemoryComponent) => void }) {
   return (
@@ -66,6 +66,9 @@ export default function ScanScreen() {
   const [hasScanned, setHasScanned] = useState(false);
   const [analysis, setAnalysis] = useState<CaptureAnalysis | null>(null);
   const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
+  const [showTextEntry, setShowTextEntry] = useState(false);
+  const [textEntry, setTextEntry] = useState('');
+  const [altCaptureBanner, setAltCaptureBanner] = useState<string | null>(null);
   const analyzeCapture = useAnalyzeCapture();
   const routeDraftId = typeof params.draftId === 'string' ? params.draftId : undefined;
   const reviewDraft = foodDrafts.find((draft) => draft.status === 'draft' && (draft.id === reviewDraftId || draft.id === routeDraftId)) ?? null;
@@ -92,7 +95,7 @@ export default function ScanScreen() {
     Haptics.notificationAsync(next.status === 'review' ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
   };
 
-  const analyze = async (input: { mode: ScanMode; barcode?: string; imageBase64?: string }) => {
+  const analyze = async (input: Omit<CaptureAnalyzeInput, 'clientSessionId'>) => {
     try {
       const next = await analyzeCapture.mutateAsync({ data: input });
       showAnalysis(next);
@@ -102,8 +105,27 @@ export default function ScanScreen() {
     }
   };
 
+  const submitTextEntry = async () => {
+    const text = textEntry.trim();
+    if (!text || analyzeCapture.isPending) return;
+    setHasScanned(true);
+    setShowTextEntry(false);
+    setAltCaptureBanner(null);
+    await analyze({ mode: 'text', textInput: text });
+    setTextEntry('');
+  };
+
+  const onVoicePress = () => {
+    setAltCaptureBanner("Voice capture isn't available on this device. Type your meal description below and Calora will estimate the nutrition.");
+    setShowTextEntry(true);
+  };
+
+  const onReceiptPress = () => {
+    setAltCaptureBanner('Receipt scanning is coming soon. Snap a food photo or type your meal instead.');
+  };
+
   const onBarcodeScanned = (result: BarcodeScanningResult) => {
-    if (hasScanned || analyzeCapture.isPending || mode === 'food') return;
+    if (hasScanned || analyzeCapture.isPending || mode === 'food' || mode === 'label') return;
     const barcode = result.data?.trim();
     if (barcode) void analyze({ mode, barcode });
   };
@@ -113,7 +135,8 @@ export default function ScanScreen() {
     setHasScanned(true);
     const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.75, skipProcessing: Platform.OS === 'android' });
     if (photo?.base64) {
-      await analyze({ mode: mode === 'barcode' ? 'food' : mode, imageBase64: photo.base64 });
+      const captureMode = mode === 'barcode' ? 'food' : mode === 'label' ? 'nutrition_label' : mode;
+      await analyze({ mode: captureMode, imageBase64: photo.base64 });
     } else {
       setHasScanned(false);
       Alert.alert('Photo unavailable', 'Calora could not read that photo. Try again or choose a photo from your library.');
@@ -123,7 +146,10 @@ export default function ScanScreen() {
   const choosePhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75, base64: true });
     const base64 = result.canceled ? undefined : result.assets[0]?.base64;
-    if (base64) await analyze({ mode: 'food', imageBase64: base64 });
+    if (base64) {
+      const captureMode = mode === 'label' ? 'nutrition_label' : 'food';
+      await analyze({ mode: captureMode, imageBase64: base64 });
+    }
   };
 
   const updateComponent = (component: FoodMemoryComponent) => {
@@ -146,7 +172,18 @@ export default function ScanScreen() {
     setAnalysis(null);
     setReviewDraftId(null);
     setHasScanned(false);
+    setShowTextEntry(false);
+    setAltCaptureBanner(null);
     router.replace({ pathname: '/(tabs)/scan', params: { date: entryDate } });
+  };
+
+  const modeEyebrow = (mode: string | undefined) => {
+    if (mode === 'barcode') return 'BARCODE MATCH';
+    if (mode === 'text') return 'TEXT ESTIMATE';
+    if (mode === 'nutrition_label') return 'LABEL EXTRACT';
+    if (mode === 'voice') return 'VOICE CAPTURE';
+    if (mode === 'receipt') return 'RECEIPT SCAN';
+    return 'PHOTO REVIEW';
   };
 
   if (!permission) {
@@ -163,11 +200,11 @@ export default function ScanScreen() {
         {!permission.granted ? <PermissionState colors={colors} onRequest={() => { void requestPermission(); }} /> : (
           <>
             <View style={[styles.cameraFrame, { borderColor: colors.border }]}>
-              <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" onBarcodeScanned={mode === 'food' ? undefined : onBarcodeScanned} barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] }} />
-              <View style={styles.cameraOverlay}><View style={[styles.corner, styles.cornerTL, { borderColor: colors.onHero }]} /><View style={[styles.corner, styles.cornerTR, { borderColor: colors.onHero }]} /><View style={[styles.corner, styles.cornerBL, { borderColor: colors.onHero }]} /><View style={[styles.corner, styles.cornerBR, { borderColor: colors.onHero }]} /><View style={[styles.scanHint, { backgroundColor: 'rgba(20,63,52,0.78)' }]}><Feather name="maximize" size={14} color={colors.heroMuted} /><Text style={[styles.scanHintText, { color: colors.onHero }]}>{mode === 'food' ? 'Frame your food or meal' : 'Point at a barcode or food'}</Text></View></View>
+              <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" onBarcodeScanned={mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned} barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] }} />
+              <View style={styles.cameraOverlay}><View style={[styles.corner, styles.cornerTL, { borderColor: colors.onHero }]} /><View style={[styles.corner, styles.cornerTR, { borderColor: colors.onHero }]} /><View style={[styles.corner, styles.cornerBL, { borderColor: colors.onHero }]} /><View style={[styles.corner, styles.cornerBR, { borderColor: colors.onHero }]} /><View style={[styles.scanHint, { backgroundColor: 'rgba(20,63,52,0.78)' }]}><Feather name="maximize" size={14} color={colors.heroMuted} /><Text style={[styles.scanHintText, { color: colors.onHero }]}>{mode === 'food' ? 'Frame your food or meal' : mode === 'label' ? 'Frame the nutrition label' : 'Point at a barcode or food'}</Text></View></View>
             </View>
             <View style={[styles.modePicker, { backgroundColor: colors.muted }]}>
-              {(['auto', 'barcode', 'food'] as ScanMode[]).map((item) => <Pressable key={item} accessibilityLabel={`Scan mode ${item}`} onPress={() => { setMode(item); setHasScanned(false); }} style={[styles.modeButton, mode === item && { backgroundColor: colors.card }]}><Feather name={item === 'auto' ? 'zap' : item === 'barcode' ? 'maximize' : 'image'} size={14} color={mode === item ? colors.primary : colors.mutedForeground} /><Text style={[styles.modeText, { color: mode === item ? colors.foreground : colors.mutedForeground }]}>{item === 'auto' ? 'Auto' : item === 'barcode' ? 'Barcode' : 'Food'}</Text></Pressable>)}
+              {(['auto', 'barcode', 'food', 'label'] as ScanMode[]).map((item) => <Pressable key={item} accessibilityLabel={`Scan mode ${item}`} onPress={() => { setMode(item); setHasScanned(false); }} style={[styles.modeButton, mode === item && { backgroundColor: colors.card }]}><Feather name={item === 'auto' ? 'zap' : item === 'barcode' ? 'maximize' : item === 'food' ? 'image' : 'file-text'} size={14} color={mode === item ? colors.primary : colors.mutedForeground} /><Text style={[styles.modeText, { color: mode === item ? colors.foreground : colors.mutedForeground }]}>{item === 'auto' ? 'Auto' : item === 'barcode' ? 'Barcode' : item === 'food' ? 'Food' : 'Label'}</Text></Pressable>)}
             </View>
             <View style={styles.captureActions}>
               <Pressable accessibilityLabel="Choose food photo from library" onPress={() => void choosePhoto()} style={[styles.secondaryButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="image" size={17} color={colors.foreground} /><Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Library</Text></Pressable>
@@ -175,6 +212,21 @@ export default function ScanScreen() {
               <View style={{ width: 92 }} />
             </View>
             <View style={[styles.trustCard, { backgroundColor: colors.hero }]}><Feather name="shield" size={17} color={colors.heroMuted} /><View style={{ flex: 1 }}><Text style={[styles.trustTitle, { color: colors.onHero }]}>Review before it counts</Text><Text style={[styles.trustBody, { color: colors.heroMuted }]}>Barcode matches use nutrition sources. Food photos are estimates. Nothing reaches your diary until you approve it.</Text></View></View>
+            <View style={styles.altCaptureSection}>
+              <Text style={[styles.altCaptureHeading, { color: colors.mutedForeground }]}>MORE WAYS TO LOG</Text>
+              <View style={styles.altCaptureRow}>
+                <Pressable accessibilityLabel="Type food description" onPress={() => { setShowTextEntry((v) => !v); setAltCaptureBanner(null); }} style={[styles.altCaptureButton, showTextEntry && { backgroundColor: colors.card }, { borderColor: colors.border }]}><Feather name="edit-3" size={18} color={showTextEntry ? colors.primary : colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: showTextEntry ? colors.foreground : colors.mutedForeground }]}>Type it</Text></Pressable>
+                <Pressable accessibilityLabel="Voice log" onPress={onVoicePress} style={[styles.altCaptureButton, { borderColor: colors.border }]}><Feather name="mic" size={18} color={colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: colors.mutedForeground }]}>Voice</Text></Pressable>
+                <Pressable accessibilityLabel="Scan receipt" onPress={onReceiptPress} style={[styles.altCaptureButton, { borderColor: colors.border }]}><Feather name="clipboard" size={18} color={colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: colors.mutedForeground }]}>Receipt</Text></Pressable>
+              </View>
+              {altCaptureBanner ? <View style={[styles.altCaptureBanner, { backgroundColor: colors.accent }]}><Feather name="info" size={14} color={colors.accentForeground} /><Text style={[styles.altCaptureBannerText, { color: colors.foreground }]}>{altCaptureBanner}</Text></View> : null}
+              {showTextEntry ? (
+                <View style={[styles.textEntryCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                  <TextInput accessibilityLabel="Describe what you ate" placeholder="Describe what you ate — e.g. grilled chicken with rice and salad" placeholderTextColor={colors.mutedForeground} multiline value={textEntry} onChangeText={setTextEntry} style={[styles.textEntryInput, { color: colors.foreground }]} maxLength={2000} />
+                  <Pressable accessibilityLabel="Estimate nutrition from description" onPress={() => void submitTextEntry()} disabled={!textEntry.trim() || analyzeCapture.isPending} style={[styles.textEntrySubmit, { backgroundColor: textEntry.trim() ? colors.primary : colors.muted }]}>{analyzeCapture.isPending ? <ActivityIndicator color={colors.primaryForeground} size="small" /> : <><Feather name="zap" size={14} color={textEntry.trim() ? colors.primaryForeground : colors.mutedForeground} /><Text style={[styles.textEntrySubmitText, { color: textEntry.trim() ? colors.primaryForeground : colors.mutedForeground }]}>Estimate nutrition</Text></>}</Pressable>
+                </View>
+              ) : null}
+            </View>
           </>
         )}
       </ScrollView>
@@ -182,7 +234,7 @@ export default function ScanScreen() {
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
         <View style={[styles.resultSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
-             <View style={styles.resultHeader}><View><Text style={[styles.resultEyebrow, { color: colors.primary }]}>{analysis?.mode === 'barcode' ? 'BARCODE MATCH' : 'PHOTO REVIEW'}</Text><Text style={[styles.resultTitle, { color: colors.foreground }]}>{analysis?.title}</Text></View><Pressable accessibilityLabel="Close scan result" onPress={dismissDraft} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View>
+             <View style={styles.resultHeader}><View><Text style={[styles.resultEyebrow, { color: colors.primary }]}>{modeEyebrow(analysis?.mode)}</Text><Text style={[styles.resultTitle, { color: colors.foreground }]}>{analysis?.title}</Text></View><Pressable accessibilityLabel="Close scan result" onPress={dismissDraft} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View>
              {analysis?.status === 'unavailable' ? <View style={[styles.unavailableResult, { backgroundColor: colors.accent }]}><Feather name="help-circle" size={19} color={colors.accentForeground} /><Text style={[styles.unavailableResultText, { color: colors.foreground }]}>{analysis.reviewMessage}</Text></View> : <><Text style={[styles.reviewMessage, { color: colors.mutedForeground }]}>{analysis?.reviewMessage}</Text>{reviewDraft?.assumptions.length ? <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}><Feather name="info" size={15} color={colors.accentForeground} /><Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' · ')}</Text></View> : null}<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22 }}>{reviewDraft?.components.map((component) => <CandidateCard key={component.id} component={component} colors={colors} onChange={updateComponent} />)}<View style={[styles.totalCard, { backgroundColor: colors.hero }]}><View><Text style={[styles.totalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.totalValue, { color: colors.onHero }]}>{Math.round(reviewDraft?.nutrition.calories ?? 0)} kcal</Text></View><Text style={[styles.totalMacro, { color: colors.heroMuted }]}>P {Math.round(reviewDraft?.nutrition.proteinG ?? 0)}g · C {Math.round(reviewDraft?.nutrition.carbsG ?? 0)}g · F {Math.round(reviewDraft?.nutrition.fatG ?? 0)}g</Text></View><Pressable accessibilityLabel="Approve and add meal to diary" onPress={acceptDraft} style={[styles.addButton, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={16} color={colors.primaryForeground} /><Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>Approve and add to diary</Text></Pressable><Pressable accessibilityLabel="Discard food review" onPress={dismissDraft} style={styles.discardButton}><Text style={[styles.discardText, { color: colors.mutedForeground }]}>Not this meal</Text></Pressable></ScrollView></>}
           </View>
         </View>
@@ -262,4 +314,15 @@ const styles = StyleSheet.create({
   discardText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   unavailableResult: { flexDirection: 'row', gap: 9, padding: 12, borderRadius: 13, marginTop: 15 },
   unavailableResultText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
+  altCaptureSection: { marginHorizontal: 20, marginTop: 18 },
+  altCaptureHeading: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.2, marginBottom: 10 },
+  altCaptureRow: { flexDirection: 'row', gap: 10 },
+  altCaptureButton: { flex: 1, borderWidth: 1, borderRadius: 14, paddingVertical: 12, alignItems: 'center', gap: 6 },
+  altCaptureLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  altCaptureBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 11, borderRadius: 13, marginTop: 12 },
+  altCaptureBannerText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
+  textEntryCard: { borderWidth: 1, borderRadius: 17, padding: 14, marginTop: 12, gap: 11 },
+  textEntryInput: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, minHeight: 64 },
+  textEntrySubmit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, paddingVertical: 12 },
+  textEntrySubmitText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
 });

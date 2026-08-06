@@ -12,4 +12,8 @@ export type CaptureAnalysisMode = typeof CaptureAnalysisMode[keyof typeof Captur
 export const CaptureAnalysisMode = {
   barcode: 'barcode',
   food: 'food',
+  text: 'text',
+  nutrition_label: 'nutrition_label',
+  voice: 'voice',
+  receipt: 'receipt',
 } as const;

@@ -575,7 +575,7 @@ components:
       properties:
         mode:
           type: string
-          enum: [auto, barcode, food]
+          enum: [auto, barcode, food, text, nutrition_label, voice, receipt]
         barcode:
           type: string
           minLength: 8
@@ -584,6 +584,10 @@ components:
           type: string
           description: JPEG or PNG image bytes encoded as base64 without a data URI prefix
           maxLength: 12000000
+        textInput:
+          type: string
+          description: Natural-language food description (text and voice modes) or any supplementary description
+          maxLength: 2000
         clientSessionId:
           type: string
           maxLength: 120
@@ -640,7 +644,7 @@ components:
       required: [sessionId, mode, status, title, candidates, reviewMessage, provider]
       properties:
         sessionId: { type: string }
-        mode: { type: string, enum: [barcode, food] }
+        mode: { type: string, enum: [barcode, food, text, nutrition_label, voice, receipt] }
         status: { type: string, enum: [review, unavailable] }
         title: { type: string }
         reviewMessage: { type: string }

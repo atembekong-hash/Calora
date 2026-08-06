@@ -99,6 +99,8 @@ const clamp = (value: number, low: number, high: number) => Math.min(Math.max(va
 export function provenanceForCapture(value: string, inputType: FoodMemoryInputType): FoodMemoryProvenance {
   if (value === 'Barcode verified') return 'verified_barcode';
   if (value === 'USDA verified' || value === 'Brand verified') return 'verified_provider';
+  if (value === 'Nutrition label') return 'verified_label';
+  if (inputType === 'nutrition_label') return 'verified_label';
   if (inputType === 'recipe') return 'recipe_imported';
   if (inputType === 'planner') return 'planner_estimate';
   if (inputType === 'manual') return 'manual';
@@ -161,13 +163,27 @@ function componentFromCapture(component: CaptureComponent, inputType: FoodMemory
   };
 }
 
+function captureInputType(mode: string): FoodMemoryInputType {
+  if (mode === 'barcode') return 'barcode';
+  if (mode === 'nutrition_label') return 'nutrition_label';
+  if (mode === 'text') return 'text';
+  if (mode === 'voice') return 'voice';
+  if (mode === 'receipt') return 'receipt';
+  return 'photo';
+}
+
+function captureImageRetention(inputType: FoodMemoryInputType): ImageRetentionState {
+  if (inputType === 'photo' || inputType === 'nutrition_label') return 'delete_after_analysis';
+  return 'not_collected';
+}
+
 export function captureAnalysisToDraft(
   analysis: CaptureAnalysis,
   date: string,
   meal: FoodMemoryDraft['meal'],
   now = new Date().toISOString(),
 ): FoodMemoryDraft {
-  const inputType: FoodMemoryInputType = analysis.mode === 'barcode' ? 'barcode' : 'photo';
+  const inputType = captureInputType(analysis.mode);
   const rawComponents = analysis.components?.length ? analysis.components : analysis.candidates.map((candidate) => ({
     ...candidate,
     componentId: candidate.id,
@@ -201,7 +217,7 @@ export function captureAnalysisToDraft(
     confidenceDimensions: confidence.dimensions,
     assumptions: analysis.assumptions ?? components.flatMap((component) => component.assumptions),
     reviewQuestions: analysis.reviewQuestions ?? components.flatMap((component) => component.reviewQuestions),
-    imageRetention: inputType === 'photo' ? 'delete_after_analysis' : 'not_collected',
+    imageRetention: captureImageRetention(inputType),
     createdAt: now,
     updatedAt: now,
     correctionIds: [],
