@@ -1,8 +1,9 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 
@@ -16,8 +17,51 @@ const days = [
   { day: 'Thu', value: 79, kcal: '1,025' },
 ];
 
+function AnimatedReveal({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withDelay(delay, withTiming(1, { duration: 620, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: 14 * (1 - progress.value) }],
+  }));
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
+}
+
+function PulseIcon({ colors }: { colors: ReturnType<typeof useCalora>['colors'] }) {
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(1.08, { duration: 1350, easing: Easing.inOut(Easing.ease) }), -1, true);
+  }, [pulse]);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+  return (
+    <Animated.View style={[styles.iconCircle, { backgroundColor: 'rgba(157,215,189,0.15)' }, animatedStyle]}>
+      <Feather name="activity" size={20} color={colors.heroMuted} />
+    </Animated.View>
+  );
+}
+
+function AnimatedBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withDelay(delay, withTiming(1, { duration: 850, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress]);
+  const animatedStyle = useAnimatedStyle(() => ({ height: 128 * (Math.max(0, Math.min(value, 100)) / 100) * progress.value }));
+  return <Animated.View style={[styles.bar, { backgroundColor: color }, animatedStyle]} />;
+}
+
+function AnimatedTrackFill({ percentage, color, trackColor }: { percentage: number; color: string; trackColor: string }) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withDelay(260, withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) }));
+  }, [progress]);
+  const animatedStyle = useAnimatedStyle(() => ({ width: `${Math.max(0, Math.min(percentage, 100)) * progress.value}%` }));
+  return <View style={[styles.miniTrack, { backgroundColor: trackColor }]}><Animated.View style={[styles.miniFill, { backgroundColor: color }, animatedStyle]} /></View>;
+}
+
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, profile } = useCalora();
+  const { colors, logs, weights, addWeight, profile, waterLogs, moodLogs } = useCalora();
   const insets = useSafeAreaInsets();
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
@@ -31,6 +75,11 @@ export default function InsightsScreen() {
     sugar: totals.sugar + (log.sugar ?? 0),
     sodium: totals.sodium + (log.sodium ?? 0),
   }), { fiber: 0, sugar: 0, sodium: 0 });
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const waterToday = waterLogs[todayKey] ?? 0;
+  const moodToday = moodLogs[todayKey];
+  const moodLabel = moodToday ? moodToday.charAt(0).toUpperCase() + moodToday.slice(1) : 'Not logged';
+  const signalDays = new Set(logs.map((log) => log.date)).size;
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
@@ -52,22 +101,22 @@ export default function InsightsScreen() {
           </View>
         </View>
 
+        <AnimatedReveal delay={80}>
         <View style={[styles.adaptiveCard, { backgroundColor: colors.hero }]}>
           <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={styles.adaptiveTexture} />
           <LinearGradient colors={['rgba(20,63,52,0.04)', 'rgba(20,63,52,0.62)']} style={styles.adaptiveTextureOverlay} />
-          <View style={[styles.iconCircle, { backgroundColor: 'rgba(157,215,189,0.15)' }]}>
-            <Feather name="activity" size={20} color={colors.heroMuted} />
-          </View>
+          <PulseIcon colors={colors} />
           <Text style={[styles.cardEyebrow, { color: colors.heroMuted }]}>ADAPTIVE TARGET</Text>
           <Text style={[styles.adaptiveTitle, { color: colors.onHero }]}>Your target is working with you.</Text>
           <Text style={[styles.adaptiveBody, { color: colors.heroMuted }]}>You’re averaging 1,940 kcal this week. Keep logging for 4 more days and Calora can make a more personal recommendation.</Text>
           <View style={styles.adaptiveFooter}>
             <Text style={[styles.adaptiveFooterText, { color: colors.onHero }]}>4 / 7 days of signal</Text>
-            <View style={[styles.miniTrack, { backgroundColor: 'rgba(157,215,189,0.18)' }]}><View style={[styles.miniFill, { width: '57%', backgroundColor: colors.primary }]} /></View>
+             <AnimatedTrackFill percentage={57} color={colors.primary} trackColor="rgba(157,215,189,0.18)" />
           </View>
         </View>
+        </AnimatedReveal>
 
-        <View style={styles.statRow}>
+        <AnimatedReveal delay={150} style={styles.statRow}>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.statValue, { color: colors.foreground }]}>6.2</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>days logged</Text>
@@ -80,7 +129,32 @@ export default function InsightsScreen() {
             <Text style={[styles.statValue, { color: weightDelta <= 0 ? colors.success : colors.warning }]}>{weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)}</Text>
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>kg trend</Text>
           </View>
-        </View>
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={220}>
+          <View style={[styles.rhythmCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Logging rhythm</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Small signals add up over a week.</Text>
+              </View>
+              <View style={[styles.rhythmBadge, { backgroundColor: colors.accent }]}>
+                <Feather name="calendar" size={12} color={colors.accentForeground} />
+                <Text style={[styles.rhythmBadgeText, { color: colors.accentForeground }]}>{Math.min(signalDays, 7)} / 7 days</Text>
+              </View>
+            </View>
+            <View style={styles.rhythmGrid}>
+              {days.map((item, index) => (
+                <View key={item.day} style={styles.rhythmDay}>
+                  <View style={[styles.rhythmTrack, { backgroundColor: colors.muted }]}>
+                    <Animated.View style={[styles.rhythmFill, { backgroundColor: index === days.length - 1 ? colors.primary : colors.success, height: `${Math.max(item.value, 18)}%` }]} />
+                  </View>
+                  <Text style={[styles.rhythmDayLabel, { color: index === days.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </AnimatedReveal>
 
         <View style={styles.sectionHeader}>
           <View>
@@ -92,13 +166,14 @@ export default function InsightsScreen() {
             <Feather name="chevron-down" size={13} color={colors.mutedForeground} />
           </Pressable>
         </View>
+        <AnimatedReveal delay={280}>
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.chart}>
             {days.map((item, index) => (
               <View key={item.day} style={styles.barColumn}>
                 <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.kcal}</Text>
                 <View style={[styles.barTrack, { backgroundColor: colors.muted }]}>
-                  <View style={[styles.bar, { height: `${item.value}%`, backgroundColor: index === 6 ? colors.primary : colors.success }]} />
+                  <AnimatedBar value={item.value} color={index === 6 ? colors.primary : colors.success} delay={index * 65} />
                 </View>
                 <Text style={[styles.barDay, { color: index === 6 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
               </View>
@@ -109,6 +184,7 @@ export default function InsightsScreen() {
             <Text style={[styles.legendText, { color: colors.mutedForeground }]}>Avg. 1,940 kcal</Text>
           </View>
         </View>
+        </AnimatedReveal>
 
         <View style={styles.sectionHeader}>
           <View>
@@ -116,6 +192,7 @@ export default function InsightsScreen() {
             <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Today’s logged foods, with estimates clearly labeled.</Text>
           </View>
         </View>
+        <AnimatedReveal delay={420}>
         <View style={[styles.nutrientCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {[
             { label: 'Fiber', value: `${Math.round(nutrientTotals.fiber)} g`, target: '25 g', color: colors.success },
@@ -124,16 +201,43 @@ export default function InsightsScreen() {
           ].map((item) => <View key={item.label} style={styles.nutrientRow}><View style={[styles.nutrientDot, { backgroundColor: item.color }]} /><Text style={[styles.nutrientLabel, { color: colors.foreground }]}>{item.label}</Text><Text style={[styles.nutrientValue, { color: colors.foreground }]}>{item.value}</Text><Text style={[styles.nutrientTarget, { color: colors.mutedForeground }]}>{item.target}</Text></View>)}
           <Text style={[styles.nutrientNote, { color: colors.mutedForeground }]}>Micronutrients appear as verified foods are added; photo and manual entries remain estimates until reviewed.</Text>
         </View>
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={480}>
+          <View style={[styles.signalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.signalCardHeader}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Today’s signals</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Context for the numbers, not a score.</Text>
+              </View>
+              <View style={[styles.signalIcon, { backgroundColor: colors.accent }]}><Feather name="heart" size={16} color={colors.accentForeground} /></View>
+            </View>
+            <View style={styles.signalRow}>
+              <View style={styles.signalMetric}>
+                <View style={styles.signalMetricTop}><Feather name="droplet" size={14} color="#5d8edb" /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Hydration</Text></View>
+                <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{waterToday} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>/ 64 fl oz</Text></Text>
+                <AnimatedTrackFill percentage={(waterToday / 64) * 100} color="#5d8edb" trackColor={colors.muted} />
+              </View>
+              <View style={styles.signalMetric}>
+                <View style={styles.signalMetricTop}><Feather name="smile" size={14} color="#9875c7" /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Mood</Text></View>
+                <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{moodLabel}</Text>
+                <Text style={[styles.signalMetricHint, { color: colors.mutedForeground }]}>{moodToday ? 'Logged today' : 'Optional check-in'}</Text>
+              </View>
+            </View>
+          </View>
+        </AnimatedReveal>
 
         <View style={styles.weightHeader}>
           <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your trend matters more than a single day</Text></View>
           <Pressable accessibilityLabel="Log weight" onPress={() => setShowWeight(true)} style={[styles.weightButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.weightButtonText, { color: colors.primaryForeground }]}>Log</Text></Pressable>
         </View>
+        <AnimatedReveal delay={540}>
         <View style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.weightValue, { color: colors.foreground }]}>{latestWeight.toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>kg</Text></Text>
           <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length > 1 ? `${weights.length} weigh-ins recorded locally` : 'Add a few weigh-ins to unlock trend guidance'}</Text>
           <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '54%' : '10%' }]} /></View>
         </View>
+        </AnimatedReveal>
 
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Built on trust</Text>
         <View style={[styles.trustRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -195,6 +299,14 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, borderWidth: 1, borderRadius: 17, padding: 13 },
   statValue: { fontFamily: 'Inter_700Bold', fontSize: 18 },
   statLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 5 },
+  rhythmCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginBottom: 24 },
+  rhythmBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6 },
+  rhythmBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 9 },
+  rhythmGrid: { height: 96, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 9, marginTop: 4 },
+  rhythmDay: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end' },
+  rhythmTrack: { width: '100%', height: 72, borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
+  rhythmFill: { width: '100%', borderRadius: 6 },
+  rhythmDayLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, marginTop: 7 },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 11 },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, letterSpacing: -0.3 },
   sectionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 4 },
@@ -218,6 +330,16 @@ const styles = StyleSheet.create({
   nutrientValue: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   nutrientTarget: { fontFamily: 'Inter_400Regular', fontSize: 9, minWidth: 88, textAlign: 'right' },
   nutrientNote: { borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.14)', paddingTop: 10, marginTop: 5, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
+  signalCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginTop: 24 },
+  signalCardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 15 },
+  signalIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  signalRow: { flexDirection: 'row', gap: 12 },
+  signalMetric: { flex: 1, minWidth: 0 },
+  signalMetricTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
+  signalMetricLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  signalMetricValue: { fontFamily: 'Inter_700Bold', fontSize: 17 },
+  signalMetricUnit: { fontFamily: 'Inter_400Regular', fontSize: 10 },
+  signalMetricHint: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 5 },
   trustRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderRadius: 18, padding: 13, marginBottom: 9 },
   trustIcon: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   trustTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
