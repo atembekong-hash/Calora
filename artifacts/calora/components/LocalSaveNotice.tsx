@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useEffect } from 'react';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { Text, StyleSheet, View } from 'react-native';
+import { Pressable, Text, StyleSheet, View } from 'react-native';
 
 type SaveNoticeColors = {
   card: string;
@@ -11,7 +11,7 @@ type SaveNoticeColors = {
   success: string;
 };
 
-export function LocalSaveNotice({ visible, message, colors }: { visible: boolean; message: string; colors: SaveNoticeColors }) {
+export function LocalSaveNotice({ visible, message, colors, actionLabel, onAction }: { visible: boolean; message: string; colors: SaveNoticeColors; actionLabel?: string; onAction?: () => void }) {
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export function LocalSaveNotice({ visible, message, colors }: { visible: boolean
   }));
 
   return (
-    <Animated.View style={[styles.host, { pointerEvents: 'none' }, animatedStyle]}>
+    <Animated.View pointerEvents={actionLabel && onAction ? 'auto' : 'none'} style={[styles.host, animatedStyle]}>
       <View style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={[styles.icon, { backgroundColor: colors.success }]}>
           <Feather name="check" size={12} color="#ffffff" />
@@ -36,6 +36,7 @@ export function LocalSaveNotice({ visible, message, colors }: { visible: boolean
           <Text style={[styles.title, { color: colors.foreground }]}>Saved locally</Text>
           <Text style={[styles.message, { color: colors.mutedForeground }]}>{message}</Text>
         </View>
+        {actionLabel && onAction && <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} onPress={onAction} style={[styles.action, { borderColor: colors.border }]}><Text style={[styles.actionText, { color: colors.foreground }]}>{actionLabel}</Text></Pressable>}
       </View>
     </Animated.View>
   );
@@ -48,4 +49,6 @@ const styles = StyleSheet.create({
   copy: { flex: 1 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 11 },
   message: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 2 },
+  action: { minHeight: 30, borderWidth: 1, borderRadius: 9, paddingHorizontal: 9, alignItems: 'center', justifyContent: 'center' },
+  actionText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
 });

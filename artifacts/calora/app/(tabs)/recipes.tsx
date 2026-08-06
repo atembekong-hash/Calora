@@ -9,6 +9,9 @@ import { useGetRecipe, useListRecipes, type Recipe } from '@workspace/api-client
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
+import { getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
+import type { PlannerMeal } from '@workspace/api-client-react';
+import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 
 const categories = ['For you', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert'];
 const RECIPE_PAGE_SIZE = 18;
@@ -98,13 +101,16 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
     </View>
   );
 }
-function RecipeDetailModal({ recipe, onClose }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void }) {
-  const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts } = useCalora();
+function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void }) {
+  const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals } = useCalora();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const remoteRecipeId = recipe && !local ? recipe.id : '';
   const detailQuery = useGetRecipe(remoteRecipeId, { query: { queryKey: ['recipe', remoteRecipeId], enabled: Boolean(remoteRecipeId), staleTime: 1000 * 60 * 30 } });
   const detail = detailQuery.data ?? recipe;
   const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
+  const [planVisible, setPlanVisible] = useState(false);
+  const [planDay, setPlanDay] = useState(new Date().toISOString().slice(0, 10));
+  const [planMealType, setPlanMealType] = useState<PlannerMeal['meal']>('Dinner');
   const reviewDraft = reviewDraftId ? (foodDrafts.find((d) => d.id === reviewDraftId) ?? null) : null;
 
   if (!detail) return null;
@@ -137,6 +143,34 @@ function RecipeDetailModal({ recipe, onClose }: { recipe: Recipe | CaloraRecipe 
     if (reviewDraft) rejectFoodMemory(reviewDraft.id);
     setReviewDraftId(null);
     onClose();
+  };
+
+  const openPlanPicker = () => {
+    setPlanDay(new Date().toISOString().slice(0, 10));
+    setPlanVisible(true);
+  };
+
+  const addToPlan = () => {
+    if (!detail) return;
+    const plannedMeal: PlannerMeal = {
+      id: `recipe-plan-${Date.now()}-${detail.id}`,
+      day: planDay,
+      meal: planMealType,
+      name: detail.name,
+      image: detail.image ?? '',
+      serving: '1 serving',
+      calories: Number(detail.calories) || 0,
+      proteinG: Number(detail.proteinG) || 0,
+      carbsG: Number(detail.carbsG) || 0,
+      fatG: Number(detail.fatG) || 0,
+      ingredients: detail.ingredients ?? [],
+      description: detail.description ?? 'A recipe added to your weekly plan.',
+      prepMinutes: detail.prepMinutes ?? undefined,
+    };
+    updatePlannerMeals([...plannerMeals.filter((meal) => !(meal.day === planDay && meal.meal === planMealType)), plannedMeal]);
+    setPlanVisible(false);
+    onClose();
+    onPlanned(`${detail.name} added to your ${planMealType.toLowerCase()} plan.`);
   };
 
   return (
@@ -194,6 +228,7 @@ function RecipeDetailModal({ recipe, onClose }: { recipe: Recipe | CaloraRecipe 
                 {detail.ingredients?.length ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Ingredients</Text>{detail.ingredients.map((ingredient) => <View key={ingredient} style={styles.ingredientRow}><View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} /><Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient}</Text></View>)}</> : null}
                 {detail.instructions ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Method</Text><Text style={[styles.instructions, { color: colors.mutedForeground }]}>{detail.instructions}</Text></> : null}
                 <Text style={[styles.attribution, { color: colors.mutedForeground }]}>Recipe source: {detail.source}. Calora does not claim third-party recipe content as its own.</Text>
+                <Pressable accessibilityLabel="Add recipe to plan" onPress={openPlanPicker} style={[styles.secondaryAction, { borderColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primary} /><Text style={[styles.secondaryActionText, { color: colors.primary }]}>Add to weekly plan</Text></Pressable>
                 <Pressable accessibilityLabel={canLog ? 'Add recipe to diary' : 'Save recipe for nutrition review'} onPress={canLog ? openReview : () => { toggleSavedRecipe(detail.id); onClose(); }} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today\'s diary' : 'diary'}` : 'Save for later'}</Text></Pressable>
                 <Pressable accessibilityLabel="Open recipe source" onPress={() => Linking.openURL(detail.sourceUrl)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.primary }]}>View source attribution</Text><Feather name="external-link" size={13} color={colors.primary} /></Pressable>
               </View>
@@ -201,6 +236,33 @@ function RecipeDetailModal({ recipe, onClose }: { recipe: Recipe | CaloraRecipe 
           )}
         </View>
       </View>
+      <Modal visible={planVisible} transparent animationType="slide" onRequestClose={() => setPlanVisible(false)}>
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+          <View style={[styles.planSheet, { backgroundColor: colors.background }]}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.reviewHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.detailEyebrow, { color: colors.primary }]}>ADD TO PLAN</Text>
+                <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
+              </View>
+              <Pressable accessibilityLabel="Close add to plan" onPress={() => setPlanVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+            </View>
+            <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>Choose where this recipe belongs. Replacing a slot keeps the rest of your week unchanged.</Text>
+            <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>DAY</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.planDayRow}>
+              {Array.from({ length: 7 }, (_, index) => plannerDate(getPlannerWeekStart(), index)).map((day) => {
+                const selectedDay = day === planDay;
+                const date = new Date(`${day}T12:00:00`);
+                return <Pressable key={day} accessibilityLabel={`Plan for ${date.toLocaleDateString('en-US', { weekday: 'short' })} ${date.getDate()}`} onPress={() => setPlanDay(day)} style={[styles.planDayChip, { backgroundColor: selectedDay ? colors.primary : colors.card, borderColor: selectedDay ? colors.primary : colors.border }]}><Text style={[styles.planDayName, { color: selectedDay ? colors.primaryForeground : colors.mutedForeground }]}>{date.toLocaleDateString('en-US', { weekday: 'short' })}</Text><Text style={[styles.planDayNumber, { color: selectedDay ? colors.primaryForeground : colors.foreground }]}>{date.getDate()}</Text></Pressable>;
+              })}
+            </ScrollView>
+            <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>MEAL</Text>
+            <View style={styles.planMealRow}>{plannerMealTypes.map((type) => <Pressable key={type} accessibilityLabel={`Plan as ${type}`} onPress={() => setPlanMealType(type)} style={[styles.planMealChip, { backgroundColor: planMealType === type ? colors.accent : colors.card, borderColor: planMealType === type ? colors.accent : colors.border }]}><Text style={[styles.planMealText, { color: planMealType === type ? colors.accentForeground : colors.foreground }]}>{type}</Text></Pressable>)}</View>
+            <Pressable accessibilityLabel="Confirm add recipe to plan" onPress={addToPlan} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Add to {planMealType.toLowerCase()} plan</Text></Pressable>
+            <Pressable accessibilityLabel="Cancel add recipe to plan" onPress={() => setPlanVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -277,6 +339,7 @@ export default function RecipesScreen() {
   const [category, setCategory] = useState('For you');
   const [selected, setSelected] = useState<Recipe | CaloraRecipe | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [remoteOffset, setRemoteOffset] = useState(0);
   const [remoteRecipes, setRemoteRecipes] = useState<Recipe[]>([]);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
@@ -362,7 +425,8 @@ export default function RecipesScreen() {
         {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes from open sources…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>The cookbook is offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your saved and personal recipes remain available. Try again when a connection is available.</Text></View> : <><View style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</View>{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Bringing in more recipes…</Text></View>}</>}
         <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is provided by TheMealDB. Recipes remain attributed to their source; Calora’s nutrition confidence is shown separately.</Text>
       </ScrollView>
-      <RecipeDetailModal recipe={selected} onClose={() => setSelected(null)} />
+      <RecipeDetailModal recipe={selected} onClose={() => setSelected(null)} onPlanned={(message) => { setSaveMessage(message); setTimeout(() => setSaveMessage(null), 2600); }} />
+      <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} />
       <CreateRecipeModal
         visible={showCreate}
         onClose={() => setShowCreate(false)}
@@ -454,6 +518,18 @@ const styles = StyleSheet.create({
   reviewTotalMacros: { fontFamily: 'Inter_600SemiBold', fontSize: 10, textAlign: 'right' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   detailSheet: { maxHeight: '94%', borderTopLeftRadius: 27, borderTopRightRadius: 27, overflow: 'hidden' },
+  planSheet: { maxHeight: '78%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
+  sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#b7c5bc', alignSelf: 'center', marginBottom: 12 },
+  secondaryAction: { minHeight: 46, borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  secondaryActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  planLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1, marginTop: 14, marginBottom: 7 },
+  planDayRow: { gap: 8, paddingBottom: 2 },
+  planDayChip: { width: 48, height: 58, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  planDayName: { fontFamily: 'Inter_600SemiBold', fontSize: 9 },
+  planDayNumber: { fontFamily: 'Inter_700Bold', fontSize: 17, marginTop: 3 },
+  planMealRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  planMealChip: { minHeight: 35, borderRadius: 12, borderWidth: 1, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
+  planMealText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
   detailTop: { position: 'absolute', zIndex: 2, top: 12, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' },
   closeButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   detailCopy: { padding: 20 },

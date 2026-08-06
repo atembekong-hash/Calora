@@ -2,7 +2,7 @@ import { useGeneratePlanner, type PlannerMeal } from '@workspace/api-client-reac
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
@@ -154,6 +154,9 @@ export default function PlannerScreen() {
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [undoMeal, setUndoMeal] = useState<PlannerMeal | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const plannerReviewDraft = plannerReviewDraftId ? (foodDrafts.find((d) => d.id === plannerReviewDraftId) ?? null) : null;
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => plannerDate(viewWeekStart, index)), [viewWeekStart]);
@@ -165,9 +168,13 @@ export default function PlannerScreen() {
   );
   const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
 
-  const acknowledge = (message: string) => {
+  const acknowledge = (message: string, duration = 2600) => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     setSaveMessage(message);
-    setTimeout(() => setSaveMessage(null), 2600);
+    saveTimerRef.current = setTimeout(() => {
+      setSaveMessage(null);
+      saveTimerRef.current = null;
+    }, duration);
   };
 
   const shiftWeek = (offset: number) => {
@@ -260,7 +267,21 @@ export default function PlannerScreen() {
   const removeMealFromPlan = (meal: PlannerMeal) => {
     updatePlannerMeals(plannerMeals.filter((item) => item.id !== meal.id));
     setActionMeal(null);
-    acknowledge(`${meal.name} removed. Your plan stays flexible.`);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoMeal(meal);
+    undoTimerRef.current = setTimeout(() => {
+      setUndoMeal(null);
+      undoTimerRef.current = null;
+    }, 6000);
+    acknowledge(`${meal.name} removed. Your plan stays flexible.`, 6000);
+  };
+
+  const undoRemove = () => {
+    if (!undoMeal) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    updatePlannerMeals([...plannerMeals.filter((meal) => !(meal.day === undoMeal.day && meal.meal === undoMeal.meal)), undoMeal]);
+    acknowledge(`${undoMeal.name} restored to your plan.`);
+    setUndoMeal(null);
   };
 
   const moveOrCopyMeal = (day: string, copy: boolean) => {
@@ -401,7 +422,7 @@ export default function PlannerScreen() {
         <View style={[styles.tipCard, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.tipText, { color: colors.foreground }]}>Planning is a suggestion, not a promise. Swap anything that does not fit your day.</Text></View>
          <SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} />
       </ScrollView>
-       <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} />
+       <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undefined} />
       <Modal visible={detail !== null} transparent animationType="slide" onRequestClose={() => { dismissPlannerReview(); setDetail(null); }}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.detailSheet, { backgroundColor: colors.background }]}>
