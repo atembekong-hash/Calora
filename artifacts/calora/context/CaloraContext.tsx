@@ -20,6 +20,11 @@ import {
   sourceComponentsToDraft,
   updateDraftComponents,
 } from '@/lib/foodMemory';
+import {
+  buildAcceptResult,
+  buildRejectDraft,
+  updateRepeatPatterns,
+} from '@/lib/captureReviewTransitions';
 import type { CaptureAnalysis } from '@workspace/api-client-react';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
@@ -174,13 +179,7 @@ type CaloraContextValue = {
 const STORAGE_KEY = '@calora/local-state-v2';
 const today = new Date().toISOString().slice(0, 10);
 
-function foodSourceForMemory(source: AcceptedFoodMemory['provenance']): FoodSource {
-  if (source === 'verified_barcode') return 'Barcode verified';
-  if (source === 'verified_provider' || source === 'verified_label') return 'USDA verified';
-  if (source === 'recipe_imported' || source === 'recipe_personal') return 'Recipe';
-  if (source === 'manual') return 'Manual';
-  return 'Photo estimate';
-}
+// foodSourceForMemory moved to lib/captureReviewTransitions.ts
 
 const starterLogs: FoodLog[] = [
   {
@@ -464,58 +463,22 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     acceptFoodMemory: (draftId) => {
       const draft = foodDrafts.find((item) => item.id === draftId && item.status === 'draft');
       if (!draft) return null;
-      const id = makeId('log');
+      const logId = makeId('log');
       const acceptedAt = new Date().toISOString();
-      const snapshot = { ...draft.nutrition, capturedAt: acceptedAt };
-      const log: FoodLog = {
-        id,
-        name: draft.title,
-        date: draft.date,
-        meal: draft.meal,
-        calories: snapshot.calories,
-        protein: snapshot.proteinG,
-        carbs: snapshot.carbsG,
-        fat: snapshot.fatG,
-        source: foodSourceForMemory(draft.provenance),
-        confidence: draft.confidence,
-        time: 'Just now',
-        serving: draft.components.filter((component) => component.included).map((component) => component.serving).join(' + ') || '1 serving',
-        notes: `${draft.sourceLabel} · Review approved`,
-        memoryId: draft.id,
-        nutritionSnapshot: snapshot,
-      };
-      const memory: AcceptedFoodMemory = {
-        ...draft,
-        status: 'accepted',
-        nutrition: snapshot,
-        updatedAt: acceptedAt,
-        acceptedAt,
-        diaryLogId: id,
-      };
+      const { log, memory } = buildAcceptResult(draft, logId, acceptedAt);
       setLogs((current) => [...current, log]);
       setFoodMemories((current) => [...current, memory]);
       setFoodDrafts((current) => current.filter((item) => item.id !== draftId));
-      const signature = memorySignature(memory);
-      setRepeatPatterns((current) => {
-        const existing = current.find((pattern) => pattern.signature === signature);
-        if (existing) return current.map((pattern) => pattern.signature === signature ? { ...pattern, useCount: pattern.useCount + 1, lastAcceptedAt: acceptedAt, sourceMemoryId: memory.id } : pattern);
-        return [...current, {
-          id: makeId('repeat'),
-          signature,
-          title: memory.title,
-          componentNames: memory.components.filter((component) => component.included).map((component) => component.name),
-          serving: log.serving,
-          useCount: 1,
-          rejectedCount: 0,
-          lastAcceptedAt: acceptedAt,
-          sourceMemoryId: memory.id,
-        }];
-      });
+      setRepeatPatterns((current) => updateRepeatPatterns(current, memory, log, makeId('repeat'), acceptedAt));
       queueMutation('diaryEntry', 'upsert');
       return log;
     },
     rejectFoodMemory: (draftId) => {
-      setFoodDrafts((current) => current.map((draft) => draft.id === draftId ? { ...draft, status: 'rejected', updatedAt: new Date().toISOString() } : draft));
+      setFoodDrafts((current) =>
+        current.map((draft) =>
+          draft.id === draftId ? buildRejectDraft(draft, new Date().toISOString()) : draft,
+        ),
+      );
     },
     teachRepeatMemory: (memoryId) => {
       const memory = foodMemories.find((item) => item.id === memoryId);
