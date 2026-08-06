@@ -12,6 +12,7 @@ export type DiaryEntryInputProvenance = typeof DiaryEntryInputProvenance[keyof t
 export const DiaryEntryInputProvenance = {
   USDA_verified: 'USDA verified',
   Brand_verified: 'Brand verified',
+  Barcode_verified: 'Barcode verified',
   Photo_estimate: 'Photo estimate',
   Manual: 'Manual',
   Recipe: 'Recipe',

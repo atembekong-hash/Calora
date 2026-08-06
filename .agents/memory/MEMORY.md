@@ -1,2 +1,3 @@
 - [Calora launch boundary](calora-launch-boundary.md) — the mobile preview is local-first and must keep native billing, health, and authenticated sync states explicit until integrations are connected.
 - [Recipe provenance](recipe-provenance.md) — open-source recipes, user recipes, and verified nutrition must remain visibly distinct.
+- [Capture provider matching](capture-provider-matching.md) — barcode nutrition requires an exact UPC match, never a broad text-search hit.

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCalora } from '@/context/CaloraContext';
 import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -22,6 +22,10 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="insights">
         <Icon sf={{ default: 'chart.bar.xaxis', selected: 'chart.bar.xaxis' }} />
         <Label>Insights</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="scan">
+        <Icon sf={{ default: 'camera', selected: 'camera.fill' }} />
+        <Label>Scan</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="recipes">
         <Icon sf={{ default: 'book.closed', selected: 'book.closed.fill' }} />
@@ -86,6 +90,29 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="scan"
+        options={{
+          title: 'Scan',
+          tabBarShowLabel: false,
+          tabBarButton: (props) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={props.accessibilityLabel ?? 'Open Smart Scan'}
+              accessibilityState={props.accessibilityState}
+              testID={props.testID}
+              onPress={props.onPress}
+              onLongPress={props.onLongPress}
+              style={[styles.scanTabButton, props.style]}
+            >
+              <View style={[styles.scanTabCircle, { backgroundColor: colors.primary }]}>
+                <Feather name="camera" size={24} color={colors.primaryForeground} />
+              </View>
+              <Text style={[styles.scanTabLabel, { color: colors.primary }]}>Scan</Text>
+            </Pressable>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="recipes"
         options={{
           title: 'Recipes',
@@ -124,6 +151,35 @@ function ClassicTabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  scanTabButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 72,
+    height: 84,
+    marginTop: -18,
+  },
+  scanTabCircle: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 5,
+    borderColor: '#f7f8f3',
+    shadowColor: '#143f34',
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 7,
+  },
+  scanTabLabel: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 10,
+    marginTop: 2,
+  },
+});
 
 export default function TabLayout() {
   if (isLiquidGlassAvailable()) {

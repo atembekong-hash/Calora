@@ -78,7 +78,6 @@ export interface ProfileInput {
 export type Profile = ProfileInput & {
   updatedAt: string;
 };
-
 export interface Provenance {
   source: string;
   verifiedAt: string | null;
@@ -116,6 +115,7 @@ export type DiaryEntryInputProvenance = typeof DiaryEntryInputProvenance[keyof t
 export const DiaryEntryInputProvenance = {
   USDA_verified: 'USDA verified',
   Brand_verified: 'Brand verified',
+  Barcode_verified: 'Barcode verified',
   Photo_estimate: 'Photo estimate',
   Manual: 'Manual',
   Recipe: 'Recipe',
@@ -308,6 +308,80 @@ export interface RecipeList {
   recipes: Recipe[];
 }
 
+export type CaptureAnalyzeInputMode = typeof CaptureAnalyzeInputMode[keyof typeof CaptureAnalyzeInputMode];
+
+
+export const CaptureAnalyzeInputMode = {
+  auto: 'auto',
+  barcode: 'barcode',
+  food: 'food',
+} as const;
+
+export interface CaptureAnalyzeInput {
+  mode: CaptureAnalyzeInputMode;
+  /**
+     * @minLength 8
+     * @maxLength 32
+     */
+  barcode?: string;
+  /**
+     * JPEG or PNG image bytes encoded as base64 without a data URI prefix
+     * @maxLength 12000000
+     */
+  imageBase64?: string;
+  /** @maxLength 120 */
+  clientSessionId?: string;
+}
+
+export interface CaptureCandidate {
+  id: string;
+  name: string;
+  brand?: string | null;
+  serving: string;
+  /** @minimum 0 */
+  calories: number;
+  /** @minimum 0 */
+  proteinG: number;
+  /** @minimum 0 */
+  carbsG: number;
+  /** @minimum 0 */
+  fatG: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  confidence: number;
+  provenance: string;
+  sourceLabel: string;
+  editable: boolean;
+}
+
+export type CaptureAnalysisMode = typeof CaptureAnalysisMode[keyof typeof CaptureAnalysisMode];
+
+
+export const CaptureAnalysisMode = {
+  barcode: 'barcode',
+  food: 'food',
+} as const;
+
+export type CaptureAnalysisStatus = typeof CaptureAnalysisStatus[keyof typeof CaptureAnalysisStatus];
+
+
+export const CaptureAnalysisStatus = {
+  review: 'review',
+  unavailable: 'unavailable',
+} as const;
+
+export interface CaptureAnalysis {
+  sessionId: string;
+  mode: CaptureAnalysisMode;
+  status: CaptureAnalysisStatus;
+  title: string;
+  reviewMessage: string;
+  provider: string;
+  candidates: CaptureCandidate[];
+}
+
 export type DateQueryParameter = string;
 
 export type ListDiaryEntriesParams = {
@@ -331,7 +405,6 @@ barcode?: string;
  */
 limit?: number;
 };
-
 export type SearchFoods200 = {
   items: FoodItem[];
   provenance: Provenance;

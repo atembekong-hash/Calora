@@ -16,7 +16,6 @@ export const HealthCheckResponse = zod.object({
   "status": zod.string()
 })
 
-
 /**
  * @summary Get the current profile
  */
@@ -161,7 +160,7 @@ export const ListDiaryEntriesResponse = zod.object({
   "proteinG": zod.number().min(listDiaryEntriesResponseEntriesItemOneProteinGMin),
   "carbsG": zod.number().min(listDiaryEntriesResponseEntriesItemOneCarbsGMin),
   "fatG": zod.number().min(listDiaryEntriesResponseEntriesItemOneFatGMin),
-  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Photo estimate', 'Manual', 'Recipe']),
+  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(listDiaryEntriesResponseEntriesItemOneConfidenceMin).max(listDiaryEntriesResponseEntriesItemOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish()
@@ -199,7 +198,7 @@ export const CreateDiaryEntryBody = zod.object({
   "proteinG": zod.number().min(createDiaryEntryBodyProteinGMin),
   "carbsG": zod.number().min(createDiaryEntryBodyCarbsGMin),
   "fatG": zod.number().min(createDiaryEntryBodyFatGMin),
-  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Photo estimate', 'Manual', 'Recipe']),
+  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(createDiaryEntryBodyConfidenceMin).max(createDiaryEntryBodyConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish()
@@ -229,7 +228,7 @@ export const CreateDiaryEntryResponse = zod.object({
   "proteinG": zod.number().min(createDiaryEntryResponseOneProteinGMin),
   "carbsG": zod.number().min(createDiaryEntryResponseOneCarbsGMin),
   "fatG": zod.number().min(createDiaryEntryResponseOneFatGMin),
-  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Photo estimate', 'Manual', 'Recipe']),
+  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(createDiaryEntryResponseOneConfidenceMin).max(createDiaryEntryResponseOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish()
@@ -291,7 +290,7 @@ export const UpdateDiaryEntryResponse = zod.object({
   "proteinG": zod.number().min(updateDiaryEntryResponseOneProteinGMin),
   "carbsG": zod.number().min(updateDiaryEntryResponseOneCarbsGMin),
   "fatG": zod.number().min(updateDiaryEntryResponseOneFatGMin),
-  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Photo estimate', 'Manual', 'Recipe']),
+  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(updateDiaryEntryResponseOneConfidenceMin).max(updateDiaryEntryResponseOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish()
@@ -512,6 +511,66 @@ export const GetRecipeResponse = zod.object({
   "fatG": zod.number().nullish(),
   "source": zod.string(),
   "sourceUrl": zod.string().url()
+})
+
+
+/**
+ * Accepts either a barcode or a base64-encoded camera image. Barcode
+ * requests are enriched from public nutrition sources and food photos
+ * are analyzed by managed vision. Results remain review-only until the
+ * user explicitly adds them to the diary.
+ * @summary Analyze a barcode or food photo for review
+ */
+export const analyzeCaptureBodyBarcodeMin = 8;
+export const analyzeCaptureBodyBarcodeMax = 32;
+
+export const analyzeCaptureBodyImageBase64Max = 12000000;
+
+export const analyzeCaptureBodyClientSessionIdMax = 120;
+
+
+
+export const AnalyzeCaptureBody = zod.object({
+  "mode": zod.enum(['auto', 'barcode', 'food']),
+  "barcode": zod.string().min(analyzeCaptureBodyBarcodeMin).max(analyzeCaptureBodyBarcodeMax).optional(),
+  "imageBase64": zod.string().max(analyzeCaptureBodyImageBase64Max).optional().describe('JPEG or PNG image bytes encoded as base64 without a data URI prefix'),
+  "clientSessionId": zod.string().max(analyzeCaptureBodyClientSessionIdMax).optional()
+})
+
+export const analyzeCaptureResponseCandidatesItemCaloriesMin = 0;
+
+export const analyzeCaptureResponseCandidatesItemProteinGMin = 0;
+
+export const analyzeCaptureResponseCandidatesItemCarbsGMin = 0;
+
+export const analyzeCaptureResponseCandidatesItemFatGMin = 0;
+
+export const analyzeCaptureResponseCandidatesItemConfidenceMin = 0;
+export const analyzeCaptureResponseCandidatesItemConfidenceMax = 100;
+
+
+
+export const AnalyzeCaptureResponse = zod.object({
+  "sessionId": zod.string(),
+  "mode": zod.enum(['barcode', 'food']),
+  "status": zod.enum(['review', 'unavailable']),
+  "title": zod.string(),
+  "reviewMessage": zod.string(),
+  "provider": zod.string(),
+  "candidates": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "brand": zod.string().nullish(),
+  "serving": zod.string(),
+  "calories": zod.number().min(analyzeCaptureResponseCandidatesItemCaloriesMin),
+  "proteinG": zod.number().min(analyzeCaptureResponseCandidatesItemProteinGMin),
+  "carbsG": zod.number().min(analyzeCaptureResponseCandidatesItemCarbsGMin),
+  "fatG": zod.number().min(analyzeCaptureResponseCandidatesItemFatGMin),
+  "confidence": zod.number().int().min(analyzeCaptureResponseCandidatesItemConfidenceMin).max(analyzeCaptureResponseCandidatesItemConfidenceMax),
+  "provenance": zod.string(),
+  "sourceLabel": zod.string(),
+  "editable": zod.boolean()
+}))
 })
 
 

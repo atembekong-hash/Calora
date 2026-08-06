@@ -24,6 +24,8 @@ tags:
     description: Data export and deletion
   - name: recipes
     description: Open-source recipe discovery
+  - name: capture
+    description: Smart camera capture and food recognition
 paths:
   /healthz:
     get:
@@ -286,6 +288,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Recipe"
+  /v1/capture/analyze:
+    post:
+      operationId: analyzeCapture
+      tags: [capture]
+      summary: Analyze a barcode or food photo for review
+      description: |
+        Accepts either a barcode or a base64-encoded camera image. Barcode
+        requests are enriched from public nutrition sources and food photos
+        are analyzed by managed vision. Results remain review-only until the
+        user explicitly adds them to the diary.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaptureAnalyzeInput"
+      responses:
+        "200":
+          description: Reviewable capture result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaptureAnalysis"
+        "400":
+          description: Invalid capture input
+        "502":
+          description: Capture provider unavailable
   /v1/privacy/export:
     post:
       operationId: requestDataExport
@@ -396,7 +425,7 @@ components:
         proteinG: { type: number, minimum: 0 }
         carbsG: { type: number, minimum: 0 }
         fatG: { type: number, minimum: 0 }
-        provenance: { type: string, enum: ["USDA verified", "Brand verified", "Photo estimate", Manual, Recipe] }
+        provenance: { type: string, enum: ["USDA verified", "Brand verified", "Barcode verified", "Photo estimate", Manual, Recipe] }
         confidence: { type: integer, minimum: 0, maximum: 100 }
         clientUpdatedAt: { type: string, format: date-time }
         notes: { type: string, nullable: true }
@@ -512,4 +541,52 @@ components:
         fatG: { type: number, nullable: true }
         source: { type: string }
         sourceUrl: { type: string, format: uri }
+    CaptureAnalyzeInput:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [auto, barcode, food]
+        barcode:
+          type: string
+          minLength: 8
+          maxLength: 32
+        imageBase64:
+          type: string
+          description: JPEG or PNG image bytes encoded as base64 without a data URI prefix
+          maxLength: 12000000
+        clientSessionId:
+          type: string
+          maxLength: 120
+    CaptureCandidate:
+      type: object
+      required: [id, name, serving, calories, proteinG, carbsG, fatG, confidence, provenance, sourceLabel, editable]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        brand: { type: string, nullable: true }
+        serving: { type: string }
+        calories: { type: number, minimum: 0 }
+        proteinG: { type: number, minimum: 0 }
+        carbsG: { type: number, minimum: 0 }
+        fatG: { type: number, minimum: 0 }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        provenance: { type: string }
+        sourceLabel: { type: string }
+        editable: { type: boolean }
+    CaptureAnalysis:
+      type: object
+      required: [sessionId, mode, status, title, candidates, reviewMessage, provider]
+      properties:
+        sessionId: { type: string }
+        mode: { type: string, enum: [barcode, food] }
+        status: { type: string, enum: [review, unavailable] }
+        title: { type: string }
+        reviewMessage: { type: string }
+        provider: { type: string }
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/CaptureCandidate"
 

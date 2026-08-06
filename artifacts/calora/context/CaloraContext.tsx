@@ -8,7 +8,7 @@ export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 export type Goal = 'lose' | 'maintain' | 'gain';
 export type ActivityLevel = 'low' | 'moderate' | 'high';
 export type DietPreference = 'Everything' | 'Vegetarian' | 'Vegan' | 'High protein';
-export type FoodSource = 'USDA verified' | 'Brand verified' | 'Photo estimate' | 'Manual' | 'Recipe';
+export type FoodSource = 'USDA verified' | 'Brand verified' | 'Barcode verified' | 'Photo estimate' | 'Manual' | 'Recipe';
 
 export type FoodLog = {
   id: string;

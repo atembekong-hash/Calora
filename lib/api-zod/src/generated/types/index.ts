@@ -6,6 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './captureAnalysis';
+export * from './captureAnalysisMode';
+export * from './captureAnalysisStatus';
+export * from './captureAnalyzeInput';
+export * from './captureAnalyzeInputMode';
+export * from './captureCandidate';
 export * from './dateQueryParameter';
 export * from './deletionRequest';
 export * from './deletionRequestStatus';

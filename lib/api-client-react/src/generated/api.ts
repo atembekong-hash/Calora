@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  CaptureAnalysis,
+  CaptureAnalyzeInput,
   DeletionRequest,
   DiaryEntry,
   DiaryEntryInput,
@@ -1063,6 +1065,81 @@ export function useGetRecipe<TData = Awaited<ReturnType<typeof getRecipe>>, TErr
 
 
 
+
+export const getAnalyzeCaptureUrl = () => {
+
+
+
+
+  return `/api/v1/capture/analyze`
+}
+
+/**
+ * Accepts either a barcode or a base64-encoded camera image. Barcode
+ * requests are enriched from public nutrition sources and food photos
+ * are analyzed by managed vision. Results remain review-only until the
+ * user explicitly adds them to the diary.
+ * @summary Analyze a barcode or food photo for review
+ */
+export const analyzeCapture = async (captureAnalyzeInput: CaptureAnalyzeInput, options?: Parameters<typeof customFetch>[1]): Promise<CaptureAnalysis> => {
+
+  return customFetch<CaptureAnalysis>(getAnalyzeCaptureUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(captureAnalyzeInput)
+  }
+);}
+
+
+
+
+
+export const getAnalyzeCaptureMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeCapture>>, TError,{data: BodyType<CaptureAnalyzeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeCapture>>, TError,{data: BodyType<CaptureAnalyzeInput>}, TContext> => {
+
+const mutationKey = ['analyzeCapture'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeCapture>>, {data: BodyType<CaptureAnalyzeInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  analyzeCapture(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeCaptureMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeCapture>>>
+    export type AnalyzeCaptureMutationBody = BodyType<CaptureAnalyzeInput>
+    export type AnalyzeCaptureMutationError = ErrorType<void>
+
+    /**
+ * @summary Analyze a barcode or food photo for review
+ */
+export const useAnalyzeCapture = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeCapture>>, TError,{data: BodyType<CaptureAnalyzeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeCapture>>,
+        TError,
+        {data: BodyType<CaptureAnalyzeInput>},
+        TContext
+      > => {
+      return useMutation(getAnalyzeCaptureMutationOptions(options));
+    }
 
 export const getRequestDataExportUrl = () => {
 
