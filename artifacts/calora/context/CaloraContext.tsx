@@ -27,6 +27,7 @@ import {
   updateRepeatPatterns,
 } from '@/lib/captureReviewTransitions';
 import type { CaptureAnalysis } from '@workspace/api-client-react';
+import { deriveLivingState, type LivingState } from '@/lib/livingState';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 export type Goal = 'lose' | 'maintain' | 'gain';
@@ -161,6 +162,7 @@ type CaloraContextValue = {
   hydrationReminders: HydrationReminderPrefs;
   coachConsentAccepted: boolean;
   coachMessages: CoachMessage[];
+  livingState: LivingState;
   setCoachConsentAccepted: (accepted: boolean) => void;
   setCoachMessages: (messages: CoachMessage[]) => void;
   clearCoachHistory: () => void;
@@ -384,6 +386,17 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
     setOutbox((current) => [...current, { id: makeId('mutation'), entity, operation, createdAt: new Date().toISOString() }]);
   };
+  const livingState = useMemo(() => deriveLivingState({
+    profile,
+    logs,
+    waterLogs,
+    moodLogs,
+    activityLogs,
+    repeatPatterns,
+    plannerMeals,
+    onboardingComplete,
+  }), [activityLogs, logs, moodLogs, onboardingComplete, plannerMeals, profile, repeatPatterns, waterLogs]);
+
   const value = useMemo<CaloraContextValue>(() => ({
     logs,
     weights,
@@ -580,6 +593,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     hydrationReminders,
     coachConsentAccepted,
     coachMessages,
+    livingState,
     setHydrationReminders: (prefs: HydrationReminderPrefs) => {
       setHydrationRemindersState(prefs);
     },
@@ -631,7 +645,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      setCoachConsentAccepted: (accepted) => setCoachConsentAccepted(accepted),
      setCoachMessages: (messages) => setCoachMessages(messages.slice(-12)),
      clearCoachHistory: () => setCoachMessages([]),
-    }), [activityLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationReminders, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+    }), [activityLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationReminders, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

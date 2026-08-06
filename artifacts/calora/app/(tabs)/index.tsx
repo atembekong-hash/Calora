@@ -431,7 +431,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
 }
 
 export default function HomeScreen() {
-  const { logs, colors, mode, profile, syncState, waterLogs, moodLogs, addWater, setMood, setThemePreference } = useCalora();
+  const { logs, colors, mode, profile, syncState, waterLogs, moodLogs, addWater, setMood, setThemePreference, livingState } = useCalora();
   const insets = useSafeAreaInsets();
   const [showAdd, setShowAdd] = useState(false);
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
@@ -484,8 +484,8 @@ export default function HomeScreen() {
               </View>
             </View>
             <Text style={styles.homeHeaderEyebrow}>{formatDateLabel(selectedDate)}</Text>
-            <Text style={styles.homeHeaderTitle}>Good morning, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
-            <Text style={styles.homeHeaderSubtitle}>A steady pace beats a perfect day.</Text>
+            <Text style={styles.homeHeaderTitle}>{livingState.greeting}, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
+            <Text style={styles.homeHeaderSubtitle}>{livingState.message}</Text>
           </View>
         </View>
 
@@ -493,7 +493,7 @@ export default function HomeScreen() {
           <View style={styles.heroTop}>
             <View>
               <Text style={[styles.heroEyebrow, { color: colors.heroMuted }]}>TODAY'S FUEL</Text>
-              <Text style={[styles.heroTitle, { color: colors.onHero }]}>You’re on track.</Text>
+              <Text style={[styles.heroTitle, { color: colors.onHero }]}>{livingState.headline}</Text>
             </View>
             <View style={[styles.trustBadge, { backgroundColor: 'rgba(157,215,189,0.16)' }]}>
               <Feather name="shield" size={13} color={colors.heroMuted} />
@@ -510,7 +510,7 @@ export default function HomeScreen() {
               <View style={[styles.heroTrack, { backgroundColor: 'rgba(157,215,189,0.18)' }]}>
                 <View style={[styles.heroFill, { width: `${progress * 100}%`, backgroundColor: colors.primary }]} />
               </View>
-              <Text style={[styles.heroHint, { color: colors.heroMuted }]}>A steady pace beats a perfect day.</Text>
+              <Text style={[styles.heroHint, { color: colors.heroMuted }]}>{livingState.reason}</Text>
             </View>
           </View>
         </View>

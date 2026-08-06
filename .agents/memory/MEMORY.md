@@ -9,3 +9,4 @@
 - [Local save feedback](local-save-feedback.md) — local wellness actions should acknowledge saves briefly without blocking the logging flow.
 - [Coach safety boundary](coach-safety-boundary.md) — Coach receives bounded local context and may only return evidence-backed guidance plus allowlisted navigation.
 - [Coach chat menu](coach-chat-menu.md) — the Coach header menu owns local history, new-chat, and clear-history actions without changing Coach’s safety boundary.
+- [Living state engine](living-state-engine.md) — shared adaptive state must be deterministic, explicit about missing history, and prioritized by the highest-context daily need.
