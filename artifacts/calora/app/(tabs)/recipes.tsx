@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGetRecipe, useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { router } from 'expo-router';
+import type { FoodMemoryComponent } from '@/lib/foodMemory';
 
 const categories = ['For you', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert'];
 
@@ -63,7 +65,7 @@ function RecipeCard({ recipe, colors, saved, onPress, onSave }: { recipe: Recipe
 }
 
 function RecipeDetailModal({ recipe, onClose }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void }) {
-  const { colors, profile, addLog, savedRecipeIds, toggleSavedRecipe } = useCalora();
+  const { colors, profile, createFoodMemorySourceDraft, savedRecipeIds, toggleSavedRecipe } = useCalora();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const remoteRecipeId = recipe && !local ? recipe.id : '';
   const detailQuery = useGetRecipe(remoteRecipeId, { query: { queryKey: ['recipe', remoteRecipeId], enabled: Boolean(remoteRecipeId), staleTime: 1000 * 60 * 30 } });
@@ -72,21 +74,38 @@ function RecipeDetailModal({ recipe, onClose }: { recipe: Recipe | CaloraRecipe 
   const canLog = Boolean(detail.calories && detail.calories > 0);
   const saveToDiary = () => {
     if (!canLog) return;
-    addLog({
+    const component: FoodMemoryComponent = {
+      id: `recipe-component-${detail.id}`,
       name: detail.name,
+      serving: '1 recipe serving',
+      calories: detail.calories ?? 0,
+      proteinG: detail.proteinG ?? 0,
+      carbsG: detail.carbsG ?? 0,
+      fatG: detail.fatG ?? 0,
+      included: true,
+      eatenFraction: 1,
+      provenance: local ? 'recipe_personal' : 'recipe_imported',
+      sourceLabel: local ? 'Created in Calora' : `Open source · ${detail.source}`,
+      confidence: local ? 92 : 68,
+      confidenceDimensions: { identity: local ? 96 : 82, portion: 82, nutritionSource: local ? 88 : 52, preparation: 78 },
+      assumptions: [
+        local ? 'Nutrition is based on your personal recipe entry.' : 'Nutrition is not verified by Calora.',
+        detail.ingredients?.length ? `Ingredients: ${detail.ingredients.slice(0, 5).join(', ')}` : 'Recipe ingredients were not provided.',
+      ],
+      reviewQuestions: ['Is one recipe serving the amount you ate?'],
+    };
+    const draft = createFoodMemorySourceDraft({
+      inputType: 'recipe',
+      title: detail.name,
       date: new Date().toISOString().slice(0, 10),
       meal: 'Dinner',
-      calories: detail.calories ?? 0,
-      protein: detail.proteinG ?? 0,
-      carbs: detail.carbsG ?? 0,
-      fat: detail.fatG ?? 0,
-      source: 'Recipe',
-      confidence: local ? 92 : 68,
-      time: 'Just now',
-      serving: '1 recipe serving',
-      notes: local ? 'Created in Calora' : `Source: ${detail.source}`,
+      components: [component],
+      sourceLabel: component.sourceLabel,
+      provenance: component.provenance,
+      reviewQuestions: component.reviewQuestions,
     });
     onClose();
+    router.navigate({ pathname: '/(tabs)/scan', params: { draftId: draft.id } });
   };
   return (
     <Modal visible={recipe !== null} transparent animationType="slide" onRequestClose={onClose}>

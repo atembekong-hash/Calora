@@ -3,12 +3,12 @@ import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 type ScanMode = 'auto' | 'barcode' | 'food';
 
@@ -58,7 +58,7 @@ function PermissionState({ colors, onRequest }: { colors: ReturnType<typeof useC
 export default function ScanScreen() {
   const { colors, foodDrafts, createFoodMemoryDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory } = useCalora();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ date?: string }>();
+  const params = useLocalSearchParams<{ date?: string; draftId?: string }>();
   const entryDate = typeof params.date === 'string' ? params.date : new Date().toISOString().slice(0, 10);
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -67,7 +67,23 @@ export default function ScanScreen() {
   const [analysis, setAnalysis] = useState<CaptureAnalysis | null>(null);
   const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
   const analyzeCapture = useAnalyzeCapture();
-  const reviewDraft = foodDrafts.find((draft) => draft.id === reviewDraftId) ?? null;
+  const routeDraftId = typeof params.draftId === 'string' ? params.draftId : undefined;
+  const reviewDraft = foodDrafts.find((draft) => draft.status === 'draft' && (draft.id === reviewDraftId || draft.id === routeDraftId)) ?? null;
+
+  useEffect(() => {
+    const draftId = routeDraftId;
+    if (!draftId || !reviewDraft || reviewDraftId === draftId || analysis) return;
+    setReviewDraftId(draftId);
+    setAnalysis({
+      sessionId: draftId,
+      mode: 'food',
+      status: 'review',
+      title: reviewDraft.title,
+      reviewMessage: 'Review this meal before adding it. You can adjust servings or remove anything you did not eat.',
+      provider: reviewDraft.sourceLabel,
+      candidates: [],
+    });
+  }, [analysis, reviewDraft, reviewDraftId, routeDraftId]);
 
   const showAnalysis = (next: CaptureAnalysis) => {
     setAnalysis(next);
@@ -122,6 +138,7 @@ export default function ScanScreen() {
     setAnalysis(null);
     setReviewDraftId(null);
     setHasScanned(false);
+    router.replace({ pathname: '/(tabs)/scan', params: { date: entryDate } });
   };
 
   const dismissDraft = () => {
@@ -129,6 +146,7 @@ export default function ScanScreen() {
     setAnalysis(null);
     setReviewDraftId(null);
     setHasScanned(false);
+    router.replace({ pathname: '/(tabs)/scan', params: { date: entryDate } });
   };
 
   if (!permission) {
@@ -164,7 +182,7 @@ export default function ScanScreen() {
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
         <View style={[styles.resultSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
-            <View style={styles.resultHeader}><View><Text style={[styles.resultEyebrow, { color: colors.primary }]}>{analysis?.mode === 'barcode' ? 'BARCODE MATCH' : 'PHOTO REVIEW'}</Text><Text style={[styles.resultTitle, { color: colors.foreground }]}>{analysis?.title}</Text></View><Pressable accessibilityLabel="Close scan result" onPress={() => { setAnalysis(null); setHasScanned(false); }} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View>
+             <View style={styles.resultHeader}><View><Text style={[styles.resultEyebrow, { color: colors.primary }]}>{analysis?.mode === 'barcode' ? 'BARCODE MATCH' : 'PHOTO REVIEW'}</Text><Text style={[styles.resultTitle, { color: colors.foreground }]}>{analysis?.title}</Text></View><Pressable accessibilityLabel="Close scan result" onPress={dismissDraft} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View>
              {analysis?.status === 'unavailable' ? <View style={[styles.unavailableResult, { backgroundColor: colors.accent }]}><Feather name="help-circle" size={19} color={colors.accentForeground} /><Text style={[styles.unavailableResultText, { color: colors.foreground }]}>{analysis.reviewMessage}</Text></View> : <><Text style={[styles.reviewMessage, { color: colors.mutedForeground }]}>{analysis?.reviewMessage}</Text>{reviewDraft?.assumptions.length ? <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}><Feather name="info" size={15} color={colors.accentForeground} /><Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' · ')}</Text></View> : null}<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22 }}>{reviewDraft?.components.map((component) => <CandidateCard key={component.id} component={component} colors={colors} onChange={updateComponent} />)}<View style={[styles.totalCard, { backgroundColor: colors.hero }]}><View><Text style={[styles.totalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.totalValue, { color: colors.onHero }]}>{Math.round(reviewDraft?.nutrition.calories ?? 0)} kcal</Text></View><Text style={[styles.totalMacro, { color: colors.heroMuted }]}>P {Math.round(reviewDraft?.nutrition.proteinG ?? 0)}g · C {Math.round(reviewDraft?.nutrition.carbsG ?? 0)}g · F {Math.round(reviewDraft?.nutrition.fatG ?? 0)}g</Text></View><Pressable accessibilityLabel="Approve and add meal to diary" onPress={acceptDraft} style={[styles.addButton, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={16} color={colors.primaryForeground} /><Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>Approve and add to diary</Text></Pressable><Pressable accessibilityLabel="Discard food review" onPress={dismissDraft} style={styles.discardButton}><Text style={[styles.discardText, { color: colors.mutedForeground }]}>Not this meal</Text></Pressable></ScrollView></>}
           </View>
         </View>

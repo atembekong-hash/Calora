@@ -208,6 +208,45 @@ export function captureAnalysisToDraft(
   };
 }
 
+export function sourceComponentsToDraft(input: {
+  inputType: FoodMemoryInputType;
+  title: string;
+  date: string;
+  meal: FoodMemoryDraft['meal'];
+  components: FoodMemoryComponent[];
+  sourceLabel: string;
+  provenance: FoodMemoryProvenance;
+  assumptions?: string[];
+  reviewQuestions?: string[];
+  now?: string;
+}): FoodMemoryDraft {
+  const now = input.now ?? new Date().toISOString();
+  const nutrition = nutritionForComponents(input.components, now);
+  const confidence = confidenceForComponents(input.components);
+  return {
+    id: `memory-draft-${input.inputType}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    schemaVersion: FOOD_MEMORY_SCHEMA_VERSION,
+    inputType: input.inputType,
+    status: 'draft',
+    title: input.title,
+    date: input.date,
+    meal: input.meal,
+    components: input.components,
+    nutrition,
+    originalNutrition: { ...nutrition },
+    provenance: input.provenance,
+    sourceLabel: input.sourceLabel,
+    confidence: confidence.confidence,
+    confidenceDimensions: confidence.dimensions,
+    assumptions: input.assumptions ?? [],
+    reviewQuestions: input.reviewQuestions ?? [],
+    imageRetention: 'not_collected',
+    createdAt: now,
+    updatedAt: now,
+    correctionIds: [],
+  };
+}
+
 export function updateDraftComponents(draft: FoodMemoryDraft, components: FoodMemoryComponent[], now = new Date().toISOString()): FoodMemoryDraft {
   const confidence = confidenceForComponents(components);
   return {

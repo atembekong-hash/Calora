@@ -15,6 +15,7 @@ import {
   migrateFoodMemories,
   nutritionForComponents,
   provenanceForCapture,
+  sourceComponentsToDraft,
   updateDraftComponents,
 } from '@/lib/foodMemory';
 import type { CaptureAnalysis } from '@workspace/api-client-react';
@@ -148,6 +149,7 @@ type CaloraContextValue = {
   foodMemories: AcceptedFoodMemory[];
   repeatPatterns: RepeatPattern[];
   createFoodMemoryDraft: (analysis: CaptureAnalysis, date?: string, meal?: MealType) => FoodMemoryDraft;
+  createFoodMemorySourceDraft: (input: Parameters<typeof sourceComponentsToDraft>[0]) => FoodMemoryDraft;
   updateFoodMemoryDraft: (draftId: string, components: FoodMemoryComponent[]) => void;
   acceptFoodMemory: (draftId: string) => FoodLog | null;
   rejectFoodMemory: (draftId: string) => void;
@@ -418,6 +420,11 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     createFoodMemoryDraft: (analysis, date = today, meal = 'Snack') => {
       const draft = captureAnalysisToDraft(analysis, date, meal);
+      setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
+      return draft;
+    },
+    createFoodMemorySourceDraft: (input) => {
+      const draft = sourceComponentsToDraft(input);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },

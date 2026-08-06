@@ -6,6 +6,8 @@ import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Tex
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 import { createStarterPlannerMeals, getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
+import { router } from 'expo-router';
+import type { FoodMemoryComponent } from '@/lib/foodMemory';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
@@ -91,7 +93,7 @@ function SummaryBar({ meals, target, colors }: { meals: PlannerMeal[]; target: n
 }
 
 export default function PlannerScreen() {
-  const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, movePlannerMeal, toggleShoppingItem } = useCalora();
+  const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, movePlannerMeal, toggleShoppingItem, createFoodMemorySourceDraft } = useCalora();
   const insets = useSafeAreaInsets();
   const generatePlanner = useGeneratePlanner();
   const [selectedDay, setSelectedDay] = useState(new Date().toISOString().slice(0, 10));
@@ -175,7 +177,35 @@ export default function PlannerScreen() {
 
   const addToDiary = (meal: PlannerMeal) => {
     setDetail(null);
-    Alert.alert('Ready to log', `${meal.name} is planned for ${dateFormatter.format(parseDate(meal.day))}. Use Add in Home when you are ready to log it.`);
+    const component: FoodMemoryComponent = {
+      id: `planner-component-${meal.id}`,
+      name: meal.name,
+      serving: '1 planned serving',
+      calories: meal.calories,
+      proteinG: meal.proteinG,
+      carbsG: meal.carbsG,
+      fatG: meal.fatG,
+      included: true,
+      eatenFraction: 1,
+      provenance: 'planner_estimate',
+      sourceLabel: 'Weekly planner estimate',
+      confidence: 72,
+      confidenceDimensions: { identity: 82, portion: 70, nutritionSource: 68, preparation: 66 },
+      assumptions: ['Planned meal nutrition is an estimate. Review the serving before it counts.', `Ingredients: ${meal.ingredients.slice(0, 5).join(', ')}`],
+      reviewQuestions: ['Is this the serving size you ate?'],
+    };
+    const draft = createFoodMemorySourceDraft({
+      inputType: 'planner',
+      title: meal.name,
+      date: meal.day,
+      meal: meal.meal,
+      components: [component],
+      sourceLabel: component.sourceLabel,
+      provenance: component.provenance,
+      assumptions: component.assumptions,
+      reviewQuestions: component.reviewQuestions,
+    });
+    router.navigate({ pathname: '/(tabs)/scan', params: { draftId: draft.id } });
   };
 
   return (
