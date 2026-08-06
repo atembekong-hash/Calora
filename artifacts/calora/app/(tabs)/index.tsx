@@ -431,7 +431,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
 }
 
 export default function HomeScreen() {
-  const { logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood } = useCalora();
+  const { logs, colors, mode, profile, syncState, waterLogs, moodLogs, addWater, setMood, setThemePreference } = useCalora();
   const insets = useSafeAreaInsets();
   const [showAdd, setShowAdd] = useState(false);
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
@@ -470,7 +470,18 @@ export default function HomeScreen() {
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
               <View style={styles.homeHeaderBadge}><Feather name="sunrise" size={12} color="#d4eadc" /><Text style={styles.homeHeaderBadgeText}>DAILY RHYTHM</Text></View>
-              <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={styles.homeHeaderAvatar}><Text style={styles.homeHeaderAvatarText}>{profile?.name?.charAt(0) ?? 'A'}</Text></Pressable>
+              <View style={styles.homeHeaderActions}>
+                <Pressable
+                  accessibilityLabel={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}
+                  accessibilityRole="button"
+                  testID="dashboard-theme-toggle"
+                  onPress={() => setThemePreference(mode === 'dark' ? 'light' : 'dark')}
+                  style={({ pressed }) => [styles.homeHeaderThemeToggle, { opacity: pressed ? 0.72 : 1 }]}
+                >
+                  <Feather name={mode === 'dark' ? 'sun' : 'moon'} size={16} color="#ffffff" />
+                </Pressable>
+                <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={styles.homeHeaderAvatar}><Text style={styles.homeHeaderAvatarText}>{profile?.name?.charAt(0) ?? 'A'}</Text></Pressable>
+              </View>
             </View>
             <Text style={styles.homeHeaderEyebrow}>{formatDateLabel(selectedDate)}</Text>
             <Text style={styles.homeHeaderTitle}>Good morning, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
@@ -581,8 +592,10 @@ const styles = StyleSheet.create({
   homeHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 16, backgroundColor: '#1b3022' },
   homeHeaderContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 16, left: 19, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  homeHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   homeHeaderBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
   homeHeaderBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1 },
+  homeHeaderThemeToggle: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   homeHeaderAvatar: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   homeHeaderAvatarText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 15 },
   homeHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.2, marginBottom: 6 },
