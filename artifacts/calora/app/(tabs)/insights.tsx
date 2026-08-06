@@ -198,10 +198,18 @@ export default function InsightsScreen() {
                 accessibilityLabel="Open Calora Coach"
                 testID="open-calora-coach"
                 onPress={() => router.push('/coach')}
-                style={({ pressed }) => [styles.coachHeaderButton, { opacity: pressed ? 0.72 : 1 }]}
+                style={({ pressed }) => [
+                  styles.coachHeaderButton,
+                  {
+                    backgroundColor: colors.primary,
+                    borderColor: '#ffd1c6',
+                    shadowColor: '#08160f',
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
               >
-                <Feather name="zap" size={13} color="#ffffff" />
-                <Text style={styles.coachHeaderButtonText}>Ask Calora</Text>
+                <Feather name="zap" size={15} color={colors.primaryForeground} />
+                <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask Calora</Text>
               </Pressable>
             </View>
             <Text style={styles.heroSubtitle}>Patterns, not pressure. Use the signal to make tomorrow easier.</Text>
@@ -437,8 +445,8 @@ const styles = StyleSheet.create({
   heroEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 6 },
   heroTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.7 },
   heroTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  coachHeaderButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 11, paddingHorizontal: 9, paddingVertical: 7, backgroundColor: 'rgba(157,215,189,0.18)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
-  coachHeaderButtonText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 9 },
+  coachHeaderButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, paddingHorizontal: 11, paddingVertical: 9, borderWidth: 1, shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  coachHeaderButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.1 },
   heroSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, marginTop: 7, maxWidth: 285 },
   eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.7 },
