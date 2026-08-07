@@ -150,6 +150,7 @@ export default function PlannerScreen() {
   const [editCarbs, setEditCarbs] = useState('');
   const [editFat, setEditFat] = useState('');
   const [customMealType, setCustomMealType] = useState<PlannerMeal['meal'] | null>(null);
+  const [customMealReplaceTarget, setCustomMealReplaceTarget] = useState<PlannerMeal | null>(null);
   const [customName, setCustomName] = useState('');
   const [customServing, setCustomServing] = useState('1 serving');
   const [customCalories, setCustomCalories] = useState('');
@@ -268,8 +269,10 @@ export default function PlannerScreen() {
     acknowledge(`${editName.trim()} updated and saved locally.`);
   };
 
-  const openCustomMeal = (mealType: PlannerMeal['meal']) => {
+  const openCustomMeal = (mealType: PlannerMeal['meal'], replaceTarget?: PlannerMeal) => {
     setAddingMealType(null);
+    setReplaceMeal(null);
+    setCustomMealReplaceTarget(replaceTarget ?? null);
     setCustomMealType(mealType);
     setCustomName('');
     setCustomServing('1 serving');
@@ -282,9 +285,10 @@ export default function PlannerScreen() {
 
   const saveCustomMeal = () => {
     if (!customMealType || !customName.trim()) return;
+    const targetDay = customMealReplaceTarget?.day ?? selectedDay;
     const custom: PlannerMeal = {
       id: `custom-${Date.now()}`,
-      day: selectedDay,
+      day: targetDay,
       meal: customMealType,
       name: customName.trim(),
       image: '',
@@ -296,10 +300,16 @@ export default function PlannerScreen() {
       ingredients: customIngredients.split(/[,;\n]/).map((item) => item.trim()).filter(Boolean),
       description: 'A custom meal added to your plan.',
     };
-    updatePlannerMeals([...plannerMeals.filter((meal) => !(meal.day === selectedDay && meal.meal === customMealType)), custom]);
+    if (customMealReplaceTarget) {
+      // Replace path: swap the specific meal by id, then slot-deduplicate.
+      updatePlannerMeals([...plannerMeals.filter((meal) => meal.id !== customMealReplaceTarget.id && !(meal.day === targetDay && meal.meal === customMealType)), custom]);
+      setCustomMealReplaceTarget(null);
+    } else {
+      updatePlannerMeals([...plannerMeals.filter((meal) => !(meal.day === targetDay && meal.meal === customMealType)), custom]);
+    }
     setCustomMealType(null);
     // Cancel a pending removal undo if the custom meal fills the same slot.
-    if (undoMeal && undoMeal.day === selectedDay && undoMeal.meal === customMealType) {
+    if (undoMeal && undoMeal.day === targetDay && undoMeal.meal === customMealType) {
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       undoTimerRef.current = null;
       setUndoMeal(null);
@@ -699,6 +709,7 @@ export default function PlannerScreen() {
                <Feather name="book-open" size={15} color={colors.accentForeground} />
                <Text style={[styles.browseRecipesText, { color: colors.accentForeground }]}>Browse recipes</Text>
              </Pressable>
+             <Pressable accessibilityLabel={`Create custom ${replaceMeal?.meal ?? 'meal'} to replace ${replaceMeal?.name ?? 'meal'}`} onPress={() => replaceMeal && openCustomMeal(replaceMeal.meal, replaceMeal)} style={[styles.customMealButton, { borderColor: colors.primary }]}><Feather name="edit-3" size={15} color={colors.primary} /><Text style={[styles.customMealButtonText, { color: colors.primary }]}>Create a custom meal</Text></Pressable>
              <Pressable accessibilityLabel="Cancel replace meal" onPress={() => setReplaceMeal(null)} style={styles.leaveOpenButton}><Text style={[styles.leaveOpenText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
            </View>
          </View>
@@ -728,11 +739,11 @@ export default function PlannerScreen() {
             </View>
           </View>
         </Modal>
-        <Modal visible={customMealType !== null} transparent animationType="slide" onRequestClose={() => setCustomMealType(null)}>
+        <Modal visible={customMealType !== null} transparent animationType="slide" onRequestClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }}>
           <View style={styles.modalBackdrop}>
             <View style={[styles.formSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
-              <SheetHeader eyebrow={`${customMealType?.toUpperCase() ?? ''} · ${dateFormatter.format(parseDate(selectedDay))}`} title="Create a custom meal" onClose={() => setCustomMealType(null)} colors={colors} />
+              <SheetHeader eyebrow={`${customMealType?.toUpperCase() ?? ''} · ${dateFormatter.format(parseDate(customMealReplaceTarget?.day ?? selectedDay))}`} title="Create a custom meal" onClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} colors={colors} />
               <KeyboardAwareScrollViewCompat
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.formContent}
@@ -750,7 +761,7 @@ export default function PlannerScreen() {
                 <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Ingredients (optional)</Text>
                 <TextInput accessibilityLabel="Custom meal ingredients" value={customIngredients} onChangeText={setCustomIngredients} multiline placeholder="Separate ingredients with commas" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
                 <Pressable accessibilityLabel="Save custom meal" onPress={saveCustomMeal} disabled={!customName.trim()} style={[styles.formSaveButton, { backgroundColor: colors.primary, opacity: customName.trim() ? 1 : 0.5 }]}><Feather name="plus" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Add to plan</Text></Pressable>
-                <Pressable accessibilityLabel="Cancel custom meal" onPress={() => setCustomMealType(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
+                <Pressable accessibilityLabel="Cancel custom meal" onPress={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
               </KeyboardAwareScrollViewCompat>
             </View>
           </View>
