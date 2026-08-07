@@ -1409,6 +1409,49 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     expect(snap.coachMessages).toEqual([]);
   });
 
+  it('FIELD EXHAUSTIVENESS GUARD — cleared snapshot key set matches CaloraExportState exactly, no more and no less', () => {
+    // ─── Why this test exists ─────────────────────────────────────────────────
+    // clearAllData maintains two field lists that must stay in sync:
+    //
+    //   1. performClearAllData (lib/clearAllData.ts) — calls each React setter
+    //   2. makeClearedExportSnapshot (lib/exportGap.ts) — the gap-bridge ref
+    //
+    // If a developer adds a new field to CaloraExportState and to
+    // makeClearedExportSnapshot but accidentally omits it from the snapshot
+    // returned object, TypeScript's return-type check on makeClearedExportSnapshot
+    // will catch it at compile time.  This runtime test is the belt-and-suspenders
+    // layer: it fails even if type assertions or unsafe casts were used to bypass
+    // the TypeScript check.
+    //
+    // How the guard works:
+    //   • staleClosedOver is typed as `CaloraExportState` — TypeScript enforces
+    //     that every field of the interface is a required key in that object.
+    //   • Object.keys(staleClosedOver) therefore always enumerates exactly the
+    //     fields that CaloraExportState currently declares.
+    //   • The snapshot from makeClearedExportSnapshot must have exactly those
+    //     same keys — no missing fields (data leaks during the gap) and no extra
+    //     fields (would indicate the interface and snapshot have drifted apart).
+    //
+    // Adding a new field to CaloraExportState (and therefore to staleClosedOver
+    // at compile time) will fail this test unless makeClearedExportSnapshot is
+    // also updated to include that field.
+    // ─────────────────────────────────────────────────────────────────────────
+    const snap = makeClearedExportSnapshot({
+      getPlannerWeekStart: () => '2026-08-03',
+      healthConnected: false,
+    });
+
+    const exportStateKeys = Object.keys(staleClosedOver).sort();
+    const snapshotKeys    = Object.keys(snap).sort();
+
+    // Exact key-set equality — any addition or removal on either side fails here.
+    expect(snapshotKeys).toEqual(exportStateKeys);
+
+    // Sanity: the reference set itself is non-trivial (guards against an empty
+    // staleClosedOver accidentally making both arrays equal to []).
+    expect(exportStateKeys.length).toBeGreaterThan(0);
+  });
+
   it('REGRESSION GUARD — makeClearedExportSnapshot always uses DEFAULT_HYDRATION_PREFS, never the stale pre-clear custom schedule', () => {
     // Scenario: a user has a custom reminder schedule (e.g. morning/noon/evening)
     // that differs from DEFAULT_HYDRATION_PREFS.  They tap "Clear all data".
