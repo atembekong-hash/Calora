@@ -13,6 +13,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { PersistenceManager, type StorageAdapter } from '../persistenceManager';
 import { performClearAllData, DEFAULT_HYDRATION_PREFS, type ClearAllDataCtx } from '../clearAllData';
 import { emptyLivingMemory } from '../livingMemory';
+import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '../storageSchema';
 import {
   buildExportPayload,
   readRawStorageData,
@@ -1712,5 +1713,192 @@ describe('exportData (buildExportPayload): serialised output reflects the cleare
     expect(
       await readRawStorageData(storage.getItem.bind(storage), STORAGE_KEY),
     ).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Schema-version contract across repeated clear-then-re-onboard cycles
+//
+// CaloraContext's autosave useEffect assembles a CaloraState object that
+// includes `schemaVersion: STORAGE_SCHEMA_VERSION` (currently 2) before
+// passing it to pm.current.enqueueWrite.  A repeated sequence of:
+//
+//   clear (no post-clear autosave — crash / force-quit)
+//   → re-onboard (enqueueWrite with schemaVersion: 2)
+//   → second clear
+//   → pm.read()
+//
+// must satisfy two invariants:
+//   1. The re-onboarded snapshot carries the correct schemaVersion so future
+//      launches can run schema migrations correctly.
+//   2. A bare clear (no autosave) always leaves storage empty, so the next
+//      cold launch reads { state: null, error: null } — not a versioned but
+//      stale object from the previous re-onboard.
+//
+// These tests lock in both invariants and prevent silent migration errors
+// caused by a missing or wrong schemaVersion after multiple cycles.
+// ---------------------------------------------------------------------------
+
+describe('Schema-version contract: repeated clear-then-re-onboard cycles', () => {
+  // enqueueAutosave and STORAGE_SCHEMA_VERSION are imported from
+  // lib/storageSchema.ts — the SAME module that CaloraContext's autosave
+  // useEffect imports and calls.  Tests here call enqueueAutosave directly
+  // so that any regression inside that function (e.g. removing the stamp)
+  // causes these assertions to fail, independent of whether the provider
+  // is mounted.
+
+  it('clear (no autosave) → re-onboard via enqueueAutosave → second clear → pm.read() returns { state: null, error: null }', async () => {
+    // ── Cycle 1: initial session ──────────────────────────────────────────
+    // Write rich session state via enqueueAutosave — the production function
+    // called by CaloraContext's autosave useEffect.  Then clear without a
+    // post-clear autosave (crash / force-quit scenario).
+    enqueueAutosave(pm, {
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'lose', weightKg: 76 },
+      logs: [{ id: 'first-session-log', name: 'Overnight oats', date: '2026-08-07', meal: 'Breakfast' }],
+    });
+    await pm.clear(); // no post-clear autosave — simulates hard restart / crash
+
+    // Storage is empty; cold launch reads null.
+    expect(await storage.getItem(STORAGE_KEY)).toBeNull();
+    const afterFirstClear = await pm.read();
+    expect(afterFirstClear.error).toBeNull();
+    expect(afterFirstClear.state).toBeNull();
+
+    // ── Re-onboarding ─────────────────────────────────────────────────────
+    // The user goes through onboarding again.  CaloraContext's autosave
+    // useEffect fires and calls enqueueAutosave(pm.current, state).  We call
+    // the same production function here — if enqueueAutosave stops stamping
+    // schemaVersion, the assertion below fails.
+    const reOnboardedBase = {
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'maintain', weightKg: 74 },
+      logs: [] as unknown[],
+      weights: [] as unknown[],
+      waterLogs: {} as Record<string, unknown>,
+      moodLogs:  {} as Record<string, unknown>,
+      activityLogs: {} as Record<string, unknown>,
+      activityMinutesLogs: {} as Record<string, unknown>,
+      savedMeals: [] as unknown[],
+      localRecipes: [] as unknown[],
+      savedRecipeIds: [] as string[],
+      consentAccepted: true,
+      outbox: [] as unknown[],
+      plannerWeekStart: '2026-08-03',
+      plannerMeals: [] as unknown[],
+      shoppingItems: [] as unknown[],
+      foodDrafts: [] as unknown[],
+      foodMemories: [] as unknown[],
+      repeatPatterns: [] as unknown[],
+      memoryCorrections: [] as unknown[],
+      coachConsentAccepted: false,
+      coachMessages: [] as unknown[],
+    };
+    enqueueAutosave(pm, reOnboardedBase); // production autosave boundary
+    await new Promise((r) => setTimeout(r, 0)); // drain write
+
+    // Re-onboarded snapshot is in storage with the correct schema version.
+    const afterReOnboard = JSON.parse(storage.store[STORAGE_KEY]) as Record<string, unknown>;
+    expect(afterReOnboard['schemaVersion']).toBe(STORAGE_SCHEMA_VERSION);
+    expect(afterReOnboard['onboardingComplete']).toBe(true);
+
+    // ── Cycle 2: second clear ─────────────────────────────────────────────
+    // User resets again after re-onboarding.  No post-clear autosave.
+    await pm.clear();
+
+    // pm.read() must return { state: null, error: null } — storage is empty.
+    // The second clear removed the re-onboarded key; nothing is left.
+    const { state, error } = await pm.read();
+    expect(error).toBeNull();
+    expect(state).toBeNull();
+  });
+
+  it('post-clear autosave from performClearAllData, routed through the production enqueueAutosave, includes the correct schemaVersion', async () => {
+    // Scenario: a user has a rich session, taps "Clear all data", and the
+    // React autosave effect fires with the cleared state.  CaloraContext's
+    // autosave useEffect calls exactly:
+    //   enqueueAutosave(pm.current, clearedCaloraState)
+    //
+    // This test simulates that call using the same imported production function.
+    // Removing the schema-version stamp from enqueueAutosave will immediately
+    // break the assertion on stored['schemaVersion'].
+
+    enqueueAutosave(pm, {
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'lose', weightKg: 76 },
+      logs: [{ id: 'session-log', name: 'Oatmeal', date: '2026-08-07', meal: 'Breakfast' }],
+    });
+    await new Promise((r) => setTimeout(r, 0)); // drain write
+
+    // Confirm schemaVersion is present in the pre-clear snapshot.
+    const beforeClear = JSON.parse(storage.store[STORAGE_KEY]) as Record<string, unknown>;
+    expect(beforeClear['schemaVersion']).toBe(STORAGE_SCHEMA_VERSION);
+
+    // performClearAllData: the real production function called by CaloraContext.clearAllData.
+    const { ctx, captured } = makeSpyCtx(pm);
+    await performClearAllData(ctx);
+
+    // Simulate the post-clear autosave useEffect using the production boundary:
+    //   enqueueAutosave(pm.current, clearedCaloraState)
+    // This is the exact call in CaloraContext's autosave effect after clearAllData.
+    // Using enqueueAutosave (not a manual stamp) means any regression that removes
+    // the stamp from enqueueAutosave breaks this test.
+    enqueueAutosave(pm, captured); // production autosave boundary
+    await new Promise((r) => setTimeout(r, 0)); // drain write
+
+    // The final snapshot in storage must carry the correct schema version.
+    const stored = JSON.parse(storage.store[STORAGE_KEY]) as Record<string, unknown>;
+    expect(stored['schemaVersion']).toBe(STORAGE_SCHEMA_VERSION);
+
+    // All data fields must reflect the cleared defaults — the version is present
+    // alongside cleared state, NOT alongside stale pre-clear session data.
+    expect(stored['onboardingComplete']).toBe(false);
+    expect(stored['profile']).toBeNull();
+    expect(stored['logs']).toEqual([]);
+
+    // schemaVersion must survive a pm.read() round-trip — exactly as
+    // CaloraContext's hydration guard would see it on the next cold launch.
+    const { state, error } = await pm.read<Record<string, unknown>>();
+    expect(error).toBeNull();
+    expect(state).not.toBeNull();
+    if (state) {
+      expect(state['schemaVersion']).toBe(STORAGE_SCHEMA_VERSION);
+      // Cleared fields co-exist with the correct version — no migration ambiguity.
+      expect(state['onboardingComplete']).toBe(false);
+      expect(state['profile']).toBeNull();
+      expect(state['logs']).toEqual([]);
+    }
+  });
+
+  it('three-cycle invariant: each re-onboarded snapshot carries STORAGE_SCHEMA_VERSION and a final bare clear leaves read() returning null', async () => {
+    // Extended regression guard: STORAGE_SCHEMA_VERSION must appear in every
+    // re-onboarded snapshot across arbitrarily many clear-re-onboard cycles.
+    // A final bare clear (no autosave) always leaves storage empty.
+    // All writes go through enqueueAutosave — the production autosave boundary.
+
+    // ── Cycle 1: populate → clear (no autosave) ───────────────────────────
+    enqueueAutosave(pm, { onboardingComplete: true });
+    await pm.clear();
+    expect(await storage.getItem(STORAGE_KEY)).toBeNull();
+
+    // ── Cycle 2: re-onboard → verify version → clear (no autosave) ───────
+    enqueueAutosave(pm, { onboardingComplete: true, profile: { name: 'Cycle2' } });
+    await new Promise((r) => setTimeout(r, 0));
+    const cycle2Stored = JSON.parse(storage.store[STORAGE_KEY]) as Record<string, unknown>;
+    expect(cycle2Stored['schemaVersion']).toBe(STORAGE_SCHEMA_VERSION);
+    await pm.clear();
+    expect(await storage.getItem(STORAGE_KEY)).toBeNull();
+
+    // ── Cycle 3: re-onboard → verify version → clear (no autosave) ───────
+    enqueueAutosave(pm, { onboardingComplete: true, profile: { name: 'Cycle3' } });
+    await new Promise((r) => setTimeout(r, 0));
+    const cycle3Stored = JSON.parse(storage.store[STORAGE_KEY]) as Record<string, unknown>;
+    expect(cycle3Stored['schemaVersion']).toBe(STORAGE_SCHEMA_VERSION);
+    await pm.clear();
+
+    // Final pm.read(): storage is empty — null state, no error, no stale version.
+    const { state, error } = await pm.read();
+    expect(error).toBeNull();
+    expect(state).toBeNull();
   });
 });

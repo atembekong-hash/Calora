@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { shouldAutosave, type HydrationErrorKind } from '@/lib/hydrationGuard';
+import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '@/lib/storageSchema';
 import { useHydrationEffect } from '@/lib/useHydrationEffect';
 import { PersistenceManager } from '@/lib/persistenceManager';
 import { performClearAllData, DEFAULT_HYDRATION_PREFS } from '@/lib/clearAllData';
@@ -261,7 +262,6 @@ type CaloraContextValue = {
 };
 
 const STORAGE_KEY = '@calora/local-state-v2';
-const STORAGE_SCHEMA_VERSION = 2;
 const today = dateKey();
 
 // foodSourceForMemory moved to lib/captureReviewTransitions.ts
@@ -460,7 +460,6 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       plannerWeekStart,
       plannerMeals,
       shoppingItems,
-      schemaVersion: STORAGE_SCHEMA_VERSION,
       foodDrafts,
       foodMemories,
       repeatPatterns,
@@ -471,7 +470,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       livingMemory,
       goalCelebrationSeenTargetKg: goalCelebrationSeenTargetKg ?? undefined,
     };
-     pm.current.enqueueWrite(state);
+     enqueueAutosave(pm.current, state);
   }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
