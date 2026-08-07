@@ -110,11 +110,13 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, profile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals } = useCalora();
+  const { colors, logs, weights, addWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals } = useCalora();
   const insets = useSafeAreaInsets();
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [minutesInput, setMinutesInput] = useState('');
+  const [showGoalEdit, setShowGoalEdit] = useState(false);
+  const [goalInput, setGoalInput] = useState('');
   const isEditingMinutes = useRef(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const remembered = useMemo(
@@ -449,7 +451,17 @@ export default function InsightsScreen() {
 
         <View style={styles.weightHeader}>
           <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your trend matters more than a single day</Text></View>
-          <Pressable accessibilityLabel="Log weight" onPress={() => setShowWeight(true)} style={[styles.weightButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.weightButtonText, { color: colors.primaryForeground }]}>Log</Text></Pressable>
+          <View style={styles.weightHeaderButtons}>
+            <Pressable
+              accessibilityLabel="Edit weight goal"
+              onPress={() => { setGoalInput(targetWeight > 0 ? String(targetWeight) : ''); setShowGoalEdit(true); }}
+              style={[styles.goalHeaderBtn, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="target" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.goalHeaderBtnText, { color: colors.mutedForeground }]}>{targetWeight > 0 ? `Goal: ${targetWeight.toFixed(0)} kg` : 'Set goal'}</Text>
+            </Pressable>
+            <Pressable accessibilityLabel="Log weight" onPress={() => setShowWeight(true)} style={[styles.weightButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.weightButtonText, { color: colors.primaryForeground }]}>Log</Text></Pressable>
+          </View>
         </View>
         <AnimatedReveal delay={540}>
         <View style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -487,7 +499,7 @@ export default function InsightsScreen() {
           ) : (
             <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '50%' : '0%' }]} /></View>
           )}
-          {showGoalProgress && (
+          {showGoalProgress ? (
             <View style={styles.goalProgressSection}>
               <View style={styles.goalProgressHeaderRow}>
                 <Text style={[styles.goalProgressText, { color: colors.mutedForeground }]}>
@@ -495,11 +507,18 @@ export default function InsightsScreen() {
                     ? `${goalProgressKg.toFixed(1)} kg toward your ${targetWeight.toFixed(0)} kg goal`
                     : `Target ${targetWeight.toFixed(0)} kg · start logging progress`}
                 </Text>
+                <Pressable
+                  accessibilityLabel="Edit weight goal"
+                  onPress={() => { setGoalInput(targetWeight > 0 ? String(targetWeight) : ''); setShowGoalEdit(true); }}
+                  style={styles.goalEditBtn}
+                >
+                  <Feather name="edit-2" size={12} color={colors.primary} />
+                </Pressable>
                 <Text style={[styles.goalProgressPct, { color: colors.primary }]}>{Math.round(goalProgressPct)}%</Text>
               </View>
               <AnimatedTrackFill percentage={goalProgressPct} color={colors.primary} trackColor={colors.muted} />
             </View>
-          )}
+          ) : null}
           <View style={[styles.healthSyncNote, { backgroundColor: colors.muted, marginTop: 12 }]}>
             <Feather name="link-2" size={11} color={colors.mutedForeground} />
             <Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>Health sync unavailable · connect a health integration for automatic weigh-in import.</Text>
@@ -528,11 +547,46 @@ export default function InsightsScreen() {
       <Modal visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)}>
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
           <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today’s weight</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>A single weigh-in is just a data point. Calora looks for a trend.</Text>
             <TextInput value={weightInput} onChangeText={setWeightInput} keyboardType="decimal-pad" placeholder={`${latestWeight.toFixed(1)} kg`} placeholderTextColor={colors.mutedForeground} style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
             <Pressable accessibilityLabel="Save weight" onPress={() => { const value = Number(weightInput); if (value > 0) { addWeight(value); setWeightInput(''); setShowWeight(false); setSaveNotice('Weight check-in saved locally.'); } }} style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></Pressable>
             <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={showGoalEdit} transparent animationType="slide" onRequestClose={() => setShowGoalEdit(false)}>
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
+          <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Weight goal</Text>
+            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>Enter your target weight. This updates your goal progress without changing any logged data.</Text>
+            <TextInput
+              value={goalInput}
+              onChangeText={setGoalInput}
+              keyboardType="decimal-pad"
+              placeholder="e.g. 70 kg"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]}
+              autoFocus
+            />
+            <Pressable
+              accessibilityLabel="Save weight goal"
+              onPress={() => {
+                const value = Number(goalInput);
+                if (value > 0) {
+                  updateProfile({ targetWeightKg: value });
+                  setGoalInput('');
+                  setShowGoalEdit(false);
+                  setSaveNotice('Weight goal updated.');
+                }
+              }}
+              style={[styles.saveWeight, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save goal</Text>
+            </Pressable>
+            <Pressable accessibilityLabel="Cancel goal edit" onPress={() => setShowGoalEdit(false)} style={styles.cancelWeight}>
+              <Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Cancel</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -638,6 +692,9 @@ const styles = StyleSheet.create({
   trustTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   trustBody: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, marginTop: 4 },
   weightHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 25, marginBottom: 11 },
+  weightHeaderButtons: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  goalHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8 },
+  goalHeaderBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   weightButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8 },
   weightButtonText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
   weightCard: { borderWidth: 1, borderRadius: 20, padding: 16 },
@@ -679,4 +736,5 @@ const styles = StyleSheet.create({
   goalProgressHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
   goalProgressText: { fontFamily: 'Inter_400Regular', fontSize: 11, flex: 1 },
   goalProgressPct: { fontFamily: 'Inter_700Bold', fontSize: 11, marginLeft: 8 },
+  goalEditBtn: { padding: 4, marginLeft: 6 },
 });
