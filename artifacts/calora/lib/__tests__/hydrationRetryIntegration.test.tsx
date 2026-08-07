@@ -540,3 +540,134 @@ describe('useHydrationEffect — duplicate-retry guard blocks a second tap while
     expect(handle.result.current.hydrationError).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// hydrationErrorKind='io' for throwing adapters — UI copy distinction
+// ---------------------------------------------------------------------------
+
+describe('useHydrationEffect sets hydrationErrorKind="io" when the storage adapter throws', () => {
+  it('a throwing storage adapter results in hydrationErrorKind="io", not "parse"', async () => {
+    // Simulates a first-launch read where AsyncStorage itself rejects (device
+    // locked, storage quota exhausted, OS I/O failure, etc.).  The hydration
+    // effect must distinguish this from a JSON parse failure and set kind='io'.
+    //
+    // This is the critical path: app/index.tsx uses hydrationErrorKind to
+    // decide which title and guidance copy to display.  An I/O error must
+    // never show the "data corrupt" message.
+    const pm = new PersistenceManager(
+      {
+        getItem: async (_key): Promise<string | null> => {
+          throw new Error('AsyncStorage: device is locked');
+        },
+        setItem: async () => {},
+        removeItem: async () => {},
+      },
+      STORAGE_KEY,
+    );
+
+    let successCalled = false;
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, () => {
+        successCalled = true;
+      });
+    });
+
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // The hydration effect must have set kind='io', not 'parse'.
+    expect(handle.result.current.hydrationErrorKind).toBe('io');
+    // hydrationError must be non-null so the error screen is shown.
+    expect(handle.result.current.hydrationError).not.toBeNull();
+    // onSuccess was never called — the error branch was taken.
+    expect(successCalled).toBe(false);
+  });
+
+  it('the io hydration error message does not mention data corruption', async () => {
+    // When the storage adapter throws, the failure is transient (device locked,
+    // quota exceeded, OS error) — no data was read, parsed, changed, or lost.
+    // The error message shown to the user must communicate that storage is
+    // temporarily unavailable rather than suggesting their data is corrupt.
+    const pm = new PersistenceManager(
+      {
+        getItem: async (_key): Promise<string | null> => {
+          throw new Error('AsyncStorage: quota exceeded');
+        },
+        setItem: async () => {},
+        removeItem: async () => {},
+      },
+      STORAGE_KEY,
+    );
+
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, () => {});
+    });
+
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    expect(handle.result.current.hydrationErrorKind).toBe('io');
+    // The I/O error copy must never suggest data is corrupt.
+    expect(handle.result.current.hydrationError).not.toMatch(/corrupt/i);
+    // It should communicate that storage is temporarily unavailable.
+    expect(handle.result.current.hydrationError).toMatch(/unavailable|temporarily/i);
+  });
+
+  it('io error copy differs from parse error copy — the two failure modes render distinct guidance', async () => {
+    // Confirms that app/index.tsx would show meaningfully different text for
+    // each kind.  The parse path suggests potential data corruption and
+    // exportability; the io path signals a transient, recoverable failure.
+    const parsePm = new PersistenceManager(
+      {
+        getItem: async (_key) => '{not-valid-json}',
+        setItem: async () => {},
+        removeItem: async () => {},
+      },
+      STORAGE_KEY,
+    );
+
+    const parseHandle = renderHook(() => {
+      const pmRef = useRef(parsePm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, () => {});
+    });
+
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    expect(parseHandle.result.current.hydrationErrorKind).toBe('parse');
+    const parseMsg = parseHandle.result.current.hydrationError;
+    expect(parseMsg).toMatch(/corrupt/i);
+
+    const ioPm = new PersistenceManager(
+      {
+        getItem: async (_key): Promise<string | null> => {
+          throw new Error('AsyncStorage: device locked');
+        },
+        setItem: async () => {},
+        removeItem: async () => {},
+      },
+      STORAGE_KEY,
+    );
+
+    const ioHandle = renderHook(() => {
+      const pmRef = useRef(ioPm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, () => {});
+    });
+
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    expect(ioHandle.result.current.hydrationErrorKind).toBe('io');
+    const ioMsg = ioHandle.result.current.hydrationError;
+    expect(ioMsg).not.toMatch(/corrupt/i);
+
+    // The two messages must be distinct.
+    expect(ioMsg).not.toBe(parseMsg);
+  });
+});

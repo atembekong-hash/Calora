@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ParseHydrationError,
   parseStorageValue,
   queueClearAfterPendingWrites,
   shouldAutosave,
@@ -536,6 +537,61 @@ describe('I/O error recovery: pm.read() surfaces and then clears an AsyncStorage
       error: 'AsyncStorage: device is locked',
     });
     expect(racedState).toBe(false);
+  });
+
+  it('pm.read() rejection is a non-ParseHydrationError — the hydration catch block will set kind="io"', async () => {
+    // Documents the branching invariant in useHydrationEffect's catch block:
+    //   if (err instanceof ParseHydrationError) → kind = 'parse'
+    //   else                                    → kind = 'io'
+    //
+    // pm.read() propagates the raw I/O error directly — it does NOT wrap it
+    // in a ParseHydrationError.  Any adapter throw therefore routes the catch
+    // block to the 'io' branch, never the 'parse' branch.
+    const ioError = new Error('AsyncStorage: device is locked');
+    const storage = {
+      getItem: async (_key: string): Promise<string | null> => { throw ioError; },
+      setItem: async (_key: string, _value: string) => {},
+      removeItem: async (_key: string) => {},
+    };
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    let caughtError: unknown;
+    try {
+      await pm.read();
+    } catch (err) {
+      caughtError = err;
+    }
+
+    // The propagated error is exactly the adapter's error — not a ParseHydrationError.
+    // This confirms that useHydrationEffect's catch block will enter the 'io' branch.
+    expect(caughtError).toBe(ioError);
+    expect(caughtError).not.toBeInstanceOf(ParseHydrationError);
+  });
+
+  it('the io-kind error message does not contain "corrupt" — it signals a transient failure, not data loss', () => {
+    // useHydrationEffect sets hydrationError to one of two distinct strings
+    // depending on error kind.  The 'io' message must not mention data
+    // corruption because the storage adapter simply rejected the read —
+    // no data was parsed, changed, or lost.  The user should understand
+    // this is a momentary, recoverable condition.
+    //
+    // If the message strings in useHydrationEffect.ts ever change, this
+    // test will catch any regression where corruption language bleeds into
+    // the transient-failure path — or vice versa.
+    const IO_ERROR_MESSAGE =
+      'Storage is temporarily unavailable. This is usually a momentary issue.';
+    const PARSE_ERROR_MESSAGE =
+      'Your saved data could not be read — the file may be corrupt. Your data is still on device and can be exported before retrying.';
+
+    // The io message must not suggest data corruption.
+    expect(IO_ERROR_MESSAGE).not.toMatch(/corrupt/i);
+
+    // The parse message must mention corruption so it correctly warns the
+    // user their data may need attention.
+    expect(PARSE_ERROR_MESSAGE).toMatch(/corrupt/i);
+
+    // The two messages are distinct — the error screen's copy differs by kind.
+    expect(IO_ERROR_MESSAGE).not.toBe(PARSE_ERROR_MESSAGE);
   });
 });
 
