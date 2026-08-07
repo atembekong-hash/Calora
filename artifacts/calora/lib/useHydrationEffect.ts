@@ -16,7 +16,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ParseHydrationError, type HydrationErrorKind } from './hydrationGuard';
+import { applyStorageMigration, ParseHydrationError, type HydrationErrorKind } from './hydrationGuard';
+import { STORAGE_SCHEMA_VERSION } from './storageSchema';
 import type { PersistenceManager } from './persistenceManager';
 
 export type HydrationEffectResult = {
@@ -65,13 +66,22 @@ export function useHydrationEffect<T>(
 
     readInFlight.current = true;
 
-    pmRef.current.read<T>()
+    pmRef.current.read<T & { schemaVersion?: number }>()
       .then(({ state: saved, error: parseError }) => {
         if (parseError) throw new ParseHydrationError(parseError);
+        // Apply schema migrations before handing state to the app.
+        // applyStorageMigration throws ParseHydrationError if the stored
+        // version is newer than the app (downgrade) or if a migration step
+        // is missing from the MIGRATIONS registry — both conditions surface
+        // the existing "corrupt data" error UI via the .catch() branch below.
+        // Null (empty storage / post-clear) bypasses migration entirely.
+        const migrated = saved !== null
+          ? applyStorageMigration(saved, STORAGE_SCHEMA_VERSION) as T
+          : null;
         // SUCCESS BRANCH: never calls setHydrationError or setHydrationErrorKind.
         // hydrationError stays null throughout, so app/index.tsx's `if (hydrationError)`
         // guard remains false — the parse-error screen cannot reappear.
-        onSuccessRef.current(saved);
+        onSuccessRef.current(migrated);
       })
       .catch((err: unknown) => {
         if (err instanceof ParseHydrationError) {

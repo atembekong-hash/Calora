@@ -15,6 +15,11 @@ import { performClearAllData, DEFAULT_HYDRATION_PREFS, type ClearAllDataCtx } fr
 import { emptyLivingMemory } from '../livingMemory';
 import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '../storageSchema';
 import {
+  applyStorageMigration,
+  MIGRATIONS,
+  ParseHydrationError,
+} from '../hydrationGuard';
+import {
   buildExportPayload,
   readRawStorageData,
   type CaloraExportState,
@@ -2223,5 +2228,178 @@ describe('Pre-versioning snapshot safety: snapshots with no schemaVersion or sch
     expect(afterRead).toBe(v1Raw);
     const parsed = JSON.parse(afterRead!) as Record<string, unknown>;
     expect(parsed['schemaVersion']).toBe(1); // still 1, not bumped to 2
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Schema version migration gate
+//
+// These tests act as a release gate: bumping STORAGE_SCHEMA_VERSION without
+// adding the corresponding MIGRATIONS entry causes the gate test to fail.
+//
+// How the gate works
+// ──────────────────
+// The gate test calls `applyStorageMigration(v2Snapshot, STORAGE_SCHEMA_VERSION)`.
+// While STORAGE_SCHEMA_VERSION === 2, versions match and the call is a no-op.
+// When a developer bumps STORAGE_SCHEMA_VERSION to 3:
+//   • Without MIGRATIONS[2]: applyStorageMigration throws ParseHydrationError
+//     → the gate test fails at `expect(...).not.toThrow()` → release is blocked.
+//   • With MIGRATIONS[2] added: migration runs, result carries schemaVersion: 3
+//     → gate test passes and the shape-assertion test verifies field correctness.
+//
+// The "next-version simulation" test covers the converse: it writes a v2
+// snapshot and targets STORAGE_SCHEMA_VERSION + 1, asserting that the missing
+// migration produces an explicit ParseHydrationError rather than a silent
+// passthrough of stale v2 field shapes.
+// ---------------------------------------------------------------------------
+
+describe('schema version migration gate — bumping STORAGE_SCHEMA_VERSION requires a migration entry', () => {
+  /**
+   * A realistic v2 snapshot representing data written by the current app build.
+   * All fields that CaloraContext persists via enqueueAutosave are present so
+   * that a migration function can assert it handles every known field correctly.
+   */
+  const v2Snapshot = {
+    schemaVersion: 2,
+    onboardingComplete: true,
+    profile: { name: 'Alex', goal: 'lose', activity: 'moderate', diet: 'Everything',
+               heightCm: 172, weightKg: 76, targetWeightKg: 68, age: 31, calorieTarget: 2000 },
+    logs: [
+      { id: 'gate-log-1', name: 'Overnight oats', date: '2026-08-07', meal: 'Breakfast',
+        calories: 420, protein: 18, carbs: 58, fat: 14, source: 'USDA verified',
+        confidence: 98, time: '8:10 AM', serving: '1 bowl' },
+    ],
+    weights: [{ id: 'weight-1', date: '2026-08-07', kg: 76, source: 'manual' }],
+    waterLogs: { '2026-08-07': 48 },
+    moodLogs: { '2026-08-07': 'good' },
+    activityLogs: { '2026-08-07': 'moderate' },
+    activityMinutesLogs: { '2026-08-07': 30 },
+    savedMeals: [],
+    localRecipes: [],
+    savedRecipeIds: [],
+    themePreference: 'system',
+    healthConnected: false,
+    consentAccepted: true,
+    outbox: [],
+    plannerWeekStart: '2026-08-03',
+    plannerMeals: [],
+    shoppingItems: [],
+    foodDrafts: [],
+    foodMemories: [],
+    repeatPatterns: [],
+    memoryCorrections: [],
+    hydrationReminders: {},
+    coachConsentAccepted: false,
+    coachMessages: [],
+    goalCelebrationSeenTargetKg: null,
+  } as const;
+
+  it('MIGRATIONS contains a handler for every schema version below STORAGE_SCHEMA_VERSION', () => {
+    // This is the primary release gate.  For each version N where
+    // 1 ≤ N < STORAGE_SCHEMA_VERSION a MIGRATIONS[N] entry must exist so that
+    // on-device snapshots from build N can be carried forward to the current
+    // schema without data loss or silent field-shape mismatches.
+    //
+    // Failure message: add MIGRATIONS[N] in hydrationGuard.ts to fix this.
+    for (let v = 1; v < STORAGE_SCHEMA_VERSION; v++) {
+      expect(
+        MIGRATIONS,
+        `MIGRATIONS[${v}] is missing. ` +
+        `Add a v${v} → v${v + 1} migration in hydrationGuard.ts before ` +
+        `bumping STORAGE_SCHEMA_VERSION to ${v + 1}.`,
+      ).toHaveProperty(String(v));
+    }
+  });
+
+  it('v2 snapshot processed with the current STORAGE_SCHEMA_VERSION does not throw — migration runs or versions already match', async () => {
+    // This is the end-to-end gate:
+    //   • Today (STORAGE_SCHEMA_VERSION === 2): versions match → applyStorageMigration
+    //     is a no-op; the snapshot is returned as-is.  Test passes.
+    //   • After bumping to 3 WITHOUT MIGRATIONS[2]: applyStorageMigration throws
+    //     ParseHydrationError → `expect(...).not.toThrow()` FAILS → gate blocks release.
+    //   • After bumping to 3 WITH MIGRATIONS[2]: migration runs and the test passes.
+    //
+    // The full round-trip through storage is exercised: write the raw v2 JSON,
+    // read it back via pm.read(), then apply the migration.
+    await storage.setItem(STORAGE_KEY, JSON.stringify(v2Snapshot));
+    const { state, error } = await pm.read<typeof v2Snapshot>();
+
+    expect(error).toBeNull();
+    expect(state).not.toBeNull();
+
+    // Must not throw — either the versions match (no-op) or the migration ran.
+    const migrated = applyStorageMigration(state!, STORAGE_SCHEMA_VERSION);
+
+    // The output must carry the current schema version — never a stale older one.
+    expect(migrated.schemaVersion).toBe(STORAGE_SCHEMA_VERSION);
+  });
+
+  it('v2 snapshot carries the correct field shapes after applyStorageMigration — no silent undefined fields', async () => {
+    // Verifies that core field shapes survive the migration chain intact.
+    // When STORAGE_SCHEMA_VERSION is still 2 this is a no-op round-trip;
+    // when it is ≥ 3 the migration function must preserve or transform each
+    // field correctly — undefined values here indicate a broken migration.
+    await storage.setItem(STORAGE_KEY, JSON.stringify(v2Snapshot));
+    const { state } = await pm.read<typeof v2Snapshot>();
+    const migrated = applyStorageMigration(state!, STORAGE_SCHEMA_VERSION) as Record<string, unknown>;
+
+    // These fields are load-bearing: a migration that renames or drops any of
+    // them without updating the hydration callback in CaloraContext would
+    // silently produce undefined in the UI.
+    expect(migrated['onboardingComplete']).toBe(true);
+    expect(migrated['profile']).not.toBeNull();
+    expect((migrated['profile'] as Record<string, unknown>)['name']).toBe('Alex');
+    expect(Array.isArray(migrated['logs'])).toBe(true);
+    expect((migrated['logs'] as unknown[]).length).toBe(1);
+    expect(Array.isArray(migrated['weights'])).toBe(true);
+    expect(migrated['consentAccepted']).toBe(true);
+    expect(migrated['themePreference']).toBe('system');
+  });
+
+  it('simulated next-version bump: v2 snapshot targeted at STORAGE_SCHEMA_VERSION + 1 surfaces ParseHydrationError — never silent passthrough', () => {
+    // Simulates what would happen right now if STORAGE_SCHEMA_VERSION were
+    // bumped by 1 without adding a migration.  The function must throw an
+    // explicit ParseHydrationError rather than returning the stale v2 snapshot
+    // as if it were the new version.
+    //
+    // This test is intentionally written against STORAGE_SCHEMA_VERSION + 1
+    // (not a hardcoded "3") so it continues to exercise the "missing migration"
+    // path regardless of what the current version is.
+    const hypotheticalNextVersion = STORAGE_SCHEMA_VERSION + 1;
+
+    expect(
+      () => applyStorageMigration(v2Snapshot, hypotheticalNextVersion),
+    ).toThrow(ParseHydrationError);
+  });
+
+  it('applyStorageMigration: snapshot already at targetVersion is returned unchanged (no mutation)', () => {
+    // Guard against a migration accidentally running when versions already match.
+    const snapshot = { schemaVersion: STORAGE_SCHEMA_VERSION, onboardingComplete: true, logs: [] };
+    const result = applyStorageMigration(snapshot, STORAGE_SCHEMA_VERSION);
+    // Strict reference equality — the same object is returned, not a copy.
+    expect(result).toBe(snapshot);
+  });
+
+  it('applyStorageMigration: snapshot with no schemaVersion is treated as v1 and migrated forward', () => {
+    // Legacy snapshots that predate the versioning system have no schemaVersion.
+    // The `?? 1` fallback in applyStorageMigration must treat them as v1 and
+    // apply the v1 → ... → STORAGE_SCHEMA_VERSION chain rather than throwing.
+    const legacySnapshot = { onboardingComplete: true, logs: [], profile: null };
+
+    // Must not throw — the v1 migration chain must handle the legacy shape.
+    expect(() => applyStorageMigration(legacySnapshot, STORAGE_SCHEMA_VERSION)).not.toThrow();
+
+    const migrated = applyStorageMigration(legacySnapshot, STORAGE_SCHEMA_VERSION);
+    // The output must be stamped with the current schema version.
+    expect(migrated.schemaVersion).toBe(STORAGE_SCHEMA_VERSION);
+  });
+
+  it('applyStorageMigration: snapshot with schemaVersion newer than target throws ParseHydrationError (downgrade rejected)', () => {
+    // A snapshot saved by a newer build of the app must never silently load
+    // into an older build — doing so risks silent data loss (new fields ignored).
+    const futureSnapshot = { schemaVersion: STORAGE_SCHEMA_VERSION + 5, onboardingComplete: true };
+    expect(
+      () => applyStorageMigration(futureSnapshot, STORAGE_SCHEMA_VERSION),
+    ).toThrow(ParseHydrationError);
   });
 });

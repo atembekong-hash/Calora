@@ -18,9 +18,10 @@
 import { renderHook, act } from '@testing-library/react';
 import { useRef } from 'react';
 import { describe, expect, it } from 'vitest';
-import { shouldAutosave } from '../hydrationGuard';
+import { shouldAutosave, ParseHydrationError } from '../hydrationGuard';
 import { useHydrationEffect } from '../useHydrationEffect';
 import { PersistenceManager, type StorageAdapter } from '../persistenceManager';
+import { STORAGE_SCHEMA_VERSION } from '../storageSchema';
 
 // ---------------------------------------------------------------------------
 // Controllable storage adapter
@@ -184,7 +185,9 @@ describe('useHydrationEffect (production hook) — parse-error screen stays hidd
     expect(handle.result.current.hydrated).toBe(true);
 
     // The onSuccess callback received the recovered data.
-    expect(getSuccessPayload()).toEqual(validState);
+    // Migration stamps schemaVersion onto every non-null payload, so use
+    // objectContaining rather than exact equality.
+    expect(getSuccessPayload()).toEqual(expect.objectContaining(validState));
 
     // Autosave re-enables.
     expect(shouldAutosave({
@@ -780,7 +783,9 @@ describe('useHydrationEffect (production hook) — I/O error retry re-runs the s
 
     // The onSuccess callback received the recovered data — the adapter was
     // re-read, not a cached result from the failed first attempt.
-    expect(successPayload).toEqual(validState);
+    // Migration stamps schemaVersion onto every non-null payload, so use
+    // objectContaining rather than exact equality.
+    expect(successPayload).toEqual(expect.objectContaining(validState));
   });
 
   it('hydrationError is null at every render after retryHydration — error screen never re-appears during the I/O retry window', async () => {
@@ -936,5 +941,258 @@ describe('useHydrationEffect (production hook) — I/O error retry re-runs the s
       hydrated: handle.result.current.hydrated,
       error: handle.result.current.hydrationError,
     })).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Schema migration wired into the hydration path
+//
+// These tests exercise the full startup path — storage → pm.read() →
+// applyStorageMigration → onSuccess callback — exactly as it runs in
+// production during CaloraProvider mount.
+//
+// They verify three invariants:
+//   1. A snapshot at the current schema version passes through unchanged and
+//      the onSuccess callback receives the full state with no error.
+//   2. A legacy snapshot (schemaVersion < STORAGE_SCHEMA_VERSION) is migrated
+//      forward before onSuccess is called — the callback never receives stale
+//      field shapes.
+//   3. A snapshot with a schema version newer than STORAGE_SCHEMA_VERSION
+//      (or whose migration step is missing) surfaces as a 'parse' error,
+//      leaving the user on the error screen rather than receiving corrupt state.
+// ---------------------------------------------------------------------------
+
+describe('useHydrationEffect — schema migration wired into the hydration path', () => {
+  it('current-version snapshot hydrates cleanly — onSuccess receives the full state with schemaVersion intact', async () => {
+    // The happy path: the stored snapshot was written by the current build and
+    // carries schemaVersion === STORAGE_SCHEMA_VERSION.  Migration is a no-op
+    // (versions already match) and the onSuccess callback must receive the
+    // unmodified state object.
+    const currentSnapshot = {
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'lose', weightKg: 76 },
+      logs: [{ id: 'gate-log-1', name: 'Oats', date: '2026-08-07', meal: 'Breakfast' }],
+      weights: [{ id: 'w1', kg: 76, source: 'manual' }],
+    };
+
+    const storage = makeControllableStorage({
+      [STORAGE_KEY]: JSON.stringify(currentSnapshot),
+    });
+    const pm = new PersistenceManager(storage, STORAGE_KEY);
+    let successPayload: unknown = undefined;
+
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      return useHydrationEffect<typeof currentSnapshot>(pmRef, (saved) => {
+        successPayload = saved;
+      });
+    });
+
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Hydration must succeed with no error.
+    expect(handle.result.current.hydrated).toBe(true);
+    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
+
+    // onSuccess must have received the migrated (here: unchanged) state.
+    expect(successPayload).not.toBeNull();
+    const payload = successPayload as typeof currentSnapshot;
+    expect(payload.schemaVersion).toBe(STORAGE_SCHEMA_VERSION);
+    expect(payload.onboardingComplete).toBe(true);
+    expect(payload.profile?.name).toBe('Alex');
+    expect(payload.logs).toHaveLength(1);
+  });
+
+  it('legacy snapshot (no schemaVersion) is migrated to STORAGE_SCHEMA_VERSION before onSuccess fires', async () => {
+    // Snapshots written before the versioning system was introduced have no
+    // schemaVersion field.  applyStorageMigration treats them as v1 and walks
+    // the migration chain to STORAGE_SCHEMA_VERSION.  The onSuccess callback
+    // must receive the migrated object — never the raw legacy shape.
+    const legacySnapshot = {
+      // No schemaVersion field — treated as v1 by applyStorageMigration's `?? 1` fallback
+      onboardingComplete: true,
+      profile: { name: 'Legacy', goal: 'maintain', weightKg: 65 },
+      logs: [] as unknown[],
+      weights: [] as unknown[],
+    };
+
+    const storage = makeControllableStorage({
+      [STORAGE_KEY]: JSON.stringify(legacySnapshot),
+    });
+    const pm = new PersistenceManager(storage, STORAGE_KEY);
+    let successPayload: Record<string, unknown> | null = null;
+
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, (saved) => {
+        successPayload = saved as Record<string, unknown> | null;
+      });
+    });
+
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Migration must succeed — no parse or I/O error.
+    expect(handle.result.current.hydrated).toBe(true);
+    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
+
+    // onSuccess must have received the migrated payload — schemaVersion is now current.
+    expect(successPayload).not.toBeNull();
+    expect(successPayload!['schemaVersion']).toBe(STORAGE_SCHEMA_VERSION);
+
+    // Core data fields must survive the migration intact.
+    expect(successPayload!['onboardingComplete']).toBe(true);
+    expect((successPayload!['profile'] as Record<string, unknown>)['name']).toBe('Legacy');
+  });
+
+  it('snapshot with schemaVersion: 1 is migrated to STORAGE_SCHEMA_VERSION — onSuccess receives well-formed state', async () => {
+    // Mirrors the legacy test above but for an explicit v1 stamp.
+    // Snapshots saved when the app first introduced schemaVersion carry the
+    // value 1; they must be migrated forward rather than passed through raw.
+    const v1Snapshot = {
+      schemaVersion: 1,
+      onboardingComplete: false,
+      profile: null,
+      logs: [{ id: 'v1-log', name: 'Apple', date: '2026-08-07', meal: 'Snack' }],
+      weights: [] as unknown[],
+    };
+
+    const storage = makeControllableStorage({
+      [STORAGE_KEY]: JSON.stringify(v1Snapshot),
+    });
+    const pm = new PersistenceManager(storage, STORAGE_KEY);
+    let successPayload: Record<string, unknown> | null = null;
+
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, (saved) => {
+        successPayload = saved as Record<string, unknown> | null;
+      });
+    });
+
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    expect(handle.result.current.hydrated).toBe(true);
+    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
+
+    // The migrated payload must carry the current schema version, not 1.
+    expect(successPayload).not.toBeNull();
+    expect(successPayload!['schemaVersion']).toBe(STORAGE_SCHEMA_VERSION);
+
+    // Data fields survive migration: log entry is still present and intact.
+    const logs = successPayload!['logs'] as Array<{ id: string }>;
+    expect(logs).toHaveLength(1);
+    expect(logs[0].id).toBe('v1-log');
+  });
+
+  it('snapshot from a future build (schemaVersion > STORAGE_SCHEMA_VERSION) surfaces as a parse error — onSuccess is never called', async () => {
+    // A snapshot saved by a newer build of the app cannot be safely loaded by
+    // an older build — new fields would be silently dropped and the user's
+    // data could be corrupted.  applyStorageMigration throws ParseHydrationError
+    // for this case; useHydrationEffect must route it to the 'parse' error UI,
+    // not call onSuccess and not swallow the error silently.
+    const futureSnapshot = {
+      schemaVersion: STORAGE_SCHEMA_VERSION + 5, // far ahead of current build
+      onboardingComplete: true,
+      profile: { name: 'Future User' },
+      logs: [] as unknown[],
+    };
+
+    const storage = makeControllableStorage({
+      [STORAGE_KEY]: JSON.stringify(futureSnapshot),
+    });
+    const pm = new PersistenceManager(storage, STORAGE_KEY);
+    let onSuccessCalled = false;
+
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, () => {
+        onSuccessCalled = true;
+      });
+    });
+
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Hydration must surface as a parse error — not succeed.
+    expect(handle.result.current.hydrated).toBe(true);
+    expect(handle.result.current.hydrationError).not.toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBe('parse');
+
+    // The onSuccess callback must NEVER be called with an incompatible snapshot.
+    expect(onSuccessCalled).toBe(false);
+  });
+
+  it('empty storage (post-clear) bypasses migration entirely — onSuccess receives null, no error', async () => {
+    // After clearAllData removes the storage key, the next hydration reads null.
+    // applyStorageMigration must not be called for null (no state to migrate),
+    // and onSuccess must receive null so CaloraContext keeps its cleared values.
+    const storage = makeControllableStorage({}); // empty — key was cleared
+    const pm = new PersistenceManager(storage, STORAGE_KEY);
+    let successPayload: unknown = 'SENTINEL'; // non-null sentinel to detect the call
+
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, (saved) => {
+        successPayload = saved;
+      });
+    });
+
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Must hydrate cleanly — no error, no migration.
+    expect(handle.result.current.hydrated).toBe(true);
+    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
+
+    // onSuccess must be called with null (not a migrated empty object).
+    expect(successPayload).toBeNull();
+  });
+
+  it('missing migration step surfaces as a parse error — verifies the gate throws at runtime, not just in unit tests', async () => {
+    // This is the runtime equivalent of the gate test in clearAllData.integration.test.ts.
+    // It confirms that when applyStorageMigration throws ParseHydrationError
+    // (because a migration step is missing), useHydrationEffect routes that
+    // throw to the 'parse' error UI — never calling onSuccess.
+    //
+    // A snapshot targeted at STORAGE_SCHEMA_VERSION + 1 always has a missing
+    // migration step because that version does not exist yet.
+    const snapshotWithGap = {
+      schemaVersion: STORAGE_SCHEMA_VERSION + 1, // one ahead — no migration exists
+      onboardingComplete: true,
+    };
+
+    const storage = makeControllableStorage({
+      [STORAGE_KEY]: JSON.stringify(snapshotWithGap),
+    });
+    const pm = new PersistenceManager(storage, STORAGE_KEY);
+    let onSuccessCalled = false;
+
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, () => {
+        onSuccessCalled = true;
+      });
+    });
+
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    expect(handle.result.current.hydrationErrorKind).toBe('parse');
+    expect(handle.result.current.hydrationError).not.toBeNull();
+    expect(onSuccessCalled).toBe(false);
   });
 });

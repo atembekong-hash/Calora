@@ -71,6 +71,86 @@ export function parseStorageValue<T>(
 }
 
 /**
+ * Registry of migration functions keyed by SOURCE schema version.
+ * `MIGRATIONS[N]` transforms a vN snapshot into a v(N+1) snapshot.
+ *
+ * Before bumping `STORAGE_SCHEMA_VERSION` from N to N+1, add an entry here:
+ *
+ *   MIGRATIONS[N] = (state) => ({ ...state, newField: defaultValue, schemaVersion: N + 1 });
+ *
+ * The integration test "schema version migration gate" imports this map and
+ * calls `applyStorageMigration` with the real `STORAGE_SCHEMA_VERSION`.  A
+ * missing entry causes the gate test to fail, blocking the release.
+ *
+ * Current version history
+ * ─────────────────────────────────────────────────────────────────────────
+ * v1 → v2  (first explicit version stamp; no structural field changes)
+ *          Added schemaVersion field to the persisted snapshot.
+ *          No data transformation needed — v1 snapshots have no schemaVersion
+ *          and are treated as v1 by the `?? 1` fallback in applyStorageMigration.
+ * ─────────────────────────────────────────────────────────────────────────
+ * Add MIGRATIONS[2] here when bumping STORAGE_SCHEMA_VERSION to 3.
+ */
+export const MIGRATIONS: Record<number, (state: object) => object> = {
+  /**
+   * v1 → v2: first versioned release.
+   * No structural field changes — the only addition is the schemaVersion stamp
+   * itself, which `enqueueAutosave` applies to every write going forward.
+   * Snapshots without schemaVersion are treated as v1 by the `?? 1` fallback.
+   */
+  1: (state) => ({ ...state, schemaVersion: 2 }),
+};
+
+/**
+ * Walks the migration chain from `state.schemaVersion` (defaulting to 1 for
+ * legacy snapshots that predate the versioning system) up to `targetVersion`.
+ *
+ * Returns the state unchanged when versions already match.
+ *
+ * Throws `ParseHydrationError` if:
+ *   - any intermediate migration step is missing from `MIGRATIONS`, or
+ *   - the saved version is newer than `targetVersion` (downgrade not supported).
+ *
+ * This function is imported by the integration tests as the **release gate**:
+ * calling it with `targetVersion = STORAGE_SCHEMA_VERSION` and a snapshot from
+ * the previous version will throw until the corresponding `MIGRATIONS` entry is
+ * added, causing the gate test to fail at review time.
+ */
+export function applyStorageMigration<T extends object>(
+  state: T,
+  targetVersion: number,
+): T & { schemaVersion: number } {
+  const savedVersion = (state as { schemaVersion?: number }).schemaVersion ?? 1;
+
+  if (savedVersion === targetVersion) {
+    // Versions match — no migration needed.
+    return state as T & { schemaVersion: number };
+  }
+
+  if (savedVersion > targetVersion) {
+    throw new ParseHydrationError(
+      `Saved schema version (${savedVersion}) is newer than the app schema ` +
+      `version (${targetVersion}). Downgrading is not supported.`,
+    );
+  }
+
+  // Apply each migration step in sequence.
+  let current: object = state;
+  for (let v = savedVersion; v < targetVersion; v++) {
+    const migrator = MIGRATIONS[v];
+    if (!migrator) {
+      throw new ParseHydrationError(
+        `No migration from schema v${v} to v${v + 1}. ` +
+        `Add MIGRATIONS[${v}] in hydrationGuard.ts before bumping ` +
+        `STORAGE_SCHEMA_VERSION to ${v + 1}.`,
+      );
+    }
+    current = migrator(current);
+  }
+  return current as T & { schemaVersion: number };
+}
+
+/**
  * Enqueues a storage-clear operation AFTER any currently-queued write
  * completes, even if that write fails. This guarantees that clearAllData()
  * always wins: a write that was already in-flight cannot resurrect data
