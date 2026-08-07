@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
@@ -52,6 +52,33 @@ function AnimatedBar({ value, color, delay = 0 }: { value: number; color: string
   }, [delay, progress]);
   const animatedStyle = useAnimatedStyle(() => ({ height: 128 * (Math.max(0, Math.min(value, 100)) / 100) * progress.value }));
   return <Animated.View style={[styles.bar, { backgroundColor: color }, animatedStyle]} />;
+}
+
+function GoalCelebrationBanner({ colors, targetKg }: { colors: ReturnType<typeof useCalora>['colors']; targetKg: number }) {
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.88);
+  const starScale = useSharedValue(1);
+  useEffect(() => {
+    opacity.value = withDelay(120, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
+    scale.value = withDelay(120, withSpring(1, { damping: 14, stiffness: 140 }));
+    starScale.value = withDelay(680, withSequence(
+      withTiming(1.28, { duration: 200, easing: Easing.out(Easing.quad) }),
+      withTiming(1, { duration: 200, easing: Easing.in(Easing.quad) }),
+    ));
+  }, [opacity, scale, starScale]);
+  const bannerStyle = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }));
+  const starStyle = useAnimatedStyle(() => ({ transform: [{ scale: starScale.value }] }));
+  return (
+    <Animated.View style={[styles.celebrationBanner, { backgroundColor: '#e8f8ef', borderColor: '#5dba7d' }, bannerStyle]}>
+      <Animated.View style={[styles.celebrationIconWrap, { backgroundColor: '#5dba7d' }, starStyle]}>
+        <Feather name="star" size={15} color="#ffffff" />
+      </Animated.View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.celebrationTitle, { color: '#1b5e38' }]}>Goal reached!</Text>
+        <Text style={[styles.celebrationBody, { color: '#3a7d57' }]}>You hit {targetKg.toFixed(0)} kg. Keep going — consistency is the real win.</Text>
+      </View>
+    </Animated.View>
+  );
 }
 
 function AnimatedTrackFill({ percentage, color, trackColor }: { percentage: number; color: string; trackColor: string }) {
@@ -110,7 +137,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals } = useCalora();
+  const { colors, logs, weights, addWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, goalCelebrationSeenTargetKg, markGoalCelebrationSeen } = useCalora();
   const insets = useSafeAreaInsets();
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
@@ -136,6 +163,19 @@ export default function InsightsScreen() {
   const goalReached = goalProgressRaw >= 100;
   const goalProgressPct = Math.max(0, Math.min(100, goalProgressRaw));
   const showGoalProgress = weights.length >= 3 && hasGoal;
+  // Show celebration banner once per goal target — mark seen immediately so it won't show on reload.
+  // Gate on showGoalProgress (weights.length >= 3 && hasGoal) to ensure the flag is only consumed
+  // when the banner can actually be rendered; without this gate, reaching the goal with < 3 entries
+  // would mark it seen without the user ever seeing the banner.
+  const [showGoalCelebration, setShowGoalCelebration] = useState(false);
+  useEffect(() => {
+    if (goalReached && showGoalProgress && goalCelebrationSeenTargetKg !== targetWeight) {
+      setShowGoalCelebration(true);
+      markGoalCelebrationSeen(targetWeight);
+    }
+  // Intentionally run only when goalReached/showGoalProgress/targetWeight change, not on markGoalCelebrationSeen identity change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goalReached, showGoalProgress, targetWeight]);
   const todayKey = dateKey();
   // Sync minutes input with stored value when date changes or after hydration loads persisted data.
   // Skip the sync while the user is actively editing so in-progress input is not overwritten.
@@ -501,6 +541,9 @@ export default function InsightsScreen() {
           ) : (
             <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '50%' : '0%' }]} /></View>
           )}
+          {showGoalCelebration && showGoalProgress ? (
+            <GoalCelebrationBanner colors={colors} targetKg={targetWeight} />
+          ) : null}
           {showGoalProgress ? (
             <View style={styles.goalProgressSection}>
               <View style={styles.goalProgressHeaderRow}>
@@ -741,4 +784,8 @@ const styles = StyleSheet.create({
   goalProgressText: { fontFamily: 'Inter_400Regular', fontSize: 11, flex: 1 },
   goalProgressPct: { fontFamily: 'Inter_700Bold', fontSize: 11, marginLeft: 8 },
   goalEditBtn: { padding: 4, marginLeft: 6 },
+  celebrationBanner: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, marginTop: 14 },
+  celebrationIconWrap: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  celebrationTitle: { fontFamily: 'Inter_700Bold', fontSize: 13, marginBottom: 2 },
+  celebrationBody: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
 });

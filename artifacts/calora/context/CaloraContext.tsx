@@ -162,6 +162,8 @@ type CaloraState = {
   coachConsentAccepted: boolean;
   coachMessages: CoachMessage[];
   livingMemory?: LivingMemory;
+  /** The target weight (kg) for which the goal-reached celebration has already been shown. Prevents repeat on reload. */
+  goalCelebrationSeenTargetKg?: number;
 };
 
 type CaloraContextValue = {
@@ -221,6 +223,10 @@ type CaloraContextValue = {
   exportRawStorageData: () => Promise<string | null>;
   clearAllData: () => Promise<void>;
   retryHydration: () => void;
+  /** The target weight (kg) for which the goal celebration was already displayed. Null means it hasn't been shown yet. */
+  goalCelebrationSeenTargetKg: number | null;
+  /** Call once when the celebration banner is first shown so it won't appear again on reload. */
+  markGoalCelebrationSeen: (targetKg: number) => void;
   plannerWeekStart: string;
   plannerMeals: PlannerMeal[];
   shoppingItems: ShoppingItem[];
@@ -353,6 +359,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [hydrationReminders, setHydrationRemindersState] = useState<HydrationReminderPrefs>(DEFAULT_HYDRATION_PREFS);
   const [coachConsentAccepted, setCoachConsentAccepted] = useState(false);
   const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([]);
+  const [goalCelebrationSeenTargetKg, setGoalCelebrationSeenTargetKg] = useState<number | null>(null);
   const [livingMemory, setLivingMemory] = useState<LivingMemory>(() => buildLivingMemory({
     logs: starterLogs,
     waterLogs: {},
@@ -411,6 +418,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         if (saved.hydrationReminders) setHydrationRemindersState(saved.hydrationReminders);
          if (saved.coachConsentAccepted !== undefined) setCoachConsentAccepted(saved.coachConsentAccepted);
          if (saved.coachMessages) setCoachMessages(saved.coachMessages);
+         if (saved.goalCelebrationSeenTargetKg !== undefined) setGoalCelebrationSeenTargetKg(saved.goalCelebrationSeenTargetKg ?? null);
       })
       .catch((err: unknown) => {
         if (err instanceof ParseHydrationError) {
@@ -454,9 +462,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       coachConsentAccepted,
       coachMessages,
       livingMemory,
+      goalCelebrationSeenTargetKg: goalCelebrationSeenTargetKg ?? undefined,
     };
      pm.current.enqueueWrite(state);
-  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -771,6 +780,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
        setHydrationRemindersState(DEFAULT_HYDRATION_PREFS);
        setCoachConsentAccepted(false);
        setCoachMessages([]);
+       setGoalCelebrationSeenTargetKg(null);
     },
      retryHydration: () => {
        setHydrationErrorKind(null);
@@ -818,7 +828,9 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      setPlannerViewedDay,
      recipeSlotTarget,
      setRecipeSlotTarget,
-     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+     goalCelebrationSeenTargetKg,
+     markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
+     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }
