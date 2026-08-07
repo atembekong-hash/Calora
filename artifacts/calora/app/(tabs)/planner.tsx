@@ -2,7 +2,7 @@ import { useGeneratePlanner, type PlannerMeal } from '@workspace/api-client-reac
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
@@ -10,7 +10,7 @@ import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStart
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
@@ -125,7 +125,7 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
 }
 
 export default function PlannerScreen() {
-  const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, livingState, setPlannerViewedDay, setRecipeSlotTarget } = useCalora();
+  const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, livingState, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap } = useCalora();
   const insets = useSafeAreaInsets();
   const generatePlanner = useGeneratePlanner();
   const today = dateKey();
@@ -162,6 +162,7 @@ export default function PlannerScreen() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [undoMeal, setUndoMeal] = useState<PlannerMeal | null>(null);
   const [undoMoveMeal, setUndoMoveMeal] = useState<{ mealId: string; originalDay: string; mealName: string } | null>(null);
+  const [undoSwapMeal, setUndoSwapMeal] = useState<{ newMeal: PlannerMeal; originalMeal: PlannerMeal } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const plannerReviewDraft = plannerReviewDraftId ? (foodDrafts.find((d) => d.id === plannerReviewDraftId) ?? null) : null;
@@ -170,6 +171,23 @@ export default function PlannerScreen() {
   useEffect(() => {
     setPlannerViewedDay(selectedDay);
   }, [selectedDay, setPlannerViewedDay]);
+
+  // When the planner tab comes into focus, consume any pending recipe-swap undo set by the recipes tab
+  useFocusEffect(
+    useCallback(() => {
+      if (!pendingUndoSwap) return;
+      setPendingUndoSwap(null);
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      setUndoMeal(null);
+      setUndoMoveMeal(null);
+      setUndoSwapMeal(pendingUndoSwap);
+      undoTimerRef.current = setTimeout(() => {
+        setUndoSwapMeal(null);
+        undoTimerRef.current = null;
+      }, 6000);
+      acknowledge(`${pendingUndoSwap.newMeal.name} replaced your ${pendingUndoSwap.originalMeal.meal.toLowerCase()}. Tap Undo to restore.`, 6000);
+    }, [pendingUndoSwap, setPendingUndoSwap]),
+  );
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => plannerDate(viewWeekStart, index)), [viewWeekStart]);
   const selectedMeals = plannerMeals.filter((meal) => meal.day === selectedDay);
@@ -293,8 +311,9 @@ export default function PlannerScreen() {
     updatePlannerMeals(plannerMeals.filter((item) => item.id !== meal.id));
     setActionMeal(null);
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    // Clear any move-undo so only one undo affordance is active
+    // Clear any move-undo or swap-undo so only one undo affordance is active
     setUndoMoveMeal(null);
+    setUndoSwapMeal(null);
     setUndoMeal(meal);
     undoTimerRef.current = setTimeout(() => {
       setUndoMeal(null);
@@ -318,9 +337,10 @@ export default function PlannerScreen() {
       const originalDay = actionMeal.day;
       const mealId = actionMeal.id;
       const mealName = actionMeal.name;
-      // Clear any remove-undo so only one undo affordance is active
+      // Clear any remove-undo or swap-undo so only one undo affordance is active
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       setUndoMeal(null);
+      setUndoSwapMeal(null);
       setUndoMoveMeal({ mealId, originalDay, mealName });
       undoTimerRef.current = setTimeout(() => {
         setUndoMoveMeal(null);
@@ -339,6 +359,20 @@ export default function PlannerScreen() {
     movePlannerMeal(undoMoveMeal.mealId, undoMoveMeal.originalDay, false);
     acknowledge(`${undoMoveMeal.mealName} moved back to ${dayFormatter.format(parseDate(undoMoveMeal.originalDay))}.`);
     setUndoMoveMeal(null);
+  };
+
+  const undoSwap = () => {
+    if (!undoSwapMeal) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    // Remove the new recipe from that slot and restore the original meal
+    const { newMeal, originalMeal } = undoSwapMeal;
+    const next = [
+      ...plannerMeals.filter((m) => !(m.day === newMeal.day && m.meal === newMeal.meal)),
+      originalMeal,
+    ];
+    updatePlannerMeals(next);
+    acknowledge(`${originalMeal.name} restored to your plan.`);
+    setUndoSwapMeal(null);
   };
 
   const generate = async () => {
@@ -471,7 +505,7 @@ export default function PlannerScreen() {
         <View style={[styles.tipCard, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.tipText, { color: colors.foreground }]}>Planning is a suggestion, not a promise. Swap anything that does not fit your day.</Text></View>
          <SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} />
       </ScrollView>
-       <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal || undoMoveMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undoMoveMeal ? undoMove : undefined} countdownDuration={undoMeal || undoMoveMeal ? 6000 : undefined} />
+       <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal || undoMoveMeal || undoSwapMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undoMoveMeal ? undoMove : undoSwapMeal ? undoSwap : undefined} countdownDuration={undoMeal || undoMoveMeal || undoSwapMeal ? 6000 : undefined} />
       <Modal visible={detail !== null} transparent animationType="slide" onRequestClose={() => { dismissPlannerReview(); setDetail(null); }}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.detailSheet, { backgroundColor: colors.background }]}>
