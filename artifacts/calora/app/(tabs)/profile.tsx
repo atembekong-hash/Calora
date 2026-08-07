@@ -295,12 +295,12 @@ export default function ProfileScreen() {
             <Feather name="maximize-2" size={16} color={colors.primary} />
           </View>
           <Text style={[styles.settingTitle, { color: colors.foreground, flex: 1 }]}>Measurement units</Text>
-          <View style={[styles.segmentedControl, { backgroundColor: colors.muted, borderColor: colors.border, marginBottom: 0 }]}>
+          <View style={styles.unitChips}>
             {(['metric', 'imperial'] as const).map((u) => {
               const sel = units === u;
               return (
-                <Pressable key={u} accessibilityLabel={`${u} units`} onPress={() => updateProfile({ units: u })} style={[styles.segmentedOption, sel && { backgroundColor: colors.card }, { paddingVertical: 7 }]}>
-                  <Text style={[styles.segmentedLabel, { color: sel ? colors.foreground : colors.mutedForeground }]}>{u === 'metric' ? 'Metric' : 'Imperial'}</Text>
+                <Pressable key={u} accessibilityLabel={`${u} units`} onPress={() => updateProfile({ units: u })} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
+                  <Text style={[styles.unitChipText, { color: sel ? colors.primaryForeground : colors.mutedForeground }]}>{u === 'metric' ? 'Metric' : 'Imperial'}</Text>
                 </Pressable>
               );
             })}
@@ -853,6 +853,9 @@ const styles = StyleSheet.create({
 
   // Units row
   unitsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 17, padding: 11, marginBottom: 26 },
+  unitChips: { flexDirection: 'row', gap: 6 },
+  unitChip: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
+  unitChipText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
 
   // Reminder elements
   reminderSectionLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.2, marginTop: 18, marginBottom: 8 },
