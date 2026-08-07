@@ -218,6 +218,82 @@ describe('living memory review states', () => {
     expect(merged.forgotten.meals).toHaveLength(0);
   });
 
+  it('wellness check-in section has no renderable rows when all water/mood/activity signals are forgotten', () => {
+    // Diary signals exist — but all wellness signals are forgotten.
+    // MemorySection for "Wellness check-ins" derives its children from waterObservations,
+    // moodObservations, and activityObservations. When those maps are empty the section
+    // receives no children and Children.count returns 0, suppressing the header.
+    let memory = buildLivingMemory({
+      logs: [log('meal-1')],
+      waterLogs: { '2026-08-06': 20 },
+      moodLogs: { '2026-08-06': 'okay' },
+      activityLogs: { '2026-08-06': 'light' },
+      plannerMeals: [],
+    });
+
+    // Forget every wellness signal
+    memory = forgetLivingObservation(memory, 'water', '2026-08-06');
+    memory = forgetLivingObservation(memory, 'mood', '2026-08-06');
+    memory = forgetLivingObservation(memory, 'activity', '2026-08-06');
+
+    // Diary section still has data → its MemorySection renders
+    expect(Object.keys(memory.mealObservations)).toHaveLength(1);
+
+    // Wellness section data is completely empty → MemorySection receives no children
+    const wellnessRowCount =
+      Object.keys(memory.waterObservations).length +
+      Object.keys(memory.moodObservations).length +
+      Object.keys(memory.activityObservations).length;
+    expect(wellnessRowCount).toBe(0);
+  });
+
+  it('diary section has no renderable rows when all diary signals are forgotten (mixed sparse case)', () => {
+    // Water and mood exist; only diary signals are all forgotten.
+    // The "Diary signals" MemorySection should receive no children.
+    let memory = buildLivingMemory({
+      logs: [log('meal-1'), log('meal-2', '2026-08-05')],
+      waterLogs: { '2026-08-06': 16 },
+      moodLogs: { '2026-08-06': 'good' },
+      activityLogs: {},
+      plannerMeals: [],
+    });
+
+    memory = forgetLivingObservation(memory, 'meal', 'meal-1');
+    memory = forgetLivingObservation(memory, 'meal', 'meal-2');
+
+    // Diary section data empty → MemorySection for diary receives no children
+    expect(Object.keys(memory.mealObservations)).toHaveLength(0);
+
+    // Wellness section still has signals → its MemorySection renders normally
+    const wellnessRowCount =
+      Object.keys(memory.waterObservations).length +
+      Object.keys(memory.moodObservations).length +
+      Object.keys(memory.activityObservations).length;
+    expect(wellnessRowCount).toBe(2);
+  });
+
+  it('planning section has no renderable rows when all planner signals are forgotten', () => {
+    let memory = buildLivingMemory({
+      logs: [log('meal-1')],
+      waterLogs: {},
+      moodLogs: {},
+      activityLogs: {},
+      plannerMeals: [
+        { id: 'plan-1', day: '2026-08-08', meal: 'Dinner', name: 'D1', image: '', serving: '1', calories: 500, proteinG: 30, carbsG: 50, fatG: 15, ingredients: [], description: '' },
+        { id: 'plan-2', day: '2026-08-09', meal: 'Lunch', name: 'L1', image: '', serving: '1', calories: 400, proteinG: 20, carbsG: 40, fatG: 12, ingredients: [], description: '' },
+      ],
+    });
+
+    memory = forgetLivingObservation(memory, 'planner', 'plan-1');
+    memory = forgetLivingObservation(memory, 'planner', 'plan-2');
+
+    // Planning section data empty → MemorySection receives no children
+    expect(Object.keys(memory.plannerObservations)).toHaveLength(0);
+
+    // Diary section is still populated
+    expect(Object.keys(memory.mealObservations)).toHaveLength(1);
+  });
+
   it('all five observation kinds are reviewable and independently forgettable', () => {
     const memory = buildLivingMemory({
       logs: [log('meal-1')],

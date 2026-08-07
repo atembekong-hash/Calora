@@ -5,6 +5,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora, type DailyActivity, type FoodLog, type MealType, type Mood } from '@/context/CaloraContext';
 import type { LivingMemoryKind } from '@/lib/livingMemory';
+import { buildDiaryRows, buildWellnessRows, buildPlannerRows } from '@/lib/memorySections';
 
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 const moodLabels: Record<Mood, string> = {
@@ -200,63 +201,49 @@ export default function LivingMemoryScreen() {
             )}
 
             <MemorySection title="Diary signals" caption="Meal timing and type from confirmed diary entries." colors={colors}>
-              {Object.entries(livingMemory.mealObservations)
-                .sort(([, a], [, b]) => (isStaleDate(a.date) ? 1 : 0) - (isStaleDate(b.date) ? 1 : 0))
-                .map(([id, observation]) => {
-                  const log = logsById.get(id);
-                  const label = `Diary entry · ${readableDate(observation.date)}`;
+              {buildDiaryRows(livingMemory).map((row) => {
+                  const log = logsById.get(row.id);
+                  const label = `Diary entry · ${readableDate(row.date)}`;
                   return (
                     <MemoryRow
-                      key={id}
+                      key={row.id}
                       icon="coffee"
                       title={label}
-                      detail={`${observation.meal}${log ? ` · ${log.serving}` : ''}`}
-                      lastActiveDate={observation.date}
+                      detail={`${row.meal}${log ? ` · ${log.serving}` : ''}`}
+                      lastActiveDate={row.date}
                       colors={colors}
                       onEdit={log ? () => startEdit(log) : undefined}
-                      onForget={() => forget('meal', id, label)}
+                      onForget={() => forget('meal', row.id, label)}
                     />
                   );
                 })}
             </MemorySection>
 
             <MemorySection title="Wellness check-ins" caption="Optional water, mood, and activity signals." colors={colors}>
-              {[
-                ...Object.entries(livingMemory.waterObservations).map(([date, observation]) => ({
-                  key: `water-${date}`,
-                  date,
-                  el: <MemoryRow key={`water-${date}`} icon="droplet" title={`Water · ${readableDate(date)}`} detail={`${observation.ounces} fl oz`} lastActiveDate={date} colors={colors} onForget={() => forget('water', date, `Water · ${readableDate(date)}`)} />,
-                })),
-                ...Object.entries(livingMemory.moodObservations).map(([date, observation]) => ({
-                  key: `mood-${date}`,
-                  date,
-                  el: <MemoryRow key={`mood-${date}`} icon="smile" title={`Mood · ${readableDate(date)}`} detail={moodLabels[observation.mood]} lastActiveDate={date} colors={colors} onForget={() => forget('mood', date, `Mood · ${readableDate(date)}`)} />,
-                })),
-                ...Object.entries(livingMemory.activityObservations).map(([date, observation]) => ({
-                  key: `activity-${date}`,
-                  date,
-                  el: <MemoryRow key={`activity-${date}`} icon="activity" title={`Activity · ${readableDate(date)}`} detail={activityLabels[observation.activity]} lastActiveDate={date} colors={colors} onForget={() => forget('activity', date, `Activity · ${readableDate(date)}`)} />,
-                })),
-              ]
-                .sort((a, b) => (isStaleDate(a.date) ? 1 : 0) - (isStaleDate(b.date) ? 1 : 0))
-                .map((item) => item.el)}
+              {buildWellnessRows(livingMemory).map((row) => {
+                if (row.kind === 'water') {
+                  return <MemoryRow key={row.key} icon="droplet" title={`Water · ${readableDate(row.date)}`} detail={`${row.ounces} fl oz`} lastActiveDate={row.date} colors={colors} onForget={() => forget('water', row.date, `Water · ${readableDate(row.date)}`)} />;
+                }
+                if (row.kind === 'mood') {
+                  return <MemoryRow key={row.key} icon="smile" title={`Mood · ${readableDate(row.date)}`} detail={moodLabels[row.mood]} lastActiveDate={row.date} colors={colors} onForget={() => forget('mood', row.date, `Mood · ${readableDate(row.date)}`)} />;
+                }
+                return <MemoryRow key={row.key} icon="activity" title={`Activity · ${readableDate(row.date)}`} detail={activityLabels[row.activity]} lastActiveDate={row.date} colors={colors} onForget={() => forget('activity', row.date, `Activity · ${readableDate(row.date)}`)} />;
+              })}
             </MemorySection>
 
             <MemorySection title="Planning signals" caption="Meals you assigned yourself, not starter suggestions." colors={colors}>
-              {Object.entries(livingMemory.plannerObservations)
-                .sort(([, a], [, b]) => (isStaleDate(a.day) ? 1 : 0) - (isStaleDate(b.day) ? 1 : 0))
-                .map(([id, observation]) => {
-                  const plannerMeal = visiblePlannerMeals.get(id);
-                  const label = `Plan · ${readableDate(observation.day)}`;
+              {buildPlannerRows(livingMemory).map((row) => {
+                  const plannerMeal = visiblePlannerMeals.get(row.id);
+                  const label = `Plan · ${readableDate(row.day)}`;
                   return (
                     <MemoryRow
-                      key={id}
+                      key={row.id}
                       icon="calendar"
                       title={label}
-                      detail={`${observation.meal}${plannerMeal ? ` · ${plannerMeal.serving}` : ''}`}
-                      lastActiveDate={observation.day}
+                      detail={`${row.meal}${plannerMeal ? ` · ${plannerMeal.serving}` : ''}`}
+                      lastActiveDate={row.day}
                       colors={colors}
-                      onForget={() => forget('planner', id, label)}
+                      onForget={() => forget('planner', row.id, label)}
                     />
                   );
                 })}
