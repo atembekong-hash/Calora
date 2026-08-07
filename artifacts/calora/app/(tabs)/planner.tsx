@@ -755,30 +755,36 @@ export default function PlannerScreen() {
              </View>
              <Text style={[styles.shoppingSubtitle, { color: colors.mutedForeground }]}>Ingredients from the week you are viewing.</Text>
              {shoppingDays.length > 1 && (
-               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shopDayPillRow} contentContainerStyle={{ gap: 6, paddingBottom: 10 }}>
-                 <Pressable
-                   accessibilityLabel="Show all days"
-                   onPress={() => setShoppingDayFilter(null)}
-                   style={[styles.shopDayPill, { borderColor: shoppingDayFilter === null ? colors.primary : colors.input, backgroundColor: shoppingDayFilter === null ? colors.primary : colors.muted }]}
+               <View style={styles.shopFilterSection}>
+                 <ScrollView
+                   horizontal
+                   showsHorizontalScrollIndicator={false}
+                   contentContainerStyle={styles.shopFilterContent}
                  >
-                   <Text style={[styles.shopDayPillText, { color: shoppingDayFilter === null ? colors.primaryForeground : colors.foreground }]}>All</Text>
-                 </Pressable>
-                 {shoppingDays.map((day) => {
-                   const active = shoppingDayFilter === day;
-                   return (
-                     <Pressable
-                       key={day}
-                       accessibilityLabel={`Filter by ${dayFormatter.format(parseDate(day))}`}
-                       onPress={() => setShoppingDayFilter(active ? null : day)}
-                       style={[styles.shopDayPill, { borderColor: active ? colors.primary : colors.input, backgroundColor: active ? colors.primary : colors.muted }]}
-                     >
-                       <Text style={[styles.shopDayPillText, { color: active ? colors.primaryForeground : colors.foreground }]}>{dayFormatter.format(parseDate(day))}</Text>
-                     </Pressable>
-                   );
-                 })}
-               </ScrollView>
+                   <Pressable
+                     accessibilityLabel="Show all days"
+                     onPress={() => setShoppingDayFilter(null)}
+                     style={[styles.shopDayPill, { borderColor: shoppingDayFilter === null ? colors.primary : colors.input, backgroundColor: shoppingDayFilter === null ? colors.primary : colors.muted }]}
+                   >
+                     <Text style={[styles.shopDayPillText, { color: shoppingDayFilter === null ? colors.primaryForeground : colors.foreground }]}>All</Text>
+                   </Pressable>
+                   {shoppingDays.map((day) => {
+                     const active = shoppingDayFilter === day;
+                     return (
+                       <Pressable
+                         key={day}
+                         accessibilityLabel={`Filter by ${dayFormatter.format(parseDate(day))}`}
+                         onPress={() => setShoppingDayFilter(active ? null : day)}
+                         style={[styles.shopDayPill, { borderColor: active ? colors.primary : colors.input, backgroundColor: active ? colors.primary : colors.muted }]}
+                       >
+                         <Text style={[styles.shopDayPillText, { color: active ? colors.primaryForeground : colors.foreground }]}>{dayFormatter.format(parseDate(day))}</Text>
+                       </Pressable>
+                     );
+                   })}
+                 </ScrollView>
+               </View>
              )}
-             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 25 }}>
+             <ScrollView showsVerticalScrollIndicator={false} style={styles.shopIngredientScroll} contentContainerStyle={{ paddingBottom: 25 }}>
                {filteredShoppingItems.map((item) => (
                  <Pressable key={item.id} accessibilityLabel={`${item.checked ? 'Uncheck' : 'Check'} ${item.name}`} onPress={() => toggleShoppingItemByName(item.name)} style={[styles.shoppingRow, { borderBottomColor: colors.border }]}>
                    <View style={[styles.checkbox, { borderColor: item.checked ? colors.success : colors.input, backgroundColor: item.checked ? colors.success : 'transparent' }]}>
@@ -1172,12 +1178,21 @@ const styles = StyleSheet.create({
   reviewTotalMacros: { fontFamily: 'Inter_600SemiBold', fontSize: 10, textAlign: 'right' },
   dismissButton: { alignItems: 'center', paddingVertical: 13 },
   dismissText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  shoppingSheet: { maxHeight: '80%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
+  shoppingSheet: { maxHeight: '80%', borderTopLeftRadius: 27, borderTopRightRadius: 27, paddingTop: 16, paddingHorizontal: 20, paddingBottom: 0 },
   shoppingHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   shoppingSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 8, marginBottom: 12 },
-  shopDayPillRow: { marginBottom: 4 },
-  shopDayPill: { paddingHorizontal: 13, paddingVertical: 6, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  shopDayPillText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  // Filter section: a plain View wrapper that owns its own height, with no overflow clipping.
+  shopFilterSection: { marginBottom: 16 },
+  // Content inside the horizontal ScrollView. paddingVertical gives pills breathing room
+  // in the cross-axis so text is never cropped by the scroll container.
+  shopFilterContent: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingHorizontal: 2 },
+  // Each pill must never compress: flexShrink:0 prevents the horizontal scroller from
+  // squashing chips when all 8 don't fit. Vertical padding is generous so lineHeight
+  // of the label has room above and below.
+  shopDayPill: { flexShrink: 0, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  shopDayPillText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, lineHeight: 15 },
+  // Ingredient list takes all remaining sheet height so it scrolls independently.
+  shopIngredientScroll: { flex: 1 },
   shoppingRow: { minHeight: 46, borderBottomWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   checkbox: { width: 22, height: 22, borderRadius: 7, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   shoppingName: { fontFamily: 'Inter_500Medium', fontSize: 12 },
