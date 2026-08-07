@@ -644,15 +644,6 @@ export default function HomeScreen() {
               <View style={styles.homeHeaderBadge}><Feather name="sunrise" size={12} color="#d4eadc" /><Text style={styles.homeHeaderBadgeText}>DAILY RHYTHM</Text></View>
               <View style={styles.homeHeaderActions}>
                 <Pressable
-                  accessibilityLabel={`Switch to ${mode === 'dark' ? 'light' : 'dark'} mode`}
-                  accessibilityRole="button"
-                  testID="dashboard-theme-toggle"
-                  onPress={() => setThemePreference(mode === 'dark' ? 'light' : 'dark')}
-                  style={({ pressed }) => [styles.homeHeaderThemeToggle, { opacity: pressed ? 0.72 : 1 }]}
-                >
-                  <Feather name={mode === 'dark' ? 'sun' : 'moon'} size={16} color="#ffffff" />
-                </Pressable>
-                <Pressable
                   accessibilityLabel="Open Calora Coach"
                   onPress={() => router.push('/coach')}
                   style={({ pressed }) => [styles.homeHeaderCoach, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
