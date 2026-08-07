@@ -110,10 +110,11 @@ function WeeklyPatternsCard({ colors, days }: { colors: ReturnType<typeof useCal
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, profile, waterLogs, moodLogs, activityLogs, setActivity, livingMemory, plannerMeals } = useCalora();
+  const { colors, logs, weights, addWeight, profile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, livingMemory, plannerMeals } = useCalora();
   const insets = useSafeAreaInsets();
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
+  const [minutesInput, setMinutesInput] = useState('');
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const remembered = useMemo(
     () => filterForgottenSources(livingMemory, { logs, waterLogs, moodLogs, activityLogs, plannerMeals }),
@@ -124,6 +125,11 @@ export default function InsightsScreen() {
   const startingWeight = profile?.weightKg ?? latestWeight;
   const weightDelta = latestWeight - startingWeight;
   const todayKey = dateKey();
+  // Sync minutes input with stored value when date changes
+  useEffect(() => {
+    const stored = activityMinutesLogs[todayKey];
+    setMinutesInput(stored ? String(stored) : '');
+  }, [todayKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const loggedToday = remembered.logs.filter((log) => log.date === todayKey);
   const nutrientTotals = loggedToday.reduce((totals, log) => ({
     fiber: totals.fiber + (log.fiber ?? 0),
@@ -354,9 +360,43 @@ export default function InsightsScreen() {
                 );
               })}
             </View>
+            {/* Activity minutes input */}
+            <View style={[styles.minutesRow, { borderTopColor: colors.border }]}>
+              <View style={styles.minutesLeft}>
+                <Feather name="clock" size={14} color={colors.mutedForeground} />
+                <Text style={[styles.minutesLabel, { color: colors.mutedForeground }]}>ACTIVE MINUTES</Text>
+              </View>
+              <View style={[styles.minutesInputWrap, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                <TextInput
+                  value={minutesInput}
+                  onChangeText={setMinutesInput}
+                  keyboardType="number-pad"
+                  placeholder="—"
+                  placeholderTextColor={colors.mutedForeground}
+                  returnKeyType="done"
+                  onEndEditing={() => {
+                    const val = parseInt(minutesInput, 10);
+                    if (Number.isFinite(val) && val >= 0) {
+                      setActivityMinutes(todayKey, val);
+                      setSaveNotice(`${val} active minutes saved.`);
+                    } else if (minutesInput === '' && activityMinutesLogs[todayKey] !== undefined) {
+                      setActivityMinutes(todayKey, 0);
+                    }
+                  }}
+                  style={[styles.minutesInput, { color: colors.foreground }]}
+                  accessibilityLabel="Enter active minutes for today"
+                  testID="activity-minutes-input"
+                />
+                <Text style={[styles.minutesUnit, { color: colors.mutedForeground }]}>min</Text>
+              </View>
+            </View>
             <Text style={[styles.checkinHint, { color: colors.mutedForeground }]}>
-              {remembered.activityLogs[todayKey] ? 'Saved on this device. You can change it anytime.' : 'Nothing is assumed when you leave this blank.'}
+              {remembered.activityLogs[todayKey] || activityMinutesLogs[todayKey] ? 'Saved on this device. You can change it anytime.' : 'Nothing is assumed when you leave this blank.'}
             </Text>
+            <View style={[styles.healthSyncNote, { backgroundColor: colors.muted }]}>
+              <Feather name="link-2" size={11} color={colors.mutedForeground} />
+              <Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>Health sync unavailable · connect a health integration to import workouts automatically.</Text>
+            </View>
           </View>
         </AnimatedReveal>
 
@@ -366,9 +406,44 @@ export default function InsightsScreen() {
         </View>
         <AnimatedReveal delay={540}>
         <View style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.weightValue, { color: colors.foreground }]}>{latestWeight.toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>kg</Text></Text>
-          <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length > 1 ? `${weights.length} weigh-ins recorded locally` : 'Optional · add a few weigh-ins to unlock trend guidance'}</Text>
-          <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '100%' : '0%' }]} /></View>
+          <View style={styles.weightTopRow}>
+            <View>
+              <Text style={[styles.weightValue, { color: colors.foreground }]}>{latestWeight.toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>kg</Text></Text>
+              <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length > 1 ? `${weights.length} weigh-ins recorded locally` : 'Optional · add a few weigh-ins to unlock trend guidance'}</Text>
+            </View>
+            {weights.length >= 3 && (
+              <View style={[styles.weightDeltaBadge, { backgroundColor: weightDelta <= 0 ? '#e6f6ec' : '#fff3e0' }]}>
+                <Feather name={weightDelta <= 0 ? 'trending-down' : 'trending-up'} size={13} color={weightDelta <= 0 ? colors.success : colors.warning} />
+                <Text style={[styles.weightDeltaText, { color: weightDelta <= 0 ? colors.success : colors.warning }]}>{weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)} kg</Text>
+              </View>
+            )}
+          </View>
+          {weights.length >= 3 ? (
+            <View style={styles.weightSparkline}>
+              {weights.slice(-7).map((entry, index, arr) => {
+                const vals = arr.map((e) => e.kg);
+                const min = Math.min(...vals);
+                const max = Math.max(...vals);
+                const range = max - min || 1;
+                const pct = ((entry.kg - min) / range) * 72 + 8;
+                const isLast = index === arr.length - 1;
+                return (
+                  <View key={entry.id} style={styles.weightSparkCol}>
+                    <View style={[styles.weightSparkTrack, { backgroundColor: colors.muted }]}>
+                      <View style={[styles.weightSparkFill, { height: pct, backgroundColor: isLast ? colors.primary : colors.success }]} />
+                    </View>
+                    <Text style={[styles.weightSparkLabel, { color: isLast ? colors.primary : colors.mutedForeground }]}>{entry.kg.toFixed(1)}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '50%' : '0%' }]} /></View>
+          )}
+          <View style={[styles.healthSyncNote, { backgroundColor: colors.muted, marginTop: 12 }]}>
+            <Feather name="link-2" size={11} color={colors.mutedForeground} />
+            <Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>Health sync unavailable · connect a health integration for automatic weigh-in import.</Text>
+          </View>
         </View>
         </AnimatedReveal>
 
@@ -520,4 +595,20 @@ const styles = StyleSheet.create({
   saveWeightText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   cancelWeight: { alignItems: 'center', paddingVertical: 13 },
   cancelWeightText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  minutesRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, marginTop: 13, paddingTop: 13 },
+  minutesLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  minutesLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, letterSpacing: 1.1 },
+  minutesInputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, gap: 4, minWidth: 80 },
+  minutesInput: { fontFamily: 'Inter_700Bold', fontSize: 14, minWidth: 40, textAlign: 'right' },
+  minutesUnit: { fontFamily: 'Inter_400Regular', fontSize: 11 },
+  healthSyncNote: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 7, marginTop: 11 },
+  healthSyncText: { fontFamily: 'Inter_400Regular', fontSize: 9, lineHeight: 13, flex: 1 },
+  weightTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 },
+  weightDeltaBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 5 },
+  weightDeltaText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  weightSparkline: { flexDirection: 'row', alignItems: 'flex-end', gap: 5, marginTop: 12, height: 100 },
+  weightSparkCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
+  weightSparkTrack: { width: '100%', height: 80, borderRadius: 5, overflow: 'hidden', justifyContent: 'flex-end' },
+  weightSparkFill: { width: '100%', borderRadius: 5 },
+  weightSparkLabel: { fontFamily: 'Inter_400Regular', fontSize: 8, marginTop: 5 },
 });
