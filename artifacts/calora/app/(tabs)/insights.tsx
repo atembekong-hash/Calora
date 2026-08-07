@@ -110,7 +110,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, profile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, livingMemory, plannerMeals } = useCalora();
+  const { colors, logs, weights, addWeight, profile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals } = useCalora();
   const insets = useSafeAreaInsets();
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
@@ -397,8 +397,43 @@ export default function InsightsScreen() {
                 <Text style={[styles.minutesUnit, { color: colors.mutedForeground }]}>min</Text>
               </View>
             </View>
+            {/* Mood check-in */}
+            <Text style={[styles.checkinLabel, { color: colors.mutedForeground, marginTop: 16 }]}>HOW YOU FEEL</Text>
+            <View style={styles.moodOptions}>
+              {([
+                { value: 'energized', label: 'Energized', color: '#e5ad55' },
+                { value: 'good', label: 'Good', color: '#5dba7d' },
+                { value: 'okay', label: 'Okay', color: '#7394f2' },
+                { value: 'low', label: 'Low', color: '#9875c7' },
+                { value: 'stressed', label: 'Stressed', color: '#ef6b4f' },
+              ] as const).map((option) => {
+                const selected = moodToday === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    accessibilityLabel={`${option.label} mood${selected ? ', selected' : ''}`}
+                    accessibilityState={{ selected }}
+                    testID={`mood-${option.value}`}
+                    onPress={() => {
+                      setMood(todayKey, option.value);
+                      setSaveNotice(`${option.label} mood check-in saved.`);
+                    }}
+                    style={[
+                      styles.moodOption,
+                      {
+                        backgroundColor: selected ? option.color + '22' : colors.muted,
+                        borderColor: selected ? option.color : colors.border,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.moodDot, { backgroundColor: option.color, opacity: selected ? 1 : 0.35 }]} />
+                    <Text style={[styles.moodOptionText, { color: selected ? option.color : colors.mutedForeground }]}>{option.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
             <Text style={[styles.checkinHint, { color: colors.mutedForeground }]}>
-              {remembered.activityLogs[todayKey] || activityMinutesLogs[todayKey] ? 'Saved on this device. You can change it anytime.' : 'Nothing is assumed when you leave this blank.'}
+              {remembered.activityLogs[todayKey] || activityMinutesLogs[todayKey] || moodToday ? 'Saved on this device. You can change it anytime.' : 'Nothing is assumed when you leave this blank.'}
             </Text>
             <View style={[styles.healthSyncNote, { backgroundColor: colors.muted }]}>
               <Feather name="link-2" size={11} color={colors.mutedForeground} />
@@ -615,6 +650,10 @@ const styles = StyleSheet.create({
   saveWeightText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   cancelWeight: { alignItems: 'center', paddingVertical: 13 },
   cancelWeightText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  moodOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 2 },
+  moodOption: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 },
+  moodDot: { width: 7, height: 7, borderRadius: 4 },
+  moodOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
   minutesRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, marginTop: 13, paddingTop: 13 },
   minutesLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   minutesLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, letterSpacing: 1.1 },
