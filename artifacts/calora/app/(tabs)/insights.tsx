@@ -155,6 +155,7 @@ export default function InsightsScreen() {
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [goalInput, setGoalInput] = useState('');
   const isEditingMinutes = useRef(false);
+  const isEditingWeight = useRef(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const remembered = useMemo(
     () => filterForgottenSources(livingMemory, { logs, waterLogs, moodLogs, activityLogs, plannerMeals }),
@@ -204,6 +205,18 @@ export default function InsightsScreen() {
     const stored = activityMinutesLogs[todayKey];
     setMinutesInput(stored ? String(stored) : '');
   }, [todayKey, activityMinutesLogs]);
+  // Sync weight input from the latest stored weight when the modal opens or weights update.
+  // When the modal closes, reset the editing ref so a re-open always pre-populates cleanly.
+  // Skip the sync while the user is actively editing so a background weights change cannot
+  // overwrite a partially-typed value mid-entry.
+  useEffect(() => {
+    if (!showWeight) {
+      isEditingWeight.current = false;
+      return;
+    }
+    if (isEditingWeight.current) return;
+    setWeightInput(latestWeight > 0 ? String(latestWeight) : '');
+  }, [latestWeight, showWeight]);
   const loggedToday = remembered.logs.filter((log) => log.date === todayKey);
   const nutrientTotals = loggedToday.reduce((totals, log) => ({
     fiber: totals.fiber + (log.fiber ?? 0),
@@ -616,7 +629,7 @@ export default function InsightsScreen() {
           <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>A single weigh-in is just a data point. Calora looks for a trend.</Text>
-            <TextInput value={weightInput} onChangeText={setWeightInput} keyboardType="decimal-pad" placeholder={`${latestWeight.toFixed(1)} kg`} placeholderTextColor={colors.mutedForeground} style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+            <TextInput value={weightInput} onChangeText={setWeightInput} keyboardType="decimal-pad" placeholder={`${latestWeight.toFixed(1)} kg`} placeholderTextColor={colors.mutedForeground} style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} onFocus={() => { isEditingWeight.current = true; }} onEndEditing={() => { isEditingWeight.current = false; }} />
             <Pressable accessibilityLabel="Save weight" onPress={() => { const value = Number(weightInput); if (value > 0) { addWeight(value); setWeightInput(''); setShowWeight(false); setSaveNotice('Weight check-in saved locally.'); } }} style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></Pressable>
             <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
           </View>
