@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useEffect } from 'react';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Pressable, Text, StyleSheet, View } from 'react-native';
 
 type SaveNoticeColors = {
@@ -39,13 +39,18 @@ export function LocalSaveNotice({
 
   useEffect(() => {
     if (visible && countdownDuration) {
+      // Starting a fresh countdown: reset to full before animating.
       countdown.value = 1;
       countdown.value = withTiming(0, {
         duration: countdownDuration,
         easing: Easing.linear,
       });
-    } else if (!visible) {
-      countdown.value = 1;
+    } else {
+      // Either the notice is hiding (fade-out in progress) or Undo was tapped and
+      // countdownDuration became undefined mid-animation. In both cases, stop the
+      // bar exactly where it is so it doesn't snap to full/empty before the notice
+      // fades out. The next removal will reset it to 1 via the branch above.
+      cancelAnimation(countdown);
     }
   }, [visible, countdownDuration, countdown]);
 
