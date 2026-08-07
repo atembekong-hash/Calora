@@ -665,8 +665,7 @@ export const GeneratePlannerBody = zod.object({
   "diet": zod.enum(['Everything', 'Vegetarian', 'Vegan', 'High protein']),
   "calorieTarget": zod.number().int().min(generatePlannerBodyProfileCalorieTargetMin).max(generatePlannerBodyProfileCalorieTargetMax)
 }),
-  /** The selected plan type id (e.g. 'balanced-nutrition', 'high-protein-power'). Optional for backward compatibility. */
-  "planType": zod.string().optional()
+  "planType": zod.string().optional().describe('Optional plan style identifier guiding AI generation')
 })
 
 export const generatePlannerResponseMealsItemCaloriesMin = 0;

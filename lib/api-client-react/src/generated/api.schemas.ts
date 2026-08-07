@@ -496,7 +496,7 @@ export interface PlannerProfile {
 export interface PlannerGenerateInput {
   weekStart: string;
   profile: PlannerProfile;
-  /** The selected plan type id (e.g. 'balanced-nutrition', 'high-protein-power'). Optional for backward compatibility. */
+  /** Optional plan style identifier guiding AI generation */
   planType?: string;
 }
 

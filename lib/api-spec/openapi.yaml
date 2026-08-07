@@ -715,6 +715,9 @@ components:
           format: date
         profile:
           $ref: "#/components/schemas/PlannerProfile"
+        planType:
+          type: string
+          description: Optional plan style identifier guiding AI generation
     PlannerMeal:
       type: object
       required: [id, day, meal, name, image, serving, calories, proteinG, carbsG, fatG, ingredients, description]

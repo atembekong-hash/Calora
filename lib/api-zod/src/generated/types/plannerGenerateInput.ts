@@ -10,4 +10,6 @@ import type { PlannerProfile } from './plannerProfile';
 export interface PlannerGenerateInput {
   weekStart: Date;
   profile: PlannerProfile;
+  /** Optional plan style identifier guiding AI generation */
+  planType?: string;
 }
