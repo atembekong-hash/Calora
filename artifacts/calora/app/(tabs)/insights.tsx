@@ -63,7 +63,7 @@ function AnimatedTrackFill({ percentage, color, trackColor }: { percentage: numb
   return <View style={[styles.miniTrack, { backgroundColor: trackColor }]}><Animated.View style={[styles.miniFill, { backgroundColor: color }, animatedStyle]} /></View>;
 }
 
-function WeeklyPatternsCard({ colors, days }: { colors: ReturnType<typeof useCalora>['colors']; days: WeeklySignalDay[] }) {
+function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: ReturnType<typeof useCalora>['colors']; days: WeeklySignalDay[]; averageActivityMinutes: number }) {
   const loggedDays = days.filter((day) => day.hasData).length;
   const waterDays = days.filter((day) => day.water > 0).length;
   const moodDays = days.filter((day) => day.mood).length;
@@ -102,7 +102,7 @@ function WeeklyPatternsCard({ colors, days }: { colors: ReturnType<typeof useCal
       <View style={styles.patternStats}>
         <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageWater} fl oz</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. water</Text></View>
         <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageCalories ? averageCalories.toLocaleString() : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. kcal</Text></View>
-        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{activityDays}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>movement days</Text></View>
+        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageActivityMinutes ? `${averageActivityMinutes} min` : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. active min</Text></View>
       </View>
       <Text style={[styles.patternNote, { color: colors.mutedForeground }]}>No entry is a negative score. Keep building a picture that feels useful to you.</Text>
     </View>
@@ -141,8 +141,8 @@ export default function InsightsScreen() {
   const moodLabel = moodToday ? moodToday.charAt(0).toUpperCase() + moodToday.slice(1) : 'Not logged';
   const target = profile?.calorieTarget ?? 2000;
   const weeklySignals = useMemo(
-    () => deriveWeeklySignals(remembered.logs, remembered.waterLogs, remembered.moodLogs, remembered.activityLogs, target, todayKey),
-    [remembered, target, todayKey],
+    () => deriveWeeklySignals(remembered.logs, remembered.waterLogs, remembered.moodLogs, remembered.activityLogs, target, todayKey, activityMinutesLogs),
+    [remembered, target, todayKey, activityMinutesLogs],
   );
   const weekDays = weeklySignals.days;
   const signalDays = weeklySignals.trackedDays;
@@ -278,7 +278,7 @@ export default function InsightsScreen() {
         </AnimatedReveal>
 
         <AnimatedReveal delay={360}>
-          <WeeklyPatternsCard colors={colors} days={weekDays} />
+          <WeeklyPatternsCard colors={colors} days={weekDays} averageActivityMinutes={weeklySignals.averageActivityMinutes} />
         </AnimatedReveal>
 
         <View style={styles.sectionHeader}>

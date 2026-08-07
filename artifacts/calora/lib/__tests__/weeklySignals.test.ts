@@ -34,6 +34,50 @@ describe('weekly signals', () => {
     expect(signals.averageWater).toBe(16);
   });
 
+  it('computes average active minutes only over days with logged minutes', () => {
+    const signals = deriveWeeklySignals(
+      [],
+      {},
+      {},
+      {},
+      2000,
+      '2026-08-06',
+      { '2026-08-06': 30, '2026-08-05': 45 },
+    );
+
+    expect(signals.averageActivityMinutes).toBe(38); // Math.round((30 + 45) / 2)
+  });
+
+  it('returns zero average active minutes when no minutes are logged', () => {
+    const signals = deriveWeeklySignals(
+      [],
+      {},
+      {},
+      {},
+      2000,
+      '2026-08-06',
+    );
+
+    expect(signals.averageActivityMinutes).toBe(0);
+  });
+
+  it('populates activityMinutes per day from the provided log', () => {
+    const signals = deriveWeeklySignals(
+      [],
+      {},
+      {},
+      {},
+      2000,
+      '2026-08-06',
+      { '2026-08-06': 60 },
+    );
+
+    const today = signals.days.find((d) => d.date === '2026-08-06');
+    const yesterday = signals.days.find((d) => d.date === '2026-08-05');
+    expect(today?.activityMinutes).toBe(60);
+    expect(yesterday?.activityMinutes).toBe(0);
+  });
+
   it('returns neutral trust when no diary entries exist', () => {
     expect(trustScore([])).toBeNull();
     expect(trustScore([log('2026-08-06', 80), log('2026-08-05', 100)])).toBe(90);

@@ -1,4 +1,4 @@
-import type { DailyActivity, FoodLog, Mood, MoodLog, ActivityLog, WaterLog } from '@/context/CaloraContext';
+import type { ActivityMinutesLog, DailyActivity, FoodLog, Mood, MoodLog, ActivityLog, WaterLog } from '@/context/CaloraContext';
 import { dateKey, dateList } from '@/lib/dates';
 
 export type WeeklySignalDay = {
@@ -10,6 +10,7 @@ export type WeeklySignalDay = {
   water: number;
   mood?: Mood;
   activity?: DailyActivity;
+  activityMinutes: number;
   hasFood: boolean;
   hasData: boolean;
 };
@@ -23,6 +24,7 @@ export type WeeklySignals = {
   activityDays: number;
   averageCalories: number;
   averageWater: number;
+  averageActivityMinutes: number;
 };
 
 export function deriveWeeklySignals(
@@ -32,6 +34,7 @@ export function deriveWeeklySignals(
   activityLogs: ActivityLog,
   target: number,
   endDate = dateKey(),
+  activityMinutesLogs: ActivityMinutesLog = {},
 ): WeeklySignals {
   const days = dateList(endDate, 7).map((date) => {
     const dayLogs = logs.filter((log) => log.date === date);
@@ -46,12 +49,14 @@ export function deriveWeeklySignals(
       water: waterLogs[date] ?? 0,
       mood: moodLogs[date],
       activity: activityLogs[date],
+      activityMinutes: activityMinutesLogs[date] ?? 0,
       hasFood: dayLogs.length > 0,
       hasData: dayLogs.length > 0 || Boolean(waterLogs[date]) || Boolean(moodLogs[date]) || Boolean(activityLogs[date]),
     };
   });
   const calorieDays = days.filter((day) => day.kcal > 0);
   const waterDays = days.filter((day) => day.water > 0);
+  const minutesDays = days.filter((day) => day.activityMinutes > 0);
   return {
     days,
     trackedDays: days.filter((day) => day.hasData).length,
@@ -61,6 +66,7 @@ export function deriveWeeklySignals(
     activityDays: days.filter((day) => day.activity).length,
     averageCalories: calorieDays.length ? Math.round(calorieDays.reduce((sum, day) => sum + day.kcal, 0) / calorieDays.length) : 0,
     averageWater: waterDays.length ? Math.round(waterDays.reduce((sum, day) => sum + day.water, 0) / waterDays.length) : 0,
+    averageActivityMinutes: minutesDays.length ? Math.round(minutesDays.reduce((sum, day) => sum + day.activityMinutes, 0) / minutesDays.length) : 0,
   };
 }
 
