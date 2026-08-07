@@ -45,6 +45,12 @@ export interface ClearAllDataCtx {
    * In production this is the `getPlannerWeekStart` function from data/planner.ts.
    */
   getPlannerWeekStart: () => string;
+  /**
+   * Returns today's date-key (YYYY-MM-DD).
+   * Injected so tests can supply a deterministic date without mocking globals.
+   * In production this is the `dateKey` function from lib/dates.ts.
+   */
+  getToday: () => string;
   // State setters — in production these are React useState dispatchers
   setOnboardingComplete: Setter;
   setProfile: Setter;
@@ -71,6 +77,8 @@ export interface ClearAllDataCtx {
   setCoachConsentAccepted: Setter;
   setCoachMessages: Setter;
   setGoalCelebrationSeenTargetKg: Setter;
+  /** Resets the session-only planner viewed day so it is consistent with the reset week. */
+  setPlannerViewedDay: Setter;
 }
 
 /**
@@ -100,6 +108,11 @@ export async function performClearAllData(ctx: ClearAllDataCtx): Promise<void> {
   // Reset to the current week so the planner opens on the right week after a
   // fresh start, regardless of which week the user had navigated to before clearing.
   ctx.setPlannerWeekStart(ctx.getPlannerWeekStart());
+  // Reset the session-only viewed day to today so it is consistent with the
+  // week that was just reset above. Without this, a user who navigated to a
+  // future/past day before clearing would still see that day highlighted even
+  // though plannerWeekStart has jumped back to the current week.
+  ctx.setPlannerViewedDay(ctx.getToday());
   ctx.setPlannerMeals([]);
   ctx.setShoppingItems([]);
   ctx.setFoodDrafts([]);

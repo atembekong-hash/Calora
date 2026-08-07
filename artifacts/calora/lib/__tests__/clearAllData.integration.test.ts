@@ -364,9 +364,10 @@ function makeSpyCtx(pm: PersistenceManager): {
     pm,
     emptyLivingMemory: emptyLivingMemory(),
     defaultHydrationPrefs: DEFAULT_HYDRATION_PREFS,
-    // Use a deterministic week-start so tests are not date-sensitive.
-    // This value is the Monday of the week containing 2026-08-07 (a Friday).
+    // Use deterministic dates so tests are not sensitive to the wall clock.
+    // 2026-08-07 is the Friday in the week whose Monday is 2026-08-03.
     getPlannerWeekStart:          () => '2026-08-03',
+    getToday:                     () => '2026-08-07',
     setOnboardingComplete:        spy('onboardingComplete'),
     setProfile:                   spy('profile'),
     setLogs:                      spy('logs'),
@@ -381,6 +382,7 @@ function makeSpyCtx(pm: PersistenceManager): {
     setConsentAccepted:           spy('consentAccepted'),
     setOutbox:                    spy('outbox'),
     setPlannerWeekStart:          spy('plannerWeekStart'),
+    setPlannerViewedDay:          spy('plannerViewedDay'),
     setPlannerMeals:              spy('plannerMeals'),
     setShoppingItems:             spy('shoppingItems'),
     setFoodDrafts:                spy('foodDrafts'),
@@ -527,6 +529,10 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     // plannerWeekStart resets to the current Monday — not the week the user had browsed to.
     // This ensures a fresh start always opens on the current week.
     expect(captured.plannerWeekStart).toBe('2026-08-03'); // deterministic via getPlannerWeekStart mock
+    // plannerViewedDay resets to today — consistent with the week reset above.
+    // Without this, a user on a future/past day would keep that day highlighted
+    // even though plannerWeekStart jumped back to the current week.
+    expect(captured.plannerViewedDay).toBe('2026-08-07'); // deterministic via getToday mock
     expect(captured.plannerMeals).toEqual([]);
     expect(captured.shoppingItems).toEqual([]);
     expect(captured.foodDrafts).toEqual([]);
@@ -541,6 +547,29 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     // livingMemory resets to emptyLivingMemory() — must have the expected shape
     expect(captured.livingMemory).toBeDefined();
     expect(typeof captured.livingMemory).toBe('object');
+  });
+
+  it('plannerViewedDay resets to today — a future/past day does not survive a clear', async () => {
+    // Scenario: user browsed to a future day (e.g. next week) before tapping "Clear all data".
+    // After the clear, plannerViewedDay must be today so it stays consistent with
+    // the plannerWeekStart that was also reset to the current week.
+    //
+    // plannerViewedDay is session-only (never persisted), so this test focuses on
+    // the setter value captured by performClearAllData — the same value React would
+    // use on the next render cycle to update the Planner header.
+    const { ctx, captured } = makeSpyCtx(pm);
+
+    // Simulate: the Planner had set plannerViewedDay to a future date before clear.
+    // That state lives only in React — our spy ctx represents the setter that will
+    // receive the reset value; the "current" value is irrelevant to the assertion.
+    await performClearAllData(ctx);
+
+    // The setter must have been called with today's date-key (from getToday mock).
+    expect(captured.plannerViewedDay).toBe('2026-08-07');
+    // And it must be consistent with the reset week-start (a Monday on or before today).
+    const viewedDay  = new Date(captured.plannerViewedDay as string);
+    const weekStart  = new Date(captured.plannerWeekStart as string);
+    expect(viewedDay >= weekStart).toBe(true);
   });
 
   it('post-clear read() returns the cleared state — stale mid-clear log id is absent on re-hydration', async () => {
