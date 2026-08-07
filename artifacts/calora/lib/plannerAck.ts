@@ -34,3 +34,40 @@ export function consumePlannerAck(
   if (!plannerMeals.some((m) => m.id === ack.mealId)) return null;
   return ack.message;
 }
+
+/**
+ * A pending recipe-swap undo set by the Recipes screen when a recipe replaces
+ * an existing planned meal. Carrying both meal references allows the Planner
+ * to guard against showing a stale undo banner when either referenced meal has
+ * since been removed (e.g. by a concurrent `clearAllData`).
+ */
+export type UndoSwap = {
+  newMeal: PlannerMeal;
+  originalMeal: PlannerMeal;
+};
+
+/**
+ * Validate a pending swap-undo before the Planner shows the undo banner.
+ *
+ * Returns the swap object when both `newMeal.id` and `originalMeal.id` still
+ * exist in `plannerMeals`, and `null` when the swap is absent or either
+ * referenced meal has since been removed.  The caller should always clear
+ * `pendingUndoSwap` in the context regardless of the return value so the swap
+ * is consumed exactly once.
+ *
+ * @param swap         The pending swap from context (may be null).
+ * @param plannerMeals Current list of planner meals to validate against.
+ * @returns The swap object when both meals are present, or null to silently drop.
+ */
+export function consumeUndoSwap(
+  swap: UndoSwap | null,
+  plannerMeals: PlannerMeal[],
+): UndoSwap | null {
+  if (!swap) return null;
+  // After a normal swap, `originalMeal` has been removed from the plan and
+  // `newMeal` now occupies the slot — only `newMeal.id` must still be present.
+  // The stale case is when `clearAllData` (or any other removal) has also
+  // evicted `newMeal`, leaving nothing to undo against.
+  if (!plannerMeals.some((m) => m.id === swap.newMeal.id)) return null;
+  return swap;
+}

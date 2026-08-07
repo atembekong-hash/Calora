@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
-import { consumePlannerAck } from '@/lib/plannerAck';
+import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
 import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
@@ -200,21 +200,27 @@ export default function PlannerScreen() {
     }, [pendingPlannerAck, setPendingPlannerAck, plannerMeals]),
   );
 
-  // When the planner tab comes into focus, consume any pending recipe-swap undo set by the recipes tab
+  // When the planner tab comes into focus, consume any pending recipe-swap undo set by the recipes tab.
+  // Guard: if either referenced meal (newMeal or originalMeal) is no longer in plannerMeals
+  // (e.g. cleared by clearAllData between the time the swap was set and the Planner regaining
+  // focus), drop the swap-undo silently — mirroring the consumePlannerAck guard above.
   useFocusEffect(
     useCallback(() => {
       if (!pendingUndoSwap) return;
+      // Always consume exactly once, regardless of whether we display the banner.
       setPendingUndoSwap(null);
+      const validSwap = consumeUndoSwap(pendingUndoSwap, plannerMeals);
+      if (!validSwap) return;
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       setUndoMeal(null);
       setUndoMoveMeal(null);
-      setUndoSwapMeal(pendingUndoSwap);
+      setUndoSwapMeal(validSwap);
       undoTimerRef.current = setTimeout(() => {
         setUndoSwapMeal(null);
         undoTimerRef.current = null;
       }, 6000);
-      acknowledge(`${pendingUndoSwap.newMeal.name} replaced your ${pendingUndoSwap.originalMeal.meal.toLowerCase()}. Tap Undo to restore.`, 6000);
-    }, [pendingUndoSwap, setPendingUndoSwap]),
+      acknowledge(`${validSwap.newMeal.name} replaced your ${validSwap.originalMeal.meal.toLowerCase()}. Tap Undo to restore.`, 6000);
+    }, [pendingUndoSwap, setPendingUndoSwap, plannerMeals]),
   );
 
   // When the user navigates away mid-countdown, cancel both timers and clear all

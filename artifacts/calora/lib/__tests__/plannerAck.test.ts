@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { consumePlannerAck, type PlannerAck } from '@/lib/plannerAck';
+import { consumePlannerAck, consumeUndoSwap, type PlannerAck, type UndoSwap } from '@/lib/plannerAck';
+import { applySlotReplace } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
 // ---------------------------------------------------------------------------
@@ -84,5 +85,102 @@ describe('consumePlannerAck — message passthrough', () => {
     const meal = makeMeal('m-oats');
     const ack: PlannerAck = { message, mealId: 'm-oats' };
     expect(consumePlannerAck(ack, [meal])).toBe(message);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// consumeUndoSwap
+// ---------------------------------------------------------------------------
+
+function makeSwap(newId: string, originalId: string): UndoSwap {
+  return {
+    newMeal: makeMeal(newId),
+    originalMeal: makeMeal(originalId),
+  };
+}
+
+describe('consumeUndoSwap — null swap', () => {
+  it('returns null when swap is null', () => {
+    expect(consumeUndoSwap(null, [makeMeal('meal-1')])).toBeNull();
+  });
+
+  it('returns null when swap is null and plannerMeals is empty', () => {
+    expect(consumeUndoSwap(null, [])).toBeNull();
+  });
+});
+
+describe('consumeUndoSwap — normal post-swap state (newMeal present, originalMeal absent)', () => {
+  // After a swap, applySlotReplace removes originalMeal and inserts newMeal.
+  // So plannerMeals contains newMeal but NOT originalMeal — this is the
+  // expected state when the Undo banner should appear.
+
+  it('returns the swap when newMeal is in plannerMeals and originalMeal is not', () => {
+    const swap = makeSwap('new-1', 'orig-1');
+    // Only newMeal is present — originalMeal was displaced by the swap.
+    const meals = [makeMeal('new-1'), makeMeal('other-unrelated')];
+    expect(consumeUndoSwap(swap, meals)).toBe(swap);
+  });
+
+  it('returns the swap when newMeal is among several meals and originalMeal is absent', () => {
+    const swap = makeSwap('new-abc', 'orig-abc');
+    const meals = [makeMeal('other-1'), makeMeal('new-abc'), makeMeal('other-2')];
+    expect(consumeUndoSwap(swap, meals)).toBe(swap);
+  });
+});
+
+describe('consumeUndoSwap — integration with applySlotReplace', () => {
+  // Simulate the full recipes → planner handoff: applySlotReplace displaces the
+  // original meal, recipes.tsx captures both meals in pendingUndoSwap, and then
+  // the Planner consumes the swap on focus.
+
+  it('returns the swap after applySlotReplace (normal swap flow shows Undo)', () => {
+    const originalMeal: PlannerMeal = {
+      ...makeMeal('orig-slot'),
+      day: '2026-08-10',
+      meal: 'Dinner',
+    };
+    const newMeal: PlannerMeal = {
+      ...makeMeal('new-slot'),
+      day: '2026-08-10',
+      meal: 'Dinner',
+    };
+    const planBefore = [originalMeal, makeMeal('other-breakfast')];
+    // applySlotReplace removes originalMeal and inserts newMeal at the same slot.
+    const planAfter = applySlotReplace(planBefore, '2026-08-10', 'Dinner', newMeal);
+    const swap: UndoSwap = { newMeal, originalMeal };
+    // newMeal is in the plan; originalMeal is not — Undo banner should appear.
+    expect(consumeUndoSwap(swap, planAfter)).toBe(swap);
+  });
+
+  it('returns null after applySlotReplace followed by clearAllData (stale swap suppressed)', () => {
+    const originalMeal: PlannerMeal = { ...makeMeal('orig-clear'), day: '2026-08-10', meal: 'Lunch' };
+    const newMeal: PlannerMeal = { ...makeMeal('new-clear'), day: '2026-08-10', meal: 'Lunch' };
+    const planBefore = [originalMeal];
+    const planAfter = applySlotReplace(planBefore, '2026-08-10', 'Lunch', newMeal);
+    expect(planAfter.some((m) => m.id === 'new-clear')).toBe(true); // sanity check
+    const swap: UndoSwap = { newMeal, originalMeal };
+    // clearAllData wipes plannerMeals — newMeal is now gone too.
+    expect(consumeUndoSwap(swap, [])).toBeNull();
+  });
+});
+
+describe('consumeUndoSwap — stale swap (newMeal missing)', () => {
+  it('returns null when plannerMeals is empty (e.g. after clearAllData)', () => {
+    const swap = makeSwap('new-x', 'orig-x');
+    expect(consumeUndoSwap(swap, [])).toBeNull();
+  });
+
+  it('returns null when newMeal is missing regardless of what else is in the plan', () => {
+    const swap = makeSwap('new-gone', 'orig-irrelevant');
+    const meals = [makeMeal('some-other-meal')];
+    expect(consumeUndoSwap(swap, meals)).toBeNull();
+  });
+
+  it('does not match newMeal by name — only by id', () => {
+    const swap = makeSwap('new-target', 'orig-target');
+    const meals: PlannerMeal[] = [
+      { ...makeMeal('other-id'), name: 'Meal new-target' }, // same name, wrong id
+    ];
+    expect(consumeUndoSwap(swap, meals)).toBeNull();
   });
 });
