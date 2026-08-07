@@ -2,7 +2,7 @@ import { useGeneratePlanner, type PlannerMeal } from '@workspace/api-client-reac
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
@@ -120,7 +120,7 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
 }
 
 export default function PlannerScreen() {
-  const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, livingState } = useCalora();
+  const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, livingState, setPlannerViewedDay, setRecipeSlotTarget } = useCalora();
   const insets = useSafeAreaInsets();
   const generatePlanner = useGeneratePlanner();
   const today = dateKey();
@@ -159,6 +159,11 @@ export default function PlannerScreen() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const plannerReviewDraft = plannerReviewDraftId ? (foodDrafts.find((d) => d.id === plannerReviewDraftId) ?? null) : null;
+
+  // Keep context in sync with the day the user is viewing so recipe plan-picker can default to it
+  useEffect(() => {
+    setPlannerViewedDay(selectedDay);
+  }, [selectedDay, setPlannerViewedDay]);
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => plannerDate(viewWeekStart, index)), [viewWeekStart]);
   const selectedMeals = plannerMeals.filter((meal) => meal.day === selectedDay);
@@ -577,6 +582,18 @@ export default function PlannerScreen() {
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.catalogList}>
                {plannerCatalog.filter((meal) => meal.meal === addingMealType).map((meal) => <Pressable key={meal.id} accessibilityLabel={`Add ${meal.name} to plan`} onPress={() => addMealToPlan(meal, selectedDay, addingMealType!)} style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: meal.image }} contentFit="cover" style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="plus-circle" size={19} color={colors.primary} /></Pressable>)}
              </ScrollView>
+             <Pressable
+               accessibilityLabel={`Browse recipes for ${addingMealType}`}
+               onPress={() => {
+                 setRecipeSlotTarget({ day: selectedDay, mealType: addingMealType! });
+                 setAddingMealType(null);
+                 router.push('/(tabs)/recipes');
+               }}
+               style={[styles.browseRecipesButton, { backgroundColor: colors.accent }]}
+             >
+               <Feather name="book-open" size={15} color={colors.accentForeground} />
+               <Text style={[styles.browseRecipesText, { color: colors.accentForeground }]}>Browse recipes</Text>
+             </Pressable>
               <Pressable accessibilityLabel={`Create custom ${addingMealType}`} onPress={() => openCustomMeal(addingMealType!)} style={[styles.customMealButton, { borderColor: colors.primary }]}><Feather name="edit-3" size={15} color={colors.primary} /><Text style={[styles.customMealButtonText, { color: colors.primary }]}>Create a custom meal</Text></Pressable>
              <Pressable accessibilityLabel={`Leave ${addingMealType} open`} onPress={() => { setAddingMealType(null); acknowledge(`${addingMealType} left open for real life.`); }} style={styles.leaveOpenButton}><Text style={[styles.leaveOpenText, { color: colors.mutedForeground }]}>Leave this slot open</Text></Pressable>
            </View>
@@ -759,7 +776,9 @@ const styles = StyleSheet.create({
   catalogMeta: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 4 },
   leaveOpenButton: { alignItems: 'center', paddingVertical: 12 },
   leaveOpenText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  customMealButton: { minHeight: 43, borderRadius: 13, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 5 },
+  browseRecipesButton: { minHeight: 43, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 5 },
+  browseRecipesText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  customMealButton: { minHeight: 43, borderRadius: 13, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 8 },
   customMealButtonText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
   formSheet: { maxHeight: '91%', borderTopLeftRadius: 27, borderTopRightRadius: 27, paddingHorizontal: 20 },
   formContent: { paddingBottom: 28 },

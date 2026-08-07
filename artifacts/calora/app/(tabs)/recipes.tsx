@@ -103,15 +103,17 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
   );
 }
 function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void }) {
-  const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals } = useCalora();
+  const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget } = useCalora();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const remoteRecipeId = recipe && !local ? recipe.id : '';
   const detailQuery = useGetRecipe(remoteRecipeId, { query: { queryKey: ['recipe', remoteRecipeId], enabled: Boolean(remoteRecipeId), staleTime: 1000 * 60 * 30 } });
   const detail = detailQuery.data ?? recipe;
   const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
   const [planVisible, setPlanVisible] = useState(false);
-  const [planDay, setPlanDay] = useState(dateKey());
-  const [planMealType, setPlanMealType] = useState<PlannerMeal['meal']>('Dinner');
+  // Default to the slot the user came from (if browsing from an empty planner slot),
+  // or else the day currently viewed in the Planner.
+  const [planDay, setPlanDay] = useState(() => recipeSlotTarget?.day ?? plannerViewedDay ?? dateKey());
+  const [planMealType, setPlanMealType] = useState<PlannerMeal['meal']>(() => recipeSlotTarget?.mealType ?? 'Dinner');
   const reviewDraft = reviewDraftId ? (foodDrafts.find((d) => d.id === reviewDraftId) ?? null) : null;
 
   if (!detail) return null;
@@ -147,7 +149,9 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   };
 
   const openPlanPicker = () => {
-    setPlanDay(dateKey());
+    // Refresh defaults from context each time the picker opens so late context changes are reflected
+    setPlanDay(recipeSlotTarget?.day ?? plannerViewedDay ?? dateKey());
+    setPlanMealType(recipeSlotTarget?.mealType ?? 'Dinner');
     setPlanVisible(true);
   };
 
@@ -169,6 +173,8 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
       prepMinutes: detail.prepMinutes ?? undefined,
     };
     updatePlannerMeals([...plannerMeals.filter((meal) => !(meal.day === planDay && meal.meal === planMealType)), plannedMeal]);
+    // Clear slot context so re-opening won't re-apply stale targeting
+    setRecipeSlotTarget(null);
     setPlanVisible(false);
     onClose();
     onPlanned(`${detail.name} added to your ${planMealType.toLowerCase()} plan.`);
@@ -341,6 +347,8 @@ export default function RecipesScreen() {
   const [selected, setSelected] = useState<Recipe | CaloraRecipe | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [planNoticeVisible, setPlanNoticeVisible] = useState(false);
+  const planNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [remoteOffset, setRemoteOffset] = useState(0);
   const [remoteRecipes, setRemoteRecipes] = useState<Recipe[]>([]);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
@@ -426,8 +434,32 @@ export default function RecipesScreen() {
         {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes from open sources…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>The cookbook is offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your saved and personal recipes remain available. Try again when a connection is available.</Text></View> : <><View style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</View>{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Bringing in more recipes…</Text></View>}</>}
         <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is provided by TheMealDB. Recipes remain attributed to their source; Calora’s nutrition confidence is shown separately.</Text>
       </ScrollView>
-      <RecipeDetailModal recipe={selected} onClose={() => setSelected(null)} onPlanned={(message) => { setSaveMessage(message); setTimeout(() => setSaveMessage(null), 2600); }} />
-      <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} />
+      <RecipeDetailModal
+        recipe={selected}
+        onClose={() => setSelected(null)}
+        onPlanned={(message) => {
+          setSaveMessage(message);
+          setPlanNoticeVisible(true);
+          if (planNoticeTimerRef.current) clearTimeout(planNoticeTimerRef.current);
+          planNoticeTimerRef.current = setTimeout(() => {
+            setSaveMessage(null);
+            setPlanNoticeVisible(false);
+            planNoticeTimerRef.current = null;
+          }, 3800);
+        }}
+      />
+      <LocalSaveNotice
+        visible={planNoticeVisible}
+        message={saveMessage ?? ''}
+        colors={colors}
+        actionLabel="View Plan"
+        onAction={() => {
+          if (planNoticeTimerRef.current) clearTimeout(planNoticeTimerRef.current);
+          setSaveMessage(null);
+          setPlanNoticeVisible(false);
+          router.push('/(tabs)/planner');
+        }}
+      />
       <CreateRecipeModal
         visible={showCreate}
         onClose={() => setShowCreate(false)}
