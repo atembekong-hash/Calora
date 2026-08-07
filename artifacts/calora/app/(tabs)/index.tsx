@@ -714,7 +714,7 @@ function makeGaugeStyles(f: number) {
 const gaugeStyles = makeGaugeStyles(1.0);
 
 export default function HomeScreen() {
-  const { logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood, livingState, fontScale } = useCalora();
+  const { logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood, livingState, fontScale, profilePhotoUri } = useCalora();
   const insets = useSafeAreaInsets();
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
@@ -819,7 +819,11 @@ export default function HomeScreen() {
                   <Feather name="zap" size={14} color={colors.primaryForeground} />
                   <Text style={[styles.homeHeaderCoachText, { color: colors.primaryForeground }]}>Ask Calora</Text>
                 </Pressable>
-                <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={styles.homeHeaderAvatar}><Text style={styles.homeHeaderAvatarText}>{profile?.name?.charAt(0) ?? 'A'}</Text></Pressable>
+                <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={[styles.homeHeaderAvatar, profilePhotoUri ? { padding: 0, overflow: 'hidden' } : {}]}>
+                  {profilePhotoUri
+                    ? <Image source={{ uri: profilePhotoUri }} style={{ width: 38, height: 38 }} contentFit="cover" />
+                    : <Text style={styles.homeHeaderAvatarText}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
+                </Pressable>
               </View>
             </View>
             <Text style={styles.homeHeaderEyebrow}>{formatDateLabel(selectedDate)}</Text>
