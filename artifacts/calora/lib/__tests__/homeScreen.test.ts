@@ -178,6 +178,63 @@ describe('living-state-action — reflection-ready evening', () => {
 });
 
 // ---------------------------------------------------------------------------
+// 3b. Afternoon low-water → add_water → does NOT open the Add Food modal
+// ---------------------------------------------------------------------------
+
+describe('living-state-action — afternoon low-water check-in', () => {
+  // Build a user who has logged consistently for several days, has lunch today,
+  // but only has 8 oz of water logged — below the 16 oz threshold that triggers
+  // the hydration nudge in the afternoon period (14:00–17:59 UTC).
+  const sevenDays = Array.from({ length: 7 }, (_, i) =>
+    `2026-08-${String(i + 1).padStart(2, '0')}`,
+  );
+  const today = '2026-08-07';
+  const pastDays = sevenDays.filter((d) => d !== today);
+
+  // Breakfast + Lunch + Dinner for every past day; Breakfast + Lunch for today.
+  const allLogs = [
+    ...pastDays.flatMap((date) => [
+      meal(date, 'Breakfast'),
+      meal(date, 'Lunch'),
+      meal(date, 'Dinner'),
+    ]),
+    meal(today, 'Breakfast'),
+    meal(today, 'Lunch'),
+  ];
+
+  it('deriveLivingState produces action.kind === add_water for afternoon + low water', () => {
+    const state = deriveLivingState({
+      profile,
+      logs: allLogs,
+      // 8 oz today — below the 16 oz threshold
+      waterLogs: { ...Object.fromEntries(pastDays.map((d) => [d, 48])), [today]: 8 },
+      moodLogs: {},
+      activityLogs: {},
+      repeatPatterns: [],
+      plannerMeals: [],
+      onboardingComplete: true,
+      // 15:30 — firmly inside the 'afternoon' period (14:00–17:59)
+      now: new Date('2026-08-07T15:30:00.000Z'),
+    });
+
+    expect(state.timePeriod).toBe('afternoon');
+    expect(state.signal.waterToday).toBe(8);
+    expect(state.action.kind).toBe('add_water');
+    expect(state.action.label).toBe('Add 8 fl oz');
+  });
+
+  it('resolveLivingActionEffect maps add_water to { kind: add_water, ounces: 8 }', () => {
+    const effect = resolveLivingActionEffect('add_water');
+    expect(effect).toEqual({ kind: 'add_water', ounces: 8 });
+  });
+
+  it('resolveLivingActionEffect does NOT return open_add_food for add_water', () => {
+    const effect = resolveLivingActionEffect('add_water');
+    expect(effect.kind).not.toBe('open_add_food');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 4. Full dispatch matrix — all four LivingAction kinds
 // ---------------------------------------------------------------------------
 
