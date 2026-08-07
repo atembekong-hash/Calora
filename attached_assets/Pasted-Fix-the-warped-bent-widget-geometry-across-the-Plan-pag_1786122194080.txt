@@ -1,0 +1,70 @@
+Fix the warped/bent widget geometry across the Plan page. Do not redesign the page. Preserve the current layout, content, colors, and hierarchy.
+
+The attached screenshot shows several components with distorted or uneven geometry. Some cards and buttons look bent, asymmetrical, or stretched instead of clean and rectangular with consistent rounded corners.
+
+Audit the following visible components first:
+
+Weekly date chips
+
+Selected Friday chip
+
+Plan style selector
+
+“Suggest meals for open spots” CTA
+
+Meal cards
+
+Any surrounding containers using the same shared component styles
+
+
+Inspect for:
+
+accidental transform, scale, skew, or rotation values
+
+inconsistent borderRadius
+
+different radii on individual corners
+
+height mismatches
+
+percentage-based heights causing distortion
+
+parent transforms inherited by children
+
+flex stretch behavior
+
+incorrect aspect ratios
+
+SVG or pseudo-element overlays affecting edges
+
+clipping or overflow
+
+nested containers with conflicting background radii
+
+
+Standardize the geometry.
+
+Every rectangular card/button should have:
+
+perfectly straight horizontal and vertical edges
+
+symmetrical left and right sides
+
+consistent corner radii
+
+no skewing
+
+no perspective distortion
+
+no stretched corners
+
+
+The “Suggest meals for open spots” CTA in particular should be a clean rounded rectangle with identical left and right corner geometry and a uniform height.
+
+The weekday cards must all share the exact same width, height, radius, internal padding, and alignment. The selected Friday state may change color, but must not change the chip's dimensions or shape.
+
+Do not fix this by eyeballing individual cards one at a time. Find whether a shared component style or parent container is causing the distortion and correct it at the source.
+
+Test the actual rendered page at this exact viewport width and at several nearby widths. Compare all repeated widgets side by side. They should look mechanically consistent.
+
+Acceptance criteria: no card, chip, button, or selector may appear bent, trapezoidal, stretched, skewed, or asymmetrical. All repeated components must have identical geometry unless intentionally designed otherwise.
