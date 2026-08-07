@@ -665,3 +665,95 @@ describe('deriveExportHasData: onboarding boundary — export row re-enables imm
     expect(deriveExportHasData(null, [])).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// clearAllData() state transition — export row dims immediately, no reload needed
+// ---------------------------------------------------------------------------
+
+/**
+ * clearAllData() in CaloraContext resets profile → null and logs → [].
+ * deriveExportHasData reads those two context values, so the export row
+ * must flip from enabled → disabled the instant clearAllData() resolves —
+ * no navigation or manual refresh required.
+ *
+ * These tests simulate the pre/post-clear state transition directly through
+ * deriveExportHasData, confirming:
+ *   1. Pre-clear  (profile set, logs exist)  → true  (row interactive)
+ *   2. Post-clear (profile null, logs empty) → false (row dimmed)
+ *   3. No Alert is ever shown in the post-clear state — the row is simply
+ *      non-interactive (onPress undefined), so handleExportTap never fires.
+ */
+describe('deriveExportHasData: clearAllData() transition — export row dims without a reload', () => {
+  const preClearProfile = { name: 'Alex' };
+  const preClearLogs = [{ id: 'log-1' }, { id: 'log-2' }];
+
+  it('transitions true → false at the clear boundary (profile set + logs → null + empty)', () => {
+    // Before clearAllData: user has a profile and diary logs
+    const beforeClear = deriveExportHasData(preClearProfile, preClearLogs);
+    expect(beforeClear).toBe(true);
+
+    // After clearAllData: CaloraContext resets profile → null, logs → []
+    const afterClear = deriveExportHasData(null, []);
+    expect(afterClear).toBe(false);
+  });
+
+  it('export row flips from interactive to dimmed immediately after clearAllData — no reload', () => {
+    const handler = vi.fn();
+
+    // Pre-clear: row is interactive
+    const preClearHasData = deriveExportHasData(preClearProfile, preClearLogs);
+    const preClearOnPress = preClearHasData ? handler : undefined;
+    expect(typeof preClearOnPress).toBe('function');
+    preClearOnPress?.();
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    handler.mockClear();
+
+    // Post-clear: row is dimmed — onPress is undefined, handler is never reached
+    const postClearHasData = deriveExportHasData(null, []);
+    const postClearOnPress = postClearHasData ? handler : undefined;
+    expect(postClearOnPress).toBeUndefined();
+    postClearOnPress?.();
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('no Alert fires in the post-clear state — handleExportTap is never called when row is dimmed', async () => {
+    // Simulate what profile.tsx does: only wire up the tap handler when hasData is true.
+    // Post-clear: hasData is false, so the tap handler is never registered and
+    // handleExportTap (which would trigger onNoData → Alert) is never invoked.
+    const postClearHasData = deriveExportHasData(null, []);
+    expect(postClearHasData).toBe(false);
+
+    // The export row's onPress is undefined — handleExportTap never fires
+    const exportRawStorageData = vi.fn();
+    const onNoDataSpy = vi.fn();
+    const onDataSpy = vi.fn();
+
+    const resolvedOnPress = postClearHasData
+      ? async () => handleExportTap({ exportRawStorageData, onNoData: onNoDataSpy, onData: onDataSpy })
+      : undefined;
+
+    // Simulate a tap (or lack thereof) — the row is non-interactive
+    await resolvedOnPress?.();
+
+    expect(exportRawStorageData).not.toHaveBeenCalled();
+    expect(onNoDataSpy).not.toHaveBeenCalled();
+    expect(onDataSpy).not.toHaveBeenCalled();
+  });
+
+  it('post-clear state holds when logs are cleared but profile was also cleared — both must be absent', () => {
+    // clearAllData resets both; losing only logs is not a full clear
+    expect(deriveExportHasData(preClearProfile, [])).toBe(true);  // profile still present
+    expect(deriveExportHasData(null, preClearLogs)).toBe(true);   // logs still present
+    expect(deriveExportHasData(null, [])).toBe(false);            // full clear
+  });
+
+  it('re-onboarding after a clear re-enables the row immediately — false → true', () => {
+    // Full clear
+    expect(deriveExportHasData(null, [])).toBe(false);
+
+    // User completes onboarding again — profile lands in context
+    const reOnboardedProfile = { name: 'Alex' };
+    expect(deriveExportHasData(reOnboardedProfile, [])).toBe(true);
+  });
+});
