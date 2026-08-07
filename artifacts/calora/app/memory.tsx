@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { Children, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora, type DailyActivity, type FoodLog, type MealType, type Mood } from '@/context/CaloraContext';
 import type { LivingMemoryKind } from '@/lib/livingMemory';
@@ -26,10 +26,37 @@ function readableDate(date: string) {
   return Number.isNaN(parsed.getTime()) ? date : parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+function parseDateLocal(dateStr: string): Date {
+  return new Date(`${dateStr}T12:00:00`);
+}
+
+function isStaleDate(dateStr: string): boolean {
+  const d = parseDateLocal(dateStr);
+  return !Number.isNaN(d.getTime()) && Date.now() - d.getTime() > THIRTY_DAYS_MS;
+}
+
+function relativeTime(dateStr: string): string {
+  const d = parseDateLocal(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const diffDays = Math.floor((Date.now() - d.getTime()) / (24 * 60 * 60 * 1000));
+  if (diffDays <= 0) return 'today';
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  const weeks = Math.floor(diffDays / 7);
+  if (diffDays < 31) return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+  const months = Math.floor(diffDays / 30);
+  if (diffDays < 365) return `${months} month${months === 1 ? '' : 's'} ago`;
+  const years = Math.floor(diffDays / 365);
+  return `${years} year${years === 1 ? '' : 's'} ago`;
+}
+
 function MemoryRow({
   icon,
   title,
   detail,
+  lastActiveDate,
   colors,
   onForget,
   onEdit,
@@ -37,19 +64,31 @@ function MemoryRow({
   icon: keyof typeof Feather.glyphMap;
   title: string;
   detail: string;
+  lastActiveDate?: string;
   colors: ReturnType<typeof useCalora>['colors'];
   onForget: () => void;
   onEdit?: () => void;
 }) {
+  const stale = lastActiveDate ? isStaleDate(lastActiveDate) : false;
+  const timeLabel = lastActiveDate ? relativeTime(lastActiveDate) : '';
   return (
-    <View style={[styles.memoryRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <View style={[styles.rowIcon, { backgroundColor: colors.accent }]}>
-        <Feather name={icon} size={15} color={colors.accentForeground} />
+    <View style={[styles.memoryRow, { backgroundColor: colors.card, borderColor: stale ? colors.border : colors.border }]}>
+      <View style={[styles.rowIcon, { backgroundColor: stale ? colors.muted : colors.accent }]}>
+        <Feather name={icon} size={15} color={stale ? colors.mutedForeground : colors.accentForeground} />
       </View>
       <View style={styles.rowCopy}>
-        <Text style={[styles.rowTitle, { color: colors.foreground }]}>{title}</Text>
+        <View style={styles.rowTitleRow}>
+          <Text style={[styles.rowTitle, { color: colors.foreground, flex: 1 }]}>{title}</Text>
+          {stale && (
+            <View style={[styles.staleBadge, { backgroundColor: colors.muted }]}>
+              <Text style={[styles.staleBadgeText, { color: colors.mutedForeground }]}>Stale</Text>
+            </View>
+          )}
+        </View>
         <Text style={[styles.rowDetail, { color: colors.mutedForeground }]}>{detail}</Text>
-        <Text style={[styles.rowSource, { color: colors.mutedForeground }]}>Confirmed on this device</Text>
+        <Text style={[styles.rowSource, { color: colors.mutedForeground }]}>
+          {timeLabel ? `${timeLabel} · ` : ''}Confirmed on this device
+        </Text>
       </View>
       <View style={styles.rowActions}>
         {onEdit && (
@@ -84,6 +123,18 @@ export default function LivingMemoryScreen() {
     Object.keys(livingMemory.moodObservations).length +
     Object.keys(livingMemory.activityObservations).length +
     Object.keys(livingMemory.plannerObservations).length;
+
+  const staleCount = useMemo(() => {
+    let count = 0;
+    Object.values(livingMemory.mealObservations).forEach((o) => { if (isStaleDate(o.date)) count++; });
+    Object.keys(livingMemory.waterObservations).forEach((d) => { if (isStaleDate(d)) count++; });
+    Object.keys(livingMemory.moodObservations).forEach((d) => { if (isStaleDate(d)) count++; });
+    Object.keys(livingMemory.activityObservations).forEach((d) => { if (isStaleDate(d)) count++; });
+    Object.values(livingMemory.plannerObservations).forEach((o) => { if (isStaleDate(o.day)) count++; });
+    return count;
+  }, [livingMemory]);
+
+  const allStale = totalCount > 0 && staleCount === totalCount;
 
   const forget = (kind: LivingMemoryKind, id: string, label: string) => {
     setForgetTarget({ kind, id, label });
@@ -139,51 +190,76 @@ export default function LivingMemoryScreen() {
           </View>
         ) : (
           <>
+            {allStale && (
+              <View style={[styles.staleNotice, { backgroundColor: colors.muted }]}>
+                <Feather name="clock" size={14} color={colors.mutedForeground} />
+                <Text style={[styles.staleNoticeText, { color: colors.mutedForeground }]}>
+                  These signals are older than a month — review or forget them if they no longer feel relevant.
+                </Text>
+              </View>
+            )}
+
             <MemorySection title="Diary signals" caption="Meal timing and type from confirmed diary entries." colors={colors}>
-              {Object.entries(livingMemory.mealObservations).map(([id, observation]) => {
-                const log = logsById.get(id);
-                const label = `Diary entry · ${readableDate(observation.date)}`;
-                return (
-                  <MemoryRow
-                    key={id}
-                    icon="coffee"
-                    title={label}
-                    detail={`${observation.meal}${log ? ` · ${log.serving}` : ''}`}
-                    colors={colors}
-                    onEdit={log ? () => startEdit(log) : undefined}
-                    onForget={() => forget('meal', id, label)}
-                  />
-                );
-              })}
+              {Object.entries(livingMemory.mealObservations)
+                .sort(([, a], [, b]) => (isStaleDate(a.date) ? 1 : 0) - (isStaleDate(b.date) ? 1 : 0))
+                .map(([id, observation]) => {
+                  const log = logsById.get(id);
+                  const label = `Diary entry · ${readableDate(observation.date)}`;
+                  return (
+                    <MemoryRow
+                      key={id}
+                      icon="coffee"
+                      title={label}
+                      detail={`${observation.meal}${log ? ` · ${log.serving}` : ''}`}
+                      lastActiveDate={observation.date}
+                      colors={colors}
+                      onEdit={log ? () => startEdit(log) : undefined}
+                      onForget={() => forget('meal', id, label)}
+                    />
+                  );
+                })}
             </MemorySection>
 
             <MemorySection title="Wellness check-ins" caption="Optional water, mood, and activity signals." colors={colors}>
-              {Object.entries(livingMemory.waterObservations).map(([date, observation]) => (
-                <MemoryRow key={`water-${date}`} icon="droplet" title={`Water · ${readableDate(date)}`} detail={`${observation.ounces} fl oz`} colors={colors} onForget={() => forget('water', date, `Water · ${readableDate(date)}`)} />
-              ))}
-              {Object.entries(livingMemory.moodObservations).map(([date, observation]) => (
-                <MemoryRow key={`mood-${date}`} icon="smile" title={`Mood · ${readableDate(date)}`} detail={moodLabels[observation.mood]} colors={colors} onForget={() => forget('mood', date, `Mood · ${readableDate(date)}`)} />
-              ))}
-              {Object.entries(livingMemory.activityObservations).map(([date, observation]) => (
-                <MemoryRow key={`activity-${date}`} icon="activity" title={`Activity · ${readableDate(date)}`} detail={activityLabels[observation.activity]} colors={colors} onForget={() => forget('activity', date, `Activity · ${readableDate(date)}`)} />
-              ))}
+              {[
+                ...Object.entries(livingMemory.waterObservations).map(([date, observation]) => ({
+                  key: `water-${date}`,
+                  date,
+                  el: <MemoryRow key={`water-${date}`} icon="droplet" title={`Water · ${readableDate(date)}`} detail={`${observation.ounces} fl oz`} lastActiveDate={date} colors={colors} onForget={() => forget('water', date, `Water · ${readableDate(date)}`)} />,
+                })),
+                ...Object.entries(livingMemory.moodObservations).map(([date, observation]) => ({
+                  key: `mood-${date}`,
+                  date,
+                  el: <MemoryRow key={`mood-${date}`} icon="smile" title={`Mood · ${readableDate(date)}`} detail={moodLabels[observation.mood]} lastActiveDate={date} colors={colors} onForget={() => forget('mood', date, `Mood · ${readableDate(date)}`)} />,
+                })),
+                ...Object.entries(livingMemory.activityObservations).map(([date, observation]) => ({
+                  key: `activity-${date}`,
+                  date,
+                  el: <MemoryRow key={`activity-${date}`} icon="activity" title={`Activity · ${readableDate(date)}`} detail={activityLabels[observation.activity]} lastActiveDate={date} colors={colors} onForget={() => forget('activity', date, `Activity · ${readableDate(date)}`)} />,
+                })),
+              ]
+                .sort((a, b) => (isStaleDate(a.date) ? 1 : 0) - (isStaleDate(b.date) ? 1 : 0))
+                .map((item) => item.el)}
             </MemorySection>
 
             <MemorySection title="Planning signals" caption="Meals you assigned yourself, not starter suggestions." colors={colors}>
-              {Object.entries(livingMemory.plannerObservations).map(([id, observation]) => {
-                const plannerMeal = visiblePlannerMeals.get(id);
-                const label = `Plan · ${readableDate(observation.day)}`;
-                return (
-                  <MemoryRow
-                    key={id}
-                    icon="calendar"
-                    title={label}
-                    detail={`${observation.meal}${plannerMeal ? ` · ${plannerMeal.serving}` : ''}`}
-                    colors={colors}
-                    onForget={() => forget('planner', id, label)}
-                  />
-                );
-              })}
+              {Object.entries(livingMemory.plannerObservations)
+                .sort(([, a], [, b]) => (isStaleDate(a.day) ? 1 : 0) - (isStaleDate(b.day) ? 1 : 0))
+                .map(([id, observation]) => {
+                  const plannerMeal = visiblePlannerMeals.get(id);
+                  const label = `Plan · ${readableDate(observation.day)}`;
+                  return (
+                    <MemoryRow
+                      key={id}
+                      icon="calendar"
+                      title={label}
+                      detail={`${observation.meal}${plannerMeal ? ` · ${plannerMeal.serving}` : ''}`}
+                      lastActiveDate={observation.day}
+                      colors={colors}
+                      onForget={() => forget('planner', id, label)}
+                    />
+                  );
+                })}
             </MemorySection>
           </>
         )}
@@ -284,9 +360,14 @@ const styles = StyleSheet.create({
   memoryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 17, padding: 11 },
   rowIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   rowCopy: { flex: 1 },
+  rowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   rowTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  staleBadge: { borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2 },
+  staleBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 0.5 },
   rowDetail: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 3 },
   rowSource: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 4 },
+  staleNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 13, padding: 11, marginBottom: 16 },
+  staleNoticeText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
   rowActions: { flexDirection: 'row', gap: 6 },
   iconAction: { width: 31, height: 31, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   footerNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 13, padding: 11, marginTop: 1 },
