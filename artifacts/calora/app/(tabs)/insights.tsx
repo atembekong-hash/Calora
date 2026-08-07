@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
   sectionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 4 },
   rangeButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 },
   rangeText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
-  chartCard: { borderWidth: 1, borderRadius: 21, padding: 15 },
+  chartCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginBottom: 20 },
   chart: { height: 190, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 7 },
   barColumn: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
   barValue: { fontFamily: 'Inter_400Regular', fontSize: 8, marginBottom: 6 },
