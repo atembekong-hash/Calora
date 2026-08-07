@@ -215,20 +215,24 @@ export function createStarterPlannerMeals(weekStart = getPlannerWeekStart()): Pl
 }
 
 export function buildShoppingItems(meals: PlannerMeal[], checkedByName = new Map<string, boolean>()): ShoppingItem[] {
-  const quantities = new Map<string, { name: string; quantity: number; sourceMealIds: string[] }>();
+  const quantities = new Map<string, { name: string; quantity: number; sourceMealIds: string[]; sourceDays: Set<string> }>();
   meals.forEach((meal) => meal.ingredients.forEach((ingredient) => {
     const name = ingredient.trim().replace(/\s+/g, ' ');
     const key = name.toLocaleLowerCase();
-    const current = quantities.get(key) ?? { name, quantity: 0, sourceMealIds: [] };
+    const current = quantities.get(key) ?? { name, quantity: 0, sourceMealIds: [], sourceDays: new Set<string>() };
     current.quantity += 1;
     if (!current.sourceMealIds.includes(meal.id)) current.sourceMealIds.push(meal.id);
+    if (meal.day) current.sourceDays.add(meal.day);
     quantities.set(key, current);
   }));
   return Array.from(quantities.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, item]) => ({
       id: `shop-${key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
-      ...item,
+      name: item.name,
+      quantity: item.quantity,
+      sourceMealIds: item.sourceMealIds,
+      days: Array.from(item.sourceDays).sort(),
       checked: checkedByName.get(key) ?? checkedByName.get(item.name) ?? false,
     }));
 }

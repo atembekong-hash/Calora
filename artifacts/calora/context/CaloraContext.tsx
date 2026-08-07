@@ -102,7 +102,7 @@ export type CaloraRecipe = {
   sourceUrl: string;
   isLocal?: boolean;
 };
-export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean; sourceMealIds?: string[] };
+export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean; sourceMealIds?: string[]; days?: string[] };
 
 export type Profile = {
   name: string;

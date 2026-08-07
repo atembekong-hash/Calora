@@ -30,6 +30,11 @@ function shortMealType(type: PlannerMeal['meal']) {
   return type === 'Breakfast' ? 'B' : type === 'Lunch' ? 'L' : type === 'Dinner' ? 'D' : 'S';
 }
 
+function formatShoppingDays(days: string[] | undefined): string {
+  if (!days || days.length === 0) return '';
+  return days.map((d) => dayFormatter.format(parseDate(d))).join(' · ');
+}
+
 function MealCard({
   meal,
   colors,
@@ -520,7 +525,7 @@ export default function PlannerScreen() {
         </View>
       </Modal>
        <Modal visible={shoppingVisible} transparent animationType="slide" onRequestClose={() => setShoppingVisible(false)}>
-         <View style={styles.modalBackdrop}><View style={[styles.shoppingSheet, { backgroundColor: colors.background }]}><View style={styles.sheetHandle} /><View style={styles.shoppingHeader}><View><Text style={[styles.detailEyebrow, { color: colors.primary }]}>THIS WEEK</Text><Text style={[styles.detailTitle, { color: colors.foreground }]}>Shopping list</Text></View><Pressable accessibilityLabel="Close shopping list" onPress={() => setShoppingVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View><Text style={[styles.shoppingSubtitle, { color: colors.mutedForeground }]}>Ingredients from the week you are viewing.</Text><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 25 }}>{visibleShoppingItems.map((item) => <Pressable key={item.id} accessibilityLabel={`${item.checked ? 'Uncheck' : 'Check'} ${item.name}`} onPress={() => toggleShoppingItemByName(item.name)} style={[styles.shoppingRow, { borderBottomColor: colors.border }]}><View style={[styles.checkbox, { borderColor: item.checked ? colors.success : colors.input, backgroundColor: item.checked ? colors.success : 'transparent' }]}>{item.checked && <Feather name="check" size={13} color={colors.primaryForeground} />}</View><Text style={[styles.shoppingName, { color: item.checked ? colors.mutedForeground : colors.foreground, textDecorationLine: item.checked ? 'line-through' : 'none' }]}>{item.name}</Text><Text style={[styles.shoppingQuantity, { color: colors.mutedForeground }]}>{item.quantity}×</Text></Pressable>)}</ScrollView></View></View>
+         <View style={styles.modalBackdrop}><View style={[styles.shoppingSheet, { backgroundColor: colors.background }]}><View style={styles.sheetHandle} /><View style={styles.shoppingHeader}><View><Text style={[styles.detailEyebrow, { color: colors.primary }]}>THIS WEEK</Text><Text style={[styles.detailTitle, { color: colors.foreground }]}>Shopping list</Text></View><Pressable accessibilityLabel="Close shopping list" onPress={() => setShoppingVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View><Text style={[styles.shoppingSubtitle, { color: colors.mutedForeground }]}>Ingredients from the week you are viewing.</Text><ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 25 }}>{visibleShoppingItems.map((item) => <Pressable key={item.id} accessibilityLabel={`${item.checked ? 'Uncheck' : 'Check'} ${item.name}`} onPress={() => toggleShoppingItemByName(item.name)} style={[styles.shoppingRow, { borderBottomColor: colors.border }]}><View style={[styles.checkbox, { borderColor: item.checked ? colors.success : colors.input, backgroundColor: item.checked ? colors.success : 'transparent' }]}>{item.checked && <Feather name="check" size={13} color={colors.primaryForeground} />}</View><View style={{ flex: 1 }}><Text style={[styles.shoppingName, { color: item.checked ? colors.mutedForeground : colors.foreground, textDecorationLine: item.checked ? 'line-through' : 'none' }]}>{item.name}</Text>{!!formatShoppingDays(item.days) && <Text style={[styles.shoppingDays, { color: item.checked ? colors.mutedForeground : colors.primary, opacity: item.checked ? 0.55 : 0.75 }]}>{formatShoppingDays(item.days)}</Text>}</View><Text style={[styles.shoppingQuantity, { color: colors.mutedForeground }]}>{item.quantity}×</Text></Pressable>)}</ScrollView></View></View>
       </Modal>
        <Modal visible={actionMeal !== null} transparent animationType="slide" onRequestClose={() => { setActionMeal(null); setActionMode(null); }}>
          <View style={styles.modalBackdrop}>
@@ -849,6 +854,7 @@ const styles = StyleSheet.create({
   shoppingSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 8, marginBottom: 12 },
   shoppingRow: { minHeight: 46, borderBottomWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   checkbox: { width: 22, height: 22, borderRadius: 7, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  shoppingName: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 12 },
+  shoppingName: { fontFamily: 'Inter_500Medium', fontSize: 12 },
+  shoppingDays: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 1 },
   shoppingQuantity: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
 });
