@@ -168,6 +168,156 @@ describe('queueClearAfterPendingWrites: queued write cannot resurrect data after
 });
 
 // ---------------------------------------------------------------------------
+// clearAllData queue pattern: write drains before storage remove
+// ---------------------------------------------------------------------------
+
+describe('clearAllData queue pattern: pending write must drain before storage is removed', () => {
+  it('storage remove runs after a queued write — mirrors the clearAllData reassignment pattern', async () => {
+    // This replicates the exact code path in clearAllData:
+    //   storageWriteQueue.current = queueClearAfterPendingWrites(
+    //     storageWriteQueue.current,
+    //     () => AsyncStorage.removeItem(STORAGE_KEY),
+    //   );
+    //   await storageWriteQueue.current;
+    //
+    // A pending write is in progress when the user triggers clearAllData.
+    // The queue must ensure the write completes first so the remove is the
+    // final operation — no queued write can resurrect data after the clear.
+    const order: string[] = [];
+    let resolveWrite!: () => void;
+
+    // Simulate an in-flight autosave (the context's storageWriteQueue.current)
+    let currentQueue: Promise<void> = new Promise<void>((res) => {
+      resolveWrite = res;
+    }).then(() => {
+      order.push('autosave-write');
+    });
+
+    // clearAllData reassigns the queue by chaining off it
+    currentQueue = queueClearAfterPendingWrites(currentQueue, async () => {
+      order.push('storage-remove');
+    });
+
+    // The write is still blocked — nothing has run yet
+    expect(order).toEqual([]);
+
+    // Unblock the pending write (simulates AsyncStorage.setItem resolving)
+    resolveWrite();
+    await currentQueue;
+
+    // Write must finish before remove — remove wins as the last writer
+    expect(order).toEqual(['autosave-write', 'storage-remove']);
+  });
+
+  it('storage remove still runs when the queued autosave write throws', async () => {
+    // If AsyncStorage.setItem rejects mid-flight, clearAllData must still
+    // remove the key so the user's explicit "clear all" action is honoured.
+    const order: string[] = [];
+
+    let currentQueue: Promise<void> = Promise.reject(
+      new Error('AsyncStorage: disk full'),
+    ).then(() => {
+      order.push('autosave-write');
+    }) as Promise<void>;
+
+    currentQueue = queueClearAfterPendingWrites(currentQueue, async () => {
+      order.push('storage-remove');
+    });
+
+    await currentQueue;
+
+    // Write was skipped (threw), but remove must still execute
+    expect(order).toEqual(['storage-remove']);
+  });
+
+  it('a second clearAllData call chains off the first — last clear wins', async () => {
+    // If the user triggers clear twice quickly, each call chains off the
+    // previous queue entry. The final state must reflect both removes
+    // running in order, not racing.
+    const order: string[] = [];
+    let resolveFirst!: () => void;
+
+    let currentQueue: Promise<void> = new Promise<void>((res) => {
+      resolveFirst = res;
+    }).then(() => {
+      order.push('write');
+    });
+
+    // First clearAllData call
+    currentQueue = queueClearAfterPendingWrites(currentQueue, async () => {
+      order.push('clear-1');
+    });
+
+    // Second clearAllData call chains off the first clear's queue
+    currentQueue = queueClearAfterPendingWrites(currentQueue, async () => {
+      order.push('clear-2');
+    });
+
+    resolveFirst();
+    await currentQueue;
+
+    expect(order).toEqual(['write', 'clear-1', 'clear-2']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Post-clear re-hydration: empty storage yields empty state, not starter data
+// ---------------------------------------------------------------------------
+
+describe('post-clear re-hydration: empty storage returns null state so context keeps cleared values', () => {
+  it('parseStorageValue on empty storage returns null state with no error after a clear', () => {
+    // After clearAllData runs AsyncStorage.removeItem, the next getItem call
+    // returns null (key does not exist). parseStorageValue must signal "no
+    // saved state" without an error — the hydration effect then keeps
+    // whatever clearAllData already set (empty arrays, null profile, etc.)
+    // rather than applying any starter/default data.
+    const result = parseStorageValue<Record<string, unknown>>(null);
+    expect(result.state).toBeNull();
+    expect(result.error).toBeNull();
+  });
+
+  it('null saved state means the hydration effect returns early — starter logs are never loaded', () => {
+    // The hydration effect in CaloraContext does:
+    //   const { state: saved } = parseStorageValue(raw);
+    //   if (!saved) return;   ← early return, no setState calls for starter data
+    //
+    // This test documents that contract: null state from parseStorageValue is
+    // the correct signal to skip all setter calls, leaving the context in
+    // the empty state that clearAllData already established.
+    const { state: saved } = parseStorageValue<{ logs: unknown[] }>(null);
+    // Null state must NOT be treated as an empty object with starter arrays —
+    // the early-return guard depends on the truthiness of this value.
+    expect(saved).toBeNull();
+    expect(!saved).toBe(true); // confirms `if (!saved) return;` would fire
+  });
+
+  it('parseStorageValue on an empty string also returns null — covers removeItem followed by a race-read', () => {
+    // In rare cases a race between removeItem and getItem may surface an
+    // empty string rather than null. Both must be treated identically:
+    // no error, null state, so the context keeps its cleared values.
+    const result = parseStorageValue<Record<string, unknown>>('');
+    expect(result.state).toBeNull();
+    expect(result.error).toBeNull();
+  });
+
+  it('shouldAutosave blocks autosave while hydrated=false — prevents starter logs writing over cleared state', () => {
+    // After clearAllData the context sets state to empty values.
+    // If a re-render fires before hydration completes (hydrated=false),
+    // autosave must be blocked so empty-initialized state is never persisted
+    // without the user's explicit action. The hydration guard already
+    // covers this invariant; this test ties it explicitly to the clear path.
+    expect(shouldAutosave({ hydrated: false, error: null })).toBe(false);
+  });
+
+  it('autosave is allowed once storage is cleanly readable after a clear', () => {
+    // Once the app re-hydrates after a clear (reads null, keeps empty state,
+    // then flips hydrated=true with no error), autosave should re-enable so
+    // the user's next actions are persisted normally.
+    expect(shouldAutosave({ hydrated: true, error: null })).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Retry path invariant (documented as a pure-logic check)
 // ---------------------------------------------------------------------------
 

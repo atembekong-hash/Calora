@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { parseStorageValue, shouldAutosave, queueClearAfterPendingWrites } from '@/lib/hydrationGuard';
+import { parseStorageValue, shouldAutosave } from '@/lib/hydrationGuard';
+import { PersistenceManager } from '@/lib/persistenceManager';
 import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
@@ -360,7 +361,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [hydrationAttempt, setHydrationAttempt] = useState(0);
-  const storageWriteQueue = useRef(Promise.resolve());
+  const pm = useRef(new PersistenceManager(AsyncStorage, STORAGE_KEY));
   // Session-only navigation state (not persisted)
   const [plannerViewedDay, setPlannerViewedDay] = useState(dateKey());
   const [recipeSlotTarget, setRecipeSlotTarget] = useState<{ day: string; mealType: PlannerMeal['meal'] } | null>(null);
@@ -368,9 +369,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setHydrationError(null);
     setHydrated(false);
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then((raw) => {
-        const { state: saved, error: parseError } = parseStorageValue<Partial<CaloraState>>(raw);
+    pm.current.read<Partial<CaloraState>>()
+      .then(({ state: saved, error: parseError }) => {
         if (parseError) throw new Error(parseError);
         if (!saved) return;
         if (saved.onboardingComplete !== undefined) setOnboardingComplete(saved.onboardingComplete);
@@ -445,9 +445,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       coachMessages,
       livingMemory,
     };
-     storageWriteQueue.current = storageWriteQueue.current
-       .catch(() => undefined)
-       .then(() => AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)));
+     pm.current.enqueueWrite(state);
   }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
@@ -737,11 +735,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         coachMessages,
       }, null, 2),
     clearAllData: async () => {
-      storageWriteQueue.current = queueClearAfterPendingWrites(
-        storageWriteQueue.current,
-        () => AsyncStorage.removeItem(STORAGE_KEY),
-      );
-      await storageWriteQueue.current;
+      await pm.current.clear();
       setLogs([]);
       setWeights([]);
       setWaterLogs({});
