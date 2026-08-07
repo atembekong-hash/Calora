@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -115,6 +115,7 @@ export default function InsightsScreen() {
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [minutesInput, setMinutesInput] = useState('');
+  const isEditingMinutes = useRef(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const remembered = useMemo(
     () => filterForgottenSources(livingMemory, { logs, waterLogs, moodLogs, activityLogs, plannerMeals }),
@@ -132,8 +133,10 @@ export default function InsightsScreen() {
   const goalProgressPct = Math.max(0, Math.min(100, (goalProgressKg / goalTotalDistance) * 100));
   const showGoalProgress = weights.length >= 3 && hasGoal;
   const todayKey = dateKey();
-  // Sync minutes input with stored value when date changes or after hydration loads persisted data
+  // Sync minutes input with stored value when date changes or after hydration loads persisted data.
+  // Skip the sync while the user is actively editing so in-progress input is not overwritten.
   useEffect(() => {
+    if (isEditingMinutes.current) return;
     const stored = activityMinutesLogs[todayKey];
     setMinutesInput(stored ? String(stored) : '');
   }, [todayKey, activityMinutesLogs]);
@@ -381,7 +384,9 @@ export default function InsightsScreen() {
                   placeholder="—"
                   placeholderTextColor={colors.mutedForeground}
                   returnKeyType="done"
+                  onFocus={() => { isEditingMinutes.current = true; }}
                   onEndEditing={() => {
+                    isEditingMinutes.current = false;
                     const val = parseInt(minutesInput, 10);
                     if (Number.isFinite(val) && val >= 0) {
                       setActivityMinutes(todayKey, val);
