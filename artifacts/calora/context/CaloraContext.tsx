@@ -5,6 +5,7 @@ import { useHydrationEffect } from '@/lib/useHydrationEffect';
 import { PersistenceManager } from '@/lib/persistenceManager';
 import { performClearAllData, DEFAULT_HYDRATION_PREFS } from '@/lib/clearAllData';
 import { buildExportPayload, readRawStorageData } from '@/lib/exportPayload';
+import { makeClearedExportSnapshot, resolveExportData } from '@/lib/exportGap';
 import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
@@ -736,13 +737,11 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     clearOutbox: () => setOutbox([]),
       exportRawStorageData: () => readRawStorageData(AsyncStorage.getItem.bind(AsyncStorage), STORAGE_KEY),
       exportData: async () => {
-        // If clearAllData just ran and React hasn't re-rendered yet, use the
-        // pre-computed cleared snapshot stored on exportSnapshotRef so we never
-        // return the stale pre-clear closure values.  Once the autosave effect
-        // fires (after re-render) it clears the ref and we fall through to the
-        // live closed-over state for all subsequent calls.
-        const snap = exportSnapshotRef.current;
-        return buildExportPayload(STORAGE_SCHEMA_VERSION, snap ?? {
+        // resolveExportData reads exportSnapshotRef.current first (the gap-bridge
+        // set synchronously by clearAllData before React re-renders) and falls
+        // through to the live closed-over state only when the ref is null.
+        // See lib/exportGap.ts for the extracted production function.
+        return resolveExportData(exportSnapshotRef, {
           profile,
           logs,
           weights,
@@ -766,7 +765,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
           consentAccepted,
           coachConsentAccepted,
           coachMessages,
-        });
+        }, STORAGE_SCHEMA_VERSION);
       },
     clearAllData: async () => {
       if (clearingRef.current) return;
@@ -808,37 +807,18 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         setCoachMessages,
         setGoalCelebrationSeenTargetKg,
         });
-        // Synchronously capture the cleared export payload so exportData() returns
-        // cleared values even if called before React commits the re-render triggered
-        // by the state setters above.  The autosave useEffect clears this ref once
-        // React state has been committed and the closed-over state vars are current.
-        // healthConnected is NOT reset by clearAllData (it is a device-level flag,
-        // not user data), so we preserve its current closed-over value here.
-        exportSnapshotRef.current = {
-          profile:             null,
-          logs:                [],
-          weights:             [],
-          waterLogs:           {},
-          moodLogs:            {},
-          activityLogs:        {},
-          activityMinutesLogs: {},
-          savedMeals:          [],
-          localRecipes:        [],
-          savedRecipeIds:      [],
-          plannerWeekStart:    getPlannerWeekStart(),
-          plannerMeals:        [],
-          shoppingItems:       [],
-          foodDrafts:          [],
-          foodMemories:        [],
-          repeatPatterns:      [],
-          memoryCorrections:   [],
-          livingMemory:        emptyLivingMemory(),
-          hydrationReminders:  DEFAULT_HYDRATION_PREFS,
+        // Build and assign the cleared export snapshot synchronously so that
+        // exportData() (which calls resolveExportData) returns cleared values
+        // even if called before React commits the re-render triggered by the
+        // state setters above.  The autosave useEffect clears this ref once
+        // React state is committed and the closed-over state vars are current.
+        // See lib/exportGap.ts for the extracted production function.
+        exportSnapshotRef.current = makeClearedExportSnapshot({
+          getPlannerWeekStart,
           healthConnected,
-          consentAccepted:     false,
-          coachConsentAccepted: false,
-          coachMessages:       [],
-        };
+          // hydrationReminders is intentionally omitted — makeClearedExportSnapshot
+          // always resets to DEFAULT_HYDRATION_PREFS, never the stale closure value.
+        });
       } finally {
         clearingRef.current = false;
       }

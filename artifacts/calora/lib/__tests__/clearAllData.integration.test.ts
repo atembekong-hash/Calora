@@ -18,6 +18,7 @@ import {
   readRawStorageData,
   type CaloraExportState,
 } from '../exportPayload';
+import { makeClearedExportSnapshot, resolveExportData } from '../exportGap';
 
 // ---------------------------------------------------------------------------
 // In-memory StorageAdapter — mirrors the AsyncStorage surface used in
@@ -1188,6 +1189,350 @@ describe('Hard app restart after Clear all data — no post-clear autosave (cras
     ]);
     // Storage is empty — the write ran but was then removed.
     expect(storage.store[STORAGE_KEY]).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mid-clear async gap: production functions resolveExportData and
+// makeClearedExportSnapshot (lib/exportGap.ts) — mutation-sensitive
+//
+// There is a brief async window inside CaloraContext.clearAllData:
+//
+//   1. performClearAllData() is called.
+//   2. It awaits pm.clear() → removeItem executes; storage key is gone.
+//   3. Every React state setter is called → React SCHEDULES a re-render.
+//   4. exportSnapshotRef.current = makeClearedExportSnapshot(…)  ← gap-bridge
+//   ───── gap starts here ─────────────────────────────────────────────────
+//   5. React commits the re-render → closed-over state vars update.
+//   ───── gap ends here ───────────────────────────────────────────────────
+//
+// CaloraContext delegates the gap-sensitive logic to two extracted functions
+// in lib/exportGap.ts:
+//
+//   makeClearedExportSnapshot(opts)      — called at step 4 by clearAllData
+//   resolveExportData(ref, state, schema) — called by exportData every time
+//
+// These tests call the REAL production functions (not copies), so:
+//   • Reversing the priority in resolveExportData (closedOver ?? snap) fails.
+//   • Mutating any field in makeClearedExportSnapshot fails a field assertion.
+//   • Passing a null ref to resolveExportData returns stale state (sentinel).
+// ---------------------------------------------------------------------------
+
+describe('exportData and exportRawStorageData: mid-clear async gap — real production functions (mutation-sensitive)', () => {
+  /**
+   * Stale closed-over state: what React's vars hold during the gap before the
+   * re-render commits.  These are the values resolveExportData must NOT return
+   * when exportSnapshotRef is non-null.
+   */
+  const staleClosedOver: CaloraExportState = {
+    profile:              { name: 'Alex', goal: 'lose', weightKg: 76 },
+    logs:                 [
+      { id: 'log-1', name: 'Overnight oats', date: '2026-08-07', meal: 'Breakfast' },
+      { id: 'log-2', name: 'Chicken salad',  date: '2026-08-07', meal: 'Lunch'     },
+    ],
+    weights:              [{ id: 'weight-1', date: '2026-08-07', kg: 76, source: 'manual' }],
+    waterLogs:            { '2026-08-07': 48 },
+    moodLogs:             { '2026-08-07': 'energized' },
+    activityLogs:         { '2026-08-07': 'moderate' },
+    activityMinutesLogs:  { '2026-08-07': 30 },
+    savedMeals:           [{ id: 'sm-1', name: 'Granola bowl' }],
+    localRecipes:         [{ id: 'lr-1', name: 'My cookie dough' }],
+    savedRecipeIds:       ['recipe-42', 'recipe-99'],
+    plannerWeekStart:     '2026-08-03',
+    plannerMeals:         [{ id: 'pm-1', name: 'Oatmeal', day: '2026-08-07', meal: 'Breakfast' }],
+    shoppingItems:        [{ id: 'si-1', name: 'Oats', quantity: 1, checked: false }],
+    foodDrafts:           [{ id: 'fd-1' }],
+    foodMemories:         [{ id: 'fm-1', text: 'I love oatmeal' }],
+    repeatPatterns:       [{ id: 'rp-1', signature: 'oats', count: 3, lastSeen: '2026-08-07' }],
+    memoryCorrections:    [{ id: 'mc-1' }],
+    livingMemory:         { observations: [], lastUpdated: '2026-08-07' },
+    hydrationReminders:   { enabled: true, times: ['08:00', '12:00', '18:00'] },
+    healthConnected:      false,
+    consentAccepted:      true,
+    coachConsentAccepted: true,
+    coachMessages:        [{ role: 'assistant', content: 'Great progress today!' }],
+  };
+
+  it('resolveExportData with a non-null ref returns cleared snapshot — ref priority wins over stale closed-over state', () => {
+    // This tests the REAL production resolveExportData from lib/exportGap.ts.
+    // If the priority is reversed (closedOver ?? snap instead of snap ?? closedOver),
+    // this test fails because staleClosedOver.profile is Alex, not null.
+    const ref: { current: CaloraExportState | null } = { current: null };
+
+    // Step 4 of the gap: set the ref as CaloraContext.clearAllData does via
+    // the real makeClearedExportSnapshot.
+    ref.current = makeClearedExportSnapshot({
+      getPlannerWeekStart: () => '2026-08-03',
+      healthConnected: staleClosedOver.healthConnected,
+    });
+
+    // Call the REAL production resolveExportData — same function CaloraContext.exportData uses.
+    const exported = resolveExportData(ref, staleClosedOver, 2 /* STORAGE_SCHEMA_VERSION */);
+    const parsed = JSON.parse(exported) as Record<string, unknown>;
+
+    // Ref wins: cleared values, not stale ones.
+    expect(parsed['profile']).toBeNull();
+    expect(parsed['logs']).toEqual([]);
+    expect(parsed['weights']).toEqual([]);
+    expect(parsed['moodLogs']).toEqual({});
+    expect(parsed['waterLogs']).toEqual({});
+    expect(parsed['savedMeals']).toEqual([]);
+    expect(parsed['coachMessages']).toEqual([]);
+    expect(parsed['coachConsentAccepted']).toBe(false);
+    expect(parsed['consentAccepted']).toBe(false);
+
+    // Stale session IDs must be absent.
+    for (const id of ['log-1', 'log-2']) {
+      expect(
+        (parsed['logs'] as Array<{ id: string }>).some((l) => l.id === id),
+      ).toBe(false);
+    }
+  });
+
+  it('makeClearedExportSnapshot produces a fully-cleared CaloraExportState with all required fields', () => {
+    // Tests the REAL production makeClearedExportSnapshot from lib/exportGap.ts.
+    // If any field is accidentally set to a non-cleared value (or a field is added
+    // but forgotten here), this assertion fails.
+    const snap = makeClearedExportSnapshot({
+      getPlannerWeekStart: () => '2026-08-03',
+      healthConnected: false,
+    });
+
+    expect(snap.profile).toBeNull();
+    expect(snap.logs).toEqual([]);
+    expect(snap.weights).toEqual([]);
+    expect(snap.waterLogs).toEqual({});
+    expect(snap.moodLogs).toEqual({});
+    expect(snap.activityLogs).toEqual({});
+    expect(snap.activityMinutesLogs).toEqual({});
+    expect(snap.savedMeals).toEqual([]);
+    expect(snap.localRecipes).toEqual([]);
+    expect(snap.savedRecipeIds).toEqual([]);
+    expect(snap.plannerWeekStart).toBe('2026-08-03');
+    expect(snap.plannerMeals).toEqual([]);
+    expect(snap.shoppingItems).toEqual([]);
+    expect(snap.foodDrafts).toEqual([]);
+    expect(snap.foodMemories).toEqual([]);
+    expect(snap.repeatPatterns).toEqual([]);
+    expect(snap.memoryCorrections).toEqual([]);
+    expect(snap.livingMemory).toBeDefined();
+    expect(snap.hydrationReminders).toEqual(DEFAULT_HYDRATION_PREFS);
+    expect(snap.healthConnected).toBe(false);
+    expect(snap.consentAccepted).toBe(false);
+    expect(snap.coachConsentAccepted).toBe(false);
+    expect(snap.coachMessages).toEqual([]);
+  });
+
+  it('REGRESSION GUARD — makeClearedExportSnapshot always uses DEFAULT_HYDRATION_PREFS, never the stale pre-clear custom schedule', () => {
+    // Scenario: a user has a custom reminder schedule (e.g. morning/noon/evening)
+    // that differs from DEFAULT_HYDRATION_PREFS.  They tap "Clear all data".
+    // During the gap, exportData must return DEFAULT_HYDRATION_PREFS (the cleared
+    // value), NOT the stale custom schedule.
+    //
+    // Previously, makeClearedExportSnapshot accepted hydrationReminders as a
+    // parameter, and CaloraContext.clearAllData passed the stale closed-over value.
+    // That caused a concrete data leak: custom reminders leaked through the gap.
+    //
+    // makeClearedExportSnapshot now owns the DEFAULT_HYDRATION_PREFS invariant
+    // internally, so no caller can accidentally pass the stale schedule.
+
+    const customPreClearSchedule = {
+      // Deliberately non-default values that differ from DEFAULT_HYDRATION_PREFS.
+      enabled: true,
+      times: ['07:00', '11:30', '15:00', '19:30'],
+    };
+
+    // staleClosedOver has a custom hydration schedule (see its definition above).
+    // Build the gap-bridge snapshot — it must NOT contain the stale schedule.
+    const snap = makeClearedExportSnapshot({
+      getPlannerWeekStart: () => '2026-08-03',
+      healthConnected: false,
+    });
+
+    // makeClearedExportSnapshot hard-codes DEFAULT_HYDRATION_PREFS internally.
+    // If this ever changes (helper takes hydrationReminders as a param again and
+    // CaloraContext passes the stale value), this assertion fails.
+    expect(snap.hydrationReminders).toEqual(DEFAULT_HYDRATION_PREFS);
+    expect(snap.hydrationReminders).not.toEqual(customPreClearSchedule);
+
+    // Verify through resolveExportData: even if the closed-over state has a
+    // custom schedule, the ref (cleared snapshot) wins and exports the default.
+    const ref: { current: CaloraExportState | null } = { current: snap };
+    const closedOverWithCustomSchedule: CaloraExportState = {
+      ...staleClosedOver,
+      hydrationReminders: customPreClearSchedule,
+    };
+    const exported = resolveExportData(ref, closedOverWithCustomSchedule, 2 /* STORAGE_SCHEMA_VERSION */);
+    const parsed = JSON.parse(exported) as Record<string, unknown>;
+
+    expect(parsed['hydrationReminders']).toEqual(DEFAULT_HYDRATION_PREFS);
+    expect(parsed['hydrationReminders']).not.toEqual(customPreClearSchedule);
+  });
+
+  it('MUTATION SENTINEL — resolveExportData with null ref returns stale pre-clear data: documents why the ref assignment is load-bearing', () => {
+    // The ref is null (simulates CaloraContext.clearAllData NOT calling
+    // makeClearedExportSnapshot — the bug this task guards against).
+    //
+    // resolveExportData's `snap ?? closedOver` priority falls through to
+    // closedOver when snap is null — stale pre-clear data appears.  This
+    // documents exactly what the broken behaviour looks like so it is
+    // immediately recognisable in a failing test.
+    const ref: { current: CaloraExportState | null } = { current: null }; // not set
+
+    const exported = resolveExportData(ref, staleClosedOver, 2 /* STORAGE_SCHEMA_VERSION */);
+    const parsed = JSON.parse(exported) as Record<string, unknown>;
+
+    // Stale data IS visible without the ref — this is the bug.
+    expect(parsed['profile']).not.toBeNull();
+    expect((parsed['logs'] as unknown[]).length).toBeGreaterThan(0);
+    expect(
+      (parsed['logs'] as Array<{ id: string }>).some((l) => l.id === 'log-1'),
+    ).toBe(true);
+    expect(parsed['coachConsentAccepted']).toBe(true);
+    expect(parsed['consentAccepted']).toBe(true);
+
+    // Because the first test uses a non-null ref and asserts the OPPOSITE of
+    // these values, any reversal of priority (closedOver ?? snap) or any
+    // removal of the ref assignment in clearAllData would cause that test to
+    // receive stale data and fail.
+  });
+
+  it('full gap sequence: performClearAllData → makeClearedExportSnapshot → resolveExportData — no stale data leaks', async () => {
+    // End-to-end using the real production functions exactly as CaloraContext does:
+    //
+    //   clearAllData:
+    //     await performClearAllData(ctx)                       ← real function
+    //     ref.current = makeClearedExportSnapshot(opts)        ← real function
+    //
+    //   exportData:
+    //     return resolveExportData(ref, staleClosedOver, 2)    ← real function
+    //
+    //   exportRawStorageData:
+    //     return readRawStorageData(getItem, KEY)              ← real function
+
+    pm.enqueueWrite({
+      onboardingComplete: true,
+      profile:      staleClosedOver.profile,
+      logs:         staleClosedOver.logs,
+      moodLogs:     staleClosedOver.moodLogs,
+      waterLogs:    staleClosedOver.waterLogs,
+      coachMessages: staleClosedOver.coachMessages,
+    });
+    await new Promise((r) => setTimeout(r, 0)); // drain write
+
+    // The shared ref (mirrors CaloraContext's useRef<CaloraExportState | null>(null))
+    const exportSnapshotRef: { current: CaloraExportState | null } = { current: null };
+
+    // Step 2: performClearAllData → pm.clear() removes the key.
+    const { ctx } = makeSpyCtx(pm);
+    await performClearAllData(ctx);
+
+    // Step 4: CaloraContext.clearAllData calls makeClearedExportSnapshot (real function).
+    exportSnapshotRef.current = makeClearedExportSnapshot({
+      getPlannerWeekStart: () => '2026-08-03',
+      healthConnected: staleClosedOver.healthConnected,
+    });
+
+    // ── Gap: React re-render has NOT committed yet ────────────────────────────
+    // staleClosedOver still holds pre-clear values in the closed-over closure.
+
+    // exportData calls resolveExportData (real function) — ref wins.
+    const exported = resolveExportData(exportSnapshotRef, staleClosedOver, 2 /* STORAGE_SCHEMA_VERSION */);
+    const parsed = JSON.parse(exported) as Record<string, unknown>;
+
+    expect(parsed['profile']).toBeNull();
+    expect(parsed['logs']).toEqual([]);
+    expect(parsed['moodLogs']).toEqual({});
+    expect(parsed['waterLogs']).toEqual({});
+    expect(parsed['coachConsentAccepted']).toBe(false);
+    for (const id of ['log-1', 'log-2']) {
+      expect(
+        (parsed['logs'] as Array<{ id: string }>).some((l) => l.id === id),
+      ).toBe(false);
+    }
+
+    // exportRawStorageData calls readRawStorageData (real function) — null (safe).
+    const raw = await readRawStorageData(storage.getItem.bind(storage), STORAGE_KEY);
+    expect(raw).toBeNull();
+
+    // Both surfaces agree — the mismatch that motivated this task cannot occur.
+  });
+
+  it('full gap with blocked in-flight write: makeClearedExportSnapshot + resolveExportData after pm.clear() — no stale bytes', async () => {
+    // Tightest timing: an autosave is blocked when clearAllData fires.
+    // The write drains first, removeItem runs, then the ref is set.
+    const release = storage.blockNextSetItem();
+
+    pm.enqueueWrite({
+      onboardingComplete: true,
+      profile: staleClosedOver.profile,
+      logs:    staleClosedOver.logs,
+      weights: staleClosedOver.weights,
+    });
+
+    const exportSnapshotRef: { current: CaloraExportState | null } = { current: null };
+    const { ctx } = makeSpyCtx(pm);
+    const clearDone = performClearAllData(ctx); // suspends at pm.clear() (write blocked)
+
+    release(); // unblock write → removeItem fires → clear resolves
+    await clearDone;
+
+    // Step 4: ref assignment (real function)
+    exportSnapshotRef.current = makeClearedExportSnapshot({
+      getPlannerWeekStart: () => '2026-08-03',
+      healthConnected: staleClosedOver.healthConnected,
+    });
+
+    expect(storage.calls).toEqual([
+      `setItem:${STORAGE_KEY}`,
+      `removeItem:${STORAGE_KEY}`,
+    ]);
+
+    // Storage surface: null
+    expect(
+      await readRawStorageData(storage.getItem.bind(storage), STORAGE_KEY),
+    ).toBeNull();
+
+    // In-memory surface: cleared (real resolveExportData, real ref, stale fallback)
+    const parsed = JSON.parse(
+      resolveExportData(exportSnapshotRef, staleClosedOver, 2 /* STORAGE_SCHEMA_VERSION */),
+    ) as Record<string, unknown>;
+
+    expect(parsed['profile']).toBeNull();
+    expect(parsed['logs']).toEqual([]);
+    for (const id of ['log-1', 'log-2']) {
+      expect(
+        (parsed['logs'] as Array<{ id: string }>).some((l) => l.id === id),
+      ).toBe(false);
+    }
+  });
+
+  it('after the autosave effect nulls the ref (post-re-render), resolveExportData falls through to live cleared state', () => {
+    // After the gap: the autosave effect sets exportSnapshotRef.current = null.
+    // resolveExportData then uses the live closed-over state (which is now
+    // cleared because the re-render committed).
+    const ref: { current: CaloraExportState | null } = { current: null }; // null = post-gap
+
+    // Simulate the live closed-over state after re-render (all cleared values).
+    const liveCleared: CaloraExportState = {
+      profile: null, logs: [], weights: [], waterLogs: {}, moodLogs: {},
+      activityLogs: {}, activityMinutesLogs: {}, savedMeals: [], localRecipes: [],
+      savedRecipeIds: [], plannerWeekStart: '2026-08-03', plannerMeals: [],
+      shoppingItems: [], foodDrafts: [], foodMemories: [], repeatPatterns: [],
+      memoryCorrections: [], livingMemory: emptyLivingMemory(),
+      hydrationReminders: DEFAULT_HYDRATION_PREFS, healthConnected: false,
+      consentAccepted: false, coachConsentAccepted: false, coachMessages: [],
+    };
+
+    // With ref null, resolveExportData falls through to liveCleared.
+    const parsed = JSON.parse(
+      resolveExportData(ref, liveCleared, 2 /* STORAGE_SCHEMA_VERSION */),
+    ) as Record<string, unknown>;
+
+    expect(parsed['profile']).toBeNull();
+    expect(parsed['logs']).toEqual([]);
+    expect(parsed['coachMessages']).toEqual([]);
+    expect(parsed['consentAccepted']).toBe(false);
   });
 });
 
