@@ -125,11 +125,11 @@ export default function InsightsScreen() {
   const startingWeight = profile?.weightKg ?? latestWeight;
   const weightDelta = latestWeight - startingWeight;
   const todayKey = dateKey();
-  // Sync minutes input with stored value when date changes
+  // Sync minutes input with stored value when date changes or after hydration loads persisted data
   useEffect(() => {
     const stored = activityMinutesLogs[todayKey];
     setMinutesInput(stored ? String(stored) : '');
-  }, [todayKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [todayKey, activityMinutesLogs]);
   const loggedToday = remembered.logs.filter((log) => log.date === todayKey);
   const nutrientTotals = loggedToday.reduce((totals, log) => ({
     fiber: totals.fiber + (log.fiber ?? 0),
