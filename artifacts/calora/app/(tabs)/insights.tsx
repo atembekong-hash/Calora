@@ -132,7 +132,9 @@ export default function InsightsScreen() {
   const goalTotalDistance = hasGoal ? Math.abs(targetWeight - startingWeight) : 1;
   const goalDirection = hasGoal ? Math.sign(targetWeight - startingWeight) : 1;
   const goalProgressKg = (latestWeight - startingWeight) * goalDirection;
-  const goalProgressPct = Math.max(0, Math.min(100, (goalProgressKg / goalTotalDistance) * 100));
+  const goalProgressRaw = (goalProgressKg / goalTotalDistance) * 100;
+  const goalReached = goalProgressRaw >= 100;
+  const goalProgressPct = Math.max(0, Math.min(100, goalProgressRaw));
   const showGoalProgress = weights.length >= 3 && hasGoal;
   const todayKey = dateKey();
   // Sync minutes input with stored value when date changes or after hydration loads persisted data.
@@ -502,8 +504,10 @@ export default function InsightsScreen() {
           {showGoalProgress ? (
             <View style={styles.goalProgressSection}>
               <View style={styles.goalProgressHeaderRow}>
-                <Text style={[styles.goalProgressText, { color: colors.mutedForeground }]}>
-                  {goalProgressKg > 0
+                <Text style={[styles.goalProgressText, { color: goalReached ? colors.success : colors.mutedForeground }]}>
+                  {goalReached
+                    ? `Goal reached · ${targetWeight.toFixed(0)} kg`
+                    : goalProgressKg > 0
                     ? `${goalProgressKg.toFixed(1)} kg toward your ${targetWeight.toFixed(0)} kg goal`
                     : `Target ${targetWeight.toFixed(0)} kg · start logging progress`}
                 </Text>
@@ -514,9 +518,9 @@ export default function InsightsScreen() {
                 >
                   <Feather name="edit-2" size={12} color={colors.primary} />
                 </Pressable>
-                <Text style={[styles.goalProgressPct, { color: colors.primary }]}>{Math.round(goalProgressPct)}%</Text>
+                <Text style={[styles.goalProgressPct, { color: goalReached ? colors.success : colors.primary }]}>{goalReached ? '✓' : `${Math.round(goalProgressPct)}%`}</Text>
               </View>
-              <AnimatedTrackFill percentage={goalProgressPct} color={colors.primary} trackColor={colors.muted} />
+              <AnimatedTrackFill percentage={goalProgressPct} color={goalReached ? colors.success : colors.primary} trackColor={colors.muted} />
             </View>
           ) : null}
           <View style={[styles.healthSyncNote, { backgroundColor: colors.muted, marginTop: 12 }]}>
