@@ -671,3 +671,270 @@ describe('useHydrationEffect sets hydrationErrorKind="io" when the storage adapt
     expect(ioMsg).not.toBe(parseMsg);
   });
 });
+
+// ---------------------------------------------------------------------------
+// I/O error retry: tapping 'Try Again' re-runs the storage read without
+// restarting the app, and clears hydrationErrorKind when storage recovers.
+// ---------------------------------------------------------------------------
+
+/**
+ * Storage adapter that throws on `getItem` until `repair()` is called, then
+ * returns the provided `validValue`.  Models a device that was temporarily
+ * locked or had a quota failure and then became available again.
+ */
+function makeRecoverableStorage(
+  validValue: string,
+): ControllableStorage & { repair(): void } {
+  let broken = true;
+  const store: Record<string, string> = {};
+  let readBlocker: Promise<void> | null = null;
+  let readRelease: (() => void) | null = null;
+
+  return {
+    store,
+    repair() {
+      broken = false;
+      store[STORAGE_KEY] = validValue;
+    },
+    blockNextGetItem() {
+      readBlocker = new Promise<void>((res) => { readRelease = res; });
+      return () => {
+        readRelease?.();
+        readBlocker = null;
+        readRelease = null;
+      };
+    },
+    async getItem(key) {
+      if (readBlocker) await readBlocker;
+      if (broken) throw new Error('AsyncStorage: device is locked');
+      return store[key] ?? null;
+    },
+    async setItem(key, value) { store[key] = value; },
+    async removeItem(key) { delete store[key]; },
+  };
+}
+
+describe('useHydrationEffect (production hook) — I/O error retry re-runs the storage read and restores state', () => {
+  it('adapter throws → hydrationErrorKind="io" → retryHydration → adapter returns valid JSON → hydrationErrorKind is null and state is restored', async () => {
+    // Full lifecycle for a transient I/O failure:
+    //   1. adapter.getItem throws (device locked, quota exceeded)
+    //      → pm.read() rejects → catch branch sets kind='io'
+    //   2. storage comes back (adapter.repair() is called)
+    //   3. user taps 'Try Again' → retryHydration() increments hydrationAttempt
+    //      → the useEffect re-runs → pm.read() is called again on the same adapter
+    //   4. the second read succeeds → hydrationErrorKind is cleared to null
+    //      and the onSuccess callback receives the recovered state
+    //
+    // This confirms that the retry mechanism goes back to the adapter for a
+    // fresh read rather than serving a cached failure — and that hydrationErrorKind
+    // is explicitly null after a clean re-read (not just absent from a render).
+    const validState = { onboardingComplete: true, logs: [] };
+    const storage = makeRecoverableStorage(JSON.stringify(validState));
+
+    const pm = new PersistenceManager(storage, STORAGE_KEY);
+    let successPayload: unknown = undefined;
+
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, (saved) => {
+        successPayload = saved;
+      });
+    });
+
+    // Wait for the initial (failing) hydration to complete.
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Phase 1 — I/O error: error screen should be shown.
+    expect(handle.result.current.hydrationErrorKind).toBe('io');
+    expect(handle.result.current.hydrationError).not.toBeNull();
+    expect(handle.result.current.hydrated).toBe(true);
+    // onSuccess was never called during the failing read.
+    expect(successPayload).toBeUndefined();
+
+    // Storage comes back (device unlocked, quota freed).
+    storage.repair();
+
+    // Phase 2 — user taps 'Try Again'.
+    // retryHydration() must synchronously clear hydrationError and hydrationErrorKind
+    // before any effect runs, then increment hydrationAttempt to re-trigger the effect.
+    act(() => { handle.result.current.retryHydration(); });
+
+    // Synchronous assertions: error state cleared immediately on tap, before the
+    // effect runs — closes the stale-render race where the error screen would
+    // re-appear between the tap and the new read completing.
+    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
+    expect(handle.result.current.hydrated).toBe(false);
+
+    // Phase 3 — let the retry effect run to completion.
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Phase 4 — recovery: error state stays null, state is restored.
+    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
+    expect(handle.result.current.hydrated).toBe(true);
+
+    // The onSuccess callback received the recovered data — the adapter was
+    // re-read, not a cached result from the failed first attempt.
+    expect(successPayload).toEqual(validState);
+  });
+
+  it('hydrationError is null at every render after retryHydration — error screen never re-appears during the I/O retry window', async () => {
+    // Guards the invariant that no render between the tap and the completed
+    // re-read observes a truthy hydrationError.  app/index.tsx guards on
+    // `if (hydrationError)` — any truthy value would flash the error screen.
+    const validState = { onboardingComplete: false, logs: [] };
+    const storage = makeRecoverableStorage(JSON.stringify(validState));
+    const pm = new PersistenceManager(storage, STORAGE_KEY);
+
+    const renderedErrors: Array<string | null> = [];
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      const result = useHydrationEffect<Record<string, unknown>>(pmRef, () => {});
+      renderedErrors.push(result.hydrationError);
+      return result;
+    });
+
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Baseline: I/O error is shown.
+    expect(handle.result.current.hydrationErrorKind).toBe('io');
+    const baselineIndex = renderedErrors.length - 1;
+    expect(renderedErrors[baselineIndex]).not.toBeNull();
+
+    // Repair storage and block the retry read so we can assert the in-flight state.
+    storage.repair();
+    const release = storage.blockNextGetItem();
+
+    // Trigger retry.
+    act(() => { handle.result.current.retryHydration(); });
+
+    // Every render that occurred AFTER the retry tap must have null hydrationError.
+    const postRetryErrors = renderedErrors.slice(baselineIndex + 1);
+    expect(postRetryErrors.length).toBeGreaterThan(0);
+    for (const err of postRetryErrors) {
+      expect(err).toBeNull();
+    }
+
+    // Let the read complete.
+    release();
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Final render is also null.
+    expect(renderedErrors[renderedErrors.length - 1]).toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
+    expect(handle.result.current.hydrated).toBe(true);
+  });
+
+  it('retryHydration after an I/O error performs a fresh adapter read — not a replay of the cached failure', async () => {
+    // Explicitly counts how many getItem calls the adapter receives.
+    // After one failing read and one successful retry, the adapter must have
+    // been called exactly twice — once per attempt — confirming that pm.read()
+    // is stateless and returns to the adapter on every invocation.
+    let getItemCallCount = 0;
+    let broken = true;
+    const validState = { onboardingComplete: true };
+    const countingStorage: ControllableStorage = {
+      store: {},
+      blockNextGetItem() { return () => {}; },
+      async getItem(_key) {
+        getItemCallCount++;
+        if (broken) throw new Error('AsyncStorage: quota exceeded');
+        return JSON.stringify(validState);
+      },
+      async setItem(_key, _value) {},
+      async removeItem(_key) {},
+    };
+
+    const pm = new PersistenceManager(countingStorage, STORAGE_KEY);
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, () => {});
+    });
+
+    // Initial failing read.
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    expect(handle.result.current.hydrationErrorKind).toBe('io');
+    expect(getItemCallCount).toBe(1);
+
+    // Repair storage, then retry.
+    broken = false;
+
+    act(() => { handle.result.current.retryHydration(); });
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Adapter was called a second time — the retry re-read went back to the
+    // adapter rather than serving the previous rejection.
+    expect(getItemCallCount).toBe(2);
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
+    expect(handle.result.current.hydrated).toBe(true);
+  });
+
+  it('shouldAutosave gates writes correctly through the I/O error retry lifecycle', async () => {
+    // Verifies the autosave gate at each phase of the I/O retry lifecycle:
+    //   Phase 1 — I/O error:           hydrated=true,  error≠null → blocked
+    //   Phase 2 — immediately after tap: hydrated=false, error=null → blocked
+    //   Phase 3 — retry in-flight:      hydrated=false, error=null → blocked
+    //   Phase 4 — recovery complete:    hydrated=true,  error=null → allowed
+    const validState = { onboardingComplete: true };
+    const storage = makeRecoverableStorage(JSON.stringify(validState));
+    const pm = new PersistenceManager(storage, STORAGE_KEY);
+
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      return useHydrationEffect<Record<string, unknown>>(pmRef, () => {});
+    });
+
+    // Phase 1 — I/O error after initial read.
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+    expect(shouldAutosave({
+      hydrated: handle.result.current.hydrated,
+      error: handle.result.current.hydrationError,
+    })).toBe(false);
+
+    // Repair storage and block the retry read to inspect the in-flight window.
+    storage.repair();
+    const release = storage.blockNextGetItem();
+
+    // Phase 2 — immediately after tap (synchronous).
+    act(() => { handle.result.current.retryHydration(); });
+    expect(shouldAutosave({
+      hydrated: handle.result.current.hydrated,
+      error: handle.result.current.hydrationError,
+    })).toBe(false);
+
+    // Phase 3 — tick to start the effect; read is still in-flight (blocked).
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+    expect(shouldAutosave({
+      hydrated: handle.result.current.hydrated,
+      error: handle.result.current.hydrationError,
+    })).toBe(false);
+
+    // Phase 4 — release the read, let retry complete.
+    release();
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+    expect(shouldAutosave({
+      hydrated: handle.result.current.hydrated,
+      error: handle.result.current.hydrationError,
+    })).toBe(true);
+  });
+});
