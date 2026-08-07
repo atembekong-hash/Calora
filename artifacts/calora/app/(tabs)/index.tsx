@@ -254,6 +254,7 @@ function WellnessCards({
   mealsLogged,
   mealNames,
   mood,
+  waterConfirmed,
   onAddWater,
   onAddMeal,
   onMood,
@@ -263,12 +264,15 @@ function WellnessCards({
   mealsLogged: number;
   mealNames: string[];
   mood?: Mood;
+  /** Shared confirmation state owned by HomeScreen — true during the 1.5 s window. */
+  waterConfirmed: boolean;
   onAddWater: () => void;
   onAddMeal: () => void;
   onMood: (mood: Mood) => void;
 }) {
   const waterGoal = 64;
   const filledGlasses = Math.min(Math.ceil(waterOunces / 8), waterGoal / 8);
+
   return (
     <View style={styles.wellnessSection}>
       <View style={styles.wellnessRow}>
@@ -283,9 +287,16 @@ function WellnessCards({
               <View key={index} style={[styles.waterSlot, { backgroundColor: index < filledGlasses ? '#8db8ed' : colors.muted }]} />
             ))}
           </View>
-            <Pressable accessibilityLabel="Log 8 fluid ounces of water" testID="log-water-button" onPress={onAddWater} style={({ pressed }) => [styles.wellnessAction, { backgroundColor: colors.accent, opacity: pressed ? 0.72 : 1 }]}>
-            <Feather name="plus" size={13} color={colors.accentForeground} /><Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>8 fl oz</Text>
-          </Pressable>
+            <Pressable
+              accessibilityLabel={waterConfirmed ? 'Water added' : 'Log 8 fluid ounces of water'}
+              testID="log-water-button"
+              disabled={waterConfirmed}
+              onPress={onAddWater}
+              style={({ pressed }) => [styles.wellnessAction, { backgroundColor: colors.accent, opacity: waterConfirmed ? 0.72 : pressed ? 0.72 : 1 }]}
+            >
+              <Feather name={waterConfirmed ? 'check' : 'plus'} size={13} color={colors.accentForeground} />
+              <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>{waterConfirmed ? 'Added ✓' : '8 fl oz'}</Text>
+            </Pressable>
         </View>
 
         <View style={[styles.wellnessCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -712,7 +723,15 @@ export default function HomeScreen() {
           mealsLogged={mealsLogged}
           mealNames={mealNames}
           mood={moodLogs[selectedDate]}
-          onAddWater={() => { addWater(selectedDate, 8); setSaveNotice('Water check-in added for this day.'); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+          waterConfirmed={waterConfirmed}
+          onAddWater={() => {
+            if (waterConfirmed) return;
+            addWater(selectedDate, 8);
+            setSaveNotice('Water check-in added for this day.');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            recordWaterConfirmation();
+            setWaterConfirmed(true);
+          }}
           onAddMeal={openAdd}
           onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
         />
