@@ -150,6 +150,27 @@ describe('PersistenceManager.clear: pending write drains before storage key is r
     expect(storage.calls.filter((c) => c.startsWith('setItem'))).toHaveLength(0);
   });
 
+  it('clearing guard resets after a failing removeItem — subsequent enqueueWrite still reaches storage', async () => {
+    // Regression guard: if removeItem rejects (transient I/O failure), the
+    // clearingCount must still decrement (via try/finally) so that future
+    // enqueueWrite calls are not permanently silenced.
+    const originalRemoveItem = storage.removeItem.bind(storage);
+    storage.removeItem = async () => { throw new Error('I/O failure during removeItem'); };
+
+    // clear() will reject because removeItem throws — that is acceptable.
+    await pm.clear().catch(() => undefined);
+
+    // Restore working removeItem
+    storage.removeItem = originalRemoveItem;
+
+    // clearingCount must be back at 0 — a write enqueued now should land.
+    pm.enqueueWrite({ recovered: true });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(storage.store[STORAGE_KEY]).toBe(JSON.stringify({ recovered: true }));
+    expect(storage.calls.filter((c) => c.startsWith('setItem'))).toHaveLength(1);
+  });
+
   it('a second clear chains off the first — both removes execute in order', async () => {
     const release = storage.blockNextSetItem();
 
@@ -404,9 +425,10 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     //   1. An autosave is in-flight (blocked setItem) when the user taps "Clear".
     //   2. clearAllData calls performClearAllData → pm.clear() chains removeItem
     //      after the blocked write; performClearAllData suspends at `await`.
-    //   3. addLog fires mid-clear → pm.enqueueWrite(staleState) chains after remove.
+    //   3. addLog fires mid-clear → pm.enqueueWrite(staleState) is a no-op
+    //      because clearingCount > 0; the stale write never reaches storage.
     //   4. pm.clear() resolves → performClearAllData calls every state setter.
-    //   5. React autosave fires → pm.enqueueWrite(capturedClearedState) — last writer.
+    //   5. React autosave fires → pm.enqueueWrite(capturedClearedState) — only writer after remove.
     const release = storage.blockNextSetItem();
 
     const sessionState = {
@@ -426,7 +448,9 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     // CaloraContext.clearAllData.  Suspends at `await pm.clear()`.
     const clearDone = performClearAllData(ctx);
 
-    // Inject concurrent addLog mutation while performClearAllData is suspended
+    // Inject concurrent addLog mutation while performClearAllData is suspended.
+    // clearingCount > 0 at this point, so this is a no-op — the stale snapshot
+    // is dropped and will never be serialised to storage.
     pm.enqueueWrite({
       ...sessionState,
       logs: [...sessionState.logs, { id: 'mid-clear-log', name: 'Mid-clear snack' }],
@@ -440,11 +464,11 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     pm.enqueueWrite(captured);
     await new Promise((r) => setTimeout(r, 0)); // drain remaining queue entries
 
-    // Call order: pre-clear write → remove → stale-mutation write → cleared write
+    // Call order: pre-clear write → remove → cleared autosave.
+    // The stale mid-clear mutation write is absent — the no-op guard eliminated it.
     expect(storage.calls).toEqual([
       `setItem:${STORAGE_KEY}`,    // in-flight session autosave
       `removeItem:${STORAGE_KEY}`, // pm.clear() remove — the boundary
-      `setItem:${STORAGE_KEY}`,    // mid-clear addLog mutation (stale)
       `setItem:${STORAGE_KEY}`,    // post-clear autosave from clearAllData setters
     ]);
 
@@ -491,11 +515,11 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     pm.enqueueWrite(captured);
     await new Promise((r) => setTimeout(r, 0));
 
+    // Stale mid-clear setMood write is dropped by the no-op guard (clearingCount > 0).
     expect(storage.calls).toEqual([
-      `setItem:${STORAGE_KEY}`,
-      `removeItem:${STORAGE_KEY}`,
-      `setItem:${STORAGE_KEY}`,
-      `setItem:${STORAGE_KEY}`,
+      `setItem:${STORAGE_KEY}`,    // in-flight session autosave
+      `removeItem:${STORAGE_KEY}`, // pm.clear() remove — the boundary
+      `setItem:${STORAGE_KEY}`,    // post-clear autosave from clearAllData setters
     ]);
 
     const stored = JSON.parse(storage.store[STORAGE_KEY]);
