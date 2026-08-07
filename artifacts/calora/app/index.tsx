@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Tex
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect } from 'expo-router';
 import { useCalora, ActivityLevel, DietPreference, Goal, Profile } from '@/context/CaloraContext';
+import { handleParseErrorExport } from '@/lib/parseErrorExportHandler';
 
 const goals: { key: Goal; label: string; body: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'lose', label: 'Lose weight', body: 'A steady, sustainable pace', icon: 'trending-down' },
@@ -85,18 +86,11 @@ export default function OnboardingScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Export raw storage data"
-            onPress={async () => {
-              try {
-                const raw = await exportRawStorageData();
-                if (!raw) {
-                  Alert.alert('Nothing to export', 'Storage appears empty.');
-                  return;
-                }
-                await Share.share({ message: raw, title: 'Calora raw storage data' });
-              } catch {
-                Alert.alert('Export failed', 'Could not read raw storage data.');
-              }
-            }}
+            onPress={() => handleParseErrorExport({
+              exportRawStorageData,
+              share: Share.share.bind(Share),
+              alert: Alert.alert.bind(Alert),
+            })}
             style={[styles.exportButton, { backgroundColor: colors.muted }]}
           >
             <Feather name="share" size={14} color={colors.mutedForeground} style={{ marginRight: 6 }} />
