@@ -470,6 +470,15 @@ export default function PlannerScreen() {
   const generate = async () => {
     setGenerating(true);
     setGenerationMessage(null);
+    // Cancel any pending undo timer before replacing the whole week so stale
+    // undo state cannot silently overwrite meals in the freshly generated plan.
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+    setUndoMeal(null);
+    setUndoMoveMeal(null);
+    setUndoSwapMeal(null);
     const plannerProfile = profile ?? {
       goal: 'maintain' as const,
       activity: 'moderate' as const,
