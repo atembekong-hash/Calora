@@ -590,7 +590,7 @@ function CalorieGauge({
   //   heroCard has padding: 20 each side          → inner  = windowWidth - 80
   //   gauge fills the full inner card width (Eaten/Burned move below)
   const cardInnerW = windowWidth - 80;
-  const gaugeW     = Math.min(cardInnerW, 310);
+  const gaugeW     = Math.min(cardInnerW, 270);
   const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW);
 
   // Animate the fill arc via strokeDashoffset
@@ -608,12 +608,10 @@ function CalorieGauge({
 
   const fillColor = overGoal ? colors.warning : colors.primary;
 
-  // Precise centering: the visual "eye" of the horseshoe spans from the arc
-  // top (VB y = CY − R = 28) to the equator (VB y = CY = 118).
-  // Its centre sits at VB y = 73, which is 73/186 ≈ 39.25 % of gaugeH.
-  // Position the text block (≈ 90 px tall) so its midpoint hits that centre.
-  const eyeCenterY = (73 / GAUGE_VBH) * gaugeH;
-  const overlayTop = Math.max(eyeCenterY - 45, 4);
+  // Anchor the text overlay below the arc's inner top edge with a clear gap.
+  // Arc inner top in VB coords = CY − R + STROKE/2 = 118 − 90 + 6.5 = 34.5
+  // Adding 12 VB units of gap gives a buffer that scales with the gauge.
+  const overlayTop = ((GAUGE_CY - GAUGE_R + GAUGE_STROKE / 2 + 12) / GAUGE_VBH) * gaugeH;
 
   return (
     <View style={gaugeStyles.container}>
