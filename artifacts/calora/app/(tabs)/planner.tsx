@@ -759,9 +759,9 @@ export default function PlannerScreen() {
                  <Pressable
                    accessibilityLabel="Show all days"
                    onPress={() => setShoppingDayFilter(null)}
-                   style={[styles.shopDayPill, { borderColor: colors.border, backgroundColor: shoppingDayFilter === null ? colors.primary : colors.card }]}
+                   style={[styles.shopDayPill, { borderColor: shoppingDayFilter === null ? colors.primary : colors.input, backgroundColor: shoppingDayFilter === null ? colors.primary : colors.muted }]}
                  >
-                   <Text style={[styles.shopDayPillText, { color: shoppingDayFilter === null ? colors.primaryForeground : colors.mutedForeground }]}>All</Text>
+                   <Text style={[styles.shopDayPillText, { color: shoppingDayFilter === null ? colors.primaryForeground : colors.foreground }]}>All</Text>
                  </Pressable>
                  {shoppingDays.map((day) => {
                    const active = shoppingDayFilter === day;
@@ -770,9 +770,9 @@ export default function PlannerScreen() {
                        key={day}
                        accessibilityLabel={`Filter by ${dayFormatter.format(parseDate(day))}`}
                        onPress={() => setShoppingDayFilter(active ? null : day)}
-                       style={[styles.shopDayPill, { borderColor: colors.border, backgroundColor: active ? colors.primary : colors.card }]}
+                       style={[styles.shopDayPill, { borderColor: active ? colors.primary : colors.input, backgroundColor: active ? colors.primary : colors.muted }]}
                      >
-                       <Text style={[styles.shopDayPillText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{dayFormatter.format(parseDate(day))}</Text>
+                       <Text style={[styles.shopDayPillText, { color: active ? colors.primaryForeground : colors.foreground }]}>{dayFormatter.format(parseDate(day))}</Text>
                      </Pressable>
                    );
                  })}
