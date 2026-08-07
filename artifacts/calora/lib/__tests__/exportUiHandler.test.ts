@@ -24,7 +24,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { handleExportTap } from '../exportUiHandler';
+import { deriveExportHasData, handleExportTap } from '../exportUiHandler';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -262,5 +262,67 @@ describe('handleExportTap: across multiple taps, each tap independently reads th
     expect(onData2).toHaveBeenCalledTimes(1);
     expect(onData2).toHaveBeenCalledWith(rawAfterOnboard);
     expect(onNoData2).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deriveExportHasData — export row guard (profile screen)
+// ---------------------------------------------------------------------------
+
+/**
+ * deriveExportHasData drives the "Export your data" row guard in profile.tsx.
+ * When it returns false the row is visually dimmed (opacity 0.4) and its
+ * onPress is set to undefined — making it non-interactive without any Alert.
+ *
+ * These tests pin the three behaviorally-distinct states:
+ *   A. profile set, any logs     → true  (full session)
+ *   B. profile set, no logs      → true  (just onboarded, no diary yet)
+ *   C. profile null, logs exist  → true  (edge: logs without profile)
+ *   D. profile null, no logs     → false (post-clear / fresh install)
+ */
+describe('deriveExportHasData: export row interactive guard', () => {
+  const profile = { name: 'Alex' };
+  const log = { id: 'log-1' };
+
+  it('returns true when profile is set and logs exist (full session)', () => {
+    expect(deriveExportHasData(profile, [log])).toBe(true);
+  });
+
+  it('returns true when profile is set but logs array is empty (just onboarded)', () => {
+    // Onboarding writes a profile before any meals are logged.
+    expect(deriveExportHasData(profile, [])).toBe(true);
+  });
+
+  it('returns true when profile is null but logs exist (logs-only edge case)', () => {
+    // Should not normally occur, but the guard must not block export
+    // when there is diary data even without a profile object.
+    expect(deriveExportHasData(null, [log])).toBe(true);
+  });
+
+  it('returns false when profile is null and logs array is empty (post-clear / fresh install)', () => {
+    // This is the only state where the export row must be non-interactive.
+    // After clearAllData both profile and logs reset to null / [].
+    expect(deriveExportHasData(null, [])).toBe(false);
+  });
+
+  it('the row is non-interactive when hasData is false — onPress must be undefined', () => {
+    // Simulate how profile.tsx wires the row:
+    //   onPress: item.disabled ? undefined : item.onPress
+    const hasData = deriveExportHasData(null, []);
+    const handleExportMock = vi.fn();
+    const resolvedOnPress = hasData ? handleExportMock : undefined;
+    expect(resolvedOnPress).toBeUndefined();
+    // Calling it does nothing — no export attempt made
+    (resolvedOnPress as (() => void) | undefined)?.();
+    expect(handleExportMock).not.toHaveBeenCalled();
+  });
+
+  it('the row IS interactive when hasData is true — onPress points to the handler', () => {
+    const hasData = deriveExportHasData(profile, []);
+    const handleExportMock = vi.fn();
+    const resolvedOnPress = hasData ? handleExportMock : undefined;
+    expect(typeof resolvedOnPress).toBe('function');
+    resolvedOnPress?.();
+    expect(handleExportMock).toHaveBeenCalledTimes(1);
   });
 });

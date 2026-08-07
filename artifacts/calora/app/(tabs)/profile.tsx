@@ -12,7 +12,7 @@ import {
   scheduleHydrationReminders,
   type HydrationReminderPrefs,
 } from '@/lib/hydrationReminders';
-import { handleExportTap } from '@/lib/exportUiHandler';
+import { deriveExportHasData, handleExportTap } from '@/lib/exportUiHandler';
 
 const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'system', label: 'System', icon: 'smartphone' },
@@ -21,7 +21,8 @@ const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.
 ];
 
 export default function ProfileScreen() {
-  const { colors, themePreference, setThemePreference, profile, healthConnected, setHealthConnected, exportRawStorageData, clearAllData, isClearing, syncState, savedMeals, saveMeal, hydrationReminders, setHydrationReminders, livingMemory } = useCalora();
+  const { colors, themePreference, setThemePreference, profile, healthConnected, setHealthConnected, exportRawStorageData, clearAllData, isClearing, syncState, savedMeals, saveMeal, hydrationReminders, setHydrationReminders, livingMemory, logs } = useCalora();
+  const hasExportData = deriveExportHasData(profile, logs);
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | null>(null);
@@ -355,13 +356,19 @@ export default function ProfileScreen() {
           }} style={[styles.connectButton, { backgroundColor: colors.card }]}><Text style={[styles.connectButtonText, { color: colors.primary }]}>{healthConnected ? 'Disconnect' : 'Connect'}</Text></Pressable>
         </View>
         {[
-          { icon: 'download', title: 'Export your data', body: `Prepare a portable JSON copy · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExport },
-          { icon: 'trash-2', title: 'Delete local data', body: 'Remove this device’s diary and profile data.', onPress: handleDelete },
+          { icon: 'download', title: 'Export your data', testID: 'export-data-row', body: `Prepare a portable JSON copy · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExport, disabled: !hasExportData },
+          { icon: 'trash-2', title: 'Delete local data', body: 'Remove this device\u2019s diary and profile data.', onPress: handleDelete },
           { icon: 'shield', title: 'Your food data stays yours', body: 'Local-first logging with export and delete controls.' },
           { icon: 'eye-off', title: 'No surveillance ads', body: 'Your meals are never used to target advertisements.' },
           { icon: 'help-circle', title: 'Need a hand?', body: 'Reach a real person when something does not look right.' },
         ].map((item) => (
-          <Pressable key={item.title} onPress={item.onPress} style={[styles.settingRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Pressable
+            key={item.title}
+            testID={'testID' in item ? item.testID : undefined}
+            onPress={item.disabled ? undefined : item.onPress}
+            accessibilityState={item.disabled ? { disabled: true } : undefined}
+            style={[styles.settingRow, { backgroundColor: colors.card, borderColor: colors.border, opacity: item.disabled ? 0.4 : 1 }]}
+          >
             <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}><Feather name={item.icon as keyof typeof Feather.glyphMap} size={17} color={colors.primary} /></View>
             <View style={{ flex: 1 }}><Text style={[styles.settingTitle, { color: colors.foreground }]}>{item.title}</Text><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{item.body}</Text></View>
             <Feather name="chevron-right" size={16} color={colors.mutedForeground} />

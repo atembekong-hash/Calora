@@ -5,9 +5,9 @@
  *   • onNoData()        — storage is empty / post-clear (raw === null)
  *   • onData(raw)       — non-null bytes ready for the share sheet
  *
- * Extracting this from the Settings tap handler makes both UI branches
- * testable without mounting React, mocking AsyncStorage globally, or
- * spying on Alert inside a React Native render tree.
+ * Also exports deriveExportHasData — a pure boolean helper that the profile
+ * screen uses to disable and visually dim the "Export your data" row BEFORE
+ * the user taps it, so no reactive Alert is needed for the empty-storage case.
  *
  * Profile screen usage:
  *   await handleExportTap({
@@ -16,6 +16,23 @@
  *     onData:   () => setPrivacyModal('export'),
  *   });
  */
+
+/**
+ * Returns true when there is at least one piece of shareable local data.
+ *
+ * The export row should be interactive only when this is true.
+ * Rule: profile set OR at least one diary log present.
+ *
+ * @param profile - CaloraContext.profile (null when onboarding not complete)
+ * @param logs    - CaloraContext.logs (FoodLog array)
+ */
+export function deriveExportHasData(
+  profile: { name: string } | null,
+  logs: unknown[],
+): boolean {
+  return profile !== null || logs.length > 0;
+}
+
 export async function handleExportTap(params: {
   /** CaloraContext.exportRawStorageData — reads raw storage bytes directly. */
   exportRawStorageData: () => Promise<string | null>;
