@@ -359,3 +359,182 @@ describe('useHydrationEffect (production hook) — hydrationError and hydrationE
     expect(handle.result.current.hydrationError).not.toContain('corrupt');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Duplicate-retry guard: a second 'Try Again' tap while a read is in flight
+// must not start a second concurrent read.
+// ---------------------------------------------------------------------------
+
+describe('useHydrationEffect — duplicate-retry guard blocks a second tap while a read is in flight', () => {
+  it('a second retryHydration call while the first retry is in flight is silently dropped — only one read runs', async () => {
+    // Scenario:
+    //   1. Initial hydration raises a parse error (error screen shown).
+    //   2. User taps 'Try Again'. The retry read starts but is slow (blocked).
+    //   3. User taps 'Try Again' again before the first retry resolves.
+    //   4. The guard must drop the second tap: only one pm.read() should be
+    //      outstanding, and the final state must reflect the single read's result.
+    //
+    // The guard is a `readInFlight` ref in useHydrationEffect that retryHydration
+    // checks before incrementing hydrationAttempt. If it is true the second call
+    // returns immediately without queuing another read.
+    let readCount = 0;
+    const validState = { onboardingComplete: true, logs: [] };
+    let firstRetryRelease: (() => void) | null = null;
+
+    // Custom storage: first read returns corrupt JSON (triggers parse error);
+    // subsequent reads block until released, then return valid JSON.
+    // We count every getItem call so we can assert exactly one retry read ran.
+    const blockingStore: Record<string, string> = {
+      [STORAGE_KEY]: '{corrupt-json}',
+    };
+    let getItemBlocker: Promise<void> | null = null;
+
+    const storage: ControllableStorage = {
+      store: blockingStore,
+      blockNextGetItem() {
+        getItemBlocker = new Promise<void>((res) => {
+          firstRetryRelease = res;
+        });
+        return () => {
+          firstRetryRelease?.();
+          getItemBlocker = null;
+          firstRetryRelease = null;
+        };
+      },
+      async getItem(key) {
+        readCount++;
+        if (getItemBlocker) await getItemBlocker;
+        return blockingStore[key] ?? null;
+      },
+      async setItem(key, value) { blockingStore[key] = value; },
+      async removeItem(key) { delete blockingStore[key]; },
+    };
+
+    const { handle } = await renderAndAwaitHydration(storage);
+
+    // Baseline: parse error shown after initial hydration.
+    expect(handle.result.current.hydrationError).not.toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBe('parse');
+    const readsAfterInitial = readCount;
+
+    // Repair storage so the retry read will return valid data.
+    blockingStore[STORAGE_KEY] = JSON.stringify(validState);
+
+    // Block the retry read so it stays in-flight when the second tap fires.
+    storage.blockNextGetItem();
+
+    // First 'Try Again' tap — starts the retry read (blocked).
+    act(() => { handle.result.current.retryHydration(); });
+
+    // The first tap reset hydrationError synchronously (guard: error cleared
+    // before effect runs) and the read is now in-flight.
+    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrated).toBe(false);
+
+    // Second 'Try Again' tap — must be a no-op: readInFlight is true.
+    act(() => { handle.result.current.retryHydration(); });
+
+    // Allow the blocked first-retry read to complete.
+    firstRetryRelease?.();
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Final state: clean hydration from the single completed read.
+    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
+    expect(handle.result.current.hydrated).toBe(true);
+
+    // Exactly one read ran during the retry window (the second tap was dropped).
+    expect(readCount - readsAfterInitial).toBe(1);
+  });
+
+  it('retryHydration is available again once the in-flight read resolves', async () => {
+    // Documents that the guard is released (readInFlight → false) in the
+    // .finally() block after each read completes.  A retry tapped after the
+    // first retry finishes must start a new read normally — the guard must not
+    // permanently disable retryHydration.
+    const storage = makeControllableStorage({ [STORAGE_KEY]: '{corrupt-json}' });
+    const { handle } = await renderAndAwaitHydration(storage);
+
+    // Parse error shown.
+    expect(handle.result.current.hydrationError).not.toBeNull();
+
+    // Repair storage for the first retry.
+    storage.store[STORAGE_KEY] = JSON.stringify({ onboardingComplete: false });
+
+    // Block the first retry read.
+    const releaseFirst = storage.blockNextGetItem();
+
+    // Tap 'Try Again' once — first retry is now in flight.
+    act(() => { handle.result.current.retryHydration(); });
+    expect(handle.result.current.hydrated).toBe(false);
+
+    // Release the first retry — read completes, guard clears.
+    releaseFirst();
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // First retry finished cleanly.
+    expect(handle.result.current.hydrated).toBe(true);
+    expect(handle.result.current.hydrationError).toBeNull();
+
+    // Simulate a second independent error (e.g. storage becomes temporarily
+    // unavailable again after the app has been running for a while).
+    // For this test we just verify that retryHydration can be called again
+    // without being silently blocked — by checking that state resets as expected
+    // (hydrated goes false during the second retry window).
+    const releaseSecond = storage.blockNextGetItem();
+
+    act(() => { handle.result.current.retryHydration(); });
+
+    // The second retry was accepted (guard was clear): hydrated reset to false.
+    expect(handle.result.current.hydrated).toBe(false);
+
+    // Clean up — release and let the second retry complete.
+    releaseSecond();
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    expect(handle.result.current.hydrated).toBe(true);
+    expect(handle.result.current.hydrationError).toBeNull();
+  });
+
+  it('the second tap leaves hydrationError null — the error screen does not re-appear when the guard drops the call', async () => {
+    // Guards a subtle secondary invariant: retryHydration always clears
+    // hydrationError eagerly (synchronously) before checking the in-flight
+    // guard.  This means the second tap still benefits from the synchronous
+    // clear — but because setHydrationAttempt is never called, no second read
+    // is queued.  The error screen stays hidden after the first tap, and the
+    // dropped second tap does not reset any other state.
+    const storage = makeControllableStorage({ [STORAGE_KEY]: '{corrupt-json}' });
+    const { handle } = await renderAndAwaitHydration(storage);
+
+    expect(handle.result.current.hydrationError).not.toBeNull();
+
+    storage.store[STORAGE_KEY] = JSON.stringify({ onboardingComplete: true });
+    const release = storage.blockNextGetItem();
+
+    // First tap: starts the in-flight read, clears hydrationError.
+    act(() => { handle.result.current.retryHydration(); });
+    expect(handle.result.current.hydrationError).toBeNull();
+
+    // Second tap while first is in flight: guard drops it.
+    // hydrationError must remain null — the guard must not restore the old error.
+    act(() => { handle.result.current.retryHydration(); });
+    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
+
+    // Complete the first retry.
+    release();
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Final state is clean.
+    expect(handle.result.current.hydrated).toBe(true);
+    expect(handle.result.current.hydrationError).toBeNull();
+  });
+});

@@ -48,6 +48,13 @@ export function useHydrationEffect<T>(
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
 
+  /**
+   * True while a pm.read() promise is outstanding.  retryHydration checks
+   * this ref and returns early when a read is already in flight — prevents
+   * two concurrent reads from racing to set `hydrated` and `hydrationErrorKind`.
+   */
+  const readInFlight = useRef(false);
+
   useEffect(() => {
     // Clear error state before starting the read.  This is the moment
     // hydrationError becomes null — the error screen guard (`if hydrationError`)
@@ -55,6 +62,8 @@ export function useHydrationEffect<T>(
     setHydrationError(null);
     setHydrationErrorKind(null);
     setHydrated(false);
+
+    readInFlight.current = true;
 
     pmRef.current.read<T>()
       .then(({ state: saved, error: parseError }) => {
@@ -75,7 +84,10 @@ export function useHydrationEffect<T>(
           setHydrationError('Storage is temporarily unavailable. This is usually a momentary issue.');
         }
       })
-      .finally(() => setHydrated(true));
+      .finally(() => {
+        readInFlight.current = false;
+        setHydrated(true);
+      });
   }, [hydrationAttempt, pmRef]);
 
   // Eagerly reset ALL error state and hydrated so no stale render between the
@@ -83,7 +95,13 @@ export function useHydrationEffect<T>(
   // app/index.tsx guards on `if (hydrationError)` — clearing it here (not just
   // in the effect) closes the race window where hydrationError is still truthy
   // but hydrationErrorKind is already null.
+  //
+  // Guard: if a read is already in flight (readInFlight.current === true), the
+  // second tap is silently dropped.  This prevents two concurrent pm.read()
+  // calls from racing to set `hydrated` and `hydrationErrorKind`, which could
+  // leave the first read's stale callbacks clobbering the second read's result.
   const retryHydration = useCallback(() => {
+    if (readInFlight.current) return;
     setHydrationError(null);
     setHydrationErrorKind(null);
     setHydrated(false);
