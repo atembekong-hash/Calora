@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { Children, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora, type DailyActivity, type FoodLog, type MealType, type Mood } from '@/context/CaloraContext';
@@ -252,7 +252,7 @@ export default function LivingMemoryScreen() {
 }
 
 function MemorySection({ title, caption, colors, children }: { title: string; caption: string; colors: ReturnType<typeof useCalora>['colors']; children: React.ReactNode }) {
-  if (!children || (Array.isArray(children) && children.length === 0)) return null;
+  if (!children || Children.count(children) === 0) return null;
   return (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{title}</Text>
