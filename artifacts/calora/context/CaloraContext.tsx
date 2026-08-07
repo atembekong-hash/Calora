@@ -31,6 +31,7 @@ import {
 import type { CaptureAnalysis } from '@workspace/api-client-react';
 import { dateKey } from '@/lib/dates';
 import { deriveLivingState, type LivingState } from '@/lib/livingState';
+import { useClock } from '@/lib/useClock';
 import {
   buildLivingMemory,
   emptyLivingMemory,
@@ -482,12 +483,14 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     () => foodMemories.filter((memory) => !memory.diaryLogId || !livingMemory.forgotten.meals.includes(memory.diaryLogId)),
     [foodMemories, livingMemory],
   );
+  const clockNow = useClock();
   const livingState = useMemo(() => deriveLivingState({
     profile,
     ...rememberedSources,
     repeatPatterns,
     onboardingComplete,
-  }), [onboardingComplete, profile, rememberedSources, repeatPatterns]);
+    now: clockNow,
+  }), [clockNow, onboardingComplete, profile, rememberedSources, repeatPatterns]);
 
   const value = useMemo<CaloraContextValue>(() => ({
     logs,
