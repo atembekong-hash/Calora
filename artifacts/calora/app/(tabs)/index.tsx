@@ -608,10 +608,12 @@ function CalorieGauge({
 
   const fillColor = overGoal ? colors.warning : colors.primary;
 
-  // Anchor the text overlay below the arc's inner top edge with a clear gap.
-  // Arc inner top in VB coords = CY − R + STROKE/2 = 118 − 90 + 6.5 = 34.5
-  // Adding 12 VB units of gap gives a buffer that scales with the gauge.
-  const overlayTop = ((GAUGE_CY - GAUGE_R + GAUGE_STROKE / 2 + 12) / GAUGE_VBH) * gaugeH;
+  // Centre the text stack in the horseshoe eye.
+  // Arc inner top in VB = CY − R + STROKE/2 = 34.5
+  // Arc inner bottom in VB ≈ 175.  Eye height ≈ 140.5 VB.
+  // Text block ≈ 90 screen-px → half-height anchored to eye centre (VB ≈ 105).
+  // A gap of 32 VB units from the inner top lands the stack at eye centre.
+  const overlayTop = ((GAUGE_CY - GAUGE_R + GAUGE_STROKE / 2 + 32) / GAUGE_VBH) * gaugeH;
 
   return (
     <View style={gaugeStyles.container}>
