@@ -173,6 +173,62 @@ describe('deriveLivingState', () => {
     expect(state.signal.plannedDaysNext7).toBe(2);
   });
 
+  it('routes to log_meal with Log breakfast label on a returning morning without breakfast', () => {
+    const state = deriveLivingState({
+      profile,
+      logs: [log('2026-08-03', 'Dinner'), log('2026-08-04', 'Dinner')],
+      waterLogs: {},
+      moodLogs: {},
+      activityLogs: {},
+      repeatPatterns: [],
+      plannerMeals: [],
+      onboardingComplete: true,
+      now: new Date('2026-08-07T08:30:00.000Z'),
+    });
+
+    expect(state.timePeriod).toBe('morning');
+    expect(state.signal.hasBreakfastToday).toBe(false);
+    expect(state.action.kind).toBe('log_meal');
+    expect(state.action.label).toBe('Log breakfast');
+  });
+
+  it('routes to log_meal with Find a meal label when afternoon protein is low', () => {
+    const lowProteinLog = (date: string): FoodLog => ({
+      id: `${date}-snack`,
+      name: 'Rice cake',
+      date,
+      meal: 'Snack',
+      calories: 120,
+      protein: 2,
+      carbs: 26,
+      fat: 0,
+      source: 'Manual',
+      confidence: 70,
+      time: '10:00 AM',
+      serving: '1 cake',
+    });
+    const state = deriveLivingState({
+      profile,
+      logs: [
+        log('2026-08-06', 'Breakfast'),
+        log('2026-08-06', 'Lunch'),
+        lowProteinLog('2026-08-06'),
+      ],
+      waterLogs: { '2026-08-06': 32 },
+      moodLogs: {},
+      activityLogs: {},
+      repeatPatterns: [],
+      plannerMeals: [],
+      onboardingComplete: true,
+      now: new Date('2026-08-06T15:30:00.000Z'),
+    });
+
+    expect(state.timePeriod).toBe('afternoon');
+    expect(state.focus).toBe('protein');
+    expect(state.action.kind).toBe('log_meal');
+    expect(state.action.label).toBe('Find a meal');
+  });
+
   it('keeps an urgent hydration need ahead of plan readiness', () => {
     const plannerMeals = [
       planned('p1', '2026-08-07', 'Breakfast'),
