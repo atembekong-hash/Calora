@@ -124,6 +124,13 @@ export default function InsightsScreen() {
   const latestWeight = weights[weights.length - 1]?.kg ?? profile?.weightKg ?? 76;
   const startingWeight = profile?.weightKg ?? latestWeight;
   const weightDelta = latestWeight - startingWeight;
+  const targetWeight = profile?.targetWeightKg ?? 0;
+  const hasGoal = targetWeight > 0 && Math.abs(targetWeight - startingWeight) > 0.1;
+  const goalTotalDistance = hasGoal ? Math.abs(targetWeight - startingWeight) : 1;
+  const goalDirection = hasGoal ? Math.sign(targetWeight - startingWeight) : 1;
+  const goalProgressKg = (latestWeight - startingWeight) * goalDirection;
+  const goalProgressPct = Math.max(0, Math.min(100, (goalProgressKg / goalTotalDistance) * 100));
+  const showGoalProgress = weights.length >= 3 && hasGoal;
   const todayKey = dateKey();
   // Sync minutes input with stored value when date changes or after hydration loads persisted data
   useEffect(() => {
@@ -440,6 +447,19 @@ export default function InsightsScreen() {
           ) : (
             <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '50%' : '0%' }]} /></View>
           )}
+          {showGoalProgress && (
+            <View style={styles.goalProgressSection}>
+              <View style={styles.goalProgressHeaderRow}>
+                <Text style={[styles.goalProgressText, { color: colors.mutedForeground }]}>
+                  {goalProgressKg > 0
+                    ? `${goalProgressKg.toFixed(1)} kg toward your ${targetWeight.toFixed(0)} kg goal`
+                    : `Target ${targetWeight.toFixed(0)} kg · start logging progress`}
+                </Text>
+                <Text style={[styles.goalProgressPct, { color: colors.primary }]}>{Math.round(goalProgressPct)}%</Text>
+              </View>
+              <AnimatedTrackFill percentage={goalProgressPct} color={colors.primary} trackColor={colors.muted} />
+            </View>
+          )}
           <View style={[styles.healthSyncNote, { backgroundColor: colors.muted, marginTop: 12 }]}>
             <Feather name="link-2" size={11} color={colors.mutedForeground} />
             <Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>Health sync unavailable · connect a health integration for automatic weigh-in import.</Text>
@@ -611,4 +631,8 @@ const styles = StyleSheet.create({
   weightSparkTrack: { width: '100%', height: 80, borderRadius: 5, overflow: 'hidden', justifyContent: 'flex-end' },
   weightSparkFill: { width: '100%', borderRadius: 5 },
   weightSparkLabel: { fontFamily: 'Inter_400Regular', fontSize: 8, marginTop: 5 },
+  goalProgressSection: { marginTop: 14 },
+  goalProgressHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
+  goalProgressText: { fontFamily: 'Inter_400Regular', fontSize: 11, flex: 1 },
+  goalProgressPct: { fontFamily: 'Inter_700Bold', fontSize: 11, marginLeft: 8 },
 });
