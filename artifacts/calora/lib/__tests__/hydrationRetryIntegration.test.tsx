@@ -435,7 +435,9 @@ describe('useHydrationEffect — duplicate-retry guard blocks a second tap while
     act(() => { handle.result.current.retryHydration(); });
 
     // Allow the blocked first-retry read to complete.
-    firstRetryRelease?.();
+    // Cast overrides TS narrowing: the closure assignment `= res` is not
+    // visible to control-flow analysis here, so TS narrows to `null` without it.
+    (firstRetryRelease as (() => void) | null)?.();
     await act(async () => {
       await new Promise<void>((res) => setTimeout(res, 0));
     });

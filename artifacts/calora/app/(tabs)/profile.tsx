@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
@@ -12,7 +12,9 @@ import {
   scheduleHydrationReminders,
   type HydrationReminderPrefs,
 } from '@/lib/hydrationReminders';
-import { deriveExportHasData, handleExportTap } from '@/lib/exportUiHandler';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import { deriveExportHasData, handleExportTap, shareExportFile, type ExportPayload } from '@/lib/exportUiHandler';
 
 const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'system', label: 'System', icon: 'smartphone' },
@@ -78,7 +80,15 @@ export default function ProfileScreen() {
           'No data',
           'There is no local data to export. Log a meal or complete onboarding first.',
         ),
-      onData: () => setPrivacyModal('export'),
+      onData: (payload: ExportPayload) => {
+        shareExportFile(payload, {
+          cacheDirectory:     FileSystem.cacheDirectory,
+          writeAsStringAsync: FileSystem.writeAsStringAsync,
+          shareAsync:         Sharing.shareAsync,
+        }).catch(() =>
+          Alert.alert('Export failed', 'Could not open the share sheet. Try again.'),
+        );
+      },
     });
   };
   const handleDelete = () => { if (!isClearing) setPrivacyModal('delete'); };
