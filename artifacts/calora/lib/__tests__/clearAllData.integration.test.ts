@@ -1009,6 +1009,176 @@ describe('clearingRef guard: second concurrent clearAllData call is a true no-op
   });
 });
 
+// ---------------------------------------------------------------------------
+// Hard app restart immediately after 'Clear all data'
+//
+// The scenario: the user taps "Clear all data", pm.clear() removes the storage
+// key, but then the app crashes or is force-quit before the post-clear autosave
+// can write the cleared-state snapshot.  On the next cold launch, storage is
+// completely absent (no key, not even a cleared snapshot).
+//
+// CaloraContext hydrates via:
+//   const { state: saved, error } = await pm.current.read();
+//   if (!saved) return;   ← early-return guard
+//
+// Because storage is absent, read() returns { state: null, error: null }.
+// The early-return guard fires and no setState call is made — all React state
+// fields remain at their useState() defaults (the initial component state).
+// This test locks in that guarantee explicitly.
+// ---------------------------------------------------------------------------
+
+describe('Hard app restart after Clear all data — no post-clear autosave (crash / force-quit scenario)', () => {
+  it('enqueueWrite → pm.clear() (no autosave) → pm.read() returns { state: null, error: null }', async () => {
+    // Step 1: write rich session state (mirrors an in-progress autosave).
+    const sessionState = {
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'lose', weightKg: 76 },
+      logs: [
+        { id: 'starter-oats',  name: 'Overnight oats', date: '2026-08-07', meal: 'Breakfast' },
+        { id: 'starter-salad', name: 'Chicken salad',   date: '2026-08-07', meal: 'Lunch' },
+        { id: 'starter-apple', name: 'Honeycrisp apple', date: '2026-08-07', meal: 'Snack' },
+      ],
+      weights: [{ id: 'weight-1', date: '2026-08-07', kg: 76, source: 'manual' }],
+      moodLogs: { '2026-08-07': 'good' },
+      waterLogs: { '2026-08-07': 48 },
+      plannerMeals: [{ id: 'pm-1', name: 'Oatmeal', day: '2026-08-07', meal: 'Breakfast' }],
+      coachMessages: [{ role: 'assistant', content: 'Great work today!' }],
+    };
+    pm.enqueueWrite(sessionState);
+    // Drain the write queue so the key is definitely present in storage.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(storage.store[STORAGE_KEY]).toBeDefined();
+
+    // Step 2: user taps "Clear all data" — pm.clear() removes the key.
+    // Crucially, NO post-clear autosave follows (simulates a crash / force-quit
+    // between pm.clear() resolving and React committing the cleared state).
+    await pm.clear();
+
+    // Confirm the key is gone — storage is completely absent after the remove.
+    expect(storage.store[STORAGE_KEY]).toBeUndefined();
+    expect(await storage.getItem(STORAGE_KEY)).toBeNull();
+
+    // Step 3: hard app restart — CaloraContext's hydration effect calls pm.read().
+    const { state: saved, error } = await pm.read<typeof sessionState>();
+
+    // read() must return null state and no error — absent storage is not an error.
+    expect(error).toBeNull();
+    expect(saved).toBeNull();
+  });
+
+  it('null state from read() satisfies the hydration guard — !saved is true', async () => {
+    // The hydration effect in CaloraContext does:
+    //   const { state: saved, error } = await pm.current.read();
+    //   if (!saved) return;   ← all setState calls are skipped
+    //
+    // This test asserts the precise truthiness contract the guard depends on
+    // after a hard restart with no post-clear autosave.
+    pm.enqueueWrite({ onboardingComplete: true, logs: [{ id: 'log-1' }] });
+    await pm.clear(); // no post-clear autosave
+
+    const { state: saved } = await pm.read();
+
+    // !saved must be true so the guard fires and no state setter is called.
+    expect(saved).toBeNull();
+    expect(!saved).toBe(true);
+  });
+
+  it('all state fields remain at React defaults — no session field survives into the next launch', async () => {
+    // Simulate a richer session before clear: every persisted field is populated
+    // so that if any one of them leaked through the absent-storage path, the
+    // assertion below would catch it.
+    const richSession = {
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'lose', weightKg: 76 },
+      logs:               [{ id: 'l-1' }, { id: 'l-2' }],
+      weights:            [{ id: 'w-1', kg: 76 }],
+      waterLogs:          { '2026-08-07': 48 },
+      moodLogs:           { '2026-08-07': 'energized' },
+      activityLogs:       { '2026-08-07': 'high' },
+      activityMinutesLogs:{ '2026-08-07': 45 },
+      savedMeals:         [{ id: 'sm-1', name: 'Granola' }],
+      localRecipes:       [{ id: 'lr-1', name: 'My cookie' }],
+      savedRecipeIds:     ['recipe-42'],
+      outbox:             [{ id: 'mut-1', entity: 'diaryEntry', operation: 'upsert' }],
+      plannerMeals:       [{ id: 'pm-1', name: 'Oatmeal', day: '2026-08-07', meal: 'Breakfast' }],
+      shoppingItems:      [{ id: 'si-1', name: 'Oats', quantity: 1, checked: false }],
+      foodDrafts:         [{ id: 'fd-1' }],
+      foodMemories:       [{ id: 'fm-1' }],
+      repeatPatterns:     [{ id: 'rp-1', signature: 'oats', count: 3 }],
+      memoryCorrections:  [{ id: 'mc-1' }],
+      coachConsentAccepted: true,
+      coachMessages:      [{ role: 'assistant', content: 'You are doing great!' }],
+    };
+    pm.enqueueWrite(richSession);
+    await new Promise((r) => setTimeout(r, 0)); // drain write
+
+    // Clear with no subsequent autosave — simulates crash after pm.clear().
+    await pm.clear();
+
+    // Hard restart: hydration reads from empty storage.
+    const { state: saved, error } = await pm.read<typeof richSession>();
+
+    // --- Hydration guard contract ---
+    expect(error).toBeNull();
+    expect(saved).toBeNull();
+
+    // Because saved is null the guard `if (!saved) return` fires.
+    // No setState call is made, so all React state fields remain at their
+    // useState() initial values (the starter data defaults in CaloraProvider).
+    // The key guarantee: no FIELD from the previous session leaks through.
+    //
+    // We cannot call React setters in this unit-test environment, but we can
+    // assert that the value returned from read() is null — the single input that
+    // drives the guard — and that no partial or stale session object is returned.
+    if (saved) {
+      // This branch must never execute — it is a sentinel so TypeScript
+      // narrows the type and any future refactor that changes the return value
+      // to a non-null object will surface here as a test failure.
+      throw new Error('read() returned non-null state after a clear with no post-clear autosave — hard restart safety guarantee broken');
+    }
+
+    // Confirm call sequence: write → remove (no second setItem = no post-clear autosave).
+    expect(storage.calls).toEqual([
+      `setItem:${STORAGE_KEY}`,    // pre-clear session autosave
+      `removeItem:${STORAGE_KEY}`, // pm.clear() remove — the hard boundary
+      // no third setItem here — this is the crash scenario
+    ]);
+  });
+
+  it('a blocked in-flight write drains before the key is removed — hard restart still reads null', async () => {
+    // Tightest timing variant: the autosave is mid-flight (blocked setItem) when
+    // the user taps "Clear all data".  The write completes, THEN the key is
+    // removed.  If the app crashes before the post-clear autosave, the next cold
+    // launch still reads null — the write/remove ordering is preserved.
+    const release = storage.blockNextSetItem();
+
+    pm.enqueueWrite({
+      onboardingComplete: true,
+      logs: [{ id: 'starter-oats' }, { id: 'starter-salad' }, { id: 'starter-apple' }],
+      weights: [{ id: 'weight-1', kg: 76 }],
+    });
+
+    // clear() chains removeItem after the blocked write — no autosave after.
+    const clearDone = pm.clear();
+    release(); // unblock the write
+    await clearDone;
+
+    // Hard restart read — key is absent because removeItem ran last.
+    const { state: saved, error } = await pm.read();
+
+    expect(error).toBeNull();
+    expect(saved).toBeNull();
+
+    // Verify ordering: the write completed first, then the key was removed.
+    expect(storage.calls).toEqual([
+      `setItem:${STORAGE_KEY}`,    // in-flight write (completed before remove)
+      `removeItem:${STORAGE_KEY}`, // clear — always the last writer
+    ]);
+    // Storage is empty — the write ran but was then removed.
+    expect(storage.store[STORAGE_KEY]).toBeUndefined();
+  });
+});
+
 describe('exportData (buildExportPayload): serialised output reflects the cleared in-memory state', () => {
   it('buildExportPayload over cleared state produces a valid JSON document with all fields cleared', async () => {
     // Simulate a pre-clear session: enqueue rich state so storage is populated.
