@@ -1178,7 +1178,7 @@ const styles = StyleSheet.create({
   reviewTotalMacros: { fontFamily: 'Inter_600SemiBold', fontSize: 10, textAlign: 'right' },
   dismissButton: { alignItems: 'center', paddingVertical: 13 },
   dismissText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  shoppingSheet: { maxHeight: '80%', borderTopLeftRadius: 27, borderTopRightRadius: 27, paddingTop: 16, paddingHorizontal: 20, paddingBottom: 0 },
+  shoppingSheet: { height: '80%', borderTopLeftRadius: 27, borderTopRightRadius: 27, paddingTop: 16, paddingHorizontal: 20, paddingBottom: 0 },
   shoppingHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   shoppingSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 8, marginBottom: 12 },
   // Filter section: a plain View wrapper that owns its own height, with no overflow clipping.
