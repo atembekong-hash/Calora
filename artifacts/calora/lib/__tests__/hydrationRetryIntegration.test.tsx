@@ -260,3 +260,102 @@ describe('useHydrationEffect (production hook) — parse-error screen stays hidd
     expect(shouldAutosave({ hydrated: handle.result.current.hydrated, error: handle.result.current.hydrationError })).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Error kind / message invariant: hydrationError and hydrationErrorKind always
+// match so the error screen never shows the wrong action buttons.
+//
+// These tests drive the real useHydrationEffect hook — not a re-implementation
+// of its catch logic — so a future regression (swapped messages, omitted
+// setState call, altered kind assignment) will be caught here.
+// ---------------------------------------------------------------------------
+
+/** Minimal storage adapter that rejects every getItem call with the given error. */
+function makeRejectingStorage(message: string): ControllableStorage {
+  return {
+    store: {},
+    blockNextGetItem() { return () => {}; },
+    async getItem(_key: string): Promise<string | null> {
+      throw new Error(message);
+    },
+    async setItem(_key: string, _value: string) {},
+    async removeItem(_key: string) {},
+  };
+}
+
+describe('useHydrationEffect (production hook) — hydrationError and hydrationErrorKind always match', () => {
+  it('after a parse error: hydrationErrorKind is "parse" and hydrationError is a non-null string — both set together', async () => {
+    // Corrupt JSON in storage triggers the ParseHydrationError path inside the
+    // hook's .then() block.  The .catch() branch must set both fields in the
+    // same microtask so no render can observe one null and the other non-null.
+    // The error screen shows the Export action only when kind is 'parse' — a
+    // mismatch would show the wrong buttons.
+    const storage = makeControllableStorage({ [STORAGE_KEY]: '{corrupted-json}' });
+    const { handle } = await renderAndAwaitHydration(storage);
+
+    // Both must be non-null and consistent
+    expect(handle.result.current.hydrationError).not.toBeNull();
+    expect(handle.result.current.hydrationErrorKind).not.toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBe('parse');
+    expect(typeof handle.result.current.hydrationError).toBe('string');
+    expect(handle.result.current.hydrationError!.length).toBeGreaterThan(0);
+  });
+
+  it('after an I/O error: hydrationErrorKind is "io" and hydrationError is a non-null string — both set together', async () => {
+    // AsyncStorage itself throws (device locked, quota exhausted, OS I/O failure).
+    // pm.read() rejects before parseStorageValue is called, so the hook's
+    // .catch() branch receives a plain Error — not a ParseHydrationError — and
+    // must set kind='io' alongside a non-null message string.
+    // The error screen shows "Try Again" only for io kind; a mismatch would
+    // show Export instead (the wrong primary action for a transient failure).
+    const storage = makeRejectingStorage('AsyncStorage: device is locked');
+    const { handle } = await renderAndAwaitHydration(storage);
+
+    expect(handle.result.current.hydrationError).not.toBeNull();
+    expect(handle.result.current.hydrationErrorKind).not.toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBe('io');
+    expect(typeof handle.result.current.hydrationError).toBe('string');
+    expect(handle.result.current.hydrationError!.length).toBeGreaterThan(0);
+  });
+
+  it('after a clean read: both hydrationError and hydrationErrorKind are null — both cleared together', async () => {
+    // The hook's .then() success branch never calls setHydrationError or
+    // setHydrationErrorKind, so both remain at the null value set by the
+    // effect's preamble.  A render observing this state must not show the
+    // error screen.
+    const storage = makeControllableStorage({
+      [STORAGE_KEY]: JSON.stringify({ onboardingComplete: true, logs: [] }),
+    });
+    const { handle } = await renderAndAwaitHydration(storage);
+
+    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
+    expect(handle.result.current.hydrated).toBe(true);
+  });
+
+  it('parse-error message references corruption and export — not io wording', async () => {
+    // Guards against the message being wired to the wrong catch branch:
+    // if the parse branch produced the io message ("temporarily unavailable"),
+    // the error screen would omit the Export button — the only useful recovery
+    // action when data is on-device but unreadable.
+    const storage = makeControllableStorage({ [STORAGE_KEY]: 'TRUNCATED{{{' });
+    const { handle } = await renderAndAwaitHydration(storage);
+
+    expect(handle.result.current.hydrationErrorKind).toBe('parse');
+    expect(handle.result.current.hydrationError).toContain('corrupt');
+    expect(handle.result.current.hydrationError).not.toContain('temporarily unavailable');
+  });
+
+  it('io-error message references temporary unavailability — not parse/corrupt wording', async () => {
+    // Guards against the reverse mismatch: if the io catch branch produced the
+    // parse message ("corrupt … can be exported"), users would be told their
+    // data is damaged when it is just a transient storage failure — sending
+    // them to the wrong recovery path.
+    const storage = makeRejectingStorage('AsyncStorage: quota exceeded');
+    const { handle } = await renderAndAwaitHydration(storage);
+
+    expect(handle.result.current.hydrationErrorKind).toBe('io');
+    expect(handle.result.current.hydrationError).toContain('temporarily unavailable');
+    expect(handle.result.current.hydrationError).not.toContain('corrupt');
+  });
+});

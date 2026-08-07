@@ -618,3 +618,4 @@ describe('stale-render guard: error screen stays hidden if retry succeeds but a 
     expect(shouldAutosave({ hydrated: snapshots[2].hydrated, error: snapshots[2].hydrationErrorKind })).toBe(true);
   });
 });
+
