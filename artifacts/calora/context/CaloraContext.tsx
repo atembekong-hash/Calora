@@ -233,6 +233,7 @@ type CaloraContextValue = {
   exportData: () => Promise<string>;
   exportRawStorageData: () => Promise<string | null>;
   clearAllData: () => Promise<void>;
+  isClearing: boolean;
   retryHydration: () => void;
   /** The target weight (kg) for which the goal celebration was already displayed. Null means it hasn't been shown yet. */
   goalCelebrationSeenTargetKg: number | null;
@@ -381,6 +382,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const pm = useRef(new PersistenceManager(AsyncStorage, STORAGE_KEY));
   /** Guard that prevents a second tap from entering clearAllData while the first is in progress. */
   const clearingRef = useRef(false);
+  const [isClearing, setIsClearing] = useState(false);
   /**
    * Cleared-state snapshot set synchronously inside clearAllData after
    * performClearAllData resolves — before React commits the re-render triggered
@@ -770,6 +772,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     clearAllData: async () => {
       if (clearingRef.current) return;
       clearingRef.current = true;
+      setIsClearing(true);
       try {
         await performClearAllData({
         pm: pm.current,
@@ -821,8 +824,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         });
       } finally {
         clearingRef.current = false;
+        setIsClearing(false);
       }
     },
+     isClearing,
      retryHydration,
     setPlannerMeals: (weekStart, meals) => {
       const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
@@ -880,7 +885,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      setPendingPlannerAck,
      goalCelebrationSeenTargetKg,
      markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
-     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

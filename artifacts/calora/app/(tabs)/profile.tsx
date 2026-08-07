@@ -1,8 +1,8 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
@@ -21,7 +21,7 @@ const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.
 ];
 
 export default function ProfileScreen() {
-  const { colors, themePreference, setThemePreference, profile, healthConnected, setHealthConnected, exportRawStorageData, clearAllData, syncState, savedMeals, saveMeal, hydrationReminders, setHydrationReminders, livingMemory } = useCalora();
+  const { colors, themePreference, setThemePreference, profile, healthConnected, setHealthConnected, exportRawStorageData, clearAllData, isClearing, syncState, savedMeals, saveMeal, hydrationReminders, setHydrationReminders, livingMemory } = useCalora();
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | null>(null);
@@ -80,7 +80,20 @@ export default function ProfileScreen() {
       onData: () => setPrivacyModal('export'),
     });
   };
-  const handleDelete = () => setPrivacyModal('delete');
+  const handleDelete = () => { if (!isClearing) setPrivacyModal('delete'); };
+  /** Synchronous ref so a second press event delivered before React commits
+   *  isClearing=true cannot race past the guard and close the modal early. */
+  const confirmingRef = useRef(false);
+  const handleConfirmDelete = async () => {
+    if (confirmingRef.current) return;
+    confirmingRef.current = true;
+    try {
+      await clearAllData();
+      setPrivacyModal(null);
+    } finally {
+      confirmingRef.current = false;
+    }
+  };
   const createSavedMeal = () => {
     const calories = Number(savedMealCalories);
     if (!savedMealName.trim() || !Number.isFinite(calories) || calories <= 0) return;
@@ -388,7 +401,7 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-      <Modal visible={privacyModal !== null} transparent animationType="fade" onRequestClose={() => setPrivacyModal(null)}>
+      <Modal visible={privacyModal !== null} transparent animationType="fade" onRequestClose={() => { if (!isClearing) setPrivacyModal(null); }}>
         <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
           <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
             <View style={[styles.dialogIcon, { backgroundColor: privacyModal === 'delete' ? colors.warning : colors.accent }]}>
@@ -408,8 +421,8 @@ export default function ProfileScreen() {
                 {privacyModal === 'delete' ? 'This action is permanent.' : 'No data was sent anywhere.'}
               </Text>
             </View>
-            {privacyModal === 'delete' && <Pressable accessibilityLabel="Delete everything" onPress={() => { setPrivacyModal(null); clearAllData(); }} style={[styles.dialogButton, { backgroundColor: colors.warning }]}><Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Delete everything</Text></Pressable>}
-            <Pressable accessibilityLabel="Close privacy dialog" onPress={() => setPrivacyModal(null)} style={[styles.dialogButton, { backgroundColor: privacyModal === 'delete' ? colors.muted : colors.primary }]}>
+            {privacyModal === 'delete' && <Pressable accessibilityLabel="Delete everything" disabled={isClearing} onPress={handleConfirmDelete} style={[styles.dialogButton, { backgroundColor: colors.warning, opacity: isClearing ? 0.6 : 1 }]}>{isClearing ? <ActivityIndicator size="small" color={colors.foreground} /> : <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Delete everything</Text>}</Pressable>}
+            <Pressable accessibilityLabel="Close privacy dialog" disabled={isClearing} onPress={() => setPrivacyModal(null)} style={[styles.dialogButton, { backgroundColor: privacyModal === 'delete' ? colors.muted : colors.primary, opacity: isClearing && privacyModal === 'delete' ? 0.4 : 1 }]}>
               <Text style={[styles.dialogButtonText, { color: privacyModal === 'delete' ? colors.foreground : colors.primaryForeground }]}>{privacyModal === 'delete' ? 'Keep my data' : 'Done'}</Text>
             </Pressable>
           </View>
