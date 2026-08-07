@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { parseStorageValue, shouldAutosave, ParseHydrationError, type HydrationErrorKind } from '@/lib/hydrationGuard';
 import { PersistenceManager } from '@/lib/persistenceManager';
+import { performClearAllData, DEFAULT_HYDRATION_PREFS } from '@/lib/clearAllData';
 import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
@@ -126,14 +127,6 @@ export type OutboxMutation = {
   createdAt: string;
 };
 
-const DEFAULT_HYDRATION_PREFS: HydrationReminderPrefs = {
-  enabled: false,
-  wakeHour: 7,
-  wakeMinute: 0,
-  sleepHour: 22,
-  sleepMinute: 0,
-  intervalHours: 2,
-};
 
 type CaloraState = {
   schemaVersion?: number;
@@ -774,33 +767,35 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         coachConsentAccepted,
         coachMessages,
       }, null, 2),
-    clearAllData: async () => {
-      await pm.current.clear();
-      setLogs([]);
-      setWeights([]);
-      setWaterLogs({});
-      setMoodLogs({});
-      setActivityLogs({});
-      setActivityMinutesLogs({});
-      setSavedMeals([]);
-      setLocalRecipes([]);
-      setSavedRecipeIds([]);
-      setProfile(null);
-      setOnboardingComplete(false);
-      setConsentAccepted(false);
-      setOutbox([]);
-      setPlannerMealsState([]);
-      setShoppingItems([]);
-       setFoodDrafts([]);
-       setFoodMemories([]);
-       setRepeatPatterns([]);
-       setMemoryCorrections([]);
-       setLivingMemory(emptyLivingMemory());
-       setHydrationRemindersState(DEFAULT_HYDRATION_PREFS);
-       setCoachConsentAccepted(false);
-       setCoachMessages([]);
-       setGoalCelebrationSeenTargetKg(null);
-    },
+    clearAllData: () => performClearAllData({
+      pm: pm.current,
+      emptyLivingMemory: emptyLivingMemory(),
+      defaultHydrationPrefs: DEFAULT_HYDRATION_PREFS,
+      setOnboardingComplete,
+      setProfile,
+      setLogs,
+      setWeights,
+      setWaterLogs,
+      setMoodLogs,
+      setActivityLogs,
+      setActivityMinutesLogs,
+      setSavedMeals,
+      setLocalRecipes,
+      setSavedRecipeIds,
+      setConsentAccepted,
+      setOutbox,
+      setPlannerMeals: setPlannerMealsState,
+      setShoppingItems,
+      setFoodDrafts,
+      setFoodMemories,
+      setRepeatPatterns,
+      setMemoryCorrections,
+      setLivingMemory,
+      setHydrationReminders: setHydrationRemindersState,
+      setCoachConsentAccepted,
+      setCoachMessages,
+      setGoalCelebrationSeenTargetKg,
+    }),
      retryHydration: () => {
        setHydrationErrorKind(null);
        setHydrated(false);

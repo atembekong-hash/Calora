@@ -11,6 +11,8 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PersistenceManager, type StorageAdapter } from '../persistenceManager';
+import { performClearAllData, DEFAULT_HYDRATION_PREFS, type ClearAllDataCtx } from '../clearAllData';
+import { emptyLivingMemory } from '../livingMemory';
 
 // ---------------------------------------------------------------------------
 // In-memory StorageAdapter — mirrors the AsyncStorage surface used in
@@ -321,5 +323,257 @@ describe('CaloraContext clearAllData contract: expected post-clear state values'
   it('coach state is fully cleared — consent flag and message history are gone', () => {
     expect(clearedState.coachConsentAccepted).toBe(false);
     expect(clearedState.coachMessages).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CaloraContext.clearAllData lifecycle: mid-clear mutation race
+//
+// CaloraContext.clearAllData delegates to performClearAllData() from
+// lib/clearAllData.ts (production code, not a test helper).  The function:
+//   1. Awaits pm.clear()           — removeItem queued after any pending write
+//   2. Calls every state setter    — in production these are React useState
+//                                   dispatchers; here they are spy callbacks
+//
+// After performClearAllData resolves, the React autosave useEffect fires and
+// calls pm.current.enqueueWrite(clearedCaloraState).  In these tests the
+// autosave is simulated explicitly (pm.enqueueWrite(captured)) because
+// vitest runs in a Node environment without React rendering.
+//
+// A concurrent mutation is injected while performClearAllData is suspended
+// at `await pm.clear()` — exactly the async gap where a concurrent addLog
+// or setMood could race in the real app.
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a ClearAllDataCtx whose setters record every cleared value they
+ * receive into `captured`.  After performClearAllData resolves, call
+ * pm.enqueueWrite(captured) to simulate the autosave effect.
+ */
+function makeSpyCtx(pm: PersistenceManager): {
+  ctx: ClearAllDataCtx;
+  captured: Record<string, unknown>;
+} {
+  const captured: Record<string, unknown> = {};
+  const spy =
+    (key: string) =>
+    (value: unknown) => {
+      captured[key] = value;
+    };
+  const ctx: ClearAllDataCtx = {
+    pm,
+    emptyLivingMemory: emptyLivingMemory(),
+    defaultHydrationPrefs: DEFAULT_HYDRATION_PREFS,
+    setOnboardingComplete:        spy('onboardingComplete'),
+    setProfile:                   spy('profile'),
+    setLogs:                      spy('logs'),
+    setWeights:                   spy('weights'),
+    setWaterLogs:                 spy('waterLogs'),
+    setMoodLogs:                  spy('moodLogs'),
+    setActivityLogs:              spy('activityLogs'),
+    setActivityMinutesLogs:       spy('activityMinutesLogs'),
+    setSavedMeals:                spy('savedMeals'),
+    setLocalRecipes:              spy('localRecipes'),
+    setSavedRecipeIds:            spy('savedRecipeIds'),
+    setConsentAccepted:           spy('consentAccepted'),
+    setOutbox:                    spy('outbox'),
+    setPlannerMeals:              spy('plannerMeals'),
+    setShoppingItems:             spy('shoppingItems'),
+    setFoodDrafts:                spy('foodDrafts'),
+    setFoodMemories:              spy('foodMemories'),
+    setRepeatPatterns:            spy('repeatPatterns'),
+    setMemoryCorrections:         spy('memoryCorrections'),
+    setLivingMemory:              spy('livingMemory'),
+    setHydrationReminders:        spy('hydrationReminders'),
+    setCoachConsentAccepted:      spy('coachConsentAccepted'),
+    setCoachMessages:             spy('coachMessages'),
+    setGoalCelebrationSeenTargetKg: spy('goalCelebrationSeenTargetKg'),
+  };
+  return { ctx, captured };
+}
+
+describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become the final storage write', () => {
+  it('concurrent addLog-style mutation: stale log entries do not survive — cleared state wins as last writer', async () => {
+    // Scenario:
+    //   1. An autosave is in-flight (blocked setItem) when the user taps "Clear".
+    //   2. clearAllData calls performClearAllData → pm.clear() chains removeItem
+    //      after the blocked write; performClearAllData suspends at `await`.
+    //   3. addLog fires mid-clear → pm.enqueueWrite(staleState) chains after remove.
+    //   4. pm.clear() resolves → performClearAllData calls every state setter.
+    //   5. React autosave fires → pm.enqueueWrite(capturedClearedState) — last writer.
+    const release = storage.blockNextSetItem();
+
+    const sessionState = {
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'lose', weightKg: 76 },
+      logs: [
+        { id: 'starter-oats',  name: 'Overnight oats', date: '2026-08-07', meal: 'Breakfast' },
+        { id: 'starter-salad', name: 'Chicken salad',   date: '2026-08-07', meal: 'Lunch' },
+      ],
+      weights: [{ id: 'weight-1', date: '2026-08-07', kg: 76, source: 'manual' }],
+    };
+    pm.enqueueWrite(sessionState); // blocked in-flight autosave
+
+    const { ctx, captured } = makeSpyCtx(pm);
+
+    // Start performClearAllData — the real production function now used by
+    // CaloraContext.clearAllData.  Suspends at `await pm.clear()`.
+    const clearDone = performClearAllData(ctx);
+
+    // Inject concurrent addLog mutation while performClearAllData is suspended
+    pm.enqueueWrite({
+      ...sessionState,
+      logs: [...sessionState.logs, { id: 'mid-clear-log', name: 'Mid-clear snack' }],
+    });
+
+    release(); // unblock the in-flight write
+    await clearDone; // clear resolves, every setter fires → captured is populated
+
+    // Simulate the autosave useEffect that fires after React re-renders with
+    // the cleared state values collected by the spy setters.
+    pm.enqueueWrite(captured);
+    await new Promise((r) => setTimeout(r, 0)); // drain remaining queue entries
+
+    // Call order: pre-clear write → remove → stale-mutation write → cleared write
+    expect(storage.calls).toEqual([
+      `setItem:${STORAGE_KEY}`,    // in-flight session autosave
+      `removeItem:${STORAGE_KEY}`, // pm.clear() remove — the boundary
+      `setItem:${STORAGE_KEY}`,    // mid-clear addLog mutation (stale)
+      `setItem:${STORAGE_KEY}`,    // post-clear autosave from clearAllData setters
+    ]);
+
+    // Final storage is the captured cleared state, not the stale mutation snapshot.
+    const stored = JSON.parse(storage.store[STORAGE_KEY]);
+    expect(stored.onboardingComplete).toBe(false);
+    expect(stored.profile).toBeNull();
+    expect(stored.logs).toEqual([]);
+    expect(stored.weights).toEqual([]);
+    expect(stored.moodLogs).toEqual({});
+    expect(stored.waterLogs).toEqual({});
+    // Neither the session logs nor the mid-clear log survived
+    for (const staleId of ['starter-oats', 'starter-salad', 'mid-clear-log']) {
+      expect(
+        (stored.logs as Array<{ id: string }>).some((l) => l.id === staleId),
+      ).toBe(false);
+    }
+  });
+
+  it('concurrent setMood-style mutation: mood entry does not survive — final moodLogs is empty', async () => {
+    // Mirrors setMood dispatched while clearAllData is awaiting pm.clear().
+    // In CaloraContext, setMood calls setMoodLogs({...current,[date]:mood}) and
+    // triggers an autosave.  That autosave chains after removeItem.  The cleared-
+    // state autosave that follows must overwrite it so no mood entry survives.
+    const release = storage.blockNextSetItem();
+
+    const sessionWithMood = {
+      onboardingComplete: true,
+      profile: { name: 'Alex' },
+      logs: [{ id: 'log-1', name: 'Oatmeal' }],
+      moodLogs: { '2026-08-07': 'good' },
+      waterLogs: { '2026-08-07': 32 },
+    };
+    pm.enqueueWrite(sessionWithMood);
+
+    const { ctx, captured } = makeSpyCtx(pm);
+    const clearDone = performClearAllData(ctx);
+
+    // setMood fires mid-clear with an updated mood entry
+    pm.enqueueWrite({ ...sessionWithMood, moodLogs: { '2026-08-07': 'energized' } });
+
+    release();
+    await clearDone;
+    pm.enqueueWrite(captured);
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(storage.calls).toEqual([
+      `setItem:${STORAGE_KEY}`,
+      `removeItem:${STORAGE_KEY}`,
+      `setItem:${STORAGE_KEY}`,
+      `setItem:${STORAGE_KEY}`,
+    ]);
+
+    const stored = JSON.parse(storage.store[STORAGE_KEY]);
+    expect(stored.moodLogs).toEqual({});     // cleared — mid-clear mood did not survive
+    expect(stored.waterLogs).toEqual({});    // cleared
+    expect(stored.logs).toEqual([]);
+    expect(stored.profile).toBeNull();
+    expect(stored.onboardingComplete).toBe(false);
+  });
+
+  it('setters receive the correct cleared values — captured state matches performClearAllData contract', async () => {
+    // Confirms the setter-value contract defined in lib/clearAllData.ts:
+    // every field must receive exactly its cleared default so the post-clear
+    // autosave persists the right snapshot.
+    const { ctx, captured } = makeSpyCtx(pm);
+    await performClearAllData(ctx);
+
+    expect(captured.onboardingComplete).toBe(false);
+    expect(captured.profile).toBeNull();
+    expect(captured.logs).toEqual([]);
+    expect(captured.weights).toEqual([]);
+    expect(captured.waterLogs).toEqual({});
+    expect(captured.moodLogs).toEqual({});
+    expect(captured.activityLogs).toEqual({});
+    expect(captured.activityMinutesLogs).toEqual({});
+    expect(captured.savedMeals).toEqual([]);
+    expect(captured.localRecipes).toEqual([]);
+    expect(captured.savedRecipeIds).toEqual([]);
+    expect(captured.consentAccepted).toBe(false);
+    expect(captured.outbox).toEqual([]);
+    expect(captured.plannerMeals).toEqual([]);
+    expect(captured.shoppingItems).toEqual([]);
+    expect(captured.foodDrafts).toEqual([]);
+    expect(captured.foodMemories).toEqual([]);
+    expect(captured.repeatPatterns).toEqual([]);
+    expect(captured.memoryCorrections).toEqual([]);
+    expect(captured.coachConsentAccepted).toBe(false);
+    expect(captured.coachMessages).toEqual([]);
+    expect(captured.goalCelebrationSeenTargetKg).toBeNull();
+    // hydrationReminders resets to DEFAULT_HYDRATION_PREFS (not all-false/all-zero)
+    expect(captured.hydrationReminders).toEqual(DEFAULT_HYDRATION_PREFS);
+    // livingMemory resets to emptyLivingMemory() — must have the expected shape
+    expect(captured.livingMemory).toBeDefined();
+    expect(typeof captured.livingMemory).toBe('object');
+  });
+
+  it('post-clear read() returns the cleared state — stale mid-clear log id is absent on re-hydration', async () => {
+    // Round-trip: after the complete lifecycle, pm.read() (the hydration effect)
+    // returns the cleared snapshot, not the stale mid-clear data.
+    const release = storage.blockNextSetItem();
+
+    pm.enqueueWrite({
+      onboardingComplete: true,
+      profile: { name: 'Alex' },
+      logs: [{ id: 'log-a' }, { id: 'log-b' }],
+    });
+
+    const { ctx, captured } = makeSpyCtx(pm);
+    const clearDone = performClearAllData(ctx);
+
+    // Concurrent addLog mid-clear
+    pm.enqueueWrite({
+      onboardingComplete: true,
+      profile: { name: 'Alex' },
+      logs: [{ id: 'log-a' }, { id: 'log-b' }, { id: 'log-c-stale' }],
+    });
+
+    release();
+    await clearDone;
+    pm.enqueueWrite(captured); // autosave with cleared state
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Re-read storage — mirrors the CaloraContext hydration effect
+    const { state, error } = await pm.read<Record<string, unknown>>();
+
+    expect(error).toBeNull();
+    expect(state).not.toBeNull();
+    if (state) {
+      expect(state['onboardingComplete']).toBe(false);
+      expect(state['profile']).toBeNull();
+      expect(state['logs']).toEqual([]);
+      expect(
+        (state['logs'] as Array<{ id: string }>).some((l) => l.id === 'log-c-stale'),
+      ).toBe(false);
+    }
   });
 });
