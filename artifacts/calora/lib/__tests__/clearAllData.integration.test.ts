@@ -364,6 +364,9 @@ function makeSpyCtx(pm: PersistenceManager): {
     pm,
     emptyLivingMemory: emptyLivingMemory(),
     defaultHydrationPrefs: DEFAULT_HYDRATION_PREFS,
+    // Use a deterministic week-start so tests are not date-sensitive.
+    // This value is the Monday of the week containing 2026-08-07 (a Friday).
+    getPlannerWeekStart:          () => '2026-08-03',
     setOnboardingComplete:        spy('onboardingComplete'),
     setProfile:                   spy('profile'),
     setLogs:                      spy('logs'),
@@ -377,6 +380,7 @@ function makeSpyCtx(pm: PersistenceManager): {
     setSavedRecipeIds:            spy('savedRecipeIds'),
     setConsentAccepted:           spy('consentAccepted'),
     setOutbox:                    spy('outbox'),
+    setPlannerWeekStart:          spy('plannerWeekStart'),
     setPlannerMeals:              spy('plannerMeals'),
     setShoppingItems:             spy('shoppingItems'),
     setFoodDrafts:                spy('foodDrafts'),
@@ -520,6 +524,9 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     expect(captured.savedRecipeIds).toEqual([]);
     expect(captured.consentAccepted).toBe(false);
     expect(captured.outbox).toEqual([]);
+    // plannerWeekStart resets to the current Monday — not the week the user had browsed to.
+    // This ensures a fresh start always opens on the current week.
+    expect(captured.plannerWeekStart).toBe('2026-08-03'); // deterministic via getPlannerWeekStart mock
     expect(captured.plannerMeals).toEqual([]);
     expect(captured.shoppingItems).toEqual([]);
     expect(captured.foodDrafts).toEqual([]);

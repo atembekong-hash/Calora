@@ -39,6 +39,12 @@ export interface ClearAllDataCtx {
   /** Returned value of emptyLivingMemory() — passed in to avoid an import cycle. */
   emptyLivingMemory: LivingMemory;
   defaultHydrationPrefs: HydrationReminderPrefs;
+  /**
+   * Returns the Monday date-key for the current week (YYYY-MM-DD).
+   * Injected so tests can supply a deterministic date without mocking globals.
+   * In production this is the `getPlannerWeekStart` function from data/planner.ts.
+   */
+  getPlannerWeekStart: () => string;
   // State setters — in production these are React useState dispatchers
   setOnboardingComplete: Setter;
   setProfile: Setter;
@@ -53,6 +59,7 @@ export interface ClearAllDataCtx {
   setSavedRecipeIds: Setter;
   setConsentAccepted: Setter;
   setOutbox: Setter;
+  setPlannerWeekStart: Setter;
   setPlannerMeals: Setter;
   setShoppingItems: Setter;
   setFoodDrafts: Setter;
@@ -90,6 +97,9 @@ export async function performClearAllData(ctx: ClearAllDataCtx): Promise<void> {
   ctx.setOnboardingComplete(false);
   ctx.setConsentAccepted(false);
   ctx.setOutbox([]);
+  // Reset to the current week so the planner opens on the right week after a
+  // fresh start, regardless of which week the user had navigated to before clearing.
+  ctx.setPlannerWeekStart(ctx.getPlannerWeekStart());
   ctx.setPlannerMeals([]);
   ctx.setShoppingItems([]);
   ctx.setFoodDrafts([]);
