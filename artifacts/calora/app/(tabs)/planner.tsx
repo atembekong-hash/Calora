@@ -214,6 +214,13 @@ export default function PlannerScreen() {
     const next = [...plannerMeals.filter((meal) => !(meal.day === day && meal.meal === mealType)), { ...template, id: `planned-${Date.now()}-${template.id}`, day, meal: mealType }];
     updatePlannerMeals(next);
     setAddingMealType(null);
+    // If a removal undo is pending for the same slot, the new meal definitively fills it —
+    // cancel the undo timer so pressing Undo can no longer silently overwrite the new meal.
+    if (undoMeal && undoMeal.day === day && undoMeal.meal === mealType) {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+      setUndoMeal(null);
+    }
     acknowledge(`${template.name} added to your plan.`);
   };
 
@@ -273,6 +280,12 @@ export default function PlannerScreen() {
     };
     updatePlannerMeals([...plannerMeals.filter((meal) => !(meal.day === selectedDay && meal.meal === customMealType)), custom]);
     setCustomMealType(null);
+    // Cancel a pending removal undo if the custom meal fills the same slot.
+    if (undoMeal && undoMeal.day === selectedDay && undoMeal.meal === customMealType) {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+      setUndoMeal(null);
+    }
     acknowledge(`${custom.name} added to your plan.`);
   };
 
