@@ -367,7 +367,7 @@ export default function ProfileScreen() {
         </View>
         {[
           { icon: 'download', title: 'Export your data', testID: 'export-data-row', body: `Prepare a portable JSON copy · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExport, disabled: !hasExportData },
-          { icon: 'trash-2', title: 'Delete local data', body: 'Remove this device\u2019s diary and profile data.', onPress: handleDelete },
+          { icon: 'trash-2', title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove this device\u2019s diary and profile data.', onPress: handleDelete, disabled: isClearing },
           { icon: 'shield', title: 'Your food data stays yours', body: 'Local-first logging with export and delete controls.' },
           { icon: 'eye-off', title: 'No surveillance ads', body: 'Your meals are never used to target advertisements.' },
           { icon: 'help-circle', title: 'Need a hand?', body: 'Reach a real person when something does not look right.' },
