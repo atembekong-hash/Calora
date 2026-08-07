@@ -294,6 +294,67 @@ describe('living memory review states', () => {
     expect(Object.keys(memory.mealObservations)).toHaveLength(1);
   });
 
+  it('bulk-forget across all five kinds leaves no orphaned section headers', () => {
+    // Simulate a forget-all action (as handleForgetAllStale does): iterate every
+    // signal and call forgetLivingObservation for each one in sequence.
+    // After the bulk pass every observation map must be empty — meaning every
+    // MemorySection receives zero children and Children.count returns 0,
+    // so no section header is rendered.
+    let memory = buildLivingMemory({
+      logs: [log('meal-a', '2025-01-01'), log('meal-b', '2025-01-02'), log('meal-c', '2025-01-03')],
+      waterLogs: { '2025-01-01': 12, '2025-01-02': 20 },
+      moodLogs: { '2025-01-01': 'low', '2025-01-02': 'okay' },
+      activityLogs: { '2025-01-01': 'rest', '2025-01-02': 'light' },
+      plannerMeals: [
+        { id: 'plan-x', day: '2025-01-05', meal: 'Lunch', name: 'PX', image: '', serving: '1', calories: 400, proteinG: 20, carbsG: 40, fatG: 12, ingredients: [], description: '' },
+        { id: 'plan-y', day: '2025-01-06', meal: 'Dinner', name: 'PY', image: '', serving: '1', calories: 500, proteinG: 30, carbsG: 50, fatG: 15, ingredients: [], description: '' },
+      ],
+    });
+
+    // Collect all signals (mirrors the staleSignals loop in memory.tsx)
+    const allSignals: Array<{ kind: Parameters<typeof forgetLivingObservation>[1]; id: string }> = [
+      ...Object.keys(memory.mealObservations).map((id) => ({ kind: 'meal' as const, id })),
+      ...Object.keys(memory.waterObservations).map((id) => ({ kind: 'water' as const, id })),
+      ...Object.keys(memory.moodObservations).map((id) => ({ kind: 'mood' as const, id })),
+      ...Object.keys(memory.activityObservations).map((id) => ({ kind: 'activity' as const, id })),
+      ...Object.keys(memory.plannerObservations).map((id) => ({ kind: 'planner' as const, id })),
+    ];
+
+    // Bulk-forget: apply each forget in sequence (same as handleForgetAllStale)
+    for (const { kind, id } of allSignals) {
+      memory = forgetLivingObservation(memory, kind, id);
+    }
+
+    // All five observation maps must be empty — no orphaned section headers
+    expect(Object.keys(memory.mealObservations)).toHaveLength(0);
+    expect(Object.keys(memory.waterObservations)).toHaveLength(0);
+    expect(Object.keys(memory.moodObservations)).toHaveLength(0);
+    expect(Object.keys(memory.activityObservations)).toHaveLength(0);
+    expect(Object.keys(memory.plannerObservations)).toHaveLength(0);
+
+    // Forgotten ledger must record every signal for all five kinds
+    expect(memory.forgotten.meals).toHaveLength(3);
+    expect(memory.forgotten.meals).toContain('meal-a');
+    expect(memory.forgotten.meals).toContain('meal-b');
+    expect(memory.forgotten.meals).toContain('meal-c');
+
+    expect(memory.forgotten.water).toHaveLength(2);
+    expect(memory.forgotten.water).toContain('2025-01-01');
+    expect(memory.forgotten.water).toContain('2025-01-02');
+
+    expect(memory.forgotten.mood).toHaveLength(2);
+    expect(memory.forgotten.mood).toContain('2025-01-01');
+    expect(memory.forgotten.mood).toContain('2025-01-02');
+
+    expect(memory.forgotten.activity).toHaveLength(2);
+    expect(memory.forgotten.activity).toContain('2025-01-01');
+    expect(memory.forgotten.activity).toContain('2025-01-02');
+
+    expect(memory.forgotten.planner).toHaveLength(2);
+    expect(memory.forgotten.planner).toContain('plan-x');
+    expect(memory.forgotten.planner).toContain('plan-y');
+  });
+
   it('all five observation kinds are reviewable and independently forgettable', () => {
     const memory = buildLivingMemory({
       logs: [log('meal-1')],
