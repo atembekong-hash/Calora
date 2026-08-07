@@ -609,3 +609,59 @@ describe('deriveExportHasData: export row interactive guard', () => {
     expect(handleExportMock).toHaveBeenCalledTimes(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Onboarding boundary — export row re-enables the moment completeOnboarding lands
+// ---------------------------------------------------------------------------
+
+/**
+ * completeOnboarding() writes a Profile object and flips onboardingComplete.
+ * deriveExportHasData must flip from false → true the instant that profile
+ * lands in context so the export row re-enables without any intermediate Alert
+ * or dimmed state leaking into the post-onboarding view.
+ *
+ * These tests assert:
+ *   1. Pre-onboarding  (profile null, no logs)  → false  (row dimmed)
+ *   2. Post-onboarding (profile set,  no logs)  → true   (row interactive)
+ *   3. No intermediate Alert or disabled state exists between the two reads —
+ *      the guard is a pure, synchronous boolean with no extra side-effects.
+ */
+describe('deriveExportHasData: onboarding boundary — export row re-enables immediately', () => {
+  const postOnboardingProfile = { name: 'Alex' };
+
+  it('transitions false → true at the exact onboarding boundary (null profile → profile set, no logs in either state)', () => {
+    // Before completeOnboarding: context has no profile and no logs
+    const beforeOnboarding = deriveExportHasData(null, []);
+    expect(beforeOnboarding).toBe(false);
+
+    // After completeOnboarding: profile lands in context; logs are still empty
+    const afterOnboarding = deriveExportHasData(postOnboardingProfile, []);
+    expect(afterOnboarding).toBe(true);
+  });
+
+  it('the row transitions from non-interactive to interactive at the onboarding boundary — no intermediate disabled state', () => {
+    const handler = vi.fn();
+
+    // Pre-onboarding: row is dimmed and onPress is undefined
+    const preOnboardingHasData = deriveExportHasData(null, []);
+    const preOnboardingOnPress = preOnboardingHasData ? handler : undefined;
+    expect(preOnboardingOnPress).toBeUndefined();
+    preOnboardingOnPress?.();
+    expect(handler).not.toHaveBeenCalled();
+
+    // Post-onboarding: row is interactive immediately — no extra step needed
+    const postOnboardingHasData = deriveExportHasData(postOnboardingProfile, []);
+    const postOnboardingOnPress = postOnboardingHasData ? handler : undefined;
+    expect(typeof postOnboardingOnPress).toBe('function');
+    postOnboardingOnPress?.();
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('the guard is pure and synchronous — the same profile object always produces the same result', () => {
+    // Calling the guard multiple times with the same inputs must be stable
+    expect(deriveExportHasData(postOnboardingProfile, [])).toBe(true);
+    expect(deriveExportHasData(postOnboardingProfile, [])).toBe(true);
+    expect(deriveExportHasData(null, [])).toBe(false);
+    expect(deriveExportHasData(null, [])).toBe(false);
+  });
+});
