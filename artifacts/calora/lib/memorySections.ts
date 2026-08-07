@@ -7,6 +7,7 @@
  */
 import type { DailyActivity, MealType, Mood } from '@/context/CaloraContext';
 import type { LivingMemory } from './livingMemory';
+import { isStaleDate } from './memoryDateHelpers';
 
 export type DiaryRow = { kind: 'meal'; id: string; date: string; meal: MealType; isStale: boolean };
 export type WellnessRow =
@@ -14,13 +15,6 @@ export type WellnessRow =
   | { kind: 'mood'; key: string; date: string; mood: Mood; isStale: boolean }
   | { kind: 'activity'; key: string; date: string; activity: DailyActivity; isStale: boolean };
 export type PlannerRow = { kind: 'planner'; id: string; day: string; meal: string; isStale: boolean };
-
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-
-function isStaleDate(dateStr: string): boolean {
-  const d = new Date(`${dateStr}T12:00:00`);
-  return !Number.isNaN(d.getTime()) && Date.now() - d.getTime() > THIRTY_DAYS_MS;
-}
 
 /**
  * Row data for the "Diary signals" MemorySection.

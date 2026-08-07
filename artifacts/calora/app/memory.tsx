@@ -1,11 +1,12 @@
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { Children, useEffect, useMemo, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { Children, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora, type DailyActivity, type FoodLog, type MealType, type Mood } from '@/context/CaloraContext';
 import type { LivingMemoryKind } from '@/lib/livingMemory';
 import { buildDiaryRows, buildWellnessRows, buildPlannerRows } from '@/lib/memorySections';
+import { isStaleDate, relativeTime as computeRelativeTime } from '@/lib/memoryDateHelpers';
 
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 const moodLabels: Record<Mood, string> = {
@@ -27,32 +28,6 @@ function readableDate(date: string) {
   return Number.isNaN(parsed.getTime()) ? date : parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-
-function parseDateLocal(dateStr: string): Date {
-  return new Date(`${dateStr}T12:00:00`);
-}
-
-function isStaleDate(dateStr: string): boolean {
-  const d = parseDateLocal(dateStr);
-  return !Number.isNaN(d.getTime()) && Date.now() - d.getTime() > THIRTY_DAYS_MS;
-}
-
-function relativeTime(dateStr: string): string {
-  const d = parseDateLocal(dateStr);
-  if (Number.isNaN(d.getTime())) return '';
-  const diffDays = Math.floor((Date.now() - d.getTime()) / (24 * 60 * 60 * 1000));
-  if (diffDays <= 0) return 'today';
-  if (diffDays === 1) return 'yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  const weeks = Math.floor(diffDays / 7);
-  if (diffDays < 31) return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
-  const months = Math.floor(diffDays / 30);
-  if (diffDays < 365) return `${months} month${months === 1 ? '' : 's'} ago`;
-  const years = Math.floor(diffDays / 365);
-  return `${years} year${years === 1 ? '' : 's'} ago`;
-}
-
 function MemoryRow({
   icon,
   title,
@@ -71,7 +46,7 @@ function MemoryRow({
   onEdit?: () => void;
 }) {
   const stale = lastActiveDate ? isStaleDate(lastActiveDate) : false;
-  const timeLabel = lastActiveDate ? relativeTime(lastActiveDate) : '';
+  const timeLabel = lastActiveDate ? computeRelativeTime(lastActiveDate) : '';
   return (
     <View style={[styles.memoryRow, { backgroundColor: colors.card, borderColor: stale ? colors.border : colors.border }]}>
       <View style={[styles.rowIcon, { backgroundColor: stale ? colors.muted : colors.accent }]}>
@@ -110,6 +85,16 @@ const UNDO_WINDOW_MS = 7000;
 export default function LivingMemoryScreen() {
   const { colors, livingMemory, logs, plannerMeals, updateLog, forgetLivingObservation } = useCalora();
   const insets = useSafeAreaInsets();
+
+  // Increment on every focus event so staleness labels re-evaluate when the
+  // device date has changed while the screen was in the background.
+  const [focusRevision, setFocusRevision] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      setFocusRevision((r) => r + 1);
+    }, []),
+  );
+
   const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
   const [editDate, setEditDate] = useState('');
   const [editMeal, setEditMeal] = useState<MealType>('Breakfast');
@@ -210,6 +195,10 @@ export default function LivingMemoryScreen() {
     Object.keys(livingMemory.plannerObservations).length;
 
   const staleSignals = useMemo<Array<{ kind: LivingMemoryKind; id: string }>>(() => {
+    // focusRevision is included so this recomputes whenever the screen regains
+    // focus — catching date changes (new day, DST, timezone switch) that
+    // happened while the app was in the background.
+    void focusRevision;
     const signals: Array<{ kind: LivingMemoryKind; id: string }> = [];
     Object.entries(livingMemory.mealObservations).forEach(([id, o]) => { if (isStaleDate(o.date)) signals.push({ kind: 'meal', id }); });
     Object.keys(livingMemory.waterObservations).forEach((d) => { if (isStaleDate(d)) signals.push({ kind: 'water', id: d }); });
@@ -217,7 +206,7 @@ export default function LivingMemoryScreen() {
     Object.keys(livingMemory.activityObservations).forEach((d) => { if (isStaleDate(d)) signals.push({ kind: 'activity', id: d }); });
     Object.entries(livingMemory.plannerObservations).forEach(([id, o]) => { if (isStaleDate(o.day)) signals.push({ kind: 'planner', id }); });
     return signals;
-  }, [livingMemory]);
+  }, [livingMemory, focusRevision]);
 
   const staleCount = staleSignals.length;
   const allStale = totalCount > 0 && staleCount === totalCount;
