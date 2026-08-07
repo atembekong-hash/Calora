@@ -124,7 +124,17 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
       </View>
       <View style={[styles.patternLegend, { borderTopColor: colors.border }]}>
         <View style={styles.patternLegendItem}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>logged days</Text></View>
-        <View style={styles.patternLegendItem}><View style={[styles.legendDot, { backgroundColor: '#9875c7' }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>mood check-in</Text></View>
+      </View>
+      <View style={[styles.moodLegend, { borderTopColor: colors.border }]}>
+        <Text style={[styles.moodLegendLabel, { color: colors.mutedForeground }]}>Mood dot</Text>
+        <View style={styles.moodLegendItems}>
+          {([ ['energized', '#e5ad55'], ['good', '#5dba7d'], ['okay', '#7394f2'], ['low', '#9875c7'], ['stressed', '#ef6b4f'] ] as [string, string][]).map(([label, color]) => (
+            <View key={label} style={styles.patternLegendItem}>
+              <View style={[styles.legendDot, { backgroundColor: color }]} />
+              <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{label}</Text>
+            </View>
+          ))}
+        </View>
       </View>
       <View style={styles.patternStats}>
         <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageWater} fl oz</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. water</Text></View>
@@ -714,6 +724,9 @@ const styles = StyleSheet.create({
   patternDay: { fontFamily: 'Inter_600SemiBold', fontSize: 9, marginTop: 6 },
   patternLegend: { borderTopWidth: 1, marginTop: 14, paddingTop: 11, flexDirection: 'row', justifyContent: 'space-between' },
   patternLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  moodLegend: { borderTopWidth: 1, marginTop: 10, paddingTop: 10, gap: 6 },
+  moodLegendLabel: { fontFamily: 'Inter_500Medium', fontSize: 10 },
+  moodLegendItems: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   patternStats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 },
   patternStatValue: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   patternStatLabel: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 3 },
