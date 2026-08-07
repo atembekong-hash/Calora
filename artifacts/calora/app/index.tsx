@@ -19,7 +19,7 @@ const activities: { key: ActivityLevel; label: string; body: string }[] = [
 const diets: DietPreference[] = ['Everything', 'Vegetarian', 'Vegan', 'High protein'];
 
 export default function OnboardingScreen() {
-  const { colors, onboardingComplete, hydrated, hydrationError, hydrationErrorKind, retryHydration, exportRawStorageData, completeOnboarding } = useCalora();
+  const { colors, onboardingComplete, hydrated, hydrationError, hydrationErrorKind, retryHydration, clearAllData, exportRawStorageData, completeOnboarding } = useCalora();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState<Goal>('lose');
@@ -106,6 +106,32 @@ export default function OnboardingScreen() {
         <Pressable accessibilityRole="button" accessibilityLabel="Retry loading local data" onPress={retryHydration} style={[styles.retryButton, { backgroundColor: colors.primary }]}>
           <Text style={[styles.retryButtonText, { color: colors.primaryForeground }]}>Try again</Text>
         </Pressable>
+        {isParseError && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear all data and start fresh"
+            onPress={() => {
+              Alert.alert(
+                'Clear all data?',
+                'This will permanently delete all your logs, meals, profile, and settings. This cannot be undone.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Clear everything',
+                    style: 'destructive',
+                    onPress: async () => {
+                      await clearAllData();
+                      retryHydration();
+                    },
+                  },
+                ],
+              );
+            }}
+            style={styles.clearButton}
+          >
+            <Text style={[styles.clearButtonText, { color: colors.destructive }]}>Clear all data and start fresh</Text>
+          </Pressable>
+        )}
       </View>
     );
   }
@@ -224,6 +250,8 @@ const styles = StyleSheet.create({
   retryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   exportButton: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, paddingHorizontal: 20, paddingVertical: 12, marginTop: 16 },
   exportButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+  clearButton: { paddingHorizontal: 16, paddingVertical: 12, marginTop: 6, alignItems: 'center' },
+  clearButtonText: { fontFamily: 'Inter_500Medium', fontSize: 12 },
   content: { paddingHorizontal: 22, flexGrow: 1 },
   progressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   brandMark: { width: 31, height: 31, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ef6b4f' },
