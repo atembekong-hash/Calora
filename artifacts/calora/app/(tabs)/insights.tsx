@@ -525,7 +525,7 @@ export default function InsightsScreen() {
         </AnimatedReveal>
 
         <View style={styles.weightHeader}>
-          <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your trend matters more than a single day</Text></View>
+          <View style={styles.weightTitleGroup}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your trend matters more than a single day</Text></View>
           <View style={styles.weightHeaderButtons}>
             <Pressable
               accessibilityLabel="Edit weight goal"
@@ -775,6 +775,7 @@ const styles = StyleSheet.create({
   trustTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   trustBody: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, marginTop: 4 },
   weightHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 25, marginBottom: 11 },
+  weightTitleGroup: { flex: 1, marginRight: 8 },
   weightHeaderButtons: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   goalHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8 },
   goalHeaderBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
