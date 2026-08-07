@@ -16,6 +16,7 @@ import {
 import { cancelMealReminders, scheduleMealReminders, type MealReminderPrefs } from '@/lib/mealReminders';
 import { cancelGoalReminder, scheduleGoalReminder, type GoalReminderPrefs } from '@/lib/goalReminder';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { deriveExportHasData, handleExportTap, shareExportFile, type ExportPayload } from '@/lib/exportUiHandler';
 
@@ -53,7 +54,8 @@ export default function ProfileScreen() {
     mealReminders, setMealReminders,
     goalReminder, setGoalReminder,
     livingMemory, logs,
-    fontSizeScale, setFontSizeScale, fontScale,
+    fontSizeScale, setFontSizeScale,
+    profilePhotoUri, setProfilePhotoUri, fontScale,
   } = useCalora();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
 
@@ -92,6 +94,7 @@ export default function ProfileScreen() {
   const [editCalories, setEditCalories] = useState('');
   const [editDiet, setEditDiet] = useState<DietPreference>('Everything');
   const [editGoal, setEditGoal] = useState<Goal>('maintain');
+  const [editPhotoUri, setEditPhotoUri] = useState<string | null>(null);
 
   // Info sheets (food data / no ads / help)
   const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help'>(null);
@@ -204,11 +207,39 @@ export default function ProfileScreen() {
   };
 
   /** Profile edit */
+  const pickPhoto = async (source: 'camera' | 'library') => {
+    let result: ImagePicker.ImagePickerResult;
+    if (source === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') { Alert.alert('Permission required', 'Camera access is needed to take a photo.'); return; }
+      result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') { Alert.alert('Permission required', 'Photo library access is needed to choose a photo.'); return; }
+      result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+    }
+    if (!result.canceled && result.assets[0]) {
+      const dest = `${FileSystem.documentDirectory}calora-profile-photo.jpg`;
+      await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
+      setEditPhotoUri(dest + '?t=' + Date.now());
+    }
+  };
+
+  const handlePhotoTap = () => {
+    Alert.alert('Profile photo', 'Choose a source', [
+      { text: 'Camera', onPress: () => pickPhoto('camera') },
+      { text: 'Photo Library', onPress: () => pickPhoto('library') },
+      ...(editPhotoUri ? [{ text: 'Remove photo', style: 'destructive' as const, onPress: () => setEditPhotoUri(null) }] : []),
+      { text: 'Cancel', style: 'cancel' as const },
+    ]);
+  };
+
   const openProfileEdit = () => {
     setEditName(profile?.name ?? '');
     setEditCalories(String(profile?.calorieTarget ?? 2000));
     setEditDiet(profile?.diet ?? 'Everything');
     setEditGoal(profile?.goal ?? 'maintain');
+    setEditPhotoUri(profilePhotoUri);
     setProfileEditModal(true);
   };
   const saveProfileEdit = () => {
@@ -218,6 +249,9 @@ export default function ProfileScreen() {
       return;
     }
     updateProfile({ name: editName.trim(), calorieTarget: calories, diet: editDiet, goal: editGoal });
+    // Strip the cache-bust query param before persisting
+    const cleanUri = editPhotoUri ? editPhotoUri.split('?')[0] : null;
+    setProfilePhotoUri(cleanUri);
     setProfileEditModal(false);
   };
 
@@ -260,8 +294,10 @@ export default function ProfileScreen() {
 
         {/* ── Profile card ── */}
         <View style={[styles.profileCard, { backgroundColor: colors.hero }]}>
-          <View style={[styles.largeAvatar, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.largeAvatarText, { color: colors.primaryForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>
+          <View style={[styles.largeAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}>
+            {profilePhotoUri
+              ? <Image source={{ uri: profilePhotoUri }} style={{ width: 47, height: 47 }} contentFit="cover" />
+              : <Text style={[styles.largeAvatarText, { color: colors.primaryForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.profileName, { color: colors.onHero }]}>{profile?.name ?? 'Your profile'}</Text>
@@ -737,6 +773,18 @@ export default function ProfileScreen() {
                 <Feather name="x" size={20} color={colors.mutedForeground} />
               </Pressable>
             </View>
+            {/* Photo picker */}
+            <Pressable accessibilityLabel="Change profile photo" onPress={handlePhotoTap} style={styles.editAvatarWrap}>
+              <View style={[styles.editAvatar, { backgroundColor: colors.muted, overflow: 'hidden' }]}>
+                {editPhotoUri
+                  ? <Image source={{ uri: editPhotoUri }} style={{ width: 72, height: 72 }} contentFit="cover" />
+                  : <Feather name="user" size={30} color={colors.mutedForeground} />}
+              </View>
+              <View style={[styles.editAvatarBadge, { backgroundColor: colors.primary }]}>
+                <Feather name="camera" size={11} color={colors.primaryForeground} />
+              </View>
+            </Pressable>
+
             <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>YOUR NAME</Text>
             <TextInput accessibilityLabel="Name" value={editName} onChangeText={setEditName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input, marginBottom: 14 }]} />
             <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>DAILY CALORIE TARGET</Text>
@@ -864,6 +912,9 @@ function makeStyles(f: number) {
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 23, padding: 16, marginBottom: 26 },
   largeAvatar: { width: 47, height: 47, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
   largeAvatarText: { fontFamily: 'Inter_700Bold', fontSize: 19 * f },
+  editAvatarWrap: { alignSelf: 'center', marginBottom: 20, position: 'relative' },
+  editAvatar: { width: 72, height: 72, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  editAvatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   profileName: { fontFamily: 'Inter_700Bold', fontSize: 16 * f },
   profileSub: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 4, maxWidth: 230 },
 
