@@ -191,6 +191,27 @@ export default function PlannerScreen() {
     }, [pendingUndoSwap, setPendingUndoSwap]),
   );
 
+  // When the user navigates away mid-countdown, cancel both timers and clear all
+  // undo + notice state so neither the banner nor a stale Undo can persist on return.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        if (undoTimerRef.current) {
+          clearTimeout(undoTimerRef.current);
+          undoTimerRef.current = null;
+        }
+        if (saveTimerRef.current) {
+          clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = null;
+        }
+        setUndoMeal(null);
+        setUndoMoveMeal(null);
+        setUndoSwapMeal(null);
+        setSaveMessage(null);
+      };
+    }, []),
+  );
+
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => plannerDate(viewWeekStart, index)), [viewWeekStart]);
   const selectedMeals = plannerMeals.filter((meal) => meal.day === selectedDay);
   const plannedWeek = plannerMeals.filter((meal) => weekDays.includes(meal.day));
