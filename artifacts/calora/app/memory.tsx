@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { Children, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora, type DailyActivity, type FoodLog, type MealType, type Mood } from '@/context/CaloraContext';
@@ -109,6 +110,20 @@ export default function LivingMemoryScreen() {
   // Mirror forgetLivingObservation in a ref so unmount can call the latest version
   const forgetLivingObservationRef = useRef(forgetLivingObservation);
   useEffect(() => { forgetLivingObservationRef.current = forgetLivingObservation; });
+
+  // Countdown bar animation — shrinks from full to empty over UNDO_WINDOW_MS
+  const forgetCountdown = useSharedValue(1);
+  useEffect(() => {
+    if (pendingForget) {
+      forgetCountdown.value = 1;
+      forgetCountdown.value = withTiming(0, { duration: UNDO_WINDOW_MS, easing: Easing.linear });
+    } else {
+      cancelAnimation(forgetCountdown);
+    }
+  }, [pendingForget, forgetCountdown]);
+  const forgetCountdownBarStyle = useAnimatedStyle(() => ({
+    width: `${forgetCountdown.value * 100}%` as `${number}%`,
+  }));
 
   // On unmount: if a forget is still pending, commit it so navigation away never silently discards it
   useEffect(() => {
@@ -357,18 +372,23 @@ export default function LivingMemoryScreen() {
           accessibilityLiveRegion="polite"
           style={[styles.undoBanner, { backgroundColor: colors.foreground, bottom: insets.bottom + 20 }]}
         >
-          <Feather name="eye-off" size={14} color={colors.background} />
-          <Text style={[styles.undoLabel, { color: colors.background }]} numberOfLines={1}>
-            Signal forgotten · {undoSecondsLeft}s
-          </Text>
-          <Pressable
-            accessibilityLabel="Undo forget signal"
-            testID="undo-forget-living-memory"
-            onPress={handleUndo}
-            style={[styles.undoButton, { backgroundColor: colors.background }]}
-          >
-            <Text style={[styles.undoButtonText, { color: colors.foreground }]}>Undo</Text>
-          </Pressable>
+          <View style={styles.undoBannerRow}>
+            <Feather name="eye-off" size={14} color={colors.background} />
+            <Text style={[styles.undoLabel, { color: colors.background }]} numberOfLines={1}>
+              Signal forgotten · {undoSecondsLeft}s
+            </Text>
+            <Pressable
+              accessibilityLabel="Undo forget signal"
+              testID="undo-forget-living-memory"
+              onPress={handleUndo}
+              style={[styles.undoButton, { backgroundColor: colors.background }]}
+            >
+              <Text style={[styles.undoButtonText, { color: colors.foreground }]}>Undo</Text>
+            </Pressable>
+          </View>
+          <View style={[styles.undoCountdownTrack, { backgroundColor: `${colors.background}33` }]}>
+            <Animated.View style={[styles.undoCountdownFill, { backgroundColor: colors.background }, forgetCountdownBarStyle]} />
+          </View>
         </View>
       )}
 
@@ -522,19 +542,20 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     borderRadius: 16,
     paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingTop: 11,
+    paddingBottom: 10,
     shadowColor: '#000',
     shadowOpacity: 0.18,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
+  undoBannerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   undoLabel: { fontFamily: 'Inter_400Regular', fontSize: 12, flex: 1 },
   undoButton: { borderRadius: 9, paddingHorizontal: 13, paddingVertical: 6 },
   undoButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  undoCountdownTrack: { height: 2, borderRadius: 1, marginTop: 8, overflow: 'hidden' },
+  undoCountdownFill: { height: 2, borderRadius: 1 },
 });
