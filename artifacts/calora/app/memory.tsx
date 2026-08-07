@@ -145,7 +145,7 @@ export default function LivingMemoryScreen() {
     setPendingForget(next);
 
     forgetTimerRef.current = setTimeout(() => {
-      forgetLivingObservation(kind, id);
+      forgetLivingObservationRef.current(kind, id);
       pendingForgetRef.current = null;
       setPendingForget(null);
       clearTimers();
