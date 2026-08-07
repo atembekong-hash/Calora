@@ -360,21 +360,6 @@ function WellnessCards({
   );
 }
 
-function HeroMacroBar({ label, value, target, color, colors }: { label: string; value: number; target: number; color: string; colors: ReturnType<typeof useCalora>['colors'] }) {
-  const pct = target > 0 ? Math.min(value / target, 1) : 0;
-  return (
-    <View style={styles.heroMacroBlock}>
-      <View style={styles.heroMacroHeader}>
-        <Text style={[styles.heroMacroLabel, { color: colors.heroMuted }]}>{label}</Text>
-        <Text style={[styles.heroMacroValue, { color: colors.onHero }]}>{value}g <Text style={{ color: colors.heroMuted, fontFamily: 'Inter_400Regular' }}>/ {target}g</Text></Text>
-      </View>
-      <View style={[styles.heroMacroTrack, { backgroundColor: 'rgba(157,215,189,0.11)' }]}>
-        <View style={[styles.heroMacroFill, { backgroundColor: color, width: `${pct * 100}%` }]} />
-      </View>
-    </View>
-  );
-}
-
 function MacroBar({ label, value, target, color, colors }: { label: string; value: number; target: number; color: string; colors: ReturnType<typeof useCalora>['colors'] }) {
   return (
     <View style={styles.macroBlock}>
@@ -590,22 +575,23 @@ function CalorieGauge({
   consumed,
   target,
   colors,
-  mode,
 }: {
   consumed: number;
   target: number;
   colors: ReturnType<typeof useCalora>['colors'];
-  mode: 'light' | 'dark';
 }) {
   const { width: windowWidth } = useWindowDimensions();
   const progress = target > 0 ? Math.min(Math.max(consumed / target, 0), 1) : 0;
   const remaining = Math.max(target - consumed, 0);
   const overGoal  = consumed > target;
 
-  // Responsive sizing: two 68 px side columns + gauge fills the rest (max 220 px)
-  const cardInnerW = windowWidth - 40; // 20 px margin each side
-  const sideColW   = 68;
-  const gaugeW     = Math.max(Math.min(cardInnerW - sideColW * 2, 220), 140);
+  // Responsive sizing:
+  //   scrollContent has 20px H padding each side → usable = windowWidth - 40
+  //   heroCard has padding: 20 each side          → inner  = windowWidth - 80
+  //   two side columns (48 px each) flank the gauge
+  const cardInnerW = windowWidth - 80;
+  const sideColW   = 48;
+  const gaugeW     = Math.max(Math.min(cardInnerW - sideColW * 2, 240), 160);
   const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW);
 
   // Animate the fill arc via strokeDashoffset
@@ -621,15 +607,19 @@ function CalorieGauge({
     strokeDashoffset: dashOffset.value,
   }));
 
-  // Design tokens
-  const trackColor = mode === 'dark' ? 'rgba(157,215,189,0.11)' : 'rgba(17,50,37,0.07)';
-  const fillColor  = overGoal ? colors.warning : colors.primary;
+  const fillColor = overGoal ? colors.warning : colors.primary;
 
-  // Text overlay: push content into the enclosed upper area of the horseshoe
-  // paddingBottom shifts the flex-center upward so text lands above the equator
-  const overlayPaddingBottom = gaugeH * 0.36;
-  // Side columns: sit at flex-end (bottom of row), with a small lift to align near arc endpoints
-  const sidePaddingBottom = gaugeH * 0.06;
+  // Precise centering: the visual "eye" of the horseshoe spans from the arc
+  // top (VB y = CY − R = 28) to the equator (VB y = CY = 118).
+  // Its centre sits at VB y = 73, which is 73/186 ≈ 39.25 % of gaugeH.
+  // Position the text block (≈ 90 px tall) so its midpoint hits that centre.
+  const eyeCenterY  = (73 / GAUGE_VBH) * gaugeH;  // px from top of gauge view
+  const textHalfH   = 45;                           // half of ~90 px text block
+  const overlayTop  = Math.max(eyeCenterY - textHalfH, 4);
+
+  // Side columns: align their bottom edge with the arc endpoints
+  // (arc endpoints are at VB y ≈ 181.6, i.e. 97.6 % of gaugeH)
+  const sidePaddingBottom = gaugeH * 0.04;
 
   return (
     <View style={gaugeStyles.container}>
@@ -637,13 +627,13 @@ function CalorieGauge({
         {/* ── Left: Eaten ── */}
         <View style={[gaugeStyles.sideCol, { width: sideColW, paddingBottom: sidePaddingBottom }]}>
           <Text
-            style={[gaugeStyles.sideNumber, { color: colors.onHero }]}
+            style={[gaugeStyles.sideNumber, { color: colors.foreground }]}
             adjustsFontSizeToFit
             numberOfLines={1}
           >
             {consumed.toLocaleString()}
           </Text>
-          <Text style={[gaugeStyles.sideLabel, { color: colors.heroMuted }]}>Eaten</Text>
+          <Text style={[gaugeStyles.sideLabel, { color: colors.mutedForeground }]}>Eaten</Text>
         </View>
 
         {/* ── Centre: SVG arc + text overlay ── */}
@@ -652,7 +642,7 @@ function CalorieGauge({
             {/* Track — full 270° muted arc */}
             <Path
               d={GAUGE_TRACK_D}
-              stroke={trackColor}
+              stroke={colors.border}
               strokeWidth={GAUGE_STROKE}
               fill="none"
               strokeLinecap="round"
@@ -671,18 +661,18 @@ function CalorieGauge({
             )}
           </Svg>
 
-          {/* Text inside the horseshoe */}
-          <View style={[gaugeStyles.textOverlay, { paddingBottom: overlayPaddingBottom }]}>
-            <Text style={[gaugeStyles.remainingLabel, { color: colors.heroMuted }]}>Remaining</Text>
+          {/* Text precisely centred in the horseshoe eye */}
+          <View style={[gaugeStyles.textOverlay, { top: overlayTop }]}>
+            <Text style={[gaugeStyles.remainingLabel, { color: colors.mutedForeground }]}>Remaining</Text>
             <Text
-              style={[gaugeStyles.remainingNumber, { color: colors.onHero }]}
+              style={[gaugeStyles.remainingNumber, { color: colors.foreground }]}
               adjustsFontSizeToFit
               numberOfLines={1}
             >
               {remaining.toLocaleString()}
             </Text>
-            <Text style={[gaugeStyles.kcalLeft, { color: colors.heroMuted }]}>kcal left</Text>
-            <Text style={[gaugeStyles.goalText, { color: colors.heroMuted }]}>
+            <Text style={[gaugeStyles.kcalLeft, { color: colors.mutedForeground }]}>kcal left</Text>
+            <Text style={[gaugeStyles.goalText, { color: colors.mutedForeground }]}>
               Goal {target.toLocaleString()} kcal
             </Text>
           </View>
@@ -690,8 +680,8 @@ function CalorieGauge({
 
         {/* ── Right: Burned ── */}
         <View style={[gaugeStyles.sideCol, { width: sideColW, paddingBottom: sidePaddingBottom }]}>
-          <Text style={[gaugeStyles.sideNumber, { color: colors.onHero }]}>0</Text>
-          <Text style={[gaugeStyles.sideLabel, { color: colors.heroMuted }]}>Burned</Text>
+          <Text style={[gaugeStyles.sideNumber, { color: colors.foreground }]}>0</Text>
+          <Text style={[gaugeStyles.sideLabel, { color: colors.mutedForeground }]}>Burned</Text>
         </View>
       </View>
     </View>
@@ -718,9 +708,9 @@ const gaugeStyles = StyleSheet.create({
   },
   textOverlay: {
     position: 'absolute' as const,
-    top: 0, left: 0, right: 0, bottom: 0,
+    left: 0,
+    right: 0,
     alignItems: 'center' as const,
-    justifyContent: 'center' as const,
   },
   remainingLabel: {
     fontFamily: 'Inter_600SemiBold',
@@ -741,7 +731,7 @@ const gaugeStyles = StyleSheet.create({
 });
 
 export default function HomeScreen() {
-  const { logs, colors, mode, profile, syncState, waterLogs, moodLogs, addWater, setMood, setThemePreference, livingState } = useCalora();
+  const { logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood, livingState } = useCalora();
   const insets = useSafeAreaInsets();
   const [showAdd, setShowAdd] = useState(false);
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
@@ -853,28 +843,21 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={[styles.heroCard, { backgroundColor: colors.hero }]}>
+        <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {/* Eyebrow + trust indicator */}
           <View style={styles.heroTop}>
-            <Text style={[styles.heroEyebrow, { color: colors.heroMuted }]}>TODAY'S FUEL</Text>
-            <View style={[styles.trustBadge, { backgroundColor: 'rgba(157,215,189,0.16)' }]}>
-              <Feather name="shield" size={13} color={colors.heroMuted} />
-              <Text style={[styles.trustText, { color: colors.heroMuted }]}>{dataTrust === null ? 'No trust score yet' : `${dataTrust}% trusted`}</Text>
+            <Text style={[styles.heroEyebrow, { color: colors.mutedForeground }]}>TODAY'S FUEL</Text>
+            <View style={[styles.trustBadge, { backgroundColor: colors.accent }]}>
+              <Feather name="shield" size={13} color={colors.accentForeground} />
+              <Text style={[styles.trustText, { color: colors.accentForeground }]}>{dataTrust === null ? 'No trust score yet' : `${dataTrust}% trusted`}</Text>
             </View>
           </View>
 
           {/* Dominant calorie gauge */}
-          <CalorieGauge consumed={selectedTotals.calories} target={target} colors={colors} mode={mode} />
-
-          {/* Compact macro indicators */}
-          <View style={styles.heroMacros}>
-            <HeroMacroBar label="Protein" value={selectedTotals.protein} target={Math.round(target * 0.26 / 4)} color={colors.protein} colors={colors} />
-            <HeroMacroBar label="Carbs"   value={selectedTotals.carbs}   target={Math.round(target * 0.44 / 4)} color={colors.carbs}   colors={colors} />
-            <HeroMacroBar label="Fat"     value={selectedTotals.fat}     target={Math.round(target * 0.3 / 9)}  color={colors.fat}     colors={colors} />
-          </View>
+          <CalorieGauge consumed={selectedTotals.calories} target={target} colors={colors} />
 
           {/* Planning insight */}
-          <Text style={[styles.heroInsight, { color: colors.heroMuted }]}>{livingState.headline}</Text>
+          <Text style={[styles.heroInsight, { color: colors.mutedForeground }]}>{livingState.headline}</Text>
 
           {/* Living-state action */}
           <Pressable
@@ -1003,18 +986,11 @@ const styles = StyleSheet.create({
   greeting: { fontFamily: 'Inter_700Bold', fontSize: 25, letterSpacing: -0.6 },
   avatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: 'Inter_700Bold', fontSize: 16 },
-  heroCard: { borderRadius: 26, padding: 20, marginBottom: 16 },
+  heroCard: { borderRadius: 26, padding: 20, marginBottom: 16, borderWidth: 1 },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   heroEyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4 },
   trustBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 12 },
   trustText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  heroMacros: { marginTop: 18, gap: 9 },
-  heroMacroBlock: {},
-  heroMacroHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
-  heroMacroLabel: { fontFamily: 'Inter_500Medium', fontSize: 11 },
-  heroMacroValue: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  heroMacroTrack: { height: 5, borderRadius: 3, overflow: 'hidden' },
-  heroMacroFill:  { height: 5, borderRadius: 3 },
   heroInsight: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginTop: 14, opacity: 0.82 },
   livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 42, borderRadius: 14, paddingHorizontal: 14, marginTop: 20 },
   livingActionText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
