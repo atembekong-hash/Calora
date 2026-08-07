@@ -901,6 +901,105 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     }
   });
 
+  it('concurrent clearCoachHistory-style write: partial coach state (consent=true, messages=[]) cannot survive — clearAllData wins with both fields cleared', async () => {
+    // Scenario (mirrors CaloraContext.clearCoachHistory, ~line 215):
+    //   clearCoachHistory sets coachMessages to [] but leaves coachConsentAccepted
+    //   unchanged (still true).  If the user taps "Clear history" from the coach
+    //   header menu at the same moment clearAllData fires, the autosave triggered
+    //   by clearCoachHistory writes:
+    //     { …state, coachMessages: [] }    ← coachConsentAccepted: true survives
+    //   If this partial snapshot lands in storage after pm.clear() executes, the
+    //   next launch re-hydrates with coachConsentAccepted: true but an empty
+    //   message list — an impossible user-facing state (consent accepted but no
+    //   history to show).
+    //
+    // The clearingCount guard in PersistenceManager prevents this: any
+    // enqueueWrite dispatched while clearingCount > 0 is a no-op.  This test
+    // confirms the guard fires correctly and that clearAllData always wins —
+    // final storage has BOTH coachConsentAccepted: false AND coachMessages: []
+    // from clearAllData's zero values, never the partial clearCoachHistory state.
+    const release = storage.blockNextSetItem();
+
+    const sessionState = {
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'lose', weightKg: 76 },
+      logs: [
+        { id: 'log-1', name: 'Overnight oats', date: '2026-08-07', meal: 'Breakfast' },
+      ],
+      coachConsentAccepted: true,
+      coachMessages: [
+        { role: 'user',      content: 'How am I doing today?' },
+        { role: 'assistant', content: 'You are on track — great work!' },
+      ],
+    };
+    pm.enqueueWrite(sessionState); // blocked in-flight autosave
+
+    const { ctx, captured } = makeSpyCtx(pm);
+
+    // Start performClearAllData — the real production function used by
+    // CaloraContext.clearAllData.  Suspends at `await pm.clear()`.
+    const clearDone = performClearAllData(ctx);
+
+    // Inject the clearCoachHistory autosave while performClearAllData is suspended.
+    // This simulates:
+    //   clearCoachHistory() → setCoachMessages([]) → autosave effect →
+    //   pm.current.enqueueWrite({ …state, coachConsentAccepted: true, coachMessages: [] })
+    //
+    // The write keeps coachConsentAccepted: true (clearCoachHistory does not touch
+    // it) but empties coachMessages — the dangerous partial state this test guards.
+    // clearingCount > 0 at this point, so this is a no-op: the partial snapshot
+    // is dropped and will never be serialised to storage.
+    pm.enqueueWrite({
+      ...sessionState,
+      coachMessages: [], // clearCoachHistory empties messages but leaves consent accepted
+    });
+
+    release(); // unblock the in-flight write
+    await clearDone; // clear resolves, every setter fires → captured is populated
+
+    // Simulate the autosave useEffect that fires after React re-renders with
+    // the cleared state values collected by the spy setters.
+    pm.enqueueWrite(captured);
+    await new Promise((r) => setTimeout(r, 0)); // drain remaining queue entries
+
+    // Only two setItem calls must appear:
+    //   1. The pre-clear in-flight autosave (blocked write with the live session)
+    //   2. The post-clear autosave from clearAllData setters
+    // The clearCoachHistory write must be absent — the no-op guard eliminated it.
+    expect(storage.calls).toEqual([
+      `setItem:${STORAGE_KEY}`,    // in-flight session autosave (with coach session)
+      `removeItem:${STORAGE_KEY}`, // pm.clear() remove — the boundary
+      `setItem:${STORAGE_KEY}`,    // post-clear autosave from clearAllData setters
+    ]);
+
+    // Final storage must reflect the cleared defaults — not the partial
+    // clearCoachHistory snapshot.  Both coach fields must come from clearAllData's
+    // zero values, never from the dropped partial write.
+    const stored = JSON.parse(storage.store[STORAGE_KEY]);
+    expect(stored.coachMessages).toEqual([]);        // cleared by clearAllData
+    expect(stored.coachConsentAccepted).toBe(false); // cleared by clearAllData — NOT the partial true
+    expect(stored.onboardingComplete).toBe(false);
+    expect(stored.profile).toBeNull();
+    expect(stored.logs).toEqual([]);
+
+    // Explicitly confirm the dangerous partial state did not survive:
+    // coachConsentAccepted must be false — if it were true here, re-hydration
+    // would restore an accepted-consent coach with no message history, which is
+    // an impossible state that the UI cannot represent cleanly.
+    expect(stored.coachConsentAccepted).not.toBe(true);
+
+    // Confirm no session message content survived in storage.
+    for (const staleContent of [
+      'How am I doing today?',
+      'You are on track — great work!',
+    ]) {
+      expect(
+        ((stored.coachMessages ?? []) as Array<{ content: string }>)
+          .some((m) => m.content === staleContent),
+      ).toBe(false);
+    }
+  });
+
   it('post-clear read() returns the cleared state — stale mid-clear log id is absent on re-hydration', async () => {
     // Round-trip: after the complete lifecycle, pm.read() (the hydration effect)
     // returns the cleared snapshot, not the stale mid-clear data.
