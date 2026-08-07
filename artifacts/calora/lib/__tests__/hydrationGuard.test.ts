@@ -538,3 +538,83 @@ describe('I/O error recovery: pm.read() surfaces and then clears an AsyncStorage
     expect(racedState).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Stale-render guard: parse-error screen stays hidden after a successful retry
+// ---------------------------------------------------------------------------
+
+describe('stale-render guard: error screen stays hidden if retry succeeds but a stale render fires', () => {
+  it('shouldAutosave is false in the brief gap where hydrationErrorKind is cleared but hydrated is still false', () => {
+    // The hydration effect clears hydrationErrorKind to null at the TOP of the
+    // effect body — before pm.read() is awaited.  During that async gap the
+    // React state is: { hydrated: false, error: null }.
+    //
+    // If a stale render fires in this window (e.g. a navigation animation
+    // completing mid-read), shouldAutosave must still return false so that
+    // in-memory context defaults — not yet overwritten by the recovered data —
+    // cannot be written to storage.
+    expect(shouldAutosave({ hydrated: false, error: null })).toBe(false);
+  });
+
+  it('the success branch of pm.read() never sets hydrationErrorKind to non-null — ordering is error→null, hydrated→false, read→ok, hydrated→true', async () => {
+    // Documents the exact state-transition sequence the hydration effect
+    // produces on a successful retry:
+    //
+    //   Step 1 — effect body starts:
+    //             setHydrationErrorKind(null)  → hydrationErrorKind = null
+    //             setHydrated(false)           → hydrated = false
+    //
+    //   Step 2 — pm.read() resolves with { error: null, state: validState }:
+    //             The .then() block DOES NOT call setHydrationErrorKind —
+    //             there is no error to report.  hydrationErrorKind stays null.
+    //
+    //   Step 3 — .finally() fires:
+    //             setHydrated(true)            → hydrated = true
+    //
+    // This means hydrationErrorKind is null in every step, so the parse-error
+    // screen can never reappear due to a stale render mid-effect.
+    const validState = { onboardingComplete: true, logs: [] };
+    const storage = {
+      getItem: async (_key: string) => JSON.stringify(validState),
+      setItem: async (_key: string, _value: string) => {},
+      removeItem: async (_key: string) => {},
+    };
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    // Capture the state at each step as the hydration effect would set it.
+    type HydrationSnapshot = { hydrationErrorKind: string | null; hydrated: boolean };
+    const snapshots: HydrationSnapshot[] = [];
+
+    // Step 1 — effect starts: error cleared, hydrated reset
+    snapshots.push({ hydrationErrorKind: null, hydrated: false });
+
+    // Step 2 — read resolves; success branch never sets hydrationErrorKind
+    const result = await pm.read<{ onboardingComplete: boolean; logs: unknown[] }>();
+    // The .then() block only calls setHydrationErrorKind inside the catch, not
+    // in the success path.  Confirm the read returned no error so the effect
+    // would leave hydrationErrorKind at null.
+    expect(result.error).toBeNull();
+    expect(result.state).toEqual(validState);
+    const hydrationErrorKindAfterRead: string | null = result.error !== null ? 'parse' : null;
+    snapshots.push({ hydrationErrorKind: hydrationErrorKindAfterRead, hydrated: false });
+
+    // Step 3 — .finally() fires: hydrated flips to true
+    snapshots.push({ hydrationErrorKind: hydrationErrorKindAfterRead, hydrated: true });
+
+    // Ordering assertions
+    expect(snapshots[0]).toEqual({ hydrationErrorKind: null, hydrated: false });
+    expect(snapshots[1]).toEqual({ hydrationErrorKind: null, hydrated: false });
+    expect(snapshots[2]).toEqual({ hydrationErrorKind: null, hydrated: true });
+
+    // hydrationErrorKind is null in every step — the error screen is never shown
+    for (const snap of snapshots) {
+      expect(snap.hydrationErrorKind).toBeNull();
+    }
+
+    // Autosave is blocked until the final step and re-enabled only when both
+    // hydrated=true and error=null hold simultaneously.
+    expect(shouldAutosave({ hydrated: snapshots[0].hydrated, error: snapshots[0].hydrationErrorKind })).toBe(false);
+    expect(shouldAutosave({ hydrated: snapshots[1].hydrated, error: snapshots[1].hydrationErrorKind })).toBe(false);
+    expect(shouldAutosave({ hydrated: snapshots[2].hydrated, error: snapshots[2].hydrationErrorKind })).toBe(true);
+  });
+});

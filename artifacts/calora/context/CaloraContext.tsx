@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { parseStorageValue, shouldAutosave, ParseHydrationError, type HydrationErrorKind } from '@/lib/hydrationGuard';
+import { shouldAutosave, type HydrationErrorKind } from '@/lib/hydrationGuard';
+import { useHydrationEffect } from '@/lib/useHydrationEffect';
 import { PersistenceManager } from '@/lib/persistenceManager';
 import { performClearAllData, DEFAULT_HYDRATION_PREFS } from '@/lib/clearAllData';
 import { buildExportPayload, readRawStorageData } from '@/lib/exportPayload';
@@ -376,10 +377,6 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     activityLogs: {},
     plannerMeals,
   }));
-  const [hydrated, setHydrated] = useState(false);
-  const [hydrationError, setHydrationError] = useState<string | null>(null);
-  const [hydrationErrorKind, setHydrationErrorKind] = useState<HydrationErrorKind | null>(null);
-  const [hydrationAttempt, setHydrationAttempt] = useState(0);
   const pm = useRef(new PersistenceManager(AsyncStorage, STORAGE_KEY));
   /** Guard that prevents a second tap from entering clearAllData while the first is in progress. */
   const clearingRef = useRef(false);
@@ -397,61 +394,44 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [pendingUndoSwap, setPendingUndoSwap] = useState<{ newMeal: PlannerMeal; originalMeal: PlannerMeal } | null>(null);
   const [pendingPlannerAck, setPendingPlannerAck] = useState<string | null>(null);
 
-  useEffect(() => {
-    setHydrationError(null);
-    setHydrationErrorKind(null);
-    setHydrated(false);
-    pm.current.read<Partial<CaloraState>>()
-      .then(({ state: saved, error: parseError }) => {
-        if (parseError) throw new ParseHydrationError(parseError);
-        if (!saved) return;
-        if (saved.onboardingComplete !== undefined) setOnboardingComplete(saved.onboardingComplete);
-        if (saved.profile) setProfile(saved.profile);
-         const normalizedLogs = saved.logs?.map((log) => ({ ...log, date: log.date ?? today, serving: log.serving ?? '1 serving' })) ?? starterLogs;
-         if (saved.logs) setLogs(normalizedLogs);
-         const migratedMemories = migrateFoodMemories(saved, normalizedLogs);
-         setFoodDrafts(migratedMemories.foodDrafts);
-         setFoodMemories(migratedMemories.foodMemories);
-         setRepeatPatterns(migratedMemories.repeatPatterns);
-         setMemoryCorrections(migratedMemories.memoryCorrections);
-          setLivingMemory(mergeLivingMemory(saved.livingMemory, buildLivingMemory({
-            logs: normalizedLogs,
-            waterLogs: saved.waterLogs ?? {},
-            moodLogs: saved.moodLogs ?? {},
-            activityLogs: saved.activityLogs ?? {},
-            plannerMeals: saved.plannerMeals ?? [],
-          })));
-        if (saved.weights) setWeights(saved.weights);
-         if (saved.waterLogs) setWaterLogs(saved.waterLogs);
-         if (saved.moodLogs) setMoodLogs(saved.moodLogs);
-          if (saved.activityLogs) setActivityLogs(saved.activityLogs);
-          if (saved.activityMinutesLogs) setActivityMinutesLogs(saved.activityMinutesLogs);
-        if (saved.savedMeals) setSavedMeals(saved.savedMeals.map((meal) => ({ ...meal, kind: meal.kind ?? 'meal' })));
-        if (saved.localRecipes) setLocalRecipes(saved.localRecipes);
-        if (saved.savedRecipeIds) setSavedRecipeIds(saved.savedRecipeIds);
-        if (saved.themePreference) setThemePreference(saved.themePreference);
-        if (saved.healthConnected !== undefined) setHealthConnected(saved.healthConnected);
-        if (saved.consentAccepted !== undefined) setConsentAccepted(saved.consentAccepted);
-        if (saved.outbox) setOutbox(saved.outbox);
-        if (saved.plannerWeekStart) setPlannerWeekStart(saved.plannerWeekStart);
-        if (saved.plannerMeals) setPlannerMealsState(saved.plannerMeals);
-        if (saved.shoppingItems) setShoppingItems(saved.shoppingItems);
-        if (saved.hydrationReminders) setHydrationRemindersState(saved.hydrationReminders);
-         if (saved.coachConsentAccepted !== undefined) setCoachConsentAccepted(saved.coachConsentAccepted);
-         if (saved.coachMessages) setCoachMessages(saved.coachMessages);
-         if (saved.goalCelebrationSeenTargetKg !== undefined) setGoalCelebrationSeenTargetKg(saved.goalCelebrationSeenTargetKg ?? null);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof ParseHydrationError) {
-          setHydrationErrorKind('parse');
-          setHydrationError('Your saved data could not be read — the file may be corrupt. Your data is still on device and can be exported before retrying.');
-        } else {
-          setHydrationErrorKind('io');
-          setHydrationError('Storage is temporarily unavailable. This is usually a momentary issue.');
-        }
-      })
-      .finally(() => setHydrated(true));
-  }, [hydrationAttempt]);
+  const { hydrated, hydrationError, hydrationErrorKind, retryHydration } = useHydrationEffect<Partial<CaloraState>>(pm, (saved) => {
+    if (!saved) return;
+    if (saved.onboardingComplete !== undefined) setOnboardingComplete(saved.onboardingComplete);
+    if (saved.profile) setProfile(saved.profile);
+     const normalizedLogs = saved.logs?.map((log) => ({ ...log, date: log.date ?? today, serving: log.serving ?? '1 serving' })) ?? starterLogs;
+     if (saved.logs) setLogs(normalizedLogs);
+     const migratedMemories = migrateFoodMemories(saved, normalizedLogs);
+     setFoodDrafts(migratedMemories.foodDrafts);
+     setFoodMemories(migratedMemories.foodMemories);
+     setRepeatPatterns(migratedMemories.repeatPatterns);
+     setMemoryCorrections(migratedMemories.memoryCorrections);
+      setLivingMemory(mergeLivingMemory(saved.livingMemory, buildLivingMemory({
+        logs: normalizedLogs,
+        waterLogs: saved.waterLogs ?? {},
+        moodLogs: saved.moodLogs ?? {},
+        activityLogs: saved.activityLogs ?? {},
+        plannerMeals: saved.plannerMeals ?? [],
+      })));
+    if (saved.weights) setWeights(saved.weights);
+     if (saved.waterLogs) setWaterLogs(saved.waterLogs);
+     if (saved.moodLogs) setMoodLogs(saved.moodLogs);
+      if (saved.activityLogs) setActivityLogs(saved.activityLogs);
+      if (saved.activityMinutesLogs) setActivityMinutesLogs(saved.activityMinutesLogs);
+    if (saved.savedMeals) setSavedMeals(saved.savedMeals.map((meal) => ({ ...meal, kind: meal.kind ?? 'meal' })));
+    if (saved.localRecipes) setLocalRecipes(saved.localRecipes);
+    if (saved.savedRecipeIds) setSavedRecipeIds(saved.savedRecipeIds);
+    if (saved.themePreference) setThemePreference(saved.themePreference);
+    if (saved.healthConnected !== undefined) setHealthConnected(saved.healthConnected);
+    if (saved.consentAccepted !== undefined) setConsentAccepted(saved.consentAccepted);
+    if (saved.outbox) setOutbox(saved.outbox);
+    if (saved.plannerWeekStart) setPlannerWeekStart(saved.plannerWeekStart);
+    if (saved.plannerMeals) setPlannerMealsState(saved.plannerMeals);
+    if (saved.shoppingItems) setShoppingItems(saved.shoppingItems);
+    if (saved.hydrationReminders) setHydrationRemindersState(saved.hydrationReminders);
+     if (saved.coachConsentAccepted !== undefined) setCoachConsentAccepted(saved.coachConsentAccepted);
+     if (saved.coachMessages) setCoachMessages(saved.coachMessages);
+     if (saved.goalCelebrationSeenTargetKg !== undefined) setGoalCelebrationSeenTargetKg(saved.goalCelebrationSeenTargetKg ?? null);
+  });
 
   useEffect(() => {
     if (!shouldAutosave({ hydrated, error: hydrationError })) return;
@@ -863,11 +843,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         clearingRef.current = false;
       }
     },
-     retryHydration: () => {
-       setHydrationErrorKind(null);
-       setHydrated(false);
-       setHydrationAttempt((current) => current + 1);
-     },
+     retryHydration,
     setPlannerMeals: (weekStart, meals) => {
       const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
       setPlannerWeekStart(weekStart);
