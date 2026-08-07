@@ -815,6 +815,91 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     }
   });
 
+  it('concurrent coach-reply-style write: coachMessages and coachConsentAccepted do not survive — final values are [] and false', async () => {
+    // Scenario (mirrors the CaloraContext coach path):
+    //   1. An autosave is in-flight (blocked setItem) when the user taps "Clear".
+    //   2. clearAllData calls performClearAllData → pm.clear() chains removeItem
+    //      after the blocked write; performClearAllData suspends at `await`.
+    //   3. The AI network response arrives mid-clear.  In CaloraContext this fires
+    //      as: setCoachMessages([...current, reply]) → autosave effect →
+    //      pm.current.enqueueWrite({…, coachConsentAccepted: true, coachMessages: [reply]}).
+    //      That write is injected here as a direct pm.enqueueWrite call while
+    //      clearingCount > 0.  Because clearingCount > 0, it is a no-op — the
+    //      coach-reply snapshot is dropped and never serialised to storage.
+    //   4. pm.clear() resolves → performClearAllData calls every state setter.
+    //   5. React autosave fires → pm.enqueueWrite(capturedClearedState) — the only
+    //      writer after removeItem; final storage has coachMessages: [] and
+    //      coachConsentAccepted: false.
+    const release = storage.blockNextSetItem();
+
+    const sessionState = {
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'lose', weightKg: 76 },
+      logs: [
+        { id: 'log-1', name: 'Overnight oats', date: '2026-08-07', meal: 'Breakfast' },
+      ],
+      coachConsentAccepted: true,
+      coachMessages: [
+        { role: 'user',      content: 'How am I doing today?' },
+        { role: 'assistant', content: 'You are on track — great work!' },
+      ],
+    };
+    pm.enqueueWrite(sessionState); // blocked in-flight autosave
+
+    const { ctx, captured } = makeSpyCtx(pm);
+
+    // Start performClearAllData — the real production function used by
+    // CaloraContext.clearAllData.  Suspends at `await pm.clear()`.
+    const clearDone = performClearAllData(ctx);
+
+    // Inject the coach-reply write while performClearAllData is suspended.
+    // This simulates setCoachMessages([...current, aiReply]) → autosave → enqueueWrite.
+    // clearingCount > 0 at this point, so this is a no-op — the coach-reply
+    // snapshot is dropped and will never be serialised to storage.
+    const aiReply = { role: 'assistant', content: 'Keep it up — you hit your protein goal!' };
+    pm.enqueueWrite({
+      ...sessionState,
+      coachMessages: [...sessionState.coachMessages, aiReply],
+    });
+
+    release(); // unblock the in-flight write
+    await clearDone; // clear resolves, every setter fires → captured is populated
+
+    // Simulate the autosave useEffect that fires after React re-renders with
+    // the cleared state values collected by the spy setters.
+    pm.enqueueWrite(captured);
+    await new Promise((r) => setTimeout(r, 0)); // drain remaining queue entries
+
+    // Call order: pre-clear in-flight write → remove → post-clear cleared autosave.
+    // The coach-reply write is absent — the no-op guard eliminated it.
+    expect(storage.calls).toEqual([
+      `setItem:${STORAGE_KEY}`,    // in-flight session autosave (with coach session)
+      `removeItem:${STORAGE_KEY}`, // pm.clear() remove — the boundary
+      `setItem:${STORAGE_KEY}`,    // post-clear autosave from clearAllData setters
+    ]);
+
+    // Final storage must reflect the cleared state — neither the session coach
+    // messages nor the mid-clear AI reply survived.
+    const stored = JSON.parse(storage.store[STORAGE_KEY]);
+    expect(stored.coachMessages).toEqual([]);
+    expect(stored.coachConsentAccepted).toBe(false);
+    expect(stored.onboardingComplete).toBe(false);
+    expect(stored.profile).toBeNull();
+    expect(stored.logs).toEqual([]);
+
+    // Confirm explicitly: neither session message nor the mid-clear AI reply is present.
+    for (const staleContent of [
+      'You are on track — great work!',
+      'Keep it up — you hit your protein goal!',
+      'How am I doing today?',
+    ]) {
+      expect(
+        ((stored.coachMessages ?? []) as Array<{ content: string }>)
+          .some((m) => m.content === staleContent),
+      ).toBe(false);
+    }
+  });
+
   it('post-clear read() returns the cleared state — stale mid-clear log id is absent on re-hydration', async () => {
     // Round-trip: after the complete lifecycle, pm.read() (the hydration effect)
     // returns the cleared snapshot, not the stale mid-clear data.
