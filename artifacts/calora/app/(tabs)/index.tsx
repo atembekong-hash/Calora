@@ -588,10 +588,9 @@ function CalorieGauge({
   // Responsive sizing:
   //   scrollContent has 20px H padding each side → usable = windowWidth - 40
   //   heroCard has padding: 20 each side          → inner  = windowWidth - 80
-  //   two side columns (48 px each) flank the gauge
+  //   gauge fills the full inner card width (Eaten/Burned move below)
   const cardInnerW = windowWidth - 80;
-  const sideColW   = 48;
-  const gaugeW     = Math.max(Math.min(cardInnerW - sideColW * 2, 240), 160);
+  const gaugeW     = Math.min(cardInnerW, 310);
   const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW);
 
   // Animate the fill arc via strokeDashoffset
@@ -613,75 +612,65 @@ function CalorieGauge({
   // top (VB y = CY − R = 28) to the equator (VB y = CY = 118).
   // Its centre sits at VB y = 73, which is 73/186 ≈ 39.25 % of gaugeH.
   // Position the text block (≈ 90 px tall) so its midpoint hits that centre.
-  const eyeCenterY  = (73 / GAUGE_VBH) * gaugeH;  // px from top of gauge view
-  const textHalfH   = 45;                           // half of ~90 px text block
-  const overlayTop  = Math.max(eyeCenterY - textHalfH, 4);
-
-  // Side columns: align their bottom edge with the arc endpoints
-  // (arc endpoints are at VB y ≈ 181.6, i.e. 97.6 % of gaugeH)
-  const sidePaddingBottom = gaugeH * 0.04;
+  const eyeCenterY = (73 / GAUGE_VBH) * gaugeH;
+  const overlayTop = Math.max(eyeCenterY - 45, 4);
 
   return (
     <View style={gaugeStyles.container}>
-      <View style={gaugeStyles.row}>
-        {/* ── Left: Eaten ── */}
-        <View style={[gaugeStyles.sideCol, { width: sideColW, paddingBottom: sidePaddingBottom }]}>
-          <Text
-            style={[gaugeStyles.sideNumber, { color: colors.foreground }]}
-            adjustsFontSizeToFit
-            numberOfLines={1}
-          >
-            {consumed.toLocaleString()}
-          </Text>
-          <Text style={[gaugeStyles.sideLabel, { color: colors.mutedForeground }]}>Eaten</Text>
-        </View>
-
-        {/* ── Centre: SVG arc + text overlay ── */}
-        <View style={{ width: gaugeW, height: gaugeH }}>
-          <Svg width={gaugeW} height={gaugeH} viewBox={`0 0 ${GAUGE_VBW} ${GAUGE_VBH}`}>
-            {/* Track — full 270° muted arc */}
-            <Path
+      {/* ── Full-width SVG arc + centred text ── */}
+      <View style={[gaugeStyles.arcWrap, { width: gaugeW, height: gaugeH }]}>
+        <Svg width={gaugeW} height={gaugeH} viewBox={`0 0 ${GAUGE_VBW} ${GAUGE_VBH}`}>
+          {/* Track — full 270° muted arc */}
+          <Path
+            d={GAUGE_TRACK_D}
+            stroke={colors.border}
+            strokeWidth={GAUGE_STROKE}
+            fill="none"
+            strokeLinecap="round"
+          />
+          {/* Fill — animated progress arc */}
+          {progress > 0 && (
+            <AnimatedPath
+              animatedProps={fillProps}
               d={GAUGE_TRACK_D}
-              stroke={colors.border}
+              stroke={fillColor}
               strokeWidth={GAUGE_STROKE}
               fill="none"
               strokeLinecap="round"
+              strokeDasharray={GAUGE_ARC_LEN}
             />
-            {/* Fill — animated progress arc */}
-            {progress > 0 && (
-              <AnimatedPath
-                animatedProps={fillProps}
-                d={GAUGE_TRACK_D}
-                stroke={fillColor}
-                strokeWidth={GAUGE_STROKE}
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray={GAUGE_ARC_LEN}
-              />
-            )}
-          </Svg>
+          )}
+        </Svg>
 
-          {/* Text precisely centred in the horseshoe eye */}
-          <View style={[gaugeStyles.textOverlay, { top: overlayTop }]}>
-            <Text style={[gaugeStyles.remainingLabel, { color: colors.mutedForeground }]}>Remaining</Text>
-            <Text
-              style={[gaugeStyles.remainingNumber, { color: colors.foreground }]}
-              adjustsFontSizeToFit
-              numberOfLines={1}
-            >
-              {remaining.toLocaleString()}
-            </Text>
-            <Text style={[gaugeStyles.kcalLeft, { color: colors.mutedForeground }]}>kcal left</Text>
-            <Text style={[gaugeStyles.goalText, { color: colors.mutedForeground }]}>
-              Goal {target.toLocaleString()} kcal
-            </Text>
-          </View>
+        {/* Text precisely centred in the horseshoe eye */}
+        <View style={[gaugeStyles.textOverlay, { top: overlayTop }]}>
+          <Text style={[gaugeStyles.remainingLabel, { color: colors.mutedForeground }]}>Remaining</Text>
+          <Text
+            style={[gaugeStyles.remainingNumber, { color: colors.foreground }]}
+            adjustsFontSizeToFit
+            numberOfLines={1}
+          >
+            {remaining.toLocaleString()}
+          </Text>
+          <Text style={[gaugeStyles.kcalLeft, { color: colors.mutedForeground }]}>kcal left</Text>
+          <Text style={[gaugeStyles.goalText, { color: colors.mutedForeground }]}>
+            Goal {target.toLocaleString()} kcal
+          </Text>
         </View>
+      </View>
 
-        {/* ── Right: Burned ── */}
-        <View style={[gaugeStyles.sideCol, { width: sideColW, paddingBottom: sidePaddingBottom }]}>
-          <Text style={[gaugeStyles.sideNumber, { color: colors.foreground }]}>0</Text>
-          <Text style={[gaugeStyles.sideLabel, { color: colors.mutedForeground }]}>Burned</Text>
+      {/* ── Eaten / Burned row beneath the gauge ── */}
+      <View style={gaugeStyles.statsRow}>
+        <View style={gaugeStyles.statItem}>
+          <Text style={[gaugeStyles.statNumber, { color: colors.foreground }]} adjustsFontSizeToFit numberOfLines={1}>
+            {consumed.toLocaleString()}
+          </Text>
+          <Text style={[gaugeStyles.statLabel, { color: colors.mutedForeground }]}>Eaten</Text>
+        </View>
+        <View style={[gaugeStyles.statDivider, { backgroundColor: colors.border }]} />
+        <View style={gaugeStyles.statItem}>
+          <Text style={[gaugeStyles.statNumber, { color: colors.foreground }]}>0</Text>
+          <Text style={[gaugeStyles.statLabel, { color: colors.mutedForeground }]}>Burned</Text>
         </View>
       </View>
     </View>
@@ -689,23 +678,8 @@ function CalorieGauge({
 }
 
 const gaugeStyles = StyleSheet.create({
-  container: { marginTop: 14, marginBottom: 4 },
-  row:       { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
-  sideCol:   { alignItems: 'center', justifyContent: 'flex-end' },
-  sideNumber: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 20,
-    letterSpacing: -0.5,
-    textAlign: 'center',
-    minWidth: 52,
-  },
-  sideLabel: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 9,
-    marginTop: 3,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase' as const,
-  },
+  container: { marginTop: 14, marginBottom: 4, alignItems: 'center' },
+  arcWrap:   { position: 'relative' as const },
   textOverlay: {
     position: 'absolute' as const,
     left: 0,
@@ -728,6 +702,11 @@ const gaugeStyles = StyleSheet.create({
   },
   kcalLeft: { fontFamily: 'Inter_500Medium', fontSize: 11, marginTop: 2 },
   goalText:  { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 6, opacity: 0.72 },
+  statsRow:  { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 32, marginTop: 6 },
+  statItem:  { alignItems: 'center' as const },
+  statDivider: { width: 1, height: 28 },
+  statNumber: { fontFamily: 'Inter_700Bold', fontSize: 22, letterSpacing: -0.6 },
+  statLabel:  { fontFamily: 'Inter_500Medium', fontSize: 10, marginTop: 2, letterSpacing: 0.5, textTransform: 'uppercase' as const },
 });
 
 export default function HomeScreen() {
