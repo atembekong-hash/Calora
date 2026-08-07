@@ -11,8 +11,24 @@ type SaveNoticeColors = {
   success: string;
 };
 
-export function LocalSaveNotice({ visible, message, colors, actionLabel, onAction }: { visible: boolean; message: string; colors: SaveNoticeColors; actionLabel?: string; onAction?: () => void }) {
+export function LocalSaveNotice({
+  visible,
+  message,
+  colors,
+  actionLabel,
+  onAction,
+  countdownDuration,
+}: {
+  visible: boolean;
+  message: string;
+  colors: SaveNoticeColors;
+  actionLabel?: string;
+  onAction?: () => void;
+  /** When set, renders a shrinking countdown bar for that many ms. Only use for removal notices. */
+  countdownDuration?: number;
+}) {
   const progress = useSharedValue(0);
+  const countdown = useSharedValue(1);
 
   useEffect(() => {
     progress.value = withTiming(visible ? 1 : 0, {
@@ -21,10 +37,28 @@ export function LocalSaveNotice({ visible, message, colors, actionLabel, onActio
     });
   }, [progress, visible]);
 
+  useEffect(() => {
+    if (visible && countdownDuration) {
+      countdown.value = 1;
+      countdown.value = withTiming(0, {
+        duration: countdownDuration,
+        easing: Easing.linear,
+      });
+    } else if (!visible) {
+      countdown.value = 1;
+    }
+  }, [visible, countdownDuration, countdown]);
+
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
     transform: [{ translateY: 10 * (1 - progress.value) }],
   }));
+
+  const countdownBarStyle = useAnimatedStyle(() => ({
+    width: `${countdown.value * 100}%` as `${number}%`,
+  }));
+
+  const showCountdown = !!countdownDuration;
 
   return (
     <Animated.View pointerEvents={actionLabel && onAction ? 'auto' : 'none'} style={[styles.host, animatedStyle]}>
@@ -35,8 +69,22 @@ export function LocalSaveNotice({ visible, message, colors, actionLabel, onActio
         <View style={styles.copy}>
           <Text style={[styles.title, { color: colors.foreground }]}>Saved locally</Text>
           <Text style={[styles.message, { color: colors.mutedForeground }]}>{message}</Text>
+          {showCountdown && (
+            <View style={[styles.countdownTrack, { backgroundColor: colors.border }]}>
+              <Animated.View style={[styles.countdownFill, { backgroundColor: colors.success }, countdownBarStyle]} />
+            </View>
+          )}
         </View>
-        {actionLabel && onAction && <Pressable accessibilityRole="button" accessibilityLabel={actionLabel} onPress={onAction} style={[styles.action, { borderColor: colors.border }]}><Text style={[styles.actionText, { color: colors.foreground }]}>{actionLabel}</Text></Pressable>}
+        {actionLabel && onAction && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={actionLabel}
+            onPress={onAction}
+            style={[styles.action, { borderColor: colors.border }]}
+          >
+            <Text style={[styles.actionText, { color: colors.foreground }]}>{actionLabel}</Text>
+          </Pressable>
+        )}
       </View>
     </Animated.View>
   );
@@ -49,6 +97,8 @@ const styles = StyleSheet.create({
   copy: { flex: 1 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 11 },
   message: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 2 },
+  countdownTrack: { height: 2, borderRadius: 1, marginTop: 6, overflow: 'hidden' },
+  countdownFill: { height: 2, borderRadius: 1 },
   action: { minHeight: 30, borderWidth: 1, borderRadius: 9, paddingHorizontal: 9, alignItems: 'center', justifyContent: 'center' },
   actionText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
 });

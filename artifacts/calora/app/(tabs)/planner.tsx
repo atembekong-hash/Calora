@@ -433,7 +433,7 @@ export default function PlannerScreen() {
         <View style={[styles.tipCard, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.tipText, { color: colors.foreground }]}>Planning is a suggestion, not a promise. Swap anything that does not fit your day.</Text></View>
          <SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} />
       </ScrollView>
-       <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undefined} />
+       <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undefined} countdownDuration={undoMeal ? 6000 : undefined} />
       <Modal visible={detail !== null} transparent animationType="slide" onRequestClose={() => { dismissPlannerReview(); setDetail(null); }}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.detailSheet, { backgroundColor: colors.background }]}>
