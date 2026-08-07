@@ -11,6 +11,8 @@ import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
 import type { HydrationReminderPrefs } from '@/lib/hydrationReminders';
+import { type MealReminderPrefs, DEFAULT_MEAL_REMINDER_PREFS } from '@/lib/mealReminders';
+import { type GoalReminderPrefs, DEFAULT_GOAL_REMINDER_PREFS } from '@/lib/goalReminder';
 import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart } from '@/data/planner';
 import {
   type AcceptedFoodMemory,
@@ -123,6 +125,7 @@ export type Profile = {
   targetWeightKg: number;
   age: number;
   calorieTarget: number;
+  units?: 'metric' | 'imperial';
 };
 
 export type SyncState = 'offline' | 'local' | 'synced' | 'needs-connection';
@@ -159,6 +162,8 @@ type CaloraState = {
   repeatPatterns: RepeatPattern[];
   memoryCorrections: FoodMemoryCorrection[];
   hydrationReminders: HydrationReminderPrefs;
+  mealReminders?: MealReminderPrefs;
+  goalReminder?: GoalReminderPrefs;
   coachConsentAccepted: boolean;
   coachMessages: CoachMessage[];
   livingMemory?: LivingMemory;
@@ -190,6 +195,8 @@ type CaloraContextValue = {
   pendingMutations: OutboxMutation[];
   healthConnected: boolean;
   hydrationReminders: HydrationReminderPrefs;
+  mealReminders: MealReminderPrefs;
+  goalReminder: GoalReminderPrefs;
   coachConsentAccepted: boolean;
   coachMessages: CoachMessage[];
   livingState: LivingState;
@@ -221,6 +228,9 @@ type CaloraContextValue = {
   setCoachMessages: (messages: CoachMessage[]) => void;
   clearCoachHistory: () => void;
   setHydrationReminders: (prefs: HydrationReminderPrefs) => void;
+  setMealReminders: (prefs: MealReminderPrefs) => void;
+  setGoalReminder: (prefs: GoalReminderPrefs) => void;
+  deleteSavedMeal: (id: string) => void;
   addLog: (log: Omit<FoodLog, 'id'>) => void;
   updateLog: (id: string, patch: Partial<FoodLog>) => void;
   removeLog: (id: string) => void;
@@ -379,6 +389,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [repeatPatterns, setRepeatPatterns] = useState<RepeatPattern[]>(starterMemoryState.repeatPatterns);
   const [memoryCorrections, setMemoryCorrections] = useState<FoodMemoryCorrection[]>(starterMemoryState.memoryCorrections);
   const [hydrationReminders, setHydrationRemindersState] = useState<HydrationReminderPrefs>(DEFAULT_HYDRATION_PREFS);
+  const [mealReminders, setMealRemindersState] = useState<MealReminderPrefs>(DEFAULT_MEAL_REMINDER_PREFS);
+  const [goalReminder, setGoalReminderState] = useState<GoalReminderPrefs>(DEFAULT_GOAL_REMINDER_PREFS);
   const [coachConsentAccepted, setCoachConsentAccepted] = useState(false);
   const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([]);
   const [goalCelebrationSeenTargetKg, setGoalCelebrationSeenTargetKg] = useState<number | null>(null);
@@ -442,6 +454,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     if (saved.plannerMeals) setPlannerMealsState(saved.plannerMeals);
     if (saved.shoppingItems) setShoppingItems(saved.shoppingItems);
     if (saved.hydrationReminders) setHydrationRemindersState(saved.hydrationReminders);
+    if (saved.mealReminders) setMealRemindersState(saved.mealReminders as MealReminderPrefs);
+    if (saved.goalReminder) setGoalReminderState(saved.goalReminder as GoalReminderPrefs);
      if (saved.coachConsentAccepted !== undefined) setCoachConsentAccepted(saved.coachConsentAccepted);
      if (saved.coachMessages) setCoachMessages(saved.coachMessages);
      if (saved.goalCelebrationSeenTargetKg !== undefined) setGoalCelebrationSeenTargetKg(saved.goalCelebrationSeenTargetKg ?? null);
@@ -477,6 +491,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       repeatPatterns,
       memoryCorrections,
       hydrationReminders,
+      mealReminders,
+      goalReminder,
       coachConsentAccepted,
       coachMessages,
       livingMemory,
@@ -484,7 +500,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       plannerPreferences: plannerPreferences ?? undefined,
     };
      enqueueAutosave(pm.current, state);
-  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -751,6 +767,14 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     setHydrationReminders: (prefs: HydrationReminderPrefs) => {
       setHydrationRemindersState(prefs);
     },
+    mealReminders,
+    goalReminder,
+    setMealReminders: (prefs: MealReminderPrefs) => setMealRemindersState(prefs),
+    setGoalReminder: (prefs: GoalReminderPrefs) => setGoalReminderState(prefs),
+    deleteSavedMeal: (id: string) => {
+      setSavedMeals((current) => current.filter((meal) => meal.id !== id));
+      queueMutation('savedMeal', 'delete');
+    },
     setHealthConnected,
     clearOutbox: () => setOutbox([]),
       exportRawStorageData: () => readRawStorageData(AsyncStorage.getItem.bind(AsyncStorage), STORAGE_KEY),
@@ -833,6 +857,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         // state setters above.  The autosave useEffect clears this ref once
         // React state is committed and the closed-over state vars are current.
         // See lib/exportGap.ts for the extracted production function.
+        setMealRemindersState(DEFAULT_MEAL_REMINDER_PREFS);
+        setGoalReminderState(DEFAULT_GOAL_REMINDER_PREFS);
         exportSnapshotRef.current = makeClearedExportSnapshot({
           getPlannerWeekStart,
           healthConnected,
@@ -903,7 +929,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      setPendingPlannerAck,
      goalCelebrationSeenTargetKg,
      markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
-     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }
