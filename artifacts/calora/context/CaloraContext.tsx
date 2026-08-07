@@ -3,6 +3,7 @@ import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef
 import { parseStorageValue, shouldAutosave, ParseHydrationError, type HydrationErrorKind } from '@/lib/hydrationGuard';
 import { PersistenceManager } from '@/lib/persistenceManager';
 import { performClearAllData, DEFAULT_HYDRATION_PREFS } from '@/lib/clearAllData';
+import { buildExportPayload, readRawStorageData } from '@/lib/exportPayload';
 import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
@@ -380,6 +381,14 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [hydrationErrorKind, setHydrationErrorKind] = useState<HydrationErrorKind | null>(null);
   const [hydrationAttempt, setHydrationAttempt] = useState(0);
   const pm = useRef(new PersistenceManager(AsyncStorage, STORAGE_KEY));
+  /**
+   * Cleared-state snapshot set synchronously inside clearAllData after
+   * performClearAllData resolves — before React commits the re-render triggered
+   * by the state setters.  exportData reads from this ref so it always returns
+   * the cleared payload even if called in the async gap before re-render.
+   * The autosave useEffect clears the ref once React state has been committed.
+   */
+  const exportSnapshotRef = useRef<import('@/lib/exportPayload').CaloraExportState | null>(null);
   // Session-only navigation state (not persisted)
   const [plannerViewedDay, setPlannerViewedDay] = useState(dateKey());
   const [recipeSlotTarget, setRecipeSlotTarget] = useState<{ day: string; mealType: PlannerMeal['meal'] } | null>(null);
@@ -444,6 +453,9 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!shouldAutosave({ hydrated, error: hydrationError })) return;
+    // React state has been committed — the cleared snapshot ref (set by clearAllData
+    // before re-render) is no longer needed; exportData will now read the live state.
+    exportSnapshotRef.current = null;
     const state: CaloraState = {
       onboardingComplete,
       profile,
@@ -740,68 +752,108 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     setHealthConnected,
     clearOutbox: () => setOutbox([]),
-      exportRawStorageData: async () => AsyncStorage.getItem(STORAGE_KEY),
-      exportData: async () => JSON.stringify({
-        schemaVersion: STORAGE_SCHEMA_VERSION,
-        profile,
-        logs,
-        weights,
-        waterLogs,
-        moodLogs,
-        activityLogs,
-        activityMinutesLogs,
-        savedMeals,
-        localRecipes,
-        savedRecipeIds,
-        plannerWeekStart,
-        plannerMeals,
-        shoppingItems,
-        foodDrafts,
-        foodMemories,
-        repeatPatterns,
-        memoryCorrections,
-        livingMemory,
-        hydrationReminders,
+      exportRawStorageData: () => readRawStorageData(AsyncStorage.getItem.bind(AsyncStorage), STORAGE_KEY),
+      exportData: async () => {
+        // If clearAllData just ran and React hasn't re-rendered yet, use the
+        // pre-computed cleared snapshot stored on exportSnapshotRef so we never
+        // return the stale pre-clear closure values.  Once the autosave effect
+        // fires (after re-render) it clears the ref and we fall through to the
+        // live closed-over state for all subsequent calls.
+        const snap = exportSnapshotRef.current;
+        return buildExportPayload(STORAGE_SCHEMA_VERSION, snap ?? {
+          profile,
+          logs,
+          weights,
+          waterLogs,
+          moodLogs,
+          activityLogs,
+          activityMinutesLogs,
+          savedMeals,
+          localRecipes,
+          savedRecipeIds,
+          plannerWeekStart,
+          plannerMeals,
+          shoppingItems,
+          foodDrafts,
+          foodMemories,
+          repeatPatterns,
+          memoryCorrections,
+          livingMemory,
+          hydrationReminders,
+          healthConnected,
+          consentAccepted,
+          coachConsentAccepted,
+          coachMessages,
+        });
+      },
+    clearAllData: async () => {
+      await performClearAllData({
+        pm: pm.current,
+        emptyLivingMemory: emptyLivingMemory(),
+        defaultHydrationPrefs: DEFAULT_HYDRATION_PREFS,
+        getPlannerWeekStart,
+        getToday: dateKey,
+        setOnboardingComplete,
+        setProfile,
+        setLogs,
+        setWeights,
+        setWaterLogs,
+        setMoodLogs,
+        setActivityLogs,
+        setActivityMinutesLogs,
+        setSavedMeals,
+        setLocalRecipes,
+        setSavedRecipeIds,
+        setConsentAccepted,
+        setOutbox,
+        setPlannerWeekStart,
+        setPlannerViewedDay,
+        setRecipeSlotTarget,
+        setPendingUndoSwap,
+        setPlannerMeals: setPlannerMealsState,
+        setShoppingItems,
+        setFoodDrafts,
+        setFoodMemories,
+        setRepeatPatterns,
+        setMemoryCorrections,
+        setLivingMemory,
+        setHydrationReminders: setHydrationRemindersState,
+        setCoachConsentAccepted,
+        setCoachMessages,
+        setGoalCelebrationSeenTargetKg,
+      });
+      // Synchronously capture the cleared export payload so exportData() returns
+      // cleared values even if called before React commits the re-render triggered
+      // by the state setters above.  The autosave useEffect clears this ref once
+      // React state has been committed and the closed-over state vars are current.
+      // healthConnected is NOT reset by clearAllData (it is a device-level flag,
+      // not user data), so we preserve its current closed-over value here.
+      exportSnapshotRef.current = {
+        profile:             null,
+        logs:                [],
+        weights:             [],
+        waterLogs:           {},
+        moodLogs:            {},
+        activityLogs:        {},
+        activityMinutesLogs: {},
+        savedMeals:          [],
+        localRecipes:        [],
+        savedRecipeIds:      [],
+        plannerWeekStart:    getPlannerWeekStart(),
+        plannerMeals:        [],
+        shoppingItems:       [],
+        foodDrafts:          [],
+        foodMemories:        [],
+        repeatPatterns:      [],
+        memoryCorrections:   [],
+        livingMemory:        emptyLivingMemory(),
+        hydrationReminders:  DEFAULT_HYDRATION_PREFS,
         healthConnected,
-        consentAccepted,
-        coachConsentAccepted,
-        coachMessages,
-      }, null, 2),
-    clearAllData: () => performClearAllData({
-      pm: pm.current,
-      emptyLivingMemory: emptyLivingMemory(),
-      defaultHydrationPrefs: DEFAULT_HYDRATION_PREFS,
-      getPlannerWeekStart,
-      getToday: dateKey,
-      setOnboardingComplete,
-      setProfile,
-      setLogs,
-      setWeights,
-      setWaterLogs,
-      setMoodLogs,
-      setActivityLogs,
-      setActivityMinutesLogs,
-      setSavedMeals,
-      setLocalRecipes,
-      setSavedRecipeIds,
-      setConsentAccepted,
-      setOutbox,
-      setPlannerWeekStart,
-      setPlannerViewedDay,
-      setRecipeSlotTarget,
-      setPendingUndoSwap,
-      setPlannerMeals: setPlannerMealsState,
-      setShoppingItems,
-      setFoodDrafts,
-      setFoodMemories,
-      setRepeatPatterns,
-      setMemoryCorrections,
-      setLivingMemory,
-      setHydrationReminders: setHydrationRemindersState,
-      setCoachConsentAccepted,
-      setCoachMessages,
-      setGoalCelebrationSeenTargetKg,
-    }),
+        consentAccepted:     false,
+        coachConsentAccepted: false,
+        coachMessages:       [],
+      };
+    },
      retryHydration: () => {
        setHydrationErrorKind(null);
        setHydrated(false);

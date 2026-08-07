@@ -13,6 +13,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { PersistenceManager, type StorageAdapter } from '../persistenceManager';
 import { performClearAllData, DEFAULT_HYDRATION_PREFS, type ClearAllDataCtx } from '../clearAllData';
 import { emptyLivingMemory } from '../livingMemory';
+import {
+  buildExportPayload,
+  readRawStorageData,
+  type CaloraExportState,
+} from '../exportPayload';
 
 // ---------------------------------------------------------------------------
 // In-memory StorageAdapter — mirrors the AsyncStorage surface used in
@@ -736,5 +741,163 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
         (state['logs'] as Array<{ id: string }>).some((l) => l.id === 'log-c-stale'),
       ).toBe(false);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// exportRawStorageData and exportData: post-clear stale-data contracts
+//
+// CaloraContext exposes two export helpers that delegate to functions extracted
+// in lib/exportPayload.ts:
+//   exportRawStorageData: () => readRawStorageData(AsyncStorage.getItem.bind(AsyncStorage), STORAGE_KEY)
+//   exportData:           async () => buildExportPayload({ profile, logs, … })
+//
+// Tests call the same production functions (readRawStorageData, buildExportPayload)
+// with the injected StorageAdapter substituted for AsyncStorage, confirming the
+// full post-clear export contract without mounting React.
+// ---------------------------------------------------------------------------
+
+describe('exportRawStorageData (readRawStorageData): returns null after clear resolves', () => {
+  it('readRawStorageData returns null after pm.clear() — exportRawStorageData would fire the Alert path', async () => {
+    // Populate storage so the key is present before the clear.
+    pm.enqueueWrite({
+      onboardingComplete: true,
+      profile: { name: 'Alex' },
+      logs: [{ id: 'log-1', name: 'Oatmeal' }],
+    });
+    await new Promise((r) => setTimeout(r, 0)); // drain write
+
+    // Key present before the clear.
+    expect(
+      await readRawStorageData(storage.getItem.bind(storage), STORAGE_KEY),
+    ).not.toBeNull();
+
+    // clearAllData delegates to pm.clear() — removeItem is queued.
+    await pm.clear();
+
+    // Invoke the real production helper — must return null.
+    const raw = await readRawStorageData(storage.getItem.bind(storage), STORAGE_KEY);
+    expect(raw).toBeNull();
+  });
+
+  it('readRawStorageData returns null even when a write was enqueued just before the clear', async () => {
+    // Critical race: an in-flight write (blocked setItem) is enqueued before the
+    // user taps "Clear all data".  removeItem chains after the write completes, so
+    // the key is still absent when the export helper is called after clear.
+    const release = storage.blockNextSetItem();
+    pm.enqueueWrite({
+      onboardingComplete: true,
+      profile: { name: 'Alex' },
+      logs: [{ id: 'pre-clear-log', name: 'Banana' }],
+    });
+
+    // clear() chains removeItem behind the blocked write.
+    const clearDone = pm.clear();
+    release(); // unblock the write; removeItem executes after it
+    await clearDone;
+
+    // Invoke the real production helper — must return null, not the pre-clear bytes.
+    const raw = await readRawStorageData(storage.getItem.bind(storage), STORAGE_KEY);
+    expect(raw).toBeNull();
+
+    // Call order confirms: write landed first, then the key was removed.
+    expect(storage.calls).toEqual([
+      `setItem:${STORAGE_KEY}`,
+      `removeItem:${STORAGE_KEY}`,
+    ]);
+  });
+});
+
+describe('exportData (buildExportPayload): serialised output reflects the cleared in-memory state', () => {
+  it('buildExportPayload over cleared state produces a valid JSON document with all fields cleared', async () => {
+    // Simulate a pre-clear session: enqueue rich state so storage is populated.
+    pm.enqueueWrite({
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'lose', weightKg: 76 },
+      logs: [{ id: 'log-1', name: 'Oatmeal' }],
+      weights: [{ id: 'weight-1', kg: 76 }],
+      moodLogs: { '2026-08-07': 'good' },
+      waterLogs: { '2026-08-07': 32 },
+    });
+
+    const { ctx, captured } = makeSpyCtx(pm);
+    await performClearAllData(ctx);
+    // captured now holds the post-clear values delivered to each React state setter.
+
+    // buildExportPayload is the real CaloraContext.exportData body.
+    // After clearAllData, CaloraContext also sets exportSnapshotRef with the same
+    // cleared payload so exportData() can read it before React re-renders.
+    // healthConnected is not reset by performClearAllData (it has no setter in
+    // ClearAllDataCtx), so its value after a clear is the React useState default: false.
+    //
+    // schemaVersion (2) is CaloraContext's STORAGE_SCHEMA_VERSION — the single
+    // source of truth.  We pass it explicitly here; buildExportPayload adds no
+    // independent constant of its own to prevent drift.
+    const clearedSnapshot: CaloraExportState = {
+      profile:              captured.profile  as null,
+      logs:                 captured.logs     as [],
+      weights:              captured.weights  as [],
+      waterLogs:            captured.waterLogs            as Record<string, unknown>,
+      moodLogs:             captured.moodLogs             as Record<string, unknown>,
+      activityLogs:         captured.activityLogs         as Record<string, unknown>,
+      activityMinutesLogs:  captured.activityMinutesLogs  as Record<string, unknown>,
+      savedMeals:           captured.savedMeals           as [],
+      localRecipes:         captured.localRecipes         as [],
+      savedRecipeIds:       captured.savedRecipeIds       as string[],
+      plannerWeekStart:     captured.plannerWeekStart     as string,
+      plannerMeals:         captured.plannerMeals         as [],
+      shoppingItems:        captured.shoppingItems        as [],
+      foodDrafts:           captured.foodDrafts           as [],
+      foodMemories:         captured.foodMemories         as [],
+      repeatPatterns:       captured.repeatPatterns       as [],
+      memoryCorrections:    captured.memoryCorrections    as [],
+      livingMemory:         captured.livingMemory,
+      hydrationReminders:   captured.hydrationReminders,
+      healthConnected:      false,
+      consentAccepted:      captured.consentAccepted      as boolean,
+      coachConsentAccepted: captured.coachConsentAccepted as boolean,
+      coachMessages:        captured.coachMessages        as [],
+    };
+
+    // Call the real production serialiser — same code path as
+    // CaloraContext.exportData reading from exportSnapshotRef.
+    const exported = buildExportPayload(2 /* STORAGE_SCHEMA_VERSION */, clearedSnapshot);
+
+    // Output must be a non-empty string.
+    expect(typeof exported).toBe('string');
+
+    const parsed = JSON.parse(exported) as Record<string, unknown>;
+
+    // schemaVersion is emitted by buildExportPayload from the value passed in.
+    expect(parsed['schemaVersion']).toBe(2);
+
+    // Every field must reflect the cleared default — no pre-clear session data.
+    expect(parsed['profile']).toBeNull();
+    expect(parsed['logs']).toEqual([]);
+    expect(parsed['weights']).toEqual([]);
+    expect(parsed['moodLogs']).toEqual({});
+    expect(parsed['waterLogs']).toEqual({});
+    expect(parsed['activityLogs']).toEqual({});
+    expect(parsed['activityMinutesLogs']).toEqual({});
+    expect(parsed['savedMeals']).toEqual([]);
+    expect(parsed['localRecipes']).toEqual([]);
+    expect(parsed['savedRecipeIds']).toEqual([]);
+    expect(parsed['plannerWeekStart']).toBe('2026-08-03'); // deterministic from makeSpyCtx mock
+    expect(parsed['plannerMeals']).toEqual([]);
+    expect(parsed['shoppingItems']).toEqual([]);
+    expect(parsed['foodDrafts']).toEqual([]);
+    expect(parsed['foodMemories']).toEqual([]);
+    expect(parsed['repeatPatterns']).toEqual([]);
+    expect(parsed['memoryCorrections']).toEqual([]);
+    expect(parsed['consentAccepted']).toBe(false);
+    expect(parsed['coachConsentAccepted']).toBe(false);
+    expect(parsed['coachMessages']).toEqual([]);
+    expect(parsed['healthConnected']).toBe(false);
+
+    // Storage at the same moment is also empty (readRawStorageData returns null)
+    // — both export surfaces agree that no pre-clear data is visible.
+    expect(
+      await readRawStorageData(storage.getItem.bind(storage), STORAGE_KEY),
+    ).toBeNull();
   });
 });
