@@ -12,6 +12,7 @@ import {
   scheduleHydrationReminders,
   type HydrationReminderPrefs,
 } from '@/lib/hydrationReminders';
+import { handleExportTap } from '@/lib/exportUiHandler';
 
 const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'system', label: 'System', icon: 'smartphone' },
@@ -20,7 +21,7 @@ const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.
 ];
 
 export default function ProfileScreen() {
-  const { colors, themePreference, setThemePreference, profile, healthConnected, setHealthConnected, exportData, clearAllData, syncState, savedMeals, saveMeal, hydrationReminders, setHydrationReminders, livingMemory } = useCalora();
+  const { colors, themePreference, setThemePreference, profile, healthConnected, setHealthConnected, exportRawStorageData, clearAllData, syncState, savedMeals, saveMeal, hydrationReminders, setHydrationReminders, livingMemory } = useCalora();
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | null>(null);
@@ -69,8 +70,15 @@ export default function ProfileScreen() {
   const handleRestore = () => setBillingModal('restore');
   const handleManage = () => setBillingModal('manage');
   const handleExport = async () => {
-    const data = await exportData();
-    setPrivacyModal('export');
+    await handleExportTap({
+      exportRawStorageData,
+      onNoData: () =>
+        Alert.alert(
+          'No data',
+          'There is no local data to export. Log a meal or complete onboarding first.',
+        ),
+      onData: () => setPrivacyModal('export'),
+    });
   };
   const handleDelete = () => setPrivacyModal('delete');
   const createSavedMeal = () => {
