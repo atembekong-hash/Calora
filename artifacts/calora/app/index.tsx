@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect } from 'expo-router';
 import { useCalora, ActivityLevel, DietPreference, Goal, Profile } from '@/context/CaloraContext';
@@ -19,7 +19,7 @@ const activities: { key: ActivityLevel; label: string; body: string }[] = [
 const diets: DietPreference[] = ['Everything', 'Vegetarian', 'Vegan', 'High protein'];
 
 export default function OnboardingScreen() {
-  const { colors, onboardingComplete, hydrated, hydrationError, retryHydration, completeOnboarding } = useCalora();
+  const { colors, onboardingComplete, hydrated, hydrationError, hydrationErrorKind, retryHydration, exportRawStorageData, completeOnboarding } = useCalora();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState<Goal>('lose');
@@ -71,13 +71,38 @@ export default function OnboardingScreen() {
   }
 
   if (hydrationError) {
+    const isParseError = hydrationErrorKind === 'parse';
     return (
       <View style={[styles.loadingPage, { backgroundColor: colors.background, paddingHorizontal: 28 }]}>
         <View style={[styles.errorIcon, { backgroundColor: colors.muted }]}>
-          <Feather name="refresh-cw" size={20} color={colors.primary} />
+          <Feather name={isParseError ? 'alert-triangle' : 'refresh-cw'} size={20} color={isParseError ? colors.destructive : colors.primary} />
         </View>
-        <Text style={[styles.errorTitle, { color: colors.foreground }]}>Your local data needs another try.</Text>
+        <Text style={[styles.errorTitle, { color: colors.foreground }]}>
+          {isParseError ? 'Your data looks corrupted.' : 'Storage temporarily unavailable.'}
+        </Text>
         <Text style={[styles.errorText, { color: colors.mutedForeground }]}>{hydrationError}</Text>
+        {isParseError && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Export raw storage data"
+            onPress={async () => {
+              try {
+                const raw = await exportRawStorageData();
+                if (!raw) {
+                  Alert.alert('Nothing to export', 'Storage appears empty.');
+                  return;
+                }
+                await Share.share({ message: raw, title: 'Calora raw storage data' });
+              } catch {
+                Alert.alert('Export failed', 'Could not read raw storage data.');
+              }
+            }}
+            style={[styles.exportButton, { backgroundColor: colors.muted }]}
+          >
+            <Feather name="share" size={14} color={colors.mutedForeground} style={{ marginRight: 6 }} />
+            <Text style={[styles.exportButtonText, { color: colors.mutedForeground }]}>Export raw data</Text>
+          </Pressable>
+        )}
         <Pressable accessibilityRole="button" accessibilityLabel="Retry loading local data" onPress={retryHydration} style={[styles.retryButton, { backgroundColor: colors.primary }]}>
           <Text style={[styles.retryButtonText, { color: colors.primaryForeground }]}>Try again</Text>
         </Pressable>
@@ -195,8 +220,10 @@ const styles = StyleSheet.create({
   errorIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   errorTitle: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.4, textAlign: 'center' },
   errorText: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, marginTop: 8, maxWidth: 310, textAlign: 'center' },
-  retryButton: { borderRadius: 14, minWidth: 150, paddingHorizontal: 22, paddingVertical: 13, alignItems: 'center', marginTop: 22 },
+  retryButton: { borderRadius: 14, minWidth: 150, paddingHorizontal: 22, paddingVertical: 13, alignItems: 'center', marginTop: 12 },
   retryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  exportButton: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, paddingHorizontal: 20, paddingVertical: 12, marginTop: 16 },
+  exportButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
   content: { paddingHorizontal: 22, flexGrow: 1 },
   progressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   brandMark: { width: 31, height: 31, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ef6b4f' },

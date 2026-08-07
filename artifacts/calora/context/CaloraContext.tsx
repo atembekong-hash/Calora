@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { parseStorageValue, shouldAutosave } from '@/lib/hydrationGuard';
+import { parseStorageValue, shouldAutosave, ParseHydrationError, type HydrationErrorKind } from '@/lib/hydrationGuard';
 import { PersistenceManager } from '@/lib/persistenceManager';
 import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
@@ -178,6 +178,7 @@ type CaloraContextValue = {
   onboardingComplete: boolean;
   hydrated: boolean;
   hydrationError: string | null;
+  hydrationErrorKind: HydrationErrorKind | null;
   themePreference: ThemePreference;
   mode: 'light' | 'dark';
   colors: typeof colors.light;
@@ -217,6 +218,7 @@ type CaloraContextValue = {
   setHealthConnected: (connected: boolean) => void;
   clearOutbox: () => void;
   exportData: () => Promise<string>;
+  exportRawStorageData: () => Promise<string | null>;
   clearAllData: () => Promise<void>;
   retryHydration: () => void;
   plannerWeekStart: string;
@@ -360,6 +362,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   }));
   const [hydrated, setHydrated] = useState(false);
   const [hydrationError, setHydrationError] = useState<string | null>(null);
+  const [hydrationErrorKind, setHydrationErrorKind] = useState<HydrationErrorKind | null>(null);
   const [hydrationAttempt, setHydrationAttempt] = useState(0);
   const pm = useRef(new PersistenceManager(AsyncStorage, STORAGE_KEY));
   // Session-only navigation state (not persisted)
@@ -368,10 +371,11 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setHydrationError(null);
+    setHydrationErrorKind(null);
     setHydrated(false);
     pm.current.read<Partial<CaloraState>>()
       .then(({ state: saved, error: parseError }) => {
-        if (parseError) throw new Error(parseError);
+        if (parseError) throw new ParseHydrationError(parseError);
         if (!saved) return;
         if (saved.onboardingComplete !== undefined) setOnboardingComplete(saved.onboardingComplete);
         if (saved.profile) setProfile(saved.profile);
@@ -408,8 +412,14 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
          if (saved.coachConsentAccepted !== undefined) setCoachConsentAccepted(saved.coachConsentAccepted);
          if (saved.coachMessages) setCoachMessages(saved.coachMessages);
       })
-      .catch(() => {
-        setHydrationError('Calora could not load your saved local data. Your data was not changed.');
+      .catch((err: unknown) => {
+        if (err instanceof ParseHydrationError) {
+          setHydrationErrorKind('parse');
+          setHydrationError('Your saved data could not be read — the file may be corrupt. Your data is still on device and can be exported before retrying.');
+        } else {
+          setHydrationErrorKind('io');
+          setHydrationError('Storage is temporarily unavailable. This is usually a momentary issue.');
+        }
       })
       .finally(() => setHydrated(true));
   }, [hydrationAttempt]);
@@ -484,6 +494,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     onboardingComplete,
     hydrated,
     hydrationError,
+    hydrationErrorKind,
     themePreference,
     mode,
     colors: mode === 'dark' ? colors.dark : colors.light,
@@ -708,6 +719,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     setHealthConnected,
     clearOutbox: () => setOutbox([]),
+      exportRawStorageData: async () => AsyncStorage.getItem(STORAGE_KEY),
       exportData: async () => JSON.stringify({
         schemaVersion: STORAGE_SCHEMA_VERSION,
         profile,
@@ -761,6 +773,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
        setCoachMessages([]);
     },
      retryHydration: () => {
+       setHydrationErrorKind(null);
        setHydrated(false);
        setHydrationAttempt((current) => current + 1);
      },
@@ -805,7 +818,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      setPlannerViewedDay,
      recipeSlotTarget,
      setRecipeSlotTarget,
-     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

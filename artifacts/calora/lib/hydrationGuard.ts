@@ -19,6 +19,27 @@ export type HydrationStatus = {
 };
 
 /**
+ * The kind of hydration failure that occurred.
+ * - 'parse' — the stored value could be read but could not be parsed as JSON
+ *             (data is still on-device and may be exportable as raw bytes).
+ * - 'io'    — AsyncStorage itself rejected the read (transient I/O error,
+ *             device locked, storage quota exhausted, etc.).
+ */
+export type HydrationErrorKind = 'parse' | 'io';
+
+/**
+ * Thrown inside the hydration `.then()` block when `parseStorageValue`
+ * returns a parse error. Using a named subclass lets the `.catch()` block
+ * distinguish a parse failure from a genuine AsyncStorage I/O rejection.
+ */
+export class ParseHydrationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ParseHydrationError';
+  }
+}
+
+/**
  * Returns true only when local state may safely be persisted.
  * Autosave must be skipped when hydration has not completed, or when it
  * ended with an error — either condition means in-memory state still
