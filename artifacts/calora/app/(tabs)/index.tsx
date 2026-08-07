@@ -652,6 +652,14 @@ export default function HomeScreen() {
                 >
                   <Feather name={mode === 'dark' ? 'sun' : 'moon'} size={16} color="#ffffff" />
                 </Pressable>
+                <Pressable
+                  accessibilityLabel="Open Calora Coach"
+                  onPress={() => router.push('/coach')}
+                  style={({ pressed }) => [styles.homeHeaderCoach, { opacity: pressed ? 0.8 : 1 }]}
+                >
+                  <Feather name="zap" size={14} color="#ffffff" />
+                  <Text style={styles.homeHeaderCoachText}>Ask Calora</Text>
+                </Pressable>
                 <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={styles.homeHeaderAvatar}><Text style={styles.homeHeaderAvatarText}>{profile?.name?.charAt(0) ?? 'A'}</Text></Pressable>
               </View>
             </View>
@@ -800,6 +808,8 @@ const styles = StyleSheet.create({
   homeHeaderThemeToggle: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   homeHeaderAvatar: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   homeHeaderAvatarText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 15 },
+  homeHeaderCoach: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(212,234,220,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' },
+  homeHeaderCoachText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.1 },
   homeHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.2, marginBottom: 6 },
   homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 26, letterSpacing: -0.7 },
   homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 7 },

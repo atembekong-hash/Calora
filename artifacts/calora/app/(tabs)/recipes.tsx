@@ -423,7 +423,17 @@ export default function RecipesScreen() {
               <Pressable accessibilityLabel="Create your own recipe" onPress={() => setShowCreate(true)} style={styles.recipeHeaderCreate}><Feather name="plus" size={15} color="#ffffff" /><Text style={styles.recipeHeaderCreateText}>Create</Text></Pressable>
             </View>
             <Text style={styles.recipeHeaderEyebrow}>GOOD FOOD, WITH CONTEXT</Text>
-            <Text style={styles.recipeHeaderTitle}>Recipes</Text>
+            <View style={styles.recipeTitleRow}>
+              <Text style={styles.recipeHeaderTitle}>Recipes</Text>
+              <Pressable
+                accessibilityLabel="Open Calora Coach"
+                onPress={() => router.push('/coach')}
+                style={({ pressed }) => [styles.coachHeaderButton, { backgroundColor: 'rgba(212,234,220,0.18)', borderColor: 'rgba(255,255,255,0.28)', shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
+              >
+                <Feather name="zap" size={15} color="#ffffff" />
+                <Text style={[styles.coachHeaderButtonText, { color: '#ffffff' }]}>Ask Calora</Text>
+              </Pressable>
+            </View>
             <Text style={styles.recipeHeaderSubtitle}>Discover meals worth making, with enough context to trust them.</Text>
           </View>
         </View>
@@ -492,6 +502,9 @@ const styles = StyleSheet.create({
   recipeHeaderCreateText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 10 },
   recipeHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.3, marginBottom: 6 },
   recipeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 29, letterSpacing: -0.8 },
+  recipeTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 2 },
+  coachHeaderButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, paddingHorizontal: 11, paddingVertical: 9, borderWidth: 1, shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  coachHeaderButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.1 },
   recipeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, marginTop: 7, maxWidth: 290 },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
   eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 7 },
