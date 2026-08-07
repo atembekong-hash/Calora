@@ -114,6 +114,7 @@ export default function LivingMemoryScreen() {
   const [editDate, setEditDate] = useState('');
   const [editMeal, setEditMeal] = useState<MealType>('Breakfast');
   const [forgetTarget, setForgetTarget] = useState<{ kind: LivingMemoryKind; id: string; label: string } | null>(null);
+  const [showForgetAllStale, setShowForgetAllStale] = useState(false);
   const [pendingForget, setPendingForget] = useState<{ kind: LivingMemoryKind; id: string; label: string } | null>(null);
   const [undoSecondsLeft, setUndoSecondsLeft] = useState(0);
   const forgetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -183,6 +184,19 @@ export default function LivingMemoryScreen() {
     setPendingForget(null);
   };
 
+  const handleForgetAllStale = () => {
+    setShowForgetAllStale(false);
+    // Commit any in-flight single forget before bulk-forgetting
+    if (pendingForgetRef.current) {
+      forgetLivingObservation(pendingForgetRef.current.kind, pendingForgetRef.current.id);
+      pendingForgetRef.current = null;
+    }
+    clearTimers();
+    setPendingForget(null);
+    // Capture the current stale list synchronously so we forget exactly what was shown
+    staleSignals.forEach(({ kind, id }) => forgetLivingObservation(kind, id));
+  };
+
   const logsById = useMemo(() => new Map(logs.map((log) => [log.id, log])), [logs]);
   const visiblePlannerMeals = useMemo(
     () => new Map(plannerMeals.map((meal) => [meal.id, meal])),
@@ -195,16 +209,17 @@ export default function LivingMemoryScreen() {
     Object.keys(livingMemory.activityObservations).length +
     Object.keys(livingMemory.plannerObservations).length;
 
-  const staleCount = useMemo(() => {
-    let count = 0;
-    Object.values(livingMemory.mealObservations).forEach((o) => { if (isStaleDate(o.date)) count++; });
-    Object.keys(livingMemory.waterObservations).forEach((d) => { if (isStaleDate(d)) count++; });
-    Object.keys(livingMemory.moodObservations).forEach((d) => { if (isStaleDate(d)) count++; });
-    Object.keys(livingMemory.activityObservations).forEach((d) => { if (isStaleDate(d)) count++; });
-    Object.values(livingMemory.plannerObservations).forEach((o) => { if (isStaleDate(o.day)) count++; });
-    return count;
+  const staleSignals = useMemo<Array<{ kind: LivingMemoryKind; id: string }>>(() => {
+    const signals: Array<{ kind: LivingMemoryKind; id: string }> = [];
+    Object.entries(livingMemory.mealObservations).forEach(([id, o]) => { if (isStaleDate(o.date)) signals.push({ kind: 'meal', id }); });
+    Object.keys(livingMemory.waterObservations).forEach((d) => { if (isStaleDate(d)) signals.push({ kind: 'water', id: d }); });
+    Object.keys(livingMemory.moodObservations).forEach((d) => { if (isStaleDate(d)) signals.push({ kind: 'mood', id: d }); });
+    Object.keys(livingMemory.activityObservations).forEach((d) => { if (isStaleDate(d)) signals.push({ kind: 'activity', id: d }); });
+    Object.entries(livingMemory.plannerObservations).forEach(([id, o]) => { if (isStaleDate(o.day)) signals.push({ kind: 'planner', id }); });
+    return signals;
   }, [livingMemory]);
 
+  const staleCount = staleSignals.length;
   const allStale = totalCount > 0 && staleCount === totalCount;
 
   const forget = (kind: LivingMemoryKind, id: string, label: string) => {
@@ -261,12 +276,25 @@ export default function LivingMemoryScreen() {
           </View>
         ) : (
           <>
-            {allStale && (
-              <View style={[styles.staleNotice, { backgroundColor: colors.muted }]}>
-                <Feather name="clock" size={14} color={colors.mutedForeground} />
-                <Text style={[styles.staleNoticeText, { color: colors.mutedForeground }]}>
-                  These signals are older than a month — review or forget them if they no longer feel relevant.
-                </Text>
+            {staleCount > 0 && (
+              <View style={styles.staleNoticeWrap}>
+                <View style={[styles.staleNotice, { backgroundColor: colors.muted, flex: 1 }]}>
+                  <Feather name="clock" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.staleNoticeText, { color: colors.mutedForeground }]}>
+                    {allStale
+                      ? 'These signals are older than a month — review or forget them if they no longer feel relevant.'
+                      : `${staleCount} signal${staleCount === 1 ? '' : 's'} older than 30 days.`}
+                  </Text>
+                </View>
+                <Pressable
+                  accessibilityLabel={`Forget all ${staleCount} stale signals`}
+                  testID="forget-all-stale"
+                  onPress={() => setShowForgetAllStale(true)}
+                  style={[styles.forgetAllButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                >
+                  <Feather name="eye-off" size={13} color={colors.mutedForeground} />
+                  <Text style={[styles.forgetAllText, { color: colors.mutedForeground }]}>Forget all stale</Text>
+                </Pressable>
               </View>
             )}
 
@@ -379,6 +407,30 @@ export default function LivingMemoryScreen() {
           </View>
         </View>
       </Modal>
+      <Modal visible={showForgetAllStale} transparent animationType="fade" onRequestClose={() => setShowForgetAllStale(false)}>
+        <View style={[styles.confirmBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+          <View style={[styles.confirmCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.confirmIcon, { backgroundColor: colors.muted }]}>
+              <Feather name="eye-off" size={19} color={colors.foreground} />
+            </View>
+            <Text style={[styles.confirmTitle, { color: colors.foreground }]}>Forget all stale signals?</Text>
+            <Text style={[styles.confirmBody, { color: colors.mutedForeground }]}>
+              Forget {staleCount} signal{staleCount === 1 ? '' : 's'} older than 30 days? Your underlying diary, wellness, and plan records stay saved.
+            </Text>
+            <Pressable
+              accessibilityLabel={`Confirm forget all ${staleCount} stale signals`}
+              testID="confirm-forget-all-stale"
+              onPress={handleForgetAllStale}
+              style={[styles.confirmButton, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.confirmButtonText, { color: colors.primaryForeground }]}>Forget {staleCount} signal{staleCount === 1 ? '' : 's'}</Text>
+            </Pressable>
+            <Pressable accessibilityLabel="Keep stale signals" onPress={() => setShowForgetAllStale(false)} style={styles.confirmCancel}>
+              <Text style={[styles.confirmCancelText, { color: colors.mutedForeground }]}>Keep them</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
       <Modal visible={forgetTarget !== null} transparent animationType="fade" onRequestClose={() => setForgetTarget(null)}>
         <View style={[styles.confirmBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
           <View style={[styles.confirmCard, { backgroundColor: colors.card }]}>
@@ -446,8 +498,11 @@ const styles = StyleSheet.create({
   staleBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 0.5 },
   rowDetail: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 3 },
   rowSource: { fontFamily: 'Inter_400Regular', fontSize: 9, marginTop: 4 },
-  staleNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 13, padding: 11, marginBottom: 16 },
+  staleNoticeWrap: { flexDirection: 'row', alignItems: 'stretch', gap: 8, marginBottom: 16 },
+  staleNotice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 13, padding: 11 },
   staleNoticeText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
+  forgetAllButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 13, borderWidth: 1, paddingHorizontal: 11, paddingVertical: 9 },
+  forgetAllText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
   rowActions: { flexDirection: 'row', gap: 6 },
   iconAction: { width: 31, height: 31, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   footerNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 13, padding: 11, marginTop: 1 },
