@@ -4,6 +4,7 @@ import {
   queueClearAfterPendingWrites,
   shouldAutosave,
 } from '../hydrationGuard';
+import { PersistenceManager } from '../persistenceManager';
 
 // ---------------------------------------------------------------------------
 // shouldAutosave — autosave gate
@@ -338,5 +339,104 @@ describe('retry path: re-read does not delete or replace saved state', () => {
   it('shouldAutosave allows writes again once retry reads storage cleanly', () => {
     // Simulates a successful retry: hydrated flips back to true with no error.
     expect(shouldAutosave({ hydrated: true, error: null })).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Retry recovery: pm.read() returns clean state after storage is repaired
+// ---------------------------------------------------------------------------
+
+describe('retry recovery: pm.read() returns clean state after storage is repaired', () => {
+  it('first read returns a parse error; second read after repair returns valid state with no error', async () => {
+    // Simulates the full retryHydration flow:
+    //   1. Storage holds corrupt JSON → pm.read() surfaces a parse error.
+    //   2. Storage is repaired externally (e.g. the key is overwritten with
+    //      valid data).
+    //   3. retryHydration increments hydrationAttempt, re-triggering the
+    //      hydration effect which calls pm.read() again.
+    //   4. The second read must return the clean state with error === null.
+    //
+    // This documents that PersistenceManager.read() does not cache results —
+    // each call goes back to the underlying storage adapter, so a repaired
+    // key is immediately visible after retry.
+    let storedValue: string | null = '{not-valid-json}';
+    const storage = {
+      getItem: async (_key: string) => storedValue,
+      setItem: async (_key: string, value: string) => { storedValue = value; },
+      removeItem: async (_key: string) => { storedValue = null; },
+    };
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    // First read: corrupt storage → parse error
+    const firstResult = await pm.read<{ onboardingComplete: boolean }>();
+    expect(firstResult.state).toBeNull();
+    expect(firstResult.error).not.toBeNull();
+
+    // Storage is repaired (user or OS writes valid data back)
+    const validState = { onboardingComplete: true };
+    storedValue = JSON.stringify(validState);
+
+    // Second read (what retryHydration triggers): clean result, no error
+    const secondResult = await pm.read<{ onboardingComplete: boolean }>();
+    expect(secondResult.state).toEqual(validState);
+    expect(secondResult.error).toBeNull();
+  });
+
+  it('shouldAutosave is false during the retry window (hydrated=false) and true after a clean re-read', () => {
+    // Documents the two-phase state the hydration effect passes through
+    // during a retry:
+    //   Phase 1 — retryHydration fires: hydrated resets to false, error is
+    //             still set from the previous attempt. Autosave must be
+    //             blocked for the entire window so in-memory state (which is
+    //             still the context default) cannot overwrite storage.
+    //   Phase 2 — hydration effect completes cleanly: hydrated flips to true,
+    //             error clears to null. Autosave re-enables so the user's
+    //             next actions are persisted normally.
+    const duringRetryWindow = shouldAutosave({ hydrated: false, error: 'parse failed' });
+    expect(duringRetryWindow).toBe(false);
+
+    const afterCleanReread = shouldAutosave({ hydrated: true, error: null });
+    expect(afterCleanReread).toBe(true);
+  });
+
+  it('replacing a corrupt key with valid JSON means hydrationErrorKind clears to null on the next read', async () => {
+    // Documents the error-clearing contract at the top of the hydration effect:
+    //   setHydrationErrorKind(null);   ← cleared before the new read begins
+    //
+    // This test confirms the PersistenceManager layer returns error === null
+    // when storage is repaired, which is the signal the hydration effect uses
+    // to decide whether to call setHydrationErrorKind('parse' | 'io') or
+    // leave it at null (cleared).
+    //
+    // In other words: if pm.read() returns error === null, the effect never
+    // sets hydrationErrorKind back to a non-null value, so the parse-error
+    // screen stays hidden and the user sees their recovered data.
+    let storedValue: string | null = 'CORRUPT{{{';
+    const storage = {
+      getItem: async (_key: string) => storedValue,
+      setItem: async (_key: string, value: string) => { storedValue = value; },
+      removeItem: async (_key: string) => { storedValue = null; },
+    };
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    // Confirm the corrupt read does produce an error (establishing the
+    // before-state that retryHydration is recovering from)
+    const corrupt = await pm.read<Record<string, unknown>>();
+    expect(corrupt.error).not.toBeNull();
+
+    // Repair storage — simulates what "retry after manual fix" or a native
+    // OS repair does before retryHydration is called
+    storedValue = JSON.stringify({ logs: [], profile: null });
+
+    // The hydration effect clears hydrationErrorKind=null at its top, then
+    // reads storage. If this read returns error=null, the effect never
+    // re-sets it — hydrationErrorKind stays null.
+    const repaired = await pm.read<Record<string, unknown>>();
+    expect(repaired.error).toBeNull();
+
+    // Confirm that shouldAutosave would allow writes now that both
+    // hydrated=true and error=null hold — mirroring what the effect sets
+    // after a successful re-hydration.
+    expect(shouldAutosave({ hydrated: true, error: repaired.error })).toBe(true);
   });
 });
