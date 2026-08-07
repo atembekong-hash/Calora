@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCalora } from '@/context/CaloraContext';
 import { Feather } from '@expo/vector-icons';
@@ -7,6 +7,16 @@ import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Tabs } from 'expo-router';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { SymbolView } from 'expo-symbols';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+
+function AnimatedTabIcon({ focused, children }: { focused: boolean; children: React.ReactNode }) {
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    scale.value = withSpring(focused ? 1.18 : 1, { damping: 14, stiffness: 220, mass: 0.7 });
+  }, [focused, scale]);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return <Animated.View style={animStyle}>{children}</Animated.View>;
+}
 
 // IMPORTANT: iOS 26 uses NativeTabs for native tabs with liquid glass support.
 // NativeTabs intentionally does NOT use custom design tokens — liquid glass
@@ -81,24 +91,22 @@ function ClassicTabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="house" tintColor={color} size={24} />
-            ) : (
-              <Feather name="home" size={22} color={color} />
-            ),
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedTabIcon focused={focused}>
+              {isIOS ? <SymbolView name="house" tintColor={color} size={24} /> : <Feather name="home" size={22} color={color} />}
+            </AnimatedTabIcon>
+          ),
         }}
       />
       <Tabs.Screen
         name="recipes"
         options={{
           title: 'Recipes',
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="book.closed" tintColor={color} size={22} />
-            ) : (
-              <Feather name="book-open" size={21} color={color} />
-            ),
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedTabIcon focused={focused}>
+              {isIOS ? <SymbolView name="book.closed" tintColor={color} size={22} /> : <Feather name="book-open" size={21} color={color} />}
+            </AnimatedTabIcon>
+          ),
         }}
       />
       <Tabs.Screen
@@ -128,24 +136,22 @@ function ClassicTabLayout() {
         name="insights"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="chart.bar.xaxis" tintColor={color} size={23} />
-            ) : (
-              <Feather name="bar-chart-2" size={22} color={color} />
-            ),
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedTabIcon focused={focused}>
+              {isIOS ? <SymbolView name="chart.bar.xaxis" tintColor={color} size={23} /> : <Feather name="bar-chart-2" size={22} color={color} />}
+            </AnimatedTabIcon>
+          ),
         }}
       />
       <Tabs.Screen
         name="planner"
         options={{
           title: 'Plan',
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="calendar" tintColor={color} size={23} />
-            ) : (
-              <Feather name="calendar" size={22} color={color} />
-            ),
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedTabIcon focused={focused}>
+              {isIOS ? <SymbolView name="calendar" tintColor={color} size={23} /> : <Feather name="calendar" size={22} color={color} />}
+            </AnimatedTabIcon>
+          ),
         }}
       />
       <Tabs.Screen name="profile" options={{ href: null }} />

@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -18,7 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
-import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeInDown, useAnimatedProps, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { mealOrder, verifiedFoods } from '@/data/foods';
@@ -309,7 +309,7 @@ function WellnessCards({
           <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{waterOunces} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ {waterGoal} fl oz</Text></Text>
           <View style={styles.waterSlots}>
             {Array.from({ length: 8 }, (_, index) => (
-              <View key={index} style={[styles.waterSlot, { backgroundColor: index < filledGlasses ? '#8db8ed' : colors.muted }]} />
+              <AnimatedWaterSlot key={index} filled={index < filledGlasses} muted={colors.muted} />
             ))}
           </View>
             <Pressable
@@ -361,18 +361,43 @@ function WellnessCards({
   );
 }
 
-function MacroBar({ label, value, target, color, colors }: { label: string; value: number; target: number; color: string; colors: ReturnType<typeof useCalora>['colors'] }) {
+function AnimatedMacroBar({ label, value, target, color, colors }: { label: string; value: number; target: number; color: string; colors: ReturnType<typeof useCalora>['colors'] }) {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const fillWidth = useSharedValue(0);
+  const pct = target > 0 ? Math.min((value / target) * 100, 100) : 0;
+  useEffect(() => {
+    if (trackWidth > 0) {
+      fillWidth.value = withTiming((pct / 100) * trackWidth, { duration: 700, easing: Easing.out(Easing.cubic) });
+    }
+  }, [pct, trackWidth, fillWidth]);
+  const animStyle = useAnimatedStyle(() => ({ width: fillWidth.value }));
   return (
     <View style={styles.macroBlock}>
       <View style={styles.macroHeader}>
         <Text style={[styles.macroLabel, { color: colors.mutedForeground }]}>{label}</Text>
         <Text style={[styles.macroValue, { color: colors.foreground }]}>{value}g <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>/ {target}g</Text></Text>
       </View>
-      <View style={[styles.macroTrack, { backgroundColor: colors.muted }]}>
-        <View style={[styles.macroFill, { backgroundColor: color, width: `${Math.min((value / target) * 100, 100)}%` }]} />
+      <View style={[styles.macroTrack, { backgroundColor: colors.muted }]} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
+        <Animated.View style={[styles.macroFill, { backgroundColor: color }, animStyle]} />
       </View>
     </View>
   );
+}
+
+function AnimatedWaterSlot({ filled, muted }: { filled: boolean; muted: string }) {
+  const scale = useSharedValue(filled ? 1 : 0.7);
+  const prevFilled = useRef(filled);
+  useEffect(() => {
+    if (filled && !prevFilled.current) {
+      scale.value = 0.3;
+      scale.value = withSpring(1, { damping: 10, stiffness: 380 });
+    } else if (!filled && prevFilled.current) {
+      scale.value = withTiming(0.7, { duration: 200 });
+    }
+    prevFilled.current = filled;
+  }, [filled, scale]);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return <Animated.View style={[styles.waterSlot, { backgroundColor: filled ? '#8db8ed' : muted }, animStyle]} />;
 }
 
 function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typeof useCalora>['colors']; onEdit: () => void }) {
@@ -916,9 +941,9 @@ export default function HomeScreen() {
             </View>
             <Feather name="sliders" size={18} color={colors.mutedForeground} />
           </View>
-          <MacroBar label="Protein" value={selectedTotals.protein} target={Math.round(target * 0.26 / 4)} color={colors.protein} colors={colors} />
-          <MacroBar label="Carbs" value={selectedTotals.carbs} target={Math.round(target * 0.44 / 4)} color={colors.carbs} colors={colors} />
-          <MacroBar label="Fat" value={selectedTotals.fat} target={Math.round(target * 0.3 / 9)} color={colors.fat} colors={colors} />
+          <AnimatedMacroBar label="Protein" value={selectedTotals.protein} target={Math.round(target * 0.26 / 4)} color={colors.protein} colors={colors} />
+          <AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={Math.round(target * 0.44 / 4)} color={colors.carbs} colors={colors} />
+          <AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={Math.round(target * 0.3 / 9)} color={colors.fat} colors={colors} />
         </View>
 
         <View style={styles.mealHeader}>
@@ -944,7 +969,11 @@ export default function HomeScreen() {
             return (
               <View key={meal}>
                 <Text style={[styles.mealGroup, { color: colors.mutedForeground }]}>{meal.toUpperCase()}</Text>
-                {mealLogs.map((log) => <MealRow key={log.id} log={log} colors={colors} onEdit={() => setEditingLog(log)} />)}
+                {mealLogs.map((log, logIndex) => (
+                  <Animated.View key={log.id} entering={FadeInDown.springify().damping(18).delay(logIndex * 35)}>
+                    <MealRow log={log} colors={colors} onEdit={() => setEditingLog(log)} />
+                  </Animated.View>
+                ))}
               </View>
             );
           })}

@@ -16,7 +16,9 @@ import {
 import { cancelMealReminders, scheduleMealReminders, type MealReminderPrefs } from '@/lib/mealReminders';
 import { cancelGoalReminder, scheduleGoalReminder, type GoalReminderPrefs } from '@/lib/goalReminder';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Sharing from 'expo-sharing';
 import { deriveExportHasData, handleExportTap, shareExportFile, type ExportPayload } from '@/lib/exportUiHandler';
 
@@ -120,6 +122,7 @@ export default function ProfileScreen() {
 
   /** Hydration reminders */
   const applyHydrationPrefs = async (next: HydrationReminderPrefs) => {
+    Haptics.selectionAsync();
     setHydrationReminders(next);
     if (!next.enabled) { await cancelHydrationReminders(); setReminderStatus('idle'); return; }
     const count = await scheduleHydrationReminders(next);
@@ -137,6 +140,7 @@ export default function ProfileScreen() {
 
   /** Meal reminders */
   const applyMealPrefs = async (next: MealReminderPrefs) => {
+    Haptics.selectionAsync();
     setMealReminders(next);
     const granted = await scheduleMealReminders(next);
     if (!granted) {
@@ -160,6 +164,7 @@ export default function ProfileScreen() {
 
   /** Goal reminder */
   const applyGoalPrefs = async (next: GoalReminderPrefs) => {
+    Haptics.selectionAsync();
     setGoalReminder(next);
     if (!next.enabled) { await cancelGoalReminder(); setGoalReminderStatus('idle'); return; }
     const granted = await scheduleGoalReminder(next);
@@ -252,6 +257,7 @@ export default function ProfileScreen() {
     // Strip the cache-bust query param before persisting
     const cleanUri = editPhotoUri ? editPhotoUri.split('?')[0] : null;
     setProfilePhotoUri(cleanUri);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setProfileEditModal(false);
   };
 
@@ -293,7 +299,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Profile card ── */}
-        <View style={[styles.profileCard, { backgroundColor: colors.hero }]}>
+        <Animated.View entering={FadeInDown.springify().damping(20).delay(0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
           <View style={[styles.largeAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}>
             {profilePhotoUri
               ? <Image source={{ uri: profilePhotoUri }} style={{ width: 47, height: 47 }} contentFit="cover" />
@@ -310,9 +316,10 @@ export default function ProfileScreen() {
           <Pressable accessibilityLabel="Edit profile" onPress={openProfileEdit} hitSlop={10}>
             <Feather name="edit-2" size={17} color={colors.heroMuted} />
           </Pressable>
-        </View>
+        </Animated.View>
 
         {/* ── Appearance ── */}
+        <Animated.View entering={FadeInDown.springify().damping(20).delay(80)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
         <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Choose how Calora should feel at any hour.</Text>
         <View style={[styles.segmentedControl, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -326,8 +333,10 @@ export default function ProfileScreen() {
             );
           })}
         </View>
+        </Animated.View>
 
         {/* Text size */}
+        <Animated.View entering={FadeInDown.springify().damping(20).delay(140)}>
         <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 10 }]}>
           <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}>
             <Feather name="type" size={16} color={colors.primary} />
@@ -366,8 +375,10 @@ export default function ProfileScreen() {
             })}
           </View>
         </View>
+        </Animated.View>
 
         {/* ── Reminders ── */}
+        <Animated.View entering={FadeInDown.springify().damping(20).delay(200)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 4, marginBottom: 4 }]}>Reminders</Text>
         <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>On-device nudges for water intake, meals, and your daily goal.</Text>
 
@@ -530,6 +541,7 @@ export default function ProfileScreen() {
           )}
           <Switch accessibilityLabel="Toggle daily goal reminder" value={goalReminder.enabled} onValueChange={(val) => applyGoalPrefs({ ...goalReminder, enabled: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
         </View>
+        </Animated.View>
 
         {/* ── Calora Plus ── */}
         <View style={styles.planHeader}>

@@ -7,6 +7,7 @@ import {
 } from '@workspace/api-client-react';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   ActivityIndicator,
   Modal,
@@ -259,7 +260,7 @@ export default function CoachScreen() {
               </View>
             )}
             {turns.map((turn) => (
-              <View key={turn.id} style={turn.role === 'user' ? styles.userTurn : styles.assistantTurn}>
+              <Animated.View key={turn.id} entering={FadeInDown.springify().damping(16).duration(380)} style={turn.role === 'user' ? styles.userTurn : styles.assistantTurn}>
                 <View style={[styles.messageBubble, turn.role === 'user'
                   ? { backgroundColor: colors.primary }
                   : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
@@ -271,7 +272,7 @@ export default function CoachScreen() {
                     {turn.response.actions.map((action) => <ActionCard key={action.id} action={action} colors={colors} />)}
                   </>
                 )}
-              </View>
+              </Animated.View>
             ))}
             {respondCoach.isPending && (
               <View style={[styles.loadingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>

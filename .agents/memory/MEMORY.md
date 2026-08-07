@@ -8,9 +8,10 @@
 - [Progress motion](progress-motion.md) — Progress uses restrained entrance, fill, pulse, and bar animations around trustworthy weekly signals.
 - [Local save feedback](local-save-feedback.md) — local wellness actions should acknowledge saves briefly without blocking the logging flow.
 - [Coach safety boundary](coach-safety-boundary.md) — Coach receives bounded local context and may only return evidence-backed guidance plus allowlisted navigation.
-- [Coach chat menu](coach-chat-menu.md) — the Coach header menu owns local history, new-chat, and clear-history actions without changing Coach’s safety boundary.
+- [Coach chat menu](coach-chat-menu.md) — the Coach header menu owns local history, new-chat, and clear-history actions without changing Coach's safety boundary.
 - [Living state engine](living-state-engine.md) — shared adaptive state must be deterministic, explicit about missing history, and prioritized by the highest-context daily need.
 - [Living memory ledger](living-memory-ledger.md) — reliable local memory must be normalized from confirmed sources before any memory becomes visible in the interface.
 - [Planner week context](planner-week-context.md) — browsing, shopping, and planner memory must share one explicit viewed-week source of truth.
 - [Planner editing principles](planner-editing-principles.md) — explicit edit mode and custom insertion must use the shared local mutation path.
 - [Local persistence recovery](local-persistence-recovery.md) — hydration failures must block autosave, and destructive clears must serialize behind pending writes.
+- [Animation system](animation-system.md) — four-tier animation architecture across all screens; patterns, component names, and pitfalls.

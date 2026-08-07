@@ -49,8 +49,9 @@ function PulseIcon({ colors }: { colors: ReturnType<typeof useCalora>['colors'] 
 function AnimatedBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
   const progress = useSharedValue(0);
   useEffect(() => {
+    progress.value = 0;
     progress.value = withDelay(delay, withTiming(1, { duration: 850, easing: Easing.out(Easing.cubic) }));
-  }, [delay, progress]);
+  }, [delay, progress, value]);
   const animatedStyle = useAnimatedStyle(() => ({ height: 128 * (Math.max(0, Math.min(value, 100)) / 100) * progress.value }));
   return <Animated.View style={[styles.bar, { backgroundColor: color }, animatedStyle]} />;
 }
@@ -85,8 +86,9 @@ function GoalCelebrationBanner({ colors, targetKg }: { colors: ReturnType<typeof
 function AnimatedTrackFill({ percentage, color, trackColor }: { percentage: number; color: string; trackColor: string }) {
   const progress = useSharedValue(0);
   useEffect(() => {
+    progress.value = 0;
     progress.value = withDelay(260, withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) }));
-  }, [progress]);
+  }, [progress, percentage]);
   const animatedStyle = useAnimatedStyle(() => ({ width: `${Math.max(0, Math.min(percentage, 100)) * progress.value}%` }));
   return <View style={[styles.miniTrack, { backgroundColor: trackColor }]}><Animated.View style={[styles.miniFill, { backgroundColor: color }, animatedStyle]} /></View>;
 }

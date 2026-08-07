@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
@@ -65,6 +66,25 @@ export default function ScanScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [mode, setMode] = useState<ScanMode>('auto');
   const [hasScanned, setHasScanned] = useState(false);
+
+  // Viewfinder corner pulse — breathes while waiting, stops when a result is in-flight
+  const cornerPulse = useSharedValue(1);
+  useEffect(() => {
+    if (hasScanned) {
+      cancelAnimation(cornerPulse);
+      cornerPulse.value = withTiming(1, { duration: 200 });
+      return;
+    }
+    cornerPulse.value = withRepeat(
+      withSequence(
+        withTiming(0.3, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+  }, [hasScanned, cornerPulse]);
+  const cornerPulseStyle = useAnimatedStyle(() => ({ opacity: cornerPulse.value }));
   const [analysis, setAnalysis] = useState<CaptureAnalysis | null>(null);
   const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
   const [showTextEntry, setShowTextEntry] = useState(false);
@@ -212,7 +232,15 @@ export default function ScanScreen() {
           <>
             <View style={[styles.cameraFrame, { borderColor: colors.border }]}>
               <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" onBarcodeScanned={mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned} barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] }} />
-              <View style={styles.cameraOverlay}><View style={[styles.corner, styles.cornerTL, { borderColor: colors.onHero }]} /><View style={[styles.corner, styles.cornerTR, { borderColor: colors.onHero }]} /><View style={[styles.corner, styles.cornerBL, { borderColor: colors.onHero }]} /><View style={[styles.corner, styles.cornerBR, { borderColor: colors.onHero }]} /><View style={[styles.scanHint, { backgroundColor: 'rgba(20,63,52,0.78)' }]}><Feather name="maximize" size={14} color={colors.heroMuted} /><Text style={[styles.scanHintText, { color: colors.onHero }]}>{mode === 'food' ? 'Frame your food or meal' : mode === 'label' ? 'Frame the nutrition label' : 'Point at a barcode or food'}</Text></View></View>
+              <View style={styles.cameraOverlay}>
+                <Animated.View style={[StyleSheet.absoluteFillObject, cornerPulseStyle]} pointerEvents="none">
+                  <View style={[styles.corner, styles.cornerTL, { borderColor: colors.onHero }]} />
+                  <View style={[styles.corner, styles.cornerTR, { borderColor: colors.onHero }]} />
+                  <View style={[styles.corner, styles.cornerBL, { borderColor: colors.onHero }]} />
+                  <View style={[styles.corner, styles.cornerBR, { borderColor: colors.onHero }]} />
+                </Animated.View>
+                <View style={[styles.scanHint, { backgroundColor: 'rgba(20,63,52,0.78)' }]}><Feather name="maximize" size={14} color={colors.heroMuted} /><Text style={[styles.scanHintText, { color: colors.onHero }]}>{mode === 'food' ? 'Frame your food or meal' : mode === 'label' ? 'Frame the nutrition label' : 'Point at a barcode or food'}</Text></View>
+              </View>
             </View>
             <View style={[styles.modePicker, { backgroundColor: colors.muted }]}>
               {(['auto', 'barcode', 'food', 'label'] as ScanMode[]).map((item) => <Pressable key={item} accessibilityLabel={`Scan mode ${item}`} onPress={() => { setMode(item); setHasScanned(false); }} style={[styles.modeButton, mode === item && { backgroundColor: colors.card }]}><Feather name={item === 'auto' ? 'zap' : item === 'barcode' ? 'maximize' : item === 'food' ? 'image' : 'file-text'} size={14} color={mode === item ? colors.primary : colors.mutedForeground} /><Text style={[styles.modeText, { color: mode === item ? colors.foreground : colors.mutedForeground }]}>{item === 'auto' ? 'Auto' : item === 'barcode' ? 'Barcode' : item === 'food' ? 'Food' : 'Label'}</Text></Pressable>)}
