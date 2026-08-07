@@ -823,6 +823,8 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        <MotivationalQuote colors={colors} style={{ marginBottom: 14 }} />
+
         <View style={[styles.dateNav, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 11 }]}>
           <Pressable accessibilityLabel="Previous diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() - 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={17} color={colors.foreground} /></Pressable>
           <View style={{ alignItems: 'center' }}><Text style={[styles.dateNavLabel, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today' : formatShortDate(selectedDate)}</Text><Text style={[styles.dateNavSub, { color: colors.mutedForeground }]}>{selectedDate}</Text></View>
@@ -938,8 +940,6 @@ export default function HomeScreen() {
             );
           })}
         </View>
-        <MotivationalQuote colors={colors} style={{ marginTop: 8, marginBottom: 4 }} />
-
         <View style={styles.footerNote}>
           <Feather name="check-circle" size={15} color={colors.success} />
           <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved on this device · waiting for a connection' : syncState === 'local' ? 'Saved on this device · ready to sync' : syncState === 'offline' ? 'Loading your local diary…' : 'Core foods are sourced from verified nutrition data.'}</Text>

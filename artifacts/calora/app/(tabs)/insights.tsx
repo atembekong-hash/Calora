@@ -280,6 +280,8 @@ export default function InsightsScreen() {
           </View>
         </View>
 
+        <MotivationalQuote colors={colors} style={{ marginBottom: 16 }} />
+
         <AnimatedReveal delay={80}>
         <View style={[styles.adaptiveCard, { backgroundColor: colors.hero }]}>
           <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={styles.adaptiveTexture} />
@@ -624,7 +626,6 @@ export default function InsightsScreen() {
           </View>
           <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
         </View>
-        <MotivationalQuote colors={colors} style={{ marginTop: 20 }} />
       </ScrollView>
       <Modal visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)}>
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
