@@ -85,6 +85,8 @@ export interface ClearAllDataCtx {
   setPendingUndoSwap: Setter;
   /** Resets the session-only planner-ack banner so no stale acknowledgment persists after a clear. */
   setPendingPlannerAck: Setter;
+  /** Resets the persisted plan type preference so the user must re-select after clearing. */
+  setPlannerPreferences: Setter;
 }
 
 /**
@@ -135,4 +137,5 @@ export async function performClearAllData(ctx: ClearAllDataCtx): Promise<void> {
   ctx.setCoachConsentAccepted(false);
   ctx.setCoachMessages([]);
   ctx.setGoalCelebrationSeenTargetKg(null);
+  ctx.setPlannerPreferences(null);
 }

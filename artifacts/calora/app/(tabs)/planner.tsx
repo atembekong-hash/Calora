@@ -9,6 +9,7 @@ import { useCalora } from '@/context/CaloraContext';
 import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
 import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
+import { PLAN_TYPES, findPlanType, type PlanTypeId } from '@/lib/planType';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { router, useFocusEffect } from 'expo-router';
@@ -126,7 +127,7 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
 }
 
 export default function PlannerScreen() {
-  const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, livingState, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck } = useCalora();
+  const { colors, profile, plannerWeekStart, plannerMeals, plannerPreferences, setPlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, livingState, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck } = useCalora();
   const insets = useSafeAreaInsets();
   const generatePlanner = useGeneratePlanner();
   const today = dateKey();
@@ -160,6 +161,7 @@ export default function PlannerScreen() {
   const [customCarbs, setCustomCarbs] = useState('');
   const [customFat, setCustomFat] = useState('');
   const [customIngredients, setCustomIngredients] = useState('');
+  const [planTypeVisible, setPlanTypeVisible] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -508,6 +510,7 @@ export default function PlannerScreen() {
             diet: plannerProfile.diet,
             calorieTarget: plannerProfile.calorieTarget,
           },
+          planType: plannerPreferences?.primary,
         },
       });
       const timeout = new Promise<never>((_, reject) => {
@@ -610,7 +613,47 @@ export default function PlannerScreen() {
             return <Pressable key={day} accessibilityLabel={`Select ${dayFormatter.format(date)} ${date.getDate()}`} onPress={() => setSelectedDay(day)} style={[styles.dayPill, { backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.border }]}><Text style={[styles.dayName, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{dayFormatter.format(date)}</Text><Text style={[styles.dayNumber, { color: active ? colors.primaryForeground : colors.foreground }]}>{date.getDate()}</Text>{isToday && <View style={[styles.todayDot, { backgroundColor: active ? colors.primaryForeground : colors.primary }]} />}</Pressable>;
           })}
         </ScrollView>
-         <Pressable accessibilityLabel="Generate my week" onPress={() => void generate()} disabled={generating} style={[styles.generateButton, { backgroundColor: colors.primary, opacity: generating ? 0.72 : 1 }]}>{generating ? <ActivityIndicator color={colors.primaryForeground} /> : <Feather name="zap" size={17} color={colors.primaryForeground} />}<View style={styles.generateCopy}><Text style={[styles.generateText, { color: colors.primaryForeground }]}>{generating ? 'Building your week…' : 'Suggest meals for open spots'}</Text><Text style={[styles.generateHint, { color: colors.primaryForeground }]}>Your choices stay in place</Text></View><Feather name="arrow-up-right" size={16} color={colors.primaryForeground} /></Pressable>
+        {/* Plan type card — required before generation */}
+        {plannerPreferences ? (
+          <View style={[styles.planTypeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.planTypeCardIcon, { backgroundColor: colors.accent }]}>
+              <Feather name={findPlanType(plannerPreferences.primary)?.icon as React.ComponentProps<typeof Feather>['name'] ?? 'sliders'} size={17} color={colors.accentForeground} />
+            </View>
+            <View style={styles.planTypeCardCopy}>
+              <Text style={[styles.planTypeCardEyebrow, { color: colors.primary }]}>PLAN TYPE</Text>
+              <Text style={[styles.planTypeCardLabel, { color: colors.foreground }]}>{findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary}</Text>
+              <Text style={[styles.planTypeCardSubtitle, { color: colors.mutedForeground }]}>{findPlanType(plannerPreferences.primary)?.subtitle}</Text>
+            </View>
+            <Pressable accessibilityLabel="Change plan type" onPress={() => setPlanTypeVisible(true)} style={[styles.planTypeChangeButton, { borderColor: colors.border }]}>
+              <Text style={[styles.planTypeChangeText, { color: colors.primary }]}>Change</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable accessibilityLabel="Choose a plan type before generating" onPress={() => setPlanTypeVisible(true)} style={[styles.planTypeEmptyCard, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+            <View style={[styles.planTypeEmptyIcon, { backgroundColor: colors.primary }]}>
+              <Feather name="sliders" size={17} color={colors.primaryForeground} />
+            </View>
+            <View style={styles.planTypeCardCopy}>
+              <Text style={[styles.planTypeCardEyebrow, { color: colors.primary }]}>REQUIRED</Text>
+              <Text style={[styles.planTypeCardLabel, { color: colors.foreground }]}>Choose your plan style</Text>
+              <Text style={[styles.planTypeCardSubtitle, { color: colors.mutedForeground }]}>Tap to pick what kind of week you want</Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.primary} />
+          </Pressable>
+        )}
+         <Pressable
+          accessibilityLabel={plannerPreferences ? 'Generate my week' : 'Choose a plan type first'}
+          onPress={() => { if (!plannerPreferences) { setPlanTypeVisible(true); } else { void generate(); } }}
+          disabled={generating}
+          style={[styles.generateButton, { backgroundColor: plannerPreferences ? colors.primary : colors.muted, opacity: generating ? 0.72 : 1 }]}
+        >
+          {generating ? <ActivityIndicator color={colors.primaryForeground} /> : <Feather name="zap" size={17} color={plannerPreferences ? colors.primaryForeground : colors.mutedForeground} />}
+          <View style={styles.generateCopy}>
+            <Text style={[styles.generateText, { color: plannerPreferences ? colors.primaryForeground : colors.mutedForeground }]}>{generating ? 'Building your week…' : 'Suggest meals for open spots'}</Text>
+            <Text style={[styles.generateHint, { color: plannerPreferences ? colors.primaryForeground : colors.mutedForeground, opacity: 0.75 }]}>{plannerPreferences ? 'Your choices stay in place' : 'Select a plan type above first'}</Text>
+          </View>
+          <Feather name="arrow-up-right" size={16} color={plannerPreferences ? colors.primaryForeground : colors.mutedForeground} />
+        </Pressable>
         {generationMessage && <View accessibilityLiveRegion="polite" style={[styles.generationStatus, { backgroundColor: colors.accent }]}><Feather name="check-circle" size={16} color={colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
          <View style={styles.dayHeading}><View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{dayFormatter.format(parseDate(selectedDay))}'s meals</Text><Text style={[styles.dayHeadingCaption, { color: colors.mutedForeground }]}>Tap a meal to see it. Use Log or ··· to change the plan.</Text></View><Text style={[styles.dayTotal, { color: colors.primary }]}>{Math.round(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))} kcal</Text></View>
            <View style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={17} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Choose something, or leave this open.</Text></View><Feather name="chevron-right" size={16} color={colors.mutedForeground} /></Pressable>; })}
@@ -897,6 +940,57 @@ export default function PlannerScreen() {
             </View>
           </View>
         </Modal>
+        {/* Plan type selector modal */}
+        <Modal visible={planTypeVisible} transparent animationType="slide" onRequestClose={() => setPlanTypeVisible(false)}>
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
+              <View style={styles.sheetHandle} />
+              <View style={styles.planTypeSheetHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.planTypeSheetEyebrow, { color: colors.primary }]}>YOUR PLAN STYLE</Text>
+                  <Text style={[styles.planTypeSheetTitle, { color: colors.foreground }]}>Choose your week</Text>
+                </View>
+                <Pressable accessibilityLabel="Close plan type selector" onPress={() => setPlanTypeVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+                  <Feather name="x" size={18} color={colors.foreground} />
+                </Pressable>
+              </View>
+              <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>This shapes how the AI selects meals. You can change it any time.</Text>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.planTypeList}>
+                {PLAN_TYPES.map((pt) => {
+                  const isSelected = plannerPreferences?.primary === pt.id;
+                  return (
+                    <Pressable
+                      key={pt.id}
+                      accessibilityLabel={`Select ${pt.label} plan type`}
+                      onPress={() => {
+                        setPlannerPreferences({ primary: pt.id as PlanTypeId });
+                        setPlanTypeVisible(false);
+                      }}
+                      style={[styles.planTypeRow, {
+                        backgroundColor: isSelected ? colors.accent : colors.card,
+                        borderColor: isSelected ? colors.primary : colors.border,
+                      }]}
+                    >
+                      <View style={[styles.planTypeRowIcon, { backgroundColor: isSelected ? colors.primary : colors.muted }]}>
+                        <Feather name={pt.icon as React.ComponentProps<typeof Feather>['name']} size={18} color={isSelected ? colors.primaryForeground : colors.foreground} />
+                      </View>
+                      <View style={styles.planTypeRowCopy}>
+                        <Text style={[styles.planTypeRowLabel, { color: colors.foreground }]}>{pt.label}</Text>
+                        <Text style={[styles.planTypeRowSubtitle, { color: colors.mutedForeground }]}>{pt.subtitle}</Text>
+                        {isSelected && <Text style={[styles.planTypeRowDesc, { color: colors.primary }]}>{pt.description}</Text>}
+                      </View>
+                      {isSelected && (
+                        <View style={[styles.planTypeCheck, { backgroundColor: colors.primary }]}>
+                          <Feather name="check" size={14} color={colors.primaryForeground} />
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
         <Modal visible={customMealType !== null} transparent animationType="slide" onRequestClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }}>
           <View style={styles.modalBackdrop}>
             <View style={[styles.formSheet, { backgroundColor: colors.background }]}>
@@ -1101,4 +1195,29 @@ const styles = StyleSheet.create({
   shoppingName: { fontFamily: 'Inter_500Medium', fontSize: 12 },
   shoppingDays: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 1 },
   shoppingQuantity: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  // Plan type card (compact, shown above generate button)
+  planTypeCard: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, borderRadius: 18, borderWidth: 1, marginBottom: 10 },
+  planTypeCardIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  planTypeCardCopy: { flex: 1 },
+  planTypeCardEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 1.2, marginBottom: 2 },
+  planTypeCardLabel: { fontFamily: 'Inter_700Bold', fontSize: 14, lineHeight: 18 },
+  planTypeCardSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 14, marginTop: 1 },
+  planTypeChangeButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1 },
+  planTypeChangeText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  planTypeEmptyCard: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, borderRadius: 18, borderWidth: 1, marginBottom: 10 },
+  planTypeEmptyIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  // Plan type selector modal (bottom sheet)
+  planTypeSheet: { maxHeight: '88%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
+  planTypeSheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 },
+  planTypeSheetEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.3, marginBottom: 3 },
+  planTypeSheetTitle: { fontFamily: 'Inter_700Bold', fontSize: 20 },
+  planTypeSheetSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginBottom: 14 },
+  planTypeList: { gap: 9, paddingBottom: 28 },
+  planTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, borderRadius: 18, borderWidth: 1 },
+  planTypeRowIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  planTypeRowCopy: { flex: 1 },
+  planTypeRowLabel: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  planTypeRowSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 15, marginTop: 2 },
+  planTypeRowDesc: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 14, marginTop: 5 },
+  planTypeCheck: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
 });

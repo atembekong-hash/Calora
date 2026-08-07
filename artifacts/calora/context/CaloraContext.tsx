@@ -52,6 +52,7 @@ import {
   type LivingMemory,
 } from '@/lib/livingMemory';
 import type { PlannerAck } from '@/lib/plannerAck';
+export type { PlannerPreferences, PlanTypeId } from '@/lib/planType';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 export type Goal = 'lose' | 'maintain' | 'gain';
@@ -163,6 +164,8 @@ type CaloraState = {
   livingMemory?: LivingMemory;
   /** The target weight (kg) for which the goal-reached celebration has already been shown. Prevents repeat on reload. */
   goalCelebrationSeenTargetKg?: number;
+  /** Persisted planner plan-type preferences. null means the user has not yet selected a plan type. */
+  plannerPreferences?: import('@/lib/planType').PlannerPreferences | null;
 };
 
 type CaloraContextValue = {
@@ -247,6 +250,8 @@ type CaloraContextValue = {
   markGoalCelebrationSeen: (targetKg: number) => void;
   plannerWeekStart: string;
   plannerMeals: PlannerMeal[];
+  plannerPreferences: import('@/lib/planType').PlannerPreferences | null;
+  setPlannerPreferences: (prefs: import('@/lib/planType').PlannerPreferences | null) => void;
   shoppingItems: ShoppingItem[];
   foodDrafts: FoodMemoryDraft[];
   foodMemories: AcceptedFoodMemory[];
@@ -377,6 +382,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [coachConsentAccepted, setCoachConsentAccepted] = useState(false);
   const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([]);
   const [goalCelebrationSeenTargetKg, setGoalCelebrationSeenTargetKg] = useState<number | null>(null);
+  const [plannerPreferences, setPlannerPreferencesState] = useState<import('@/lib/planType').PlannerPreferences | null>(null);
   const [livingMemory, setLivingMemory] = useState<LivingMemory>(() => buildLivingMemory({
     logs: starterLogs,
     waterLogs: {},
@@ -439,6 +445,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      if (saved.coachConsentAccepted !== undefined) setCoachConsentAccepted(saved.coachConsentAccepted);
      if (saved.coachMessages) setCoachMessages(saved.coachMessages);
      if (saved.goalCelebrationSeenTargetKg !== undefined) setGoalCelebrationSeenTargetKg(saved.goalCelebrationSeenTargetKg ?? null);
+     if (saved.plannerPreferences !== undefined) setPlannerPreferencesState(saved.plannerPreferences ?? null);
   });
 
   useEffect(() => {
@@ -474,9 +481,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       coachMessages,
       livingMemory,
       goalCelebrationSeenTargetKg: goalCelebrationSeenTargetKg ?? undefined,
+      plannerPreferences: plannerPreferences ?? undefined,
     };
      enqueueAutosave(pm.current, state);
-  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -524,6 +532,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     pendingMutations: outbox,
     plannerWeekStart,
     plannerMeals,
+    plannerPreferences,
+    setPlannerPreferences: (prefs) => {
+      setPlannerPreferencesState(prefs);
+    },
     shoppingItems,
     foodDrafts,
     foodMemories: rememberedFoodMemories,
@@ -802,6 +814,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         setRecipeSlotTarget,
         setPendingUndoSwap,
         setPendingPlannerAck,
+        setPlannerPreferences: setPlannerPreferencesState,
         setPlannerMeals: setPlannerMealsState,
         setShoppingItems,
         setFoodDrafts,
@@ -890,7 +903,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      setPendingPlannerAck,
      goalCelebrationSeenTargetKg,
      markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
-     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

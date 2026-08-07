@@ -430,6 +430,7 @@ function makeSpyCtx(pm: PersistenceManager): {
     setRecipeSlotTarget:            spy('recipeSlotTarget'),
     setPendingUndoSwap:             spy('pendingUndoSwap'),
     setPendingPlannerAck:           spy('pendingPlannerAck'),
+    setPlannerPreferences:          spy('plannerPreferences'),
   };
   return { ctx, captured };
 }

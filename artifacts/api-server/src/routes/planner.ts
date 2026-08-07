@@ -240,8 +240,30 @@ router.post("/v1/planner/generate", async (req, res) => {
 
   const weekStart = parsed.data.weekStart.toISOString().slice(0, 10);
   const profile = parsed.data.profile;
+  const planType = parsed.data.planType ?? null;
   const available = catalog.filter((meal) => meal.diets.includes(profile.diet) || profile.diet === "Everything");
-  const catalogPrompt = available.map((meal) => `${meal.id}: ${meal.name} (${meal.meal}, ${meal.calories} kcal, ${meal.proteinG}g protein)`).join("\n");
+  const catalogPrompt = available.map((meal) => `${meal.id}: ${meal.name} (${meal.meal}, ${meal.calories} kcal, ${meal.proteinG}g protein, ${meal.carbsG}g carbs, ${meal.fatG}g fat, ${meal.prepMinutes} min prep)`).join("\n");
+
+  // Plan-type-specific AI guidance — each entry maps a plan type id to
+  // a targeted instruction that steers meal selection from the catalog.
+  const PLAN_TYPE_PROMPTS: Record<string, string> = {
+    "balanced-nutrition": "Prioritise balanced macronutrients across all meals. Vary protein sources, include plenty of vegetables, and distribute carbohydrates evenly. Maximise variety across the week.",
+    "high-protein-power": "Maximise protein in every meal and snack. Strongly prefer the highest-protein options in the catalog. Target at least 35–40% of calories from protein across the week.",
+    "low-carb-living": "Minimise carbohydrate-heavy meals. Avoid meals where pasta, oats, or rice is the primary ingredient wherever alternatives exist. Favour protein and fat-forward meals with non-starchy vegetables.",
+    "mediterranean-diet": "Select meals inspired by Mediterranean eating: fish, legumes, whole grains, and abundant colourful vegetables. Limit red meat. Prioritise variety and colour across the week.",
+    "plant-based-week": "Select only vegetarian or vegan meals from the catalog. Prioritise plant protein sources such as legumes, tofu, and nuts. Ensure adequate protein across the week with no meat or fish.",
+    "keto-kickstart": "Prioritise the lowest-carbohydrate meals available. Strongly avoid grain- or starch-based meals. Favour high-fat, moderate-protein options across the entire week.",
+    "intermittent-fasting": "Structure meals to support an intermittent fasting eating window. Keep breakfast lighter and lower in calories. Concentrate more nutrition in lunch and dinner. Snacks should be protein-forward and satisfying.",
+    "budget-friendly": "Prioritise cost-effective meals using affordable, widely available ingredients: eggs, lentils, oats, beans, and vegetables. Minimise expensive proteins. Favour simple recipes that reduce waste.",
+    "quick-and-easy": "Prioritise the meals with the shortest preparation times in the catalog. Avoid anything complex or time-consuming. Every meal should be achievable in 20 minutes or less.",
+    "athletic-performance": "Optimise for athletic performance. Prioritise higher-calorie, higher-protein meals with adequate carbohydrates for sustained energy. Support both pre- and post-workout nutrition across the week.",
+    "anti-inflammatory": "Select meals rich in anti-inflammatory foods: fatty fish, berries, leafy greens, nuts, seeds, and colourful vegetables. Minimise processed or heavily fried options. Emphasise variety and colour.",
+    "healthy-habits-week": "Create a simple, balanced week of whole-food meals. Prioritise familiar, easy-to-eat foods from across all food groups. Avoid extremes in any macro. This is about building sustainable habits with nourishing, approachable meals.",
+  };
+
+  const planTypeInstruction = planType && PLAN_TYPE_PROMPTS[planType]
+    ? `Plan type: ${planType}. Specific guidance: ${PLAN_TYPE_PROMPTS[planType]}`
+    : "Balance variety, protein, vegetables, and realistic preparation.";
 
   try {
     const completion = await openai.chat.completions.create({
@@ -255,9 +277,10 @@ router.post("/v1/planner/generate", async (req, res) => {
             "You are Calora's weekly meal planner.",
             "Select meals only from the supplied catalog. Return JSON only.",
             "Return { days: [{ breakfast: id, lunch: id, dinner: id, snack: id }] } with exactly 7 day objects.",
-            "Balance variety, protein, vegetables, and realistic preparation. Match the calorie target without making medical claims.",
-            `Goal: ${profile.goal}; activity: ${profile.activity}; diet: ${profile.diet}; daily calorie target: ${profile.calorieTarget}.`,
-            "Catalog:",
+            "Match the calorie target without making medical claims. Do not repeat the same meal on consecutive days.",
+            `User profile — Goal: ${profile.goal}; activity: ${profile.activity}; diet: ${profile.diet}; daily calorie target: ${profile.calorieTarget} kcal.`,
+            planTypeInstruction,
+            "Catalog (id: name, type, calories, protein, carbs, fat, prep time):",
             catalogPrompt,
           ].join("\n"),
         },

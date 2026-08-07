@@ -496,6 +496,8 @@ export interface PlannerProfile {
 export interface PlannerGenerateInput {
   weekStart: string;
   profile: PlannerProfile;
+  /** The selected plan type id (e.g. 'balanced-nutrition', 'high-protein-power'). Optional for backward compatibility. */
+  planType?: string;
 }
 
 export type PlannerMealMeal = typeof PlannerMealMeal[keyof typeof PlannerMealMeal];
