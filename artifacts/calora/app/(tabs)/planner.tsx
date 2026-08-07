@@ -161,6 +161,7 @@ export default function PlannerScreen() {
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [undoMeal, setUndoMeal] = useState<PlannerMeal | null>(null);
+  const [undoMoveMeal, setUndoMoveMeal] = useState<{ mealId: string; originalDay: string; mealName: string } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const plannerReviewDraft = plannerReviewDraftId ? (foodDrafts.find((d) => d.id === plannerReviewDraftId) ?? null) : null;
@@ -279,6 +280,8 @@ export default function PlannerScreen() {
     updatePlannerMeals(plannerMeals.filter((item) => item.id !== meal.id));
     setActionMeal(null);
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    // Clear any move-undo so only one undo affordance is active
+    setUndoMoveMeal(null);
     setUndoMeal(meal);
     undoTimerRef.current = setTimeout(() => {
       setUndoMeal(null);
@@ -297,10 +300,32 @@ export default function PlannerScreen() {
 
   const moveOrCopyMeal = (day: string, copy: boolean) => {
     if (!actionMeal) return;
+    if (!copy) {
+      // Capture original day before the move so user can undo
+      const originalDay = actionMeal.day;
+      const mealId = actionMeal.id;
+      const mealName = actionMeal.name;
+      // Clear any remove-undo so only one undo affordance is active
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      setUndoMeal(null);
+      setUndoMoveMeal({ mealId, originalDay, mealName });
+      undoTimerRef.current = setTimeout(() => {
+        setUndoMoveMeal(null);
+        undoTimerRef.current = null;
+      }, 6000);
+    }
     movePlannerMeal(actionMeal.id, day, copy);
     setActionMeal(null);
     setActionMode(null);
-    acknowledge(copy ? `${actionMeal.name} copied to ${dayFormatter.format(parseDate(day))}.` : `${actionMeal.name} moved to ${dayFormatter.format(parseDate(day))}.`);
+    acknowledge(copy ? `${actionMeal.name} copied to ${dayFormatter.format(parseDate(day))}.` : `${actionMeal.name} moved to ${dayFormatter.format(parseDate(day))}.`, copy ? 2600 : 6000);
+  };
+
+  const undoMove = () => {
+    if (!undoMoveMeal) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    movePlannerMeal(undoMoveMeal.mealId, undoMoveMeal.originalDay, false);
+    acknowledge(`${undoMoveMeal.mealName} moved back to ${dayFormatter.format(parseDate(undoMoveMeal.originalDay))}.`);
+    setUndoMoveMeal(null);
   };
 
   const generate = async () => {
@@ -433,7 +458,7 @@ export default function PlannerScreen() {
         <View style={[styles.tipCard, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.tipText, { color: colors.foreground }]}>Planning is a suggestion, not a promise. Swap anything that does not fit your day.</Text></View>
          <SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} />
       </ScrollView>
-       <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undefined} countdownDuration={undoMeal ? 6000 : undefined} />
+       <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal || undoMoveMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undoMoveMeal ? undoMove : undefined} countdownDuration={undoMeal || undoMoveMeal ? 6000 : undefined} />
       <Modal visible={detail !== null} transparent animationType="slide" onRequestClose={() => { dismissPlannerReview(); setDetail(null); }}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.detailSheet, { backgroundColor: colors.background }]}>
