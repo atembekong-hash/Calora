@@ -433,7 +433,7 @@ export default function ProfileScreen() {
                 <View style={styles.mealReminderRow}>
                   <View style={[styles.reminderTimeIcon, { backgroundColor: meal.iconBg }]}><Feather name={meal.icon} size={14} color={meal.iconColor} /></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.settingTitle, { color: colors.foreground }]}>{meal.label}</Text>
+                    <Text style={[styles.settingTitle, { color: colors.foreground }]} numberOfLines={1}>{meal.label}</Text>
                     <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
                       {enabled ? formatTime(time.hour, time.minute) : 'Off'}
                     </Text>
@@ -470,7 +470,7 @@ export default function ProfileScreen() {
         <View style={[styles.reminderToggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.settingIcon, { backgroundColor: '#e8f5e9' }]}><Feather name="target" size={17} color="#4caf7d" /></View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.settingTitle, { color: colors.foreground }]}>Daily goal check-in</Text>
+            <Text style={[styles.settingTitle, { color: colors.foreground }]} numberOfLines={1}>Daily goal check-in</Text>
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
               {goalReminder.enabled
                 ? goalReminderStatus === 'denied' ? 'Permission required in device settings'
