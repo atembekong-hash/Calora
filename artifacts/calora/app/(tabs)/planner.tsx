@@ -608,6 +608,21 @@ export default function PlannerScreen() {
              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.catalogList}>
                {plannerCatalog.filter((meal) => meal.meal === replaceMeal?.meal && meal.id !== replaceMeal?.id).map((meal) => <Pressable key={meal.id} accessibilityLabel={`Replace with ${meal.name}`} onPress={() => replaceMeal && replaceMealInPlan(meal, replaceMeal)} style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: meal.image }} contentFit="cover" style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="arrow-right" size={18} color={colors.primary} /></Pressable>)}
              </ScrollView>
+             <Pressable
+               accessibilityLabel={`Browse recipes to replace ${replaceMeal?.name ?? 'meal'}`}
+               onPress={() => {
+                 if (!replaceMeal) return;
+                 setRecipeSlotTarget({ day: replaceMeal.day, mealType: replaceMeal.meal });
+                 setReplaceMeal(null);
+                 setActionMeal(null);
+                 router.push('/(tabs)/recipes');
+               }}
+               style={[styles.browseRecipesButton, { backgroundColor: colors.accent }]}
+             >
+               <Feather name="book-open" size={15} color={colors.accentForeground} />
+               <Text style={[styles.browseRecipesText, { color: colors.accentForeground }]}>Browse recipes</Text>
+             </Pressable>
+             <Pressable accessibilityLabel="Cancel replace meal" onPress={() => setReplaceMeal(null)} style={styles.leaveOpenButton}><Text style={[styles.leaveOpenText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
            </View>
          </View>
        </Modal>
