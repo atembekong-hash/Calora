@@ -22,6 +22,12 @@ import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { trustScore } from '@/lib/weeklySignals';
 import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
+import {
+  clearWaterConfirmation,
+  getWaterConfirmationRemaining,
+  isWaterConfirmed,
+  recordWaterConfirmation,
+} from '@/lib/waterConfirmation';
 
 const dateKey = (date: Date) => {
   const year = date.getFullYear();
@@ -565,12 +571,42 @@ export default function HomeScreen() {
     } else if (effect.kind === 'add_water') {
       addWater(selectedDate, effect.ounces);
       setSaveNotice('Water check-in added for this day.');
+      recordWaterConfirmation();
       setWaterConfirmed(true);
-      setTimeout(() => setWaterConfirmed(false), 1500);
     } else {
       router.navigate(effect.route as Parameters<typeof router.navigate>[0]);
     }
   };
+
+  // On mount: if the module-level deadline is still in the future (e.g. the
+  // user switched tabs and returned within the 1.5 s window), restore the
+  // confirmed state immediately. Module-level state survives unmount/remount,
+  // so this is the correct place to check it.
+  useEffect(() => {
+    if (isWaterConfirmed()) {
+      setWaterConfirmed(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Whenever the confirmed state flips to true, schedule a timer for however
+  // much of the 1.5 s window remains. This handles both the initial tap (full
+  // window) and remount restoration (partial window), and survives re-renders
+  // during the countdown because clearTimeout is called on cleanup.
+  useEffect(() => {
+    if (!waterConfirmed) return;
+    const remaining = getWaterConfirmationRemaining();
+    if (remaining === 0) {
+      setWaterConfirmed(false);
+      clearWaterConfirmation();
+      return;
+    }
+    const id = setTimeout(() => {
+      setWaterConfirmed(false);
+      clearWaterConfirmation();
+    }, remaining);
+    return () => clearTimeout(id);
+  }, [waterConfirmed]);
 
   const livingActionIcon = livingState.action.kind === 'add_water'
     ? 'droplet'
