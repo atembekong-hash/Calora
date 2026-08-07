@@ -163,7 +163,7 @@ export default function PlannerScreen() {
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [undoMeal, setUndoMeal] = useState<PlannerMeal | null>(null);
-  const [undoMoveMeal, setUndoMoveMeal] = useState<{ mealId: string; originalDay: string; mealName: string } | null>(null);
+  const [undoMoveMeal, setUndoMoveMeal] = useState<{ mealId: string; originalDay: string; mealName: string; displacedMeal?: PlannerMeal } | null>(null);
   const [undoSwapMeal, setUndoSwapMeal] = useState<{ newMeal: PlannerMeal; originalMeal: PlannerMeal } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -363,11 +363,16 @@ export default function PlannerScreen() {
       const originalDay = actionMeal.day;
       const mealId = actionMeal.id;
       const mealName = actionMeal.name;
+      // Capture any existing meal occupying the destination slot (same meal type)
+      // so undo can restore it rather than orphaning it.
+      const displacedMeal = plannerMeals.find(
+        (m) => m.day === day && m.meal === actionMeal.meal && m.id !== actionMeal.id,
+      );
       // Clear any remove-undo or swap-undo so only one undo affordance is active
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       setUndoMeal(null);
       setUndoSwapMeal(null);
-      setUndoMoveMeal({ mealId, originalDay, mealName });
+      setUndoMoveMeal({ mealId, originalDay, mealName, displacedMeal });
       undoTimerRef.current = setTimeout(() => {
         setUndoMoveMeal(null);
         undoTimerRef.current = null;
@@ -382,7 +387,27 @@ export default function PlannerScreen() {
   const undoMove = () => {
     if (!undoMoveMeal) return;
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    movePlannerMeal(undoMoveMeal.mealId, undoMoveMeal.originalDay, false);
+    const movedMeal = plannerMeals.find((m) => m.id === undoMoveMeal.mealId);
+    if (movedMeal) {
+      // Move the meal back to its original slot, clearing anything that may now
+      // occupy that slot (safety deduplication).
+      let next = plannerMeals.filter(
+        (m) => m.id !== undoMoveMeal.mealId && !(m.day === undoMoveMeal.originalDay && m.meal === movedMeal.meal),
+      );
+      next = [...next, { ...movedMeal, day: undoMoveMeal.originalDay }];
+      // Restore the displaced meal (if any) to the destination slot it was
+      // bumped from, removing anything that may now be in that position.
+      if (undoMoveMeal.displacedMeal) {
+        const { displacedMeal } = undoMoveMeal;
+        next = [
+          ...next.filter((m) => !(m.day === movedMeal.day && m.meal === displacedMeal.meal)),
+          displacedMeal,
+        ];
+      }
+      updatePlannerMeals(next);
+    } else {
+      // Meal was removed during the undo window — nothing to restore.
+    }
     acknowledge(`${undoMoveMeal.mealName} moved back to ${dayFormatter.format(parseDate(undoMoveMeal.originalDay))}.`);
     setUndoMoveMeal(null);
   };

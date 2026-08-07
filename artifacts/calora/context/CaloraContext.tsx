@@ -816,9 +816,18 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     movePlannerMeal: (mealId, day, copy) => {
       const existing = plannerMeals.find((meal) => meal.id === mealId);
       if (!existing) return;
+      // Always deduplicate: remove any existing meal occupying the destination slot
+      // before placing the moved/copied meal there. This prevents two meals of the
+      // same type appearing in the same (day, mealType) slot.
       const next = copy
-        ? [...plannerMeals, { ...existing, id: makeId('planned'), day }]
-        : plannerMeals.map((meal) => meal.id === mealId ? { ...meal, day } : meal);
+        ? [
+            ...plannerMeals.filter((meal) => !(meal.day === day && meal.meal === existing.meal)),
+            { ...existing, id: makeId('planned'), day },
+          ]
+        : [
+            ...plannerMeals.filter((meal) => meal.id !== mealId && !(meal.day === day && meal.meal === existing.meal)),
+            { ...existing, day },
+          ];
       setPlannerMealsState(next);
       setShoppingItems(buildShoppingItems(next, new Map(shoppingItems.map((item) => [item.name, item.checked]))));
       setLivingMemory((current) => replacePlannerObservations(current, next));
