@@ -239,6 +239,8 @@ type CaloraContextValue = {
   clearAllData: () => Promise<void>;
   isClearing: boolean;
   retryHydration: () => void;
+  /** True while a retry read is in flight — drives disabled/loading state on the error screen's 'Try Again' button. */
+  isRetrying: boolean;
   /** The target weight (kg) for which the goal celebration was already displayed. Null means it hasn't been shown yet. */
   goalCelebrationSeenTargetKg: number | null;
   /** Call once when the celebration banner is first shown so it won't appear again on reload. */
@@ -400,7 +402,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [pendingUndoSwap, setPendingUndoSwap] = useState<{ newMeal: PlannerMeal; originalMeal: PlannerMeal } | null>(null);
   const [pendingPlannerAck, setPendingPlannerAck] = useState<PlannerAck | null>(null);
 
-  const { hydrated, hydrationError, hydrationErrorKind, retryHydration } = useHydrationEffect<Partial<CaloraState>>(pm, (saved) => {
+  const { hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying } = useHydrationEffect<Partial<CaloraState>>(pm, (saved) => {
     if (!saved) return;
     if (saved.onboardingComplete !== undefined) setOnboardingComplete(saved.onboardingComplete);
     if (saved.profile) setProfile(saved.profile);
@@ -831,6 +833,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
      isClearing,
      retryHydration,
+     isRetrying,
     setPlannerMeals: (weekStart, meals) => {
       const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
       setPlannerWeekStart(weekStart);
@@ -887,7 +890,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      setPendingPlannerAck,
      goalCelebrationSeenTargetKg,
      markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
-     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

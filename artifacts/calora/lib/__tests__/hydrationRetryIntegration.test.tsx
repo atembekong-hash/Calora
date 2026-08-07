@@ -5,13 +5,16 @@
  * CaloraContext uses.  They exercise the full React effect lifecycle using
  * renderHook and a controllable PersistenceManager (in-memory adapter).
  *
- * The critical invariant under test:
- *   After retryHydration() fires, `hydrationError` is null immediately
- *   (synchronously, before any effect runs) and stays null throughout the
- *   success branch of the effect.  The parse-error screen in app/index.tsx
- *   guards on `if (hydrationError)` — so as long as this value is null at
- *   every render, the screen cannot reappear, even if a stale render fires
- *   mid-effect.
+ * Critical invariants under test:
+ *   1. After retryHydration() fires, `isRetrying` is true immediately
+ *      (synchronously).  The previous `hydrationError` value is deliberately
+ *      preserved so the error screen stays mounted with its spinner visible.
+ *   2. `hydrationError` and `hydrationErrorKind` are cleared only once the
+ *      retry read succeeds (in .then()), not before.  This prevents the error
+ *      screen from being unmounted and replaced by the generic loading screen
+ *      for the full duration of the retry read.
+ *   3. After the retry read settles (success or failure), `isRetrying` returns
+ *      to false so the button re-enables for a subsequent attempt.
  *
  * @vitest-environment jsdom
  */
@@ -105,20 +108,22 @@ describe('useHydrationEffect (production hook) — parse-error screen stays hidd
     expect(handle.result.current.hydrated).toBe(true);
   });
 
-  it('retryHydration clears hydrationError to null SYNCHRONOUSLY — the error screen disappears before any effect runs', async () => {
-    // This is the core fix for the stale-render race:
-    //   retryHydration() now calls setHydrationError(null) alongside
-    //   setHydrationErrorKind(null), so the very next React render (which fires
-    //   before the useEffect for the incremented hydrationAttempt runs) already
-    //   sees hydrationError as null.
+  it('retryHydration sets isRetrying=true SYNCHRONOUSLY — the error screen stays mounted with its spinner visible', async () => {
+    // New invariant (replacing the old eager-clear approach):
+    //   retryHydration() sets isRetrying=true immediately so the error
+    //   screen's 'Try Again' button can show a spinner.  hydrationError is
+    //   NOT cleared at this point — it is preserved so the error screen
+    //   stays mounted rather than being replaced by the generic loading screen.
+    //   hydrationError is only cleared once the retry read succeeds (in .then()).
     //
-    // The assertion here is made INSIDE the act() call, with only the synchronous
-    // state updates committed — no timer flush, no effect run.
+    // The assertion here is made with only synchronous state updates committed —
+    // no timer flush, no effect run.
     const storage = makeControllableStorage({ [STORAGE_KEY]: '{corrupt-json}' });
     const { handle } = await renderAndAwaitHydration(storage);
 
     // Baseline: error screen is currently shown.
     expect(handle.result.current.hydrationError).not.toBeNull();
+    expect(handle.result.current.isRetrying).toBe(false);
 
     // Repair storage so the subsequent read (when the effect runs) will succeed.
     storage.store[STORAGE_KEY] = JSON.stringify({ onboardingComplete: true });
@@ -132,15 +137,14 @@ describe('useHydrationEffect (production hook) — parse-error screen stays hidd
     // for the new hydrationAttempt runs.
     act(() => { handle.result.current.retryHydration(); });
 
-    // SYNCHRONOUS assertion — hydrationError must be null RIGHT NOW, before
-    // any effect or timer runs. This is the invariant that closes the stale-
-    // render race: the next render after retryHydration() must not show the
-    // error screen, regardless of when the effect fires.
-    expect(handle.result.current.hydrationError).toBeNull();
-    expect(handle.result.current.hydrationErrorKind).toBeNull();
-    expect(handle.result.current.hydrated).toBe(false);
+    // SYNCHRONOUS assertion — isRetrying must be true RIGHT NOW, signalling
+    // the spinner on the 'Try Again' button.  hydrationError stays set so the
+    // error screen remains mounted (not replaced by the generic loading screen).
+    expect(handle.result.current.isRetrying).toBe(true);
+    expect(handle.result.current.hydrationError).not.toBeNull(); // preserved — error screen stays visible
+    expect(handle.result.current.hydrationErrorKind).not.toBeNull(); // preserved
 
-    // Verify shouldAutosave also blocks writes in this synchronous window.
+    // Verify shouldAutosave still blocks writes (error is set, so gate is closed).
     expect(shouldAutosave({
       hydrated: handle.result.current.hydrated,
       error: handle.result.current.hydrationError,
@@ -151,12 +155,19 @@ describe('useHydrationEffect (production hook) — parse-error screen stays hidd
     await act(async () => {
       await new Promise<void>((res) => setTimeout(res, 0));
     });
+
+    // After successful completion: isRetrying resets, error clears.
+    expect(handle.result.current.isRetrying).toBe(false);
+    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrated).toBe(true);
   });
 
-  it('successful retry ends with hydrationError=null and hydrated=true — error screen stays hidden throughout', async () => {
+  it('successful retry ends with hydrationError=null and hydrated=true — error clears once the read settles', async () => {
     // Full lifecycle: corrupt → parse error shown → retry with valid storage → clean.
-    // Asserts the error screen guard (hydrationError) is null both during the
-    // retry window and after successful completion.
+    // Asserts:
+    //   - isRetrying is true while the retry read is in flight
+    //   - hydrationError is cleared only after the read succeeds (in .then())
+    //   - after completion: hydrationError=null, hydrated=true, isRetrying=false
     const storage = makeControllableStorage({ [STORAGE_KEY]: '{{not-valid-json' });
     const { handle, getSuccessPayload } = await renderAndAwaitHydration(storage);
 
@@ -171,7 +182,9 @@ describe('useHydrationEffect (production hook) — parse-error screen stays hidd
 
     // Synchronous assertion immediately after retry fires.
     act(() => { handle.result.current.retryHydration(); });
-    expect(handle.result.current.hydrationError).toBeNull(); // error screen hidden immediately
+    // isRetrying is true immediately; hydrationError preserved so spinner is visible.
+    expect(handle.result.current.isRetrying).toBe(true);
+    expect(handle.result.current.hydrationError).not.toBeNull(); // still set — error screen stays mounted
 
     // Release and let retry complete.
     release();
@@ -179,7 +192,8 @@ describe('useHydrationEffect (production hook) — parse-error screen stays hidd
       await new Promise<void>((res) => setTimeout(res, 0));
     });
 
-    // Final state: error screen guard is still null — never re-set by success branch.
+    // Final state: error cleared by the success branch, retry flag reset.
+    expect(handle.result.current.isRetrying).toBe(false);
     expect(handle.result.current.hydrationError).toBeNull();
     expect(handle.result.current.hydrationErrorKind).toBeNull();
     expect(handle.result.current.hydrated).toBe(true);
@@ -196,17 +210,32 @@ describe('useHydrationEffect (production hook) — parse-error screen stays hidd
     })).toBe(true);
   });
 
-  it('no render ever observes a truthy hydrationError after retryHydration — captured across all renders', async () => {
-    // Captures every render's hydrationError value. After retryHydration() fires,
-    // all subsequent renders must see null — the error screen must be absent from
-    // the first post-retry render onwards, even during the async read window.
+  it('isRetrying is true at every render during the retry window — captured across all renders', async () => {
+    // Captures every render's isRetrying value. After retryHydration() fires,
+    // all renders during the async read window must see isRetrying=true — this
+    // is what keeps the error screen mounted with its spinner.
+    // hydrationError intentionally stays non-null throughout the retry read so
+    // the error screen does not unmount; it is only cleared by the success branch.
     const storage = makeControllableStorage({ [STORAGE_KEY]: 'CORRUPTED' });
-    const { handle, renderedErrors } = await renderAndAwaitHydration(storage);
 
-    // At this point: initial renders saw null (loading), then the error, then truthy.
-    // Find the index of the last render where error was non-null (the parse-error baseline).
-    const baselineErrorIndex = renderedErrors.length - 1;
-    expect(renderedErrors[baselineErrorIndex]).not.toBeNull();
+    const renderedIsRetrying: boolean[] = [];
+    const pm = new PersistenceManager(storage, STORAGE_KEY);
+    const handle = renderHook(() => {
+      const pmRef = useRef(pm);
+      const result = useHydrationEffect<Record<string, unknown>>(pmRef, () => {});
+      renderedIsRetrying.push(result.isRetrying);
+      return result;
+    });
+
+    // Wait for initial hydration.
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    // Baseline: parse error shown, isRetrying = false.
+    expect(handle.result.current.hydrationError).not.toBeNull();
+    expect(handle.result.current.isRetrying).toBe(false);
+    const baselineIndex = renderedIsRetrying.length - 1;
 
     // Repair storage and block the retry read.
     storage.store[STORAGE_KEY] = JSON.stringify({ onboardingComplete: false });
@@ -215,23 +244,25 @@ describe('useHydrationEffect (production hook) — parse-error screen stays hidd
     // Trigger retry.
     act(() => { handle.result.current.retryHydration(); });
 
-    // All renders after the baseline must have hydrationError = null.
-    const postRetryErrors = renderedErrors.slice(baselineErrorIndex + 1);
-    expect(postRetryErrors.length).toBeGreaterThan(0); // at least one post-retry render
-    for (const err of postRetryErrors) {
-      expect(err).toBeNull(); // no post-retry render shows the error screen
+    // All renders after the baseline (while read is still in-flight) must
+    // have isRetrying = true — the spinner stays on the 'Try Again' button.
+    const inFlightIsRetrying = renderedIsRetrying.slice(baselineIndex + 1);
+    expect(inFlightIsRetrying.length).toBeGreaterThan(0);
+    for (const r of inFlightIsRetrying) {
+      expect(r).toBe(true);
     }
 
-    // Complete the retry and assert final state.
+    // Complete the retry.
     release();
     await act(async () => {
       await new Promise<void>((res) => setTimeout(res, 0));
     });
 
-    // Final render also has null error.
-    const lastError = renderedErrors[renderedErrors.length - 1];
-    expect(lastError).toBeNull();
+    // After settlement: isRetrying resets to false, error cleared, hydrated.
+    expect(handle.result.current.isRetrying).toBe(false);
+    expect(handle.result.current.hydrationError).toBeNull();
     expect(handle.result.current.hydrated).toBe(true);
+    expect(renderedIsRetrying[renderedIsRetrying.length - 1]).toBe(false);
   });
 
   it('shouldAutosave is false at every intermediate step — no autosave fires into the recovery window', async () => {
@@ -429,9 +460,11 @@ describe('useHydrationEffect — duplicate-retry guard blocks a second tap while
     // First 'Try Again' tap — starts the retry read (blocked).
     act(() => { handle.result.current.retryHydration(); });
 
-    // The first tap reset hydrationError synchronously (guard: error cleared
-    // before effect runs) and the read is now in-flight.
-    expect(handle.result.current.hydrationError).toBeNull();
+    // The first tap set isRetrying=true and preserved hydrationError so the
+    // error screen stays mounted with its spinner.  The effect ran (inside act)
+    // and set hydrated=false to gate onboarding.  The read is now in-flight.
+    expect(handle.result.current.isRetrying).toBe(true);
+    expect(handle.result.current.hydrationError).not.toBeNull(); // preserved — spinner visible
     expect(handle.result.current.hydrated).toBe(false);
 
     // Second 'Try Again' tap — must be a no-op: readInFlight is true.
@@ -507,30 +540,32 @@ describe('useHydrationEffect — duplicate-retry guard blocks a second tap while
     expect(handle.result.current.hydrationError).toBeNull();
   });
 
-  it('the second tap leaves hydrationError null — the error screen does not re-appear when the guard drops the call', async () => {
-    // Guards a subtle secondary invariant: retryHydration always clears
-    // hydrationError eagerly (synchronously) before checking the in-flight
-    // guard.  This means the second tap still benefits from the synchronous
-    // clear — but because setHydrationAttempt is never called, no second read
-    // is queued.  The error screen stays hidden after the first tap, and the
-    // dropped second tap does not reset any other state.
+  it('the second tap is a no-op — isRetrying stays true and hydrationError stays visible while the first read is in flight', async () => {
+    // Guards the guard behaviour for the new spinner-based approach:
+    //   - First tap: sets isRetrying=true, preserves hydrationError (error screen
+    //     stays mounted with spinner), starts the read.
+    //   - Second tap: guard drops it (readInFlight is true); isRetrying stays true,
+    //     hydrationError stays set — no additional read is queued.
+    // After the first read completes, both clear normally.
     const storage = makeControllableStorage({ [STORAGE_KEY]: '{corrupt-json}' });
     const { handle } = await renderAndAwaitHydration(storage);
 
     expect(handle.result.current.hydrationError).not.toBeNull();
+    expect(handle.result.current.isRetrying).toBe(false);
 
     storage.store[STORAGE_KEY] = JSON.stringify({ onboardingComplete: true });
     const release = storage.blockNextGetItem();
 
-    // First tap: starts the in-flight read, clears hydrationError.
+    // First tap: sets isRetrying=true, starts the in-flight read.
     act(() => { handle.result.current.retryHydration(); });
-    expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.isRetrying).toBe(true);
+    expect(handle.result.current.hydrationError).not.toBeNull(); // preserved
 
     // Second tap while first is in flight: guard drops it.
-    // hydrationError must remain null — the guard must not restore the old error.
+    // isRetrying must remain true (still in-flight), hydrationError preserved.
     act(() => { handle.result.current.retryHydration(); });
-    expect(handle.result.current.hydrationError).toBeNull();
-    expect(handle.result.current.hydrationErrorKind).toBeNull();
+    expect(handle.result.current.isRetrying).toBe(true);
+    expect(handle.result.current.hydrationError).not.toBeNull(); // still preserved
 
     // Complete the first retry.
     release();
@@ -538,9 +573,11 @@ describe('useHydrationEffect — duplicate-retry guard blocks a second tap while
       await new Promise<void>((res) => setTimeout(res, 0));
     });
 
-    // Final state is clean.
+    // Final state: retry complete, error cleared, flag reset.
     expect(handle.result.current.hydrated).toBe(true);
+    expect(handle.result.current.isRetrying).toBe(false);
     expect(handle.result.current.hydrationError).toBeNull();
+    expect(handle.result.current.hydrationErrorKind).toBeNull();
   });
 });
 
@@ -760,15 +797,16 @@ describe('useHydrationEffect (production hook) — I/O error retry re-runs the s
     storage.repair();
 
     // Phase 2 — user taps 'Try Again'.
-    // retryHydration() must synchronously clear hydrationError and hydrationErrorKind
-    // before any effect runs, then increment hydrationAttempt to re-trigger the effect.
+    // retryHydration() sets isRetrying=true immediately and preserves hydrationError
+    // so the error screen stays mounted with its spinner for the full retry duration.
+    // The effect runs (inside act) and sets hydrated=false.
     act(() => { handle.result.current.retryHydration(); });
 
-    // Synchronous assertions: error state cleared immediately on tap, before the
-    // effect runs — closes the stale-render race where the error screen would
-    // re-appear between the tap and the new read completing.
-    expect(handle.result.current.hydrationError).toBeNull();
-    expect(handle.result.current.hydrationErrorKind).toBeNull();
+    // Synchronous assertions: isRetrying is true, hydrationError is preserved (not
+    // cleared), hydrated is false (set by the effect that ran inside act).
+    expect(handle.result.current.isRetrying).toBe(true);
+    expect(handle.result.current.hydrationError).not.toBeNull(); // preserved — spinner visible
+    expect(handle.result.current.hydrationErrorKind).toBe('io'); // preserved
     expect(handle.result.current.hydrated).toBe(false);
 
     // Phase 3 — let the retry effect run to completion.
@@ -788,19 +826,20 @@ describe('useHydrationEffect (production hook) — I/O error retry re-runs the s
     expect(successPayload).toEqual(expect.objectContaining(validState));
   });
 
-  it('hydrationError is null at every render after retryHydration — error screen never re-appears during the I/O retry window', async () => {
-    // Guards the invariant that no render between the tap and the completed
-    // re-read observes a truthy hydrationError.  app/index.tsx guards on
-    // `if (hydrationError)` — any truthy value would flash the error screen.
+  it('isRetrying is true at every render during the I/O retry window — error screen stays mounted with its spinner', async () => {
+    // Guards the invariant that every render between the tap and the completed
+    // re-read observes isRetrying=true.  app/index.tsx guards on
+    // `if (hydrationError || isRetrying)` — isRetrying keeps the error screen
+    // mounted with its spinner while hydrationError is intentionally preserved.
     const validState = { onboardingComplete: false, logs: [] };
     const storage = makeRecoverableStorage(JSON.stringify(validState));
     const pm = new PersistenceManager(storage, STORAGE_KEY);
 
-    const renderedErrors: Array<string | null> = [];
+    const renderedIsRetrying: boolean[] = [];
     const handle = renderHook(() => {
       const pmRef = useRef(pm);
       const result = useHydrationEffect<Record<string, unknown>>(pmRef, () => {});
-      renderedErrors.push(result.hydrationError);
+      renderedIsRetrying.push(result.isRetrying);
       return result;
     });
 
@@ -808,10 +847,10 @@ describe('useHydrationEffect (production hook) — I/O error retry re-runs the s
       await new Promise<void>((res) => setTimeout(res, 0));
     });
 
-    // Baseline: I/O error is shown.
+    // Baseline: I/O error is shown, isRetrying = false.
     expect(handle.result.current.hydrationErrorKind).toBe('io');
-    const baselineIndex = renderedErrors.length - 1;
-    expect(renderedErrors[baselineIndex]).not.toBeNull();
+    expect(handle.result.current.isRetrying).toBe(false);
+    const baselineIndex = renderedIsRetrying.length - 1;
 
     // Repair storage and block the retry read so we can assert the in-flight state.
     storage.repair();
@@ -820,11 +859,11 @@ describe('useHydrationEffect (production hook) — I/O error retry re-runs the s
     // Trigger retry.
     act(() => { handle.result.current.retryHydration(); });
 
-    // Every render that occurred AFTER the retry tap must have null hydrationError.
-    const postRetryErrors = renderedErrors.slice(baselineIndex + 1);
-    expect(postRetryErrors.length).toBeGreaterThan(0);
-    for (const err of postRetryErrors) {
-      expect(err).toBeNull();
+    // Every render that occurred AFTER the retry tap must have isRetrying=true.
+    const inFlightIsRetrying = renderedIsRetrying.slice(baselineIndex + 1);
+    expect(inFlightIsRetrying.length).toBeGreaterThan(0);
+    for (const r of inFlightIsRetrying) {
+      expect(r).toBe(true);
     }
 
     // Let the read complete.
@@ -833,8 +872,9 @@ describe('useHydrationEffect (production hook) — I/O error retry re-runs the s
       await new Promise<void>((res) => setTimeout(res, 0));
     });
 
-    // Final render is also null.
-    expect(renderedErrors[renderedErrors.length - 1]).toBeNull();
+    // Final state: isRetrying false, error cleared.
+    expect(renderedIsRetrying[renderedIsRetrying.length - 1]).toBe(false);
+    expect(handle.result.current.isRetrying).toBe(false);
     expect(handle.result.current.hydrationErrorKind).toBeNull();
     expect(handle.result.current.hydrated).toBe(true);
   });

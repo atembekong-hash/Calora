@@ -25,6 +25,12 @@ export type HydrationEffectResult = {
   hydrationError: string | null;
   hydrationErrorKind: HydrationErrorKind | null;
   retryHydration: () => void;
+  /**
+   * True from the moment the user taps 'Try Again' until the storage read
+   * resolves (success or error).  Drives the disabled/loading state on the
+   * error screen's retry button so a second tap gets clear feedback.
+   */
+  isRetrying: boolean;
 };
 
 /**
@@ -44,6 +50,7 @@ export function useHydrationEffect<T>(
   const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [hydrationErrorKind, setHydrationErrorKind] = useState<HydrationErrorKind | null>(null);
   const [hydrationAttempt, setHydrationAttempt] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Stable ref to onSuccess so the effect does not need it as a dependency.
   const onSuccessRef = useRef(onSuccess);
@@ -57,11 +64,14 @@ export function useHydrationEffect<T>(
   const readInFlight = useRef(false);
 
   useEffect(() => {
-    // Clear error state before starting the read.  This is the moment
-    // hydrationError becomes null — the error screen guard (`if hydrationError`)
-    // in app/index.tsx immediately stops rendering the error UI.
-    setHydrationError(null);
-    setHydrationErrorKind(null);
+    // Keep hydrationError/hydrationErrorKind visible while the retry read is
+    // in flight — the error screen stays mounted showing the previous error
+    // message with a spinner on its 'Try Again' button.  They are cleared in
+    // the SUCCESS branch of .then() once the read finishes cleanly, or
+    // overwritten by a new value in .catch() on another failure.
+    //
+    // setHydrated(false) still hides the onboarding/tab screens during the
+    // read so the user cannot navigate past a pending storage operation.
     setHydrated(false);
 
     readInFlight.current = true;
@@ -78,9 +88,14 @@ export function useHydrationEffect<T>(
         const migrated = saved !== null
           ? applyStorageMigration(saved, STORAGE_SCHEMA_VERSION) as T
           : null;
-        // SUCCESS BRANCH: never calls setHydrationError or setHydrationErrorKind.
-        // hydrationError stays null throughout, so app/index.tsx's `if (hydrationError)`
-        // guard remains false — the parse-error screen cannot reappear.
+        // SUCCESS BRANCH: clear error state here (not at the top of the effect)
+        // so the error screen stays visible for the full duration of a retry
+        // read.  Both fields are cleared atomically before handing state back
+        // to the caller — hydrationError becomes null, which releases the
+        // app/index.tsx `if (hydrationError || isRetrying)` guard once
+        // isRetrying also clears in .finally().
+        setHydrationError(null);
+        setHydrationErrorKind(null);
         onSuccessRef.current(migrated);
       })
       .catch((err: unknown) => {
@@ -96,27 +111,27 @@ export function useHydrationEffect<T>(
       })
       .finally(() => {
         readInFlight.current = false;
+        setIsRetrying(false);
         setHydrated(true);
       });
   }, [hydrationAttempt, pmRef]);
 
-  // Eagerly reset ALL error state and hydrated so no stale render between the
-  // tap and the effect re-running can show the error screen.
-  // app/index.tsx guards on `if (hydrationError)` — clearing it here (not just
-  // in the effect) closes the race window where hydrationError is still truthy
-  // but hydrationErrorKind is already null.
-  //
   // Guard: if a read is already in flight (readInFlight.current === true), the
   // second tap is silently dropped.  This prevents two concurrent pm.read()
   // calls from racing to set `hydrated` and `hydrationErrorKind`, which could
   // leave the first read's stale callbacks clobbering the second read's result.
+  //
+  // Error state is NOT eagerly cleared here.  Keeping hydrationError/Kind set
+  // means the error screen stays mounted — with its previous error message —
+  // for the full duration of the retry read.  The effect's success branch
+  // clears them once the read settles cleanly; .catch() overwrites them on a
+  // subsequent failure.  isRetrying drives the button's spinner/disabled state
+  // while the read is outstanding.
   const retryHydration = useCallback(() => {
     if (readInFlight.current) return;
-    setHydrationError(null);
-    setHydrationErrorKind(null);
-    setHydrated(false);
+    setIsRetrying(true);
     setHydrationAttempt((n) => n + 1);
   }, []);
 
-  return { hydrated, hydrationError, hydrationErrorKind, retryHydration };
+  return { hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying };
 }

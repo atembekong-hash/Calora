@@ -21,7 +21,7 @@ const activities: { key: ActivityLevel; label: string; body: string }[] = [
 const diets: DietPreference[] = ['Everything', 'Vegetarian', 'Vegan', 'High protein'];
 
 export default function OnboardingScreen() {
-  const { colors, onboardingComplete, hydrated, hydrationError, hydrationErrorKind, retryHydration, clearAllData, exportRawStorageData, completeOnboarding } = useCalora();
+  const { colors, onboardingComplete, hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying, clearAllData, exportRawStorageData, completeOnboarding } = useCalora();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState<Goal>('lose');
@@ -59,7 +59,9 @@ export default function OnboardingScreen() {
 
   const next = () => setStep((current) => Math.min(current + 1, 4));
 
-  if (!hydrated) {
+  // Show generic loading only on the initial read — not during a retry, where
+  // the error screen (with its spinner button) should remain visible instead.
+  if (!hydrated && !isRetrying) {
     return (
       <View style={[styles.loadingPage, { backgroundColor: colors.background }]}>
         <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
@@ -72,7 +74,10 @@ export default function OnboardingScreen() {
     );
   }
 
-  if (hydrationError) {
+  // Show error screen when there is an active error OR while a retry read is
+  // in flight (isRetrying keeps the screen mounted with previous error context
+  // so the spinner on 'Try Again' is visible for the full retry duration).
+  if (hydrationError || isRetrying) {
     const { showExport, showTryAgain, showClearAll } = deriveErrorScreenActions(hydrationErrorKind);
     const isParseError = hydrationErrorKind === 'parse';
     return (
@@ -99,9 +104,20 @@ export default function OnboardingScreen() {
             <Text style={[styles.exportButtonText, { color: colors.mutedForeground }]}>Export raw data</Text>
           </Pressable>
         )}
-        {showTryAgain && (
-          <Pressable accessibilityRole="button" accessibilityLabel="Retry loading local data" onPress={retryHydration} style={[styles.retryButton, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.retryButtonText, { color: colors.primaryForeground }]}>Try again</Text>
+        {(showTryAgain || isRetrying) && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading local data"
+            accessibilityState={{ disabled: isRetrying }}
+            disabled={isRetrying}
+            onPress={retryHydration}
+            style={[styles.retryButton, { backgroundColor: isRetrying ? colors.muted : colors.primary }]}
+          >
+            {isRetrying ? (
+              <ActivityIndicator size="small" color={colors.mutedForeground} />
+            ) : (
+              <Text style={[styles.retryButtonText, { color: colors.primaryForeground }]}>Try again</Text>
+            )}
           </Pressable>
         )}
         {showClearAll && (
