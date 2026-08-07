@@ -9,7 +9,7 @@ import { useGetRecipe, useListRecipes, type Recipe } from '@workspace/api-client
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
-import { getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
+import { applySlotReplace, getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { dateKey } from '@/lib/dates';
@@ -172,7 +172,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
       description: detail.description ?? 'A recipe added to your weekly plan.',
       prepMinutes: detail.prepMinutes ?? undefined,
     };
-    updatePlannerMeals([...plannerMeals.filter((meal) => !(meal.day === planDay && meal.meal === planMealType)), plannedMeal]);
+    updatePlannerMeals(applySlotReplace(plannerMeals, planDay, planMealType, plannedMeal));
     // Clear slot context so re-opening won't re-apply stale targeting
     setRecipeSlotTarget(null);
     setPlanVisible(false);

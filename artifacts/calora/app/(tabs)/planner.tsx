@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
-import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
+import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -203,7 +203,7 @@ export default function PlannerScreen() {
   };
 
   const replaceMealInPlan = (nextMeal: PlannerMeal, target: PlannerMeal) => {
-    const next = plannerMeals.map((meal) => meal.id === target.id ? { ...nextMeal, id: target.id, day: target.day } : meal);
+    const next = applyIdentityReplace(plannerMeals, nextMeal, target);
     updatePlannerMeals(next);
     setReplaceMeal(null);
     setActionMeal(null);

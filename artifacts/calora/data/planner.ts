@@ -214,6 +214,41 @@ export function createStarterPlannerMeals(weekStart = getPlannerWeekStart()): Pl
   ).flat();
 }
 
+/**
+ * Slot-based replace — used by the "Browse recipes → Add to plan" flow.
+ *
+ * Removes any existing meal occupying the same (day, mealType) slot, then
+ * appends newMeal. This is the canonical deduplication step that ensures
+ * only one meal ever occupies a given slot after a recipe confirmation.
+ */
+export function applySlotReplace(
+  plannerMeals: PlannerMeal[],
+  planDay: string,
+  planMealType: PlannerMeal['meal'],
+  newMeal: PlannerMeal,
+): PlannerMeal[] {
+  return [
+    ...plannerMeals.filter((meal) => !(meal.day === planDay && meal.meal === planMealType)),
+    newMeal,
+  ];
+}
+
+/**
+ * Identity-based replace — used by the catalog "Replace meal" sheet in the planner.
+ *
+ * Swaps the meal whose id matches target.id, preserving target.id and
+ * target.day so the slot position is never changed by the incoming recipe data.
+ */
+export function applyIdentityReplace(
+  plannerMeals: PlannerMeal[],
+  nextMeal: PlannerMeal,
+  target: PlannerMeal,
+): PlannerMeal[] {
+  return plannerMeals.map((meal) =>
+    meal.id === target.id ? { ...nextMeal, id: target.id, day: target.day } : meal,
+  );
+}
+
 export function buildShoppingItems(meals: PlannerMeal[], checkedByName = new Map<string, boolean>()): ShoppingItem[] {
   const quantities = new Map<string, { name: string; quantity: number; sourceMealIds: string[]; sourceDays: Set<string> }>();
   meals.forEach((meal) => meal.ingredients.forEach((ingredient) => {
