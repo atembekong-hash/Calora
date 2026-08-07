@@ -422,6 +422,7 @@ function makeSpyCtx(pm: PersistenceManager): {
     setGoalCelebrationSeenTargetKg: spy('goalCelebrationSeenTargetKg'),
     setRecipeSlotTarget:            spy('recipeSlotTarget'),
     setPendingUndoSwap:             spy('pendingUndoSwap'),
+    setPendingPlannerAck:           spy('pendingPlannerAck'),
   };
   return { ctx, captured };
 }
@@ -598,6 +599,17 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     const { ctx, captured } = makeSpyCtx(pm);
     await performClearAllData(ctx);
     expect(captured.pendingUndoSwap).toBeNull();
+  });
+
+  it('pendingPlannerAck resets to null — a stale ack banner does not survive a clear', async () => {
+    // Scenario: the Recipes screen set pendingPlannerAck (e.g. "Grilled Salmon
+    // added to Tuesday Dinner") when a recipe filled an empty planner slot.
+    // The user then tapped "Clear all data" before the Planner consumed the
+    // message.  After the clear, pendingPlannerAck must be null so the Planner
+    // does not show an acknowledgment banner for a meal that no longer exists.
+    const { ctx, captured } = makeSpyCtx(pm);
+    await performClearAllData(ctx);
+    expect(captured.pendingPlannerAck).toBeNull();
   });
 
   it('plannerViewedDay resets to today — a future/past day does not survive a clear', async () => {

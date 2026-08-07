@@ -815,6 +815,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         setPlannerViewedDay,
         setRecipeSlotTarget,
         setPendingUndoSwap,
+        setPendingPlannerAck,
         setPlannerMeals: setPlannerMealsState,
         setShoppingItems,
         setFoodDrafts,

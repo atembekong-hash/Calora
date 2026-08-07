@@ -83,6 +83,8 @@ export interface ClearAllDataCtx {
   setRecipeSlotTarget: Setter;
   /** Resets the session-only undo-swap context so no stale swap offer persists after a clear. */
   setPendingUndoSwap: Setter;
+  /** Resets the session-only planner-ack banner so no stale acknowledgment persists after a clear. */
+  setPendingPlannerAck: Setter;
 }
 
 /**
@@ -117,10 +119,11 @@ export async function performClearAllData(ctx: ClearAllDataCtx): Promise<void> {
   // future/past day before clearing would still see that day highlighted even
   // though plannerWeekStart has jumped back to the current week.
   ctx.setPlannerViewedDay(ctx.getToday());
-  // Reset session-only slot-browse and undo-swap state so stale planner context
-  // from before the clear cannot resurface in the fresh empty planner.
+  // Reset session-only slot-browse, undo-swap, and ack-banner state so stale
+  // planner context from before the clear cannot resurface in the fresh empty planner.
   ctx.setRecipeSlotTarget(null);
   ctx.setPendingUndoSwap(null);
+  ctx.setPendingPlannerAck(null);
   ctx.setPlannerMeals([]);
   ctx.setShoppingItems([]);
   ctx.setFoodDrafts([]);
