@@ -702,6 +702,106 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     }
   });
 
+  it('concurrent outbox-flush-style background write: outbox entries do not survive — final outbox is empty', async () => {
+    // Scenario (mirrors CaloraContext's outbox-sync path):
+    //   1. An autosave is in-flight (blocked setItem) when the user taps "Clear".
+    //   2. clearAllData calls performClearAllData → pm.clear() chains removeItem
+    //      after the blocked write; performClearAllData suspends at `await`.
+    //   3. A background sync service flushes the outbox mid-clear.  In
+    //      CaloraContext this fires as: setOutbox([]) → autosave effect →
+    //      pm.current.enqueueWrite({…, outbox: []}).  That write is injected
+    //      here as a direct pm.enqueueWrite call while clearingCount > 0.
+    //      Because clearingCount > 0, it is a no-op — the background sync
+    //      snapshot never reaches storage.
+    //   4. pm.clear() resolves → performClearAllData calls every state setter.
+    //   5. React autosave fires → pm.enqueueWrite(capturedClearedState) — the
+    //      only writer after removeItem; final storage has outbox: [].
+    const release = storage.blockNextSetItem();
+
+    const sessionState = {
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'lose', weightKg: 76 },
+      logs: [
+        { id: 'log-1', name: 'Oatmeal',        date: '2026-08-07', meal: 'Breakfast' },
+        { id: 'log-2', name: 'Chicken salad',   date: '2026-08-07', meal: 'Lunch' },
+      ],
+      outbox: [
+        { id: 'mut-1', entity: 'diaryEntry', operation: 'upsert', createdAt: '2026-08-07T08:00:00.000Z' },
+        { id: 'mut-2', entity: 'weight',     operation: 'upsert', createdAt: '2026-08-07T09:00:00.000Z' },
+      ],
+      repeatPatterns: [
+        { id: 'rp-1', signature: 'oatmeal-sig', count: 3, lastSeen: '2026-08-07' },
+      ],
+    };
+    pm.enqueueWrite(sessionState); // blocked in-flight autosave
+
+    const { ctx, captured } = makeSpyCtx(pm);
+
+    // Start performClearAllData — suspends at `await pm.clear()`.
+    const clearDone = performClearAllData(ctx);
+
+    // --- Background sync paths fired mid-clear ---
+    // Path A: outbox flush — sync service calls setOutbox([]) whose autosave
+    // effect calls pm.enqueueWrite with the flushed snapshot.  clearingCount > 0
+    // so this is a no-op and the snapshot is never serialised to storage.
+    pm.enqueueWrite({
+      ...sessionState,
+      outbox: [], // flushed
+    });
+
+    // Path B: repeat-pattern writer — a background pattern analysis finishes
+    // and writes an updated repeatPatterns array.  Same guard applies.
+    pm.enqueueWrite({
+      ...sessionState,
+      outbox: [],
+      repeatPatterns: [
+        { id: 'rp-1', signature: 'oatmeal-sig', count: 4, lastSeen: '2026-08-07' },
+        { id: 'rp-2', signature: 'salad-sig',   count: 1, lastSeen: '2026-08-07' },
+      ],
+    });
+
+    release(); // unblock the in-flight write
+    await clearDone; // clear resolves, every setter fires → captured is populated
+
+    // Simulate the autosave useEffect that fires after React re-renders with
+    // the cleared state values collected by the spy setters.
+    pm.enqueueWrite(captured);
+    await new Promise((r) => setTimeout(r, 0)); // drain remaining queue entries
+
+    // Only two setItem calls must appear:
+    //   1. The pre-clear in-flight autosave (the blocked write)
+    //   2. The post-clear autosave from clearAllData setters
+    // The two background sync writes (outbox flush + repeat-pattern update)
+    // must be absent — both were dropped by the clearingCount > 0 no-op guard.
+    expect(storage.calls).toEqual([
+      `setItem:${STORAGE_KEY}`,    // pre-clear in-flight autosave
+      `removeItem:${STORAGE_KEY}`, // pm.clear() remove — the boundary
+      `setItem:${STORAGE_KEY}`,    // post-clear autosave from clearAllData setters
+    ]);
+
+    // Final storage reflects the cleared state — no session outbox entries or
+    // repeat patterns survived the background sync writes.
+    const stored = JSON.parse(storage.store[STORAGE_KEY]);
+    expect(stored.onboardingComplete).toBe(false);
+    expect(stored.profile).toBeNull();
+    expect(stored.logs).toEqual([]);
+    expect(stored.outbox).toEqual([]);
+    expect(stored.repeatPatterns).toEqual([]);
+
+    // Confirm explicitly: neither the session outbox mutations nor the
+    // mid-clear repeat-pattern update survived.
+    for (const staleId of ['mut-1', 'mut-2']) {
+      expect(
+        ((stored.outbox ?? []) as Array<{ id: string }>).some((m) => m.id === staleId),
+      ).toBe(false);
+    }
+    for (const staleId of ['rp-1', 'rp-2']) {
+      expect(
+        ((stored.repeatPatterns ?? []) as Array<{ id: string }>).some((p) => p.id === staleId),
+      ).toBe(false);
+    }
+  });
+
   it('post-clear read() returns the cleared state — stale mid-clear log id is absent on re-hydration', async () => {
     // Round-trip: after the complete lifecycle, pm.read() (the hydration effect)
     // returns the cleared snapshot, not the stale mid-clear data.
