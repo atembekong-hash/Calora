@@ -21,6 +21,7 @@ import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { trustScore } from '@/lib/weeklySignals';
+import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
 
 const dateKey = (date: Date) => {
   const year = date.getFullYear();
@@ -557,20 +558,15 @@ export default function HomeScreen() {
 
   const handleLivingAction = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (livingState.action.kind === 'log_meal') {
+    const effect = resolveLivingActionEffect(livingState.action.kind);
+    if (effect.kind === 'open_add_food') {
       openAdd();
-      return;
-    }
-    if (livingState.action.kind === 'add_water') {
-      addWater(selectedDate, 8);
+    } else if (effect.kind === 'add_water') {
+      addWater(selectedDate, effect.ounces);
       setSaveNotice('Water check-in added for this day.');
-      return;
+    } else {
+      router.navigate(effect.route as Parameters<typeof router.navigate>[0]);
     }
-    if (livingState.action.kind === 'view_progress') {
-      router.navigate('/(tabs)/insights');
-      return;
-    }
-    router.navigate('/(tabs)/planner');
   };
 
   const livingActionIcon = livingState.action.kind === 'add_water'
