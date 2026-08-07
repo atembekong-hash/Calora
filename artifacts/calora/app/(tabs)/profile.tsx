@@ -28,7 +28,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | null>(null);
-  const [privacyModal, setPrivacyModal] = useState<'export' | 'delete' | null>(null);
+  const [privacyModal, setPrivacyModal] = useState<'delete' | null>(null);
   const [reminderStatus, setReminderStatus] = useState<'idle' | 'denied' | 'scheduled'>('idle');
   const [savedMealModal, setSavedMealModal] = useState(false);
   const [savedMealName, setSavedMealName] = useState('');
@@ -421,26 +421,22 @@ export default function ProfileScreen() {
       <Modal visible={privacyModal !== null} transparent animationType="fade" onRequestClose={() => { if (!isClearing) setPrivacyModal(null); }}>
         <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
           <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
-            <View style={[styles.dialogIcon, { backgroundColor: privacyModal === 'delete' ? colors.warning : colors.accent }]}>
-              <Feather name={privacyModal === 'delete' ? 'trash-2' : 'download'} size={20} color={privacyModal === 'delete' ? colors.foreground : colors.accentForeground} />
+            <View style={[styles.dialogIcon, { backgroundColor: colors.warning }]}>
+              <Feather name="trash-2" size={20} color={colors.foreground} />
             </View>
-            <Text style={[styles.dialogTitle, { color: colors.foreground }]}>
-              {privacyModal === 'delete' ? 'Delete local data?' : 'Your export is ready'}
-            </Text>
+            <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Delete local data?</Text>
             <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>
-              {privacyModal === 'delete'
-                ? 'This removes your diary, profile, weights, and saved meals from this device. This cannot be undone.'
-                : 'Calora prepared a portable JSON copy of your profile, diary, weights, and saved meals. A connected share/export surface will make the file downloadable in the next step.'}
+              This removes your diary, profile, weights, and saved meals from this device. This cannot be undone.
             </Text>
             <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
-              <Feather name={privacyModal === 'delete' ? 'alert-triangle' : 'check-circle'} size={15} color={privacyModal === 'delete' ? colors.warning : colors.success} />
-              <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>
-                {privacyModal === 'delete' ? 'This action is permanent.' : 'No data was sent anywhere.'}
-              </Text>
+              <Feather name="alert-triangle" size={15} color={colors.warning} />
+              <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>This action is permanent.</Text>
             </View>
-            {privacyModal === 'delete' && <Pressable accessibilityLabel="Delete everything" disabled={isClearing} onPress={handleConfirmDelete} style={[styles.dialogButton, { backgroundColor: colors.warning, opacity: isClearing ? 0.6 : 1 }]}>{isClearing ? <ActivityIndicator size="small" color={colors.foreground} /> : <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Delete everything</Text>}</Pressable>}
-            <Pressable accessibilityLabel="Close privacy dialog" disabled={isClearing} onPress={() => setPrivacyModal(null)} style={[styles.dialogButton, { backgroundColor: privacyModal === 'delete' ? colors.muted : colors.primary, opacity: isClearing && privacyModal === 'delete' ? 0.4 : 1 }]}>
-              <Text style={[styles.dialogButtonText, { color: privacyModal === 'delete' ? colors.foreground : colors.primaryForeground }]}>{privacyModal === 'delete' ? 'Keep my data' : 'Done'}</Text>
+            <Pressable accessibilityLabel="Delete everything" disabled={isClearing} onPress={handleConfirmDelete} style={[styles.dialogButton, { backgroundColor: colors.warning, opacity: isClearing ? 0.6 : 1 }]}>
+              {isClearing ? <ActivityIndicator size="small" color={colors.foreground} /> : <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Delete everything</Text>}
+            </Pressable>
+            <Pressable accessibilityLabel="Close privacy dialog" disabled={isClearing} onPress={() => setPrivacyModal(null)} style={[styles.dialogButton, { backgroundColor: colors.muted, opacity: isClearing ? 0.4 : 1 }]}>
+              <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Keep my data</Text>
             </Pressable>
           </View>
         </View>
