@@ -440,3 +440,101 @@ describe('retry recovery: pm.read() returns clean state after storage is repaire
     expect(shouldAutosave({ hydrated: true, error: repaired.error })).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// I/O error recovery: AsyncStorage rejection clears when storage comes back
+// ---------------------------------------------------------------------------
+
+describe('I/O error recovery: pm.read() surfaces and then clears an AsyncStorage rejection', () => {
+  it('pm.read() rejects when the storage adapter throws — I/O error is surfaced, not swallowed', async () => {
+    // Simulates a first-launch read where AsyncStorage itself rejects (device
+    // locked, storage quota exhausted, OS I/O failure, etc.).  The adapter
+    // throws instead of returning null or a string.
+    //
+    // pm.read() must NOT silently swallow the rejection: the hydration effect
+    // catches it in its .catch() branch and sets hydrationErrorKind='io',
+    // which shows the user an error screen.  A silent return of { state:null,
+    // error:null } here would hide the failure and wrongly unlock autosave.
+    const ioError = new Error('AsyncStorage: device is locked');
+    const storage = {
+      getItem: async (_key: string): Promise<string | null> => { throw ioError; },
+      setItem: async (_key: string, _value: string) => {},
+      removeItem: async (_key: string) => {},
+    };
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    // The rejection carries the original I/O error so the hydration effect
+    // can distinguish it from a ParseHydrationError in its catch block.
+    await expect(pm.read()).rejects.toThrow('AsyncStorage: device is locked');
+  });
+
+  it('pm.read() returns clean state with no error once the I/O error clears', async () => {
+    // Simulates the retryHydration flow for an I/O error:
+    //   1. First read — adapter throws (e.g. device was locked).
+    //   2. Storage comes back (device unlocked, quota freed).
+    //   3. retryHydration increments hydrationAttempt, re-triggering the
+    //      hydration effect which calls pm.read() again.
+    //   4. The second read must return { state: validState, error: null } so
+    //      the effect sets hydrated=true and leaves hydrationErrorKind null.
+    //
+    // This documents that PersistenceManager.read() is stateless — it goes
+    // back to the adapter on every call, so a recovered adapter is immediately
+    // visible after retry without any cache-invalidation step.
+    let shouldThrow = true;
+    const savedState = { onboardingComplete: true, logs: [] };
+
+    const storage = {
+      getItem: async (_key: string): Promise<string | null> => {
+        if (shouldThrow) throw new Error('AsyncStorage: quota exceeded');
+        return JSON.stringify(savedState);
+      },
+      setItem: async (_key: string, _value: string) => {},
+      removeItem: async (_key: string) => {},
+    };
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    // Phase 1 — I/O error: adapter throws, pm.read() rejects
+    await expect(pm.read()).rejects.toThrow();
+
+    // Storage comes back (device unlocked, quota freed, OS error resolved)
+    shouldThrow = false;
+
+    // Phase 2 — recovery: pm.read() now returns valid state with no error
+    const result = await pm.read<{ onboardingComplete: boolean; logs: unknown[] }>();
+    expect(result.state).toEqual(savedState);
+    expect(result.error).toBeNull();
+  });
+
+  it('shouldAutosave follows the same two-phase block/allow pattern for the I/O-error retry window', () => {
+    // The hydration effect handles I/O errors identically to parse errors from
+    // autosave's perspective: during the retry window autosave is blocked, and
+    // it re-enables only after a clean read.
+    //
+    // Phase 1 — I/O error occurred, retryHydration has reset hydrated=false.
+    //   The previous hydrationErrorKind='io' is still in state until the new
+    //   read completes.  shouldAutosave must return false for the entire window.
+    const duringRetryWindowAfterIo = shouldAutosave({
+      hydrated: false,
+      error: 'storage unavailable',
+    });
+    expect(duringRetryWindowAfterIo).toBe(false);
+
+    // Phase 2 — hydration effect completes cleanly after I/O error resolved:
+    //   hydrated flips back to true and error is null.  Autosave re-enables
+    //   so the user's next actions are persisted normally.
+    const afterIoRecovery = shouldAutosave({ hydrated: true, error: null });
+    expect(afterIoRecovery).toBe(true);
+  });
+
+  it('shouldAutosave blocks autosave even when hydrated=true if an I/O error string is still set', () => {
+    // Guards against a race where hydrated flips to true before the error
+    // is cleared.  An I/O error string in the status is enough to block
+    // autosave regardless of the hydrated flag — prevents stale in-memory
+    // defaults from being written while the error screen is visible.
+    const racedState = shouldAutosave({
+      hydrated: true,
+      error: 'AsyncStorage: device is locked',
+    });
+    expect(racedState).toBe(false);
+  });
+});
