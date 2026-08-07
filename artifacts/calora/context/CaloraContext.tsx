@@ -51,6 +51,7 @@ import {
   filterForgottenSources,
   type LivingMemory,
 } from '@/lib/livingMemory';
+import type { PlannerAck } from '@/lib/plannerAck';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 export type Goal = 'lose' | 'maintain' | 'gain';
@@ -207,9 +208,11 @@ type CaloraContextValue = {
    * Set by the Recipes screen when a recipe fills an empty planner slot (no displaced meal).
    * The Planner consumes this on focus to show a plain save acknowledgment without an Undo action.
    * Session-only — not persisted to storage.
+   * Carries the mealId so the Planner can guard against showing a stale banner when the
+   * referenced meal has since been removed (e.g. by a concurrent clearAllData).
    */
-  pendingPlannerAck: string | null;
-  setPendingPlannerAck: (message: string | null) => void;
+  pendingPlannerAck: PlannerAck | null;
+  setPendingPlannerAck: (ack: PlannerAck | null) => void;
   forgetLivingObservation: (kind: 'meal' | 'water' | 'mood' | 'activity' | 'planner', id: string) => void;
   setCoachConsentAccepted: (accepted: boolean) => void;
   setCoachMessages: (messages: CoachMessage[]) => void;
@@ -395,7 +398,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [plannerViewedDay, setPlannerViewedDay] = useState(dateKey());
   const [recipeSlotTarget, setRecipeSlotTarget] = useState<{ day: string; mealType: PlannerMeal['meal'] } | null>(null);
   const [pendingUndoSwap, setPendingUndoSwap] = useState<{ newMeal: PlannerMeal; originalMeal: PlannerMeal } | null>(null);
-  const [pendingPlannerAck, setPendingPlannerAck] = useState<string | null>(null);
+  const [pendingPlannerAck, setPendingPlannerAck] = useState<PlannerAck | null>(null);
 
   const { hydrated, hydrationError, hydrationErrorKind, retryHydration } = useHydrationEffect<Partial<CaloraState>>(pm, (saved) => {
     if (!saved) return;

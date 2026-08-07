@@ -180,7 +180,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
     } else {
       // Slot was empty (e.g. user removed a meal then picked a recipe). Signal the Planner to
       // show a plain save acknowledgment and cancel any stale removal-undo when it regains focus.
-      setPendingPlannerAck(`${plannedMeal.name} added to your ${plannedMeal.meal.toLowerCase()} plan.`);
+      setPendingPlannerAck({ message: `${plannedMeal.name} added to your ${plannedMeal.meal.toLowerCase()} plan.`, mealId: plannedMeal.id });
     }
     // Clear slot context so re-opening won't re-apply stale targeting
     setRecipeSlotTarget(null);
