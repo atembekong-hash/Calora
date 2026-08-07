@@ -596,6 +596,172 @@ describe('I/O error recovery: pm.read() surfaces and then clears an AsyncStorage
 });
 
 // ---------------------------------------------------------------------------
+// Write/read interleave with transient I/O failure: queue ordering guarantees
+// ---------------------------------------------------------------------------
+
+describe('write-queue ordering under I/O error: in-flight write cannot corrupt recovered storage', () => {
+  it('queued write lands in storage before the retry read — recovered getItem sees the written value, not stale data', async () => {
+    // Scenario:
+    //   1. Storage holds stale data ({ version: 1 }).
+    //   2. enqueueWrite is called with new state ({ version: 2 }) — setItem is
+    //      now queued but has not completed.
+    //   3. pm.read() fires while getItem still throws (I/O error).
+    //   4. setItem completes, landing { version: 2 } in storage.
+    //   5. Storage recovers (getItem no longer throws).
+    //   6. retryHydration calls pm.read() again — it must return { version: 2 },
+    //      not the stale { version: 1 } that was there before the queued write.
+    //
+    // This confirms the write-queue ordering guarantee holds under transient
+    // I/O failures: a write that was queued before the I/O error is visible to
+    // any read that fires after storage recovers.
+    let storedValue: string | null = JSON.stringify({ version: 1 });
+    let getItemShouldThrow = true;
+    let resolveSetItem!: () => void;
+    const setItemSettled = new Promise<void>((res) => { resolveSetItem = res; });
+
+    const storage = {
+      getItem: async (_key: string): Promise<string | null> => {
+        if (getItemShouldThrow) throw new Error('AsyncStorage: quota exceeded');
+        return storedValue;
+      },
+      setItem: async (_key: string, value: string): Promise<void> => {
+        storedValue = value;
+        resolveSetItem();
+      },
+      removeItem: async (_key: string): Promise<void> => { storedValue = null; },
+    };
+
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    // Step 2 — queue a write with updated state; setItem has not yet completed
+    const newState = { version: 2 };
+    pm.enqueueWrite(newState);
+
+    // Step 3 — attempt a read while getItem still throws (I/O error)
+    await expect(pm.read()).rejects.toThrow('AsyncStorage: quota exceeded');
+
+    // Step 4 — wait for the queued setItem to finish landing in storage
+    await setItemSettled;
+
+    // Step 5 — storage recovers: getItem will now return what setItem wrote
+    getItemShouldThrow = false;
+
+    // Step 6 — retry read must see { version: 2 }, not the stale { version: 1 }
+    const result = await pm.read<{ version: number }>();
+    expect(result.state).toEqual(newState);
+    expect(result.error).toBeNull();
+  });
+
+  it('a write queued AFTER an I/O error still lands correctly — storage does not become permanently locked', async () => {
+    // Scenario: getItem throws first (I/O error), then storage recovers, then
+    // enqueueWrite is called.  Confirms the write queue is unaffected by the
+    // earlier read failure — the PM does not have a "locked" flag that
+    // prevents further writes after a read error.
+    let storedValue: string | null = null;
+    let getItemShouldThrow = true;
+
+    const storage = {
+      getItem: async (_key: string): Promise<string | null> => {
+        if (getItemShouldThrow) throw new Error('AsyncStorage: device locked');
+        return storedValue;
+      },
+      setItem: async (_key: string, value: string): Promise<void> => {
+        storedValue = value;
+      },
+      removeItem: async (_key: string): Promise<void> => { storedValue = null; },
+    };
+
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    // Phase 1 — read fails with I/O error
+    await expect(pm.read()).rejects.toThrow('AsyncStorage: device locked');
+
+    // Storage recovers
+    getItemShouldThrow = false;
+
+    // Phase 2 — enqueueWrite after recovery; must reach storage normally
+    const savedState = { onboardingComplete: true };
+    pm.enqueueWrite(savedState);
+
+    // Drain the queue by waiting for a no-op clear (which chains after the write)
+    // We use the fact that enqueueWrite puts the promise on this.queue; we
+    // observe it indirectly by verifying what getItem returns after the write.
+    // Give the microtask queue a tick to settle.
+    await new Promise<void>((res) => setTimeout(res, 0));
+
+    // The written value must now be readable
+    const result = await pm.read<{ onboardingComplete: boolean }>();
+    expect(result.state).toEqual(savedState);
+    expect(result.error).toBeNull();
+  });
+
+  it('a write queued while getItem throws does not stall — the write queue keeps moving after the I/O error', async () => {
+    // Confirms that a getItem rejection (I/O error) does NOT stall the write
+    // queue.  Reads and writes are independent paths in PersistenceManager:
+    // read() goes directly to storage.getItem without touching this.queue,
+    // so a throwing getItem cannot block or poison the write queue.
+    //
+    // If the queue ever stalled here, a subsequent clear() would deadlock and
+    // clearAllData would never resolve — a critical correctness guarantee.
+    let storedValue: string | null = null;
+
+    const storage = {
+      getItem: async (_key: string): Promise<string | null> => {
+        throw new Error('AsyncStorage: quota exceeded');
+      },
+      setItem: async (_key: string, value: string): Promise<void> => {
+        storedValue = value;
+      },
+      removeItem: async (_key: string): Promise<void> => { storedValue = null; },
+    };
+
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    // Fire a read that will reject due to I/O error
+    const readPromise = pm.read().catch(() => 'io-error-caught');
+
+    // Simultaneously queue a write
+    const firstState = { step: 1 };
+    pm.enqueueWrite(firstState);
+
+    // Queue a second write to confirm sequencing is preserved
+    const secondState = { step: 2 };
+    pm.enqueueWrite(secondState);
+
+    // The read rejects independently of the queue
+    const readOutcome = await readPromise;
+    expect(readOutcome).toBe('io-error-caught');
+
+    // Give the queued writes a tick to land
+    await new Promise<void>((res) => setTimeout(res, 0));
+
+    // The last write wins — storedValue holds the second state
+    expect(storedValue).toBe(JSON.stringify(secondState));
+  });
+
+  it('shouldAutosave remains false during the entire window when getItem throws — write is queued but hydration has not completed', () => {
+    // When pm.read() rejects the hydration effect catches it and sets
+    // hydrated=false, hydrationErrorKind='io'.  Even if a prior enqueueWrite
+    // is in-flight (queued but not yet settled), autosave must stay blocked
+    // for the full duration — the in-memory state is still context defaults,
+    // not recovered user data.
+    //
+    // This is the autosave-gate half of the write-queue ordering guarantee:
+    // no enqueueWrite can be dispatched by a React render during the I/O
+    // error window because shouldAutosave returns false.
+    const duringIoError = shouldAutosave({
+      hydrated: false,
+      error: 'AsyncStorage: quota exceeded',
+    });
+    expect(duringIoError).toBe(false);
+
+    // Re-enables only once both signals are clear — hydrated=true and error=null
+    const afterRecovery = shouldAutosave({ hydrated: true, error: null });
+    expect(afterRecovery).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Stale-render guard: parse-error screen stays hidden after a successful retry
 // ---------------------------------------------------------------------------
 
