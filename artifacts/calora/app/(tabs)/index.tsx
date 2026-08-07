@@ -590,7 +590,7 @@ function CalorieGauge({
   //   heroCard has padding: 20 each side          → inner  = windowWidth - 80
   //   gauge fills the full inner card width (Eaten/Burned move below)
   const cardInnerW = windowWidth - 80;
-  const gaugeW     = Math.min(cardInnerW, 270);
+  const gaugeW     = Math.min(cardInnerW, 310);
   const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW);
 
   // Animate the fill arc via strokeDashoffset
