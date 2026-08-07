@@ -186,7 +186,17 @@ export default function InsightsScreen() {
   // Intentionally run only when goalReached/showGoalProgress/targetWeight change, not on markGoalCelebrationSeen identity change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goalReached, showGoalProgress, targetWeight]);
-  const todayKey = dateKey();
+  // todayKey is reactive: a 60-second interval checks whether the calendar date has rolled over
+  // so that mood, activity, and water check-ins always save to the correct day even when the
+  // screen stays open past midnight.
+  const [todayKey, setTodayKey] = useState(() => dateKey());
+  useEffect(() => {
+    const id = setInterval(() => {
+      const current = dateKey();
+      setTodayKey((prev) => (prev !== current ? current : prev));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
   // Sync minutes input with stored value when date changes or after hydration loads persisted data.
   // Skip the sync while the user is actively editing so in-progress input is not overwritten.
   useEffect(() => {

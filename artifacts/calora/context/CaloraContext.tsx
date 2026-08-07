@@ -596,7 +596,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       setLivingMemory((current) => removeMealObservation(current, id));
       queueMutation('diaryEntry', 'delete');
     },
-    createFoodMemoryDraft: (analysis, date = today, meal = 'Snack') => {
+    createFoodMemoryDraft: (analysis, date = dateKey(), meal = 'Snack') => {
       const draft = captureAnalysisToDraft(analysis, date, meal);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
@@ -606,7 +606,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },
-    createRecipeDraft: (recipe, date = today, meal = 'Dinner') => {
+    createRecipeDraft: (recipe, date = dateKey(), meal = 'Dinner') => {
       const draft = recipeToDraft(recipe, date, meal);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
@@ -664,7 +664,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       }]);
     },
     addWeight: (kg, source = 'manual') => {
-      setWeights((current) => [...current, { id: makeId('weight'), date: today, kg, source }]);
+      setWeights((current) => [...current, { id: makeId('weight'), date: dateKey(), kg, source }]);
       queueMutation('weight', 'upsert');
     },
     addWater: (date, ounces = 8) => {
