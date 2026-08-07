@@ -7,6 +7,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepe
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { router } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
@@ -623,6 +624,7 @@ export default function InsightsScreen() {
           </View>
           <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
         </View>
+        <MotivationalQuote colors={colors} style={{ marginTop: 20 }} />
       </ScrollView>
       <Modal visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)}>
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>

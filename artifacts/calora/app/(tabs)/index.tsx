@@ -23,6 +23,7 @@ import { useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { trustScore } from '@/lib/weeklySignals';
 import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
 import {
@@ -937,6 +938,8 @@ export default function HomeScreen() {
             );
           })}
         </View>
+        <MotivationalQuote colors={colors} style={{ marginTop: 8, marginBottom: 4 }} />
+
         <View style={styles.footerNote}>
           <Feather name="check-circle" size={15} color={colors.success} />
           <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved on this device · waiting for a connection' : syncState === 'local' ? 'Saved on this device · ready to sync' : syncState === 'offline' ? 'Loading your local diary…' : 'Core foods are sourced from verified nutrition data.'}</Text>
