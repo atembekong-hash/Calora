@@ -88,6 +88,42 @@ describe('consumePlannerAck — message passthrough', () => {
   });
 });
 
+describe('consumePlannerAck — add → remove → focus sequence', () => {
+  // Simulates the race where the user adds a recipe (ack is set), immediately
+  // removes the same meal before returning to the Planner tab, and then the
+  // Planner calls consumePlannerAck on focus.  The notice must be suppressed.
+
+  it('returns null when the meal is added then immediately removed before the ack is consumed', () => {
+    const mealId = 'meal-added-then-removed';
+    const ack = makeAck(mealId, 'Salmon added to your dinner plan.');
+
+    // Step 1: meal exists right after it was added to the plan.
+    let plannerMeals: PlannerMeal[] = [makeMeal(mealId), makeMeal('other-meal')];
+    // Confirm ack would fire if consumed immediately (sanity check).
+    expect(consumePlannerAck(ack, plannerMeals)).toBe(ack.message);
+
+    // Step 2: meal is removed (e.g. via diary or planner edit) while the ack
+    // is still in flight (pendingPlannerAck has not been consumed yet).
+    plannerMeals = plannerMeals.filter((m) => m.id !== mealId);
+
+    // Step 3: Planner regains focus and calls consumePlannerAck — the notice
+    // must be suppressed because the meal is no longer present.
+    expect(consumePlannerAck(ack, plannerMeals)).toBeNull();
+  });
+
+  it('returns null when the meal is added then all meals are cleared before the ack is consumed', () => {
+    const mealId = 'meal-before-clear';
+    const ack = makeAck(mealId, 'Pasta added to your lunch plan.');
+
+    // Meal exists in plan (ack set by Recipes screen).
+    const plannerMeals: PlannerMeal[] = [makeMeal(mealId)];
+    expect(consumePlannerAck(ack, plannerMeals)).toBe(ack.message); // sanity
+
+    // clearAllData fires — plannerMeals is wiped.
+    expect(consumePlannerAck(ack, [])).toBeNull();
+  });
+});
+
 // ---------------------------------------------------------------------------
 // consumeUndoSwap
 // ---------------------------------------------------------------------------
