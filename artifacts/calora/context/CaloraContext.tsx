@@ -206,6 +206,13 @@ type CaloraContextValue = {
    */
   pendingUndoSwap: { newMeal: PlannerMeal; originalMeal: PlannerMeal } | null;
   setPendingUndoSwap: (swap: { newMeal: PlannerMeal; originalMeal: PlannerMeal } | null) => void;
+  /**
+   * Set by the Recipes screen when a recipe fills an empty planner slot (no displaced meal).
+   * The Planner consumes this on focus to show a plain save acknowledgment without an Undo action.
+   * Session-only — not persisted to storage.
+   */
+  pendingPlannerAck: string | null;
+  setPendingPlannerAck: (message: string | null) => void;
   forgetLivingObservation: (kind: 'meal' | 'water' | 'mood' | 'activity' | 'planner', id: string) => void;
   setCoachConsentAccepted: (accepted: boolean) => void;
   setCoachMessages: (messages: CoachMessage[]) => void;
@@ -384,6 +391,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [plannerViewedDay, setPlannerViewedDay] = useState(dateKey());
   const [recipeSlotTarget, setRecipeSlotTarget] = useState<{ day: string; mealType: PlannerMeal['meal'] } | null>(null);
   const [pendingUndoSwap, setPendingUndoSwap] = useState<{ newMeal: PlannerMeal; originalMeal: PlannerMeal } | null>(null);
+  const [pendingPlannerAck, setPendingPlannerAck] = useState<string | null>(null);
 
   useEffect(() => {
     setHydrationError(null);
@@ -850,9 +858,11 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      setRecipeSlotTarget,
      pendingUndoSwap,
      setPendingUndoSwap,
+     pendingPlannerAck,
+     setPendingPlannerAck,
      goalCelebrationSeenTargetKg,
      markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
-     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingUndoSwap, plannerMeals, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, livingMemory, livingState, localRecipes, logs, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

@@ -125,7 +125,7 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
 }
 
 export default function PlannerScreen() {
-  const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, livingState, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap } = useCalora();
+  const { colors, profile, plannerWeekStart, plannerMeals, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, livingState, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck } = useCalora();
   const insets = useSafeAreaInsets();
   const generatePlanner = useGeneratePlanner();
   const today = dateKey();
@@ -173,6 +173,26 @@ export default function PlannerScreen() {
   useEffect(() => {
     setPlannerViewedDay(selectedDay);
   }, [selectedDay, setPlannerViewedDay]);
+
+  // When the planner tab comes into focus, consume a plain save acknowledgment set by the recipes tab
+  // when a recipe was added to an empty slot (no displaced meal, so no Undo action).
+  useFocusEffect(
+    useCallback(() => {
+      if (!pendingPlannerAck) return;
+      setPendingPlannerAck(null);
+      // Cancel any stale removal-undo for the slot that was just filled (belt-and-suspenders:
+      // the navigate-away cleanup already clears undoMeal, but this ensures correctness even
+      // if focus is regained without a full blur/focus cycle).
+      if (undoTimerRef.current) {
+        clearTimeout(undoTimerRef.current);
+        undoTimerRef.current = null;
+      }
+      setUndoMeal(null);
+      setUndoMoveMeal(null);
+      setUndoSwapMeal(null);
+      acknowledge(pendingPlannerAck);
+    }, [pendingPlannerAck, setPendingPlannerAck]),
+  );
 
   // When the planner tab comes into focus, consume any pending recipe-swap undo set by the recipes tab
   useFocusEffect(

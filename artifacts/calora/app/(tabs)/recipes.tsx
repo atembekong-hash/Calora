@@ -103,7 +103,7 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
   );
 }
 function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void }) {
-  const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap } = useCalora();
+  const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck } = useCalora();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const remoteRecipeId = recipe && !local ? recipe.id : '';
   const detailQuery = useGetRecipe(remoteRecipeId, { query: { queryKey: ['recipe', remoteRecipeId], enabled: Boolean(remoteRecipeId), staleTime: 1000 * 60 * 30 } });
@@ -177,6 +177,10 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
     updatePlannerMeals(applySlotReplace(plannerMeals, planDay, planMealType, plannedMeal));
     if (displacedMeal) {
       setPendingUndoSwap({ newMeal: plannedMeal, originalMeal: displacedMeal });
+    } else {
+      // Slot was empty (e.g. user removed a meal then picked a recipe). Signal the Planner to
+      // show a plain save acknowledgment and cancel any stale removal-undo when it regains focus.
+      setPendingPlannerAck(`${plannedMeal.name} added to your ${plannedMeal.meal.toLowerCase()} plan.`);
     }
     // Clear slot context so re-opening won't re-apply stale targeting
     setRecipeSlotTarget(null);
