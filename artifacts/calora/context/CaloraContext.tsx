@@ -171,6 +171,7 @@ type CaloraState = {
   goalCelebrationSeenTargetKg?: number;
   /** Persisted planner plan-type preferences. null means the user has not yet selected a plan type. */
   plannerPreferences?: import('@/lib/planType').PlannerPreferences | null;
+  fontSizeScale?: 'small' | 'default' | 'large' | 'xlarge';
 };
 
 type CaloraContextValue = {
@@ -197,6 +198,9 @@ type CaloraContextValue = {
   hydrationReminders: HydrationReminderPrefs;
   mealReminders: MealReminderPrefs;
   goalReminder: GoalReminderPrefs;
+  fontScale: number;
+  fontSizeScale: 'small' | 'default' | 'large' | 'xlarge';
+  setFontSizeScale: (scale: 'small' | 'default' | 'large' | 'xlarge') => void;
   coachConsentAccepted: boolean;
   coachMessages: CoachMessage[];
   livingState: LivingState;
@@ -395,6 +399,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([]);
   const [goalCelebrationSeenTargetKg, setGoalCelebrationSeenTargetKg] = useState<number | null>(null);
   const [plannerPreferences, setPlannerPreferencesState] = useState<import('@/lib/planType').PlannerPreferences | null>(null);
+  const [fontSizeScale, setFontSizeScaleState] = useState<'small' | 'default' | 'large' | 'xlarge'>('default');
+  const fontScale = ({ small: 0.82, default: 1.0, large: 1.2, xlarge: 1.42 } as const)[fontSizeScale];
   const [livingMemory, setLivingMemory] = useState<LivingMemory>(() => buildLivingMemory({
     logs: starterLogs,
     waterLogs: {},
@@ -460,6 +466,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      if (saved.coachMessages) setCoachMessages(saved.coachMessages);
      if (saved.goalCelebrationSeenTargetKg !== undefined) setGoalCelebrationSeenTargetKg(saved.goalCelebrationSeenTargetKg ?? null);
      if (saved.plannerPreferences !== undefined) setPlannerPreferencesState(saved.plannerPreferences ?? null);
+     if (saved.fontSizeScale) setFontSizeScaleState(saved.fontSizeScale as 'small' | 'default' | 'large' | 'xlarge');
   });
 
   useEffect(() => {
@@ -498,9 +505,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       livingMemory,
       goalCelebrationSeenTargetKg: goalCelebrationSeenTargetKg ?? undefined,
       plannerPreferences: plannerPreferences ?? undefined,
+      fontSizeScale,
     };
      enqueueAutosave(pm.current, state);
-  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -767,6 +775,9 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     setHydrationReminders: (prefs: HydrationReminderPrefs) => {
       setHydrationRemindersState(prefs);
     },
+    fontScale,
+    fontSizeScale,
+    setFontSizeScale: setFontSizeScaleState,
     mealReminders,
     goalReminder,
     setMealReminders: (prefs: MealReminderPrefs) => setMealRemindersState(prefs),
@@ -859,6 +870,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         // See lib/exportGap.ts for the extracted production function.
         setMealRemindersState(DEFAULT_MEAL_REMINDER_PREFS);
         setGoalReminderState(DEFAULT_GOAL_REMINDER_PREFS);
+        setFontSizeScaleState('default');
         exportSnapshotRef.current = makeClearedExportSnapshot({
           getPlannerWeekStart,
           healthConnected,
@@ -929,7 +941,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      setPendingPlannerAck,
      goalCelebrationSeenTargetKg,
      markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
-     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerWeekStart, plannerViewedDay, profile, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

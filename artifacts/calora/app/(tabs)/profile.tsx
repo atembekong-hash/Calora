@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -53,7 +53,9 @@ export default function ProfileScreen() {
     mealReminders, setMealReminders,
     goalReminder, setGoalReminder,
     livingMemory, logs,
+    fontSizeScale, setFontSizeScale, fontScale,
   } = useCalora();
+  const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
 
   const hasExportData = deriveExportHasData(profile, logs);
   const insets = useSafeAreaInsets();
@@ -287,6 +289,28 @@ export default function ProfileScreen() {
               </Pressable>
             );
           })}
+        </View>
+
+        {/* Text size */}
+        <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 10 }]}>
+          <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}>
+            <Feather name="type" size={16} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.settingTitle, { color: colors.foreground }]}>Text size</Text>
+            <Text style={{ fontSize: 13 * fontScale, fontFamily: 'Inter_400Regular', color: colors.mutedForeground, marginTop: 3 }} numberOfLines={1}>Grilled chicken salad · 510 kcal</Text>
+          </View>
+          <View style={styles.unitChips}>
+            {(['small', 'default', 'large', 'xlarge'] as const).map((key) => {
+              const label = { small: 'A−', default: 'A', large: 'A+', xlarge: 'A⁺⁺' }[key];
+              const sel = fontSizeScale === key;
+              return (
+                <Pressable key={key} accessibilityLabel={`${key} text size`} onPress={() => setFontSizeScale(key)} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
+                  <Text style={[styles.unitChipText, { color: sel ? colors.primaryForeground : colors.mutedForeground }]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         {/* Units */}
@@ -823,87 +847,88 @@ export default function ProfileScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+function makeStyles(f: number) {
+  return StyleSheet.create({
   page: { flex: 1 },
 
   // Hero header
   profileHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
   profileHeaderContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
   profileHeaderBadge: { position: 'absolute', top: 17, right: 17, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
-  profileHeaderBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1 },
-  profileHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 6 },
-  profileHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 27, letterSpacing: -0.7 },
-  profileHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, marginTop: 7, maxWidth: 280 },
+  profileHeaderBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1 },
+  profileHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 6 },
+  profileHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 27 * f, letterSpacing: -0.7 },
+  profileHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17, marginTop: 7, maxWidth: 280 },
 
   // Profile card
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 23, padding: 16, marginBottom: 26 },
   largeAvatar: { width: 47, height: 47, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
-  largeAvatarText: { fontFamily: 'Inter_700Bold', fontSize: 19 },
-  profileName: { fontFamily: 'Inter_700Bold', fontSize: 16 },
-  profileSub: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 4, maxWidth: 230 },
+  largeAvatarText: { fontFamily: 'Inter_700Bold', fontSize: 19 * f },
+  profileName: { fontFamily: 'Inter_700Bold', fontSize: 16 * f },
+  profileSub: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 4, maxWidth: 230 },
 
   // Section headings
-  sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, letterSpacing: -0.3 },
-  sectionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 4, marginBottom: 12 },
+  sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.3 },
+  sectionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 4, marginBottom: 12 },
 
   // Segmented controls (theme + units)
   segmentedControl: { flexDirection: 'row', gap: 5, borderWidth: 1, padding: 5, borderRadius: 16, marginBottom: 12 },
   segmentedOption: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderRadius: 11, paddingVertical: 10 },
-  segmentedLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  segmentedLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
 
   // Units row
   unitsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 17, padding: 11, marginBottom: 26 },
   unitChips: { flexDirection: 'row', gap: 6 },
   unitChip: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
-  unitChipText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  unitChipText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
 
   // Reminder elements
-  reminderSectionLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.2, marginTop: 18, marginBottom: 8 },
+  reminderSectionLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginTop: 18, marginBottom: 8 },
   reminderToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 12, marginBottom: 8 },
   reminderSettings: { borderWidth: 1, borderRadius: 17, padding: 14, marginBottom: 8, gap: 4 },
   reminderTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 6 },
   mealReminderRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 8 },
   reminderTimeIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  reminderTimeLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1, marginBottom: 3 },
-  reminderTimeValue: { fontFamily: 'Inter_700Bold', fontSize: 15, letterSpacing: -0.3 },
+  reminderTimeLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1, marginBottom: 3 },
+  reminderTimeValue: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, letterSpacing: -0.3 },
   reminderNudgeGroup: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  nudgeGroupLabel: { fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 0.8 },
+  nudgeGroupLabel: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.8 },
   reminderNudge: { flexDirection: 'row', gap: 4 },
   nudgeButton: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   reminderDivider: { height: 1, marginVertical: 2 },
   reminderIntervalRow: { paddingVertical: 6 },
   intervalChips: { flexDirection: 'row', gap: 7 },
   intervalChip: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingVertical: 9 },
-  intervalChipText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  intervalChipText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   reminderPrivacy: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginTop: 6 },
-  reminderPrivacyText: { fontFamily: 'Inter_400Regular', fontSize: 10, flex: 1 },
+  reminderPrivacyText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, flex: 1 },
 
   // Billing
   planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 11, marginTop: 20 },
   betaPill: { borderRadius: 7, paddingHorizontal: 7, paddingVertical: 5 },
-  betaText: { fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 1 },
+  betaText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1 },
   planCard: { borderWidth: 1.5, borderRadius: 22, padding: 16 },
-  planEyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 9, letterSpacing: 1.1, marginBottom: 8 },
+  planEyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, letterSpacing: 1.1, marginBottom: 8 },
   planChoices: { gap: 8 },
   planChoice: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 15, padding: 11, gap: 9 },
   radio: { width: 19, height: 19, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   radioSelected: { width: 9, height: 9, borderRadius: 5 },
   planChoiceCopy: { flex: 1 },
-  planName: { fontFamily: 'Inter_700Bold', fontSize: 14 },
-  planHint: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 5 },
-  planPrice: { fontFamily: 'Inter_700Bold', fontSize: 19 },
-  planPeriod: { fontFamily: 'Inter_400Regular', fontSize: 10 },
-  savePill: { fontFamily: 'Inter_700Bold', fontSize: 9, paddingHorizontal: 5 },
+  planName: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
+  planHint: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 5 },
+  planPrice: { fontFamily: 'Inter_700Bold', fontSize: 19 * f },
+  planPeriod: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
+  savePill: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, paddingHorizontal: 5 },
   valueLine: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginTop: 10 },
-  valueLineText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  valueLineText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
   featureList: { gap: 9, paddingVertical: 15 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  featureText: { fontFamily: 'Inter_500Medium', fontSize: 11 },
+  featureText: { fontFamily: 'Inter_500Medium', fontSize: 11 * f },
   planButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 13, paddingVertical: 13, marginTop: 16 },
-  planButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
-  billingNote: { fontFamily: 'Inter_400Regular', fontSize: 9, lineHeight: 14, textAlign: 'center', marginTop: 12 },
+  planButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
+  billingNote: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, lineHeight: 14, textAlign: 'center', marginTop: 12 },
   billingLinks: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, marginTop: 13 },
-  billingLink: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  billingLink: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
   linkDot: { width: 3, height: 3, borderRadius: 2 },
 
   // Saved meals
@@ -911,7 +936,7 @@ const styles = StyleSheet.create({
   emptySaved: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 10 },
   emptySavedImage: { width: 58, height: 58, borderRadius: 13 },
   emptySavedCopy: { flex: 1 },
-  emptySavedTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12, marginBottom: 3 },
+  emptySavedTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f, marginBottom: 3 },
   savedList: { gap: 8 },
   savedItem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 17, padding: 11 },
   deleteMealButton: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
@@ -923,48 +948,50 @@ const styles = StyleSheet.create({
   connectionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 17, padding: 12, marginBottom: 8 },
   connectionIcon: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   connectButton: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
-  connectButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
+  connectButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
   settingRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 12, marginBottom: 8 },
   settingIcon: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
-  settingTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
-  settingBody: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 4 },
+  settingTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
+  settingBody: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 4 },
 
   // Version
-  version: { fontFamily: 'Inter_400Regular', fontSize: 10, textAlign: 'center', marginTop: 18 },
+  version: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, textAlign: 'center', marginTop: 18 },
 
   // Dialogs / modals
   dialogBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   dialogCard: { width: '100%', borderRadius: 24, padding: 20 },
   dialogIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  dialogTitle: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.4 },
-  dialogBody: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, marginTop: 8 },
+  dialogTitle: { fontFamily: 'Inter_700Bold', fontSize: 20 * f, letterSpacing: -0.4 },
+  dialogBody: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18, marginTop: 8 },
   dialogStatus: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 11, padding: 10, marginTop: 15 },
-  dialogStatusText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  dialogStatusText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   dialogButton: { alignItems: 'center', justifyContent: 'center', borderRadius: 13, paddingVertical: 13, marginTop: 16 },
-  dialogButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  dialogButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   dialogSecondaryButton: { alignItems: 'center', paddingTop: 14 },
-  dialogSecondaryText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  dialogSecondaryText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
 
   // Saved meal modal
   savedModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, marginTop: 'auto', maxHeight: '92%' },
   savedKindRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   savedKind: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingVertical: 10 },
-  savedKindText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
-  savedInput: { height: 44, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, fontFamily: 'Inter_400Regular', fontSize: 12 },
+  savedKindText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+  savedInput: { height: 44, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
   savedNumbers: { flexDirection: 'row', gap: 7, marginTop: 8 },
   savedNumber: { flex: 1 },
-  savedNumberLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, marginBottom: 5 },
+  savedNumberLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginBottom: 5 },
 
   // Profile edit modal
   editModalHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 8 },
-  editFieldLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1, marginBottom: 6 },
+  editFieldLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1, marginBottom: 6 },
   editChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   editChip: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
-  editChipText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  editChipText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
 
   // Info modal rows
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, borderBottomWidth: 1, paddingVertical: 12 },
   faqRow: { borderBottomWidth: 1, paddingVertical: 12 },
-  faqQuestion: { fontFamily: 'Inter_600SemiBold', fontSize: 13, marginBottom: 5 },
-  faqAnswer: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18 },
-});
+  faqQuestion: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f, marginBottom: 5 },
+  faqAnswer: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18 },
+  });
+}
+const styles = makeStyles(1.0);
