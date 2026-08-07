@@ -2044,3 +2044,184 @@ describe('Schema-version contract: repeated clear-then-re-onboard cycles', () =>
     expect(state).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Pre-versioning snapshot safety: snapshots saved before schemaVersion existed
+//
+// A user upgrading from an older build may have a saved snapshot that has no
+// `schemaVersion` field at all (the field was added retroactively), or one
+// with `schemaVersion: 1` from an earlier stamping convention.
+//
+// The hydration path (pm.read → parseStorageValue) must handle both cases
+// without crashing and without silently discarding data.
+//
+// Crucially, the schema-version field is only stamped on WRITE (via
+// enqueueAutosave).  On READ, parseStorageValue returns whatever JSON object
+// is stored — it does not validate or reject unrecognised version numbers.
+// Any migration logic sits in CaloraContext's hydration callback, not here.
+//
+// These tests write raw JSON directly to the underlying StorageAdapter (not
+// through enqueueAutosave) so that the missing-or-old schemaVersion is
+// preserved exactly as it would be on a real device upgrading from an older
+// build.
+// ---------------------------------------------------------------------------
+
+describe('Pre-versioning snapshot safety: snapshots with no schemaVersion or schemaVersion:1 are read without crash or silent data loss', () => {
+  it('snapshot with no schemaVersion field: pm.read() returns the data without error', async () => {
+    // Simulate a snapshot written by an old build that predates the
+    // schemaVersion field.  Write directly to the adapter (bypassing
+    // enqueueAutosave) so the raw payload reaches pm.read() unchanged.
+    const legacySnapshot = {
+      onboardingComplete: true,
+      profile: { name: 'Legacy User', goal: 'maintain', weightKg: 70 },
+      logs: [
+        { id: 'legacy-log-1', name: 'Toast', date: '2026-01-01', meal: 'Breakfast',
+          calories: 120, protein: 4, carbs: 22, fat: 2, source: 'Manual', confidence: 90,
+          time: '7:30 AM', serving: '2 slices' },
+      ],
+      weights: [{ id: 'legacy-weight-1', date: '2026-01-01', kg: 70, source: 'manual' }],
+      waterLogs: { '2026-01-01': 64 },
+      moodLogs: { '2026-01-01': 'good' },
+    };
+    // No schemaVersion field — as it would be on an old device.
+    expect('schemaVersion' in legacySnapshot).toBe(false);
+
+    await storage.setItem(STORAGE_KEY, JSON.stringify(legacySnapshot));
+
+    // pm.read() must not throw and must return the stored data intact.
+    const { state, error } = await pm.read<typeof legacySnapshot & { schemaVersion?: number }>();
+
+    expect(error).toBeNull();
+    expect(state).not.toBeNull();
+    if (state) {
+      // Data fields are accessible — no silent partial load.
+      expect(state.onboardingComplete).toBe(true);
+      expect(state.profile?.name).toBe('Legacy User');
+      expect(state.logs).toHaveLength(1);
+      expect(state.logs[0].id).toBe('legacy-log-1');
+      expect(state.weights).toHaveLength(1);
+      expect(state.waterLogs?.['2026-01-01']).toBe(64);
+      expect(state.moodLogs?.['2026-01-01']).toBe('good');
+      // schemaVersion is absent — the field was never written.
+      expect(state.schemaVersion).toBeUndefined();
+    }
+  });
+
+  it('snapshot with schemaVersion: 1: pm.read() returns the data without error', async () => {
+    // Simulate a snapshot written by a build that used schemaVersion: 1.
+    // The current code defines STORAGE_SCHEMA_VERSION = 2, so this snapshot
+    // predates the current schema.  parseStorageValue must not reject it.
+    const v1Snapshot = {
+      schemaVersion: 1,
+      onboardingComplete: true,
+      profile: { name: 'V1 User', goal: 'lose', weightKg: 80 },
+      logs: [
+        { id: 'v1-log-1', name: 'Scrambled eggs', date: '2026-03-15', meal: 'Breakfast',
+          calories: 220, protein: 18, carbs: 2, fat: 15, source: 'Manual', confidence: 85,
+          time: '8:00 AM', serving: '2 eggs' },
+        { id: 'v1-log-2', name: 'Greek yoghurt', date: '2026-03-15', meal: 'Snack',
+          calories: 100, protein: 10, carbs: 8, fat: 2, source: 'USDA verified', confidence: 96,
+          time: '10:30 AM', serving: '1 cup' },
+      ],
+      weights: [{ id: 'v1-weight-1', date: '2026-03-15', kg: 80, source: 'manual' }],
+      savedMeals: [],
+      coachMessages: [] as unknown[],
+      coachConsentAccepted: false,
+    };
+
+    await storage.setItem(STORAGE_KEY, JSON.stringify(v1Snapshot));
+
+    const { state, error } = await pm.read<typeof v1Snapshot>();
+
+    expect(error).toBeNull();
+    expect(state).not.toBeNull();
+    if (state) {
+      // Version field is readable and equals what was stored — no coercion or loss.
+      expect(state.schemaVersion).toBe(1);
+      // All data fields are accessible — no silent partial load.
+      expect(state.onboardingComplete).toBe(true);
+      expect(state.profile?.name).toBe('V1 User');
+      expect(state.logs).toHaveLength(2);
+      expect(state.logs[0].id).toBe('v1-log-1');
+      expect(state.logs[1].id).toBe('v1-log-2');
+      expect(state.weights).toHaveLength(1);
+      expect(state.weights[0].kg).toBe(80);
+      expect(state.coachConsentAccepted).toBe(false);
+      expect(state.coachMessages).toEqual([]);
+    }
+  });
+
+  it('snapshot with no schemaVersion: hydration early-return guard (if !saved) is NOT triggered — saved is truthy', async () => {
+    // The CaloraContext hydration callback does:
+    //   if (!saved) return;   ← only for null (empty storage / post-clear)
+    //
+    // A legacy snapshot without schemaVersion must still be truthy so that
+    // the hydration callback processes the data fields.  This test asserts
+    // the truthiness contract explicitly.
+    const legacySnapshot = {
+      onboardingComplete: true,
+      profile: { name: 'Legacy', goal: 'maintain', weightKg: 65 },
+      logs: [] as unknown[],
+    };
+    await storage.setItem(STORAGE_KEY, JSON.stringify(legacySnapshot));
+
+    const { state, error } = await pm.read<typeof legacySnapshot>();
+    expect(error).toBeNull();
+    // state must be truthy — the hydration early-return guard must NOT fire.
+    expect(!!state).toBe(true);
+    if (state) {
+      expect(state.onboardingComplete).toBe(true);
+    }
+  });
+
+  it('snapshot with schemaVersion: 1: hydration early-return guard (if !saved) is NOT triggered — saved is truthy', async () => {
+    // Same truthiness contract as the test above, but for the v1 case.
+    const v1Snapshot = { schemaVersion: 1, onboardingComplete: true, profile: null, logs: [] as unknown[] };
+    await storage.setItem(STORAGE_KEY, JSON.stringify(v1Snapshot));
+
+    const { state, error } = await pm.read<typeof v1Snapshot>();
+    expect(error).toBeNull();
+    expect(!!state).toBe(true);
+    if (state) {
+      expect(state.schemaVersion).toBe(1);
+      expect(state.onboardingComplete).toBe(true);
+    }
+  });
+
+  it('snapshot with no schemaVersion: the raw JSON survives the read round-trip without corruption', async () => {
+    // Confirms that pm.read() is a pure read — it does not modify the stored
+    // raw bytes (no auto-migration, no schema-version stamp on read).  The
+    // underlying storage key is untouched after the read.
+    const legacyRaw = JSON.stringify({
+      onboardingComplete: false,
+      profile: null,
+      logs: [{ id: 'raw-check-log', name: 'Apple', date: '2025-12-01', meal: 'Snack',
+               calories: 95, protein: 0, carbs: 25, fat: 0, source: 'USDA verified',
+               confidence: 99, time: '3:00 PM', serving: '1 medium' }],
+    });
+    await storage.setItem(STORAGE_KEY, legacyRaw);
+
+    await pm.read(); // perform the read
+
+    // The stored bytes are exactly what was written — no schema stamp added.
+    const afterRead = await storage.getItem(STORAGE_KEY);
+    expect(afterRead).toBe(legacyRaw);
+    // Confirm the raw string has no schemaVersion — the read did not modify it.
+    const parsed = JSON.parse(afterRead!) as Record<string, unknown>;
+    expect('schemaVersion' in parsed).toBe(false);
+  });
+
+  it('snapshot with schemaVersion: 1: the raw JSON survives the read round-trip without corruption', async () => {
+    // Mirrors the no-version test above for the v1 case.
+    const v1Raw = JSON.stringify({ schemaVersion: 1, onboardingComplete: true,
+      profile: { name: 'V1', goal: 'gain', weightKg: 60 }, logs: [] });
+    await storage.setItem(STORAGE_KEY, v1Raw);
+
+    await pm.read();
+
+    const afterRead = await storage.getItem(STORAGE_KEY);
+    expect(afterRead).toBe(v1Raw);
+    const parsed = JSON.parse(afterRead!) as Record<string, unknown>;
+    expect(parsed['schemaVersion']).toBe(1); // still 1, not bumped to 2
+  });
+});
