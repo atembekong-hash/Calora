@@ -12,10 +12,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import Svg, { Path } from 'react-native-svg';
+import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { mealOrder, verifiedFoods } from '@/data/foods';
@@ -28,6 +31,27 @@ import {
   isWaterConfirmed,
   recordWaterConfirmation,
 } from '@/lib/waterConfirmation';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+// Calorie gauge geometry — computed once at module load, stable across renders
+const GAUGE_VBW = 260;
+const GAUGE_VBH = 186;
+const GAUGE_CX  = 130;
+const GAUGE_CY  = 118;
+const GAUGE_R   = 90;
+const GAUGE_STROKE = 13;
+const GAUGE_START  = 135; // °from positive x-axis (SVG y-down, clockwise)
+const GAUGE_SWEEP  = 270;
+const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
+const _gaugePt = (deg: number) => ({
+  x: GAUGE_CX + GAUGE_R * Math.cos((deg * Math.PI) / 180),
+  y: GAUGE_CY + GAUGE_R * Math.sin((deg * Math.PI) / 180),
+});
+const _gs = _gaugePt(GAUGE_START);
+const _ge = _gaugePt(GAUGE_START + GAUGE_SWEEP); // same as 45°
+// Full 270° arc: large-arc-flag=1 (> 180°), sweep-flag=1 (clockwise in SVG)
+const GAUGE_TRACK_D = `M ${_gs.x.toFixed(2)} ${_gs.y.toFixed(2)} A ${GAUGE_R} ${GAUGE_R} 0 1 1 ${_ge.x.toFixed(2)} ${_ge.y.toFixed(2)}`;
 
 const dateKey = (date: Date) => {
   const year = date.getFullYear();
@@ -336,6 +360,21 @@ function WellnessCards({
   );
 }
 
+function HeroMacroBar({ label, value, target, color, colors }: { label: string; value: number; target: number; color: string; colors: ReturnType<typeof useCalora>['colors'] }) {
+  const pct = target > 0 ? Math.min(value / target, 1) : 0;
+  return (
+    <View style={styles.heroMacroBlock}>
+      <View style={styles.heroMacroHeader}>
+        <Text style={[styles.heroMacroLabel, { color: colors.heroMuted }]}>{label}</Text>
+        <Text style={[styles.heroMacroValue, { color: colors.onHero }]}>{value}g <Text style={{ color: colors.heroMuted, fontFamily: 'Inter_400Regular' }}>/ {target}g</Text></Text>
+      </View>
+      <View style={[styles.heroMacroTrack, { backgroundColor: 'rgba(157,215,189,0.11)' }]}>
+        <View style={[styles.heroMacroFill, { backgroundColor: color, width: `${pct * 100}%` }]} />
+      </View>
+    </View>
+  );
+}
+
 function MacroBar({ label, value, target, color, colors }: { label: string; value: number; target: number; color: string; colors: ReturnType<typeof useCalora>['colors'] }) {
   return (
     <View style={styles.macroBlock}>
@@ -547,6 +586,160 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
   );
 }
 
+function CalorieGauge({
+  consumed,
+  target,
+  colors,
+  mode,
+}: {
+  consumed: number;
+  target: number;
+  colors: ReturnType<typeof useCalora>['colors'];
+  mode: 'light' | 'dark';
+}) {
+  const { width: windowWidth } = useWindowDimensions();
+  const progress = target > 0 ? Math.min(Math.max(consumed / target, 0), 1) : 0;
+  const remaining = Math.max(target - consumed, 0);
+  const overGoal  = consumed > target;
+
+  // Responsive sizing: two 68 px side columns + gauge fills the rest (max 220 px)
+  const cardInnerW = windowWidth - 40; // 20 px margin each side
+  const sideColW   = 68;
+  const gaugeW     = Math.max(Math.min(cardInnerW - sideColW * 2, 220), 140);
+  const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW);
+
+  // Animate the fill arc via strokeDashoffset
+  const dashOffset = useSharedValue(GAUGE_ARC_LEN);
+  useEffect(() => {
+    dashOffset.value = withTiming(GAUGE_ARC_LEN * (1 - progress), {
+      duration: 800,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [progress, dashOffset]);
+
+  const fillProps = useAnimatedProps(() => ({
+    strokeDashoffset: dashOffset.value,
+  }));
+
+  // Design tokens
+  const trackColor = mode === 'dark' ? 'rgba(157,215,189,0.11)' : 'rgba(17,50,37,0.07)';
+  const fillColor  = overGoal ? colors.warning : colors.primary;
+
+  // Text overlay: push content into the enclosed upper area of the horseshoe
+  // paddingBottom shifts the flex-center upward so text lands above the equator
+  const overlayPaddingBottom = gaugeH * 0.36;
+  // Side columns: sit at flex-end (bottom of row), with a small lift to align near arc endpoints
+  const sidePaddingBottom = gaugeH * 0.06;
+
+  return (
+    <View style={gaugeStyles.container}>
+      <View style={gaugeStyles.row}>
+        {/* ── Left: Eaten ── */}
+        <View style={[gaugeStyles.sideCol, { width: sideColW, paddingBottom: sidePaddingBottom }]}>
+          <Text
+            style={[gaugeStyles.sideNumber, { color: colors.onHero }]}
+            adjustsFontSizeToFit
+            numberOfLines={1}
+          >
+            {consumed.toLocaleString()}
+          </Text>
+          <Text style={[gaugeStyles.sideLabel, { color: colors.heroMuted }]}>Eaten</Text>
+        </View>
+
+        {/* ── Centre: SVG arc + text overlay ── */}
+        <View style={{ width: gaugeW, height: gaugeH }}>
+          <Svg width={gaugeW} height={gaugeH} viewBox={`0 0 ${GAUGE_VBW} ${GAUGE_VBH}`}>
+            {/* Track — full 270° muted arc */}
+            <Path
+              d={GAUGE_TRACK_D}
+              stroke={trackColor}
+              strokeWidth={GAUGE_STROKE}
+              fill="none"
+              strokeLinecap="round"
+            />
+            {/* Fill — animated progress arc */}
+            {progress > 0 && (
+              <AnimatedPath
+                animatedProps={fillProps}
+                d={GAUGE_TRACK_D}
+                stroke={fillColor}
+                strokeWidth={GAUGE_STROKE}
+                fill="none"
+                strokeLinecap="round"
+                strokeDasharray={GAUGE_ARC_LEN}
+              />
+            )}
+          </Svg>
+
+          {/* Text inside the horseshoe */}
+          <View style={[gaugeStyles.textOverlay, { paddingBottom: overlayPaddingBottom }]}>
+            <Text style={[gaugeStyles.remainingLabel, { color: colors.heroMuted }]}>Remaining</Text>
+            <Text
+              style={[gaugeStyles.remainingNumber, { color: colors.onHero }]}
+              adjustsFontSizeToFit
+              numberOfLines={1}
+            >
+              {remaining.toLocaleString()}
+            </Text>
+            <Text style={[gaugeStyles.kcalLeft, { color: colors.heroMuted }]}>kcal left</Text>
+            <Text style={[gaugeStyles.goalText, { color: colors.heroMuted }]}>
+              Goal {target.toLocaleString()} kcal
+            </Text>
+          </View>
+        </View>
+
+        {/* ── Right: Burned ── */}
+        <View style={[gaugeStyles.sideCol, { width: sideColW, paddingBottom: sidePaddingBottom }]}>
+          <Text style={[gaugeStyles.sideNumber, { color: colors.onHero }]}>0</Text>
+          <Text style={[gaugeStyles.sideLabel, { color: colors.heroMuted }]}>Burned</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const gaugeStyles = StyleSheet.create({
+  container: { marginTop: 14, marginBottom: 4 },
+  row:       { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
+  sideCol:   { alignItems: 'center', justifyContent: 'flex-end' },
+  sideNumber: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 20,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+    minWidth: 52,
+  },
+  sideLabel: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 9,
+    marginTop: 3,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase' as const,
+  },
+  textOverlay: {
+    position: 'absolute' as const,
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  remainingLabel: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 9,
+    letterSpacing: 1.3,
+    textTransform: 'uppercase' as const,
+    marginBottom: 2,
+  },
+  remainingNumber: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 40,
+    letterSpacing: -1.5,
+    lineHeight: 44,
+    maxWidth: 150,
+  },
+  kcalLeft: { fontFamily: 'Inter_500Medium', fontSize: 11, marginTop: 2 },
+  goalText:  { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 6, opacity: 0.72 },
+});
+
 export default function HomeScreen() {
   const { logs, colors, mode, profile, syncState, waterLogs, moodLogs, addWater, setMood, setThemePreference, livingState } = useCalora();
   const insets = useSafeAreaInsets();
@@ -661,29 +854,29 @@ export default function HomeScreen() {
         </View>
 
         <View style={[styles.heroCard, { backgroundColor: colors.hero }]}>
+          {/* Eyebrow + trust indicator */}
           <View style={styles.heroTop}>
-            <View style={styles.heroTopCopy}>
-              <Text style={[styles.heroEyebrow, { color: colors.heroMuted }]}>TODAY'S FUEL</Text>
-              <Text style={[styles.heroTitle, { color: colors.onHero }]}>{livingState.headline}</Text>
-            </View>
+            <Text style={[styles.heroEyebrow, { color: colors.heroMuted }]}>TODAY'S FUEL</Text>
             <View style={[styles.trustBadge, { backgroundColor: 'rgba(157,215,189,0.16)' }]}>
               <Feather name="shield" size={13} color={colors.heroMuted} />
-               <Text style={[styles.trustText, { color: colors.heroMuted }]}>{dataTrust === null ? 'No trust score yet' : `${dataTrust}% trusted`}</Text>
+              <Text style={[styles.trustText, { color: colors.heroMuted }]}>{dataTrust === null ? 'No trust score yet' : `${dataTrust}% trusted`}</Text>
             </View>
           </View>
-          <View style={styles.heroMetrics}>
-            <View style={[styles.ring, { borderColor: colors.primary }]}>
-              <Text style={[styles.ringValue, { color: colors.onHero }]}>{remaining}</Text>
-              <Text style={[styles.ringLabel, { color: colors.heroMuted }]}>left</Text>
-            </View>
-            <View style={styles.heroStats}>
-              <Text style={[styles.heroStatValue, { color: colors.onHero }]}>{selectedTotals.calories.toLocaleString()} <Text style={[styles.heroStatUnit, { color: colors.heroMuted }]}>/ {target.toLocaleString()} kcal</Text></Text>
-              <View style={[styles.heroTrack, { backgroundColor: 'rgba(157,215,189,0.18)' }]}>
-                <View style={[styles.heroFill, { width: `${progress * 100}%`, backgroundColor: colors.primary }]} />
-              </View>
-              <Text style={[styles.heroHint, { color: colors.heroMuted }]}>{livingState.reason}</Text>
-            </View>
+
+          {/* Dominant calorie gauge */}
+          <CalorieGauge consumed={selectedTotals.calories} target={target} colors={colors} mode={mode} />
+
+          {/* Compact macro indicators */}
+          <View style={styles.heroMacros}>
+            <HeroMacroBar label="Protein" value={selectedTotals.protein} target={Math.round(target * 0.26 / 4)} color={colors.protein} colors={colors} />
+            <HeroMacroBar label="Carbs"   value={selectedTotals.carbs}   target={Math.round(target * 0.44 / 4)} color={colors.carbs}   colors={colors} />
+            <HeroMacroBar label="Fat"     value={selectedTotals.fat}     target={Math.round(target * 0.3 / 9)}  color={colors.fat}     colors={colors} />
           </View>
+
+          {/* Planning insight */}
+          <Text style={[styles.heroInsight, { color: colors.heroMuted }]}>{livingState.headline}</Text>
+
+          {/* Living-state action */}
           <Pressable
             accessibilityLabel={waterConfirmed ? 'Water added' : livingState.action.label}
             accessibilityRole="button"
@@ -811,22 +1004,18 @@ const styles = StyleSheet.create({
   avatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: 'Inter_700Bold', fontSize: 16 },
   heroCard: { borderRadius: 26, padding: 20, marginBottom: 16 },
-  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  heroTopCopy: { flex: 1, paddingRight: 10 },
-  heroEyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4, marginBottom: 7 },
-  heroTitle: { fontFamily: 'Inter_700Bold', fontSize: 22, letterSpacing: -0.4, flexShrink: 1 },
+  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  heroEyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.4 },
   trustBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 12 },
   trustText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  heroMetrics: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 24 },
-  ring: { width: 92, height: 92, borderRadius: 46, borderWidth: 5, alignItems: 'center', justifyContent: 'center' },
-  ringValue: { fontFamily: 'Inter_700Bold', fontSize: 22, letterSpacing: -0.5 },
-  ringLabel: { fontFamily: 'Inter_500Medium', fontSize: 11, marginTop: -2 },
-  heroStats: { flex: 1 },
-  heroStatValue: { fontFamily: 'Inter_700Bold', fontSize: 18, marginBottom: 11 },
-  heroStatUnit: { fontFamily: 'Inter_400Regular', fontSize: 12 },
-  heroTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
-  heroFill: { height: 7, borderRadius: 4 },
-  heroHint: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 10 },
+  heroMacros: { marginTop: 18, gap: 9 },
+  heroMacroBlock: {},
+  heroMacroHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  heroMacroLabel: { fontFamily: 'Inter_500Medium', fontSize: 11 },
+  heroMacroValue: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  heroMacroTrack: { height: 5, borderRadius: 3, overflow: 'hidden' },
+  heroMacroFill:  { height: 5, borderRadius: 3 },
+  heroInsight: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginTop: 14, opacity: 0.82 },
   livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 42, borderRadius: 14, paddingHorizontal: 14, marginTop: 20 },
   livingActionText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
   livingRhythmCard: { borderWidth: 1, borderRadius: 22, padding: 16, marginBottom: 20 },
