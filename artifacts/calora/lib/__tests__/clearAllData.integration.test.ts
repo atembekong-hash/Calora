@@ -572,6 +572,85 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     expect(viewedDay >= weekStart).toBe(true);
   });
 
+  it('double-tap guard: two concurrent clearAllData calls both settle with cleared state — no interleaved state updates', async () => {
+    // Scenario: the user taps "Clear all data" twice quickly before the first
+    // pm.clear() resolves.  Both calls chain onto the same write queue, so the
+    // storage sequence is:
+    //   setItem  (blocked in-flight autosave)
+    //   removeItem (first clear)
+    //   removeItem (second clear)
+    // After both pm.clear() calls resolve, each performClearAllData calls its
+    // own set of state setters — both sets produce identical cleared values, so
+    // no interleaving produces pre-clear state.  Final storage is the cleared
+    // snapshot written by the second autosave.
+
+    const release = storage.blockNextSetItem();
+
+    const sessionState = {
+      onboardingComplete: true,
+      profile: { name: 'Alex', goal: 'lose', weightKg: 76 },
+      logs: [
+        { id: 'starter-oats',  name: 'Overnight oats', date: '2026-08-07', meal: 'Breakfast' },
+        { id: 'starter-salad', name: 'Chicken salad',   date: '2026-08-07', meal: 'Lunch' },
+      ],
+      weights: [{ id: 'weight-1', date: '2026-08-07', kg: 76, source: 'manual' }],
+    };
+    pm.enqueueWrite(sessionState); // blocked in-flight autosave
+
+    // Simulate two separate spy-ctx objects — one per tap — so we can verify
+    // that both calls receive the cleared values independently.
+    const { ctx: ctx1, captured: captured1 } = makeSpyCtx(pm);
+    const { ctx: ctx2, captured: captured2 } = makeSpyCtx(pm);
+
+    // Both taps fire before the first pm.clear() resolves.
+    const firstClear  = performClearAllData(ctx1); // first tap
+    const secondClear = performClearAllData(ctx2); // second tap — chains after first remove
+
+    release(); // unblock the in-flight write
+    await Promise.all([firstClear, secondClear]);
+
+    // Core storage call order:
+    //   setItem  — pre-clear in-flight autosave (drained first, before any remove)
+    //   removeItem — first tap's pm.clear() (chains after write)
+    //   removeItem — second tap's pm.clear() (chains after first remove)
+    expect(storage.calls).toEqual([
+      `setItem:${STORAGE_KEY}`,
+      `removeItem:${STORAGE_KEY}`,
+      `removeItem:${STORAGE_KEY}`,
+    ]);
+
+    // Both captured states must be the cleared defaults — neither tap produced
+    // pre-clear values, confirming no interleaved state updates occurred.
+    for (const [label, captured] of [['first', captured1], ['second', captured2]] as const) {
+      expect(captured.onboardingComplete, `${label} tap: onboardingComplete`).toBe(false);
+      expect(captured.profile,            `${label} tap: profile`).toBeNull();
+      expect(captured.logs,               `${label} tap: logs`).toEqual([]);
+      expect(captured.weights,            `${label} tap: weights`).toEqual([]);
+      expect(captured.moodLogs,           `${label} tap: moodLogs`).toEqual({});
+      expect(captured.waterLogs,          `${label} tap: waterLogs`).toEqual({});
+      expect(captured.coachConsentAccepted, `${label} tap: coachConsentAccepted`).toBe(false);
+      expect(captured.coachMessages,      `${label} tap: coachMessages`).toEqual([]);
+    }
+
+    // Simulate the autosave effect for each tap (the second autosave is the
+    // final writer in storage — it overwrites the first with identical data).
+    pm.enqueueWrite(captured1);
+    pm.enqueueWrite(captured2);
+    await new Promise((r) => setTimeout(r, 0));
+
+    const stored = JSON.parse(storage.store[STORAGE_KEY]);
+    expect(stored.onboardingComplete).toBe(false);
+    expect(stored.profile).toBeNull();
+    expect(stored.logs).toEqual([]);
+    expect(stored.weights).toEqual([]);
+    // No starter entries survived either tap.
+    for (const staleId of ['starter-oats', 'starter-salad']) {
+      expect(
+        (stored.logs as Array<{ id: string }>).some((l) => l.id === staleId),
+      ).toBe(false);
+    }
+  });
+
   it('post-clear read() returns the cleared state — stale mid-clear log id is absent on re-hydration', async () => {
     // Round-trip: after the complete lifecycle, pm.read() (the hydration effect)
     // returns the cleared snapshot, not the stale mid-clear data.
