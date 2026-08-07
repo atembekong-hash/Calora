@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { Children, useMemo, useState } from 'react';
+import React, { Children, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora, type DailyActivity, type FoodLog, type MealType, type Mood } from '@/context/CaloraContext';
@@ -105,6 +105,8 @@ function MemoryRow({
   );
 }
 
+const UNDO_WINDOW_MS = 7000;
+
 export default function LivingMemoryScreen() {
   const { colors, livingMemory, logs, plannerMeals, updateLog, forgetLivingObservation } = useCalora();
   const insets = useSafeAreaInsets();
@@ -112,6 +114,74 @@ export default function LivingMemoryScreen() {
   const [editDate, setEditDate] = useState('');
   const [editMeal, setEditMeal] = useState<MealType>('Breakfast');
   const [forgetTarget, setForgetTarget] = useState<{ kind: LivingMemoryKind; id: string; label: string } | null>(null);
+  const [pendingForget, setPendingForget] = useState<{ kind: LivingMemoryKind; id: string; label: string } | null>(null);
+  const [undoSecondsLeft, setUndoSecondsLeft] = useState(0);
+  const forgetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Mirror pendingForget in a ref so the unmount cleanup can read it synchronously
+  const pendingForgetRef = useRef<{ kind: LivingMemoryKind; id: string; label: string } | null>(null);
+  // Mirror forgetLivingObservation in a ref so unmount can call the latest version
+  const forgetLivingObservationRef = useRef(forgetLivingObservation);
+  useEffect(() => { forgetLivingObservationRef.current = forgetLivingObservation; });
+
+  // On unmount: if a forget is still pending, commit it so navigation away never silently discards it
+  useEffect(() => {
+    return () => {
+      if (forgetTimerRef.current) clearTimeout(forgetTimerRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (pendingForgetRef.current) {
+        forgetLivingObservationRef.current(pendingForgetRef.current.kind, pendingForgetRef.current.id);
+        pendingForgetRef.current = null;
+      }
+    };
+  }, []);
+
+  const clearTimers = () => {
+    if (forgetTimerRef.current) { clearTimeout(forgetTimerRef.current); forgetTimerRef.current = null; }
+    if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+  };
+
+  const handleConfirmForget = () => {
+    if (!forgetTarget) return;
+    const { kind, id, label } = forgetTarget;
+    setForgetTarget(null);
+
+    // If another forget is already pending, commit it immediately before starting a new one
+    if (pendingForgetRef.current) {
+      forgetLivingObservation(pendingForgetRef.current.kind, pendingForgetRef.current.id);
+    }
+    clearTimers();
+
+    const next = { kind, id, label };
+    pendingForgetRef.current = next;
+    const expiresAt = Date.now() + UNDO_WINDOW_MS;
+    setUndoSecondsLeft(Math.ceil(UNDO_WINDOW_MS / 1000));
+    setPendingForget(next);
+
+    forgetTimerRef.current = setTimeout(() => {
+      forgetLivingObservation(kind, id);
+      pendingForgetRef.current = null;
+      setPendingForget(null);
+      clearTimers();
+    }, UNDO_WINDOW_MS);
+
+    countdownRef.current = setInterval(() => {
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        clearInterval(countdownRef.current!);
+        countdownRef.current = null;
+        setUndoSecondsLeft(0);
+      } else {
+        setUndoSecondsLeft(Math.ceil(remaining / 1000));
+      }
+    }, 250);
+  };
+
+  const handleUndo = () => {
+    clearTimers();
+    pendingForgetRef.current = null;
+    setPendingForget(null);
+  };
 
   const logsById = useMemo(() => new Map(logs.map((log) => [log.id, log])), [logs]);
   const visiblePlannerMeals = useMemo(
@@ -201,7 +271,9 @@ export default function LivingMemoryScreen() {
             )}
 
             <MemorySection title="Diary signals" caption="Meal timing and type from confirmed diary entries." colors={colors}>
-              {buildDiaryRows(livingMemory).map((row) => {
+              {buildDiaryRows(livingMemory)
+                .filter((row) => !(pendingForget?.kind === 'meal' && pendingForget.id === row.id))
+                .map((row) => {
                   const log = logsById.get(row.id);
                   const label = `Diary entry · ${readableDate(row.date)}`;
                   return (
@@ -220,19 +292,23 @@ export default function LivingMemoryScreen() {
             </MemorySection>
 
             <MemorySection title="Wellness check-ins" caption="Optional water, mood, and activity signals." colors={colors}>
-              {buildWellnessRows(livingMemory).map((row) => {
-                if (row.kind === 'water') {
-                  return <MemoryRow key={row.key} icon="droplet" title={`Water · ${readableDate(row.date)}`} detail={`${row.ounces} fl oz`} lastActiveDate={row.date} colors={colors} onForget={() => forget('water', row.date, `Water · ${readableDate(row.date)}`)} />;
-                }
-                if (row.kind === 'mood') {
-                  return <MemoryRow key={row.key} icon="smile" title={`Mood · ${readableDate(row.date)}`} detail={moodLabels[row.mood]} lastActiveDate={row.date} colors={colors} onForget={() => forget('mood', row.date, `Mood · ${readableDate(row.date)}`)} />;
-                }
-                return <MemoryRow key={row.key} icon="activity" title={`Activity · ${readableDate(row.date)}`} detail={activityLabels[row.activity]} lastActiveDate={row.date} colors={colors} onForget={() => forget('activity', row.date, `Activity · ${readableDate(row.date)}`)} />;
-              })}
+              {buildWellnessRows(livingMemory)
+                .filter((row) => !(pendingForget && row.kind === pendingForget.kind && row.date === pendingForget.id))
+                .map((row) => {
+                  if (row.kind === 'water') {
+                    return <MemoryRow key={row.key} icon="droplet" title={`Water · ${readableDate(row.date)}`} detail={`${row.ounces} fl oz`} lastActiveDate={row.date} colors={colors} onForget={() => forget('water', row.date, `Water · ${readableDate(row.date)}`)} />;
+                  }
+                  if (row.kind === 'mood') {
+                    return <MemoryRow key={row.key} icon="smile" title={`Mood · ${readableDate(row.date)}`} detail={moodLabels[row.mood]} lastActiveDate={row.date} colors={colors} onForget={() => forget('mood', row.date, `Mood · ${readableDate(row.date)}`)} />;
+                  }
+                  return <MemoryRow key={row.key} icon="activity" title={`Activity · ${readableDate(row.date)}`} detail={activityLabels[row.activity]} lastActiveDate={row.date} colors={colors} onForget={() => forget('activity', row.date, `Activity · ${readableDate(row.date)}`)} />;
+                })}
             </MemorySection>
 
             <MemorySection title="Planning signals" caption="Meals you assigned yourself, not starter suggestions." colors={colors}>
-              {buildPlannerRows(livingMemory).map((row) => {
+              {buildPlannerRows(livingMemory)
+                .filter((row) => !(pendingForget?.kind === 'planner' && pendingForget.id === row.id))
+                .map((row) => {
                   const plannerMeal = visiblePlannerMeals.get(row.id);
                   const label = `Plan · ${readableDate(row.day)}`;
                   return (
@@ -258,6 +334,26 @@ export default function LivingMemoryScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {pendingForget && (
+        <View
+          accessibilityLiveRegion="polite"
+          style={[styles.undoBanner, { backgroundColor: colors.foreground, bottom: insets.bottom + 20 }]}
+        >
+          <Feather name="eye-off" size={14} color={colors.background} />
+          <Text style={[styles.undoLabel, { color: colors.background }]} numberOfLines={1}>
+            Signal forgotten · {undoSecondsLeft}s
+          </Text>
+          <Pressable
+            accessibilityLabel="Undo forget signal"
+            testID="undo-forget-living-memory"
+            onPress={handleUndo}
+            style={[styles.undoButton, { backgroundColor: colors.background }]}
+          >
+            <Text style={[styles.undoButtonText, { color: colors.foreground }]}>Undo</Text>
+          </Pressable>
+        </View>
+      )}
 
       <Modal visible={editingLog !== null} transparent animationType="slide" onRequestClose={() => setEditingLog(null)}>
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
@@ -296,10 +392,7 @@ export default function LivingMemoryScreen() {
             <Pressable
               accessibilityLabel="Confirm forget signal"
               testID="confirm-forget-living-memory"
-              onPress={() => {
-                if (forgetTarget) forgetLivingObservation(forgetTarget.kind, forgetTarget.id);
-                setForgetTarget(null);
-              }}
+              onPress={handleConfirmForget}
               style={[styles.confirmButton, { backgroundColor: colors.primary }]}
             >
               <Text style={[styles.confirmButtonText, { color: colors.primaryForeground }]}>Forget signal</Text>
@@ -381,4 +474,23 @@ const styles = StyleSheet.create({
   confirmButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   confirmCancel: { alignItems: 'center', paddingTop: 14 },
   confirmCancelText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  undoBanner: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  undoLabel: { fontFamily: 'Inter_400Regular', fontSize: 12, flex: 1 },
+  undoButton: { borderRadius: 9, paddingHorizontal: 13, paddingVertical: 6 },
+  undoButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
 });
