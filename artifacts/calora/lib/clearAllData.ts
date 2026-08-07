@@ -79,6 +79,10 @@ export interface ClearAllDataCtx {
   setGoalCelebrationSeenTargetKg: Setter;
   /** Resets the session-only planner viewed day so it is consistent with the reset week. */
   setPlannerViewedDay: Setter;
+  /** Resets the session-only slot-browse context so no stale slot target persists after a clear. */
+  setRecipeSlotTarget: Setter;
+  /** Resets the session-only undo-swap context so no stale swap offer persists after a clear. */
+  setPendingUndoSwap: Setter;
 }
 
 /**
@@ -113,6 +117,10 @@ export async function performClearAllData(ctx: ClearAllDataCtx): Promise<void> {
   // future/past day before clearing would still see that day highlighted even
   // though plannerWeekStart has jumped back to the current week.
   ctx.setPlannerViewedDay(ctx.getToday());
+  // Reset session-only slot-browse and undo-swap state so stale planner context
+  // from before the clear cannot resurface in the fresh empty planner.
+  ctx.setRecipeSlotTarget(null);
+  ctx.setPendingUndoSwap(null);
   ctx.setPlannerMeals([]);
   ctx.setShoppingItems([]);
   ctx.setFoodDrafts([]);

@@ -415,6 +415,8 @@ function makeSpyCtx(pm: PersistenceManager): {
     setCoachConsentAccepted:      spy('coachConsentAccepted'),
     setCoachMessages:             spy('coachMessages'),
     setGoalCelebrationSeenTargetKg: spy('goalCelebrationSeenTargetKg'),
+    setRecipeSlotTarget:            spy('recipeSlotTarget'),
+    setPendingUndoSwap:             spy('pendingUndoSwap'),
   };
   return { ctx, captured };
 }
@@ -571,6 +573,26 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     // livingMemory resets to emptyLivingMemory() — must have the expected shape
     expect(captured.livingMemory).toBeDefined();
     expect(typeof captured.livingMemory).toBe('object');
+  });
+
+  it('recipeSlotTarget resets to null — a stale slot-browse context does not survive a clear', async () => {
+    // Scenario: the user tapped "Browse Recipes" on a planner slot (setting
+    // recipeSlotTarget) and then tapped "Clear all data" before picking a recipe.
+    // After the clear, recipeSlotTarget must be null so the empty planner does
+    // not inherit the stale slot context from the previous session.
+    const { ctx, captured } = makeSpyCtx(pm);
+    await performClearAllData(ctx);
+    expect(captured.recipeSlotTarget).toBeNull();
+  });
+
+  it('pendingUndoSwap resets to null — a stale swap offer does not survive a clear', async () => {
+    // Scenario: a recipe swap was in progress (pendingUndoSwap set by the
+    // Recipes screen) when the user tapped "Clear all data".  After the clear,
+    // pendingUndoSwap must be null so the Planner does not show a stale undo
+    // banner for a meal that no longer exists.
+    const { ctx, captured } = makeSpyCtx(pm);
+    await performClearAllData(ctx);
+    expect(captured.pendingUndoSwap).toBeNull();
   });
 
   it('plannerViewedDay resets to today — a future/past day does not survive a clear', async () => {

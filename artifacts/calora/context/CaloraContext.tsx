@@ -788,6 +788,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       setOutbox,
       setPlannerWeekStart,
       setPlannerViewedDay,
+      setRecipeSlotTarget,
+      setPendingUndoSwap,
       setPlannerMeals: setPlannerMealsState,
       setShoppingItems,
       setFoodDrafts,
