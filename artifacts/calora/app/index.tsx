@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect } from 'expo-router';
 import { useCalora, ActivityLevel, DietPreference, Goal, Profile } from '@/context/CaloraContext';
 import { handleParseErrorExport } from '@/lib/parseErrorExportHandler';
+import { deriveErrorScreenActions } from '@/lib/errorScreenActions';
 
 const goals: { key: Goal; label: string; body: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'lose', label: 'Lose weight', body: 'A steady, sustainable pace', icon: 'trending-down' },
@@ -72,6 +73,7 @@ export default function OnboardingScreen() {
   }
 
   if (hydrationError) {
+    const { showExport, showTryAgain, showClearAll } = deriveErrorScreenActions(hydrationErrorKind);
     const isParseError = hydrationErrorKind === 'parse';
     return (
       <View style={[styles.loadingPage, { backgroundColor: colors.background, paddingHorizontal: 28 }]}>
@@ -82,7 +84,7 @@ export default function OnboardingScreen() {
           {isParseError ? 'Your data looks corrupted.' : 'Storage temporarily unavailable.'}
         </Text>
         <Text style={[styles.errorText, { color: colors.mutedForeground }]}>{hydrationError}</Text>
-        {isParseError && (
+        {showExport && (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Export raw storage data"
@@ -97,10 +99,12 @@ export default function OnboardingScreen() {
             <Text style={[styles.exportButtonText, { color: colors.mutedForeground }]}>Export raw data</Text>
           </Pressable>
         )}
-        <Pressable accessibilityRole="button" accessibilityLabel="Retry loading local data" onPress={retryHydration} style={[styles.retryButton, { backgroundColor: colors.primary }]}>
-          <Text style={[styles.retryButtonText, { color: colors.primaryForeground }]}>Try again</Text>
-        </Pressable>
-        {isParseError && (
+        {showTryAgain && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Retry loading local data" onPress={retryHydration} style={[styles.retryButton, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.retryButtonText, { color: colors.primaryForeground }]}>Try again</Text>
+          </Pressable>
+        )}
+        {showClearAll && (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Clear all data and start fresh"
