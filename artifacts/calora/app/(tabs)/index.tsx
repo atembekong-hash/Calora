@@ -655,10 +655,10 @@ export default function HomeScreen() {
                 <Pressable
                   accessibilityLabel="Open Calora Coach"
                   onPress={() => router.push('/coach')}
-                  style={({ pressed }) => [styles.homeHeaderCoach, { opacity: pressed ? 0.8 : 1 }]}
+                  style={({ pressed }) => [styles.homeHeaderCoach, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
                 >
-                  <Feather name="zap" size={14} color="#ffffff" />
-                  <Text style={styles.homeHeaderCoachText}>Ask Calora</Text>
+                  <Feather name="zap" size={14} color={colors.primaryForeground} />
+                  <Text style={[styles.homeHeaderCoachText, { color: colors.primaryForeground }]}>Ask Calora</Text>
                 </Pressable>
                 <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={styles.homeHeaderAvatar}><Text style={styles.homeHeaderAvatarText}>{profile?.name?.charAt(0) ?? 'A'}</Text></Pressable>
               </View>
