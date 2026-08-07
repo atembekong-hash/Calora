@@ -762,6 +762,97 @@ describe('write-queue ordering under I/O error: in-flight write cannot corrupt r
 });
 
 // ---------------------------------------------------------------------------
+// Rapid consecutive I/O errors: write queue must not deadlock
+// ---------------------------------------------------------------------------
+
+describe('PersistenceManager write queue: rapid consecutive I/O errors do not deadlock', () => {
+  it('clear() resolves and removeItem runs exactly once after two back-to-back write rejections', async () => {
+    // Scenario: two enqueueWrite calls both reject (e.g. disk full for two
+    // consecutive autosave attempts), then the user triggers clearAllData.
+    // The .catch(() => undefined) guard on each queue link must absorb both
+    // rejections so the chain keeps moving and clear() resolves normally.
+    let removeCount = 0;
+    const storage = {
+      getItem: async (_key: string): Promise<string | null> => null,
+      setItem: async (_key: string, _value: string): Promise<void> => {
+        throw new Error('I/O failure');
+      },
+      removeItem: async (_key: string): Promise<void> => {
+        removeCount++;
+      },
+    };
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    // Two back-to-back writes — both will reject when setItem throws
+    pm.enqueueWrite({ step: 1 });
+    pm.enqueueWrite({ step: 2 });
+
+    // clear() must resolve despite both preceding writes having rejected
+    await expect(pm.clear()).resolves.toBeUndefined();
+
+    // removeItem must have been called exactly once — not zero (deadlock)
+    // and not more than once (double-clear)
+    expect(removeCount).toBe(1);
+  });
+
+  it('.catch guard composes correctly across three consecutive write failures — queue drains to clear', async () => {
+    // Extends the two-failure case to confirm the catch composition holds
+    // regardless of how many consecutive failures occur before clear().
+    let removeCount = 0;
+    const storage = {
+      getItem: async (_key: string): Promise<string | null> => null,
+      setItem: async (_key: string, _value: string): Promise<void> => {
+        throw new Error('storage unavailable');
+      },
+      removeItem: async (_key: string): Promise<void> => {
+        removeCount++;
+      },
+    };
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    pm.enqueueWrite({ a: 1 });
+    pm.enqueueWrite({ a: 2 });
+    pm.enqueueWrite({ a: 3 });
+
+    // clear() chains off the tail of the failure-saturated queue — must still resolve
+    await expect(pm.clear()).resolves.toBeUndefined();
+    expect(removeCount).toBe(1);
+  });
+
+  it('a clear() called immediately after two failing writes runs removeItem, not setItem', async () => {
+    // Confirms that when clearingCount is incremented before the writes
+    // settle, any further enqueueWrite calls are dropped and the removeItem
+    // is the only storage write that lands.
+    const calls: string[] = [];
+    const storage = {
+      getItem: async (_key: string): Promise<string | null> => null,
+      setItem: async (_key: string, _value: string): Promise<void> => {
+        calls.push('setItem');
+        throw new Error('I/O failure');
+      },
+      removeItem: async (_key: string): Promise<void> => {
+        calls.push('removeItem');
+      },
+    };
+    const pm = new PersistenceManager(storage, 'calora_state');
+
+    // Queue two failing writes, then immediately call clear()
+    pm.enqueueWrite({ x: 1 });
+    pm.enqueueWrite({ x: 2 });
+    await pm.clear();
+
+    // setItem was attempted (and failed) for both writes; removeItem ran once after
+    // The exact count of setItem calls depends on whether clearingCount was set
+    // before or after the writes reached storage — but removeItem must be last and exactly once
+    const removeIndex = calls.lastIndexOf('removeItem');
+    expect(removeIndex).toBeGreaterThanOrEqual(0);
+    expect(calls.filter((c) => c === 'removeItem')).toHaveLength(1);
+    // removeItem must be the final operation — nothing ran after the clear
+    expect(calls[calls.length - 1]).toBe('removeItem');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Stale-render guard: parse-error screen stays hidden after a successful retry
 // ---------------------------------------------------------------------------
 
