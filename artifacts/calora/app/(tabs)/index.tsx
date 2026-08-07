@@ -537,6 +537,7 @@ export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
   const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  const [waterConfirmed, setWaterConfirmed] = useState(false);
   const target = profile?.calorieTarget ?? 2000;
   const dataTrust = trustScore(logs);
   const selectedLogs = logs.filter((log) => log.date === selectedDate || (!log.date && isToday(selectedDate)));
@@ -564,6 +565,8 @@ export default function HomeScreen() {
     } else if (effect.kind === 'add_water') {
       addWater(selectedDate, effect.ounces);
       setSaveNotice('Water check-in added for this day.');
+      setWaterConfirmed(true);
+      setTimeout(() => setWaterConfirmed(false), 1500);
     } else {
       router.navigate(effect.route as Parameters<typeof router.navigate>[0]);
     }
@@ -636,21 +639,24 @@ export default function HomeScreen() {
             </View>
           </View>
           <Pressable
-            accessibilityLabel={livingState.action.label}
+            accessibilityLabel={waterConfirmed ? 'Water added' : livingState.action.label}
             accessibilityRole="button"
             testID="living-state-action"
+            disabled={waterConfirmed}
             onPress={handleLivingAction}
             style={({ pressed }) => [
               styles.livingAction,
               {
                 backgroundColor: colors.primary,
-                opacity: pressed ? 0.78 : 1,
+                opacity: waterConfirmed ? 0.72 : pressed ? 0.78 : 1,
               },
             ]}
           >
-            <Feather name={livingActionIcon} size={16} color={colors.primaryForeground} />
-            <Text style={[styles.livingActionText, { color: colors.primaryForeground }]}>{livingState.action.label}</Text>
-            <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />
+            <Feather name={waterConfirmed ? 'check' : livingActionIcon} size={16} color={colors.primaryForeground} />
+            <Text style={[styles.livingActionText, { color: colors.primaryForeground }]}>
+              {waterConfirmed ? 'Added ✓' : livingState.action.label}
+            </Text>
+            {!waterConfirmed && <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />}
           </Pressable>
         </View>
 
