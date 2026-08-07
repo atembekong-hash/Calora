@@ -381,6 +381,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [hydrationErrorKind, setHydrationErrorKind] = useState<HydrationErrorKind | null>(null);
   const [hydrationAttempt, setHydrationAttempt] = useState(0);
   const pm = useRef(new PersistenceManager(AsyncStorage, STORAGE_KEY));
+  /** Guard that prevents a second tap from entering clearAllData while the first is in progress. */
+  const clearingRef = useRef(false);
   /**
    * Cleared-state snapshot set synchronously inside clearAllData after
    * performClearAllData resolves — before React commits the re-render triggered
@@ -787,7 +789,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         });
       },
     clearAllData: async () => {
-      await performClearAllData({
+      if (clearingRef.current) return;
+      clearingRef.current = true;
+      try {
+        await performClearAllData({
         pm: pm.current,
         emptyLivingMemory: emptyLivingMemory(),
         defaultHydrationPrefs: DEFAULT_HYDRATION_PREFS,
@@ -821,38 +826,41 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         setCoachConsentAccepted,
         setCoachMessages,
         setGoalCelebrationSeenTargetKg,
-      });
-      // Synchronously capture the cleared export payload so exportData() returns
-      // cleared values even if called before React commits the re-render triggered
-      // by the state setters above.  The autosave useEffect clears this ref once
-      // React state has been committed and the closed-over state vars are current.
-      // healthConnected is NOT reset by clearAllData (it is a device-level flag,
-      // not user data), so we preserve its current closed-over value here.
-      exportSnapshotRef.current = {
-        profile:             null,
-        logs:                [],
-        weights:             [],
-        waterLogs:           {},
-        moodLogs:            {},
-        activityLogs:        {},
-        activityMinutesLogs: {},
-        savedMeals:          [],
-        localRecipes:        [],
-        savedRecipeIds:      [],
-        plannerWeekStart:    getPlannerWeekStart(),
-        plannerMeals:        [],
-        shoppingItems:       [],
-        foodDrafts:          [],
-        foodMemories:        [],
-        repeatPatterns:      [],
-        memoryCorrections:   [],
-        livingMemory:        emptyLivingMemory(),
-        hydrationReminders:  DEFAULT_HYDRATION_PREFS,
-        healthConnected,
-        consentAccepted:     false,
-        coachConsentAccepted: false,
-        coachMessages:       [],
-      };
+        });
+        // Synchronously capture the cleared export payload so exportData() returns
+        // cleared values even if called before React commits the re-render triggered
+        // by the state setters above.  The autosave useEffect clears this ref once
+        // React state has been committed and the closed-over state vars are current.
+        // healthConnected is NOT reset by clearAllData (it is a device-level flag,
+        // not user data), so we preserve its current closed-over value here.
+        exportSnapshotRef.current = {
+          profile:             null,
+          logs:                [],
+          weights:             [],
+          waterLogs:           {},
+          moodLogs:            {},
+          activityLogs:        {},
+          activityMinutesLogs: {},
+          savedMeals:          [],
+          localRecipes:        [],
+          savedRecipeIds:      [],
+          plannerWeekStart:    getPlannerWeekStart(),
+          plannerMeals:        [],
+          shoppingItems:       [],
+          foodDrafts:          [],
+          foodMemories:        [],
+          repeatPatterns:      [],
+          memoryCorrections:   [],
+          livingMemory:        emptyLivingMemory(),
+          hydrationReminders:  DEFAULT_HYDRATION_PREFS,
+          healthConnected,
+          consentAccepted:     false,
+          coachConsentAccepted: false,
+          coachMessages:       [],
+        };
+      } finally {
+        clearingRef.current = false;
+      }
     },
      retryHydration: () => {
        setHydrationErrorKind(null);

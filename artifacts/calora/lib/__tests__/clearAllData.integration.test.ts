@@ -808,6 +808,107 @@ describe('exportRawStorageData (readRawStorageData): returns null after clear re
   });
 });
 
+// ---------------------------------------------------------------------------
+// React-level clearingRef guard
+//
+// CaloraContext.clearAllData wraps performClearAllData with a useRef<boolean>
+// guard so that a second rapid tap returns early before calling any setter.
+// These tests simulate that guard (as a plain boolean, standing in for the
+// React ref) to confirm the no-op contract and verify that the flag resets
+// after the first call resolves so a subsequent (non-concurrent) clear works.
+// ---------------------------------------------------------------------------
+
+describe('clearingRef guard: second concurrent clearAllData call is a true no-op', () => {
+  /**
+   * Wraps performClearAllData with the same clearingRef guard used by
+   * CaloraContext.clearAllData.  `clearingRef` is a plain object with a
+   * `.current` boolean — structurally identical to React's useRef value.
+   */
+  async function guardedClearAllData(
+    ctx: ClearAllDataCtx,
+    clearingRef: { current: boolean },
+  ): Promise<void> {
+    if (clearingRef.current) return;
+    clearingRef.current = true;
+    try {
+      await performClearAllData(ctx);
+    } finally {
+      clearingRef.current = false;
+    }
+  }
+
+  it('second concurrent tap is a no-op — its setters are never called', async () => {
+    // Scenario: two rapid taps of "Clear all data" while a write is in flight.
+    // The first call sets clearingRef.current = true before awaiting pm.clear().
+    // The second call sees clearingRef.current === true and returns immediately,
+    // so its spy setters are never invoked.
+    const release = storage.blockNextSetItem();
+    pm.enqueueWrite({ onboardingComplete: true, logs: [{ id: 'log-1' }] });
+
+    const clearingRef = { current: false };
+    const { ctx: ctx1, captured: captured1 } = makeSpyCtx(pm);
+    const { ctx: ctx2, captured: captured2 } = makeSpyCtx(pm);
+
+    // Fire both taps before the first pm.clear() resolves.
+    const firstClear  = guardedClearAllData(ctx1, clearingRef);
+    const secondClear = guardedClearAllData(ctx2, clearingRef);
+
+    release();
+    await Promise.all([firstClear, secondClear]);
+
+    // First call: setters received cleared values.
+    expect(captured1.onboardingComplete).toBe(false);
+    expect(captured1.logs).toEqual([]);
+    expect(captured1.profile).toBeNull();
+
+    // Second call: guard fired early — no setter was ever called.
+    expect(Object.keys(captured2)).toHaveLength(0);
+  });
+
+  it('clearingRef resets after the first clear resolves — a subsequent clear still works', async () => {
+    // After the first complete clear the ref must be false again so that a
+    // second (non-concurrent) tap — e.g. the user clears data, re-onboards,
+    // and clears again — works correctly.
+    const clearingRef = { current: false };
+    const { ctx: ctx1 } = makeSpyCtx(pm);
+    await guardedClearAllData(ctx1, clearingRef);
+
+    // ref must be reset
+    expect(clearingRef.current).toBe(false);
+
+    // Second non-concurrent call should succeed and invoke setters.
+    const { ctx: ctx2, captured: captured2 } = makeSpyCtx(pm);
+    await guardedClearAllData(ctx2, clearingRef);
+
+    expect(captured2.onboardingComplete).toBe(false);
+    expect(captured2.logs).toEqual([]);
+  });
+
+  it('clearingRef resets even when performClearAllData rejects — guard does not get stuck', async () => {
+    // Safety: if pm.clear() rejects (e.g. removeItem throws), the finally block
+    // must still reset clearingRef so subsequent taps can proceed.
+    const originalRemoveItem = storage.removeItem.bind(storage);
+    storage.removeItem = async () => { throw new Error('I/O failure'); };
+
+    const clearingRef = { current: false };
+    const { ctx } = makeSpyCtx(pm);
+
+    // The rejection propagates out of guardedClearAllData.
+    await guardedClearAllData(ctx, clearingRef).catch(() => undefined);
+
+    // Restore
+    storage.removeItem = originalRemoveItem;
+
+    // Guard must be released despite the error.
+    expect(clearingRef.current).toBe(false);
+
+    // A subsequent call must now be able to proceed (not silenced by a stuck ref).
+    const { ctx: ctx2, captured: captured2 } = makeSpyCtx(pm);
+    await guardedClearAllData(ctx2, clearingRef);
+    expect(captured2.onboardingComplete).toBe(false);
+  });
+});
+
 describe('exportData (buildExportPayload): serialised output reflects the cleared in-memory state', () => {
   it('buildExportPayload over cleared state produces a valid JSON document with all fields cleared', async () => {
     // Simulate a pre-clear session: enqueue rich state so storage is populated.
