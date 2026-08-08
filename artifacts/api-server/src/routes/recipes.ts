@@ -164,7 +164,13 @@ router.get("/v1/recipes", async (req, res) => {
       meals = await getForYouMeals();
     }
 
-    const recipes = meals.slice(offset, offset + limit).map(toRecipe);
+    const recipes = meals.slice(offset, offset + limit).map((meal) => {
+      const recipe = toRecipe(meal);
+      // Attach any already-cached estimate so the card can show ~kcal without
+      // the user needing to open the detail sheet first.
+      const cached = nutritionCache.get(recipe.id);
+      return cached ? { ...recipe, ...cached } : recipe;
+    });
     res.json({ source: SOURCE, recipes });
   } catch (error) {
     res.status(502).json({ message: error instanceof Error ? error.message : "Recipe provider unavailable" });

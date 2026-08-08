@@ -44,7 +44,12 @@ function RecipeImage({ recipe, height = 160 }: { recipe: Recipe | CaloraRecipe; 
 }
 
 function RecipeMeta({ recipe, colors }: { recipe: Recipe | CaloraRecipe; colors: ReturnType<typeof useCalora>['colors'] }) {
-  const nutrition = recipe.calories ? `${Math.round(recipe.calories)} kcal` : 'Nutrition review needed';
+  const local = isLocalRecipe(recipe);
+  // Non-local recipes always have AI-estimated nutrition — prefix with ~ so
+  // the user knows it is approximate. Local recipes have user-entered values.
+  const nutrition = recipe.calories
+    ? `${local ? '' : '~'}${Math.round(recipe.calories)} kcal`
+    : 'Nutrition review needed';
   return (
     <View style={styles.recipeMeta}>
       <Text style={[styles.recipeKcal, { color: recipe.calories ? colors.foreground : colors.warning }]}>{nutrition}</Text>
