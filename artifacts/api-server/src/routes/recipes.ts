@@ -13,11 +13,29 @@ const SOURCE_URL = "https://www.themealdb.com/";
 
 type NutritionEstimate = { calories: number; proteinG: number; carbsG: number; fatG: number };
 
-// L1: in-memory cache (avoids a DB round-trip for hot meals within one process lifetime).
-const nutritionCache = new Map<string, NutritionEstimate>();
+// TTL for database-persisted nutrition estimates.  7 days is long enough that
+// popular meals are rarely re-estimated, but short enough that upstream
+// ingredient changes from TheMealDB surface within a reasonable window.
+const NUTRITION_DB_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
-/** Look up a persisted estimate from the database (L2 cache). */
-async function getNutritionFromDb(mealId: string): Promise<NutritionEstimate | null> {
+// L1: in-memory cache with a timestamp so staleness can be checked without a
+// DB round-trip.  The timestamp reflects when the estimate was originally
+// computed (i.e. we carry the DB row age into L1 so a stale row is also stale
+// in memory after the server restarts and reads the row back).
+type CachedEntry = { estimate: NutritionEstimate; cachedAt: number };
+const nutritionCache = new Map<string, CachedEntry>();
+
+// Single-flight guard: prevents two concurrent background refreshes for the
+// same meal from both hitting OpenAI simultaneously.
+const nutritionRefreshInFlight = new Set<string>();
+
+/** Look up a persisted estimate from the database (L2 cache), with staleness info.
+ *  Returns the original `createdAtMs` epoch so callers can propagate it into
+ *  the L1 cache — this ensures the L1 TTL is anchored to when the estimate was
+ *  computed, not to when the DB row was read. */
+async function getNutritionFromDb(
+  mealId: string,
+): Promise<{ estimate: NutritionEstimate; createdAtMs: number; isStale: boolean } | null> {
   try {
     const rows = await db
       .select()
@@ -26,20 +44,30 @@ async function getNutritionFromDb(mealId: string): Promise<NutritionEstimate | n
       .limit(1);
     const row = rows[0];
     if (!row) return null;
-    return { calories: row.calories, proteinG: row.proteinG, carbsG: row.carbsG, fatG: row.fatG };
+    const createdAtMs = row.createdAt.getTime();
+    const age = Date.now() - createdAtMs;
+    return {
+      estimate: { calories: row.calories, proteinG: row.proteinG, carbsG: row.carbsG, fatG: row.fatG },
+      createdAtMs,
+      isStale: age > NUTRITION_DB_TTL_MS,
+    };
   } catch (err) {
     logger.warn({ err, mealId }, "nutrition DB read failed — falling back to OpenAI");
     return null;
   }
 }
 
-/** Persist an estimate to the database so it survives server restarts. */
+/** Persist an estimate to the database, overwriting any existing row so that
+ *  refreshed estimates always replace the stale one rather than being dropped. */
 async function saveNutritionToDb(mealId: string, nutrition: NutritionEstimate): Promise<void> {
   try {
     await db
       .insert(recipeNutritionTable)
       .values({ mealId, ...nutrition })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: recipeNutritionTable.mealId,
+        set: { ...nutrition, createdAt: new Date() },
+      });
   } catch (err) {
     // Best-effort — a write failure should never break the response.
     logger.warn({ err, mealId }, "nutrition DB write failed — estimate not persisted");
@@ -78,31 +106,77 @@ async function estimateNutrition(name: string, ingredients: string[]): Promise<N
 }
 
 /**
+ * Re-estimate nutrition for a meal in the background and update both caches.
+ * Clears the in-flight guard when done (success or failure).
+ */
+async function refreshNutritionInBackground(
+  mealId: string,
+  name: string,
+  ingredients: string[],
+): Promise<void> {
+  try {
+    const fresh = await estimateNutrition(name, ingredients);
+    if (fresh) {
+      nutritionCache.set(mealId, { estimate: fresh, cachedAt: Date.now() });
+      void saveNutritionToDb(mealId, fresh);
+      logger.info({ mealId }, "nutrition estimate refreshed in background");
+    }
+  } catch (err) {
+    logger.warn({ err, mealId }, "background nutrition refresh failed");
+  } finally {
+    nutritionRefreshInFlight.delete(mealId);
+  }
+}
+
+/**
  * Resolve nutrition for a meal, checking caches in order:
  *   L1 (in-memory Map) → L2 (database) → OpenAI estimation
- * Writes through to both caches on a fresh estimate.
+ *
+ * Staleness policy:
+ *   - A fresh hit (age < NUTRITION_DB_TTL_MS) is returned immediately.
+ *   - A stale hit is returned immediately so the card shows data at once, but
+ *     a background re-estimation is triggered so the next request (or the
+ *     next server start) gets a fresh value.  The single-flight guard
+ *     (nutritionRefreshInFlight) ensures only one refresh per meal runs at
+ *     a time even if many concurrent requests hit the same stale entry.
  */
 async function resolveNutrition(
   mealId: string,
   name: string,
   ingredients: string[],
 ): Promise<NutritionEstimate | null> {
-  // L1 hit
+  // L1 hit — check freshness
   const memHit = nutritionCache.get(mealId);
-  if (memHit) return memHit;
+  if (memHit) {
+    const isStale = Date.now() - memHit.cachedAt > NUTRITION_DB_TTL_MS;
+    if (isStale && !nutritionRefreshInFlight.has(mealId) && ingredients.length > 0) {
+      nutritionRefreshInFlight.add(mealId);
+      void refreshNutritionInBackground(mealId, name, ingredients);
+    }
+    // Always return the current value — fresh or stale — so the UI is never blank.
+    return memHit.estimate;
+  }
 
-  // L2 hit
-  const dbHit = await getNutritionFromDb(mealId);
-  if (dbHit) {
-    nutritionCache.set(mealId, dbHit);
-    return dbHit;
+  // L2 hit — carry the row's original createdAt into L1 so the L1 TTL is
+  // anchored to when the estimate was computed, not when the row was read.
+  // A row that is 6.9 days old therefore expires in L1 after only ~2.4 hours,
+  // rather than receiving a fresh 7-day lease.
+  const dbResult = await getNutritionFromDb(mealId);
+  if (dbResult) {
+    nutritionCache.set(mealId, { estimate: dbResult.estimate, cachedAt: dbResult.createdAtMs });
+
+    if (dbResult.isStale && !nutritionRefreshInFlight.has(mealId) && ingredients.length > 0) {
+      nutritionRefreshInFlight.add(mealId);
+      void refreshNutritionInBackground(mealId, name, ingredients);
+    }
+    return dbResult.estimate;
   }
 
   // Cache miss — call OpenAI
   if (ingredients.length === 0) return null;
   const fresh = await estimateNutrition(name, ingredients);
   if (fresh) {
-    nutritionCache.set(mealId, fresh);
+    nutritionCache.set(mealId, { estimate: fresh, cachedAt: Date.now() });
     void saveNutritionToDb(mealId, fresh);
   }
   return fresh;
@@ -154,10 +228,13 @@ async function warmNutritionCache(meals: Meal[]): Promise<void> {
       // Re-check L1 — a concurrent detail request may have filled it since.
       if (nutritionCache.has(meal.idMeal)) continue;
 
-      // L2 check — use DB hit without touching OpenAI.
-      const dbHit = await getNutritionFromDb(meal.idMeal);
-      if (dbHit) {
-        nutritionCache.set(meal.idMeal, dbHit);
+      // L2 check — use a fresh DB hit without touching OpenAI; skip stale rows
+      // (they will be refreshed lazily when a user opens the detail sheet).
+      // Carry the row's original createdAt into L1 so the TTL is anchored to
+      // the estimation time, not the current clock.
+      const dbResult = await getNutritionFromDb(meal.idMeal);
+      if (dbResult && !dbResult.isStale) {
+        nutritionCache.set(meal.idMeal, { estimate: dbResult.estimate, cachedAt: dbResult.createdAtMs });
         continue;
       }
 
@@ -171,7 +248,7 @@ async function warmNutritionCache(meals: Meal[]): Promise<void> {
 
       const nutrition = await estimateNutrition(recipe.name, recipe.ingredients);
       if (nutrition) {
-        nutritionCache.set(meal.idMeal, nutrition);
+        nutritionCache.set(meal.idMeal, { estimate: nutrition, cachedAt: Date.now() });
         void saveNutritionToDb(meal.idMeal, nutrition);
         warmed++;
       }
@@ -320,7 +397,7 @@ router.get("/v1/recipes", async (req, res) => {
       // Attach any L1-cached estimate so the card can show ~kcal without
       // the user needing to open the detail sheet first.
       const cached = nutritionCache.get(recipe.id);
-      return cached ? { ...recipe, ...cached } : recipe;
+      return cached ? { ...recipe, ...cached.estimate } : recipe;
     });
     // Let clients know they should refetch soon if the background warm-up
     // has not yet populated estimates for the first page of results.
