@@ -52,10 +52,17 @@ description: Four-tier animation architecture across all Calora screens — patt
 - SVG circle arc: `strokeDasharray={circumference}` + animated `strokeDashoffset`. Rotate container `-90deg` so arc starts at top.
 - `AnimatedCircle = Animated.createAnimatedComponent(Circle)` from `react-native-svg`.
 
+**Confetti burst (insights.tsx):**
+- Pure-RN particle system — no Lottie. 30 particles, each a `ConfettiParticle` sub-component with its own `useAnimatedStyle`.
+- Two shared values owned by `ConfettiBurst`: `progress` (0→1 over 2.1s, cubic ease) and `fadeOpacity` (1→0 after 1.5s delay, 600ms).
+- Particle positions computed in worklet: `x = cos(angle)*speed*p + offsetX`, `y = sin(angle)*speed*p + 140*p²` (simulated gravity).
+- Hook-in-loop avoided by making each particle a separate component — the only correct Reanimated pattern for N animated items.
+- Container is `position:'absolute', height:0, zIndex:10, pointerEvents:'none'` so particles float freely without affecting layout.
+- `ConfettiBurst` early-returns null when `active` is false (no DOM cost while idle).
+
 **Limitations documented:**
 - Scroll-triggered per-card reveals: no IntersectionObserver in RN; mount stagger is the ceiling.
 - Bezier/line sparkline: possible with SVG path interpolation but complex.
-- Confetti: no Lottie installed.
 - Shared element drill-down: no shared-element library.
 
 **Why:**

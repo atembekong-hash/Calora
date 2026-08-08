@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
-import Animated, { Easing, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
@@ -56,6 +56,107 @@ function AnimatedBar({ value, color, delay = 0 }: { value: number; color: string
   }, [delay, progress, value]);
   const animatedStyle = useAnimatedStyle(() => ({ height: 128 * (Math.max(0, Math.min(value, 100)) / 100) * progress.value }));
   return <Animated.View style={[styles.bar, { backgroundColor: color }, animatedStyle]} />;
+}
+
+// ─── Confetti burst ───────────────────────────────────────────────────────────
+const CONFETTI_COLORS_LIST = ['#5dba7d', '#e5ad55', '#7394f2', '#ef6b4f', '#9875c7', '#f4d35e', '#f5a7c7', '#5bc8ef'];
+const CONFETTI_COUNT = 30;
+
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed + 1) * 10000;
+  return x - Math.floor(x);
+}
+
+type ParticleConfig = {
+  color: string;
+  angle: number;
+  speed: number;
+  width: number;
+  height: number;
+  borderRadius: number;
+  rotSpeed: number;
+  offsetX: number;
+};
+
+function ConfettiParticle({ progress, fadeOpacity, config }: {
+  progress: SharedValue<number>;
+  fadeOpacity: SharedValue<number>;
+  config: ParticleConfig;
+}) {
+  const animStyle = useAnimatedStyle(() => {
+    const p = progress.value;
+    const x = Math.cos(config.angle) * config.speed * p + config.offsetX;
+    const y = Math.sin(config.angle) * config.speed * p + 140 * p * p;
+    return {
+      opacity: fadeOpacity.value * Math.max(0, 1 - p * 0.35),
+      transform: [
+        { translateX: x },
+        { translateY: y },
+        { rotate: `${config.rotSpeed * p}deg` },
+      ],
+    };
+  });
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        {
+          position: 'absolute',
+          width: config.width,
+          height: config.height,
+          borderRadius: config.borderRadius,
+          backgroundColor: config.color,
+          left: '50%',
+          top: 10,
+        },
+        animStyle,
+      ]}
+    />
+  );
+}
+
+function ConfettiBurst({ active }: { active: boolean }) {
+  const progress = useSharedValue(0);
+  const fadeOpacity = useSharedValue(0);
+
+  const particles = useMemo<ParticleConfig[]>(() =>
+    Array.from({ length: CONFETTI_COUNT }, (_, i) => {
+      // Spread particles in a wide upward fan (-160° to -20° from horizontal)
+      const spreadAngle = -Math.PI + (i / CONFETTI_COUNT) * Math.PI + seededRandom(i * 17) * 0.55;
+      const size = 5 + seededRandom(i * 5) * 8;
+      const isCircle = i % 5 === 0;
+      return {
+        color: CONFETTI_COLORS_LIST[i % CONFETTI_COLORS_LIST.length],
+        angle: spreadAngle,
+        speed: 55 + seededRandom(i * 7) * 95,
+        width: size,
+        height: isCircle ? size : size * 0.42,
+        borderRadius: isCircle ? size / 2 : 2,
+        rotSpeed: (seededRandom(i * 11) - 0.5) * 600,
+        offsetX: (seededRandom(i * 13) - 0.5) * 60,
+      };
+    }), []);
+
+  useEffect(() => {
+    if (active) {
+      progress.value = 0;
+      fadeOpacity.value = 1;
+      progress.value = withTiming(1, { duration: 2100, easing: Easing.out(Easing.cubic) });
+      fadeOpacity.value = withDelay(1500, withTiming(0, { duration: 600 }));
+    }
+  // Run only when active first becomes true; no cleanup needed — animation self-terminates.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  if (!active) return null;
+
+  return (
+    <View style={styles.confettiBurstContainer} pointerEvents="none">
+      {particles.map((config, i) => (
+        <ConfettiParticle key={i} progress={progress} fadeOpacity={fadeOpacity} config={config} />
+      ))}
+    </View>
+  );
 }
 
 function GoalCelebrationBanner({ colors, targetKg }: { colors: ReturnType<typeof useCalora>['colors']; targetKg: number }) {
@@ -702,7 +803,10 @@ export default function InsightsScreen() {
             <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '50%' : '0%' }]} /></View>
           )}
           {showGoalCelebration && showGoalProgress ? (
-            <GoalCelebrationBanner colors={colors} targetKg={targetWeight} />
+            <View style={styles.celebrationWrapper}>
+              <ConfettiBurst active={showGoalCelebration} />
+              <GoalCelebrationBanner colors={colors} targetKg={targetWeight} />
+            </View>
           ) : null}
           {showGoalProgress ? (
             <View style={styles.goalProgressSection}>
@@ -949,7 +1053,9 @@ function makeStyles(f: number) {
   goalProgressText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, flex: 1 },
   goalProgressPct: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, marginLeft: 8 },
   goalEditBtn: { padding: 4, marginLeft: 6 },
-  celebrationBanner: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11, marginTop: 14 },
+  celebrationWrapper: { position: 'relative', marginTop: 14 },
+  confettiBurstContainer: { position: 'absolute', top: 0, left: 0, right: 0, height: 0, zIndex: 10 },
+  celebrationBanner: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 },
   celebrationIconWrap: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   celebrationTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, marginBottom: 2 },
   celebrationBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 },
