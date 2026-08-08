@@ -818,6 +818,14 @@ function SpringChip({ selected, children, onPress, style, accessibilityLabel, ac
   );
 }
 
+// Module-level flag: tracks whether the nudge has already animated in during this
+// app session. Because the Insights screen re-mounts on every tab switch the
+// component's own state resets, but this flag persists as long as the JS module
+// stays loaded — so returning to the tab skips the enter animation.
+// Reset to false when the nudge exits so the animation plays again the first time
+// the nudge becomes visible after a hide.
+let nudgeHasAnimatedIn = false;
+
 function GoalNudge({
   colors,
   visible,
@@ -833,8 +841,16 @@ function GoalNudge({
   const translateY = useSharedValue(6);
   useEffect(() => {
     if (visible) {
-      opacity.value = withDelay(180, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
-      translateY.value = withDelay(180, withTiming(0, { duration: 480, easing: Easing.out(Easing.cubic) }));
+      if (nudgeHasAnimatedIn) {
+        // Tab switch re-mount: nudge was already visible — jump to final values
+        // without replaying the enter animation.
+        opacity.value = 1;
+        translateY.value = 0;
+      } else {
+        nudgeHasAnimatedIn = true;
+        opacity.value = withDelay(180, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
+        translateY.value = withDelay(180, withTiming(0, { duration: 480, easing: Easing.out(Easing.cubic) }));
+      }
     } else {
       opacity.value = withTiming(0, { duration: 320, easing: Easing.in(Easing.cubic) }, (finished) => {
         if (finished) runOnJS(onExited)();
@@ -1522,7 +1538,17 @@ export default function InsightsScreen() {
               </View>
               <AnimatedTrackFill percentage={goalProgressPct} color={goalReached ? colors.success : colors.primary} trackColor={colors.muted} />
               {nudgeMounted && (
-                <GoalNudge colors={colors} visible={showGoalNudge} onExited={() => setNudgeMounted(false)} message={nudgeMessage} />
+                <GoalNudge
+                  colors={colors}
+                  visible={showGoalNudge}
+                  onExited={() => {
+                    // Reset the session flag so the enter animation replays the next
+                    // time the nudge becomes visible after this hide.
+                    nudgeHasAnimatedIn = false;
+                    setNudgeMounted(false);
+                  }}
+                  message={nudgeMessage}
+                />
               )}
             </View>
           ) : null}
