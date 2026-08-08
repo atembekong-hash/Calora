@@ -59,7 +59,16 @@ function MealCard({
 }) {
   return (
     <View style={[styles.mealCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Image source={meal.image ? { uri: meal.image } : require('../../assets/images/calora-plan-header.jpg')} contentFit="cover" transition={160} cachePolicy="memory-disk" style={styles.mealImage} />
+      <Image
+        source={[
+          ...(meal.image ? [{ uri: meal.image }] : []),
+          require('../../assets/images/calora-plan-header.jpg'),
+        ]}
+        contentFit="cover"
+        transition={160}
+        cachePolicy="memory-disk"
+        style={styles.mealImage}
+      />
       <View style={styles.mealCardBody}>
         <View style={styles.mealCardTop}>
           <View style={[styles.mealTypeBadge, { backgroundColor: colors.accent }]}>
