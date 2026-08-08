@@ -586,14 +586,17 @@ function WeightChartModal({
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const vals = entries.map((e) => e.kg);
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const minEntry = entries[vals.indexOf(min)];
-  const maxEntry = entries[vals.indexOf(max)];
-  const lastEntry = entries[entries.length - 1];
-  const firstEntry = entries[0];
-  const delta = lastEntry.kg - firstEntry.kg;
+  // Guard: entries may be empty while the modal animates closed (visible=false).
+  // Provide safe defaults so no computation crashes before the sheet slides out.
+  const safeEntries = entries.length >= 2 ? entries : [];
+  const vals = safeEntries.map((e) => e.kg);
+  const min = vals.length > 0 ? Math.min(...vals) : 0;
+  const max = vals.length > 0 ? Math.max(...vals) : 0;
+  const minEntry = safeEntries[vals.indexOf(min)] ?? safeEntries[0];
+  const maxEntry = safeEntries[vals.indexOf(max)] ?? safeEntries[0];
+  const lastEntry = safeEntries[safeEntries.length - 1];
+  const firstEntry = safeEntries[0];
+  const delta = lastEntry && firstEntry ? lastEntry.kg - firstEntry.kg : 0;
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -635,28 +638,32 @@ function WeightChartModal({
             </Pressable>
           </View>
 
-          {/* Expanded chart */}
-          <WeightLineChart entries={entries} colors={colors} chartHeight={200} expanded onRequestDelete={onRequestDelete} />
+          {/* Expanded chart — only rendered when there are enough points */}
+          {safeEntries.length >= 2 && (
+            <WeightLineChart entries={safeEntries} colors={colors} chartHeight={200} expanded onRequestDelete={onRequestDelete} />
+          )}
 
-          {/* Summary stats row */}
-          <View style={[styles.chartModalStats, { borderTopColor: colors.border }]}>
-            <View style={styles.chartModalStat}>
-              <Text style={[styles.chartModalStatValue, { color: colors.success }]}>{min.toFixed(1)} kg</Text>
-              <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>low · {formatDate(minEntry.date)}</Text>
+          {/* Summary stats row — guarded so undefined entries never crash while animating closed */}
+          {safeEntries.length >= 2 && minEntry && maxEntry && (
+            <View style={[styles.chartModalStats, { borderTopColor: colors.border }]}>
+              <View style={styles.chartModalStat}>
+                <Text style={[styles.chartModalStatValue, { color: colors.success }]}>{min.toFixed(1)} kg</Text>
+                <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>low · {formatDate(minEntry.date)}</Text>
+              </View>
+              <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.chartModalStat}>
+                <Text style={[styles.chartModalStatValue, { color: delta <= 0 ? colors.success : colors.warning }]}>
+                  {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg
+                </Text>
+                <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>overall change</Text>
+              </View>
+              <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.chartModalStat}>
+                <Text style={[styles.chartModalStatValue, { color: colors.warning }]}>{max.toFixed(1)} kg</Text>
+                <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>high · {formatDate(maxEntry.date)}</Text>
+              </View>
             </View>
-            <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.chartModalStat}>
-              <Text style={[styles.chartModalStatValue, { color: delta <= 0 ? colors.success : colors.warning }]}>
-                {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg
-              </Text>
-              <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>overall change</Text>
-            </View>
-            <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.chartModalStat}>
-              <Text style={[styles.chartModalStatValue, { color: colors.warning }]}>{max.toFixed(1)} kg</Text>
-              <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>high · {formatDate(maxEntry.date)}</Text>
-            </View>
-          </View>
+          )}
         </Animated.View>
       </View>
     </Modal>
@@ -872,6 +879,15 @@ export default function InsightsScreen() {
   // removeWeight is stable across re-renders; eslint can't verify it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // When the weigh-in count drops below 3 mid-session (e.g. after the undo window expires),
+  // close the expanded chart modal so it animates out cleanly instead of being force-unmounted.
+  // Also resets the flag so adding weights back doesn't silently re-open the modal.
+  useEffect(() => {
+    if (weights.length < 3 && showExpandedChart) {
+      setShowExpandedChart(false);
+    }
+  }, [weights.length, showExpandedChart]);
 
   // Parallax scroll
   const scrollY = useSharedValue(0);
@@ -1441,15 +1457,15 @@ export default function InsightsScreen() {
         </View>
       </Modal>
       <LocalSaveNotice visible={Boolean(saveNotice)} message={saveNotice ?? ''} colors={colors} />
-      {weights.length >= 3 && (
-        <WeightChartModal
-          entries={weights.slice(-7)}
-          colors={colors}
-          visible={showExpandedChart}
-          onClose={() => setShowExpandedChart(false)}
-          onRequestDelete={handleRequestDelete}
-        />
-      )}
+      {/* Modal is always mounted so its close animation can play when weights drop below 3.
+           visible becomes false immediately when the count falls, triggering the slide-out. */}
+      <WeightChartModal
+        entries={weights.length >= 1 ? weights.slice(-7) : []}
+        colors={colors}
+        visible={showExpandedChart && weights.length >= 3}
+        onClose={() => setShowExpandedChart(false)}
+        onRequestDelete={handleRequestDelete}
+      />
       {/* Undo-delete snackbar — rendered outside the chart/modal so it survives modal close */}
       {pendingDelete !== null && (
         <Animated.View
