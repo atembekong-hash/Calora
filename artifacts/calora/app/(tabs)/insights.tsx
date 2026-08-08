@@ -646,9 +646,24 @@ function WeightChartModal({
           <View style={styles.chartModalHeader}>
             <View>
               <Text style={[styles.chartModalTitle, { color: colors.foreground }]}>Weight trend</Text>
-              <Text style={[styles.chartModalSubtitle, { color: colors.mutedForeground }]}>
-                {entries.length} weigh-ins{entries.length >= 2 && entries[0].date !== entries[entries.length - 1].date ? ` · ${formatDate(entries[0].date)} – ${formatDate(entries[entries.length - 1].date)}` : ''} · tap any point for details
-              </Text>
+              {(() => {
+                // Exclude the pending-delete entry so the count and range update
+                // immediately when the user deletes a point, with no jump when
+                // the undo window eventually closes.
+                const visibleEntries = pendingDeleteId
+                  ? entries.filter((e) => e.id !== pendingDeleteId)
+                  : entries;
+                const dateRange =
+                  visibleEntries.length >= 2 &&
+                  visibleEntries[0].date !== visibleEntries[visibleEntries.length - 1].date
+                    ? ` · ${formatDate(visibleEntries[0].date)} – ${formatDate(visibleEntries[visibleEntries.length - 1].date)}`
+                    : '';
+                return (
+                  <Text style={[styles.chartModalSubtitle, { color: colors.mutedForeground }]}>
+                    {visibleEntries.length} weigh-ins{dateRange} · tap any point for details
+                  </Text>
+                );
+              })()}
             </View>
             <Pressable
               onPress={onClose}
