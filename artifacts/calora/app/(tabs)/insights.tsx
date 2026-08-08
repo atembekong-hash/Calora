@@ -380,7 +380,11 @@ function WeightLineChart({
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  const gradientId = expanded ? 'weightFillExpanded' : 'weightFill';
+  // Include the colour in the gradient id so React Native SVG creates a fresh
+  // Defs block whenever the theme switches (light ↔ dark), preventing stale
+  // gradient artefacts from lingering after a colour change.
+  const colorToken = colors.success.replace(/[^a-zA-Z0-9]/g, '');
+  const gradientId = `weightFill${expanded ? 'Expanded' : ''}_${colorToken}`;
 
   return (
     <View style={styles.weightSparkline} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
