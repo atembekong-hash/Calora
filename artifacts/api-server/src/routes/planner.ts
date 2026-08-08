@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { GeneratePlannerBody } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { BRAND_NAME } from "../lib/brand.js";
 
 const router: IRouter = Router();
 const VISION_MODEL = "gpt-5.6-terra";
@@ -495,7 +496,7 @@ router.post("/v1/planner/generate", async (req, res) => {
         {
           role: "system",
           content: [
-            "You are CaloraApp's weekly meal planner.",
+            `You are ${BRAND_NAME}'s weekly meal planner.`,
             "Select meals only from the supplied catalog. Return JSON only.",
             "Return { days: [{ breakfast: id, lunch: id, dinner: id, snack: id }] } with exactly 7 day objects.",
             "Match the calorie target without making medical claims. Do not repeat the same meal on consecutive days.",
@@ -527,7 +528,7 @@ router.post("/v1/planner/generate", async (req, res) => {
         byId.get(chosen.snack ?? "") ?? fallback.snack,
       ].map((meal, mealIndex) => makeMeal(meal, dateFromWeekStart(weekStart, dayIndex), mealIndex));
     }).flat();
-    res.json({ weekStart, provider: "CaloraApp AI planner", message: "Your week is balanced around your goals and preferences.", meals });
+    res.json({ weekStart, provider: `${BRAND_NAME} AI planner`, message: "Your week is balanced around your goals and preferences.", meals });
   } catch (error) {
     res.status(502).json({ message: error instanceof Error ? error.message : "Planner provider unavailable" });
   }

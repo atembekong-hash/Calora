@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { AnalyzeCaptureBody } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { BRAND_NAME } from "../lib/brand.js";
 
 const router: IRouter = Router();
 const OPEN_FOOD_FACTS_ROOT = "https://world.openfoodfacts.org/api/v2";
@@ -195,7 +196,7 @@ async function analyzeTextInput(textInput: string) {
       {
         role: "system",
         content: [
-          "You are CaloraApp's food recognition engine.",
+          `You are ${BRAND_NAME}'s food recognition engine.`,
           "Parse natural-language food descriptions into structured nutrition estimates.",
           "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
           "Use USDA average values for the described food if no brand is specified. Split mixed meals into one component per distinct item.",
@@ -224,7 +225,7 @@ async function analyzeNutritionLabel(imageBase64: string) {
       {
         role: "system",
         content: [
-          "You are CaloraApp's nutrition label reader.",
+          `You are ${BRAND_NAME}'s nutrition label reader.`,
           "Extract the exact nutrition facts from the visible nutrition label in the image.",
           "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, provenance, sourceLabel, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
           "Set provenance to 'Nutrition label' and sourceLabel to 'Label extract' for each component.",
@@ -262,7 +263,7 @@ async function analyzeFoodPhoto(imageBase64: string) {
       {
         role: "system",
         content: [
-          "You are CaloraApp's food recognition engine.",
+          `You are ${BRAND_NAME}'s food recognition engine.`,
           "Analyze any food, drink, packaged item, or mixed meal visible in the image.",
           "Do not refuse because the food is unfamiliar. Make the best reasonable estimate.",
           "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
@@ -311,7 +312,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
       mode: "voice",
       status: "unavailable",
       title: "Voice capture unavailable",
-      reviewMessage: "Voice capture requires a speech-to-text provider that is not yet connected. Type your meal description instead and CaloraApp will estimate the nutrition.",
+      reviewMessage: `Voice capture requires a speech-to-text provider that is not yet connected. Type your meal description instead and ${BRAND_NAME} will estimate the nutrition.`,
       provider: "None",
       candidates: [],
       imageRetention: "not_collected",
