@@ -853,10 +853,10 @@ export default function PlannerScreen() {
                      <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>Find a better fit</Text>
                    </Pressable>
                  </View>
-                 <Pressable accessibilityLabel={`Remove ${actionMeal.name} from plan`} onPress={() => removeMealFromPlan(actionMeal)} style={styles.removeAction}>
+                 <ScalePressable accessibilityLabel={`Remove ${actionMeal.name} from plan`} onPress={() => removeMealFromPlan(actionMeal)} scale={0.98} haptic="none" style={styles.removeAction}>
                    <Feather name="minus-circle" size={15} color={colors.mutedForeground} />
                    <Text style={[styles.removeActionText, { color: colors.mutedForeground }]}>Remove from this plan</Text>
-                 </Pressable>
+                 </ScalePressable>
                </>
              )}
              {actionMeal && actionMode && (
@@ -947,7 +947,7 @@ export default function PlannerScreen() {
                 <View style={styles.formNumberGrid}>
                   {([['Calories', editCalories, setEditCalories], ['Protein g', editProtein, setEditProtein], ['Carbs g', editCarbs, setEditCarbs], ['Fat g', editFat, setEditFat]] as const).map(([label, value, setter]) => <View key={label} style={styles.formNumberField}><Text style={[styles.numberInputLabel, { color: colors.mutedForeground }]}>{label}</Text><TextInput accessibilityLabel={`Edit ${label}`} value={value} onChangeText={setter} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}
                 </View>
-                <Pressable accessibilityLabel="Save planned meal edits" onPress={saveEditedMeal} disabled={!editName.trim()} style={[styles.formSaveButton, { backgroundColor: colors.primary, opacity: editName.trim() ? 1 : 0.5 }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Save changes</Text></Pressable>
+                <ScalePressable accessibilityLabel="Save planned meal edits" onPress={saveEditedMeal} disabled={!editName.trim()} scale={0.96} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, opacity: editName.trim() ? 1 : 0.5 }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Save changes</Text></ScalePressable>
                 <Pressable accessibilityLabel="Cancel planned meal edits" onPress={() => setEditMeal(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
               </KeyboardAwareScrollViewCompat>
             </View>
