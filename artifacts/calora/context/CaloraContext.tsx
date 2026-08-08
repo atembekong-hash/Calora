@@ -243,6 +243,7 @@ type CaloraContextValue = {
   removeLog: (id: string) => void;
   addWeight: (kg: number, source?: WeightEntry['source']) => void;
   removeWeight: (id: string) => void;
+  updateWeight: (id: string, kg: number) => void;
   addWater: (date: string, ounces?: number) => void;
   setMood: (date: string, mood: Mood) => void;
   setActivity: (date: string, activity: DailyActivity) => void;
@@ -732,6 +733,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     removeWeight: (id) => {
       setWeights((current) => current.filter((w) => w.id !== id));
       queueMutation('weight', 'delete');
+    },
+    updateWeight: (id, kg) => {
+      setWeights((current) => current.map((w) => w.id === id ? { ...w, kg } : w));
+      queueMutation('weight', 'upsert');
     },
     addWater: (date, ounces = 8) => {
       if (!Number.isFinite(ounces) || ounces <= 0) return;

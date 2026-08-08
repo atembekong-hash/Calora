@@ -268,7 +268,7 @@ const SPARK_DASH = 700;
 // Minimum pixels allocated per data point when the expanded chart scrolls horizontally.
 const MIN_ENTRY_SPACING = 30;
 
-const TOOLTIP_W = 122;
+const TOOLTIP_W = 148;
 const TOOLTIP_H = 44;
 const DOT_HIT = 36;
 
@@ -279,6 +279,7 @@ function WeightLineChart({
   chartHeight = SPARK_H,
   expanded = false,
   onRequestDelete,
+  onRequestEdit,
   pendingDeleteId,
 }: {
   entries: { id?: string; date: string; kg: number }[];
@@ -287,6 +288,8 @@ function WeightLineChart({
   expanded?: boolean;
   /** Called when the user taps the trash icon. Owner is responsible for the undo window and actual removal. */
   onRequestDelete?: (entry: { id: string; kg: number; date: string }) => void;
+  /** Called when the user taps the edit (pencil) icon. Owner opens the edit UI. */
+  onRequestEdit?: (entry: { id: string; kg: number; date: string }) => void;
   /** ID of the entry currently in the undo-delete window; its dot renders at reduced opacity. */
   pendingDeleteId?: string;
 }) {
@@ -502,27 +505,53 @@ function WeightLineChart({
               {entries[selectedIdx].kg.toFixed(1)} kg
             </Text>
           </View>
-          {onRequestDelete && entries[selectedIdx]?.id && (
-            <Pressable
-              onPress={() => {
-                const entry = entries[selectedIdx];
-                if (!entry?.id) return;
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                // Dismiss tooltip
-                if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
-                tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
-                  if (finished) runOnJS(clearSelection)();
-                });
-                tooltipScale.value = withTiming(0.82, { duration: 150 });
-                onRequestDelete({ id: entry.id, kg: entry.kg, date: entry.date });
-              }}
-              hitSlop={10}
-              accessibilityLabel={`Delete weigh-in ${formatDate(entries[selectedIdx].date)}`}
-              accessibilityRole="button"
-              style={styles.weightTooltipTrash}
-            >
-              <Feather name="trash-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
-            </Pressable>
+          {(onRequestEdit || onRequestDelete) && entries[selectedIdx]?.id && (
+            <View style={styles.weightTooltipActions}>
+              {onRequestEdit && (
+                <Pressable
+                  onPress={() => {
+                    const entry = entries[selectedIdx];
+                    if (!entry?.id) return;
+                    Haptics.selectionAsync();
+                    // Dismiss tooltip
+                    if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
+                    tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
+                      if (finished) runOnJS(clearSelection)();
+                    });
+                    tooltipScale.value = withTiming(0.82, { duration: 150 });
+                    onRequestEdit({ id: entry.id, kg: entry.kg, date: entry.date });
+                  }}
+                  hitSlop={10}
+                  accessibilityLabel={`Edit weigh-in ${formatDate(entries[selectedIdx].date)}`}
+                  accessibilityRole="button"
+                  style={styles.weightTooltipActionBtn}
+                >
+                  <Feather name="edit-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
+                </Pressable>
+              )}
+              {onRequestDelete && (
+                <Pressable
+                  onPress={() => {
+                    const entry = entries[selectedIdx];
+                    if (!entry?.id) return;
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    // Dismiss tooltip
+                    if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
+                    tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
+                      if (finished) runOnJS(clearSelection)();
+                    });
+                    tooltipScale.value = withTiming(0.82, { duration: 150 });
+                    onRequestDelete({ id: entry.id, kg: entry.kg, date: entry.date });
+                  }}
+                  hitSlop={10}
+                  accessibilityLabel={`Delete weigh-in ${formatDate(entries[selectedIdx].date)}`}
+                  accessibilityRole="button"
+                  style={styles.weightTooltipActionBtn}
+                >
+                  <Feather name="trash-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
+                </Pressable>
+              )}
+            </View>
           )}
         </Animated.View>
       )}
@@ -616,6 +645,7 @@ function WeightChartModal({
   visible,
   onClose,
   onRequestDelete,
+  onRequestEdit,
   pendingDeleteId,
 }: {
   entries: { id?: string; date: string; kg: number }[];
@@ -623,6 +653,7 @@ function WeightChartModal({
   visible: boolean;
   onClose: () => void;
   onRequestDelete?: (entry: { id: string; kg: number; date: string }) => void;
+  onRequestEdit?: (entry: { id: string; kg: number; date: string }) => void;
   pendingDeleteId?: string;
 }) {
   const insets = useSafeAreaInsets();
@@ -716,7 +747,7 @@ function WeightChartModal({
 
           {/* Expanded chart — only rendered when there are enough points */}
           {safeEntries.length >= 2 && (
-            <WeightLineChart entries={safeEntries} colors={colors} chartHeight={200} expanded onRequestDelete={onRequestDelete} pendingDeleteId={pendingDeleteId} />
+            <WeightLineChart entries={safeEntries} colors={colors} chartHeight={200} expanded onRequestDelete={onRequestDelete} onRequestEdit={onRequestEdit} pendingDeleteId={pendingDeleteId} />
           )}
 
           {/* Summary stats row — guarded so undefined entries never crash while animating closed */}
@@ -885,7 +916,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, removeWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale } = useCalora();
+  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale } = useCalora();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showWeight, setShowWeight] = useState(false);
@@ -894,6 +925,15 @@ export default function InsightsScreen() {
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [goalInput, setGoalInput] = useState('');
   const [showExpandedChart, setShowExpandedChart] = useState(false);
+
+  // ── Pending-edit state ────────────────────────────────────────────────────────
+  const [editEntry, setEditEntry] = useState<{ id: string; kg: number; date: string } | null>(null);
+  const [editInput, setEditInput] = useState('');
+
+  const handleRequestEdit = (entry: { id: string; kg: number; date: string }) => {
+    setEditInput(String(entry.kg));
+    setEditEntry(entry);
+  };
 
   // ── Pending-delete state (lifted so it survives modal close) ─────────────────
   const [pendingDelete, setPendingDelete] = useState<{ id: string; kg: number; date: string } | null>(null);
@@ -1417,7 +1457,7 @@ export default function InsightsScreen() {
               accessibilityRole="button"
               style={{ position: 'relative' }}
             >
-              <WeightLineChart entries={weights.slice(-7)} colors={colors} onRequestDelete={handleRequestDelete} pendingDeleteId={pendingDelete?.id} />
+              <WeightLineChart entries={weights.slice(-7)} colors={colors} onRequestDelete={handleRequestDelete} onRequestEdit={handleRequestEdit} pendingDeleteId={pendingDelete?.id} />
               {/* Expand affordance icon */}
               <View style={[styles.chartExpandHint, { backgroundColor: colors.muted }]} pointerEvents="none">
                 <Feather name="maximize-2" size={11} color={colors.mutedForeground} />
@@ -1533,6 +1573,46 @@ export default function InsightsScreen() {
         </View>
       </Modal>
       <LocalSaveNotice visible={Boolean(saveNotice)} message={saveNotice ?? ''} colors={colors} />
+      {/* Inline edit modal — pre-filled with the selected weigh-in value */}
+      <Modal visible={editEntry !== null} transparent animationType="slide" onRequestClose={() => setEditEntry(null)}>
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
+          <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit weigh-in</Text>
+            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>
+              {editEntry ? `${new Date(editEntry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} · fix the value below.` : ''}
+            </Text>
+            <TextInput
+              value={editInput}
+              onChangeText={setEditInput}
+              keyboardType="decimal-pad"
+              placeholder="e.g. 76.6 kg"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]}
+              autoFocus
+            />
+            <ScalePressable
+              accessibilityLabel="Save edited weigh-in"
+              onPress={() => {
+                const value = Number(editInput);
+                if (value > 0 && editEntry) {
+                  updateWeight(editEntry.id, value);
+                  setEditEntry(null);
+                  setEditInput('');
+                  setSaveNotice('Weigh-in updated.');
+                }
+              }}
+              scale={0.96}
+              haptic="light"
+              style={[styles.saveWeight, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save</Text>
+            </ScalePressable>
+            <Pressable accessibilityLabel="Cancel edit" onPress={() => setEditEntry(null)} style={styles.cancelWeight}>
+              <Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
       {/* Modal is always mounted so its close animation can play when weights drop below 3.
            visible becomes false immediately when the count falls, triggering the slide-out. */}
       <WeightChartModal
@@ -1541,6 +1621,7 @@ export default function InsightsScreen() {
         visible={showExpandedChart && weights.length >= 3}
         onClose={() => setShowExpandedChart(false)}
         onRequestDelete={handleRequestDelete}
+        onRequestEdit={handleRequestEdit}
         pendingDeleteId={pendingDelete?.id}
       />
       {/* Undo-delete snackbar — rendered outside the chart/modal so it survives modal close */}
@@ -1713,10 +1794,11 @@ function makeStyles(f: number) {
   weightSparkDateRange: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 4, textAlign: 'center', opacity: 0.6 },
   weightExpandedDateRow: { position: 'relative', height: 18, marginTop: 6 },
   weightExpandedDateLabel: { position: 'absolute', fontFamily: 'Inter_400Regular', fontSize: 9 * f, opacity: 0.72, transform: [{ translateX: -18 }] },
-  weightTooltip: { position: 'absolute', width: 122, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, zIndex: 20 },
+  weightTooltip: { position: 'absolute', width: 148, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, zIndex: 20 },
   weightTooltipDate: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
   weightTooltipKg: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, marginTop: 1 },
-  weightTooltipTrash: { paddingLeft: 8, paddingVertical: 4 },
+  weightTooltipActions: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingLeft: 6 },
+  weightTooltipActionBtn: { paddingHorizontal: 5, paddingVertical: 4 },
   weightDeleteSnack: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5, zIndex: 30 },
   weightDeleteSnackText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 12 * f },
   weightDeleteSnackUndo: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, paddingHorizontal: 6 },
