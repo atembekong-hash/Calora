@@ -7,7 +7,8 @@ import { ActivityIndicator, Keyboard, Linking, Modal, NativeScrollEvent, NativeS
 import { ScalePressable } from '@/components/ScalePressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useGetRecipe, useListRecipes, type Recipe } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { getRecipe, useGetRecipe, useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
@@ -137,21 +138,74 @@ function scaleIngredient(ingredient: string, multiplier: number): string {
 
 // Split recipe instructions into discrete cooking steps.
 // Handles TheMealDB (\r\n separated), numbered lists, and paragraph breaks.
-function parseInstructionSteps(text: string): string[] {
-  // Numbered lines: "1. Step" or "Step 1: Step"
-  const numbered = text.split(/\n\s*(?:step\s+)?\d+[.):\s]+/i);
-  if (numbered.length >= 3) return numbered.map((s) => s.trim()).filter(Boolean);
-  // Paragraph or line breaks (TheMealDB uses \r\n per step)
-  const byLine = text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
-  if (byLine.length >= 2) return byLine;
-  return [text.trim()];
+// Also cleans markdown chars, ingredient preambles, and filler phrases.
+function parseInstructionSteps(raw: string): string[] {
+  // ── Phase 1: strip markdown formatting ──────────────────────────────────
+  // TheMealDB uses **bold**, *bullet*, *italic*, and # headers in instructions.
+  let text = raw
+    .replace(/\*\*(.+?)\*\*/gs, '$1')   // **bold** → plain
+    .replace(/\*([^*\n]+?)\*/g, '$1')   // *italic* → plain
+    .replace(/__(.*?)__/gs, '$1')        // __underline__ → plain
+    .replace(/_(.*?)_/g, '$1')           // _italic_ → plain
+    .replace(/^#{1,6}\s*/gm, '')         // # headers → plain
+    .replace(/^[ \t]*[*\-•][ \t]*/gm, '') // leading bullet markers (* - •)
+    .replace(/\r\n/g, '\n')              // normalise CRLF → LF
+    .replace(/\r/g, '\n');               // bare CR → LF
+
+  // ── Phase 2: split into candidate steps ─────────────────────────────────
+  let steps: string[];
+
+  // Numbered list: "1. Step" or "Step 1: ..." or "STEP 1 ..."
+  const byNumbered = text.split(/\n\s*(?:step\s+)?\d+[.):\s]+/i);
+  if (byNumbered.length >= 3) {
+    steps = byNumbered.map((s) => s.trim()).filter(Boolean);
+  } else {
+    // Line-break separated (TheMealDB's primary format)
+    steps = text.split(/\n/).map((s) => s.trim()).filter(Boolean);
+    if (steps.length < 2) steps = [text.trim()];
+  }
+
+  // ── Phase 3: strip ingredient-list preamble ──────────────────────────────
+  // TheMealDB sometimes opens instructions with a list of ingredients before
+  // the actual cooking steps.  Detect the first line with a cooking verb and
+  // discard everything before it.
+  const COOKING_VERB = /\b(heat|add|mix|stir|cook|bake|fry|boil|simmer|combine|place|pour|remove|chop|slice|dice|season|drain|cover|bring|reduce|serve|transfer|whisk|fold|toss|coat|set aside|prepare|rinse|soak|wash|cut|peel|grate|melt|spray|preheat|marinate|roast|saut[eé]|blend|spread|roll|knead|rest|cool|refrigerate|strain|squeeze|brush|garnish|flip|grease|line|wrap|seal|break|separate|beat|cream|form|shape|drop|spoon|finish|top)\b/i;
+  const firstReal = steps.findIndex((s) => COOKING_VERB.test(s));
+  if (firstReal > 0) steps = steps.slice(firstReal);
+
+  // ── Phase 4: trim filler prefixes (reduces verbosity ~25%) ──────────────
+  const FILLER = /^(Now[,.]?\s+|Next[,.]?\s+|Then[,.]?\s+|After that[,.]?\s+|Once done[,.]?\s+|At this point[,.]?\s+|Finally[,.]?\s+|First of all[,.]?\s+|Lastly[,.]?\s+|Go ahead and\s+|Make sure to\s+|Be sure to\s+|You should\s+|You can\s+)/i;
+  steps = steps.map((s) => s.replace(FILLER, (m) => m[0].toUpperCase() === m[0] ? '' : m).trim());
+
+  // ── Phase 5: strip any residual markdown chars and collapse whitespace ───
+  steps = steps.map((s) =>
+    s
+      .replace(/[*_`#]/g, '')      // stray markdown punctuation
+      .replace(/\s{2,}/g, ' ')     // multiple spaces → single
+      .replace(/^[.,:;\s]+/, '')   // leading punctuation from stripping
+      .trim()
+  ).filter((s) => s.length > 4);   // drop near-empty fragments
+
+  return steps.length > 0 ? steps : [raw.trim().replace(/[*_`#]/g, '')];
 }
 
 function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void }) {
   const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const remoteRecipeId = recipe && !local ? recipe.id : '';
-  const detailQuery = useGetRecipe(remoteRecipeId, { query: { queryKey: ['recipe', remoteRecipeId], enabled: Boolean(remoteRecipeId), staleTime: 1000 * 60 * 30 } });
+  const detailQuery = useGetRecipe(remoteRecipeId, {
+    query: {
+      queryKey: ['recipe', remoteRecipeId],
+      enabled: Boolean(remoteRecipeId),
+      staleTime: 1000 * 60 * 30,
+      // When nutrition hasn't been estimated yet (server returns nutritionPending),
+      // poll every 4 s so the strip fills in as soon as the background job lands.
+      refetchInterval: (query) => {
+        const data = query.state.data as (Recipe & { nutritionPending?: boolean }) | undefined;
+        return data?.nutritionPending ? 4000 : false;
+      },
+    },
+  });
   const detail = detailQuery.data ?? recipe;
 
   // Existing review state (used for local recipes)
@@ -176,6 +230,9 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
 
   if (!detail) return null;
   const canLog = Boolean(detail.calories && detail.calories > 0);
+  // True when the server returned nutritionPending: the recipe is loaded but
+  // AI estimation is running in the background — poll until it lands.
+  const nutritionPending = !local && Boolean((detailQuery.data as (Recipe & { nutritionPending?: boolean }) | undefined)?.nutritionPending);
   // True when the server explicitly flagged that AI estimation failed for this recipe.
   const nutritionUnavailable = !local && Boolean((detailQuery.data as (Recipe & { nutritionUnavailable?: boolean }) | undefined)?.nutritionUnavailable);
   const isFetchingDetail = detailQuery.isLoading || detailQuery.isFetching;
@@ -329,8 +386,8 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
 
                 {/* Nutrition strip — values scale with servingCount */}
                 <View style={[styles.nutritionStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  {isFetchingDetail && !detail.calories ? (
-                    <View style={styles.nutritionLoading}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>Estimating nutrition…</Text></View>
+                  {(isFetchingDetail && !detail.calories) || nutritionPending ? (
+                    <View style={styles.nutritionLoading}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>{nutritionPending ? 'Estimating nutrition…' : 'Estimating nutrition…'}</Text></View>
                   ) : nutritionUnavailable ? (
                     <View style={styles.nutritionLoading}>
                       <Feather name="alert-circle" size={14} color={colors.mutedForeground} />
@@ -390,11 +447,16 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                   </>
                 ) : null}
 
-                {/* Feature 3: Numbered cooking steps */}
-                {detail.instructions ? (
+                {/* Feature 3: Numbered cooking steps — shown immediately; skeleton while fetching */}
+                {(detail.instructions || isFetchingDetail) ? (
                   <>
                     <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Method</Text>
-                    {(() => {
+                    {isFetchingDetail && !detail.instructions ? (
+                      <View style={styles.methodLoading}>
+                        <ActivityIndicator size="small" color={colors.primary} />
+                        <Text style={[styles.methodLoadingText, { color: colors.mutedForeground }]}>Loading steps…</Text>
+                      </View>
+                    ) : detail.instructions ? (() => {
                       const steps = parseInstructionSteps(detail.instructions);
                       if (steps.length === 1) {
                         return <Text style={[styles.instructions, { color: colors.mutedForeground }]}>{steps[0]}</Text>;
@@ -405,7 +467,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                           <Text style={[styles.stepText, { color: colors.mutedForeground }]}>{step}</Text>
                         </View>
                       ));
-                    })()}
+                    })() : null}
                   </>
                 ) : null}
 
@@ -612,8 +674,22 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
 
 export default function RecipesScreen() {
   const { colors, profile, logs, localRecipes, savedRecipeIds, toggleSavedRecipe, fontScale } = useCalora();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
+  // Pre-warm the detail query during the modal's slide-up animation (~350 ms).
+  // On cache hits (staleTime 30 min) this is a no-op; on misses it means the
+  // TheMealDB fetch resolves before the user finishes reading the recipe header.
+  const handleCardPress = (recipe: Recipe | CaloraRecipe) => {
+    if (!isLocalRecipe(recipe)) {
+      void queryClient.prefetchQuery({
+        queryKey: ['recipe', recipe.id],
+        queryFn: () => getRecipe(recipe.id),
+        staleTime: 1000 * 60 * 30,
+      });
+    }
+    setSelected(recipe);
+  };
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('For you');
   const [selected, setSelected] = useState<Recipe | CaloraRecipe | null>(null);
@@ -718,10 +794,10 @@ export default function RecipesScreen() {
           <Text style={[styles.fitBody, { color: colors.heroMuted }]}>Browse by mood and cuisine. When a recipe has nutrition data, Calora will show exactly how it fits your target.</Text>
         </View>
 
-        {savedRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your shortlist, ready when you are.</Text></View></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedRecipes.slice(0, 6).map((recipe) => <View key={recipeKey(recipe)} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved remainingCalories={remainingCalories} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} /></View>)}</ScrollView></>}
+        {savedRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your shortlist, ready when you are.</Text></View></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedRecipes.slice(0, 6).map((recipe) => <View key={recipeKey(recipe)} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} /></View>)}</ScrollView></>}
 
         <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length + localMatches.length} quick meals from loaded recipes` : `${visibleRemote.length + localMatches.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
-        {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes from open sources…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>The cookbook is offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your saved and personal recipes remain available. Try again when a connection is available.</Text></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Recipes you create will live here, separate from open-source content.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create your first recipe</Text></Pressable></View>}<Animated.View entering={FadeInDown.springify().damping(20).delay(80)} style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} remainingCalories={remainingCalories} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} remainingCalories={remainingCalories} onPress={() => setSelected(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</Animated.View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Connection lost — showing loaded recipes only.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Bringing in more recipes…</Text></View>}</>}
+        {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes from open sources…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>The cookbook is offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your saved and personal recipes remain available. Try again when a connection is available.</Text></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Recipes you create will live here, separate from open-source content.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create your first recipe</Text></Pressable></View>}<Animated.View entering={FadeInDown.springify().damping(20).delay(80)} style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</Animated.View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Connection lost — showing loaded recipes only.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Bringing in more recipes…</Text></View>}</>}
         <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is provided by TheMealDB. Recipes remain attributed to their source; Calora’s nutrition confidence is shown separately.</Text>
       </ScrollView>
       <RecipeDetailModal
@@ -919,6 +995,9 @@ function makeStyles(f: number) {
   shopCheckbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   // Feature 6: diary serving row
   diaryServingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6, marginBottom: 2 },
+  // Method loading skeleton
+  methodLoading: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 14 },
+  methodLoadingText: { fontFamily: 'Inter_400Regular', fontSize: 12 * f },
   });
 }
 const styles = makeStyles(1.0);

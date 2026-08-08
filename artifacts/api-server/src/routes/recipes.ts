@@ -418,13 +418,40 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
     }
     const base = toRecipe(meal);
 
-    // TheMealDB never includes nutrition — fill it in via AI, persisted per meal ID.
-    const nutrition = await resolveNutrition(base.id, base.name, base.ingredients);
+    // ── Fast path: check L1 (memory) — no I/O needed ─────────────────────
+    const memHit = nutritionCache.get(base.id);
+    if (memHit) {
+      const isStale = Date.now() - memHit.cachedAt > NUTRITION_DB_TTL_MS;
+      if (isStale && !nutritionRefreshInFlight.has(base.id) && base.ingredients.length > 0) {
+        nutritionRefreshInFlight.add(base.id);
+        void refreshNutritionInBackground(base.id, base.name, base.ingredients);
+      }
+      res.json({ ...base, ...memHit.estimate });
+      return;
+    }
 
-    // When estimation fails, spread null does nothing — calories stays null and
-    // the client would silently show blanks. Instead, set a flag so the client
-    // can surface a clear "Nutrition unavailable" label with a retry option.
-    res.json(nutrition ? { ...base, ...nutrition } : { ...base, nutritionUnavailable: true });
+    // ── L2: check DB — fast (~10 ms), no AI call ──────────────────────────
+    const dbResult = await getNutritionFromDb(base.id);
+    if (dbResult) {
+      nutritionCache.set(base.id, { estimate: dbResult.estimate, cachedAt: dbResult.createdAtMs });
+      if (dbResult.isStale && !nutritionRefreshInFlight.has(base.id) && base.ingredients.length > 0) {
+        nutritionRefreshInFlight.add(base.id);
+        void refreshNutritionInBackground(base.id, base.name, base.ingredients);
+      }
+      res.json({ ...base, ...dbResult.estimate });
+      return;
+    }
+
+    // ── Cache miss: return instructions immediately, estimate in background ─
+    // Never block the response on an OpenAI call — instructions are what the
+    // user needs right now.  The client polls (refetchInterval) until the
+    // background estimate lands in L1 and the next request serves it from
+    // memory without touching OpenAI again.
+    if (base.ingredients.length > 0 && !nutritionRefreshInFlight.has(base.id)) {
+      nutritionRefreshInFlight.add(base.id);
+      void refreshNutritionInBackground(base.id, base.name, base.ingredients);
+    }
+    res.json({ ...base, nutritionPending: true });
     return;
   } catch (error) {
     res.status(502).json({ message: error instanceof Error ? error.message : "Recipe provider unavailable" });
