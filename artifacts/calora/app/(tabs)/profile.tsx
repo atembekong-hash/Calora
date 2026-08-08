@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Sharing from 'expo-sharing';
 import { deriveExportHasData, makeExportHandler } from '@/lib/exportUiHandler';
+import { SettingRowPressable } from '@/components/SettingRowPressable';
 
 // ─── Static config ────────────────────────────────────────────────────────────
 
@@ -688,12 +689,11 @@ export default function ProfileScreen() {
           { icon: 'eye-off' as const, title: 'No surveillance ads', body: 'Your meals are never used to target advertisements.', onPress: () => setInfoModal('no-ads'), disabled: false },
           { icon: 'help-circle' as const, title: 'Need a hand?', body: 'Reach a real person when something does not look right.', onPress: () => setInfoModal('help'), disabled: false },
         ].map((item) => (
-          <Pressable
+          <SettingRowPressable
             key={item.title}
             testID={'testID' in item ? item.testID : undefined}
             onPress={item.onPress}
             disabled={item.disabled}
-            accessibilityState={{ disabled: item.disabled }}
             style={[styles.settingRow, { backgroundColor: colors.card, borderColor: colors.border, opacity: item.disabled ? 0.4 : 1 }]}
           >
             <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}><Feather name={item.icon} size={17} color={colors.primary} /></View>
@@ -701,7 +701,7 @@ export default function ProfileScreen() {
             {'isLoading' in item && item.isLoading
               ? <ActivityIndicator size="small" color={colors.mutedForeground} />
               : <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
-          </Pressable>
+          </SettingRowPressable>
         ))}
 
         <Text style={[styles.version, { color: colors.mutedForeground }]}>Calora 1.0 preview · Made for steadier days</Text>
