@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import Animated, { Easing, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
@@ -239,19 +239,97 @@ function AnimatedRhythmBar({ value, color, delay = 0 }: { value: number; color: 
   return <Animated.View style={[styles.rhythmFill, { backgroundColor: color }, animStyle]} />;
 }
 
-// ─── Animated bar for Weight Sparkline ────────────────────────────────────────
-function AnimatedSparkBar({ targetHeight, color, delay = 0 }: { targetHeight: number; color: string; delay?: number }) {
-  const progress = useSharedValue(0);
-  useEffect(() => {
-    progress.value = 0;
-    progress.value = withDelay(delay, withTiming(1, { duration: 750, easing: Easing.out(Easing.cubic) }));
-  }, [delay, progress, targetHeight]);
-  const animStyle = useAnimatedStyle(() => ({ height: targetHeight * progress.value }));
-  return <Animated.View style={[styles.weightSparkFill, { backgroundColor: color }, animStyle]} />;
-}
-
-// ─── SVG circular progress arc ────────────────────────────────────────────────
+// ─── SVG weight bezier line chart ─────────────────────────────────────────────
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+const SPARK_W = 280;
+const SPARK_H = 72;
+const SPARK_PAD_X = 6;
+const SPARK_PAD_Y = 8;
+const SPARK_DASH = 700;
+
+function WeightLineChart({ entries, colors }: { entries: { kg: number }[]; colors: ReturnType<typeof useCalora>['colors'] }) {
+  const vals = entries.map((e) => e.kg);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const range = max - min || 1;
+
+  const pts = vals.map((v, i) => ({
+    x: SPARK_PAD_X + (i / (vals.length - 1)) * (SPARK_W - SPARK_PAD_X * 2),
+    y: SPARK_PAD_Y + (1 - (v - min) / range) * (SPARK_H - SPARK_PAD_Y * 2),
+  }));
+
+  // Smooth cubic bezier: control points split midway between adjacent pts
+  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1];
+    const curr = pts[i];
+    const cpX = ((prev.x + curr.x) / 2).toFixed(2);
+    d += ` C ${cpX} ${prev.y.toFixed(2)} ${cpX} ${curr.y.toFixed(2)} ${curr.x.toFixed(2)} ${curr.y.toFixed(2)}`;
+  }
+
+  const dashOffset = useSharedValue(SPARK_DASH);
+  const dataKey = vals.join(',');
+  useEffect(() => {
+    dashOffset.value = SPARK_DASH;
+    dashOffset.value = withTiming(0, { duration: 920, easing: Easing.out(Easing.cubic) });
+  // Re-run whenever data changes; eslint can't verify the string identity dependency.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataKey]);
+
+  const animPathProps = useAnimatedProps(() => ({
+    strokeDashoffset: dashOffset.value,
+  }));
+
+  const lastIdx = pts.length - 1;
+
+  return (
+    <View style={styles.weightSparkline}>
+      <Svg width="100%" height={SPARK_H} viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}>
+        {/* track line */}
+        <Path d={d} stroke="rgba(120,120,120,0.13)" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        {/* animated line */}
+        <AnimatedPath
+          d={d}
+          stroke={colors.success}
+          strokeWidth={2.2}
+          fill="none"
+          strokeDasharray={SPARK_DASH}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          animatedProps={animPathProps}
+        />
+        {/* data point dots */}
+        {pts.map((pt, i) => (
+          <Circle
+            key={i}
+            cx={pt.x}
+            cy={pt.y}
+            r={i === lastIdx ? 4.5 : 2.8}
+            fill={i === lastIdx ? colors.primary : colors.success}
+            opacity={i === lastIdx ? 1 : 0.65}
+          />
+        ))}
+      </Svg>
+      {/* weight value labels */}
+      <View style={styles.weightSparkLabels}>
+        {entries.map((entry, i) => (
+          <Text
+            key={entry.kg + String(i)}
+            style={[
+              styles.weightSparkLabel,
+              { color: i === lastIdx ? colors.primary : colors.mutedForeground, flex: 1, textAlign: i === 0 ? 'left' : i === lastIdx ? 'right' : 'center' },
+            ]}
+            numberOfLines={1}
+          >
+            {entry.kg.toFixed(1)}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 function CircularProgress({ percentage, color, trackColor, size = 52, strokeWidth = 5 }: {
   percentage: number; color: string; trackColor: string; size?: number; strokeWidth?: number;
@@ -778,24 +856,7 @@ export default function InsightsScreen() {
             )}
           </View>
           {weights.length >= 3 ? (
-            <View style={styles.weightSparkline}>
-              {weights.slice(-7).map((entry, index, arr) => {
-                const vals = arr.map((e) => e.kg);
-                const min = Math.min(...vals);
-                const max = Math.max(...vals);
-                const range = max - min || 1;
-                const pct = ((entry.kg - min) / range) * 72 + 8;
-                const isLast = index === arr.length - 1;
-                return (
-                  <View key={entry.id} style={styles.weightSparkCol}>
-                    <View style={[styles.weightSparkTrack, { backgroundColor: colors.muted }]}>
-                      <AnimatedSparkBar targetHeight={pct} color={isLast ? colors.primary : colors.success} delay={index * 75} />
-                    </View>
-                    <Text style={[styles.weightSparkLabel, { color: isLast ? colors.primary : colors.mutedForeground }]}>{entry.kg.toFixed(1)}</Text>
-                  </View>
-                );
-              })}
-            </View>
+            <WeightLineChart entries={weights.slice(-7)} colors={colors} />
           ) : (
             <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '50%' : '0%' }]} /></View>
           )}
@@ -1044,11 +1105,9 @@ function makeStyles(f: number) {
   weightTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 },
   weightDeltaBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 5 },
   weightDeltaText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  weightSparkline: { flexDirection: 'row', alignItems: 'flex-end', gap: 5, marginTop: 12, height: 100 },
-  weightSparkCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
-  weightSparkTrack: { width: '100%', height: 80, borderRadius: 5, overflow: 'hidden', justifyContent: 'flex-end' },
-  weightSparkFill: { width: '100%', borderRadius: 5 },
-  weightSparkLabel: { fontFamily: 'Inter_400Regular', fontSize: 8 * f, marginTop: 5 },
+  weightSparkline: { marginTop: 12 },
+  weightSparkLabels: { flexDirection: 'row', marginTop: 5, paddingHorizontal: 2 },
+  weightSparkLabel: { fontFamily: 'Inter_400Regular', fontSize: 8 * f },
   goalProgressSection: { marginTop: 14 },
   goalProgressHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
   goalProgressText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, flex: 1 },
