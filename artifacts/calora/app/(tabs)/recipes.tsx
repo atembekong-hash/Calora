@@ -129,7 +129,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   if (!detail) return null;
   const canLog = Boolean(detail.calories && detail.calories > 0);
   // True when the server explicitly flagged that AI estimation failed for this recipe.
-  const nutritionUnavailable = !local && Boolean((detailQuery.data as Recipe | undefined)?.nutritionUnavailable);
+  const nutritionUnavailable = !local && Boolean((detailQuery.data as (Recipe & { nutritionUnavailable?: boolean }) | undefined)?.nutritionUnavailable);
   const isFetchingDetail = detailQuery.isLoading || detailQuery.isFetching;
 
   const openReview = () => {
@@ -404,7 +404,7 @@ export default function RecipesScreen() {
         : recipe.category === category);
     return matchesSearch && matchesCategory;
   }), [category, localRecipes, search]);
-  const recipesQuery = useListRecipes({ query: search || undefined, category: category === 'For you' || category === 'My recipes' || category === 'Quick' ? undefined : category, limit: RECIPE_PAGE_SIZE, offset: remoteOffset }, { query: { queryKey: ['recipes', search, category, remoteOffset], staleTime: 1000 * 60 * 10, refetchInterval: (query) => query.state.data?.warmupPending ? 15_000 : false } });
+  const recipesQuery = useListRecipes({ query: search || undefined, category: category === 'For you' || category === 'My recipes' || category === 'Quick' ? undefined : category, limit: RECIPE_PAGE_SIZE, offset: remoteOffset }, { query: { queryKey: ['recipes', search, category, remoteOffset], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   useEffect(() => {
     setRemoteOffset(0);
     setRemoteRecipes([]);
@@ -566,7 +566,7 @@ function makeStyles(f: number) {
   horizontalCards: { gap: 11, paddingBottom: 25 },
   recipeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   recipeGridCard: { width: '48.35%' },
-  recipeCard: { borderWidth: 1, borderRadius: 19, overflow: 'hidden' },
+  recipeCard: { borderWidth: 1, borderRadius: 19, overflow: 'hidden', flex: 1 },
   recipeImage: { width: '100%', backgroundColor: '#1d4539' },
   imageFallback: { alignItems: 'center', justifyContent: 'center' },
   imageFallbackCopy: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -574,7 +574,7 @@ function makeStyles(f: number) {
   saveButton: { position: 'absolute', right: 10, top: 10, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   localBadge: { position: 'absolute', left: 10, bottom: 10, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 4 },
   localBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.7 },
-  cardContent: { padding: 10 },
+  cardContent: { padding: 10, flex: 1, justifyContent: 'space-between' },
   recipeName: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, lineHeight: 16 },
   recipeMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 },
   recipeKcal: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
