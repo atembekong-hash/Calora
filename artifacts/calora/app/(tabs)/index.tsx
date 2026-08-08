@@ -209,8 +209,8 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
         </View>
         <View style={styles.recipeWidgetHeaderActions}>
           {recipes.length > 1 && <View style={styles.recipeWidgetNav}>
-            <Pressable accessibilityLabel="Previous dashboard recipe" onPress={() => snapToRecipe(activeRecipe - 1)} style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={15} color={colors.foreground} /></Pressable>
-            <Pressable accessibilityLabel="Next dashboard recipe" onPress={() => snapToRecipe(activeRecipe + 1)} style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={15} color={colors.foreground} /></Pressable>
+            <ScalePressable accessibilityLabel="Previous dashboard recipe" onPress={() => snapToRecipe(activeRecipe - 1)} scale={0.95} haptic="none" style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={15} color={colors.foreground} /></ScalePressable>
+            <ScalePressable accessibilityLabel="Next dashboard recipe" onPress={() => snapToRecipe(activeRecipe + 1)} scale={0.95} haptic="none" style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={15} color={colors.foreground} /></ScalePressable>
           </View>}
           <View style={[styles.recipeWidgetBadge, { backgroundColor: colors.accent }]}>
             <Feather name="book-open" size={13} color={colors.accentForeground} />
