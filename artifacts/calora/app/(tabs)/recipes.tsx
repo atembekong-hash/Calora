@@ -58,7 +58,7 @@ function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160,
   const local = isLocalRecipe(recipe);
   const fitsGoal = remainingCalories !== undefined && remainingCalories > 0 && recipe.calories != null && recipe.calories > 0 && recipe.calories <= remainingCalories;
   return (
-    <Pressable accessibilityLabel={`Open ${recipe.name}`} onPress={onPress} style={({ pressed }) => [styles.recipeCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.82 : 1 }]}>
+    <ScalePressable accessibilityLabel={`Open ${recipe.name}`} onPress={onPress} scale={0.98} haptic="none" style={[styles.recipeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View>
         <RecipeImage recipe={recipe} height={imageHeight} />
         <Pressable accessibilityLabel={`${saved ? 'Remove' : 'Save'} ${recipe.name}`} onPress={onSave} style={[styles.saveButton, { backgroundColor: saved ? colors.primary : colors.card }]}>
@@ -75,7 +75,7 @@ function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160,
           <Feather name="arrow-up-right" size={13} color={colors.mutedForeground} />
         </View>
       </View>
-    </Pressable>
+    </ScalePressable>
   );
 }
 

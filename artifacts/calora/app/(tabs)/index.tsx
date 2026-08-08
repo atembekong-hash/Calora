@@ -406,7 +406,7 @@ function AnimatedWaterSlot({ filled, muted }: { filled: boolean; muted: string }
 
 function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typeof useCalora>['colors']; onEdit: () => void }) {
   return (
-    <Pressable accessibilityLabel={`Edit ${log.name}`} onPress={onEdit} style={({ pressed }) => [styles.mealRow, { borderBottomColor: colors.border, opacity: pressed ? 0.75 : 1 }]}>
+    <ScalePressable accessibilityLabel={`Edit ${log.name}`} onPress={onEdit} scale={0.98} haptic="none" style={[styles.mealRow, { borderBottomColor: colors.border }]}>
       <View style={[styles.mealDot, { backgroundColor: log.meal === 'Breakfast' ? colors.warning : log.meal === 'Lunch' ? colors.success : colors.primary }]} />
       <View style={styles.mealInfo}>
         <Text style={[styles.mealName, { color: colors.foreground }]} numberOfLines={1}>{log.name}</Text>
@@ -421,7 +421,7 @@ function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typ
       <Text style={[styles.mealCalories, { color: colors.foreground }]}>{log.calories}</Text>
       <Text style={[styles.kcalLabel, { color: colors.mutedForeground }]}>kcal</Text>
       <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
-    </Pressable>
+    </ScalePressable>
   );
 }
 
@@ -565,7 +565,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
           {savedMeals.length > 0 && <View>
             <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 2 }]}>SAVED MEALS & RECIPES</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedMealRow}>
-              {savedMeals.map((meal) => <Pressable key={meal.id} accessibilityLabel={`Add saved ${meal.name}`} onPress={() => chooseSavedMeal(meal)} style={[styles.savedMealChip, { backgroundColor: colors.accent, borderColor: colors.border }]}><Feather name={meal.kind === 'recipe' ? 'book-open' : 'bookmark'} size={13} color={colors.accentForeground} /><View><Text style={[styles.savedMealName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.savedMealMeta, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.kind}</Text></View></Pressable>)}
+              {savedMeals.map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add saved ${meal.name}`} onPress={() => chooseSavedMeal(meal)} scale={0.98} haptic="none" style={[styles.savedMealChip, { backgroundColor: colors.accent, borderColor: colors.border }]}><Feather name={meal.kind === 'recipe' ? 'book-open' : 'bookmark'} size={13} color={colors.accentForeground} /><View><Text style={[styles.savedMealName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.savedMealMeta, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.kind}</Text></View></ScalePressable>)}
             </ScrollView>
           </View>}
           <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input }]}>
@@ -575,7 +575,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
           <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>VERIFIED SHORTLIST</Text>
           <ScrollView style={{ maxHeight: 210 }} showsVerticalScrollIndicator={false}>
             {filtered.map((food) => (
-              <Pressable key={food.name} onPress={() => chooseFood(food)} style={[styles.foodSuggestion, { borderBottomColor: colors.border }]}>
+              <ScalePressable key={food.name} onPress={() => chooseFood(food)} scale={0.98} haptic="none" style={[styles.foodSuggestion, { borderBottomColor: colors.border }]}>
                 <View style={[styles.foodIcon, { backgroundColor: colors.accent }]}>
                   <Feather name="check" size={15} color={colors.accentForeground} />
                 </View>
@@ -584,7 +584,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
                   <Text style={[styles.foodMeta, { color: colors.mutedForeground }]}>{food.calories} kcal · {food.protein}g protein · {food.confidence}% confidence</Text>
                 </View>
                 <Feather name="plus" size={18} color={colors.primary} />
-              </Pressable>
+              </ScalePressable>
             ))}
           </ScrollView>
           <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 14 }]}>MANUAL QUICK ADD</Text>
