@@ -516,6 +516,13 @@ function WeightLineChart({
         ))}
       </View>
 
+      {/* date range label — only when the span covers more than one unique date */}
+      {entries[0]?.date && entries[entries.length - 1]?.date && entries[0].date !== entries[entries.length - 1].date && (
+        <Text style={[styles.weightSparkDateRange, { color: colors.mutedForeground }]}>
+          {formatDate(entries[0].date)} – {formatDate(entries[entries.length - 1].date)}
+        </Text>
+      )}
+
     </View>
   );
 }
@@ -1553,6 +1560,7 @@ function makeStyles(f: number) {
   weightSparkline: { marginTop: 12 },
   weightSparkLabels: { flexDirection: 'row', marginTop: 5, paddingHorizontal: 2 },
   weightSparkLabel: { fontFamily: 'Inter_400Regular', fontSize: 8 * f },
+  weightSparkDateRange: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 4, textAlign: 'center', opacity: 0.6 },
   weightTooltip: { position: 'absolute', width: 122, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, zIndex: 20 },
   weightTooltipDate: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
   weightTooltipKg: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, marginTop: 1 },
