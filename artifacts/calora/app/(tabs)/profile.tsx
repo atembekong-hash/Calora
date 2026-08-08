@@ -675,7 +675,7 @@ export default function ProfileScreen() {
         </View>
         {[
           { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Prepare a portable JSON copy · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExport, disabled: !hasExportData },
-          { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove this device\u2019s diary and profile data.', onPress: handleDelete, disabled: isClearing },
+          { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove this device\u2019s diary and profile data.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
           { icon: 'shield' as const, title: 'Your food data stays yours', body: 'Local-first logging with export and delete controls.', onPress: () => setInfoModal('food-data'), disabled: false },
           { icon: 'eye-off' as const, title: 'No surveillance ads', body: 'Your meals are never used to target advertisements.', onPress: () => setInfoModal('no-ads'), disabled: false },
           { icon: 'help-circle' as const, title: 'Need a hand?', body: 'Reach a real person when something does not look right.', onPress: () => setInfoModal('help'), disabled: false },
@@ -689,7 +689,9 @@ export default function ProfileScreen() {
           >
             <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}><Feather name={item.icon} size={17} color={colors.primary} /></View>
             <View style={{ flex: 1 }}><Text style={[styles.settingTitle, { color: colors.foreground }]}>{item.title}</Text><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{item.body}</Text></View>
-            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+            {'isLoading' in item && item.isLoading
+              ? <ActivityIndicator size="small" color={colors.mutedForeground} />
+              : <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
           </Pressable>
         ))}
 
