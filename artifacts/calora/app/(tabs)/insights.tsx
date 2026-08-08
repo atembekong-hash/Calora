@@ -1554,7 +1554,7 @@ export default function InsightsScreen() {
           <View style={styles.weightTopRow}>
             <View>
               <Text style={[styles.weightValue, { color: colors.foreground }]}>{latestWeight.toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>kg</Text></Text>
-              <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length > 1 ? `${weights.length} weigh-ins recorded locally` : 'Optional · add a few weigh-ins to unlock trend guidance'}</Text>
+              <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length - (pendingDelete ? 1 : 0) > 1 ? `${weights.length - (pendingDelete ? 1 : 0)} weigh-ins recorded locally` : 'Optional · add a few weigh-ins to unlock trend guidance'}</Text>
             </View>
             {weights.length >= 3 && (
               <View style={[styles.weightDeltaBadge, { backgroundColor: weightDelta <= 0 ? '#e6f6ec' : '#fff3e0' }]}>
