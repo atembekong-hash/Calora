@@ -605,6 +605,13 @@ components:
         proteinG: { type: number, nullable: true }
         carbsG: { type: number, nullable: true }
         fatG: { type: number, nullable: true }
+        nutritionUnavailable:
+          type: boolean
+          description: >
+            True when the server attempted AI nutrition estimation but it
+            failed (timeout, nonsensical result, or API error). The client
+            should surface a clear "Nutrition unavailable" label and offer a
+            retry rather than silently showing blanks.
         source: { type: string }
         sourceUrl: { type: string, format: uri }
     CaptureAnalyzeInput:

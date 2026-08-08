@@ -344,7 +344,10 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
     // TheMealDB never includes nutrition — fill it in via AI, persisted per meal ID.
     const nutrition = await resolveNutrition(base.id, base.name, base.ingredients);
 
-    res.json({ ...base, ...nutrition });
+    // When estimation fails, spread null does nothing — calories stays null and
+    // the client would silently show blanks. Instead, set a flag so the client
+    // can surface a clear "Nutrition unavailable" label with a retry option.
+    res.json(nutrition ? { ...base, ...nutrition } : { ...base, nutritionUnavailable: true });
     return;
   } catch (error) {
     res.status(502).json({ message: error instanceof Error ? error.message : "Recipe provider unavailable" });

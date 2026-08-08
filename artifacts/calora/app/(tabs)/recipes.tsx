@@ -128,6 +128,9 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
 
   if (!detail) return null;
   const canLog = Boolean(detail.calories && detail.calories > 0);
+  // True when the server explicitly flagged that AI estimation failed for this recipe.
+  const nutritionUnavailable = !local && Boolean((detailQuery.data as Recipe | undefined)?.nutritionUnavailable);
+  const isFetchingDetail = detailQuery.isLoading || detailQuery.isFetching;
 
   const openReview = () => {
     if (!canLog) return;
@@ -246,8 +249,14 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                 <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
                 <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{detail.area ? `${detail.area} cuisine` : 'A recipe for your collection'}{detail.category ? ` · ${detail.category}` : ''}</Text>
                 <View style={[styles.nutritionStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  {detailQuery.isLoading && !detail.calories ? (
+                  {isFetchingDetail && !detail.calories ? (
                     <View style={styles.nutritionLoading}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>Estimating nutrition…</Text></View>
+                  ) : nutritionUnavailable ? (
+                    <View style={styles.nutritionLoading}>
+                      <Feather name="alert-circle" size={14} color={colors.mutedForeground} />
+                      <Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>Nutrition unavailable</Text>
+                      <Pressable accessibilityLabel="Retry nutrition estimate" onPress={() => detailQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable>
+                    </View>
                   ) : (
                     <>
                       <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: detail.calories ? colors.foreground : colors.mutedForeground }]}>{detail.calories ? `${!local ? '~' : ''}${Math.round(detail.calories)}` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
@@ -258,7 +267,8 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                   )}
                 </View>
                 {!local && canLog && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="cpu" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>AI-estimated per serving · values may vary</Text></View>}
-                {!canLog && !detailQuery.isLoading && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>This open-source recipe does not include verified nutrition yet. You can save it, then add your own nutrition before logging.</Text></View>}
+                {nutritionUnavailable && !isFetchingDetail && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Nutrition estimate failed · tap Retry above or check back later</Text></View>}
+                {!canLog && !nutritionUnavailable && !local && !detailQuery.isLoading && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>This open-source recipe does not include verified nutrition yet. You can save it, then add your own nutrition before logging.</Text></View>}
                 {detail.ingredients?.length ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Ingredients</Text>{detail.ingredients.map((ingredient) => <View key={ingredient} style={styles.ingredientRow}><View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} /><Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient}</Text></View>)}</> : null}
                 {detail.instructions ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Method</Text><Text style={[styles.instructions, { color: colors.mutedForeground }]}>{detail.instructions}</Text></> : null}
                 <Text style={[styles.attribution, { color: colors.mutedForeground }]}>Recipe source: {detail.source}. Calora does not claim third-party recipe content as its own.</Text>
