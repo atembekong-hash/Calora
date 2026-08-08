@@ -762,7 +762,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, removeWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale } = useCalora();
+  const { colors, logs, weights, addWeight, removeWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale } = useCalora();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showWeight, setShowWeight] = useState(false);
@@ -876,6 +876,11 @@ export default function InsightsScreen() {
     setShowGoalCelebration(false);
   }, [targetWeight]);
   useEffect(() => {
+    // Wait until storage has been read so that goalCelebrationSeenTargetKg reflects the
+    // persisted value. Without this guard the effect fires on the first render with
+    // goalCelebrationSeenTargetKg = null, incorrectly re-showing the banner the user
+    // already dismissed before the last app close.
+    if (!hydrated) return;
     if (goalReached && showGoalProgress && goalCelebrationSeenTargetKg !== targetWeight) {
       // First crossing (or re-crossing after a reset): fire the celebration.
       setShowGoalCelebration(true);
@@ -886,10 +891,11 @@ export default function InsightsScreen() {
       // Reset the seen flag so the next genuine re-crossing replays the celebration and haptic.
       resetGoalCelebrationSeen();
     }
-  // Intentionally run only when goalReached/showGoalProgress/targetWeight change, not on
-  // markGoalCelebrationSeen/resetGoalCelebrationSeen identity changes.
+  // Intentionally omit markGoalCelebrationSeen/resetGoalCelebrationSeen (stable function
+  // identity) and goalCelebrationSeenTargetKg (read inside effect; hydrated acts as the
+  // synchronisation gate — when hydrated flips true the stored value is already present).
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [goalReached, showGoalProgress, targetWeight]);
+  }, [hydrated, goalReached, showGoalProgress, targetWeight]);
   // todayKey is reactive: a 60-second interval checks whether the calendar date has rolled over
   // so that mood, activity, and water check-ins always save to the correct day even when the
   // screen stays open past midnight.
