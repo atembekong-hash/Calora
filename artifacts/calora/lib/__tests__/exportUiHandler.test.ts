@@ -33,6 +33,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   deriveExportHasData,
   handleExportTap,
+  makeExportHandler,
   shareExportFile,
   EXPORT_FILENAME,
   EXPORT_MIME_TYPE,
@@ -553,6 +554,147 @@ describe('handleExportTap → shareExportFile: filename and mimeType reach the p
     expect(writeAsStringAsync).not.toHaveBeenCalled();
     expect(shareAsync).not.toHaveBeenCalled();
     expect(onNoData).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// makeExportHandler — concurrent double-tap lock
+// ---------------------------------------------------------------------------
+
+/**
+ * makeExportHandler wraps the full export flow behind a synchronous ref lock.
+ * The ref is checked and set before the first await, so two rapid invocations
+ * that share the same event-loop tick both observe the same value — the second
+ * one returns immediately without starting a duplicate export.
+ *
+ * These tests confirm:
+ *   1. Two concurrent calls trigger exactly one storage read, one file write,
+ *      and one share invocation.
+ *   2. A second call that arrives while the first is still in flight is silently
+ *      dropped (the lock is held).
+ *   3. After the first call settles the lock is released and a subsequent call
+ *      succeeds normally.
+ *   4. setLoading mirrors the lock: true while in-flight, false when done.
+ */
+describe('makeExportHandler: concurrent double-tap lock', () => {
+  it('two concurrent calls produce exactly one storage read, one file write, and one share', async () => {
+    const lockRef = { current: false };
+    const setLoading = vi.fn();
+    const onNoData = vi.fn();
+    const onError = vi.fn();
+
+    // Slow storage read — stays pending while the second tap fires
+    let resolveFirst!: (value: string) => void;
+    const slowStorage = vi.fn(() => new Promise<string>((res) => { resolveFirst = res; }));
+    const { adapter, writeAsStringAsync, shareAsync } = makeAdapter();
+
+    const handler = makeExportHandler(lockRef, slowStorage, adapter, { setLoading, onNoData, onError });
+
+    // Fire two taps without awaiting the first
+    const first = handler();
+    const second = handler(); // lock is already held — should return immediately
+
+    // Let the first export complete
+    resolveFirst(makeRawExport());
+    await first;
+    await second;
+
+    expect(slowStorage).toHaveBeenCalledTimes(1);
+    expect(writeAsStringAsync).toHaveBeenCalledTimes(1);
+    expect(shareAsync).toHaveBeenCalledTimes(1);
+    expect(onNoData).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('second tap while first is in-flight is silently dropped — setLoading is not called a second time', async () => {
+    const lockRef = { current: false };
+    const setLoading = vi.fn();
+
+    let resolveFirst!: (value: string) => void;
+    const slowStorage = vi.fn(() => new Promise<string>((res) => { resolveFirst = res; }));
+    const { adapter } = makeAdapter();
+
+    const handler = makeExportHandler(lockRef, slowStorage, adapter, {
+      setLoading,
+      onNoData: vi.fn(),
+      onError: vi.fn(),
+    });
+
+    const first = handler();
+    const second = handler(); // dropped
+
+    resolveFirst(makeRawExport());
+    await first;
+    await second;
+
+    // setLoading(true) and setLoading(false) fire exactly once — from the first call only
+    expect(setLoading).toHaveBeenCalledTimes(2);
+    expect(setLoading).toHaveBeenNthCalledWith(1, true);
+    expect(setLoading).toHaveBeenNthCalledWith(2, false);
+  });
+
+  it('lock is released after the first call settles — a subsequent tap succeeds normally', async () => {
+    const lockRef = { current: false };
+    const setLoading = vi.fn();
+    const { adapter, writeAsStringAsync, shareAsync } = makeAdapter();
+
+    const handler = makeExportHandler(lockRef, async () => makeRawExport(), adapter, {
+      setLoading,
+      onNoData: vi.fn(),
+      onError: vi.fn(),
+    });
+
+    // First call
+    await handler();
+    expect(writeAsStringAsync).toHaveBeenCalledTimes(1);
+    expect(shareAsync).toHaveBeenCalledTimes(1);
+
+    // Second call after first has fully settled — lock was released in finally
+    await handler();
+    expect(writeAsStringAsync).toHaveBeenCalledTimes(2);
+    expect(shareAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it('lock is released even when shareExportFile throws — error path clears the ref', async () => {
+    const lockRef = { current: false };
+    const setLoading = vi.fn();
+    const onError = vi.fn();
+
+    const errorAdapter: FileShareAdapter = {
+      cacheDirectory: 'file:///cache/',
+      writeAsStringAsync: vi.fn().mockRejectedValue(new Error('Disk full')),
+      shareAsync: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const handler = makeExportHandler(lockRef, async () => makeRawExport(), errorAdapter, {
+      setLoading,
+      onNoData: vi.fn(),
+      onError,
+    });
+
+    await handler(); // fails — onError fires, lock must still be released
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(lockRef.current).toBe(false);
+
+    // A follow-up tap should be able to proceed
+    expect(setLoading).toHaveBeenLastCalledWith(false);
+  });
+
+  it('calls onNoData and does NOT write or share when storage returns null', async () => {
+    const lockRef = { current: false };
+    const onNoData = vi.fn();
+    const { adapter, writeAsStringAsync, shareAsync } = makeAdapter();
+
+    const handler = makeExportHandler(lockRef, async () => null, adapter, {
+      setLoading: vi.fn(),
+      onNoData,
+      onError: vi.fn(),
+    });
+
+    await handler();
+    expect(onNoData).toHaveBeenCalledTimes(1);
+    expect(writeAsStringAsync).not.toHaveBeenCalled();
+    expect(shareAsync).not.toHaveBeenCalled();
   });
 });
 

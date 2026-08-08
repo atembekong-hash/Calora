@@ -119,6 +119,64 @@ export async function shareExportFile(
   });
 }
 
+/**
+ * Builds an export handler that is safe to fire concurrently.
+ *
+ * The caller supplies a plain `{ current: boolean }` ref — typically a React
+ * `useRef(false)` — which acts as a synchronous mutex.  Because the ref is
+ * checked and set *before* the first `await`, two rapid invocations that share
+ * the same event-loop tick both see the same `current` value; the second one
+ * returns immediately without starting a duplicate export.
+ *
+ * `setLoading` is called with `true`/`false` purely for UI feedback (spinner,
+ * disabled state) and does NOT close the race — that is the ref's job.
+ *
+ * Profile screen usage:
+ *   const exportLockRef = useRef(false);
+ *   const [isExporting, setIsExporting] = useState(false);
+ *   const handleExport = useMemo(
+ *     () => makeExportHandler(exportLockRef, exportRawStorageData, adapter, {
+ *       setLoading: setIsExporting,
+ *       onNoData:   () => Alert.alert('No data', '…'),
+ *       onError:    () => Alert.alert('Export failed', '…'),
+ *     }),
+ *     [],
+ *   );
+ */
+export function makeExportHandler(
+  lockRef: { current: boolean },
+  exportRawStorageData: () => Promise<string | null>,
+  adapter: FileShareAdapter,
+  callbacks: {
+    setLoading: (loading: boolean) => void;
+    onNoData: () => void;
+    onError: () => void;
+  },
+): () => Promise<void> {
+  return async () => {
+    // Synchronous check-and-set — safe even when two taps land in the same frame.
+    if (lockRef.current) return;
+    lockRef.current = true;
+    callbacks.setLoading(true);
+    try {
+      const raw = await exportRawStorageData();
+      if (raw === null) {
+        callbacks.onNoData();
+        return;
+      }
+      await shareExportFile(
+        { content: raw, filename: EXPORT_FILENAME, mimeType: EXPORT_MIME_TYPE },
+        adapter,
+      );
+    } catch {
+      callbacks.onError();
+    } finally {
+      lockRef.current = false;
+      callbacks.setLoading(false);
+    }
+  };
+}
+
 export async function handleExportTap(params: {
   /** CaloraContext.exportRawStorageData — reads raw storage bytes directly. */
   exportRawStorageData: () => Promise<string | null>;

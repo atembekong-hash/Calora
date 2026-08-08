@@ -20,7 +20,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Sharing from 'expo-sharing';
-import { deriveExportHasData, handleExportTap, shareExportFile, type ExportPayload } from '@/lib/exportUiHandler';
+import { deriveExportHasData, makeExportHandler } from '@/lib/exportUiHandler';
 
 // ─── Static config ────────────────────────────────────────────────────────────
 
@@ -75,6 +75,13 @@ export default function ProfileScreen() {
   // Privacy / delete
   const [privacyModal, setPrivacyModal] = useState<'delete' | null>(null);
   const confirmingRef = useRef(false);
+
+  // Export in-progress guard
+  // exportLockRef is the synchronous mutex — checked/set before the first await
+  // so two rapid taps in the same frame both observe the same value.
+  // isExporting is UI-only (spinner, disabled state) and does NOT close the race.
+  const exportLockRef = useRef(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Reminder statuses
   const [reminderStatus, setReminderStatus] = useState<'idle' | 'denied' | 'scheduled'>('idle');
@@ -187,20 +194,21 @@ export default function ProfileScreen() {
   const handleRestore = () => setBillingModal('restore');
   const handleManage = () => setBillingModal('manage');
 
-  /** Export */
-  const handleExport = async () => {
-    await handleExportTap({
-      exportRawStorageData,
+  /** Export — locked against concurrent invocations via exportLockRef */
+  const handleExport = makeExportHandler(
+    exportLockRef,
+    exportRawStorageData,
+    {
+      cacheDirectory: FileSystem.cacheDirectory,
+      writeAsStringAsync: FileSystem.writeAsStringAsync,
+      shareAsync: Sharing.shareAsync,
+    },
+    {
+      setLoading: setIsExporting,
       onNoData: () => Alert.alert('No data', 'There is no local data to export. Log a meal or complete onboarding first.'),
-      onData: (payload: ExportPayload) => {
-        shareExportFile(payload, {
-          cacheDirectory: FileSystem.cacheDirectory,
-          writeAsStringAsync: FileSystem.writeAsStringAsync,
-          shareAsync: Sharing.shareAsync,
-        }).catch(() => Alert.alert('Export failed', 'Could not open the share sheet. Try again.'));
-      },
-    });
-  };
+      onError: () => Alert.alert('Export failed', 'Could not open the share sheet. Try again.'),
+    },
+  );
 
   /** Delete */
   const handleDelete = () => { if (!isClearing) setPrivacyModal('delete'); };
@@ -674,7 +682,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
         {[
-          { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Prepare a portable JSON copy · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExport, disabled: !hasExportData },
+          { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Prepare a portable JSON copy · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExport, disabled: !hasExportData || isExporting, isLoading: isExporting },
           { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove this device\u2019s diary and profile data.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
           { icon: 'shield' as const, title: 'Your food data stays yours', body: 'Local-first logging with export and delete controls.', onPress: () => setInfoModal('food-data'), disabled: false },
           { icon: 'eye-off' as const, title: 'No surveillance ads', body: 'Your meals are never used to target advertisements.', onPress: () => setInfoModal('no-ads'), disabled: false },
