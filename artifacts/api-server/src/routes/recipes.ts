@@ -182,6 +182,61 @@ async function resolveNutrition(
   return fresh;
 }
 
+// ─── Instruction expansion ───────────────────────────────────────────────────
+
+// In-memory cache keyed by TheMealDB meal ID.  Expanded instructions rarely
+// change upstream, so there is no TTL — the cache is valid for the process
+// lifetime, which is acceptable for session use.
+const instructionCache = new Map<string, string>();
+
+/** Character count below which we treat instructions as "very brief" and
+ *  expand them aggressively rather than the standard +25%. */
+const BRIEF_THRESHOLD = 400;
+
+/** Return expanded instructions for a given recipe.  The result is cached so
+ *  a second open of the same recipe never hits OpenAI again. */
+async function expandInstructions(
+  mealId: string,
+  name: string,
+  ingredients: string[],
+  original: string,
+): Promise<string> {
+  const cached = instructionCache.get(mealId);
+  if (cached) return cached;
+
+  const isVeryBrief = original.trim().length < BRIEF_THRESHOLD;
+  const systemPrompt = isVeryBrief
+    ? `You are a professional recipe writer. The user's recipe instructions are very short. Rewrite them as a clear, numbered step-by-step method with proper timing, temperatures (where relevant), and helpful cooking tips. Aim for at least 3× the original length. Write in second person ("Add the ...", "Stir until ..."). Do not change the recipe itself — only add detail and clarity.`
+    : `You are a professional recipe writer. Expand the provided cooking instructions by approximately 25%, adding useful technique notes, timing guidance, and visual/tactile cues for doneness (e.g. "until golden brown", "until a skewer comes out clean"). Keep the existing steps intact; insert additional detail within or between them. Do not change the recipe itself.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: `Recipe: ${name}\nIngredients: ${ingredients.join(", ")}\n\nInstructions to expand:\n${original}`,
+        },
+      ],
+      max_tokens: 1200,
+      temperature: 0.4,
+    });
+
+    const expanded = completion.choices[0]?.message?.content?.trim();
+    if (!expanded || expanded.length < original.length) {
+      // If the model returned something shorter (unlikely), keep the original.
+      instructionCache.set(mealId, original);
+      return original;
+    }
+    instructionCache.set(mealId, expanded);
+    return expanded;
+  } catch {
+    // Non-fatal — fall back to the original instructions.
+    return original;
+  }
+}
+
 // ─── Background nutrition warm-up ────────────────────────────────────────────
 
 const WARMUP_BATCH_SIZE = 18;
@@ -418,13 +473,24 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
     }
     const base = toRecipe(meal);
 
-    // TheMealDB never includes nutrition — fill it in via AI, persisted per meal ID.
-    const nutrition = await resolveNutrition(base.id, base.name, base.ingredients);
+    // Run nutrition estimation and instruction expansion concurrently — neither
+    // depends on the other, so awaiting both together saves a full round-trip.
+    const [nutrition, expandedInstructions] = await Promise.all([
+      resolveNutrition(base.id, base.name, base.ingredients),
+      base.instructions
+        ? expandInstructions(base.id, base.name, base.ingredients, base.instructions)
+        : Promise.resolve(null),
+    ]);
+
+    const recipe = {
+      ...base,
+      ...(expandedInstructions ? { instructions: expandedInstructions } : {}),
+    };
 
     // When estimation fails, spread null does nothing — calories stays null and
     // the client would silently show blanks. Instead, set a flag so the client
     // can surface a clear "Nutrition unavailable" label with a retry option.
-    res.json(nutrition ? { ...base, ...nutrition } : { ...base, nutritionUnavailable: true });
+    res.json(nutrition ? { ...recipe, ...nutrition } : { ...recipe, nutritionUnavailable: true });
     return;
   } catch (error) {
     res.status(502).json({ message: error instanceof Error ? error.message : "Recipe provider unavailable" });
