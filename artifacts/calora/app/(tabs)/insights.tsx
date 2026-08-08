@@ -684,10 +684,12 @@ function GoalNudge({
   colors,
   visible,
   onExited,
+  message,
 }: {
   colors: ReturnType<typeof useCalora>['colors'];
   visible: boolean;
   onExited: () => void;
+  message: string;
 }) {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(6);
@@ -709,7 +711,7 @@ function GoalNudge({
   return (
     <Animated.View style={[styles.goalNudge, animStyle]}>
       <Feather name="zap" size={12} color={colors.primary} />
-      <Text style={[styles.goalNudgeText, { color: colors.primary }]}>You're within reach — keep it up!</Text>
+      <Text style={[styles.goalNudgeText, { color: colors.primary }]}>{message}</Text>
     </Animated.View>
   );
 }
@@ -878,6 +880,11 @@ export default function InsightsScreen() {
   const showGoalProgress = weights.length >= 3 && hasGoal;
   // Nudge: 90–99% progress, goal not yet reached
   const showGoalNudge = showGoalProgress && !goalReached && goalProgressPct >= 90;
+  const goalRemainingKg = Math.max(0, goalTotalDistance - goalProgressKg);
+  const nudgeMessage =
+    goalProgressPct >= 95
+      ? `So close — just ${goalRemainingKg.toFixed(1)} kg to go!`
+      : `You're within reach — keep it up!`;
   // Keep the nudge mounted during its exit animation; only unmount after onExited fires.
   const [nudgeMounted, setNudgeMounted] = useState(showGoalNudge);
   useEffect(() => {
@@ -1333,7 +1340,7 @@ export default function InsightsScreen() {
               </View>
               <AnimatedTrackFill percentage={goalProgressPct} color={goalReached ? colors.success : colors.primary} trackColor={colors.muted} />
               {nudgeMounted && (
-                <GoalNudge colors={colors} visible={showGoalNudge} onExited={() => setNudgeMounted(false)} />
+                <GoalNudge colors={colors} visible={showGoalNudge} onExited={() => setNudgeMounted(false)} message={nudgeMessage} />
               )}
             </View>
           ) : null}
