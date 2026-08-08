@@ -557,26 +557,64 @@ function WeightLineChart({
         </Animated.View>
       )}
 
-      {/* date labels under each dot — expanded mode only */}
-      {expanded && (
-        <View style={[styles.weightExpandedDateRow, isScrollable && { width: svgViewW }]}>
-          {pts.map((pt, i) => (
-            <Text
-              key={entries[i]?.date ?? i}
-              numberOfLines={1}
-              style={[
-                styles.weightExpandedDateLabel,
-                {
-                  color: i === lastIdx ? colors.primary : colors.mutedForeground,
-                  left: pt.x * xScale,
-                },
-              ]}
-            >
-              {entries[i]?.date ? formatDate(entries[i].date) : ''}
-            </Text>
-          ))}
-        </View>
-      )}
+      {/* date labels under each dot — expanded mode only.
+          Labels are thinned so they never overlap:
+          - rendered pixel spacing is measured from the dot positions.
+          - if tight, labels switch to day-only ("4" instead of "Jul 4").
+          - a stride skips intermediate labels when even day-only would crowd.
+          - the first and last labels are always shown as anchors. */}
+      {expanded && (() => {
+        const nPts = pts.length;
+
+        // Rendered pixel gap between adjacent dots (use SPARK_PAD_X approximation for n=1).
+        const renderedSpacing = nPts > 1
+          ? ((svgViewW - SPARK_PAD_X * 2) * xScale) / (nPts - 1)
+          : 9999;
+
+        // Minimum rendered-pixel width for each label format (conservative estimates at 9pt).
+        const FULL_MIN_PX = 32; // "Jul 4"
+        const SHORT_MIN_PX = 14; // "4"
+
+        // Prefer the full "Jul 4" label; fall back to day-only when spacing is tight.
+        const useShort = renderedSpacing < FULL_MIN_PX;
+        const labelFn = (dateStr: string): string => {
+          if (!dateStr) return '';
+          const d = new Date(dateStr + 'T00:00:00');
+          return useShort
+            ? String(d.getDate())
+            : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        };
+
+        // Choose a stride so no two visible labels are closer than the min label width.
+        const minPx = useShort ? SHORT_MIN_PX : FULL_MIN_PX;
+        const stride = Math.max(1, Math.ceil(minPx / renderedSpacing));
+
+        return (
+          <View style={[styles.weightExpandedDateRow, isScrollable && { width: svgViewW }]}>
+            {pts.map((pt, i) => {
+              const isFirst = i === 0;
+              const isLast = i === lastIdx;
+              // Show this label only if it lands on a stride boundary or is an anchor.
+              if (!isFirst && !isLast && i % stride !== 0) return null;
+              return (
+                <Text
+                  key={entries[i]?.date ?? i}
+                  numberOfLines={1}
+                  style={[
+                    styles.weightExpandedDateLabel,
+                    {
+                      color: isLast ? colors.primary : colors.mutedForeground,
+                      left: pt.x * xScale,
+                    },
+                  ]}
+                >
+                  {entries[i]?.date ? labelFn(entries[i].date) : ''}
+                </Text>
+              );
+            })}
+          </View>
+        );
+      })()}
     </View>
   );
 
