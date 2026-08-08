@@ -748,7 +748,14 @@ export default function PlannerScreen() {
             ) : (
               detail && (
                 <>
-                  <Image source={detail.image ? { uri: detail.image } : require('../../assets/images/calora-plan-header.jpg')} contentFit="cover" style={styles.detailImage} />
+                  <Image
+                    source={[
+                      ...(detail.image ? [{ uri: detail.image }] : []),
+                      require('../../assets/images/calora-plan-header.jpg'),
+                    ]}
+                    contentFit="cover"
+                    style={styles.detailImage}
+                  />
                   <View style={styles.detailBody}>
                     <View style={styles.detailTitleRow}>
                       <View style={{ flex: 1 }}>
