@@ -108,6 +108,86 @@ async function resolveNutrition(
   return fresh;
 }
 
+// ─── Background nutrition warm-up ────────────────────────────────────────────
+
+const WARMUP_BATCH_SIZE = 18;
+const WARMUP_DELAY_MS = 500; // 500 ms between OpenAI calls to stay well within quota
+
+// Single-flight guard: only one warm-up job may run at a time.
+let warmupInProgress = false;
+// Flips to true once the first warm-up job finishes; resets when the pool TTL
+// expires so a fresh pool always triggers a new warm cycle.
+let warmupDone = false;
+
+/**
+ * Silently pre-populate the nutrition cache for the first page of the "For you"
+ * pool.  Runs entirely in the background — callers must NOT await it.
+ *
+ * Strategy:
+ *   1. Take up to WARMUP_BATCH_SIZE meals that are not already in L1 (memory).
+ *   2. For each, check L2 (DB) before hitting OpenAI.
+ *   3. A full-detail fetch is required for ingredients (the pool only carries
+ *      summary fields from the category filter endpoint).
+ *   4. 500 ms delay between OpenAI calls prevents quota bursting.
+ */
+async function warmNutritionCache(meals: Meal[]): Promise<void> {
+  // Single-flight: bail if a job is already running.
+  if (warmupInProgress) return;
+  warmupInProgress = true;
+
+  // Prefer meals at the front of the pool; skip any already in L1.
+  const candidates = meals
+    .filter((m) => !nutritionCache.has(m.idMeal))
+    .slice(0, WARMUP_BATCH_SIZE);
+
+  if (candidates.length === 0) {
+    warmupDone = true;
+    warmupInProgress = false;
+    return;
+  }
+
+  logger.info({ count: candidates.length }, "nutrition warm-up started");
+  let warmed = 0;
+
+  for (const meal of candidates) {
+    try {
+      // Re-check L1 — a concurrent detail request may have filled it since.
+      if (nutritionCache.has(meal.idMeal)) continue;
+
+      // L2 check — use DB hit without touching OpenAI.
+      const dbHit = await getNutritionFromDb(meal.idMeal);
+      if (dbHit) {
+        nutritionCache.set(meal.idMeal, dbHit);
+        continue;
+      }
+
+      // Need the full meal record to extract ingredients.
+      const data = await fetchJson(`${API_ROOT}/lookup.php?i=${encodeURIComponent(meal.idMeal)}`);
+      const fullMeal = data.meals?.[0];
+      if (!fullMeal) continue;
+
+      const recipe = toRecipe(fullMeal);
+      if (recipe.ingredients.length === 0) continue;
+
+      const nutrition = await estimateNutrition(recipe.name, recipe.ingredients);
+      if (nutrition) {
+        nutritionCache.set(meal.idMeal, nutrition);
+        void saveNutritionToDb(meal.idMeal, nutrition);
+        warmed++;
+      }
+
+      // Rate-limit: pause between OpenAI requests.
+      await new Promise<void>((resolve) => setTimeout(resolve, WARMUP_DELAY_MS));
+    } catch (err) {
+      logger.warn({ err, mealId: meal.idMeal }, "nutrition warm-up skipped meal");
+    }
+  }
+
+  warmupDone = true;
+  warmupInProgress = false;
+  logger.info({ warmed }, "nutrition warm-up complete");
+}
+
 // ─── "For you" pool ───────────────────────────────────────────────────────────
 
 // Categories fetched in parallel to build the "For you" pool.
@@ -199,6 +279,12 @@ async function getForYouMeals(): Promise<Meal[]> {
       forYouCache = meals;
       forYouCacheTime = Date.now();
       forYouFetchPromise = null;
+      // Reset warm-up state so the fresh pool always triggers a new cycle.
+      warmupDone = false;
+      warmupInProgress = false;
+      // Fire-and-forget: warm the nutrition cache so first-visit cards show
+      // calorie estimates without the user ever opening a detail sheet.
+      void warmNutritionCache(meals);
       return meals;
     }).catch((err) => {
       forYouFetchPromise = null;
@@ -236,7 +322,10 @@ router.get("/v1/recipes", async (req, res) => {
       const cached = nutritionCache.get(recipe.id);
       return cached ? { ...recipe, ...cached } : recipe;
     });
-    res.json({ source: SOURCE, recipes });
+    // Let clients know they should refetch soon if the background warm-up
+    // has not yet populated estimates for the first page of results.
+    const warmupPending = !warmupDone;
+    res.json({ source: SOURCE, recipes, warmupPending });
   } catch (error) {
     res.status(502).json({ message: error instanceof Error ? error.message : "Recipe provider unavailable" });
   }

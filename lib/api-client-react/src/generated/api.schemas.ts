@@ -307,6 +307,8 @@ export interface Recipe {
 export interface RecipeList {
   source: string;
   recipes: Recipe[];
+  /** True while the server's background nutrition warm-up is still running. */
+  warmupPending?: boolean;
 }
 
 export type CaptureAnalyzeInputMode = typeof CaptureAnalyzeInputMode[keyof typeof CaptureAnalyzeInputMode];

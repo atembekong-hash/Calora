@@ -187,7 +187,7 @@ function LivingRhythmCard({
 }
 
 function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: Recipe) => void }) {
-  const { data, isLoading, isError } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10 } });
+  const { data, isLoading, isError } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => query.state.data?.warmupPending ? 15_000 : false } });
   const recipes = data?.recipes ?? [];
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
   const [activeRecipe, setActiveRecipe] = useState(0);

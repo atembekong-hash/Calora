@@ -394,7 +394,7 @@ export default function RecipesScreen() {
         : recipe.category === category);
     return matchesSearch && matchesCategory;
   }), [category, localRecipes, search]);
-  const recipesQuery = useListRecipes({ query: search || undefined, category: category === 'For you' || category === 'My recipes' || category === 'Quick' ? undefined : category, limit: RECIPE_PAGE_SIZE, offset: remoteOffset }, { query: { queryKey: ['recipes', search, category, remoteOffset], staleTime: 1000 * 60 * 10 } });
+  const recipesQuery = useListRecipes({ query: search || undefined, category: category === 'For you' || category === 'My recipes' || category === 'Quick' ? undefined : category, limit: RECIPE_PAGE_SIZE, offset: remoteOffset }, { query: { queryKey: ['recipes', search, category, remoteOffset], staleTime: 1000 * 60 * 10, refetchInterval: (query) => query.state.data?.warmupPending ? 15_000 : false } });
   useEffect(() => {
     setRemoteOffset(0);
     setRemoteRecipes([]);

@@ -10,4 +10,6 @@ import type { Recipe } from './recipe';
 export interface RecipeList {
   source: string;
   recipes: Recipe[];
+  /** True while the server's background nutrition warm-up is still running. */
+  warmupPending?: boolean;
 }

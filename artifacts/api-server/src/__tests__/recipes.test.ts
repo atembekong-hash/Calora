@@ -224,3 +224,161 @@ describe("GET /v1/recipes/:recipeId — nutrition persistence", () => {
     expect(res.body.message).toMatch(/not found/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Helpers for the "For you" pool mock (filter endpoint)
+// ---------------------------------------------------------------------------
+
+function filterResponse(meals: Array<{ idMeal: string; strMeal: string }>) {
+  return { meals: meals.map((m) => ({ ...m, strMealThumb: null })) };
+}
+
+// ---------------------------------------------------------------------------
+// Warm-up / list endpoint tests
+//
+// These tests are placed LAST intentionally: the warm-up fires background
+// async tasks (setTimeout delays, fetch, DB reads) that share module-level
+// state (nutritionCache, forYouCache, warmupDone).  Placing them at the end
+// means no subsequent test block can be contaminated by that activity.
+// ---------------------------------------------------------------------------
+
+describe("GET /v1/recipes — nutrition warm-up", () => {
+  let app: ReturnType<typeof buildApp>;
+  let mockFetch: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    app = buildApp();
+    mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+    vi.clearAllMocks();
+
+    // Restore chain stubs
+    mockSelect.mockReturnValue({ from: mockFrom });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockWhere.mockReturnValue({ limit: mockLimit });
+    mockInsert.mockReturnValue({ values: mockValues });
+    mockValues.mockReturnValue({ onConflictDoNothing: mockOnConflictDoNothing });
+
+    // Ensure all background DB reads during warm-up return an empty result set
+    // so they never consume mock responses intended for later assertions.
+    mockLimit.mockResolvedValue([]);
+  });
+
+  it("returns warmupPending:true on the first list response before estimates are ready", async () => {
+    // The for-you pool fetch returns meals with no ingredient fields so the
+    // warm-up detail lookups find nothing to estimate and exit quickly.
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => filterResponse([
+        { idMeal: "wp-001", strMeal: "Warm Meal A" },
+        { idMeal: "wp-002", strMeal: "Warm Meal B" },
+      ]),
+    } as any);
+
+    const res = await request(app).get("/v1/recipes");
+
+    expect(res.status).toBe(200);
+    // warmupPending must be true: the background job fires after the response.
+    expect(res.body.warmupPending).toBe(true);
+  });
+
+  it("does not call OpenAI for the list endpoint itself", async () => {
+    // The list response is built from L1 cache only; it must never trigger an
+    // OpenAI call of its own.
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => filterResponse([{ idMeal: "wp-003", strMeal: "Warm Meal C" }]),
+    } as any);
+
+    await request(app).get("/v1/recipes");
+
+    // The synchronous list handler must not touch OpenAI; the warm-up is
+    // the only caller, and it runs asynchronously after the response is sent.
+    expect(mockOpenAiCreate).not.toHaveBeenCalled();
+  });
+
+  it("does not fire a second concurrent warm-up while one is in progress", async () => {
+    // First request builds the pool and kicks off warm-up.
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => filterResponse([{ idMeal: "wp-guard-001", strMeal: "Guard Meal" }]),
+    } as any);
+
+    await request(app).get("/v1/recipes");
+    // Second request within TTL uses the cached pool — the warm-up guard
+    // prevents a second job from starting. Verify the response is still valid.
+    const res = await request(app).get("/v1/recipes");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("recipes");
+    expect(res.body).toHaveProperty("warmupPending");
+  });
+
+  it("estimates populated by the warm-up appear on a subsequent list response", async () => {
+    // Use fake timers so we can (a) expire the existing For You pool TTL to
+    // force a fresh fetch, and (b) fast-forward past the 500 ms rate-limit
+    // delay inside the warm-up without making the test slow.
+    vi.useFakeTimers();
+    // Advance the fake clock far enough to expire the TTL of any pool cached
+    // by the earlier warm-up tests (1 hour + 1 minute).
+    vi.advanceTimersByTime(1000 * 60 * 61);
+
+    const MEAL_ID = "wp-int-meal";
+
+    // Route mock responses based on the request URL:
+    //   • filter.php  → pool build (all 10 categories return the same meal)
+    //   • lookup.php  → warm-up detail fetch (includes real ingredients)
+    mockFetch.mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if ((url as string).includes("lookup.php")) {
+          return {
+            meals: [{
+              idMeal: MEAL_ID,
+              strMeal: "Integration Meal",
+              strCategory: "Chicken",
+              strIngredient1: "chicken breast",
+              strMeasure1: "200g",
+              strIngredient2: "olive oil",
+              strMeasure2: "1 tbsp",
+            }],
+          };
+        }
+        // filter.php — pool build
+        return filterResponse([{ idMeal: MEAL_ID, strMeal: "Integration Meal" }]);
+      },
+    }));
+
+    // DB: no cached estimate — warm-up must fall through to OpenAI.
+    mockLimit.mockResolvedValue([]);
+    mockOnConflictDoNothing.mockResolvedValue(undefined);
+
+    // OpenAI returns a valid nutrition estimate for the meal.
+    mockOpenAiCreate.mockResolvedValue(openAiNutritionResponse(350, 30, 20, 12));
+
+    // ── First request ─────────────────────────────────────────────────────────
+    // The pool is built and the background warm-up is kicked off.
+    // The response is returned immediately (before warm-up completes) so
+    // warmupPending must be true and calories must be null at this point.
+    const first = await request(app).get("/v1/recipes");
+    expect(first.status).toBe(200);
+    expect(first.body.warmupPending).toBe(true);
+    expect(first.body.recipes[0].calories).toBeNull();
+
+    // ── Advance timers ────────────────────────────────────────────────────────
+    // Run all pending timers (the 500 ms rate-limit delay) and flush the
+    // microtask queue so the warm-up coroutine can fully complete.
+    await vi.runAllTimersAsync();
+
+    // ── Second request ────────────────────────────────────────────────────────
+    // The warm-up has now written the estimate into L1 (nutritionCache).
+    // The list handler attaches L1-cached values, so calories should appear.
+    const second = await request(app).get("/v1/recipes");
+    expect(second.status).toBe(200);
+    expect(second.body.warmupPending).toBe(false);
+    expect(second.body.recipes[0].calories).toBe(350);
+    expect(second.body.recipes[0].proteinG).toBe(30);
+
+    vi.useRealTimers();
+  });
+});
