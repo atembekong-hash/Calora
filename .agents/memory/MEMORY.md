@@ -15,3 +15,5 @@
 - [Planner editing principles](planner-editing-principles.md) — explicit edit mode and custom insertion must use the shared local mutation path.
 - [Local persistence recovery](local-persistence-recovery.md) — hydration failures must block autosave, and destructive clears must serialize behind pending writes.
 - [Animation system](animation-system.md) — four-tier animation architecture across all screens; patterns, component names, and pitfalls.
+- [RNW modal pitfalls](rnw-modal-pitfalls.md) — never nest Modals, maxHeight on ScrollView doesn't constrain on web, disable refetchOnWindowFocus, use entry.id not date as list key.
+- [Calora race condition pattern](calora-race-condition.md) — never setState then immediately read the new value; pass the object directly as a param instead.

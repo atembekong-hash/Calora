@@ -286,7 +286,7 @@ type CaloraContextValue = {
   createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean }, date?: string, meal?: MealType) => FoodMemoryDraft;
   createPlannerDraft: (meal: PlannerMeal) => FoodMemoryDraft;
   updateFoodMemoryDraft: (draftId: string, components: FoodMemoryComponent[]) => void;
-  acceptFoodMemory: (draftId: string) => FoodLog | null;
+  acceptFoodMemory: (draftId: string, draftOverride?: FoodMemoryDraft) => FoodLog | null;
   rejectFoodMemory: (draftId: string) => void;
   teachRepeatMemory: (memoryId: string) => void;
   setPlannerMeals: (weekStart: string, meals: PlannerMeal[]) => void;
@@ -683,8 +683,11 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     updateFoodMemoryDraft: (draftId, components) => {
       setFoodDrafts((current) => current.map((draft) => draft.id === draftId ? updateDraftComponents(draft, components) : draft));
     },
-    acceptFoodMemory: (draftId) => {
-      const draft = foodDrafts.find((item) => item.id === draftId && item.status === 'draft');
+    acceptFoodMemory: (draftId, draftOverride) => {
+      // draftOverride lets callers that just created the draft (in the same
+      // render cycle) pass it directly, avoiding the stale-closure issue that
+      // would otherwise cause setFoodDrafts' queued update to be invisible here.
+      const draft = draftOverride ?? foodDrafts.find((item) => item.id === draftId && item.status === 'draft');
       if (!draft) return null;
       if (draft.plannerMealId) {
         const existingPlannerLog = logs.find((log) => log.plannerMealId === draft.plannerMealId);

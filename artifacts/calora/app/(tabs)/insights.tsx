@@ -618,7 +618,7 @@ function WeightLineChart({
               if (!isFirst && !isLast && i % stride !== 0) return null;
               return (
                 <Text
-                  key={entries[i]?.date ?? i}
+                  key={entries[i]?.id ?? `${entries[i]?.date ?? ''}-${i}`}
                   numberOfLines={1}
                   style={[
                     styles.weightExpandedDateLabel,

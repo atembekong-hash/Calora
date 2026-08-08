@@ -283,7 +283,10 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
       fatG: detail.fatG ? detail.fatG * diaryServings : null,
     };
     const draft = createRecipeDraft(scaled, dateKey(), diaryMealType);
-    acceptFoodMemory(draft.id);
+    // Pass the draft directly: createRecipeDraft calls setFoodDrafts which is
+    // queued and not yet reflected in the foodDrafts closure that
+    // acceptFoodMemory reads from. Passing draftOverride bypasses that lookup.
+    acceptFoodMemory(draft.id, draft);
     setDiaryLogged(true);
     setTimeout(() => { setDiaryVisible(false); setDiaryLogged(false); onClose(); }, 900);
   };
@@ -291,8 +294,13 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   // --- Feature 4: shopping list ---
   const addToShoppingList = () => {
     const ingredients = detail.ingredients?.filter((_, i) => selectedIngredients.has(i)) ?? [];
-    if (!ingredients.length) return;
-    addIngredientsToShopping(ingredients, detail.id);
+    // Always close the sheet — even if the detail query is mid-refetch and
+    // ingredients is temporarily empty. Dropping the early-return guard here
+    // prevents the modal from getting stuck open when React Query refetches
+    // on window-focus at the same moment the user taps Add.
+    if (ingredients.length > 0) {
+      addIngredientsToShopping(ingredients, detail.id);
+    }
     setShopVisible(false);
   };
 
@@ -336,6 +344,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   };
 
   return (
+    <>
     <Modal visible={recipe !== null} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
         <View style={[styles.detailSheet, { backgroundColor: colors.background }]}>
@@ -563,47 +572,53 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
         </View>
       </Modal>
 
-      {/* Feature 4: Shopping list sheet — ingredient checkbox picker */}
-      <Modal visible={shopVisible} transparent animationType="slide" onRequestClose={() => setShopVisible(false)}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
-          <View style={[styles.planSheet, { backgroundColor: colors.background }]}>
-            <View style={styles.sheetHandle} />
-            <View style={styles.reviewHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.detailEyebrow, { color: colors.primary }]}>SHOPPING LIST</Text>
-                <Text style={[styles.detailTitle, { color: colors.foreground }]} numberOfLines={1}>{detail.name}</Text>
-              </View>
-              <Pressable accessibilityLabel="Close shopping list" onPress={() => setShopVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
-            </View>
-            <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Select ingredients to add. Already-listed items won't be duplicated.</Text>
-            <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false}>
-              {detail.ingredients?.map((ingredient, idx) => (
-                <Pressable key={idx}
-                  accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredient}`}
-                  onPress={() => setSelectedIngredients((prev) => { const next = new Set(prev); if (next.has(idx)) next.delete(idx); else next.add(idx); return next; })}
-                  style={[styles.shopIngredientRow, { borderBottomColor: colors.border }]}
-                >
-                  <View style={[styles.shopCheckbox, { backgroundColor: selectedIngredients.has(idx) ? colors.primary : colors.card, borderColor: selectedIngredients.has(idx) ? colors.primary : colors.border }]}>
-                    {selectedIngredients.has(idx) && <Feather name="check" size={10} color={colors.primaryForeground} />}
-                  </View>
-                  <Text style={[styles.ingredientText, { color: colors.foreground, flex: 1 }]}>{ingredient}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <ScalePressable
-              accessibilityLabel={`Add ${selectedIngredients.size} ingredient${selectedIngredients.size !== 1 ? 's' : ''} to shopping list`}
-              onPress={selectedIngredients.size > 0 ? addToShoppingList : undefined}
-              scale={0.96} haptic="light"
-              style={[styles.primaryAction, { backgroundColor: selectedIngredients.size > 0 ? colors.primary : colors.muted }]}
-            >
-              <Feather name="shopping-cart" size={16} color={selectedIngredients.size > 0 ? colors.primaryForeground : colors.mutedForeground} />
-              <Text style={[styles.primaryActionText, { color: selectedIngredients.size > 0 ? colors.primaryForeground : colors.mutedForeground }]}>Add {selectedIngredients.size} ingredient{selectedIngredients.size !== 1 ? 's' : ''}</Text>
-            </ScalePressable>
-            <Pressable accessibilityLabel="Cancel shopping list" onPress={() => setShopVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
-          </View>
-        </View>
-      </Modal>
     </Modal>
+    {/* Feature 4: Shopping list sheet — rendered OUTSIDE the outer recipe modal
+        to avoid React Native Web portal stacking issues. When nested inside the
+        outer Modal, the outer modal's backdrop View creates a stacking context
+        that intercepts all pointer events for the inner modal's buttons. */}
+    <Modal visible={shopVisible} transparent animationType="none" onRequestClose={() => setShopVisible(false)}>
+      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+        <View style={[styles.planSheet, { backgroundColor: colors.background }]}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.reviewHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.detailEyebrow, { color: colors.primary }]}>SHOPPING LIST</Text>
+              <Text style={[styles.detailTitle, { color: colors.foreground }]} numberOfLines={1}>{detail.name}</Text>
+            </View>
+            <Pressable accessibilityLabel="Close shopping list" onPress={() => setShopVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+          </View>
+          <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Select ingredients to add. Already-listed items won't be duplicated.</Text>
+          {/* Use fixed height (not maxHeight) so RNW respects the constraint —
+              maxHeight on ScrollView grows to full content on web, pushing
+              Add/Cancel buttons past the planSheet's clipping boundary. */}
+          <ScrollView style={{ height: 200, flexGrow: 0 }} showsVerticalScrollIndicator={false}>
+            {detail.ingredients?.map((ingredient, idx) => (
+              <Pressable key={idx}
+                accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredient}`}
+                onPress={() => setSelectedIngredients((prev) => { const next = new Set(prev); if (next.has(idx)) next.delete(idx); else next.add(idx); return next; })}
+                style={[styles.shopIngredientRow, { borderBottomColor: colors.border }]}
+              >
+                <View style={[styles.shopCheckbox, { backgroundColor: selectedIngredients.has(idx) ? colors.primary : colors.card, borderColor: selectedIngredients.has(idx) ? colors.primary : colors.border }]}>
+                  {selectedIngredients.has(idx) && <Feather name="check" size={10} color={colors.primaryForeground} />}
+                </View>
+                <Text style={[styles.ingredientText, { color: colors.foreground, flex: 1 }]}>{ingredient}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <Pressable
+            accessibilityLabel={`Add ${selectedIngredients.size} ingredient${selectedIngredients.size !== 1 ? 's' : ''} to shopping list`}
+            onPress={addToShoppingList}
+            style={[styles.primaryAction, { backgroundColor: selectedIngredients.size > 0 ? colors.primary : colors.muted, opacity: selectedIngredients.size > 0 ? 1 : 0.5 }]}
+          >
+            <Feather name="shopping-cart" size={16} color={selectedIngredients.size > 0 ? colors.primaryForeground : colors.mutedForeground} />
+            <Text style={[styles.primaryActionText, { color: selectedIngredients.size > 0 ? colors.primaryForeground : colors.mutedForeground }]}>Add {selectedIngredients.size} ingredient{selectedIngredients.size !== 1 ? 's' : ''}</Text>
+          </Pressable>
+          <Pressable accessibilityLabel="Cancel shopping list" onPress={() => setShopVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
 

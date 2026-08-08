@@ -33,7 +33,17 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Disable window-focus refetching — on mobile (native) there are no
+      // browser focus events. On web preview, focus events from user interaction
+      // would trigger mid-click re-renders that swap DOM nodes and break
+      // button presses in modals. Individual queries set their own staleTime.
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 /**
  * Listens for notification taps and navigates to the relevant tab.
