@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
-import Animated, { Easing, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
@@ -249,7 +249,17 @@ const SPARK_PAD_X = 6;
 const SPARK_PAD_Y = 8;
 const SPARK_DASH = 700;
 
-function WeightLineChart({ entries, colors }: { entries: { kg: number }[]; colors: ReturnType<typeof useCalora>['colors'] }) {
+const TOOLTIP_W = 92;
+const TOOLTIP_H = 42;
+const DOT_HIT = 36;
+
+function WeightLineChart({ entries, colors }: { entries: { id?: string; date: string; kg: number }[]; colors: ReturnType<typeof useCalora>['colors'] }) {
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [chartWidth, setChartWidth] = useState(SPARK_W);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tooltipOpacity = useSharedValue(0);
+  const tooltipScale = useSharedValue(0.82);
+
   const vals = entries.map((e) => e.kg);
   const min = Math.min(...vals);
   const max = Math.max(...vals);
@@ -285,6 +295,11 @@ function WeightLineChart({ entries, colors }: { entries: { kg: number }[]; color
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataKey]);
 
+  // Clean up dismiss timer on unmount
+  useEffect(() => {
+    return () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current); };
+  }, []);
+
   const animPathProps = useAnimatedProps(() => ({
     strokeDashoffset: dashOffset.value,
   }));
@@ -293,49 +308,129 @@ function WeightLineChart({ entries, colors }: { entries: { kg: number }[]; color
     fillOpacity: fillOpacity.value,
   }));
 
+  const tooltipAnimStyle = useAnimatedStyle(() => ({
+    opacity: tooltipOpacity.value,
+    transform: [{ scale: tooltipScale.value }],
+  }));
+
+  const xScale = chartWidth / SPARK_W;
   const lastIdx = pts.length - 1;
 
+  const clearSelection = () => setSelectedIdx(null);
+
+  const handleDotPress = (i: number) => {
+    Haptics.selectionAsync();
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    // Reset animation values so re-tapping the same dot re-springs in cleanly
+    tooltipOpacity.value = 0;
+    tooltipScale.value = 0.82;
+    setSelectedIdx(i);
+    tooltipOpacity.value = withSpring(1, { damping: 14, stiffness: 220 });
+    tooltipScale.value = withSpring(1, { damping: 14, stiffness: 220 });
+    dismissTimerRef.current = setTimeout(() => {
+      dismissTimerRef.current = null;
+      // runOnJS ensures clearSelection only fires when THIS animation actually
+      // completes — a new tap cancels the withTiming so `finished` is false
+      // and clearSelection is never called for the old selection.
+      tooltipOpacity.value = withTiming(0, { duration: 180 }, (finished) => {
+        if (finished) runOnJS(clearSelection)();
+      });
+      tooltipScale.value = withTiming(0.82, { duration: 180 });
+    }, 2000);
+  };
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
   return (
-    <View style={styles.weightSparkline}>
-      <Svg width="100%" height={SPARK_H} viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}>
-        <Defs>
-          <SvgLinearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={colors.success} stopOpacity={0.18} />
-            <Stop offset="100%" stopColor={colors.success} stopOpacity={0} />
-          </SvgLinearGradient>
-        </Defs>
-        {/* animated area fill */}
-        <AnimatedPath
-          d={dFill}
-          fill="url(#weightFill)"
-          stroke="none"
-          animatedProps={animFillProps}
-        />
-        {/* track line */}
-        <Path d={d} stroke="rgba(120,120,120,0.13)" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        {/* animated line */}
-        <AnimatedPath
-          d={d}
-          stroke={colors.success}
-          strokeWidth={2.2}
-          fill="none"
-          strokeDasharray={SPARK_DASH}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          animatedProps={animPathProps}
-        />
-        {/* data point dots */}
+    <View style={styles.weightSparkline} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
+      <View style={{ position: 'relative' }}>
+        <Svg width="100%" height={SPARK_H} viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} preserveAspectRatio="none">
+          <Defs>
+            <SvgLinearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={colors.success} stopOpacity={0.18} />
+              <Stop offset="100%" stopColor={colors.success} stopOpacity={0} />
+            </SvgLinearGradient>
+          </Defs>
+          {/* animated area fill */}
+          <AnimatedPath
+            d={dFill}
+            fill="url(#weightFill)"
+            stroke="none"
+            animatedProps={animFillProps}
+          />
+          {/* track line */}
+          <Path d={d} stroke="rgba(120,120,120,0.13)" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          {/* animated line */}
+          <AnimatedPath
+            d={d}
+            stroke={colors.success}
+            strokeWidth={2.2}
+            fill="none"
+            strokeDasharray={SPARK_DASH}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            animatedProps={animPathProps}
+          />
+          {/* data point dots */}
+          {pts.map((pt, i) => (
+            <Circle
+              key={i}
+              cx={pt.x}
+              cy={pt.y}
+              r={i === lastIdx || i === selectedIdx ? 4.5 : 2.8}
+              fill={i === lastIdx ? colors.primary : colors.success}
+              opacity={i === lastIdx || i === selectedIdx ? 1 : 0.65}
+            />
+          ))}
+        </Svg>
+
+        {/* Transparent Pressable hit targets over each dot */}
         {pts.map((pt, i) => (
-          <Circle
+          <Pressable
             key={i}
-            cx={pt.x}
-            cy={pt.y}
-            r={i === lastIdx ? 4.5 : 2.8}
-            fill={i === lastIdx ? colors.primary : colors.success}
-            opacity={i === lastIdx ? 1 : 0.65}
+            onPress={() => handleDotPress(i)}
+            style={{
+              position: 'absolute',
+              left: pt.x * xScale - DOT_HIT / 2,
+              top: pt.y - DOT_HIT / 2,
+              width: DOT_HIT,
+              height: DOT_HIT,
+            }}
+            accessibilityLabel={`Weigh-in ${entries[i]?.date ? formatDate(entries[i].date) : ''}: ${entries[i]?.kg.toFixed(1)} kg`}
+            accessibilityRole="button"
           />
         ))}
-      </Svg>
+
+        {/* Tooltip callout */}
+        {selectedIdx !== null && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.weightTooltip,
+              {
+                backgroundColor: colors.foreground,
+                left: Math.min(
+                  Math.max(pts[selectedIdx].x * xScale - TOOLTIP_W / 2, 0),
+                  chartWidth - TOOLTIP_W,
+                ),
+                top: Math.max(pts[selectedIdx].y - TOOLTIP_H - 8, 2),
+              },
+              tooltipAnimStyle,
+            ]}
+          >
+            <Text style={[styles.weightTooltipDate, { color: colors.background, opacity: 0.72 }]}>
+              {formatDate(entries[selectedIdx].date)}
+            </Text>
+            <Text style={[styles.weightTooltipKg, { color: colors.background }]}>
+              {entries[selectedIdx].kg.toFixed(1)} kg
+            </Text>
+          </Animated.View>
+        )}
+      </View>
+
       {/* weight value labels */}
       <View style={styles.weightSparkLabels}>
         {entries.map((entry, i) => (
@@ -1140,6 +1235,9 @@ function makeStyles(f: number) {
   weightSparkline: { marginTop: 12 },
   weightSparkLabels: { flexDirection: 'row', marginTop: 5, paddingHorizontal: 2 },
   weightSparkLabel: { fontFamily: 'Inter_400Regular', fontSize: 8 * f },
+  weightTooltip: { position: 'absolute', width: 92, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, zIndex: 20 },
+  weightTooltipDate: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
+  weightTooltipKg: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, marginTop: 1 },
   goalProgressSection: { marginTop: 14 },
   goalProgressHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
   goalProgressText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, flex: 1 },
