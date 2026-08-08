@@ -546,12 +546,26 @@ function WeightLineChart({
         </View>
       )}
 
-      {/* count + date range label — compact mode only, when span covers more than one unique date */}
-      {!expanded && entries[0]?.date && entries[entries.length - 1]?.date && entries[0].date !== entries[entries.length - 1].date && (
-        <Text style={[styles.weightSparkDateRange, { color: colors.mutedForeground }]}>
-          {entries.length} weigh-ins · {formatDate(entries[0].date)} – {formatDate(entries[entries.length - 1].date)}
-        </Text>
-      )}
+      {/* count + date range label — compact mode only, when span covers more than one unique date.
+          Use visibleEntries (pending-delete entry excluded) so the count and range stay in sync
+          with the faded dot the chart already shows — no jarring jump when the undo window closes. */}
+      {(() => {
+        if (expanded) return null;
+        const visibleEntries = pendingDeleteId
+          ? entries.filter((e) => e.id !== pendingDeleteId)
+          : entries;
+        if (
+          visibleEntries.length < 2 ||
+          !visibleEntries[0]?.date ||
+          !visibleEntries[visibleEntries.length - 1]?.date ||
+          visibleEntries[0].date === visibleEntries[visibleEntries.length - 1].date
+        ) return null;
+        return (
+          <Text style={[styles.weightSparkDateRange, { color: colors.mutedForeground }]}>
+            {visibleEntries.length} weigh-ins · {formatDate(visibleEntries[0].date)} – {formatDate(visibleEntries[visibleEntries.length - 1].date)}
+          </Text>
+        );
+      })()}
 
     </View>
   );
