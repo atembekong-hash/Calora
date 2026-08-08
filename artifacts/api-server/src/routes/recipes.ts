@@ -1,9 +1,49 @@
+import { openai } from "@workspace/integrations-openai-ai-server";
 import { Router, type IRouter } from "express";
 
 const router: IRouter = Router();
 const API_ROOT = "https://www.themealdb.com/api/json/v1/1";
 const SOURCE = "TheMealDB";
 const SOURCE_URL = "https://www.themealdb.com/";
+
+// ─── Nutrition estimation ────────────────────────────────────────────────────
+
+type NutritionEstimate = { calories: number; proteinG: number; carbsG: number; fatG: number };
+// Keyed by TheMealDB meal ID; survives the process lifetime.
+const nutritionCache = new Map<string, NutritionEstimate>();
+
+async function estimateNutrition(name: string, ingredients: string[]): Promise<NutritionEstimate | null> {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a nutrition expert. Return ONLY a JSON object — no markdown, no prose — with these four integer keys: calories, proteinG, carbsG, fatG. Estimate values for one typical serving.",
+        },
+        {
+          role: "user",
+          content: `Recipe: ${name}\nIngredients: ${ingredients.join(", ")}`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 80,
+    });
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const calories = Math.round(Number(parsed.calories) || 0);
+    const proteinG = Math.round(Number(parsed.proteinG) || 0);
+    const carbsG = Math.round(Number(parsed.carbsG) || 0);
+    const fatG = Math.round(Number(parsed.fatG) || 0);
+    if (calories <= 0) return null; // nonsensical estimate — skip
+    return { calories, proteinG, carbsG, fatG };
+  } catch {
+    return null;
+  }
+}
+
+// ─── "For you" pool ───────────────────────────────────────────────────────────
 
 // Categories fetched in parallel to build the "For you" pool.
 // Ordered so the feed opens with variety: lighter meals first, then
@@ -139,7 +179,16 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
       res.status(404).json({ message: "Recipe not found" });
       return;
     }
-    res.json(toRecipe(meal));
+    const base = toRecipe(meal);
+
+    // TheMealDB never includes nutrition — fill it in via AI, cached per meal ID.
+    let nutrition: NutritionEstimate | null = nutritionCache.get(base.id) ?? null;
+    if (!nutrition && base.ingredients.length > 0) {
+      nutrition = await estimateNutrition(base.name, base.ingredients);
+      if (nutrition) nutritionCache.set(base.id, nutrition);
+    }
+
+    res.json({ ...base, ...nutrition });
     return;
   } catch (error) {
     res.status(502).json({ message: error instanceof Error ? error.message : "Recipe provider unavailable" });

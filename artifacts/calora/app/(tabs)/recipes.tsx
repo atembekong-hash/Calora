@@ -241,12 +241,19 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                 <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
                 <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{detail.area ? `${detail.area} cuisine` : 'A recipe for your collection'}{detail.category ? ` · ${detail.category}` : ''}</Text>
                 <View style={[styles.nutritionStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: detail.calories ? colors.foreground : colors.warning }]}>{detail.calories ? `${Math.round(detail.calories)}` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
-                  <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.proteinG ? `${Math.round(detail.proteinG)}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
-                  <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.carbsG ? `${Math.round(detail.carbsG)}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
-                  <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.fatG ? `${Math.round(detail.fatG)}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
+                  {detailQuery.isLoading && !detail.calories ? (
+                    <View style={styles.nutritionLoading}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>Estimating nutrition…</Text></View>
+                  ) : (
+                    <>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: detail.calories ? colors.foreground : colors.mutedForeground }]}>{detail.calories ? `${!local ? '~' : ''}${Math.round(detail.calories)}` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.proteinG ? `${!local ? '~' : ''}${Math.round(detail.proteinG)}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.carbsG ? `${!local ? '~' : ''}${Math.round(detail.carbsG)}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.fatG ? `${!local ? '~' : ''}${Math.round(detail.fatG)}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
+                    </>
+                  )}
                 </View>
-                {!canLog && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>This open-source recipe does not include verified nutrition yet. You can save it, then add your own nutrition before logging.</Text></View>}
+                {!local && canLog && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="cpu" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>AI-estimated per serving · values may vary</Text></View>}
+                {!canLog && !detailQuery.isLoading && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>This open-source recipe does not include verified nutrition yet. You can save it, then add your own nutrition before logging.</Text></View>}
                 {detail.ingredients?.length ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Ingredients</Text>{detail.ingredients.map((ingredient) => <View key={ingredient} style={styles.ingredientRow}><View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} /><Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient}</Text></View>)}</> : null}
                 {detail.instructions ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Method</Text><Text style={[styles.instructions, { color: colors.mutedForeground }]}>{detail.instructions}</Text></> : null}
                 <Text style={[styles.attribution, { color: colors.mutedForeground }]}>Recipe source: {detail.source}. Calora does not claim third-party recipe content as its own.</Text>
@@ -633,6 +640,8 @@ function makeStyles(f: number) {
   fitsBadge: { position: 'absolute', left: 10, top: 10, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 3 },
   fitsBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.5 },
   nutritionCell: { alignItems: 'center' },
+  nutritionLoading: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 4 },
+  nutritionLoadingText: { fontFamily: 'Inter_400Regular', fontSize: 12 * f },
   emptyAction: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, paddingHorizontal: 14, paddingVertical: 10, marginTop: 14 },
   emptyActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   offlineRetryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 8 },
