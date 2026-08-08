@@ -615,19 +615,19 @@ export default function PlannerScreen() {
           </Pressable>
         </View>
          <View style={styles.weekHeader}>
-          <Pressable accessibilityLabel="Previous week" onPress={() => shiftWeek(-1)} style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={18} color={colors.foreground} /></Pressable>
+          <ScalePressable accessibilityLabel="Previous week" onPress={() => shiftWeek(-1)} scale={0.96} haptic="none" style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={18} color={colors.foreground} /></ScalePressable>
           <View style={styles.weekRangeCopy}>
             <Text style={[styles.weekRange, { color: colors.foreground }]}>{formatRange(viewWeekStart)}</Text>
             {viewWeekStart !== getPlannerWeekStart() && <Pressable accessibilityLabel="Return to this week" onPress={goToToday}><Text style={[styles.todayLink, { color: colors.primary }]}>Today</Text></Pressable>}
           </View>
-           <View style={styles.weekHeaderActions}><Pressable accessibilityLabel="Next week" onPress={() => shiftWeek(1)} style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={18} color={colors.foreground} /></Pressable><Pressable accessibilityLabel={editMode ? 'Done editing plan' : 'Edit plan'} onPress={() => setEditMode((value) => !value)} style={[styles.editModeButton, { backgroundColor: editMode ? colors.primary : colors.muted }]}><Feather name={editMode ? 'check' : 'edit-2'} size={14} color={editMode ? colors.primaryForeground : colors.foreground} /><Text style={[styles.editModeText, { color: editMode ? colors.primaryForeground : colors.foreground }]}>{editMode ? 'Done' : 'Edit'}</Text></Pressable></View>
+           <View style={styles.weekHeaderActions}><ScalePressable accessibilityLabel="Next week" onPress={() => shiftWeek(1)} scale={0.96} haptic="none" style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={18} color={colors.foreground} /></ScalePressable><ScalePressable accessibilityLabel={editMode ? 'Done editing plan' : 'Edit plan'} onPress={() => setEditMode((value) => !value)} scale={0.96} haptic="none" style={[styles.editModeButton, { backgroundColor: editMode ? colors.primary : colors.muted }]}><Feather name={editMode ? 'check' : 'edit-2'} size={14} color={editMode ? colors.primaryForeground : colors.foreground} /><Text style={[styles.editModeText, { color: editMode ? colors.primaryForeground : colors.foreground }]}>{editMode ? 'Done' : 'Edit'}</Text></ScalePressable></View>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayRail}>
           {weekDays.map((day) => {
             const date = parseDate(day);
             const active = day === selectedDay;
             const isToday = day === today;
-            return <Pressable key={day} accessibilityLabel={`Select ${dayFormatter.format(date)} ${date.getDate()}`} onPress={() => setSelectedDay(day)} style={[styles.dayPill, { backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.border }]}><Text style={[styles.dayName, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{dayFormatter.format(date)}</Text><Text style={[styles.dayNumber, { color: active ? colors.primaryForeground : colors.foreground }]}>{date.getDate()}</Text>{isToday && <View style={[styles.todayDot, { backgroundColor: active ? colors.primaryForeground : colors.primary }]} />}</Pressable>;
+            return <ScalePressable key={day} accessibilityLabel={`Select ${dayFormatter.format(date)} ${date.getDate()}`} onPress={() => setSelectedDay(day)} scale={0.98} haptic="none" style={[styles.dayPill, { backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.border }]}><Text style={[styles.dayName, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>{dayFormatter.format(date)}</Text><Text style={[styles.dayNumber, { color: active ? colors.primaryForeground : colors.foreground }]}>{date.getDate()}</Text>{isToday && <View style={[styles.todayDot, { backgroundColor: active ? colors.primaryForeground : colors.primary }]} />}</ScalePressable>;
           })}
         </ScrollView>
         {/* Plan type inline row — compact, sits above the generate button */}
@@ -837,21 +837,21 @@ export default function PlannerScreen() {
                      <Text style={[styles.actionTileTitle, { color: colors.primaryForeground }]}>Log to diary</Text>
                      <Text style={[styles.actionTileBody, { color: colors.primaryForeground }]}>Review the portion first</Text>
                    </ScalePressable>
-                   <Pressable accessibilityLabel={`Move ${actionMeal.name}`} onPress={() => setActionMode('move')} style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                   <ScalePressable accessibilityLabel={`Move ${actionMeal.name}`} onPress={() => setActionMode('move')} scale={0.96} haptic="none" style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
                      <Feather name="corner-up-right" size={18} color={colors.foreground} />
                      <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Move</Text>
                      <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>Keep one planned meal</Text>
-                   </Pressable>
-                   <Pressable accessibilityLabel={`Copy ${actionMeal.name}`} onPress={() => setActionMode('copy')} style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                   </ScalePressable>
+                   <ScalePressable accessibilityLabel={`Copy ${actionMeal.name}`} onPress={() => setActionMode('copy')} scale={0.96} haptic="none" style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
                      <Feather name="copy" size={18} color={colors.foreground} />
                      <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Copy</Text>
                      <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>Use it another day</Text>
-                   </Pressable>
-                   <Pressable accessibilityLabel={`Replace ${actionMeal.name}`} onPress={() => { setReplaceMeal(actionMeal); setActionMeal(null); }} style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                   </ScalePressable>
+                   <ScalePressable accessibilityLabel={`Replace ${actionMeal.name}`} onPress={() => { setReplaceMeal(actionMeal); setActionMeal(null); }} scale={0.96} haptic="none" style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
                      <Feather name="refresh-cw" size={18} color={colors.foreground} />
                      <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Replace</Text>
                      <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>Find a better fit</Text>
-                   </Pressable>
+                   </ScalePressable>
                  </View>
                  <ScalePressable accessibilityLabel={`Remove ${actionMeal.name} from plan`} onPress={() => removeMealFromPlan(actionMeal)} scale={0.98} haptic="none" style={styles.removeAction}>
                    <Feather name="minus-circle" size={15} color={colors.mutedForeground} />
