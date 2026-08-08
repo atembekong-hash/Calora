@@ -624,7 +624,7 @@ function WeightChartModal({
             <View>
               <Text style={[styles.chartModalTitle, { color: colors.foreground }]}>Weight trend</Text>
               <Text style={[styles.chartModalSubtitle, { color: colors.mutedForeground }]}>
-                {entries.length} weigh-ins · tap any point for details
+                {entries.length} weigh-ins{entries.length >= 2 && entries[0].date !== entries[entries.length - 1].date ? ` · ${formatDate(entries[0].date)} – ${formatDate(entries[entries.length - 1].date)}` : ''} · tap any point for details
               </Text>
             </View>
             <Pressable
