@@ -745,13 +745,19 @@ function WeightChartModal({
   // Guard: entries may be empty while the modal animates closed (visible=false).
   // Provide safe defaults so no computation crashes before the sheet slides out.
   const safeEntries = entries.length >= 2 ? entries : [];
-  const vals = safeEntries.map((e) => e.kg);
+
+  // Exclude the pending-delete entry from stats so low/high/change update
+  // immediately when a deletion is queued — no jump when the undo window closes.
+  const statsEntries = pendingDeleteId
+    ? safeEntries.filter((e) => e.id !== pendingDeleteId)
+    : safeEntries;
+  const vals = statsEntries.map((e) => e.kg);
   const min = vals.length > 0 ? Math.min(...vals) : 0;
   const max = vals.length > 0 ? Math.max(...vals) : 0;
-  const minEntry = safeEntries[vals.indexOf(min)] ?? safeEntries[0];
-  const maxEntry = safeEntries[vals.indexOf(max)] ?? safeEntries[0];
-  const lastEntry = safeEntries[safeEntries.length - 1];
-  const firstEntry = safeEntries[0];
+  const minEntry = statsEntries[vals.indexOf(min)] ?? statsEntries[0];
+  const maxEntry = statsEntries[vals.indexOf(max)] ?? statsEntries[0];
+  const lastEntry = statsEntries[statsEntries.length - 1];
+  const firstEntry = statsEntries[0];
   const delta = lastEntry && firstEntry ? lastEntry.kg - firstEntry.kg : 0;
 
   return (
@@ -814,8 +820,10 @@ function WeightChartModal({
             <WeightLineChart entries={safeEntries} colors={colors} chartHeight={200} expanded onRequestDelete={onRequestDelete} onRequestEdit={onRequestEdit} pendingDeleteId={pendingDeleteId} />
           )}
 
-          {/* Summary stats row — guarded so undefined entries never crash while animating closed */}
-          {safeEntries.length >= 2 && minEntry && maxEntry && (
+          {/* Summary stats row — guarded so undefined entries never crash while animating closed.
+              Uses statsEntries (pending-delete excluded) so low/high/change reflect the
+              reduced dataset the moment a deletion is queued. */}
+          {statsEntries.length >= 2 && minEntry && maxEntry && (
             <View style={[styles.chartModalStats, { borderTopColor: colors.border }]}>
               <View style={styles.chartModalStat}>
                 <Text style={[styles.chartModalStatValue, { color: colors.success }]}>{min.toFixed(1)} kg</Text>
