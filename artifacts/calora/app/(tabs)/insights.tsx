@@ -1623,7 +1623,7 @@ export default function InsightsScreen() {
               accessibilityRole="button"
               style={{ position: 'relative' }}
             >
-              <WeightLineChart entries={weights.slice(-7)} colors={colors} onRequestDelete={handleRequestDelete} onRequestEdit={handleRequestEdit} pendingDeleteId={pendingDelete?.id} />
+              <WeightLineChart entries={weights.filter((w) => w.id !== pendingDelete?.id).slice(-7)} colors={colors} onRequestDelete={handleRequestDelete} onRequestEdit={handleRequestEdit} pendingDeleteId={pendingDelete?.id} />
               {/* Expand affordance icon */}
               <View style={[styles.chartExpandHint, { backgroundColor: colors.muted }]} pointerEvents="none">
                 <Feather name="maximize-2" size={11} color={colors.mutedForeground} />
