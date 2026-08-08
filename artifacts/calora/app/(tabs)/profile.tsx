@@ -683,8 +683,9 @@ export default function ProfileScreen() {
           <Pressable
             key={item.title}
             testID={'testID' in item ? item.testID : undefined}
-            onPress={item.disabled ? undefined : item.onPress}
-            accessibilityState={item.disabled ? { disabled: true } : undefined}
+            onPress={item.onPress}
+            disabled={item.disabled}
+            accessibilityState={{ disabled: item.disabled }}
             style={[styles.settingRow, { backgroundColor: colors.card, borderColor: colors.border, opacity: item.disabled ? 0.4 : 1 }]}
           >
             <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}><Feather name={item.icon} size={17} color={colors.primary} /></View>
