@@ -1083,7 +1083,9 @@ export default function InsightsScreen() {
   const dataTrust = trustScore(remembered.logs);
   const latestWeight = weights[weights.length - 1]?.kg ?? profile?.weightKg ?? 76;
   const startingWeight = profile?.weightKg ?? latestWeight;
-  const weightDelta = latestWeight - startingWeight;
+  // Delta badge: difference between first and latest *logged* weigh-in, not the onboarding profile value.
+  const firstLoggedWeight = weights[0]?.kg ?? latestWeight;
+  const weightDelta = latestWeight - firstLoggedWeight;
   const targetWeight = profile?.targetWeightKg ?? 0;
   const hasGoal = targetWeight > 0 && Math.abs(targetWeight - startingWeight) > 0.1;
   const goalTotalDistance = hasGoal ? Math.abs(targetWeight - startingWeight) : 1;
