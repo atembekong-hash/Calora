@@ -160,7 +160,7 @@ function ConfettiBurst({ active }: { active: boolean }) {
   );
 }
 
-function GoalCelebrationBanner({ colors, targetKg }: { colors: ReturnType<typeof useCalora>['colors']; targetKg: number }) {
+function GoalCelebrationBanner({ colors, targetKg, onDismiss }: { colors: ReturnType<typeof useCalora>['colors']; targetKg: number; onDismiss: () => void }) {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.88);
   const starScale = useSharedValue(1);
@@ -174,6 +174,14 @@ function GoalCelebrationBanner({ colors, targetKg }: { colors: ReturnType<typeof
   }, [opacity, scale, starScale]);
   const bannerStyle = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }));
   const starStyle = useAnimatedStyle(() => ({ transform: [{ scale: starScale.value }] }));
+
+  const handleDismiss = () => {
+    opacity.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) }, (finished) => {
+      if (finished) runOnJS(onDismiss)();
+    });
+    scale.value = withTiming(0.88, { duration: 260, easing: Easing.out(Easing.cubic) });
+  };
+
   return (
     <Animated.View style={[styles.celebrationBanner, { backgroundColor: '#e8f8ef', borderColor: '#5dba7d' }, bannerStyle]}>
       <Animated.View style={[styles.celebrationIconWrap, { backgroundColor: '#5dba7d' }, starStyle]}>
@@ -183,6 +191,15 @@ function GoalCelebrationBanner({ colors, targetKg }: { colors: ReturnType<typeof
         <Text style={[styles.celebrationTitle, { color: '#1b5e38' }]}>Goal reached!</Text>
         <Text style={[styles.celebrationBody, { color: '#3a7d57' }]}>You hit {targetKg.toFixed(0)} kg. Keep going — consistency is the real win.</Text>
       </View>
+      <Pressable
+        onPress={handleDismiss}
+        hitSlop={12}
+        accessibilityLabel="Dismiss goal banner"
+        accessibilityRole="button"
+        style={styles.celebrationClose}
+      >
+        <Feather name="x" size={16} color="#3a7d57" />
+      </Pressable>
     </Animated.View>
   );
 }
@@ -990,7 +1007,7 @@ export default function InsightsScreen() {
           {showGoalCelebration && showGoalProgress ? (
             <View style={styles.celebrationWrapper}>
               <ConfettiBurst active={showGoalCelebration} />
-              <GoalCelebrationBanner colors={colors} targetKg={targetWeight} />
+              <GoalCelebrationBanner colors={colors} targetKg={targetWeight} onDismiss={() => setShowGoalCelebration(false)} />
             </View>
           ) : null}
           {showGoalProgress ? (
@@ -1249,6 +1266,7 @@ function makeStyles(f: number) {
   celebrationIconWrap: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   celebrationTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, marginBottom: 2 },
   celebrationBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 },
+  celebrationClose: { padding: 4, flexShrink: 0, opacity: 0.7 },
   });
 }
 const styles = makeStyles(1.0);
