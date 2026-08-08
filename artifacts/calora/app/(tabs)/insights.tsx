@@ -706,6 +706,8 @@ function WeightChartModal({
   onRequestDelete,
   onRequestEdit,
   pendingDeleteId,
+  pendingDeleteEntry,
+  onUndo,
 }: {
   entries: { id?: string; date: string; kg: number }[];
   colors: ReturnType<typeof useCalora>['colors'];
@@ -714,6 +716,9 @@ function WeightChartModal({
   onRequestDelete?: (entry: { id: string; kg: number; date: string }) => void;
   onRequestEdit?: (entry: { id: string; kg: number; date: string }) => void;
   pendingDeleteId?: string;
+  /** When set, an undo snackbar is shown inside the modal so the user can reach it above the backdrop. */
+  pendingDeleteEntry?: { id: string; kg: number; date: string } | null;
+  onUndo?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const sheetY = useSharedValue(600);
@@ -828,6 +833,26 @@ function WeightChartModal({
                 <Text style={[styles.chartModalStatValue, { color: colors.warning }]}>{max.toFixed(1)} kg</Text>
                 <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>high · {formatDate(maxEntry.date)}</Text>
               </View>
+            </View>
+          )}
+
+          {/* In-modal undo snackbar — rendered inside the sheet so it appears above the backdrop.
+              The screen-level snackbar is hidden behind the modal's native overlay, so this
+              duplicate ensures the user can always reach undo after tapping a pending-delete dot
+              in the expanded chart. */}
+          {pendingDeleteEntry != null && onUndo && (
+            <View style={[styles.chartModalUndoRow, { backgroundColor: colors.foreground }]}>
+              <Text style={[styles.chartModalUndoText, { color: colors.background }]}>
+                {pendingDeleteEntry.kg.toFixed(1)} kg removed
+              </Text>
+              <Pressable
+                onPress={onUndo}
+                hitSlop={10}
+                accessibilityLabel="Undo delete weigh-in"
+                accessibilityRole="button"
+              >
+                <Text style={[styles.chartModalUndoBtn, { color: colors.success }]}>Undo</Text>
+              </Pressable>
             </View>
           )}
         </Animated.View>
@@ -1766,6 +1791,8 @@ export default function InsightsScreen() {
         onRequestDelete={handleRequestDelete}
         onRequestEdit={handleRequestEdit}
         pendingDeleteId={pendingDelete?.id}
+        pendingDeleteEntry={pendingDelete}
+        onUndo={undoDelete}
       />
       {/* Undo-delete snackbar — rendered outside the chart/modal so it survives modal close */}
       {pendingDelete !== null && (
@@ -1973,6 +2000,10 @@ function makeStyles(f: number) {
   chartModalStatValue: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   chartModalStatLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 3, textAlign: 'center' },
   chartModalStatDivider: { width: 1, height: 30 },
+  // ─── In-modal undo snackbar ────────────────────────────────────────────────
+  chartModalUndoRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginTop: 14 },
+  chartModalUndoText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 12 * f },
+  chartModalUndoBtn: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, paddingHorizontal: 6 },
   });
 }
 const styles = makeStyles(1.0);
