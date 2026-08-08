@@ -25,6 +25,7 @@ import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
+import { PlannerPeek } from '@/components/PlannerPeek';
 import { trustScore } from '@/lib/weeklySignals';
 import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
 import {
@@ -913,6 +914,8 @@ export default function HomeScreen() {
           <IconButton icon="search" label="Search foods" onPress={openAdd} colors={colors} />
           <IconButton icon="edit-3" label="Quick add" onPress={openAdd} colors={colors} />
         </View>
+
+        <PlannerPeek selectedDate={selectedDate} />
 
         <RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} />
 
