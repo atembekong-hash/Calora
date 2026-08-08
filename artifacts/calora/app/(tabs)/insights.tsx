@@ -270,7 +270,18 @@ const TOOLTIP_W = 92;
 const TOOLTIP_H = 42;
 const DOT_HIT = 36;
 
-function WeightLineChart({ entries, colors }: { entries: { id?: string; date: string; kg: number }[]; colors: ReturnType<typeof useCalora>['colors'] }) {
+// Shared chart-rendering core used by both the compact sparkline and the expanded modal.
+function WeightLineChart({
+  entries,
+  colors,
+  chartHeight = SPARK_H,
+  expanded = false,
+}: {
+  entries: { id?: string; date: string; kg: number }[];
+  colors: ReturnType<typeof useCalora>['colors'];
+  chartHeight?: number;
+  expanded?: boolean;
+}) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [chartWidth, setChartWidth] = useState(SPARK_W);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -282,9 +293,12 @@ function WeightLineChart({ entries, colors }: { entries: { id?: string; date: st
   const max = Math.max(...vals);
   const range = max - min || 1;
 
+  // Scale vertical padding proportionally so bezier fills the taller canvas well.
+  const padY = Math.round(SPARK_PAD_Y * (chartHeight / SPARK_H));
+
   const pts = vals.map((v, i) => ({
     x: SPARK_PAD_X + (i / (vals.length - 1)) * (SPARK_W - SPARK_PAD_X * 2),
-    y: SPARK_PAD_Y + (1 - (v - min) / range) * (SPARK_H - SPARK_PAD_Y * 2),
+    y: padY + (1 - (v - min) / range) * (chartHeight - padY * 2),
   }));
 
   // Smooth cubic bezier: control points split midway between adjacent pts
@@ -297,18 +311,21 @@ function WeightLineChart({ entries, colors }: { entries: { id?: string; date: st
   }
 
   // Build a closed fill path: follow the bezier then drop to the bottom corners
-  const bottomY = (SPARK_H - SPARK_PAD_Y).toFixed(2);
+  const bottomY = (chartHeight - padY).toFixed(2);
   const dFill = `${d} L ${pts[pts.length - 1].x.toFixed(2)} ${bottomY} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
 
-  const dashOffset = useSharedValue(SPARK_DASH);
+  // Scale dash length to match the taller SVG canvas path length.
+  const dashLen = Math.ceil(SPARK_DASH * Math.max(1, chartHeight / SPARK_H));
+
+  const dashOffset = useSharedValue(dashLen);
   const fillOpacity = useSharedValue(0);
-  const dataKey = vals.join(',');
+  const dataKey = `${vals.join(',')}_${chartHeight}`;
   useEffect(() => {
-    dashOffset.value = SPARK_DASH;
+    dashOffset.value = dashLen;
     fillOpacity.value = 0;
     dashOffset.value = withTiming(0, { duration: 920, easing: Easing.out(Easing.cubic) });
     fillOpacity.value = withTiming(1, { duration: 920, easing: Easing.out(Easing.cubic) });
-  // Re-run whenever data changes; eslint can't verify the string identity dependency.
+  // Re-run whenever data or size changes; eslint can't verify the string identity dependency.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataKey]);
 
@@ -332,6 +349,8 @@ function WeightLineChart({ entries, colors }: { entries: { id?: string; date: st
 
   const xScale = chartWidth / SPARK_W;
   const lastIdx = pts.length - 1;
+  const strokeW = expanded ? 2.8 : 2.2;
+  const dotR = expanded ? { normal: 3.5, active: 5.5 } : { normal: 2.8, active: 4.5 };
 
   const clearSelection = () => setSelectedIdx(null);
 
@@ -361,32 +380,34 @@ function WeightLineChart({ entries, colors }: { entries: { id?: string; date: st
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const gradientId = expanded ? 'weightFillExpanded' : 'weightFill';
+
   return (
     <View style={styles.weightSparkline} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
       <View style={{ position: 'relative' }}>
-        <Svg width="100%" height={SPARK_H} viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} preserveAspectRatio="none">
+        <Svg width="100%" height={chartHeight} viewBox={`0 0 ${SPARK_W} ${chartHeight}`} preserveAspectRatio="none">
           <Defs>
-            <SvgLinearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={colors.success} stopOpacity={0.18} />
+            <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor={colors.success} stopOpacity={expanded ? 0.26 : 0.18} />
               <Stop offset="100%" stopColor={colors.success} stopOpacity={0} />
             </SvgLinearGradient>
           </Defs>
           {/* animated area fill */}
           <AnimatedPath
             d={dFill}
-            fill="url(#weightFill)"
+            fill={`url(#${gradientId})`}
             stroke="none"
             animatedProps={animFillProps}
           />
           {/* track line */}
-          <Path d={d} stroke="rgba(120,120,120,0.13)" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <Path d={d} stroke="rgba(120,120,120,0.13)" strokeWidth={strokeW} fill="none" strokeLinecap="round" strokeLinejoin="round" />
           {/* animated line */}
           <AnimatedPath
             d={d}
             stroke={colors.success}
-            strokeWidth={2.2}
+            strokeWidth={strokeW}
             fill="none"
-            strokeDasharray={SPARK_DASH}
+            strokeDasharray={dashLen}
             strokeLinecap="round"
             strokeLinejoin="round"
             animatedProps={animPathProps}
@@ -397,7 +418,7 @@ function WeightLineChart({ entries, colors }: { entries: { id?: string; date: st
               key={i}
               cx={pt.x}
               cy={pt.y}
-              r={i === lastIdx || i === selectedIdx ? 4.5 : 2.8}
+              r={i === lastIdx || i === selectedIdx ? dotR.active : dotR.normal}
               fill={i === lastIdx ? colors.primary : colors.success}
               opacity={i === lastIdx || i === selectedIdx ? 1 : 0.65}
             />
@@ -464,6 +485,117 @@ function WeightLineChart({ entries, colors }: { entries: { id?: string; date: st
         ))}
       </View>
     </View>
+  );
+}
+
+// ─── Expanded weight chart modal ───────────────────────────────────────────────
+function WeightChartModal({
+  entries,
+  colors,
+  visible,
+  onClose,
+}: {
+  entries: { id?: string; date: string; kg: number }[];
+  colors: ReturnType<typeof useCalora>['colors'];
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const sheetY = useSharedValue(600);
+  const backdropOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (visible) {
+      sheetY.value = withSpring(0, { damping: 22, stiffness: 200 });
+      backdropOpacity.value = withTiming(1, { duration: 260 });
+    } else {
+      sheetY.value = withTiming(600, { duration: 240, easing: Easing.in(Easing.cubic) });
+      backdropOpacity.value = withTiming(0, { duration: 220 });
+    }
+  }, [visible, sheetY, backdropOpacity]);
+
+  const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: sheetY.value }] }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const vals = entries.map((e) => e.kg);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const minEntry = entries[vals.indexOf(min)];
+  const maxEntry = entries[vals.indexOf(max)];
+  const lastEntry = entries[entries.length - 1];
+  const firstEntry = entries[0];
+  const delta = lastEntry.kg - firstEntry.kg;
+
+  return (
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <View style={{ flex: 1 }}>
+        {/* Backdrop */}
+        <Animated.View
+          style={[{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.48)' }, backdropStyle]}
+        >
+          <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close chart" />
+        </Animated.View>
+
+        {/* Bottom sheet */}
+        <Animated.View
+          style={[
+            styles.chartModalSheet,
+            { backgroundColor: colors.background, paddingBottom: insets.bottom + 24 },
+            sheetStyle,
+          ]}
+        >
+          {/* Handle */}
+          <View style={[styles.chartModalHandle, { backgroundColor: colors.muted }]} />
+
+          {/* Header */}
+          <View style={styles.chartModalHeader}>
+            <View>
+              <Text style={[styles.chartModalTitle, { color: colors.foreground }]}>Weight trend</Text>
+              <Text style={[styles.chartModalSubtitle, { color: colors.mutedForeground }]}>
+                {entries.length} weigh-ins · tap any point for details
+              </Text>
+            </View>
+            <Pressable
+              onPress={onClose}
+              hitSlop={12}
+              accessibilityLabel="Close expanded chart"
+              accessibilityRole="button"
+              style={[styles.chartModalCloseBtn, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+
+          {/* Expanded chart */}
+          <WeightLineChart entries={entries} colors={colors} chartHeight={200} expanded />
+
+          {/* Summary stats row */}
+          <View style={[styles.chartModalStats, { borderTopColor: colors.border }]}>
+            <View style={styles.chartModalStat}>
+              <Text style={[styles.chartModalStatValue, { color: colors.success }]}>{min.toFixed(1)} kg</Text>
+              <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>low · {formatDate(minEntry.date)}</Text>
+            </View>
+            <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.chartModalStat}>
+              <Text style={[styles.chartModalStatValue, { color: delta <= 0 ? colors.success : colors.warning }]}>
+                {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg
+              </Text>
+              <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>overall change</Text>
+            </View>
+            <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.chartModalStat}>
+              <Text style={[styles.chartModalStatValue, { color: colors.warning }]}>{max.toFixed(1)} kg</Text>
+              <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>high · {formatDate(maxEntry.date)}</Text>
+            </View>
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
@@ -597,6 +729,7 @@ export default function InsightsScreen() {
   const [minutesInput, setMinutesInput] = useState('');
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [goalInput, setGoalInput] = useState('');
+  const [showExpandedChart, setShowExpandedChart] = useState(false);
 
   // Parallax scroll
   const scrollY = useSharedValue(0);
@@ -1027,7 +1160,18 @@ export default function InsightsScreen() {
             )}
           </View>
           {weights.length >= 3 ? (
-            <WeightLineChart entries={weights.slice(-7)} colors={colors} />
+            <Pressable
+              onPress={() => { Haptics.selectionAsync(); setShowExpandedChart(true); }}
+              accessibilityLabel="Expand weight chart"
+              accessibilityRole="button"
+              style={{ position: 'relative' }}
+            >
+              <WeightLineChart entries={weights.slice(-7)} colors={colors} />
+              {/* Expand affordance icon */}
+              <View style={[styles.chartExpandHint, { backgroundColor: colors.muted }]} pointerEvents="none">
+                <Feather name="maximize-2" size={11} color={colors.mutedForeground} />
+              </View>
+            </Pressable>
           ) : (
             <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '50%' : '0%' }]} /></View>
           )}
@@ -1138,6 +1282,14 @@ export default function InsightsScreen() {
         </View>
       </Modal>
       <LocalSaveNotice visible={Boolean(saveNotice)} message={saveNotice ?? ''} colors={colors} />
+      {weights.length >= 3 && (
+        <WeightChartModal
+          entries={weights.slice(-7)}
+          colors={colors}
+          visible={showExpandedChart}
+          onClose={() => setShowExpandedChart(false)}
+        />
+      )}
     </View>
   );
 }
@@ -1299,6 +1451,20 @@ function makeStyles(f: number) {
   celebrationTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, marginBottom: 2 },
   celebrationBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 },
   celebrationClose: { padding: 4, flexShrink: 0, opacity: 0.7 },
+  // ─── Expand hint icon ──────────────────────────────────────────────────────
+  chartExpandHint: { position: 'absolute', top: 6, right: 2, width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center', opacity: 0.7 },
+  // ─── Expanded weight chart modal ───────────────────────────────────────────
+  chartModalSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 12, shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 24, shadowOffset: { width: 0, height: -6 }, elevation: 18 },
+  chartModalHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 18 },
+  chartModalHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
+  chartModalTitle: { fontFamily: 'Inter_700Bold', fontSize: 19 * f, letterSpacing: -0.3 },
+  chartModalSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 4 },
+  chartModalCloseBtn: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  chartModalStats: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, marginTop: 18, paddingTop: 16 },
+  chartModalStat: { flex: 1, alignItems: 'center' },
+  chartModalStatValue: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
+  chartModalStatLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 3, textAlign: 'center' },
+  chartModalStatDivider: { width: 1, height: 30 },
   });
 }
 const styles = makeStyles(1.0);
