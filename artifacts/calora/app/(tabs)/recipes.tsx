@@ -112,14 +112,62 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
     </View>
   );
 }
+// Scale a leading numeric quantity in an ingredient string by a multiplier.
+// Handles integers and simple fractions (1/2, 1/4). Returns original on failure.
+function scaleIngredient(ingredient: string, multiplier: number): string {
+  if (multiplier === 1) return ingredient;
+  const match = ingredient.match(/^(\d+(?:\/\d+)?)\s*/);
+  if (!match) return ingredient;
+  const raw = match[1];
+  let qty: number;
+  if (raw.includes('/')) {
+    const [num, den] = raw.split('/');
+    qty = parseInt(num, 10) / parseInt(den, 10);
+  } else {
+    qty = parseInt(raw, 10);
+  }
+  if (!isFinite(qty) || qty <= 0) return ingredient;
+  const scaled = Math.round(qty * multiplier * 100) / 100;
+  const formatted =
+    scaled === 0.25 ? '¼' : scaled === 0.5 ? '½' : scaled === 0.75 ? '¾' :
+    scaled === 1.25 ? '1¼' : scaled === 1.5 ? '1½' : scaled === 1.75 ? '1¾' :
+    Number.isInteger(scaled) ? String(scaled) : scaled.toFixed(1);
+  return ingredient.replace(match[0], `${formatted} `).trimEnd();
+}
+
+// Split recipe instructions into discrete cooking steps.
+// Handles TheMealDB (\r\n separated), numbered lists, and paragraph breaks.
+function parseInstructionSteps(text: string): string[] {
+  // Numbered lines: "1. Step" or "Step 1: Step"
+  const numbered = text.split(/\n\s*(?:step\s+)?\d+[.):\s]+/i);
+  if (numbered.length >= 3) return numbered.map((s) => s.trim()).filter(Boolean);
+  // Paragraph or line breaks (TheMealDB uses \r\n per step)
+  const byLine = text.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (byLine.length >= 2) return byLine;
+  return [text.trim()];
+}
+
 function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void }) {
-  const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck } = useCalora();
+  const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const remoteRecipeId = recipe && !local ? recipe.id : '';
   const detailQuery = useGetRecipe(remoteRecipeId, { query: { queryKey: ['recipe', remoteRecipeId], enabled: Boolean(remoteRecipeId), staleTime: 1000 * 60 * 30 } });
   const detail = detailQuery.data ?? recipe;
+
+  // Existing review state (used for local recipes)
   const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
   const [planVisible, setPlanVisible] = useState(false);
+  // Feature 1: serving count scales nutrition strip and ingredient quantities
+  const [servingCount, setServingCount] = useState(1);
+  // Feature 4: shopping list sheet
+  const [shopVisible, setShopVisible] = useState(false);
+  const [selectedIngredients, setSelectedIngredients] = useState<Set<number>>(new Set());
+  // Feature 6: smart diary sheet (remote recipes)
+  const [diaryVisible, setDiaryVisible] = useState(false);
+  const [diaryMealType, setDiaryMealType] = useState<'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'>('Dinner');
+  const [diaryServings, setDiaryServings] = useState(1);
+  const [diaryLogged, setDiaryLogged] = useState(false);
+
   // Default to the slot the user came from (if browsing from an empty planner slot),
   // or else the day currently viewed in the Planner.
   const [planDay, setPlanDay] = useState(() => recipeSlotTarget?.day ?? plannerViewedDay ?? dateKey());
@@ -132,42 +180,72 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   const nutritionUnavailable = !local && Boolean((detailQuery.data as (Recipe & { nutritionUnavailable?: boolean }) | undefined)?.nutritionUnavailable);
   const isFetchingDetail = detailQuery.isLoading || detailQuery.isFetching;
 
+  // Nutrition scaled to current servingCount for display
+  const approxPrefix = local ? '' : '~';
+  const scaledKcal = detail.calories ? Math.round(detail.calories * servingCount) : null;
+  const scaledProtein = detail.proteinG ? Math.round(detail.proteinG * servingCount) : null;
+  const scaledCarbs = detail.carbsG ? Math.round(detail.carbsG * servingCount) : null;
+  const scaledFat = detail.fatG ? Math.round(detail.fatG * servingCount) : null;
+  const servingLabel = servingCount === 0.5 ? '½' : servingCount === 1.5 ? '1½' : servingCount === 2.5 ? '2½' : servingCount === 3.5 ? '3½' : String(servingCount);
+
+  // --- review flow (local recipes only) ---
   const openReview = () => {
     if (!canLog) return;
     const draft = createRecipeDraft(detail, dateKey(), 'Dinner');
     setReviewDraftId(draft.id);
   };
-
   const updateComponent = (component: FoodMemoryComponent) => {
     if (!reviewDraft) return;
     updateFoodMemoryDraft(reviewDraft.id, reviewDraft.components.map((item) => item.id === component.id ? component : item));
   };
-
   const acceptDraft = () => {
     if (!reviewDraft) return;
     acceptFoodMemory(reviewDraft.id);
     setReviewDraftId(null);
     onClose();
   };
-
   const dismissReview = () => {
     if (reviewDraft) rejectFoodMemory(reviewDraft.id);
     setReviewDraftId(null);
   };
-
   const handleClose = () => {
     if (reviewDraft) rejectFoodMemory(reviewDraft.id);
     setReviewDraftId(null);
     onClose();
   };
 
+  // --- Feature 6: smart diary logging (remote recipes) ---
+  const logToDiary = () => {
+    if (!canLog || !detail) return;
+    // Pre-scale the nutrition so eatenFraction=1.0 in the draft equals exactly what the user selected
+    const scaled = {
+      ...detail,
+      calories: detail.calories ? detail.calories * diaryServings : null,
+      proteinG: detail.proteinG ? detail.proteinG * diaryServings : null,
+      carbsG: detail.carbsG ? detail.carbsG * diaryServings : null,
+      fatG: detail.fatG ? detail.fatG * diaryServings : null,
+    };
+    const draft = createRecipeDraft(scaled, dateKey(), diaryMealType);
+    acceptFoodMemory(draft.id);
+    setDiaryLogged(true);
+    setTimeout(() => { setDiaryVisible(false); setDiaryLogged(false); onClose(); }, 900);
+  };
+
+  // --- Feature 4: shopping list ---
+  const addToShoppingList = () => {
+    const ingredients = detail.ingredients?.filter((_, i) => selectedIngredients.has(i)) ?? [];
+    if (!ingredients.length) return;
+    addIngredientsToShopping(ingredients, detail.id);
+    setShopVisible(false);
+  };
+
+  // --- planner ---
   const openPlanPicker = () => {
     // Refresh defaults from context each time the picker opens so late context changes are reflected
     setPlanDay(recipeSlotTarget?.day ?? plannerViewedDay ?? dateKey());
     setPlanMealType(recipeSlotTarget?.mealType ?? 'Dinner');
     setPlanVisible(true);
   };
-
   const addToPlan = () => {
     if (!detail) return;
     const plannedMeal: PlannerMeal = {
@@ -191,11 +269,9 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
     if (displacedMeal) {
       setPendingUndoSwap({ newMeal: plannedMeal, originalMeal: displacedMeal });
     } else {
-      // Slot was empty (e.g. user removed a meal then picked a recipe). Signal the Planner to
-      // show a plain save acknowledgment and cancel any stale removal-undo when it regains focus.
+      // Slot was empty — signal the Planner to show a plain save acknowledgment
       setPendingPlannerAck({ message: `${plannedMeal.name} added to your ${plannedMeal.meal.toLowerCase()} plan.`, mealId: plannedMeal.id });
     }
-    // Clear slot context so re-opening won't re-apply stale targeting
     setRecipeSlotTarget(null);
     setPlanVisible(false);
     onClose();
@@ -207,6 +283,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
       <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
         <View style={[styles.detailSheet, { backgroundColor: colors.background }]}>
           {reviewDraft ? (
+            /* Local recipe review flow — full portion/fraction editor */
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 30 }}>
               <View style={styles.reviewHeader}>
                 <View>
@@ -238,6 +315,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
               </Pressable>
             </ScrollView>
           ) : (
+            /* Main recipe detail view */
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
               <View style={styles.detailTop}>
                 <Pressable accessibilityLabel="Close recipe details" onPress={handleClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
@@ -248,6 +326,8 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                 <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{local ? 'YOUR RECIPE' : `${detail.source.toUpperCase()} RECIPE`}</Text>
                 <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
                 <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{detail.area ? `${detail.area} cuisine` : 'A recipe for your collection'}{detail.category ? ` · ${detail.category}` : ''}</Text>
+
+                {/* Nutrition strip — values scale with servingCount */}
                 <View style={[styles.nutritionStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {isFetchingDetail && !detail.calories ? (
                     <View style={styles.nutritionLoading}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>Estimating nutrition…</Text></View>
@@ -259,27 +339,97 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                     </View>
                   ) : (
                     <>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: detail.calories ? colors.foreground : colors.mutedForeground }]}>{detail.calories ? `${!local ? '~' : ''}${Math.round(detail.calories)}` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.proteinG ? `${!local ? '~' : ''}${Math.round(detail.proteinG)}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.carbsG ? `${!local ? '~' : ''}${Math.round(detail.carbsG)}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{detail.fatG ? `${!local ? '~' : ''}${Math.round(detail.fatG)}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: scaledKcal ? colors.foreground : colors.mutedForeground }]}>{scaledKcal ? `${approxPrefix}${scaledKcal}` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{scaledProtein ? `${approxPrefix}${scaledProtein}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{scaledCarbs ? `${approxPrefix}${scaledCarbs}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{scaledFat ? `${approxPrefix}${scaledFat}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
                     </>
                   )}
                 </View>
+
+                {/* Feature 1: Serving stepper */}
+                <View style={[styles.servingRow, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
+                  <Text style={[styles.servingLabel, { color: colors.mutedForeground }]}>Servings</Text>
+                  <View style={styles.servingStepper}>
+                    <Pressable accessibilityLabel="Decrease servings" onPress={() => setServingCount((c) => Math.max(0.5, Math.round((c - 0.5) * 10) / 10))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="minus" size={14} color={colors.foreground} /></Pressable>
+                    <Text style={[styles.stepperValue, { color: colors.foreground }]}>{servingLabel}</Text>
+                    <Pressable accessibilityLabel="Increase servings" onPress={() => setServingCount((c) => Math.min(8, Math.round((c + 0.5) * 10) / 10))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
+                  </View>
+                </View>
+
+                {/* Feature 2: Recipe info chips (prep time, cuisine, category) */}
+                {(detail.prepMinutes || detail.category || detail.area) ? (
+                  <View style={styles.infoChips}>
+                    {detail.prepMinutes ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="clock" size={11} color={colors.mutedForeground} /><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{detail.prepMinutes} min prep</Text></View> : null}
+                    {detail.area ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="map-pin" size={11} color={colors.mutedForeground} /><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{detail.area}</Text></View> : null}
+                    {detail.category ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{detail.category}</Text></View> : null}
+                  </View>
+                ) : null}
+
+                {/* Notices */}
                 {!local && canLog && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="cpu" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>AI-estimated per serving · values may vary</Text></View>}
                 {nutritionUnavailable && !isFetchingDetail && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Nutrition estimate failed · tap Retry above or check back later</Text></View>}
                 {!canLog && !nutritionUnavailable && !local && !detailQuery.isLoading && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>This open-source recipe does not include verified nutrition yet. You can save it, then add your own nutrition before logging.</Text></View>}
-                {detail.ingredients?.length ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Ingredients</Text>{detail.ingredients.map((ingredient) => <View key={ingredient} style={styles.ingredientRow}><View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} /><Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient}</Text></View>)}</> : null}
-                {detail.instructions ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Method</Text><Text style={[styles.instructions, { color: colors.mutedForeground }]}>{detail.instructions}</Text></> : null}
+
+                {/* Feature 4: Ingredients with shopping list action */}
+                {detail.ingredients?.length ? (
+                  <>
+                    <View style={styles.ingredientsHeader}>
+                      <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Ingredients</Text>
+                      <Pressable accessibilityLabel="Add ingredients to shopping list" onPress={() => { setSelectedIngredients(new Set(detail.ingredients?.map((_, i) => i) ?? [])); setShopVisible(true); }} style={styles.shopAction}>
+                        <Feather name="shopping-cart" size={13} color={colors.primary} />
+                        <Text style={[styles.shopActionText, { color: colors.primary }]}>Add to list</Text>
+                      </Pressable>
+                    </View>
+                    {detail.ingredients.map((ingredient, idx) => (
+                      <View key={idx} style={styles.ingredientRow}>
+                        <View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} />
+                        <Text style={[styles.ingredientText, { color: colors.foreground }]}>{servingCount !== 1 ? scaleIngredient(ingredient, servingCount) : ingredient}</Text>
+                      </View>
+                    ))}
+                  </>
+                ) : null}
+
+                {/* Feature 3: Numbered cooking steps */}
+                {detail.instructions ? (
+                  <>
+                    <Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Method</Text>
+                    {(() => {
+                      const steps = parseInstructionSteps(detail.instructions);
+                      if (steps.length === 1) {
+                        return <Text style={[styles.instructions, { color: colors.mutedForeground }]}>{steps[0]}</Text>;
+                      }
+                      return steps.map((step, si) => (
+                        <View key={si} style={styles.stepRow}>
+                          <Text style={[styles.stepNumber, { color: colors.primary }]}>{String(si + 1).padStart(2, '0')}</Text>
+                          <Text style={[styles.stepText, { color: colors.mutedForeground }]}>{step}</Text>
+                        </View>
+                      ));
+                    })()}
+                  </>
+                ) : null}
+
                 <Text style={[styles.attribution, { color: colors.mutedForeground }]}>Recipe source: {detail.source}. Calora does not claim third-party recipe content as its own.</Text>
                 <ScalePressable accessibilityLabel="Add recipe to plan" onPress={openPlanPicker} scale={0.98} haptic="none" style={[styles.secondaryAction, { borderColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primary} /><Text style={[styles.secondaryActionText, { color: colors.primary }]}>Add to weekly plan</Text></ScalePressable>
-                <ScalePressable accessibilityLabel={canLog ? 'Add recipe to diary' : 'Save recipe for nutrition review'} onPress={canLog ? openReview : () => { toggleSavedRecipe(detail.id); onClose(); }} scale={0.96} haptic="light" style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today\'s diary' : 'diary'}` : 'Save for later'}</Text></ScalePressable>
+
+                {/* Feature 6: diary — remote uses smart sheet; local uses full review */}
+                <ScalePressable
+                  accessibilityLabel={canLog ? 'Add recipe to diary' : 'Save recipe for nutrition review'}
+                  onPress={canLog ? (local ? openReview : () => setDiaryVisible(true)) : () => { toggleSavedRecipe(detail.id); onClose(); }}
+                  scale={0.96} haptic="light"
+                  style={[styles.primaryAction, { backgroundColor: colors.primary }]}
+                >
+                  <Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} />
+                  <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today\'s diary' : 'diary'}` : 'Save for later'}</Text>
+                </ScalePressable>
                 <Pressable accessibilityLabel="Open recipe source" onPress={() => Linking.openURL(detail.sourceUrl)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.primary }]}>View source attribution</Text><Feather name="external-link" size={13} color={colors.primary} /></Pressable>
               </View>
             </ScrollView>
           )}
         </View>
       </View>
+
+      {/* Plan picker sheet */}
       <Modal visible={planVisible} transparent animationType="slide" onRequestClose={() => setPlanVisible(false)}>
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
           <View style={[styles.planSheet, { backgroundColor: colors.background }]}>
@@ -304,6 +454,90 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
             <View style={styles.planMealRow}>{plannerMealTypes.map((type) => <Pressable key={type} accessibilityLabel={`Plan as ${type}`} onPress={() => setPlanMealType(type)} style={[styles.planMealChip, { backgroundColor: planMealType === type ? colors.accent : colors.card, borderColor: planMealType === type ? colors.accent : colors.border }]}><Text style={[styles.planMealText, { color: planMealType === type ? colors.accentForeground : colors.foreground }]}>{type}</Text></Pressable>)}</View>
             <ScalePressable accessibilityLabel="Confirm add recipe to plan" onPress={addToPlan} scale={0.96} haptic="light" style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Add to {planMealType.toLowerCase()} plan</Text></ScalePressable>
             <Pressable accessibilityLabel="Cancel add recipe to plan" onPress={() => setPlanVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Feature 6: Smart diary sheet — meal type + serving count + live macro preview */}
+      <Modal visible={diaryVisible} transparent animationType="slide" onRequestClose={() => { if (!diaryLogged) setDiaryVisible(false); }}>
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+          <View style={[styles.planSheet, { backgroundColor: colors.background }]}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.reviewHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.detailEyebrow, { color: colors.primary }]}>ADD TO DIARY</Text>
+                <Text style={[styles.detailTitle, { color: colors.foreground }]} numberOfLines={1}>{detail.name}</Text>
+              </View>
+              {!diaryLogged && <Pressable accessibilityLabel="Close diary sheet" onPress={() => setDiaryVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>}
+            </View>
+            <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>MEAL</Text>
+            <View style={styles.planMealRow}>
+              {(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as const).map((type) => (
+                <Pressable key={type} accessibilityLabel={`Log as ${type}`} onPress={() => setDiaryMealType(type)} style={[styles.planMealChip, { backgroundColor: diaryMealType === type ? colors.accent : colors.card, borderColor: diaryMealType === type ? colors.accent : colors.border }]}>
+                  <Text style={[styles.planMealText, { color: diaryMealType === type ? colors.accentForeground : colors.foreground }]}>{type}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>SERVINGS</Text>
+            <View style={styles.diaryServingRow}>
+              <Pressable accessibilityLabel="Fewer servings" onPress={() => setDiaryServings((s) => Math.max(0.5, Math.round((s - 0.5) * 10) / 10))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="minus" size={14} color={colors.foreground} /></Pressable>
+              <Text style={[styles.stepperValue, { color: colors.foreground, fontSize: 20, minWidth: 52 }]}>{diaryServings === 0.5 ? '½' : diaryServings === 1.5 ? '1½' : diaryServings === 2.5 ? '2½' : diaryServings === 3.5 ? '3½' : String(diaryServings)}</Text>
+              <Pressable accessibilityLabel="More servings" onPress={() => setDiaryServings((s) => Math.min(4, Math.round((s + 0.5) * 10) / 10))} style={[styles.stepperButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="plus" size={14} color={colors.foreground} /></Pressable>
+              <Text style={[styles.servingLabel, { color: colors.mutedForeground, marginLeft: 8 }]}>{diaryServings === 1 ? 'serving' : 'servings'}</Text>
+            </View>
+            <View style={[styles.reviewTotalCard, { backgroundColor: colors.hero, marginTop: 14 }]}>
+              <View>
+                <Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>YOU'RE LOGGING</Text>
+                <Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{Math.round((detail.calories ?? 0) * diaryServings)} kcal</Text>
+              </View>
+              <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {Math.round((detail.proteinG ?? 0) * diaryServings)}g{'\n'}C {Math.round((detail.carbsG ?? 0) * diaryServings)}g{'\n'}F {Math.round((detail.fatG ?? 0) * diaryServings)}g</Text>
+            </View>
+            <ScalePressable accessibilityLabel="Confirm diary entry" onPress={logToDiary} scale={0.96} haptic="light" style={[styles.primaryAction, { backgroundColor: diaryLogged ? colors.accent : colors.primary }]}>
+              <Feather name={diaryLogged ? 'check-circle' : 'plus-circle'} size={16} color={diaryLogged ? colors.accentForeground : colors.primaryForeground} />
+              <Text style={[styles.primaryActionText, { color: diaryLogged ? colors.accentForeground : colors.primaryForeground }]}>{diaryLogged ? 'Added to diary!' : `Add to ${diaryMealType.toLowerCase()}`}</Text>
+            </ScalePressable>
+            {!diaryLogged && <Pressable accessibilityLabel="Cancel diary entry" onPress={() => setDiaryVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Feature 4: Shopping list sheet — ingredient checkbox picker */}
+      <Modal visible={shopVisible} transparent animationType="slide" onRequestClose={() => setShopVisible(false)}>
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+          <View style={[styles.planSheet, { backgroundColor: colors.background }]}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.reviewHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.detailEyebrow, { color: colors.primary }]}>SHOPPING LIST</Text>
+                <Text style={[styles.detailTitle, { color: colors.foreground }]} numberOfLines={1}>{detail.name}</Text>
+              </View>
+              <Pressable accessibilityLabel="Close shopping list" onPress={() => setShopVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+            </View>
+            <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Select ingredients to add. Already-listed items won't be duplicated.</Text>
+            <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false}>
+              {detail.ingredients?.map((ingredient, idx) => (
+                <Pressable key={idx}
+                  accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredient}`}
+                  onPress={() => setSelectedIngredients((prev) => { const next = new Set(prev); if (next.has(idx)) next.delete(idx); else next.add(idx); return next; })}
+                  style={[styles.shopIngredientRow, { borderBottomColor: colors.border }]}
+                >
+                  <View style={[styles.shopCheckbox, { backgroundColor: selectedIngredients.has(idx) ? colors.primary : colors.card, borderColor: selectedIngredients.has(idx) ? colors.primary : colors.border }]}>
+                    {selectedIngredients.has(idx) && <Feather name="check" size={10} color={colors.primaryForeground} />}
+                  </View>
+                  <Text style={[styles.ingredientText, { color: colors.foreground, flex: 1 }]}>{ingredient}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <ScalePressable
+              accessibilityLabel={`Add ${selectedIngredients.size} ingredient${selectedIngredients.size !== 1 ? 's' : ''} to shopping list`}
+              onPress={selectedIngredients.size > 0 ? addToShoppingList : undefined}
+              scale={0.96} haptic="light"
+              style={[styles.primaryAction, { backgroundColor: selectedIngredients.size > 0 ? colors.primary : colors.muted }]}
+            >
+              <Feather name="shopping-cart" size={16} color={selectedIngredients.size > 0 ? colors.primaryForeground : colors.mutedForeground} />
+              <Text style={[styles.primaryActionText, { color: selectedIngredients.size > 0 ? colors.primaryForeground : colors.mutedForeground }]}>Add {selectedIngredients.size} ingredient{selectedIngredients.size !== 1 ? 's' : ''}</Text>
+            </ScalePressable>
+            <Pressable accessibilityLabel="Cancel shopping list" onPress={() => setShopVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
           </View>
         </View>
       </Modal>
@@ -663,6 +897,28 @@ function makeStyles(f: number) {
   offlineRetryText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 14 },
   offlineRetryButton: { borderRadius: 10, paddingHorizontal: 11, paddingVertical: 7 },
   offlineRetryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
+  // Feature 1: serving stepper
+  servingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 11, paddingVertical: 9, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth },
+  servingLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
+  servingStepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepperButton: { width: 32, height: 32, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  stepperValue: { fontFamily: 'Inter_700Bold', fontSize: 16 * f, textAlign: 'center', minWidth: 38 },
+  // Feature 2: recipe info chips
+  infoChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+  infoChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  infoChipText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
+  // Feature 3: numbered steps
+  stepRow: { flexDirection: 'row', gap: 12, marginBottom: 14, alignItems: 'flex-start' },
+  stepNumber: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, width: 24, paddingTop: 1 },
+  stepText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 19 },
+  // Feature 4: shopping list
+  ingredientsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 23, marginBottom: 9 },
+  shopAction: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  shopActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+  shopIngredientRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
+  shopCheckbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  // Feature 6: diary serving row
+  diaryServingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6, marginBottom: 2 },
   });
 }
 const styles = makeStyles(1.0);

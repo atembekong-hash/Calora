@@ -113,7 +113,7 @@ export type CaloraRecipe = {
   sourceUrl: string;
   isLocal?: boolean;
 };
-export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean; sourceMealIds?: string[]; days?: string[] };
+export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean; sourceMealIds?: string[]; days?: string[]; recipeSource?: boolean };
 
 export type Profile = {
   name: string;
@@ -294,6 +294,7 @@ type CaloraContextValue = {
   movePlannerMeal: (mealId: string, day: string, copy: boolean) => void;
   toggleShoppingItem: (itemId: string) => void;
   toggleShoppingItemByName: (name: string) => void;
+  addIngredientsToShopping: (ingredients: string[], sourceId: string) => void;
 };
 
 const STORAGE_KEY = '@calora/local-state-v2';
@@ -912,16 +913,22 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      isRetrying,
     setPlannerMeals: (weekStart, meals) => {
       const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
+      const recipeItems = shoppingItems.filter((item) => item.recipeSource);
+      const plannerBuilt = buildShoppingItems(meals, previousChecks);
+      const plannerNames = new Set(plannerBuilt.map((i) => i.name.toLocaleLowerCase()));
       setPlannerWeekStart(weekStart);
       setPlannerMealsState(meals);
-      setShoppingItems(buildShoppingItems(meals, previousChecks));
+      setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(r.name.toLocaleLowerCase())).map((r) => ({ ...r, checked: previousChecks.get(r.name.toLocaleLowerCase()) ?? r.checked }))]);
       setLivingMemory((current) => replacePlannerObservations(current, meals));
       queueMutation('settings', 'upsert');
     },
     updatePlannerMeals: (meals) => {
       const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
+      const recipeItems = shoppingItems.filter((item) => item.recipeSource);
+      const plannerBuilt = buildShoppingItems(meals, previousChecks);
+      const plannerNames = new Set(plannerBuilt.map((i) => i.name.toLocaleLowerCase()));
       setPlannerMealsState(meals);
-      setShoppingItems(buildShoppingItems(meals, previousChecks));
+      setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(r.name.toLocaleLowerCase())).map((r) => ({ ...r, checked: previousChecks.get(r.name.toLocaleLowerCase()) ?? r.checked }))]);
       setLivingMemory((current) => replacePlannerObservations(current, meals));
       queueMutation('settings', 'upsert');
     },
@@ -940,8 +947,12 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
             ...plannerMeals.filter((meal) => meal.id !== mealId && !(meal.day === day && meal.meal === existing.meal)),
             { ...existing, day },
           ];
+      const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
+      const recipeItems = shoppingItems.filter((item) => item.recipeSource);
+      const plannerBuilt = buildShoppingItems(next, previousChecks);
+      const plannerNames = new Set(plannerBuilt.map((i) => i.name.toLocaleLowerCase()));
       setPlannerMealsState(next);
-      setShoppingItems(buildShoppingItems(next, new Map(shoppingItems.map((item) => [item.name, item.checked]))));
+      setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(r.name.toLocaleLowerCase())).map((r) => ({ ...r, checked: previousChecks.get(r.name.toLocaleLowerCase()) ?? r.checked }))]);
       setLivingMemory((current) => replacePlannerObservations(current, next));
       queueMutation('settings', 'upsert');
     },
@@ -951,6 +962,20 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     toggleShoppingItemByName: (name) => {
       setShoppingItems((items) => items.map((item) => item.name === name ? { ...item, checked: !item.checked } : item));
+      queueMutation('settings', 'upsert');
+    },
+    addIngredientsToShopping: (ingredients, sourceId) => {
+      setShoppingItems((prev) => {
+        const next = [...prev];
+        ingredients.forEach((ingredient) => {
+          const name = ingredient.trim().replace(/\s+/g, ' ');
+          const key = name.toLocaleLowerCase();
+          if (!next.some((i) => i.name.toLocaleLowerCase() === key)) {
+            next.push({ id: `recipe-shop-${sourceId}-${key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30)}`, name, quantity: 1, checked: false, recipeSource: true, sourceMealIds: [sourceId] });
+          }
+        });
+        return next;
+      });
       queueMutation('settings', 'upsert');
     },
      setCoachConsentAccepted: (accepted) => setCoachConsentAccepted(accepted),
