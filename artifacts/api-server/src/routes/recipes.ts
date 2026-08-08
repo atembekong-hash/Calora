@@ -1,5 +1,8 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { db, recipeNutritionTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const API_ROOT = "https://www.themealdb.com/api/json/v1/1";
@@ -9,8 +12,39 @@ const SOURCE_URL = "https://www.themealdb.com/";
 // ─── Nutrition estimation ────────────────────────────────────────────────────
 
 type NutritionEstimate = { calories: number; proteinG: number; carbsG: number; fatG: number };
-// Keyed by TheMealDB meal ID; survives the process lifetime.
+
+// L1: in-memory cache (avoids a DB round-trip for hot meals within one process lifetime).
 const nutritionCache = new Map<string, NutritionEstimate>();
+
+/** Look up a persisted estimate from the database (L2 cache). */
+async function getNutritionFromDb(mealId: string): Promise<NutritionEstimate | null> {
+  try {
+    const rows = await db
+      .select()
+      .from(recipeNutritionTable)
+      .where(eq(recipeNutritionTable.mealId, mealId))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return { calories: row.calories, proteinG: row.proteinG, carbsG: row.carbsG, fatG: row.fatG };
+  } catch (err) {
+    logger.warn({ err, mealId }, "nutrition DB read failed — falling back to OpenAI");
+    return null;
+  }
+}
+
+/** Persist an estimate to the database so it survives server restarts. */
+async function saveNutritionToDb(mealId: string, nutrition: NutritionEstimate): Promise<void> {
+  try {
+    await db
+      .insert(recipeNutritionTable)
+      .values({ mealId, ...nutrition })
+      .onConflictDoNothing();
+  } catch (err) {
+    // Best-effort — a write failure should never break the response.
+    logger.warn({ err, mealId }, "nutrition DB write failed — estimate not persisted");
+  }
+}
 
 async function estimateNutrition(name: string, ingredients: string[]): Promise<NutritionEstimate | null> {
   try {
@@ -41,6 +75,37 @@ async function estimateNutrition(name: string, ingredients: string[]): Promise<N
   } catch {
     return null;
   }
+}
+
+/**
+ * Resolve nutrition for a meal, checking caches in order:
+ *   L1 (in-memory Map) → L2 (database) → OpenAI estimation
+ * Writes through to both caches on a fresh estimate.
+ */
+async function resolveNutrition(
+  mealId: string,
+  name: string,
+  ingredients: string[],
+): Promise<NutritionEstimate | null> {
+  // L1 hit
+  const memHit = nutritionCache.get(mealId);
+  if (memHit) return memHit;
+
+  // L2 hit
+  const dbHit = await getNutritionFromDb(mealId);
+  if (dbHit) {
+    nutritionCache.set(mealId, dbHit);
+    return dbHit;
+  }
+
+  // Cache miss — call OpenAI
+  if (ingredients.length === 0) return null;
+  const fresh = await estimateNutrition(name, ingredients);
+  if (fresh) {
+    nutritionCache.set(mealId, fresh);
+    void saveNutritionToDb(mealId, fresh);
+  }
+  return fresh;
 }
 
 // ─── "For you" pool ───────────────────────────────────────────────────────────
@@ -166,7 +231,7 @@ router.get("/v1/recipes", async (req, res) => {
 
     const recipes = meals.slice(offset, offset + limit).map((meal) => {
       const recipe = toRecipe(meal);
-      // Attach any already-cached estimate so the card can show ~kcal without
+      // Attach any L1-cached estimate so the card can show ~kcal without
       // the user needing to open the detail sheet first.
       const cached = nutritionCache.get(recipe.id);
       return cached ? { ...recipe, ...cached } : recipe;
@@ -187,12 +252,8 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
     }
     const base = toRecipe(meal);
 
-    // TheMealDB never includes nutrition — fill it in via AI, cached per meal ID.
-    let nutrition: NutritionEstimate | null = nutritionCache.get(base.id) ?? null;
-    if (!nutrition && base.ingredients.length > 0) {
-      nutrition = await estimateNutrition(base.name, base.ingredients);
-      if (nutrition) nutritionCache.set(base.id, nutrition);
-    }
+    // TheMealDB never includes nutrition — fill it in via AI, persisted per meal ID.
+    const nutrition = await resolveNutrition(base.id, base.name, base.ingredients);
 
     res.json({ ...base, ...nutrition });
     return;

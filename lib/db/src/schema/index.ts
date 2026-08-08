@@ -182,6 +182,18 @@ export const consentEventsTable = pgTable("calora_consent_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const recipeNutritionTable = pgTable("calora_recipe_nutrition", {
+  mealId: text("meal_id").primaryKey(),
+  calories: integer("calories").notNull(),
+  proteinG: integer("protein_g").notNull(),
+  carbsG: integer("carbs_g").notNull(),
+  fatG: integer("fat_g").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const insertRecipeNutritionSchema = createInsertSchema(recipeNutritionTable);
+export type RecipeNutrition = typeof recipeNutritionTable.$inferSelect;
+
 export const insertUserSchema = createInsertSchema(usersTable);
 export const insertProfileSchema = createInsertSchema(profilesTable);
 export const insertFoodItemSchema = createInsertSchema(foodItemsTable);
