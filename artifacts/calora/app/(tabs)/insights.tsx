@@ -487,6 +487,7 @@ export default function InsightsScreen() {
     if (goalReached && showGoalProgress && goalCelebrationSeenTargetKg !== targetWeight) {
       setShowGoalCelebration(true);
       markGoalCelebrationSeen(targetWeight);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   // Intentionally run only when goalReached/showGoalProgress/targetWeight change, not on markGoalCelebrationSeen identity change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
