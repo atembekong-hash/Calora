@@ -122,9 +122,9 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
         {eyebrow && <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{eyebrow}</Text>}
         <Text style={[styles.detailTitle, { color: colors.foreground }]}>{title}</Text>
       </View>
-      <Pressable accessibilityLabel={`Close ${title}`} onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+      <ScalePressable accessibilityLabel={`Close ${title}`} onPress={onClose} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
         <Feather name="x" size={18} color={colors.foreground} />
-      </Pressable>
+      </ScalePressable>
     </View>
   );
 }
@@ -680,7 +680,7 @@ export default function PlannerScreen() {
                     <Text style={[styles.detailEyebrow, { color: colors.primary }]}>PLANNER REVIEW · {dateFormatter.format(parseDate(detail.day))}</Text>
                     <Text style={[styles.detailTitle, { color: colors.foreground }]}>{plannerReviewDraft.title}</Text>
                   </View>
-                  <Pressable accessibilityLabel="Cancel planner review" onPress={dismissPlannerReview} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+                  <ScalePressable accessibilityLabel="Cancel planner review" onPress={dismissPlannerReview} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></ScalePressable>
                 </View>
                 <Text style={[styles.reviewSubtitle, { color: colors.mutedForeground }]}>Adjust your portion before it reaches your diary.</Text>
                 {plannerReviewDraft.assumptions.length > 0 && (
@@ -737,7 +737,7 @@ export default function PlannerScreen() {
                         <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{detail.meal.toUpperCase()} · {dateFormatter.format(parseDate(detail.day))}</Text>
                         <Text style={[styles.detailTitle, { color: colors.foreground }]}>{detail.name}</Text>
                       </View>
-                      <Pressable accessibilityLabel="Close meal detail" onPress={() => setDetail(null)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+                      <ScalePressable accessibilityLabel="Close meal detail" onPress={() => setDetail(null)} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></ScalePressable>
                     </View>
                     <Text style={[styles.detailDescription, { color: colors.mutedForeground }]}>{detail.description}</Text>
                     <View style={styles.detailStats}>
@@ -768,9 +768,9 @@ export default function PlannerScreen() {
                  <Text style={[styles.detailEyebrow, { color: colors.primary }]}>THIS WEEK</Text>
                  <Text style={[styles.detailTitle, { color: colors.foreground }]}>Shopping list</Text>
                </View>
-               <Pressable accessibilityLabel="Close shopping list" onPress={() => { setShoppingVisible(false); setShoppingDayFilter(null); }} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+               <ScalePressable accessibilityLabel="Close shopping list" onPress={() => { setShoppingVisible(false); setShoppingDayFilter(null); }} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
                  <Feather name="x" size={18} color={colors.foreground} />
-               </Pressable>
+               </ScalePressable>
              </View>
              <Text style={[styles.shoppingSubtitle, { color: colors.mutedForeground }]}>Ingredients from the week you are viewing.</Text>
              {shoppingDays.length > 1 && (
@@ -963,9 +963,9 @@ export default function PlannerScreen() {
                   <Text style={[styles.planTypeSheetEyebrow, { color: colors.primary }]}>YOUR PLAN STYLE</Text>
                   <Text style={[styles.planTypeSheetTitle, { color: colors.foreground }]}>Choose your week</Text>
                 </View>
-                <Pressable accessibilityLabel="Close plan type selector" onPress={() => setPlanTypeVisible(false)} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+                <ScalePressable accessibilityLabel="Close plan type selector" onPress={() => setPlanTypeVisible(false)} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
                   <Feather name="x" size={18} color={colors.foreground} />
-                </Pressable>
+                </ScalePressable>
               </View>
               <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>This shapes how the AI selects meals. You can change it any time.</Text>
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.planTypeList}>

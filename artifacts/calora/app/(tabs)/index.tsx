@@ -453,7 +453,7 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
           <View style={styles.modalHandle} />
           <View style={styles.modalHeading}>
             <View><Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit entry</Text><Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>Correct anything before it shapes your trend.</Text></View>
-            <Pressable accessibilityLabel="Close edit entry" onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
+            <ScalePressable accessibilityLabel="Close edit entry" onPress={onClose} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></ScalePressable>
           </View>
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Food name</Text>
           <TextInput value={name} onChangeText={setName} style={[styles.editInput, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground }]} />
@@ -540,9 +540,9 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>Add to {isToday(entryDate) ? 'today' : formatShortDate(entryDate)}</Text>
               <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>Fast now. Precise when it matters.</Text>
             </View>
-            <Pressable accessibilityLabel="Close add food" onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+            <ScalePressable accessibilityLabel="Close add food" onPress={onClose} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
               <Feather name="x" size={18} color={colors.foreground} />
-            </Pressable>
+            </ScalePressable>
           </View>
           <ScalePressable accessibilityLabel="Log from photo" testID="photo-log-button" onPress={photoLog} scale={0.96} haptic="light" style={[styles.photoButton, { backgroundColor: colors.hero }]}>
             <Feather name="camera" size={20} color={colors.heroMuted} />
