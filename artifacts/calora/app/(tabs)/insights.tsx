@@ -1077,8 +1077,28 @@ export default function InsightsScreen() {
   // can fire again once the new target is reached. Without this reset, `showGoalCelebration`
   // stays `true` from the previous goal and the ConfettiBurst `active` prop never
   // transitions false → true, so the animation never replays.
+  //
+  // Mid-session target change: also clear the persisted goalCelebrationSeenTargetKg (which
+  // still refers to the OLD target) and reset the hydration baseline snapshot. If neither is
+  // cleared and the user happens to already be at the new target, celebrationGate would either
+  // fire with a stale `goalReachedAtHydration: true` (returning 'markSeenSilently' instead of
+  // 'show') or with a stale seen-flag that obscures the genuine new-target crossing.
+  // Both resets are no-ops on the initial mount render (hydrated is false at that point).
   useEffect(() => {
     setShowGoalCelebration(false);
+    if (hydrated) {
+      resetGoalCelebrationSeen();
+      // The hydration baseline captured goalReached for the OLD target. Now that the target
+      // has changed, that snapshot is stale — clear it so the gate treats any current crossing
+      // of the NEW target as a genuine in-session event.
+      hydrationBaselineRef.current = {
+        established: true,
+        goalReachedAtHydration: false,
+      };
+    }
+  // hydrated flips once and then stays true; resetGoalCelebrationSeen is stable. Both are safe
+  // to omit from deps — we intentionally only re-run this effect when targetWeight changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetWeight]);
 
   // Capture whether the goal was already reached at the exact moment hydration completed.
