@@ -1053,9 +1053,14 @@ export default function InsightsScreen() {
   // Nudge: 90–99% progress, goal not yet reached
   const showGoalNudge = showGoalProgress && !goalReached && goalProgressPct >= 90;
   const goalRemainingKg = Math.max(0, goalTotalDistance - goalProgressKg);
+  const useImperial = profile?.units === 'imperial';
+  const goalRemainingDisplay = useImperial
+    ? (goalRemainingKg * 2.20462).toFixed(1)
+    : goalRemainingKg.toFixed(1);
+  const goalRemainingUnit = useImperial ? 'lbs' : 'kg';
   const nudgeMessage =
     goalProgressPct >= 95
-      ? `So close — just ${goalRemainingKg.toFixed(1)} kg to go!`
+      ? `So close — just ${goalRemainingDisplay} ${goalRemainingUnit} to go!`
       : `You're within reach — keep it up!`;
   // Keep the nudge mounted during its exit animation; only unmount after onExited fires.
   const [nudgeMounted, setNudgeMounted] = useState(showGoalNudge);
