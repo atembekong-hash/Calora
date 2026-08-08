@@ -13,6 +13,8 @@
  * independently of React lifecycle wiring.
  */
 
+import { BRAND } from '@/lib/brand';
+
 export type HydrationStatus = {
   hydrated: boolean;
   error: string | null;
@@ -65,7 +67,7 @@ export function parseStorageValue<T>(
     return {
       state: null,
       error:
-        'CaloraApp could not load your saved local data. Your data was not changed.',
+        `${BRAND.name} could not load your saved local data. Your data was not changed.`,
     };
   }
 }

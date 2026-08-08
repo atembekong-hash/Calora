@@ -22,6 +22,7 @@
 
 import { beforeEach, describe, expect, it, vi, type MockedFunction } from 'vitest';
 import { handleParseErrorExport, type ParseErrorExportDeps } from '../parseErrorExportHandler';
+import { BRAND } from '../brand';
 import { PersistenceManager, type StorageAdapter } from '../persistenceManager';
 
 // ---------------------------------------------------------------------------
@@ -145,7 +146,7 @@ describe('handleParseErrorExport: passes real bytes to Share.share, not null', (
     expect(shareMock).toHaveBeenCalledOnce();
     expect(shareMock).toHaveBeenCalledWith({
       message: corruptBytes,
-      title: 'CaloraApp raw storage data',
+      title: `${BRAND.name} raw storage data`,
     });
     // Alert must NOT fire — data is present and shareable.
     expect(alertMock).not.toHaveBeenCalled();
@@ -159,7 +160,7 @@ describe('handleParseErrorExport: passes real bytes to Share.share, not null', (
 
     expect(shareMock).toHaveBeenCalledWith({
       message: truncated,
-      title: 'CaloraApp raw storage data',
+      title: `${BRAND.name} raw storage data`,
     });
     expect(alertMock).not.toHaveBeenCalled();
   });
@@ -291,7 +292,7 @@ describe('handleParseErrorExport: Alert fallback fires when storage is genuinely
     // Bytes flow intact to the OS share sheet — not null, not transformed.
     expect(shareMock).toHaveBeenCalledWith({
       message: corruptBytes,
-      title: 'CaloraApp raw storage data',
+      title: `${BRAND.name} raw storage data`,
     });
     expect(alertMock).not.toHaveBeenCalled();
   });

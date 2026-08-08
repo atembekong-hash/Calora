@@ -22,6 +22,7 @@ import Svg, { Path } from 'react-native-svg';
 import Animated, { Easing, FadeInDown, useAnimatedProps, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
+import { BRAND } from '@/lib/brand';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
@@ -100,7 +101,7 @@ const routineStageCopy: Record<ReturnType<typeof useCalora>['livingState']['rout
   },
   emerging: {
     title: 'A rhythm is emerging',
-    body: 'Your recent entries are giving CaloraApp more context to work with.',
+    body: `Your recent entries are giving ${BRAND.name} more context to work with.`,
   },
   consistent: {
     title: 'A steady routine is taking shape',
@@ -560,7 +561,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
           </View>
           {captureMode !== 'search' && <View style={[styles.unavailableCard, { backgroundColor: colors.accent }]}>
             <Feather name={captureMode === 'voice' ? 'mic-off' : 'camera-off'} size={20} color={colors.accentForeground} />
-            <View style={{ flex: 1 }}><Text style={[styles.unavailableTitle, { color: colors.foreground }]}>{captureMode === 'voice' ? 'Voice capture needs permission' : 'Barcode scanning needs camera access'}</Text><Text style={[styles.unavailableBody, { color: colors.mutedForeground }]}>{captureMode === 'voice' ? 'In the native build, CaloraApp will request microphone access and turn your words into a reviewable draft.' : 'In the native build, CaloraApp will request camera access and look up a verified product by barcode.'}</Text></View>
+            <View style={{ flex: 1 }}><Text style={[styles.unavailableTitle, { color: colors.foreground }]}>{captureMode === 'voice' ? 'Voice capture needs permission' : 'Barcode scanning needs camera access'}</Text><Text style={[styles.unavailableBody, { color: colors.mutedForeground }]}>{captureMode === 'voice' ? `In the native build, ${BRAND.name} will request microphone access and turn your words into a reviewable draft.` : `In the native build, ${BRAND.name} will request camera access and look up a verified product by barcode.`}</Text></View>
             <Pressable accessibilityLabel="Use text logging instead" onPress={() => setCaptureMode('search')}><Text style={[styles.useText, { color: colors.primary }]}>Use text</Text></Pressable>
           </View>}
           {savedMeals.length > 0 && <View>
@@ -842,14 +843,14 @@ export default function HomeScreen() {
               <View style={styles.homeHeaderBadge}><Feather name="sunrise" size={12} color="#d4eadc" /><Text style={styles.homeHeaderBadgeText}>DAILY RHYTHM</Text></View>
               <View style={styles.homeHeaderActions}>
                 <ScalePressable
-                  accessibilityLabel="Open CaloraApp Coach"
+                  accessibilityLabel={`Open ${BRAND.name} Coach`}
                   onPress={() => router.push('/coach')}
                   scale={0.96}
                   haptic="light"
                   style={[styles.homeHeaderCoach, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f' }]}
                 >
                   <Feather name="zap" size={14} color={colors.primaryForeground} />
-                  <Text style={[styles.homeHeaderCoachText, { color: colors.primaryForeground }]}>Ask CaloraApp</Text>
+                  <Text style={[styles.homeHeaderCoachText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
                 </ScalePressable>
                 <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={[styles.homeHeaderAvatar, profilePhotoUri ? { padding: 0, overflow: 'hidden' } : {}]}>
                   {profilePhotoUri

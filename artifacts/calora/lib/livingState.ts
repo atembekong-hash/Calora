@@ -1,4 +1,5 @@
 import type { PlannerMeal } from '@workspace/api-client-react';
+import { BRAND } from '@/lib/brand';
 import type {
   ActivityLog,
   FoodLog,
@@ -182,7 +183,7 @@ export function deriveLivingState(input: LivingStateInput): LivingState {
   if (routineStage === 'first_day') {
     focus = 'breakfast';
     headline = 'Start with one meal.';
-    message = 'A small first entry gives CaloraApp something real to remember.';
+    message = `A small first entry gives ${BRAND.name} something real to remember.`;
     reason = 'Your first few entries help recommendations become more personal over time.';
     action = { kind: 'log_meal', label: period === 'morning' ? 'Log breakfast' : 'Add a meal' };
   } else if (routineStage === 'returning') {
@@ -240,7 +241,7 @@ export function deriveLivingState(input: LivingStateInput): LivingState {
   } else if (routineStage === 'consistent' || input.repeatPatterns.some((pattern) => pattern.useCount >= 4)) {
     focus = 'routine';
     headline = 'You are building a strong routine.';
-    message = 'CaloraApp is learning which small choices fit your life.';
+    message = `${BRAND.name} is learning which small choices fit your life.`;
     reason = `You have logged nutrition on ${loggedDaysLast7} of the last 7 days.`;
     action = { kind: 'view_progress', label: 'See your progress' };
   }

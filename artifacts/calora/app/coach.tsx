@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BRAND } from '@/lib/brand';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { buildCoachContext } from '@/lib/coachContext';
 import { filterForgottenSources } from '@/lib/livingMemory';
@@ -206,12 +207,12 @@ export default function CoachScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Pressable accessibilityLabel="Close CaloraApp Coach" onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Pressable accessibilityLabel={`Close ${BRAND.name} Coach`} onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="arrow-left" size={18} color={colors.foreground} />
           </Pressable>
           <View style={styles.headerCopy}>
-            <Text style={[styles.eyebrow, { color: colors.primary }]}>CALORAAPP INTELLIGENCE</Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>CaloraApp Coach</Text>
+            <Text style={[styles.eyebrow, { color: colors.primary }]}>{BRAND.name.toUpperCase()} INTELLIGENCE</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>{BRAND.name} Coach</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Your food, wellness, and planning context in one place.</Text>
           </View>
           <Pressable
@@ -231,7 +232,7 @@ export default function CoachScreen() {
             </View>
             <Text style={[styles.consentTitle, { color: colors.onHero }]}>A more personal read</Text>
             <Text style={[styles.consentBody, { color: colors.heroMuted }]}>
-              Coach can use the nutrition, hydration, mood, activity, weight, Food Memory, and planning information saved in CaloraApp to help you decide what to do next.
+              Coach can use the nutrition, hydration, mood, activity, weight, Food Memory, and planning information saved in {BRAND.name} to help you decide what to do next.
             </Text>
             <View style={styles.scopeRow}>
               {['Meals & macros', 'Wellness signals', 'Plans & memories'].map((item) => (
@@ -241,8 +242,8 @@ export default function CoachScreen() {
                 </View>
               ))}
             </View>
-            <Text style={[styles.consentNote, { color: colors.heroMuted }]}>Your request is sent to CaloraApp's AI service. Coach does not replace medical care and never changes your data without your confirmation.</Text>
-            <Pressable accessibilityLabel="Continue to CaloraApp Coach" testID="coach-consent-continue" onPress={startCoach} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.consentNote, { color: colors.heroMuted }]}>Your request is sent to {BRAND.name}'s AI service. Coach does not replace medical care and never changes your data without your confirmation.</Text>
+            <Pressable accessibilityLabel={`Continue to ${BRAND.name} Coach`} testID="coach-consent-continue" onPress={startCoach} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
               <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>See my weekly read</Text>
               <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
             </Pressable>
@@ -277,7 +278,7 @@ export default function CoachScreen() {
             {respondCoach.isPending && (
               <View style={[styles.loadingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Reading your CaloraApp context…</Text>
+                <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Reading your {BRAND.name} context…</Text>
               </View>
             )}
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>TRY ASKING</Text>
@@ -302,7 +303,7 @@ export default function CoachScreen() {
             editable={!respondCoach.isPending}
             placeholder="Ask about your nutrition…"
             placeholderTextColor={colors.mutedForeground}
-            accessibilityLabel="Ask CaloraApp Coach"
+            accessibilityLabel={`Ask ${BRAND.name} Coach`}
             style={[styles.composer, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
           />
           <Pressable accessibilityLabel="Send Coach message" testID="coach-send" onPress={() => void sendMessage()} disabled={!composer.trim() || respondCoach.isPending} style={[styles.sendButton, { backgroundColor: composer.trim() && !respondCoach.isPending ? colors.primary : colors.muted }]}>
@@ -331,7 +332,7 @@ export default function CoachScreen() {
                   <Feather name="message-square" size={16} color={colors.accentForeground} />
                 </View>
                 <View>
-                  <Text style={[styles.menuEyebrow, { color: colors.primary }]}>CALORAAPP COACH</Text>
+                  <Text style={[styles.menuEyebrow, { color: colors.primary }]}>{BRAND.name.toUpperCase()} COACH</Text>
                   <Text style={[styles.menuTitle, { color: colors.foreground }]}>Chat history</Text>
                 </View>
               </View>
@@ -366,7 +367,7 @@ export default function CoachScreen() {
                           <Feather name={message.role === 'user' ? 'user' : 'zap'} size={11} color={message.role === 'user' ? colors.primaryForeground : colors.accentForeground} />
                         </View>
                         <View style={styles.historyCopy}>
-                          <Text style={[styles.historyRoleText, { color: colors.mutedForeground }]}>{message.role === 'user' ? 'You' : 'CaloraApp Coach'}</Text>
+                          <Text style={[styles.historyRoleText, { color: colors.mutedForeground }]}>{message.role === 'user' ? 'You' : BRAND.name + ' Coach'}</Text>
                           <Text numberOfLines={2} style={[styles.historyMessage, { color: colors.foreground }]}>{message.content}</Text>
                         </View>
                       </View>
