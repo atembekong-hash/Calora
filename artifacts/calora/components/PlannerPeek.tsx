@@ -4,34 +4,51 @@
  * Shows this week's planned meals for the selected date as a horizontal
  * scrollable strip of chips. Renders nothing when no meals are planned for
  * that day so it never creates visual noise on empty plans.
- *
- * Tapping a chip navigates to the Plan tab.
- * Tapping "See plan" also navigates to the Plan tab.
- *
- * This component is purely additive — it reads context state and renders;
- * it does not mutate any data.
  */
 
 import { Feather } from '@expo/vector-icons';
-import type { PlannerMeal } from '@workspace/api-client-react';
 import { router } from 'expo-router';
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import { useCalora } from '@/context/CaloraContext';
+import type { MealType } from '@/context/CaloraContext';
 
 // ─── Meal-type metadata ────────────────────────────────────────────────────
 
-const MEAL_META: Record<
-  PlannerMeal['meal'],
-  { icon: React.ComponentProps<typeof Feather>['name']; color: string; bg: string }
-> = {
+type MealMeta = {
+  icon: keyof typeof Feather.glyphMap;
+  color: string;
+  bg: string;
+};
+
+const MEAL_META: Record<string, MealMeta> = {
   Breakfast: { icon: 'sunrise', color: '#c4762a', bg: '#fff4e0' },
   Lunch:     { icon: 'sun',     color: '#2a7c5c', bg: '#dff2e7' },
   Dinner:    { icon: 'moon',    color: '#4a5faf', bg: '#eaecf9' },
   Snack:     { icon: 'coffee',  color: '#8a4db5', bg: '#f2eafd' },
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+function todayKey(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatWeekStart(weekStart: string): string {
+  try {
+    const [year, month, day] = weekStart.split('-').map(Number);
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(
+      new Date(year, month - 1, day),
+    );
+  } catch {
+    return weekStart;
+  }
+}
 
 // ─── Component ────────────────────────────────────────────────────────────
 
@@ -43,26 +60,20 @@ interface PlannerPeekProps {
 export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
   const { plannerMeals, plannerWeekStart, colors, fontScale: f } = useCalora();
 
-  // Filter to meals planned for exactly this date.
   const todayMeals = useMemo(
-    () => plannerMeals.filter((m) => m.day === selectedDate),
+    () => (plannerMeals ?? []).filter((m) => m.day === selectedDate),
     [plannerMeals, selectedDate],
   );
 
-  // Only show when at least one meal is planned for the selected day.
-  if (todayMeals.length === 0) return null;
+  // Only render when at least one meal is planned for the selected day.
+  if (!todayMeals.length) return null;
 
   const styles = makeStyles(f);
 
-  const goToPlanner = () => {
-    router.navigate('/(tabs)/planner');
-  };
+  const goToPlanner = () => router.navigate('/(tabs)/planner');
 
   return (
-    <Animated.View
-      entering={FadeInDown.springify().damping(22).delay(60)}
-      style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-    >
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -71,12 +82,10 @@ export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
           </View>
           <View>
             <Text style={[styles.eyebrow, { color: colors.mutedForeground }]}>
-              PLANNED FOR {selectedDate === todayKey() ? 'TODAY' : 'THIS DAY'}
+              {selectedDate === todayKey() ? "PLANNED FOR TODAY" : "PLANNED FOR THIS DAY"}
             </Text>
             <Text style={[styles.title, { color: colors.foreground }]}>
-              {todayMeals.length === 1
-                ? '1 meal in your plan'
-                : `${todayMeals.length} meals in your plan`}
+              {todayMeals.length === 1 ? '1 meal in your plan' : `${todayMeals.length} meals in your plan`}
             </Text>
           </View>
         </View>
@@ -100,7 +109,7 @@ export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
         bounces={false}
       >
         {todayMeals.map((meal) => {
-          const meta = MEAL_META[meal.meal] ?? MEAL_META.Snack;
+          const meta: MealMeta = MEAL_META[meal.meal] ?? MEAL_META['Snack'];
           return (
             <ScalePressable
               key={meal.id}
@@ -110,21 +119,13 @@ export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
               haptic="none"
               style={[styles.chip, { backgroundColor: colors.background, borderColor: colors.border }]}
             >
-              {/* Meal-type badge */}
               <View style={[styles.chipBadge, { backgroundColor: meta.bg }]}>
                 <Feather name={meta.icon} size={12} color={meta.color} />
                 <Text style={[styles.chipMealType, { color: meta.color }]}>{meal.meal}</Text>
               </View>
-
-              {/* Name */}
-              <Text
-                numberOfLines={1}
-                style={[styles.chipName, { color: colors.foreground }]}
-              >
+              <Text numberOfLines={1} style={[styles.chipName, { color: colors.foreground }]}>
                 {meal.name}
               </Text>
-
-              {/* Calories (if available) */}
               {meal.calories && meal.calories > 0 ? (
                 <Text style={[styles.chipKcal, { color: colors.mutedForeground }]}>
                   {Math.round(meal.calories)} kcal
@@ -134,42 +135,27 @@ export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
           );
         })}
 
-        {/* Trailing "Go to plan" nudge chip */}
-        <Pressable
+        {/* Trailing CTA chip */}
+        <ScalePressable
           accessibilityLabel="Open planner"
           onPress={goToPlanner}
+          scale={0.97}
+          haptic="none"
           style={[styles.chip, styles.planChip, { backgroundColor: colors.muted, borderColor: colors.border }]}
         >
           <Feather name="calendar" size={14} color={colors.primary} />
           <Text style={[styles.planChipText, { color: colors.primary }]}>Open plan</Text>
-        </Pressable>
+        </ScalePressable>
       </ScrollView>
 
-      {/* Week context footer */}
+      {/* Footer */}
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
         <Feather name="check-circle" size={12} color={colors.success} />
         <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
           Week of {formatWeekStart(plannerWeekStart)} · tap any meal to view the full plan
         </Text>
       </View>
-    </Animated.View>
-  );
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────
-
-function todayKey(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-function formatWeekStart(weekStart: string): string {
-  const [year, month, day] = weekStart.split('-').map(Number);
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(
-    new Date(year, month - 1, day),
+    </View>
   );
 }
 
@@ -181,7 +167,6 @@ function makeStyles(f: number) {
       borderWidth: 1,
       borderRadius: 22,
       paddingTop: 15,
-      paddingBottom: 0,
       marginBottom: 16,
       overflow: 'hidden',
     },
@@ -271,7 +256,6 @@ function makeStyles(f: number) {
       justifyContent: 'center',
       gap: 6,
       minWidth: 100,
-      borderStyle: 'dashed',
     },
     planChipText: {
       fontFamily: 'Inter_600SemiBold',
