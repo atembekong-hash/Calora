@@ -77,7 +77,7 @@ async function saveNutritionToDb(mealId: string, nutrition: NutritionEstimate): 
 async function estimateNutrition(name: string, ingredients: string[]): Promise<NutritionEstimate | null> {
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.4-mini",
       messages: [
         {
           role: "system",

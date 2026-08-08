@@ -8,7 +8,7 @@ const OPEN_FOOD_FACTS_ROOT = "https://world.openfoodfacts.org/api/v2";
 const USDA_ROOT = "https://api.nal.usda.gov/fdc/v1";
 const USDA_KEY = process.env.USDA_FOODDATA_API_KEY ?? "DEMO_KEY";
 const VISION_MODEL = "gpt-5.6-terra";
-const TEXT_MODEL = "gpt-4o-mini";
+const TEXT_MODEL = "gpt-5.4-mini";
 
 type Nutrition = {
   calories: number;
