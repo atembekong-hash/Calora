@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ActivityIndicator, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
@@ -59,7 +59,7 @@ function RecipeMeta({ recipe, colors }: { recipe: Recipe | CaloraRecipe; colors:
   );
 }
 
-function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160, remainingCalories }: { recipe: Recipe | CaloraRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void; imageHeight?: number; remainingCalories?: number }) {
+const RecipeCard = React.memo(function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160, remainingCalories }: { recipe: Recipe | CaloraRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void; imageHeight?: number; remainingCalories?: number }) {
   const local = isLocalRecipe(recipe);
   const fitsGoal = remainingCalories !== undefined && remainingCalories > 0 && recipe.calories != null && recipe.calories > 0 && recipe.calories <= remainingCalories;
   return (
@@ -82,7 +82,16 @@ function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160,
       </View>
     </ScalePressable>
   );
-}
+// Only re-render when the recipe's own data, saved state, or calories budget changes.
+// Callback references (onPress/onSave) are intentionally excluded — they always change
+// because they're defined inline, but they do the same thing and don't affect the visual.
+}, (prev, next) =>
+  prev.recipe.id === next.recipe.id &&
+  prev.saved === next.saved &&
+  prev.remainingCalories === next.remainingCalories &&
+  prev.imageHeight === next.imageHeight &&
+  prev.colors === next.colors,
+);
 
 function ReviewComponent({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (c: FoodMemoryComponent) => void }) {
   return (
@@ -429,20 +438,26 @@ export default function RecipesScreen() {
     setSelected(matchingRecipe);
     router.setParams({ recipeId: undefined });
   }, [localRecipes, recipeId, remoteRecipes]);
-  const visibleRemote = category === 'My recipes' ? [] : category === 'Quick' ? remoteRecipes.filter((r) => r.prepMinutes != null && r.prepMinutes <= 30) : remoteRecipes;
-  const savedRecipes = [...localRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
-  const loadMoreRecipes = () => {
+  const visibleRemote = useMemo(
+    () => category === 'My recipes' ? [] : category === 'Quick' ? remoteRecipes.filter((r) => r.prepMinutes != null && r.prepMinutes <= 30) : remoteRecipes,
+    [category, remoteRecipes],
+  );
+  const savedRecipes = useMemo(
+    () => [...localRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index),
+    [localRecipes, remoteRecipes, savedRecipeIds],
+  );
+  const loadMoreRecipes = useCallback(() => {
     if (category === 'My recipes' || !hasMoreRemote || recipesQuery.isFetching || loadingMoreRef.current) return;
     loadingMoreRef.current = true;
     setRemoteOffset((current) => current + RECIPE_PAGE_SIZE);
-  };
-  const handleRecipeScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  }, [category, hasMoreRemote, recipesQuery.isFetching]);
+  const handleRecipeScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 200) loadMoreRecipes();
-  };
+  }, [loadMoreRecipes]);
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false} onScroll={handleRecipeScroll} onMomentumScrollEnd={handleRecipeScroll} scrollEventThrottle={16} decelerationRate="normal">
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false} onScroll={handleRecipeScroll} onMomentumScrollEnd={handleRecipeScroll} scrollEventThrottle={200} decelerationRate="normal">
         <View style={styles.recipeHeader}>
           <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
           <LinearGradient
