@@ -507,6 +507,25 @@ function SpringChip({ selected, children, onPress, style, accessibilityLabel, ac
   );
 }
 
+function GoalNudge({ colors }: { colors: ReturnType<typeof useCalora>['colors'] }) {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(6);
+  useEffect(() => {
+    opacity.value = withDelay(180, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
+    translateY.value = withDelay(180, withTiming(0, { duration: 480, easing: Easing.out(Easing.cubic) }));
+  }, [opacity, translateY]);
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+  return (
+    <Animated.View style={[styles.goalNudge, animStyle]}>
+      <Feather name="zap" size={12} color={colors.primary} />
+      <Text style={[styles.goalNudgeText, { color: colors.primary }]}>You're within reach — keep it up!</Text>
+    </Animated.View>
+  );
+}
+
 function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: ReturnType<typeof useCalora>['colors']; days: WeeklySignalDay[]; averageActivityMinutes: number }) {
   const loggedDays = days.filter((day) => day.hasData).length;
   const waterDays = days.filter((day) => day.water > 0).length;
@@ -607,6 +626,8 @@ export default function InsightsScreen() {
   const goalReached = goalProgressRaw >= 100;
   const goalProgressPct = Math.max(0, Math.min(100, goalProgressRaw));
   const showGoalProgress = weights.length >= 3 && hasGoal;
+  // Nudge: 90–99% progress, goal not yet reached
+  const showGoalNudge = showGoalProgress && !goalReached && goalProgressPct >= 90;
   // Show celebration banner once per goal target — mark seen immediately so it won't show on reload.
   // Gate on showGoalProgress (weights.length >= 3 && hasGoal) to ensure the flag is only consumed
   // when the banner can actually be rendered; without this gate, reaching the goal with < 3 entries
@@ -1032,6 +1053,9 @@ export default function InsightsScreen() {
                 <Text style={[styles.goalProgressPct, { color: goalReached ? colors.success : colors.primary }]}>{goalReached ? '✓' : `${Math.round(goalProgressPct)}%`}</Text>
               </View>
               <AnimatedTrackFill percentage={goalProgressPct} color={goalReached ? colors.success : colors.primary} trackColor={colors.muted} />
+              {showGoalNudge && (
+                <GoalNudge colors={colors} />
+              )}
             </View>
           ) : null}
           <View style={[styles.healthSyncNote, { backgroundColor: colors.muted, marginTop: 12 }]}>
@@ -1260,6 +1284,8 @@ function makeStyles(f: number) {
   goalProgressText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, flex: 1 },
   goalProgressPct: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, marginLeft: 8 },
   goalEditBtn: { padding: 4, marginLeft: 6 },
+  goalNudge: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  goalNudgeText: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, letterSpacing: 0.1 },
   celebrationWrapper: { position: 'relative', marginTop: 14 },
   confettiBurstContainer: { position: 'absolute', top: 0, left: 0, right: 0, height: 0, zIndex: 10 },
   celebrationBanner: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 },
