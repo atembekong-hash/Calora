@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
@@ -265,6 +265,8 @@ const SPARK_H = 72;
 const SPARK_PAD_X = 6;
 const SPARK_PAD_Y = 8;
 const SPARK_DASH = 700;
+// Minimum pixels allocated per data point when the expanded chart scrolls horizontally.
+const MIN_ENTRY_SPACING = 30;
 
 const TOOLTIP_W = 122;
 const TOOLTIP_H = 44;
@@ -302,8 +304,17 @@ function WeightLineChart({
   // Scale vertical padding proportionally so bezier fills the taller canvas well.
   const padY = Math.round(SPARK_PAD_Y * (chartHeight / SPARK_H));
 
+  // In expanded mode, give each data point a minimum horizontal spacing so the chart
+  // scrolls rather than compressing too many dots together. SPARK_W is the floor so
+  // the compact sparkline is never affected.
+  const svgViewW = expanded
+    ? Math.max(SPARK_W, entries.length * MIN_ENTRY_SPACING)
+    : SPARK_W;
+  // The chart becomes horizontally scrollable when the content is wider than SPARK_W.
+  const isScrollable = expanded && svgViewW > SPARK_W;
+
   const pts = vals.map((v, i) => ({
-    x: SPARK_PAD_X + (i / (vals.length - 1)) * (SPARK_W - SPARK_PAD_X * 2),
+    x: SPARK_PAD_X + (i / (vals.length - 1)) * (svgViewW - SPARK_PAD_X * 2),
     y: padY + (1 - (v - min) / range) * (chartHeight - padY * 2),
   }));
 
@@ -320,12 +331,12 @@ function WeightLineChart({
   const bottomY = (chartHeight - padY).toFixed(2);
   const dFill = `${d} L ${pts[pts.length - 1].x.toFixed(2)} ${bottomY} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
 
-  // Scale dash length to match the taller SVG canvas path length.
-  const dashLen = Math.ceil(SPARK_DASH * Math.max(1, chartHeight / SPARK_H));
+  // Scale dash length to match both the taller and potentially wider SVG canvas.
+  const dashLen = Math.ceil(SPARK_DASH * Math.max(1, chartHeight / SPARK_H) * (svgViewW / SPARK_W));
 
   const dashOffset = useSharedValue(dashLen);
   const fillOpacity = useSharedValue(0);
-  const dataKey = `${vals.join(',')}_${chartHeight}`;
+  const dataKey = `${vals.join(',')}_${chartHeight}_${svgViewW}`;
   useEffect(() => {
     dashOffset.value = dashLen;
     fillOpacity.value = 0;
@@ -353,7 +364,10 @@ function WeightLineChart({
     transform: [{ scale: tooltipScale.value }],
   }));
 
-  const xScale = chartWidth / SPARK_W;
+  // When the chart scrolls (expanded with many points), SVG width === viewBox width so
+  // there is no scaling — pixel coordinates match the SVG coordinate space directly.
+  // In the compact / non-scrolling path, scale hit targets and tooltip to the real width.
+  const xScale = isScrollable ? 1 : chartWidth / SPARK_W;
   const lastIdx = pts.length - 1;
   const strokeW = expanded ? 2.8 : 2.2;
   const dotR = expanded ? { normal: 3.5, active: 5.5 } : { normal: 2.8, active: 4.5 };
@@ -392,120 +406,165 @@ function WeightLineChart({
   const colorToken = colors.success.replace(/[^a-zA-Z0-9]/g, '');
   const gradientId = `weightFill${expanded ? 'Expanded' : ''}_${colorToken}`;
 
+  // The inner chart content (SVG + hit targets + tooltip + date labels).
+  // When isScrollable this block is rendered inside a horizontal ScrollView.
+  const chartContent = (
+    <View style={{ position: 'relative', width: isScrollable ? svgViewW : undefined }}>
+      <Svg
+        width={isScrollable ? svgViewW : '100%'}
+        height={chartHeight}
+        viewBox={`0 0 ${svgViewW} ${chartHeight}`}
+        preserveAspectRatio="none"
+      >
+        <Defs>
+          <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor={colors.success} stopOpacity={expanded ? 0.26 : 0.18} />
+            <Stop offset="100%" stopColor={colors.success} stopOpacity={0} />
+          </SvgLinearGradient>
+        </Defs>
+        {/* animated area fill */}
+        <AnimatedPath
+          d={dFill}
+          fill={`url(#${gradientId})`}
+          stroke="none"
+          animatedProps={animFillProps}
+        />
+        {/* track line */}
+        <Path d={d} stroke="rgba(120,120,120,0.13)" strokeWidth={strokeW} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        {/* animated line */}
+        <AnimatedPath
+          d={d}
+          stroke={colors.success}
+          strokeWidth={strokeW}
+          fill="none"
+          strokeDasharray={dashLen}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          animatedProps={animPathProps}
+        />
+        {/* data point dots */}
+        {pts.map((pt, i) => {
+          const isPending = pendingDeleteId != null && entries[i]?.id === pendingDeleteId;
+          const isActive = i === lastIdx || i === selectedIdx;
+          return (
+            <Circle
+              key={i}
+              cx={pt.x}
+              cy={pt.y}
+              r={isActive ? dotR.active : dotR.normal}
+              fill={i === lastIdx ? colors.primary : colors.success}
+              opacity={isPending ? 0.28 : isActive ? 1 : 0.65}
+            />
+          );
+        })}
+      </Svg>
+
+      {/* Transparent Pressable hit targets over each dot */}
+      {pts.map((pt, i) => (
+        <Pressable
+          key={i}
+          onPress={() => handleDotPress(i)}
+          style={{
+            position: 'absolute',
+            left: pt.x * xScale - DOT_HIT / 2,
+            top: pt.y - DOT_HIT / 2,
+            width: DOT_HIT,
+            height: DOT_HIT,
+          }}
+          accessibilityLabel={`Weigh-in ${entries[i]?.date ? formatDate(entries[i].date) : ''}: ${entries[i]?.kg.toFixed(1)} kg`}
+          accessibilityRole="button"
+        />
+      ))}
+
+      {/* Tooltip callout */}
+      {selectedIdx !== null && (
+        <Animated.View
+          pointerEvents="box-none"
+          style={[
+            styles.weightTooltip,
+            {
+              backgroundColor: colors.foreground,
+              left: Math.min(
+                Math.max(pts[selectedIdx].x * xScale - TOOLTIP_W / 2, 0),
+                // Clamp within the scrollable content width, or the container width in non-scroll mode.
+                (isScrollable ? svgViewW : chartWidth) - TOOLTIP_W,
+              ),
+              top: Math.max(pts[selectedIdx].y - TOOLTIP_H - 8, 2),
+            },
+            tooltipAnimStyle,
+          ]}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.weightTooltipDate, { color: colors.background, opacity: 0.72 }]}>
+              {formatDate(entries[selectedIdx].date)}
+            </Text>
+            <Text style={[styles.weightTooltipKg, { color: colors.background }]}>
+              {entries[selectedIdx].kg.toFixed(1)} kg
+            </Text>
+          </View>
+          {onRequestDelete && entries[selectedIdx]?.id && (
+            <Pressable
+              onPress={() => {
+                const entry = entries[selectedIdx];
+                if (!entry?.id) return;
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                // Dismiss tooltip
+                if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
+                tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
+                  if (finished) runOnJS(clearSelection)();
+                });
+                tooltipScale.value = withTiming(0.82, { duration: 150 });
+                onRequestDelete({ id: entry.id, kg: entry.kg, date: entry.date });
+              }}
+              hitSlop={10}
+              accessibilityLabel={`Delete weigh-in ${formatDate(entries[selectedIdx].date)}`}
+              accessibilityRole="button"
+              style={styles.weightTooltipTrash}
+            >
+              <Feather name="trash-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
+            </Pressable>
+          )}
+        </Animated.View>
+      )}
+
+      {/* date labels under each dot — expanded mode only */}
+      {expanded && (
+        <View style={[styles.weightExpandedDateRow, isScrollable && { width: svgViewW }]}>
+          {pts.map((pt, i) => (
+            <Text
+              key={entries[i]?.date ?? i}
+              numberOfLines={1}
+              style={[
+                styles.weightExpandedDateLabel,
+                {
+                  color: i === lastIdx ? colors.primary : colors.mutedForeground,
+                  left: pt.x * xScale,
+                },
+              ]}
+            >
+              {entries[i]?.date ? formatDate(entries[i].date) : ''}
+            </Text>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <View style={styles.weightSparkline} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
-      <View style={{ position: 'relative' }}>
-        <Svg width="100%" height={chartHeight} viewBox={`0 0 ${SPARK_W} ${chartHeight}`} preserveAspectRatio="none">
-          <Defs>
-            <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor={colors.success} stopOpacity={expanded ? 0.26 : 0.18} />
-              <Stop offset="100%" stopColor={colors.success} stopOpacity={0} />
-            </SvgLinearGradient>
-          </Defs>
-          {/* animated area fill */}
-          <AnimatedPath
-            d={dFill}
-            fill={`url(#${gradientId})`}
-            stroke="none"
-            animatedProps={animFillProps}
-          />
-          {/* track line */}
-          <Path d={d} stroke="rgba(120,120,120,0.13)" strokeWidth={strokeW} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          {/* animated line */}
-          <AnimatedPath
-            d={d}
-            stroke={colors.success}
-            strokeWidth={strokeW}
-            fill="none"
-            strokeDasharray={dashLen}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            animatedProps={animPathProps}
-          />
-          {/* data point dots */}
-          {pts.map((pt, i) => {
-            const isPending = pendingDeleteId != null && entries[i]?.id === pendingDeleteId;
-            const isActive = i === lastIdx || i === selectedIdx;
-            return (
-              <Circle
-                key={i}
-                cx={pt.x}
-                cy={pt.y}
-                r={isActive ? dotR.active : dotR.normal}
-                fill={i === lastIdx ? colors.primary : colors.success}
-                opacity={isPending ? 0.28 : isActive ? 1 : 0.65}
-              />
-            );
-          })}
-        </Svg>
-
-        {/* Transparent Pressable hit targets over each dot */}
-        {pts.map((pt, i) => (
-          <Pressable
-            key={i}
-            onPress={() => handleDotPress(i)}
-            style={{
-              position: 'absolute',
-              left: pt.x * xScale - DOT_HIT / 2,
-              top: pt.y - DOT_HIT / 2,
-              width: DOT_HIT,
-              height: DOT_HIT,
-            }}
-            accessibilityLabel={`Weigh-in ${entries[i]?.date ? formatDate(entries[i].date) : ''}: ${entries[i]?.kg.toFixed(1)} kg`}
-            accessibilityRole="button"
-          />
-        ))}
-
-        {/* Tooltip callout */}
-        {selectedIdx !== null && (
-          <Animated.View
-            pointerEvents="box-none"
-            style={[
-              styles.weightTooltip,
-              {
-                backgroundColor: colors.foreground,
-                left: Math.min(
-                  Math.max(pts[selectedIdx].x * xScale - TOOLTIP_W / 2, 0),
-                  chartWidth - TOOLTIP_W,
-                ),
-                top: Math.max(pts[selectedIdx].y - TOOLTIP_H - 8, 2),
-              },
-              tooltipAnimStyle,
-            ]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.weightTooltipDate, { color: colors.background, opacity: 0.72 }]}>
-                {formatDate(entries[selectedIdx].date)}
-              </Text>
-              <Text style={[styles.weightTooltipKg, { color: colors.background }]}>
-                {entries[selectedIdx].kg.toFixed(1)} kg
-              </Text>
-            </View>
-            {onRequestDelete && entries[selectedIdx]?.id && (
-              <Pressable
-                onPress={() => {
-                  const entry = entries[selectedIdx];
-                  if (!entry?.id) return;
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  // Dismiss tooltip
-                  if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
-                  tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
-                    if (finished) runOnJS(clearSelection)();
-                  });
-                  tooltipScale.value = withTiming(0.82, { duration: 150 });
-                  onRequestDelete({ id: entry.id, kg: entry.kg, date: entry.date });
-                }}
-                hitSlop={10}
-                accessibilityLabel={`Delete weigh-in ${formatDate(entries[selectedIdx].date)}`}
-                accessibilityRole="button"
-                style={styles.weightTooltipTrash}
-              >
-                <Feather name="trash-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
-              </Pressable>
-            )}
-          </Animated.View>
-        )}
-      </View>
+      {isScrollable ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingRight: 12 }}
+          // Scroll to the end (most recent entry) on mount/data change
+          ref={(ref) => { if (ref) ref.scrollToEnd({ animated: false }); }}
+        >
+          {chartContent}
+        </ScrollView>
+      ) : (
+        chartContent
+      )}
 
       {/* weight value labels — compact mode only */}
       {!expanded && (
@@ -520,27 +579,6 @@ function WeightLineChart({
               numberOfLines={1}
             >
               {entry.kg.toFixed(1)}
-            </Text>
-          ))}
-        </View>
-      )}
-
-      {/* date labels under each dot — expanded mode only */}
-      {expanded && (
-        <View style={styles.weightExpandedDateRow}>
-          {pts.map((pt, i) => (
-            <Text
-              key={entries[i]?.date ?? i}
-              numberOfLines={1}
-              style={[
-                styles.weightExpandedDateLabel,
-                {
-                  color: i === lastIdx ? colors.primary : colors.mutedForeground,
-                  left: pt.x * xScale,
-                },
-              ]}
-            >
-              {entries[i]?.date ? formatDate(entries[i].date) : ''}
             </Text>
           ))}
         </View>
@@ -1498,7 +1536,7 @@ export default function InsightsScreen() {
       {/* Modal is always mounted so its close animation can play when weights drop below 3.
            visible becomes false immediately when the count falls, triggering the slide-out. */}
       <WeightChartModal
-        entries={weights.length >= 1 ? weights.slice(-7) : []}
+        entries={weights.length >= 1 ? weights : []}
         colors={colors}
         visible={showExpandedChart && weights.length >= 3}
         onClose={() => setShowExpandedChart(false)}
