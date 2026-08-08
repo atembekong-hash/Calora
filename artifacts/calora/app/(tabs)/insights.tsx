@@ -498,62 +498,82 @@ function WeightLineChart({
             tooltipAnimStyle,
           ]}
         >
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.weightTooltipDate, { color: colors.background, opacity: 0.72 }]}>
-              {formatDate(entries[selectedIdx].date)}
-            </Text>
-            <Text style={[styles.weightTooltipKg, { color: colors.background }]}>
-              {entries[selectedIdx].kg.toFixed(1)} kg
-            </Text>
-          </View>
-          {(onRequestEdit || onRequestDelete) && entries[selectedIdx]?.id && (
-            <View style={styles.weightTooltipActions}>
-              {onRequestEdit && (
-                <Pressable
-                  onPress={() => {
-                    const entry = entries[selectedIdx];
-                    if (!entry?.id) return;
-                    Haptics.selectionAsync();
-                    // Dismiss tooltip
-                    if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
-                    tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
-                      if (finished) runOnJS(clearSelection)();
-                    });
-                    tooltipScale.value = withTiming(0.82, { duration: 150 });
-                    onRequestEdit({ id: entry.id, kg: entry.kg, date: entry.date });
-                  }}
-                  hitSlop={10}
-                  accessibilityLabel={`Edit weigh-in ${formatDate(entries[selectedIdx].date)}`}
-                  accessibilityRole="button"
-                  style={styles.weightTooltipActionBtn}
-                >
-                  <Feather name="edit-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
-                </Pressable>
-              )}
-              {onRequestDelete && (
-                <Pressable
-                  onPress={() => {
-                    const entry = entries[selectedIdx];
-                    if (!entry?.id) return;
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    // Dismiss tooltip
-                    if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
-                    tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
-                      if (finished) runOnJS(clearSelection)();
-                    });
-                    tooltipScale.value = withTiming(0.82, { duration: 150 });
-                    onRequestDelete({ id: entry.id, kg: entry.kg, date: entry.date });
-                  }}
-                  hitSlop={10}
-                  accessibilityLabel={`Delete weigh-in ${formatDate(entries[selectedIdx].date)}`}
-                  accessibilityRole="button"
-                  style={styles.weightTooltipActionBtn}
-                >
-                  <Feather name="trash-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
-                </Pressable>
-              )}
-            </View>
-          )}
+          {(() => {
+            const isSelectedPending = pendingDeleteId != null && entries[selectedIdx]?.id === pendingDeleteId;
+            return (
+              <>
+                <View style={{ flex: 1 }}>
+                  {isSelectedPending ? (
+                    <>
+                      <Text style={[styles.weightTooltipDate, { color: colors.background, opacity: 0.72 }]}>
+                        Pending removal
+                      </Text>
+                      <Text style={[styles.weightTooltipKg, { color: colors.background, fontSize: 11 }]}>
+                        Tap undo to restore
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={[styles.weightTooltipDate, { color: colors.background, opacity: 0.72 }]}>
+                        {formatDate(entries[selectedIdx].date)}
+                      </Text>
+                      <Text style={[styles.weightTooltipKg, { color: colors.background }]}>
+                        {entries[selectedIdx].kg.toFixed(1)} kg
+                      </Text>
+                    </>
+                  )}
+                </View>
+                {(onRequestEdit || onRequestDelete) && entries[selectedIdx]?.id && !isSelectedPending && (
+                  <View style={styles.weightTooltipActions}>
+                    {onRequestEdit && (
+                      <Pressable
+                        onPress={() => {
+                          const entry = entries[selectedIdx];
+                          if (!entry?.id) return;
+                          Haptics.selectionAsync();
+                          // Dismiss tooltip
+                          if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
+                          tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
+                            if (finished) runOnJS(clearSelection)();
+                          });
+                          tooltipScale.value = withTiming(0.82, { duration: 150 });
+                          onRequestEdit({ id: entry.id, kg: entry.kg, date: entry.date });
+                        }}
+                        hitSlop={10}
+                        accessibilityLabel={`Edit weigh-in ${formatDate(entries[selectedIdx].date)}`}
+                        accessibilityRole="button"
+                        style={styles.weightTooltipActionBtn}
+                      >
+                        <Feather name="edit-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
+                      </Pressable>
+                    )}
+                    {onRequestDelete && (
+                      <Pressable
+                        onPress={() => {
+                          const entry = entries[selectedIdx];
+                          if (!entry?.id) return;
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          // Dismiss tooltip
+                          if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
+                          tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
+                            if (finished) runOnJS(clearSelection)();
+                          });
+                          tooltipScale.value = withTiming(0.82, { duration: 150 });
+                          onRequestDelete({ id: entry.id, kg: entry.kg, date: entry.date });
+                        }}
+                        hitSlop={10}
+                        accessibilityLabel={`Delete weigh-in ${formatDate(entries[selectedIdx].date)}`}
+                        accessibilityRole="button"
+                        style={styles.weightTooltipActionBtn}
+                      >
+                        <Feather name="trash-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+              </>
+            );
+          })()}
         </Animated.View>
       )}
 
