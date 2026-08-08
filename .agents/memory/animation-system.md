@@ -35,5 +35,28 @@ description: Four-tier animation architecture across all Calora screens — patt
 - Jest tests fail with Babel transform errors in this workspace — pre-existing infrastructure issue, not related to animation code. TypeScript (`npx tsc --noEmit`) is the correct compile check.
 - `StyleSheet.absoluteFillObject` is used in scan.tsx for the pulse overlay — verify `StyleSheet` is imported from `react-native` (it is, via the original import).
 
+## Progress tab deep-animation additions
+
+**New components in insights.tsx:**
+- `AnimatedCountUp` — `Animated.createAnimatedComponent(TextInput)` with `useAnimatedProps({ text })`. Counts from 0 to target over 900ms cubic ease. Used for stat card numbers.
+- `AnimatedPatternBar` — height-fill animation for Weekly Patterns chart. Replaces static inline `Animated.View` height. Staggered per bar via `delay` prop.
+- `AnimatedRhythmBar` — same pattern for Logging Rhythm chart.
+- `AnimatedSparkBar` — pixel-height fill for weight sparkline bars.
+- `CircularProgress` — SVG arc via `react-native-svg` `AnimatedCircle` + `useAnimatedProps({ strokeDashoffset })`. Replaces data-trust flat number. Size/strokeWidth configurable.
+- `SpringChip` — wraps `Pressable` in `Animated.View` with `withSpring(1.07)` on selection. Applied to all activity + mood chips with `Haptics.selectionAsync()`.
+- Hero parallax — `Animated.ScrollView` + `useAnimatedScrollHandler` drives `heroParallaxStyle` translateY on the header image (factor 0.38).
+
+**Key implementation notes:**
+- `useAnimatedProps({ text, defaultValue })` on `AnimatedTextInput` is the Reanimated 4 pattern for animated text (renders as editable=false TextInput).
+- Percentage-string heights (`height: '${n}%'`) work in `useAnimatedStyle` worklets on Hermes. Use `.toFixed(1)` to produce stable strings.
+- SVG circle arc: `strokeDasharray={circumference}` + animated `strokeDashoffset`. Rotate container `-90deg` so arc starts at top.
+- `AnimatedCircle = Animated.createAnimatedComponent(Circle)` from `react-native-svg`.
+
+**Limitations documented:**
+- Scroll-triggered per-card reveals: no IntersectionObserver in RN; mount stagger is the ceiling.
+- Bezier/line sparkline: possible with SVG path interpolation but complex.
+- Confetti: no Lottie installed.
+- Shared element drill-down: no shared-element library.
+
 **Why:**
 Restrained motion makes the app feel alive without being distracting. All animations are gated on meaningful state transitions (no idle loops except the scan viewfinder), spring physics match platform conventions, and haptics are scoped to confirmatory actions (save, toggle) rather than navigation taps.

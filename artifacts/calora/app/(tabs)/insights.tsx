@@ -1,9 +1,11 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import { Modal, Pressable, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
+import Animated, { Easing, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
@@ -93,6 +95,102 @@ function AnimatedTrackFill({ percentage, color, trackColor }: { percentage: numb
   return <View style={[styles.miniTrack, { backgroundColor: trackColor }]}><Animated.View style={[styles.miniFill, { backgroundColor: color }, animatedStyle]} /></View>;
 }
 
+// ─── Animated count-up text ───────────────────────────────────────────────────
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+
+function AnimatedCountUp({ to, decimals = 0, prefix = '', suffix = '', style }: {
+  to: number; decimals?: number; prefix?: string; suffix?: string; style?: StyleProp<TextStyle>;
+}) {
+  const sv = useSharedValue(0);
+  useEffect(() => {
+    sv.value = 0;
+    sv.value = withDelay(300, withTiming(to, { duration: 900, easing: Easing.out(Easing.cubic) }));
+  }, [to, sv]);
+  const animatedProps = useAnimatedProps(() => ({
+    text: `${prefix}${sv.value.toFixed(decimals)}${suffix}`,
+    defaultValue: `${prefix}${to.toFixed(decimals)}${suffix}`,
+  }));
+  return <AnimatedTextInput animatedProps={animatedProps} editable={false} caretHidden selectTextOnFocus={false} style={style} />;
+}
+
+// ─── Animated bar for Weekly Patterns chart ────────────────────────────────────
+function AnimatedPatternBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
+  const progress = useSharedValue(0);
+  const targetPct = Math.max(value, 16);
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withDelay(delay, withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress, value]);
+  const animStyle = useAnimatedStyle(() => ({ height: `${(targetPct * progress.value).toFixed(1)}%` as any }));
+  return <Animated.View style={[styles.patternFill, { backgroundColor: color }, animStyle]} />;
+}
+
+// ─── Animated bar for Logging Rhythm chart ────────────────────────────────────
+function AnimatedRhythmBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
+  const progress = useSharedValue(0);
+  const targetPct = Math.max(value, 14);
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withDelay(delay, withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress, value]);
+  const animStyle = useAnimatedStyle(() => ({ height: `${(targetPct * progress.value).toFixed(1)}%` as any }));
+  return <Animated.View style={[styles.rhythmFill, { backgroundColor: color }, animStyle]} />;
+}
+
+// ─── Animated bar for Weight Sparkline ────────────────────────────────────────
+function AnimatedSparkBar({ targetHeight, color, delay = 0 }: { targetHeight: number; color: string; delay?: number }) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withDelay(delay, withTiming(1, { duration: 750, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress, targetHeight]);
+  const animStyle = useAnimatedStyle(() => ({ height: targetHeight * progress.value }));
+  return <Animated.View style={[styles.weightSparkFill, { backgroundColor: color }, animStyle]} />;
+}
+
+// ─── SVG circular progress arc ────────────────────────────────────────────────
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+function CircularProgress({ percentage, color, trackColor, size = 52, strokeWidth = 5 }: {
+  percentage: number; color: string; trackColor: string; size?: number; strokeWidth?: number;
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withDelay(400, withTiming(Math.min(Math.max(percentage / 100, 0), 1), { duration: 1100, easing: Easing.out(Easing.cubic) }));
+  }, [percentage, progress]);
+  const animatedArcProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - progress.value),
+  }));
+  return (
+    <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
+      <Circle cx={size / 2} cy={size / 2} r={radius} stroke={trackColor} strokeWidth={strokeWidth} fill="none" />
+      <AnimatedCircle cx={size / 2} cy={size / 2} r={radius} stroke={color} strokeWidth={strokeWidth} fill="none" strokeDasharray={circumference} strokeLinecap="round" animatedProps={animatedArcProps} />
+    </Svg>
+  );
+}
+
+// ─── Spring-bounce chip wrapper ───────────────────────────────────────────────
+function SpringChip({ selected, children, onPress, style, accessibilityLabel, accessibilityState, testID }: {
+  selected: boolean; children: React.ReactNode; onPress: () => void;
+  style?: StyleProp<ViewStyle>; accessibilityLabel?: string; accessibilityState?: object; testID?: string;
+}) {
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    scale.value = withSpring(selected ? 1.07 : 1, { damping: 11, stiffness: 380 });
+  }, [selected, scale]);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <Animated.View style={animStyle}>
+      <Pressable accessibilityLabel={accessibilityLabel} accessibilityState={accessibilityState} testID={testID} onPress={onPress} style={style}>
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: ReturnType<typeof useCalora>['colors']; days: WeeklySignalDay[]; averageActivityMinutes: number }) {
   const loggedDays = days.filter((day) => day.hasData).length;
   const waterDays = days.filter((day) => day.water > 0).length;
@@ -118,7 +216,13 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
         {days.map((day, index) => (
           <View key={day.date} style={styles.patternColumn}>
             <View style={[styles.patternTrack, { backgroundColor: colors.muted }]}>
-              {day.hasData && <Animated.View style={[styles.patternFill, { backgroundColor: day.kcal ? (day.value > 110 ? colors.warning : colors.success) : colors.primary, height: `${Math.max(day.kcal ? day.value : 16, 16)}%` }]} />}
+              {day.hasData && (
+                <AnimatedPatternBar
+                  value={Math.max(day.kcal ? day.value : 16, 16)}
+                  color={day.kcal ? (day.value > 110 ? colors.warning : colors.success) : colors.primary}
+                  delay={index * 55}
+                />
+              )}
             </View>
             <View style={[styles.patternMoodDot, { backgroundColor: day.mood ? moodColors[day.mood] : 'transparent', borderColor: day.mood ? moodColors[day.mood] : colors.border }]} />
             <Text style={[styles.patternDay, { color: index === days.length - 1 ? colors.primary : colors.mutedForeground }]}>{day.day}</Text>
@@ -158,6 +262,15 @@ export default function InsightsScreen() {
   const [minutesInput, setMinutesInput] = useState('');
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [goalInput, setGoalInput] = useState('');
+
+  // Parallax scroll
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
+  const heroParallaxStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: Math.max(0, scrollY.value) * 0.38 }],
+  }));
   const isEditingMinutes = useRef(false);
   const isEditingWeight = useRef(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
@@ -245,9 +358,11 @@ export default function InsightsScreen() {
   }, [saveNotice]);
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
+      <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
         <View style={styles.heroHeader}>
-          <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+          <Animated.View style={[StyleSheet.absoluteFillObject, heroParallaxStyle]}>
+            <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+          </Animated.View>
           <LinearGradient
             colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.78)', 'rgba(18,34,24,0.18)']}
             locations={[0, 0.58, 1]}
@@ -302,15 +417,17 @@ export default function InsightsScreen() {
 
         <AnimatedReveal delay={150} style={styles.statRow}>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.foreground }]}>{weeklySignals.foodDays}</Text>
+            <AnimatedCountUp to={weeklySignals.foodDays} style={[styles.statValue, { color: colors.foreground }]} />
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>days logged</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.foreground }]}>{dataTrust === null ? '—' : `${dataTrust}%`}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>data trust</Text>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border, alignItems: 'center' }]}>
+            {dataTrust !== null
+              ? <CircularProgress percentage={dataTrust} color={colors.primary} trackColor={colors.muted} size={52} strokeWidth={5} />
+              : <Text style={[styles.statValue, { color: colors.foreground }]}>—</Text>}
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, marginTop: 5 }]}>data trust</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: weightDelta <= 0 ? colors.success : colors.warning }]}>{weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)}</Text>
+            <AnimatedCountUp to={Math.abs(weightDelta)} decimals={1} prefix={weightDelta > 0 ? '+' : weightDelta < 0 ? '-' : ''} style={[styles.statValue, { color: weightDelta <= 0 ? colors.success : colors.warning }]} />
             <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>kg trend</Text>
           </View>
         </AnimatedReveal>
@@ -331,7 +448,7 @@ export default function InsightsScreen() {
               {weekDays.map((item, index) => (
                 <View key={item.date} style={styles.rhythmDay}>
                   <View style={[styles.rhythmTrack, { backgroundColor: colors.muted }]}>
-                    {item.hasData && <Animated.View style={[styles.rhythmFill, { backgroundColor: index === weekDays.length - 1 ? colors.primary : colors.success, height: `${Math.max(item.meals ? item.meals * 25 : 14, 14)}%` }]} />}
+                    {item.hasData && <AnimatedRhythmBar value={Math.max(item.meals ? item.meals * 25 : 14, 14)} color={index === weekDays.length - 1 ? colors.primary : colors.success} delay={index * 50} />}
                   </View>
                   <Text style={[styles.rhythmDayLabel, { color: index === weekDays.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
                 </View>
@@ -436,12 +553,14 @@ export default function InsightsScreen() {
               ] as const).map((option) => {
                 const selected = remembered.activityLogs[todayKey] === option.value;
                 return (
-                  <Pressable
+                  <SpringChip
                     key={option.value}
+                    selected={selected}
                     accessibilityLabel={`${option.label} activity today${selected ? ', selected' : ''}`}
                     accessibilityState={{ selected }}
                     testID={`activity-${option.value}`}
                     onPress={() => {
+                      Haptics.selectionAsync();
                       setActivity(todayKey, option.value);
                       setSaveNotice(`${option.label} movement check-in saved.`);
                     }}
@@ -449,7 +568,7 @@ export default function InsightsScreen() {
                   >
                     <Feather name={option.icon as keyof typeof Feather.glyphMap} size={14} color={selected ? colors.primaryForeground : colors.mutedForeground} />
                     <Text style={[styles.activityOptionText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{option.label}</Text>
-                  </Pressable>
+                  </SpringChip>
                 );
               })}
             </View>
@@ -497,12 +616,14 @@ export default function InsightsScreen() {
               ] as const).map((option) => {
                 const selected = moodToday === option.value;
                 return (
-                  <Pressable
+                  <SpringChip
                     key={option.value}
+                    selected={selected}
                     accessibilityLabel={`${option.label} mood${selected ? ', selected' : ''}`}
                     accessibilityState={{ selected }}
                     testID={`mood-${option.value}`}
                     onPress={() => {
+                      Haptics.selectionAsync();
                       setMood(todayKey, option.value);
                       setSaveNotice(`${option.label} mood check-in saved.`);
                     }}
@@ -516,7 +637,7 @@ export default function InsightsScreen() {
                   >
                     <View style={[styles.moodDot, { backgroundColor: option.color, opacity: selected ? 1 : 0.35 }]} />
                     <Text style={[styles.moodOptionText, { color: selected ? option.color : colors.mutedForeground }]}>{option.label}</Text>
-                  </Pressable>
+                  </SpringChip>
                 );
               })}
             </View>
@@ -570,7 +691,7 @@ export default function InsightsScreen() {
                 return (
                   <View key={entry.id} style={styles.weightSparkCol}>
                     <View style={[styles.weightSparkTrack, { backgroundColor: colors.muted }]}>
-                      <View style={[styles.weightSparkFill, { height: pct, backgroundColor: isLast ? colors.primary : colors.success }]} />
+                      <AnimatedSparkBar targetHeight={pct} color={isLast ? colors.primary : colors.success} delay={index * 75} />
                     </View>
                     <Text style={[styles.weightSparkLabel, { color: isLast ? colors.primary : colors.mutedForeground }]}>{entry.kg.toFixed(1)}</Text>
                   </View>
@@ -629,7 +750,7 @@ export default function InsightsScreen() {
           </View>
           <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
       <Modal visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)}>
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
           <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
