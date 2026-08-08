@@ -539,10 +539,10 @@ function WeightLineChart({
         </View>
       )}
 
-      {/* date range label — compact mode only, when span covers more than one unique date */}
+      {/* count + date range label — compact mode only, when span covers more than one unique date */}
       {!expanded && entries[0]?.date && entries[entries.length - 1]?.date && entries[0].date !== entries[entries.length - 1].date && (
         <Text style={[styles.weightSparkDateRange, { color: colors.mutedForeground }]}>
-          {formatDate(entries[0].date)} – {formatDate(entries[entries.length - 1].date)}
+          {entries.length} weigh-ins · {formatDate(entries[0].date)} – {formatDate(entries[entries.length - 1].date)}
         </Text>
       )}
 
