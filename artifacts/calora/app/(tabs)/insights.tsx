@@ -992,9 +992,10 @@ export default function InsightsScreen() {
 
   // ── Pending-delete state (lifted so it survives modal close) ─────────────────
   const [pendingDelete, setPendingDelete] = useState<{ id: string; kg: number; date: string } | null>(null);
-  // Keep a ref in sync so timer callbacks always see the current value without stale closures.
+  // Synchronous lock: updated eagerly inside each handler so rapid back-to-back
+  // calls to handleRequestDelete are blocked even before React re-renders.
+  // This ref MUST be kept in sync with pendingDelete state at every mutation site.
   const pendingDeleteRef = useRef<{ id: string; kg: number; date: string } | null>(null);
-  useEffect(() => { pendingDeleteRef.current = pendingDelete; }, [pendingDelete]);
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const snackOpacity = useSharedValue(0);
   const snackTranslateY = useSharedValue(8);
@@ -1004,14 +1005,15 @@ export default function InsightsScreen() {
   }));
 
   const handleRequestDelete = (entry: { id: string; kg: number; date: string }) => {
-    // Commit any prior pending deletion before starting a new window.
-    if (deleteTimerRef.current) {
-      clearTimeout(deleteTimerRef.current);
-      deleteTimerRef.current = null;
-    }
+    // Guard checked and set synchronously so rapid successive taps (before React
+    // re-renders and effects run) are all blocked by the same ref value.
     if (pendingDeleteRef.current) {
-      removeWeight(pendingDeleteRef.current.id);
+      // An undo window is already active — ignore the new request so the user
+      // never silently loses two entries. Let the current window complete.
+      return;
     }
+    // Acquire the lock synchronously before any state or async operations.
+    pendingDeleteRef.current = entry;
     // Start new undo window.
     setPendingDelete(entry);
     snackOpacity.value = 0;
@@ -1020,6 +1022,7 @@ export default function InsightsScreen() {
     snackTranslateY.value = withSpring(0, { damping: 16, stiffness: 240 });
     deleteTimerRef.current = setTimeout(() => {
       deleteTimerRef.current = null;
+      pendingDeleteRef.current = null;
       removeWeight(entry.id);
       snackOpacity.value = withTiming(0, { duration: 200 }, (finished) => {
         if (finished) runOnJS(setPendingDelete)(null);
@@ -1033,6 +1036,8 @@ export default function InsightsScreen() {
       clearTimeout(deleteTimerRef.current);
       deleteTimerRef.current = null;
     }
+    // Release the lock synchronously so a new deletion can be started immediately.
+    pendingDeleteRef.current = null;
     snackOpacity.value = withTiming(0, { duration: 180 });
     snackTranslateY.value = withTiming(8, { duration: 180 });
     setTimeout(() => setPendingDelete(null), 200);
