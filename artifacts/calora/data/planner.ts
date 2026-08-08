@@ -5,6 +5,7 @@ import { addDays, dateFromKey, dateKey } from '@/lib/dates';
 export const plannerMealTypes: PlannerMeal['meal'][] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
 export const plannerCatalog: PlannerMeal[] = [
+  // ── Breakfasts ──────────────────────────────────────────────────────────────
   {
     id: 'berry-oats',
     day: '',
@@ -17,7 +18,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 58,
     fatG: 14,
     ingredients: ['rolled oats', 'Greek yogurt', 'mixed berries', 'chia seeds', 'almond milk'],
-    description: 'Creamy oats layered with bright berries and a little crunch.',
+    description: 'Rolled oats soaked overnight with berries, yogurt and chia seeds.',
     prepMinutes: 8,
   },
   {
@@ -32,7 +33,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 31,
     fatG: 18,
     ingredients: ['eggs', 'sourdough bread', 'avocado', 'baby greens', 'chili flakes'],
-    description: 'Jammy eggs, avocado, and greens on toasted sourdough.',
+    description: 'Scrambled eggs and avocado on toasted sourdough with chili.',
     prepMinutes: 12,
   },
   {
@@ -47,7 +48,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 42,
     fatG: 7,
     ingredients: ['Greek yogurt', 'mango', 'granola', 'pumpkin seeds', 'lime'],
-    description: 'A cool, bright parfait with tropical fruit and seeds.',
+    description: 'Greek yogurt layered with mango, granola and pumpkin seeds.',
     prepMinutes: 6,
   },
   {
@@ -61,24 +62,26 @@ export const plannerCatalog: PlannerMeal[] = [
     proteinG: 14,
     carbsG: 54,
     fatG: 10,
-    ingredients: ['blueberries', 'banana', 'Greek yogurt', 'granola', 'chia seeds', 'honey'],
-    description: 'A thick, vibrant smoothie bowl topped with crunch and fresh fruit.',
+    // Greek yogurt and chia seeds are already the base of berry-oats — use almond milk + honey here instead
+    ingredients: ['blueberries', 'banana', 'almond milk', 'granola', 'honey'],
+    description: 'Blended blueberry and banana bowl with granola and honey.',
     prepMinutes: 8,
   },
   {
     id: 'avo-toast-egg',
     day: '',
     meal: 'Breakfast',
-    name: 'Avocado toast with poached egg',
+    // Replaced avocado toast (too similar to egg-toast) with a clearly distinct option
+    name: 'Smoked salmon rye toast',
     image: 'https://images.unsplash.com/photo-1541519227354-08fa5d50c820?auto=format&fit=crop&w=1000&q=88',
-    serving: '1 slice + 1 egg',
-    calories: 420,
-    proteinG: 18,
-    carbsG: 36,
-    fatG: 24,
-    ingredients: ['sourdough bread', 'avocado', 'eggs', 'cherry tomatoes', 'chili flakes'],
-    description: 'Creamy avocado and a perfectly poached egg on toasted sourdough.',
-    prepMinutes: 14,
+    serving: '1 slice',
+    calories: 340,
+    proteinG: 24,
+    carbsG: 28,
+    fatG: 16,
+    ingredients: ['rye bread', 'smoked salmon', 'cream cheese', 'capers', 'red onion', 'lemon'],
+    description: 'Smoked salmon and cream cheese on rye toast with capers.',
+    prepMinutes: 8,
   },
   {
     id: 'banana-pancakes',
@@ -91,8 +94,9 @@ export const plannerCatalog: PlannerMeal[] = [
     proteinG: 12,
     carbsG: 64,
     fatG: 9,
-    ingredients: ['rolled oats', 'banana', 'eggs', 'almond milk', 'vanilla', 'maple syrup'],
-    description: 'Fluffy, naturally sweet pancakes made from oats and ripe banana.',
+    // Changed almond milk to milk to avoid overlap with berry-oats
+    ingredients: ['rolled oats', 'banana', 'eggs', 'milk', 'vanilla', 'maple syrup'],
+    description: 'Oat and banana pancakes with vanilla and maple syrup.',
     prepMinutes: 18,
   },
   {
@@ -107,9 +111,10 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 38,
     fatG: 14,
     ingredients: ['chia seeds', 'coconut milk', 'mixed berries', 'agave', 'vanilla'],
-    description: 'Silky overnight pudding with berries — ready when you wake up.',
+    description: 'Coconut chia pudding set overnight with mixed berries.',
     prepMinutes: 5,
   },
+  // ── Lunches ─────────────────────────────────────────────────────────────────
   {
     id: 'harvest-salad',
     day: '',
@@ -122,7 +127,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 34,
     fatG: 25,
     ingredients: ['chicken breast', 'mixed greens', 'apple', 'walnuts', 'feta', 'mustard dressing'],
-    description: 'A crisp, satisfying salad with roasted chicken and seasonal crunch.',
+    description: 'Grilled chicken, mixed greens, apple, walnuts and feta.',
     prepMinutes: 18,
   },
   {
@@ -137,7 +142,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 48,
     fatG: 24,
     ingredients: ['salmon', 'quinoa', 'cucumber', 'edamame', 'avocado', 'sesame'],
-    description: 'Roasted salmon over quinoa with cool vegetables and sesame.',
+    description: 'Roasted salmon over quinoa with edamame, avocado and sesame.',
     prepMinutes: 24,
   },
   {
@@ -152,7 +157,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 61,
     fatG: 9,
     ingredients: ['green lentils', 'carrots', 'celery', 'lemon', 'spinach', 'vegetable stock'],
-    description: 'A golden, lemony lentil soup that holds up beautifully for lunch.',
+    description: 'Green lentil soup with carrots, lemon and spinach.',
     prepMinutes: 32,
   },
   {
@@ -167,7 +172,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 46,
     fatG: 17,
     ingredients: ['whole wheat wrap', 'turkey', 'hummus', 'tomato', 'cucumber', 'greens'],
-    description: 'A portable wrap with peppery greens and creamy hummus.',
+    description: 'Turkey, hummus, tomato and greens in a whole wheat wrap.',
     prepMinutes: 10,
   },
   {
@@ -182,7 +187,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 24,
     fatG: 26,
     ingredients: ['cucumber', 'tomato', 'kalamata olives', 'feta', 'red onion', 'olive oil', 'oregano'],
-    description: 'A bright, no-cook salad with creamy feta and bold herbs.',
+    description: 'Tomato, cucumber and feta with kalamata olives and oregano.',
     prepMinutes: 10,
   },
   {
@@ -196,8 +201,9 @@ export const plannerCatalog: PlannerMeal[] = [
     proteinG: 36,
     carbsG: 54,
     fatG: 16,
-    ingredients: ['tuna', 'sushi rice', 'avocado', 'cucumber', 'edamame', 'sesame', 'soy sauce'],
-    description: 'Fresh tuna over seasoned rice with cool vegetables and sesame.',
+    // Replaced avocado, cucumber, edamame, sesame (all in salmon-quinoa) with distinct ingredients
+    ingredients: ['tuna', 'sushi rice', 'mango', 'radish', 'spring onion', 'sesame oil', 'soy sauce'],
+    description: 'Soy-marinated tuna over sushi rice with mango and radish.',
     prepMinutes: 15,
   },
   {
@@ -212,9 +218,10 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 68,
     fatG: 16,
     ingredients: ['chickpeas', 'farro', 'roasted sweet potato', 'kale', 'tahini', 'lemon'],
-    description: 'Hearty grains and crispy chickpeas with a rich tahini dressing.',
+    description: 'Roasted chickpeas on farro with kale, sweet potato and tahini.',
     prepMinutes: 30,
   },
+  // ── Dinners ─────────────────────────────────────────────────────────────────
   {
     id: 'stir-fry',
     day: '',
@@ -227,7 +234,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 67,
     fatG: 18,
     ingredients: ['tofu', 'broccoli', 'bell pepper', 'brown rice', 'ginger', 'tamari'],
-    description: 'Caramelized tofu and bright vegetables over fluffy brown rice.',
+    description: 'Stir-fried tofu with broccoli and bell pepper over brown rice.',
     prepMinutes: 25,
   },
   {
@@ -242,7 +249,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 84,
     fatG: 21,
     ingredients: ['whole wheat pasta', 'cherry tomatoes', 'white beans', 'spinach', 'parmesan', 'basil'],
-    description: 'A saucy, weeknight pasta with beans, greens, and basil.',
+    description: 'Cherry tomato pasta with white beans, spinach and parmesan.',
     prepMinutes: 22,
   },
   {
@@ -257,23 +264,24 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 62,
     fatG: 24,
     ingredients: ['chicken thigh', 'brown rice', 'zucchini', 'yogurt sauce', 'parsley', 'lemon'],
-    description: 'A comforting plate of herby chicken, rice, and roasted vegetables.',
+    description: 'Roasted chicken thigh with brown rice, zucchini and yogurt sauce.',
     prepMinutes: 35,
   },
   {
     id: 'thai-curry',
     day: '',
     meal: 'Dinner',
-    name: 'Vegetable Thai curry',
+    // Changed from tofu/broccoli/bell pepper (same as stir-fry) to chicken with different vegetables
+    name: 'Thai green curry',
     image: 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=1000&q=88',
     serving: '1 bowl with rice',
-    calories: 490,
-    proteinG: 15,
-    carbsG: 56,
-    fatG: 20,
-    ingredients: ['tofu', 'broccoli', 'bell pepper', 'coconut milk', 'Thai curry paste', 'jasmine rice'],
-    description: 'A creamy, fragrant curry with vegetables and jasmine rice.',
-    prepMinutes: 25,
+    calories: 520,
+    proteinG: 34,
+    carbsG: 52,
+    fatG: 18,
+    ingredients: ['chicken breast', 'eggplant', 'snap peas', 'coconut milk', 'Thai curry paste', 'jasmine rice'],
+    description: 'Thai green curry with chicken, eggplant and jasmine rice.',
+    prepMinutes: 28,
   },
   {
     id: 'spaghetti-bol',
@@ -287,7 +295,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 72,
     fatG: 22,
     ingredients: ['lean beef mince', 'spaghetti', 'crushed tomatoes', 'carrot', 'celery', 'parmesan'],
-    description: 'A rich, slow-cooked bolognese over al dente spaghetti.',
+    description: 'Beef bolognese on spaghetti with parmesan.',
     prepMinutes: 40,
   },
   {
@@ -302,7 +310,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 52,
     fatG: 22,
     ingredients: ['lean beef', 'corn tortillas', 'cabbage slaw', 'avocado', 'pico de gallo', 'lime'],
-    description: 'Seasoned beef in warm tortillas with bright toppings and lime.',
+    description: 'Spiced beef in corn tortillas with slaw, avocado and lime.',
     prepMinutes: 20,
   },
   {
@@ -317,9 +325,10 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 42,
     fatG: 14,
     ingredients: ['prawns', 'bok choy', 'snap peas', 'ginger', 'garlic', 'noodles', 'oyster sauce'],
-    description: 'Juicy prawns and crisp greens tossed through silky garlic noodles.',
+    description: 'Garlic prawns with bok choy over noodles in oyster sauce.',
     prepMinutes: 18,
   },
+  // ── Snacks ──────────────────────────────────────────────────────────────────
   {
     id: 'apple-almond',
     day: '',
@@ -332,7 +341,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 29,
     fatG: 10,
     ingredients: ['apple', 'almond butter', 'cinnamon'],
-    description: 'A simple, crisp snack with just enough richness.',
+    description: 'Apple slices with almond butter and cinnamon.',
     prepMinutes: 3,
   },
   {
@@ -347,7 +356,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 15,
     fatG: 8,
     ingredients: ['edamame', 'flaky sea salt', 'lemon'],
-    description: 'A protein-forward snack with bright lemon and sea salt.',
+    description: 'Steamed edamame with flaky sea salt and lemon.',
     prepMinutes: 5,
   },
   {
@@ -362,7 +371,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 16,
     fatG: 11,
     ingredients: ['almonds', 'cashews', 'walnuts', 'dried cranberries', 'pumpkin seeds'],
-    description: 'A balanced handful of nuts and fruit for steady energy.',
+    description: 'Almonds, cashews, walnuts and dried cranberries.',
     prepMinutes: 1,
   },
   {
@@ -377,7 +386,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 18,
     fatG: 8,
     ingredients: ['hummus', 'carrot', 'cucumber', 'celery', 'bell pepper'],
-    description: 'Creamy hummus with crisp vegetables — satisfying and light.',
+    description: 'Hummus with carrot, cucumber, celery and bell pepper.',
     prepMinutes: 5,
   },
   {
@@ -392,7 +401,7 @@ export const plannerCatalog: PlannerMeal[] = [
     carbsG: 32,
     fatG: 8,
     ingredients: ['banana', 'peanut butter', 'chia seeds'],
-    description: 'Quick natural energy with protein and healthy fats.',
+    description: 'Banana with peanut butter and chia seeds.',
     prepMinutes: 2,
   },
 ];
