@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ActivityIndicator, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScalePressable } from '@/components/ScalePressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useGetRecipe, useListRecipes, type Recipe } from '@workspace/api-client-react';
@@ -220,10 +221,10 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                 <View><Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{Math.round(reviewDraft.nutrition.calories)} kcal</Text></View>
                 <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {Math.round(reviewDraft.nutrition.proteinG)}g · C {Math.round(reviewDraft.nutrition.carbsG)}g · F {Math.round(reviewDraft.nutrition.fatG)}g</Text>
               </View>
-              <Pressable accessibilityLabel="Approve and add recipe to diary" onPress={acceptDraft} style={[styles.primaryAction, { backgroundColor: colors.primary }]}>
+              <ScalePressable accessibilityLabel="Approve and add recipe to diary" onPress={acceptDraft} scale={0.96} haptic="light" style={[styles.primaryAction, { backgroundColor: colors.primary }]}>
                 <Feather name="check-circle" size={16} color={colors.primaryForeground} />
                 <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Approve and add to diary</Text>
-              </Pressable>
+              </ScalePressable>
               <Pressable accessibilityLabel="Cancel recipe log" onPress={dismissReview} style={styles.sourceAction}>
                 <Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Not this meal</Text>
               </Pressable>
@@ -249,8 +250,8 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                 {detail.ingredients?.length ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Ingredients</Text>{detail.ingredients.map((ingredient) => <View key={ingredient} style={styles.ingredientRow}><View style={[styles.ingredientDot, { backgroundColor: colors.primary }]} /><Text style={[styles.ingredientText, { color: colors.foreground }]}>{ingredient}</Text></View>)}</> : null}
                 {detail.instructions ? <><Text style={[styles.detailSectionTitle, { color: colors.foreground }]}>Method</Text><Text style={[styles.instructions, { color: colors.mutedForeground }]}>{detail.instructions}</Text></> : null}
                 <Text style={[styles.attribution, { color: colors.mutedForeground }]}>Recipe source: {detail.source}. Calora does not claim third-party recipe content as its own.</Text>
-                <Pressable accessibilityLabel="Add recipe to plan" onPress={openPlanPicker} style={[styles.secondaryAction, { borderColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primary} /><Text style={[styles.secondaryActionText, { color: colors.primary }]}>Add to weekly plan</Text></Pressable>
-                <Pressable accessibilityLabel={canLog ? 'Add recipe to diary' : 'Save recipe for nutrition review'} onPress={canLog ? openReview : () => { toggleSavedRecipe(detail.id); onClose(); }} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today\'s diary' : 'diary'}` : 'Save for later'}</Text></Pressable>
+                <ScalePressable accessibilityLabel="Add recipe to plan" onPress={openPlanPicker} scale={0.98} haptic="none" style={[styles.secondaryAction, { borderColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primary} /><Text style={[styles.secondaryActionText, { color: colors.primary }]}>Add to weekly plan</Text></ScalePressable>
+                <ScalePressable accessibilityLabel={canLog ? 'Add recipe to diary' : 'Save recipe for nutrition review'} onPress={canLog ? openReview : () => { toggleSavedRecipe(detail.id); onClose(); }} scale={0.96} haptic="light" style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today\'s diary' : 'diary'}` : 'Save for later'}</Text></ScalePressable>
                 <Pressable accessibilityLabel="Open recipe source" onPress={() => Linking.openURL(detail.sourceUrl)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.primary }]}>View source attribution</Text><Feather name="external-link" size={13} color={colors.primary} /></Pressable>
               </View>
             </ScrollView>
@@ -279,7 +280,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
             </ScrollView>
             <Text style={[styles.planLabel, { color: colors.mutedForeground }]}>MEAL</Text>
             <View style={styles.planMealRow}>{plannerMealTypes.map((type) => <Pressable key={type} accessibilityLabel={`Plan as ${type}`} onPress={() => setPlanMealType(type)} style={[styles.planMealChip, { backgroundColor: planMealType === type ? colors.accent : colors.card, borderColor: planMealType === type ? colors.accent : colors.border }]}><Text style={[styles.planMealText, { color: planMealType === type ? colors.accentForeground : colors.foreground }]}>{type}</Text></Pressable>)}</View>
-            <Pressable accessibilityLabel="Confirm add recipe to plan" onPress={addToPlan} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Add to {planMealType.toLowerCase()} plan</Text></Pressable>
+            <ScalePressable accessibilityLabel="Confirm add recipe to plan" onPress={addToPlan} scale={0.96} haptic="light" style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Add to {planMealType.toLowerCase()} plan</Text></ScalePressable>
             <Pressable accessibilityLabel="Cancel add recipe to plan" onPress={() => setPlanVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
           </View>
         </View>
@@ -345,7 +346,7 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
           <View style={styles.numberGrid}>{[['Calories', calories, setCalories], ['Protein g', protein, setProtein], ['Carbs g', carbs, setCarbs], ['Fat g', fat, setFat]].map(([label, value, setter]) => <View key={label as string} style={{ flex: 1 }}><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput accessibilityLabel={label as string} value={value as string} onChangeText={(text) => { (setter as (next: string) => void)(text); setError(''); }} keyboardType="decimal-pad" returnKeyType="next" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}</View>
           <TextInput accessibilityLabel="Recipe ingredients" value={ingredients} onChangeText={(value) => { setIngredients(value); setError(''); }} multiline placeholder="Ingredients, one per line" placeholderTextColor={colors.mutedForeground} style={[styles.ingredientsInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
           {error ? <View style={[styles.formError, { backgroundColor: colors.destructive + '18' }]}><Feather name="alert-circle" size={15} color={colors.destructive} /><Text style={[styles.formErrorText, { color: colors.destructive }]}>{error}</Text></View> : null}
-          <Pressable accessibilityLabel="Save your recipe" onPress={create} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Save recipe</Text></Pressable>
+          <ScalePressable accessibilityLabel="Save your recipe" onPress={create} scale={0.96} haptic="light" style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Save recipe</Text></ScalePressable>
           <Pressable accessibilityLabel="Cancel recipe creation" onPress={onClose} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
         </KeyboardAwareScrollViewCompat>
       </View>

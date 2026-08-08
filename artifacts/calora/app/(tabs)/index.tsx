@@ -15,6 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { ScalePressable } from '@/components/ScalePressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -72,17 +73,18 @@ const formatShortDate = (key: string) => new Intl.DateTimeFormat('en-US', { mont
 
 function IconButton({ icon, label, onPress, colors }: { icon: keyof typeof Feather.glyphMap; label: string; onPress: () => void; colors: ReturnType<typeof useCalora>['colors'] }) {
   return (
-    <Pressable
+    <ScalePressable
       accessibilityLabel={label}
       testID={`quick-${label.toLowerCase().replaceAll(' ', '-')}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.quickAction, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+      haptic="none"
+      style={[styles.quickAction, { backgroundColor: colors.card, borderColor: colors.border }]}
     >
       <View style={[styles.quickIcon, { backgroundColor: colors.accent }]}>
         <Feather name={icon} size={20} color={colors.accentForeground} />
       </View>
       <Text style={[styles.quickLabel, { color: colors.foreground }]}>{label}</Text>
-    </Pressable>
+    </ScalePressable>
   );
 }
 
@@ -250,10 +252,10 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
                 <Text numberOfLines={2} style={styles.recipeWidgetTitle}>{recipe.name}</Text>
                 <View style={styles.recipeWidgetFooter}>
                   <Text style={styles.recipeWidgetMeta}>{recipe.calories ? `${Math.round(recipe.calories)} kcal` : 'Nutrition review needed'}</Text>
-                  <Pressable accessibilityLabel={`View recipe details for ${recipe.name}`} onPress={() => onOpen(recipe)} style={({ pressed }) => [styles.recipeWidgetAction, { opacity: pressed ? 0.72 : 1 }]}>
+                  <ScalePressable accessibilityLabel={`View recipe details for ${recipe.name}`} onPress={() => onOpen(recipe)} scale={0.98} haptic="none" style={styles.recipeWidgetAction}>
                     <Text style={styles.recipeWidgetActionText}>View details</Text>
                     <Feather name="arrow-up-right" size={13} color="#ffffff" />
-                  </Pressable>
+                  </ScalePressable>
                 </View>
               </View>
             </View>
@@ -312,16 +314,18 @@ function WellnessCards({
               <AnimatedWaterSlot key={index} filled={index < filledGlasses} muted={colors.muted} />
             ))}
           </View>
-            <Pressable
+            <ScalePressable
               accessibilityLabel={waterConfirmed ? 'Water added' : 'Log 8 fluid ounces of water'}
               testID="log-water-button"
               disabled={waterConfirmed}
               onPress={onAddWater}
-              style={({ pressed }) => [styles.wellnessAction, { backgroundColor: colors.accent, opacity: waterConfirmed ? 0.72 : pressed ? 0.72 : 1 }]}
+              haptic="none"
+              scale={0.96}
+              style={[styles.wellnessAction, { backgroundColor: colors.accent, opacity: waterConfirmed ? 0.72 : 1 }]}
             >
               <Feather name={waterConfirmed ? 'check' : 'plus'} size={13} color={colors.accentForeground} />
               <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>{waterConfirmed ? 'Added ✓' : '8 fl oz'}</Text>
-            </Pressable>
+            </ScalePressable>
         </View>
 
         <View style={[styles.wellnessCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -331,9 +335,9 @@ function WellnessCards({
           </View>
           <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{mealsLogged} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ 4 today</Text></Text>
           <Text numberOfLines={1} style={[styles.mealsLoggedNames, { color: colors.mutedForeground }]}>{mealNames.length ? mealNames.join(' · ') : 'No meals logged yet'}</Text>
-          <Pressable accessibilityLabel="Add a meal from the meals logged card" testID="wellness-add-meal-button" onPress={onAddMeal} style={({ pressed }) => [styles.wellnessAction, { backgroundColor: colors.accent, opacity: pressed ? 0.72 : 1 }]}>
+          <ScalePressable accessibilityLabel="Add a meal from the meals logged card" testID="wellness-add-meal-button" onPress={onAddMeal} haptic="none" scale={0.96} style={[styles.wellnessAction, { backgroundColor: colors.accent }]}>
             <Feather name="plus" size={13} color={colors.accentForeground} /><Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>Add meal</Text>
-          </Pressable>
+          </ScalePressable>
         </View>
       </View>
 
@@ -349,10 +353,10 @@ function WellnessCards({
           {moodOptions.map((item) => {
             const selected = mood === item.value;
             return (
-              <Pressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} style={({ pressed }) => [styles.moodOption, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border, opacity: pressed ? 0.72 : 1 }]}>
+              <ScalePressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} scale={0.98} haptic="none" style={[styles.moodOption, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}>
                 <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
                 <Text style={[styles.moodOptionText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
-              </Pressable>
+              </ScalePressable>
             );
           })}
         </View>
@@ -540,14 +544,14 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
               <Feather name="x" size={18} color={colors.foreground} />
             </Pressable>
           </View>
-          <Pressable accessibilityLabel="Log from photo" testID="photo-log-button" onPress={photoLog} style={[styles.photoButton, { backgroundColor: colors.hero }]}>
+          <ScalePressable accessibilityLabel="Log from photo" testID="photo-log-button" onPress={photoLog} scale={0.96} haptic="light" style={[styles.photoButton, { backgroundColor: colors.hero }]}>
             <Feather name="camera" size={20} color={colors.heroMuted} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.photoTitle, { color: colors.onHero }]}>Log from a photo</Text>
               <Text style={[styles.photoSubtitle, { color: colors.heroMuted }]}>Review an estimate before it counts</Text>
             </View>
             <Feather name="arrow-up-right" size={18} color={colors.heroMuted} />
-          </Pressable>
+          </ScalePressable>
           <View style={[styles.captureModes, { backgroundColor: colors.muted }]}>
             <Pressable accessibilityLabel="Text food logging" onPress={() => setCaptureMode('search')} style={[styles.captureMode, captureMode === 'search' && { backgroundColor: colors.card }]}><Feather name="edit-3" size={14} color={captureMode === 'search' ? colors.primary : colors.mutedForeground} /><Text style={[styles.captureModeText, { color: captureMode === 'search' ? colors.foreground : colors.mutedForeground }]}>Text</Text></Pressable>
             <Pressable accessibilityLabel="Voice food logging" onPress={() => setCaptureMode('voice')} style={[styles.captureMode, captureMode === 'voice' && { backgroundColor: colors.card }]}><Feather name="mic" size={14} color={captureMode === 'voice' ? colors.primary : colors.mutedForeground} /><Text style={[styles.captureModeText, { color: captureMode === 'voice' ? colors.foreground : colors.mutedForeground }]}>Voice</Text></Pressable>
@@ -587,9 +591,9 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
           <View style={styles.manualRow}>
             <TextInput value={customName} onChangeText={setCustomName} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
             <TextInput value={customCalories} onChangeText={setCustomCalories} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
-            <Pressable accessibilityLabel="Add manual food" onPress={addManual} style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
+            <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
               <Feather name="plus" size={20} color={colors.primaryForeground} />
-            </Pressable>
+            </ScalePressable>
           </View>
         </View>
       </View>
@@ -836,14 +840,16 @@ export default function HomeScreen() {
             <View style={styles.homeHeaderTop}>
               <View style={styles.homeHeaderBadge}><Feather name="sunrise" size={12} color="#d4eadc" /><Text style={styles.homeHeaderBadgeText}>DAILY RHYTHM</Text></View>
               <View style={styles.homeHeaderActions}>
-                <Pressable
+                <ScalePressable
                   accessibilityLabel="Open Calora Coach"
                   onPress={() => router.push('/coach')}
-                  style={({ pressed }) => [styles.homeHeaderCoach, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
+                  scale={0.96}
+                  haptic="light"
+                  style={[styles.homeHeaderCoach, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f' }]}
                 >
                   <Feather name="zap" size={14} color={colors.primaryForeground} />
                   <Text style={[styles.homeHeaderCoachText, { color: colors.primaryForeground }]}>Ask Calora</Text>
-                </Pressable>
+                </ScalePressable>
                 <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={[styles.homeHeaderAvatar, profilePhotoUri ? { padding: 0, overflow: 'hidden' } : {}]}>
                   {profilePhotoUri
                     ? <Image source={{ uri: profilePhotoUri }} style={{ width: 38, height: 38 }} contentFit="cover" />
@@ -882,26 +888,22 @@ export default function HomeScreen() {
           <Text style={[styles.heroInsight, { color: colors.mutedForeground }]}>{livingState.headline}</Text>
 
           {/* Living-state action */}
-          <Pressable
+          <ScalePressable
             accessibilityLabel={waterConfirmed ? 'Water added' : livingState.action.label}
             accessibilityRole="button"
             testID="living-state-action"
             disabled={waterConfirmed}
             onPress={handleLivingAction}
-            style={({ pressed }) => [
-              styles.livingAction,
-              {
-                backgroundColor: colors.primary,
-                opacity: waterConfirmed ? 0.72 : pressed ? 0.78 : 1,
-              },
-            ]}
+            scale={0.96}
+            haptic="none"
+            style={[styles.livingAction, { backgroundColor: colors.primary, opacity: waterConfirmed ? 0.72 : 1 }]}
           >
             <Feather name={waterConfirmed ? 'check' : livingActionIcon} size={16} color={colors.primaryForeground} />
             <Text style={[styles.livingActionText, { color: colors.primaryForeground }]}>
               {waterConfirmed ? 'Added ✓' : livingState.action.label}
             </Text>
             {!waterConfirmed && <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />}
-          </Pressable>
+          </ScalePressable>
         </View>
 
         <LivingRhythmCard colors={colors} livingState={livingState} />
@@ -951,10 +953,10 @@ export default function HomeScreen() {
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text>
             <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Tap an entry to edit · {selectedLogs.length} logged</Text>
           </View>
-          <Pressable onPress={openAdd} accessibilityLabel="Add meal" style={[styles.addMealButton, { backgroundColor: colors.primary }]}>
+          <ScalePressable onPress={openAdd} accessibilityLabel="Add meal" scale={0.96} haptic="none" style={[styles.addMealButton, { backgroundColor: colors.primary }]}>
             <Feather name="plus" size={16} color={colors.primaryForeground} />
             <Text style={[styles.addMealText, { color: colors.primaryForeground }]}>Add</Text>
-          </Pressable>
+          </ScalePressable>
         </View>
         <View style={[styles.dateNav, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Pressable accessibilityLabel="Previous diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() - 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={17} color={colors.foreground} /></Pressable>

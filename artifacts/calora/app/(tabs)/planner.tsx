@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScalePressable } from '@/components/ScalePressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
@@ -64,9 +65,9 @@ function MealCard({
           <View style={[styles.mealTypeBadge, { backgroundColor: colors.accent }]}>
             <Text style={[styles.mealTypeBadgeText, { color: colors.accentForeground }]}>{shortMealType(meal.meal)}</Text>
           </View>
-          <Pressable accessibilityLabel={`More actions for ${meal.name}`} onPress={onActions} hitSlop={8} style={styles.cardMoreButton}>
+          <ScalePressable accessibilityLabel={`More actions for ${meal.name}`} onPress={onActions} hitSlop={8} scale={0.98} haptic="none" style={styles.cardMoreButton}>
             <Feather name="more-horizontal" size={18} color={colors.mutedForeground} />
-          </Pressable>
+          </ScalePressable>
         </View>
         <Pressable accessibilityLabel={`Open planned ${meal.meal}: ${meal.name}`} onPress={onPress}>
           <Text numberOfLines={2} style={[styles.mealName, { color: colors.foreground }]}>{meal.name}</Text>
@@ -75,10 +76,10 @@ function MealCard({
           <Text style={[styles.mealCalories, { color: colors.foreground }]}>{Math.round(meal.calories)} kcal</Text>
           <Text style={[styles.macroText, { color: colors.protein }]}>P {Math.round(meal.proteinG)}g</Text>
           <Text style={[styles.macroText, { color: colors.carbs }]}>C {Math.round(meal.carbsG)}g</Text>
-          <Pressable accessibilityLabel={`Log ${meal.name} to diary`} onPress={onLog} style={[styles.logMealButton, { backgroundColor: colors.primary }]}>
+          <ScalePressable accessibilityLabel={`Log ${meal.name} to diary`} onPress={onLog} scale={0.96} haptic="light" style={[styles.logMealButton, { backgroundColor: colors.primary }]}>
             <Feather name="plus" size={13} color={colors.primaryForeground} />
             <Text style={[styles.logMealButtonText, { color: colors.primaryForeground }]}>Log</Text>
-          </Pressable>
+          </ScalePressable>
             {editMode && <Pressable accessibilityLabel={`Edit ${meal.name}`} onPress={onEdit} style={[styles.editMealButton, { borderColor: colors.primary }]}><Feather name="edit-2" size={12} color={colors.primary} /><Text style={[styles.editMealButtonText, { color: colors.primary }]}>Edit</Text></Pressable>}
         </View>
       </View>
@@ -584,14 +585,16 @@ export default function PlannerScreen() {
             <Text style={styles.heroEyebrow}>YOUR WEEK, MADE CALM</Text>
             <View style={styles.heroTitleRow}>
               <Text style={styles.heroTitle}>Weekly planner</Text>
-              <Pressable
+              <ScalePressable
                 accessibilityLabel="Open Calora Coach"
                 onPress={() => router.push('/coach')}
-                style={({ pressed }) => [styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
+                scale={0.96}
+                haptic="light"
+                style={[styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f' }]}
               >
                 <Feather name="zap" size={15} color={colors.primaryForeground} />
                 <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask Calora</Text>
-              </Pressable>
+              </ScalePressable>
             </View>
             <Text style={styles.heroSubtitle}>A good plan leaves room for real life.</Text>
           </View>
@@ -644,10 +647,12 @@ export default function PlannerScreen() {
           )}
           <Feather name="chevron-right" size={13} color={colors.mutedForeground} style={{ marginLeft: 'auto' }} />
         </Pressable>
-         <Pressable
+         <ScalePressable
           accessibilityLabel={plannerPreferences ? 'Generate my week' : 'Choose a plan type first'}
           onPress={() => { if (!plannerPreferences) { setPlanTypeVisible(true); } else { void generate(); } }}
           disabled={generating}
+          scale={0.96}
+          haptic="light"
           style={[styles.generateButton, { backgroundColor: plannerPreferences ? colors.primary : colors.muted, opacity: generating ? 0.72 : 1 }]}
         >
           {generating ? <ActivityIndicator color={colors.primaryForeground} /> : <Feather name="zap" size={17} color={plannerPreferences ? colors.primaryForeground : colors.mutedForeground} />}
@@ -656,7 +661,7 @@ export default function PlannerScreen() {
             <Text style={[styles.generateHint, { color: plannerPreferences ? colors.primaryForeground : colors.mutedForeground, opacity: 0.75 }]}>{plannerPreferences ? 'Your choices stay in place' : 'Select a plan type above first'}</Text>
           </View>
           <Feather name="arrow-up-right" size={16} color={plannerPreferences ? colors.primaryForeground : colors.mutedForeground} />
-        </Pressable>
+        </ScalePressable>
         {generationMessage && <View accessibilityLiveRegion="polite" style={[styles.generationStatus, { backgroundColor: colors.accent }]}><Feather name="check-circle" size={16} color={colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
          <Animated.View entering={FadeInDown.springify().damping(20).delay(60)} style={styles.dayHeading}><View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{dayFormatter.format(parseDate(selectedDay))}'s meals</Text><Text style={[styles.dayHeadingCaption, { color: colors.mutedForeground }]}>Tap a meal to see it. Use Log or ··· to change the plan.</Text></View><Text style={[styles.dayTotal, { color: colors.primary }]}>{Math.round(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))} kcal</Text></Animated.View>
            <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={17} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Choose something, or leave this open.</Text></View><Feather name="chevron-right" size={16} color={colors.mutedForeground} /></Pressable>; })}
@@ -714,10 +719,10 @@ export default function PlannerScreen() {
                   <View><Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{Math.round(plannerReviewDraft.nutrition.calories)} kcal</Text></View>
                   <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {Math.round(plannerReviewDraft.nutrition.proteinG)}g · C {Math.round(plannerReviewDraft.nutrition.carbsG)}g · F {Math.round(plannerReviewDraft.nutrition.fatG)}g</Text>
                 </View>
-                <Pressable accessibilityLabel="Approve and add planned meal to diary" onPress={acceptPlannerDraft} style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}>
+                <ScalePressable accessibilityLabel="Approve and add planned meal to diary" onPress={acceptPlannerDraft} scale={0.96} haptic="light" style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}>
                   <Feather name="check-circle" size={16} color={colors.primaryForeground} />
                   <Text style={[styles.addDiaryText, { color: colors.primaryForeground }]}>Approve and add to diary</Text>
-                </Pressable>
+                </ScalePressable>
                 <Pressable accessibilityLabel="Cancel planned meal log" onPress={dismissPlannerReview} style={styles.dismissButton}>
                   <Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Not this meal</Text>
                 </Pressable>
@@ -743,10 +748,10 @@ export default function PlannerScreen() {
                     </View>
                     <Text style={[styles.ingredientsLabel, { color: colors.foreground }]}>Ingredients</Text>
                     <Text style={[styles.ingredientsText, { color: colors.mutedForeground }]}>{detail.ingredients.join(' · ')}</Text>
-                    <Pressable accessibilityLabel={`Add ${detail.name} to diary`} onPress={() => addToDiary(detail)} style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}>
+                    <ScalePressable accessibilityLabel={`Add ${detail.name} to diary`} onPress={() => addToDiary(detail)} scale={0.96} haptic="light" style={[styles.addDiaryButton, { backgroundColor: colors.primary }]}>
                       <Feather name="plus" size={16} color={colors.primaryForeground} />
                       <Text style={[styles.addDiaryText, { color: colors.primaryForeground }]}>Add to diary</Text>
-                    </Pressable>
+                    </ScalePressable>
                   </View>
                 </>
               )
@@ -827,11 +832,11 @@ export default function PlannerScreen() {
                  <SheetHeader eyebrow={`${actionMeal.meal.toUpperCase()} · ${dateFormatter.format(parseDate(actionMeal.day))}`} title={actionMeal.name} onClose={() => setActionMeal(null)} colors={colors} />
                  <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Make a change without losing your place in the week.</Text>
                  <View style={styles.actionGrid}>
-                   <Pressable accessibilityLabel={`Log ${actionMeal.name}`} onPress={() => { setActionMeal(null); addToDiary(actionMeal); }} style={[styles.actionTile, { backgroundColor: colors.primary }]}>
+                   <ScalePressable accessibilityLabel={`Log ${actionMeal.name}`} onPress={() => { setActionMeal(null); addToDiary(actionMeal); }} scale={0.96} haptic="light" style={[styles.actionTile, { backgroundColor: colors.primary }]}>
                      <Feather name="check-circle" size={18} color={colors.primaryForeground} />
                      <Text style={[styles.actionTileTitle, { color: colors.primaryForeground }]}>Log to diary</Text>
                      <Text style={[styles.actionTileBody, { color: colors.primaryForeground }]}>Review the portion first</Text>
-                   </Pressable>
+                   </ScalePressable>
                    <Pressable accessibilityLabel={`Move ${actionMeal.name}`} onPress={() => setActionMode('move')} style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
                      <Feather name="corner-up-right" size={18} color={colors.foreground} />
                      <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Move</Text>

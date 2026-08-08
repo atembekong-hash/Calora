@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
+import { ScalePressable } from '@/components/ScalePressable';
 import Animated, { Easing, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -477,23 +478,17 @@ export default function InsightsScreen() {
             <Text style={styles.heroEyebrow}>THE BIGGER PICTURE</Text>
             <View style={styles.heroTitleRow}>
               <Text style={styles.heroTitle}>Your insights</Text>
-              <Pressable
+              <ScalePressable
                 accessibilityLabel="Open Calora Coach"
                 testID="open-calora-coach"
                 onPress={() => router.push('/coach')}
-                style={({ pressed }) => [
-                  styles.coachHeaderButton,
-                  {
-                    backgroundColor: colors.primary,
-                    borderColor: '#ffd1c6',
-                    shadowColor: '#08160f',
-                    opacity: pressed ? 0.8 : 1,
-                  },
-                ]}
+                scale={0.96}
+                haptic="light"
+                style={[styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f' }]}
               >
                 <Feather name="zap" size={15} color={colors.primaryForeground} />
                 <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask Calora</Text>
-              </Pressable>
+              </ScalePressable>
             </View>
             <Text style={styles.heroSubtitle}>Patterns, not pressure. Use the signal to make tomorrow easier.</Text>
           </View>
@@ -755,15 +750,17 @@ export default function InsightsScreen() {
         <View style={styles.weightHeader}>
           <View style={styles.weightTitleGroup}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your trend matters more than a single day</Text></View>
           <View style={styles.weightHeaderButtons}>
-            <Pressable
+            <ScalePressable
               accessibilityLabel="Edit weight goal"
               onPress={() => { setGoalInput(targetWeight > 0 ? String(targetWeight) : ''); setShowGoalEdit(true); }}
+              scale={0.98}
+              haptic="none"
               style={[styles.goalHeaderBtn, { backgroundColor: colors.muted }]}
             >
               <Feather name="target" size={13} color={colors.mutedForeground} />
               <Text style={[styles.goalHeaderBtnText, { color: colors.mutedForeground }]}>{targetWeight > 0 ? `Goal: ${targetWeight.toFixed(0)} kg` : 'Set goal'}</Text>
-            </Pressable>
-            <Pressable accessibilityLabel="Log weight" onPress={() => setShowWeight(true)} style={[styles.weightButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.weightButtonText, { color: colors.primaryForeground }]}>Log</Text></Pressable>
+            </ScalePressable>
+            <ScalePressable accessibilityLabel="Log weight" onPress={() => setShowWeight(true)} scale={0.96} haptic="light" style={[styles.weightButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.weightButtonText, { color: colors.primaryForeground }]}>Log</Text></ScalePressable>
           </View>
         </View>
         <AnimatedReveal delay={540}>
@@ -818,13 +815,15 @@ export default function InsightsScreen() {
                     ? `${goalProgressKg.toFixed(1)} kg toward your ${targetWeight.toFixed(0)} kg goal`
                     : `Target ${targetWeight.toFixed(0)} kg · start logging progress`}
                 </Text>
-                <Pressable
+                <ScalePressable
                   accessibilityLabel="Edit weight goal"
                   onPress={() => { setGoalInput(targetWeight > 0 ? String(targetWeight) : ''); setShowGoalEdit(true); }}
+                  scale={0.98}
+                  haptic="none"
                   style={styles.goalEditBtn}
                 >
                   <Feather name="edit-2" size={12} color={colors.primary} />
-                </Pressable>
+                </ScalePressable>
                 <Text style={[styles.goalProgressPct, { color: goalReached ? colors.success : colors.primary }]}>{goalReached ? '✓' : `${Math.round(goalProgressPct)}%`}</Text>
               </View>
               <AnimatedTrackFill percentage={goalProgressPct} color={goalReached ? colors.success : colors.primary} trackColor={colors.muted} />
@@ -861,7 +860,7 @@ export default function InsightsScreen() {
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>A single weigh-in is just a data point. Calora looks for a trend.</Text>
             <TextInput value={weightInput} onChangeText={setWeightInput} keyboardType="decimal-pad" placeholder={`${latestWeight.toFixed(1)} kg`} placeholderTextColor={colors.mutedForeground} style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} onFocus={() => { isEditingWeight.current = true; }} onEndEditing={() => { isEditingWeight.current = false; }} />
-            <Pressable accessibilityLabel="Save weight" onPress={() => { const value = Number(weightInput); if (value > 0) { addWeight(value); setWeightInput(''); setShowWeight(false); setSaveNotice('Weight check-in saved locally.'); } }} style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></Pressable>
+            <ScalePressable accessibilityLabel="Save weight" onPress={() => { const value = Number(weightInput); if (value > 0) { addWeight(value); setWeightInput(''); setShowWeight(false); setSaveNotice('Weight check-in saved locally.'); } }} scale={0.96} haptic="light" style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></ScalePressable>
             <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
           </View>
         </View>
@@ -880,7 +879,7 @@ export default function InsightsScreen() {
               style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]}
               autoFocus
             />
-            <Pressable
+            <ScalePressable
               accessibilityLabel="Save weight goal"
               onPress={() => {
                 const value = Number(goalInput);
@@ -891,10 +890,12 @@ export default function InsightsScreen() {
                   setSaveNotice('Weight goal updated.');
                 }
               }}
+              scale={0.96}
+              haptic="light"
               style={[styles.saveWeight, { backgroundColor: colors.primary }]}
             >
               <Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save goal</Text>
-            </Pressable>
+            </ScalePressable>
             <Pressable accessibilityLabel="Cancel goal edit" onPress={() => setShowGoalEdit(false)} style={styles.cancelWeight}>
               <Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Cancel</Text>
             </Pressable>
