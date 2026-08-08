@@ -1,0 +1,2004 @@
+CALORAAPP AUTHENTICATION + SUPABASE FOUNDATION MISSION
+
+Production-Ready Identity, Account, Database, Persistence and Subscription-Readiness Architecture
+
+You are the autonomous senior technical owner responsible for establishing a production-ready authentication, user identity, cloud database and account-management foundation for the existing CaloraApp mobile application.
+
+This is an existing, nearly completed calorie and nutrition tracking application built in Replit.
+
+This mission must prepare CaloraApp for:
+
+- secure user accounts
+- Google authentication
+- Sign in with Apple where required
+- email authentication
+- persistent sessions
+- local-first data preservation
+- cloud synchronization
+- cross-device identity
+- account recovery
+- account deletion
+- backend authorization
+- RevenueCat subscription ownership
+- future production scale
+
+This is not a request to rebuild the application.
+
+This is not permission to replace working systems casually.
+
+This is not permission to wipe existing data.
+
+This is not permission to trigger a production build or deploy the application.
+
+Your operating sequence is:
+
+Audit → Architecture Verification → Migration Plan → Authentication → Identity Mapping → Database Migration → Authorization → Local Data Migration → Cloud Readiness → Security → Testing → Regression Testing → Final Report
+
+---
+
+1. CONFIRMED CURRENT ARCHITECTURE
+
+The preliminary forensic audit has already established the following:
+
+Database
+
+The application currently uses:
+
+PostgreSQL
+
+managed through Replit and configured using:
+
+"DATABASE_URL"
+
+The ORM is:
+
+Drizzle ORM
+
+using:
+
+- "drizzle-orm"
+- "node-postgres / pg"
+- "drizzle-kit"
+
+The schema currently exists in:
+
+"lib/db/src/schema/index.ts"
+
+or the actual equivalent path if repository structure has changed.
+
+There are approximately 14 relational tables already defined.
+
+These include:
+
+- "calora_users"
+- "calora_profiles"
+- "calora_food_items"
+- "calora_diary_entries"
+- "calora_weight_entries"
+- "calora_saved_meals"
+- "calora_recipes"
+- "calora_recipe_items"
+- "calora_ai_capture_sessions"
+- "calora_ai_capture_candidates"
+- "calora_subscriptions"
+- "calora_sync_mutations"
+- "calora_consent_events"
+- "calora_recipe_nutrition"
+
+Most are currently defined but not yet used in live user flows.
+
+The schema already follows a multi-user relational architecture.
+
+Most user-owned tables use:
+
+"userId"
+
+UUID foreign keys referencing:
+
+"calora_users"
+
+The "calora_users" table includes:
+
+"externalId"
+
+with a unique index.
+
+That field appears intentionally designed to map an external authentication-provider identity to the internal CaloraApp user.
+
+The "calora_subscriptions" table already contains subscription-related fields such as provider, product ID, entitlement, status, expiration and user ownership.
+
+The "calora_sync_mutations" table appears designed for future offline-first synchronization.
+
+---
+
+2. CURRENT API ARCHITECTURE
+
+The API server currently uses:
+
+Express 5
+
+with active route groups such as:
+
+- "/api/v1/health"
+- "/api/v1/recipes/*"
+- "/api/v1/capture/*"
+- "/api/v1/planner/*"
+- "/api/v1/coach/*"
+
+No authentication middleware currently protects these APIs.
+
+There is currently:
+
+- no JWT verification
+- no authenticated "req.user"
+- no bearer-token validation
+- no active session architecture
+
+This means user-owned server endpoints must not remain open once authenticated cloud data begins to be used.
+
+---
+
+3. CURRENT MOBILE PERSISTENCE
+
+The application currently uses:
+
+AsyncStorage
+
+through the existing persistence architecture.
+
+The app is currently local-first.
+
+Existing local data may include:
+
+- diary entries
+- weight logs
+- profile information
+- meal plans
+- recipes
+- preferences
+- settings
+- living memory
+- AI-related history
+- food information
+- progress
+
+Authentication must not erase or orphan this state.
+
+---
+
+4. CONFIRMED PROVIDER DECISION
+
+The approved long-term platform choice is:
+
+SUPABASE
+
+Use Supabase for:
+
+Authentication
+
+and
+
+Managed PostgreSQL infrastructure.
+
+Do NOT use Firebase.
+
+Do NOT introduce Firestore.
+
+Do NOT rewrite the relational data model into document collections.
+
+The current PostgreSQL + Drizzle architecture is already aligned with Supabase PostgreSQL.
+
+---
+
+5. IMPORTANT DATABASE STRATEGY
+
+The target architecture is:
+
+Supabase Auth
+
+↓
+
+CaloraApp internal user identity
+
+↓
+
+Supabase PostgreSQL
+
+↓
+
+Drizzle ORM
+
+↓
+
+Express API
+
+↓
+
+CaloraApp mobile application
+
+Drizzle remains the application's database schema/query abstraction unless a concrete technical incompatibility is found.
+
+Do not replace Drizzle merely because Supabase is being introduced.
+
+---
+
+6. DO NOT TREAT THIS AS A DATABASE_URL SWAP
+
+Although Supabase also uses PostgreSQL, migration must NOT be treated as merely changing:
+
+"DATABASE_URL"
+
+Before changing any live database connection, perform a compatibility and migration audit covering:
+
+- existing Drizzle schema
+- tables
+- primary keys
+- UUID generation
+- foreign keys
+- constraints
+- unique indexes
+- defaults
+- timestamps
+- enums
+- PostgreSQL extensions
+- existing migrations
+- migration history
+- existing data
+- sequences
+- SSL requirements
+- Supabase connection modes
+- connection pooling
+- transaction behavior
+- Express connectivity
+- Drizzle compatibility
+- backup
+- rollback
+
+Report findings before destructive migration actions.
+
+---
+
+7. PRESERVE THE EXISTING REPLIT DATABASE
+
+Do not delete the existing Replit PostgreSQL database.
+
+Do not overwrite it blindly.
+
+Before migration:
+
+1. Identify existing data.
+2. Determine whether production or test data matters.
+3. Produce a migration plan.
+4. Produce a rollback plan.
+5. Verify target schema compatibility.
+6. Verify migration tooling.
+7. Preserve a recovery path.
+
+Treat the current database as a source that may need recovery.
+
+---
+
+8. USER IDENTITY MODEL
+
+The internal CaloraApp identity must remain distinct from the external authentication-provider identity.
+
+Use:
+
+"calora_users.id"
+
+as the authoritative internal CaloraApp user ID.
+
+Use:
+
+"calora_users.externalId"
+
+to store the Supabase Auth user ID.
+
+The target relationship is:
+
+Supabase Auth user.id
+
+↓
+
+"calora_users.externalId"
+
+↓
+
+"calora_users.id"
+
+↓
+
+all user-owned CaloraApp records.
+
+Do NOT casually replace every internal "userId" foreign key with the Supabase Auth UUID.
+
+The separation between provider identity and application identity is deliberate and should be preserved.
+
+---
+
+9. WHY THIS IDENTITY SEPARATION MATTERS
+
+Keeping an internal CaloraApp user ID provides:
+
+- reduced vendor coupling
+- cleaner migrations later
+- safer provider changes
+- stable database ownership
+- better account-linking flexibility
+- support for multiple external providers
+- future enterprise/admin options
+- cleaner RevenueCat identity decisions
+
+Supabase should authenticate the user.
+
+CaloraApp should own the application-level identity.
+
+---
+
+10. STABLE USER RECORD CREATION
+
+After successful Supabase authentication:
+
+1. Obtain the authenticated Supabase user ID.
+2. Look up:
+
+"calora_users.externalId"
+
+3. If a matching user exists, load the existing CaloraApp user.
+4. If not, create a new "calora_users" record.
+5. Store the Supabase user ID in "externalId".
+6. Return the internal CaloraApp user ID to the authenticated application layer.
+
+This operation must be race-safe and idempotent.
+
+Multiple requests must not create duplicate users.
+
+---
+
+11. AUTHENTICATION METHODS
+
+Implement or prepare the following:
+
+Continue with Google
+
+Use Supabase Auth's supported Google OAuth integration.
+
+Continue with Apple
+
+Support Sign in with Apple on iOS where required by current App Store rules and appropriate to the implemented provider mix.
+
+Continue with Email
+
+Choose the safest and simplest Supabase-supported email flow appropriate for this application.
+
+Preferred choices should be evaluated in this order:
+
+1. Email OTP
+2. Magic link
+3. Email + password
+
+If password auth is selected, document why it is preferable.
+
+Do not introduce passwords merely because they are conventional.
+
+---
+
+12. GOOGLE SIGN-IN
+
+Implement Google authentication through the supported Supabase/Expo/native flow.
+
+Audit the current project for:
+
+- Expo
+- React Native
+- native build setup
+- package identifiers
+- URL scheme
+- deep links
+- OAuth redirect handling
+
+Document external setup required in:
+
+- Supabase dashboard
+- Google Cloud Console
+- Android OAuth configuration
+- iOS OAuth configuration
+
+Do not invent client IDs.
+
+Do not hardcode OAuth secrets.
+
+---
+
+13. SIGN IN WITH APPLE
+
+Where required, implement Apple authentication correctly.
+
+Handle:
+
+- Apple provider identifier
+- relay email
+- missing email on later sign-ins
+- name only being available on first authorization
+- revoked authorization
+- provider cancellation
+- account linking risks
+
+Do not assume Apple returns profile information every time.
+
+---
+
+14. EMAIL AUTHENTICATION
+
+If email OTP or magic link is used:
+
+Support:
+
+- account creation
+- login
+- resend
+- expiration
+- invalid token
+- network failure
+- verification success
+- account already existing
+
+Rate-limit abuse where appropriate.
+
+Do not expose whether arbitrary accounts exist unnecessarily.
+
+---
+
+15. AUTH SCREEN EXPERIENCE
+
+The user-facing authentication experience should remain simple.
+
+Recommended hierarchy:
+
+Continue with Google
+
+Continue with Apple where appropriate
+
+Continue with Email
+
+Do not create an elaborate social-profile experience.
+
+The objective is secure identity, not social networking.
+
+Use existing CaloraApp design language.
+
+Support light and dark mode.
+
+---
+
+16. AUTHENTICATION PLACEMENT
+
+CaloraApp is currently local-first.
+
+Do not automatically force authentication before every part of the app unless product requirements require it.
+
+Preferred behavior:
+
+Users may use appropriate local functionality before signing in.
+
+Authentication becomes required when the user needs:
+
+- cloud backup
+- cloud synchronization
+- cross-device access
+- premium subscription
+- account-based recovery
+- other account-dependent features
+
+Before beginning a paid subscription, the user should have a stable authenticated CaloraApp identity.
+
+---
+
+17. SESSION PERSISTENCE
+
+Authenticated users should remain signed in after:
+
+- closing the app
+- reopening the app
+- device restart
+- ordinary updates
+- temporary offline periods
+
+Use Supabase session handling appropriately.
+
+Sensitive session material must be stored using secure platform storage where required.
+
+Do not put sensitive refresh tokens into plain AsyncStorage without reviewing the platform security implications.
+
+---
+
+18. SECURE STORAGE
+
+Audit whether Expo SecureStore or equivalent secure storage already exists.
+
+Use secure storage for sensitive authentication state.
+
+AsyncStorage may continue to store ordinary application state.
+
+Separate:
+
+AUTH SECRETS
+
+from
+
+LOCAL PRODUCT DATA
+
+Do not move the entire app state to secure storage unnecessarily.
+
+---
+
+19. EXPRESS AUTHENTICATION MIDDLEWARE
+
+Create a server authentication layer for protected APIs.
+
+The server must:
+
+1. Receive the Supabase access token.
+2. Verify the token.
+3. Resolve the Supabase authenticated user.
+4. Resolve the matching "calora_users" record.
+5. Attach authoritative user identity to request context.
+
+Conceptually:
+
+"req.auth.supabaseUserId"
+
+and
+
+"req.auth.caloraUserId"
+
+or architecture-appropriate equivalents.
+
+Do not trust client-submitted user IDs as authorization.
+
+---
+
+20. AUTHENTICATED REQUEST RULE
+
+For user-owned endpoints:
+
+NEVER accept:
+
+"userId"
+
+from the mobile client and blindly use it to access data.
+
+Instead:
+
+authenticated token
+
+↓
+
+server resolves identity
+
+↓
+
+server scopes query using internal CaloraApp user ID
+
+This is mandatory.
+
+---
+
+21. API AUTHORIZATION
+
+Authentication is not sufficient.
+
+Every user-owned route must enforce ownership.
+
+Audit all current and future endpoints for IDOR risk.
+
+Examples:
+
+A user must never be able to request:
+
+"/diary-entry/another-users-id"
+
+and receive another person's information simply because the resource exists.
+
+Every ownership-sensitive query must scope through the authenticated internal user ID.
+
+---
+
+22. PUBLIC VS PROTECTED ROUTES
+
+Classify API endpoints.
+
+Examples of routes that may remain public:
+
+- health check
+- selected public food/nutrition lookups
+- public recipes if truly public
+
+Examples likely requiring authentication once user state reaches the server:
+
+- diary
+- weight
+- plans
+- saved meals
+- profiles
+- AI history
+- account
+- subscriptions
+- sync
+- private recipes
+
+Do not protect public resources unnecessarily.
+
+Do not leave private resources open.
+
+---
+
+23. LOCAL-FIRST ARCHITECTURE MUST REMAIN
+
+Do not remove the existing local persistence architecture.
+
+CaloraApp should remain responsive when:
+
+- network is slow
+- backend is temporarily unavailable
+- user is offline
+
+Authentication adds identity.
+
+Supabase adds cloud capability.
+
+Neither should turn the application into a network-dependent shell.
+
+---
+
+24. EXISTING LOCAL DATA PRESERVATION
+
+Existing users may have substantial local state.
+
+This may include:
+
+- diary history
+- calorie history
+- macro history
+- weight history
+- body profile
+- goals
+- recipes
+- meal plans
+- favorites
+- preferences
+- saved foods
+- scans
+- AI corrections
+- progress
+- AI Coach history
+- application settings
+
+When a user creates their CaloraApp account, this data must not disappear.
+
+---
+
+25. LOCAL-TO-CLOUD MIGRATION
+
+Design a controlled first-authentication migration.
+
+Suggested conceptual flow:
+
+Local user
+
+↓
+
+Authentication succeeds
+
+↓
+
+Create/load "calora_users"
+
+↓
+
+Snapshot current local state
+
+↓
+
+Generate stable migration identity
+
+↓
+
+Upload eligible records
+
+↓
+
+Verify writes
+
+↓
+
+Mark migration status
+
+↓
+
+Keep local cache
+
+Do not remove the local copy immediately.
+
+---
+
+26. MIGRATION STATE
+
+Introduce migration state where necessary.
+
+Example conceptual states:
+
+- "not_started"
+- "pending"
+- "in_progress"
+- "completed"
+- "failed"
+- "needs_review"
+
+The exact schema should follow the existing architecture.
+
+Migration must be:
+
+- idempotent
+- retryable
+- resumable
+- crash-safe
+
+A failed migration must not erase local data.
+
+---
+
+27. DUPLICATE PREVENTION
+
+Migration must avoid creating duplicate diary records, weight entries, recipes or other entities if retried.
+
+Use stable record identifiers.
+
+Do not rely only on timestamps if stronger IDs are available.
+
+Where existing local records lack cloud-safe IDs, design a backward-compatible ID strategy.
+
+---
+
+28. EXISTING SERVER DATA CONFLICTS
+
+If an authenticated account already contains cloud data and the current device also contains local data, do not overwrite either blindly.
+
+Define explicit merge logic.
+
+Use:
+
+- stable IDs
+- created timestamps
+- updated timestamps
+- record types
+- user intent
+
+Where merge cannot be safely automated, preserve both rather than destroying information.
+
+Document conflict policy.
+
+---
+
+29. OFFLINE SYNC FOUNDATION
+
+The existing:
+
+"calora_sync_mutations"
+
+table indicates prior intent for offline-first synchronization.
+
+Audit that schema.
+
+Determine whether it is suitable for:
+
+- pending creates
+- updates
+- deletes
+- retries
+- conflict metadata
+- timestamps
+- idempotency keys
+
+Do not fully rebuild the sync engine unless needed for authentication migration.
+
+However, establish identity compatibility with future sync.
+
+---
+
+30. CLOUD DATABASE MIGRATION
+
+The long-term target database is:
+
+Supabase PostgreSQL
+
+Preserve the Drizzle schema.
+
+Migration should be done through an explicit process.
+
+Recommended sequence:
+
+1. Create Supabase project externally when authorized.
+2. Configure safe development credentials.
+3. Validate Drizzle connection.
+4. Apply schema to an empty target database.
+5. Compare schemas.
+6. Validate constraints.
+7. Validate indexes.
+8. Validate UUID/default behavior.
+9. Migrate existing data if needed.
+10. Validate row counts and integrity.
+11. Point a non-production environment to Supabase.
+12. Run functional tests.
+13. Keep rollback path.
+14. Only later change production connection after authorization.
+
+Do not skip validation.
+
+---
+
+31. SUPABASE ROW LEVEL SECURITY
+
+Evaluate RLS carefully.
+
+Supabase provides RLS, but this application currently uses:
+
+Express + Drizzle
+
+as the primary server access layer.
+
+Do not blindly enable RLS policies that conflict with server-side database access.
+
+Determine the architecture:
+
+Option A
+
+Express is the trusted data-access layer.
+
+Option B
+
+Some mobile clients access Supabase directly.
+
+Prefer a deliberate architecture.
+
+If clients will not access tables directly, server-side authorization may remain primary.
+
+If direct Supabase access is introduced, RLS becomes mandatory for those paths.
+
+Document the chosen trust model.
+
+---
+
+32. SERVICE ROLE SECURITY
+
+If Supabase service-role credentials are required:
+
+They must remain server-side only.
+
+Never expose them to:
+
+- Expo client bundle
+- React Native code
+- public environment variables
+- logs
+- analytics
+- source-controlled config
+
+Only the public client key appropriate for mobile use may be exposed where required.
+
+---
+
+33. DATABASE CONNECTION SECURITY
+
+Determine the correct Supabase connection approach for the Express server.
+
+Review:
+
+- direct connection
+- transaction pooler
+- session pooler
+- SSL
+- serverless/replit connection patterns
+- connection limits
+- Drizzle compatibility
+
+Do not choose a connection mode by guesswork.
+
+---
+
+34. PROFILE MODEL
+
+Audit "calora_profiles".
+
+Do not duplicate nutrition profile state unnecessarily.
+
+Determine how existing local profile information maps to server state.
+
+Potential profile information may include:
+
+- display name
+- age or birth year
+- height
+- weight
+- activity level
+- goal
+- calorie target
+- macro targets
+- dietary preferences
+
+Only migrate fields that actually exist.
+
+Do not invent data.
+
+---
+
+35. USER ACCOUNT MODEL
+
+Do not make "calora_users" a dumping ground for every profile field.
+
+Keep:
+
+identity/account fields
+
+separate from:
+
+nutrition profile fields
+
+if the existing schema already follows that separation.
+
+Preserve normalization.
+
+---
+
+36. ACCOUNT SWITCHING
+
+Test:
+
+User A logs in.
+
+User A logs out.
+
+User B logs in.
+
+The application must not display User A's:
+
+- diary
+- weight
+- AI history
+- meal plans
+- recipes
+- preferences
+- subscription state
+
+to User B.
+
+Namespace or reset account-scoped local state correctly.
+
+---
+
+37. SIGN OUT
+
+Signing out must:
+
+- end active authentication state
+- clear sensitive session information
+- disconnect account-scoped cloud state
+- remove private user information from current UI
+
+Signing out must NOT:
+
+- delete account
+- delete cloud data
+- cancel subscription
+- destroy store purchase history
+
+---
+
+38. ACCOUNT DELETION
+
+Create a complete account-deletion architecture.
+
+The in-app path should allow authenticated users to delete their CaloraApp account where required.
+
+Deletion must consider:
+
+- Supabase auth identity
+- "calora_users"
+- profile
+- diary data
+- weight data
+- saved meals
+- recipes
+- AI capture data
+- consent records
+- cloud sync state
+- subscription metadata
+- sessions
+
+Do not delete records in an order that violates foreign-key constraints.
+
+---
+
+39. SUBSCRIPTION WARNING DURING DELETION
+
+Deleting a CaloraApp account does not necessarily cancel Apple or Google subscriptions.
+
+The deletion UX must explain this when appropriate.
+
+Provide subscription-management guidance before account deletion where a store subscription exists.
+
+Do not claim deletion cancels billing unless the store actually does so.
+
+---
+
+40. DATA RETENTION
+
+Document deletion and retention behavior.
+
+Do not claim immediate permanent deletion if backups or legal retention make that untrue.
+
+Identify what is:
+
+- immediately deleted
+- soft deleted
+- retained temporarily
+- retained for legal/security reasons
+
+Do not invent retention policy.
+
+Flag legal decisions that require owner approval.
+
+---
+
+41. ACCOUNT RECOVERY
+
+Account recovery must work independently of local device data.
+
+For email auth:
+
+Use the selected Supabase-supported recovery flow.
+
+For Google/Apple:
+
+Use provider-based reauthentication.
+
+A lost phone should not permanently mean a lost CaloraApp account.
+
+---
+
+42. DUPLICATE ACCOUNTS
+
+Handle scenarios such as:
+
+A user first signs up with Google.
+
+Later they use email.
+
+Or:
+
+They use Apple private relay.
+
+Do not automatically merge accounts merely because an email string appears identical unless the identity assurance is safe.
+
+Define account-linking behavior explicitly.
+
+---
+
+43. ACCOUNT LINKING
+
+If multiple sign-in providers can be linked:
+
+Require an authenticated session before adding another identity.
+
+Do not allow account takeover through unsafe email-based linking.
+
+If provider linking is deferred, document the limitation clearly.
+
+---
+
+44. REVENUECAT READINESS
+
+Authentication must prepare CaloraApp for the upcoming payment system.
+
+The future chain should be:
+
+Store account
+
+↓
+
+RevenueCat
+
+↓
+
+authenticated CaloraApp identity
+
+↓
+
+CaloraApp Pro entitlement
+
+↓
+
+internal CaloraApp user
+
+The architecture must support assigning RevenueCat identity consistently to the authenticated CaloraApp account.
+
+---
+
+45. REVENUECAT USER ID STRATEGY
+
+Do not automatically choose email.
+
+Do not use a random temporary device ID for authenticated subscribers.
+
+Evaluate whether RevenueCat should use:
+
+- internal "calora_users.id"
+
+or
+
+- another stable opaque CaloraApp identity
+
+The preferred direction is a stable internal CaloraApp user ID.
+
+Document the decision.
+
+Do not fully implement the payment system in this mission unless required to prevent identity conflicts.
+
+---
+
+46. EXISTING REVENUECAT CODE
+
+If RevenueCat code already exists:
+
+Audit:
+
+- anonymous IDs
+- existing entitlement checks
+- logout behavior
+- login behavior
+- customer aliasing
+- restore purchases
+- local premium state
+
+Do not break existing code.
+
+Document the future transition to authenticated RevenueCat users.
+
+---
+
+47. SUBSCRIPTION TABLE
+
+Audit:
+
+"calora_subscriptions"
+
+Confirm whether its schema can represent:
+
+- RevenueCat provider
+- product ID
+- entitlement
+- status
+- expiration
+- internal user ID
+- renewal state
+- billing issue state
+- store
+- last update
+
+Do not create duplicate subscription tables if the existing one is sufficient.
+
+---
+
+48. CONSENT EVENTS
+
+Audit:
+
+"calora_consent_events"
+
+Determine whether it can support:
+
+- Terms acceptance
+- Privacy acceptance
+- nutrition disclaimer
+- AI disclaimer
+- subscription terms
+
+Do not fabricate consent records.
+
+Record only deliberate user consent where appropriate.
+
+---
+
+49. SECURITY REVIEW
+
+Perform a complete authentication and database security review.
+
+Verify:
+
+- no plaintext passwords
+- no exposed Supabase service key
+- no exposed OAuth secret
+- secure token storage
+- JWT validation
+- user ownership checks
+- protected private endpoints
+- no client-controlled authoritative user ID
+- account isolation
+- migration integrity
+- deletion authorization
+- rate limiting where necessary
+- safe logging
+- safe error responses
+
+---
+
+50. JWT VERIFICATION
+
+Do not merely decode JWTs.
+
+Verify them correctly.
+
+Ensure:
+
+- signature is valid
+- issuer/audience are appropriate
+- token is not expired
+- authenticated user exists
+- provider identity resolves to CaloraApp identity
+
+Reject invalid tokens.
+
+---
+
+51. EXPIRED SESSION UX
+
+When a session expires:
+
+Attempt safe refresh where supported.
+
+If refresh fails:
+
+Return the user to authentication without destroying unsynchronized local nutrition data.
+
+Do not turn session expiration into data loss.
+
+---
+
+52. OFFLINE AUTH EXPERIENCE
+
+If the user has an existing valid local session state and temporarily loses network connectivity:
+
+Do not unnecessarily hide local diary/history.
+
+Allow appropriate offline use.
+
+Queue cloud work for later where supported.
+
+Clearly distinguish:
+
+offline
+
+from
+
+signed out
+
+---
+
+53. AUTH ERROR STATES
+
+Handle:
+
+- network unavailable
+- invalid credentials
+- Google canceled
+- Apple canceled
+- expired link
+- expired OTP
+- duplicate account
+- disabled account
+- server unavailable
+- Supabase unavailable
+- migration failed
+- session refresh failed
+- account-link conflict
+
+Use clear customer-facing messages.
+
+Do not expose raw provider errors or stack traces.
+
+---
+
+54. RATE LIMITING
+
+Protect high-risk auth flows.
+
+Examples:
+
+- email OTP requests
+- password reset
+- login attempts
+- verification resends
+- account creation
+
+Use provider controls plus server controls where appropriate.
+
+Do not create aggressive rate limits that block normal customers.
+
+---
+
+55. PRIVACY INVENTORY
+
+Authentication and cloud migration change CaloraApp's privacy footprint.
+
+Update the internal privacy inventory.
+
+Identify whether the system now processes:
+
+- email
+- Supabase user ID
+- internal CaloraApp user ID
+- provider ID
+- login timestamps
+- profile
+- nutrition data
+- diary history
+- weight
+- meal plans
+- recipes
+- AI content
+- subscription information
+- device data
+- analytics
+- crash diagnostics
+
+Document:
+
+- where stored
+- purpose
+- processors
+- deletion behavior
+
+Do not guess store privacy declarations.
+
+---
+
+56. THIRD-PARTY PROCESSOR INVENTORY
+
+Add Supabase to the project's processor inventory.
+
+Document:
+
+Supabase
+
+- authentication
+- managed PostgreSQL
+- potentially email/auth infrastructure depending on configuration
+
+Also audit every other external provider already in the project.
+
+Do not expose keys in the report.
+
+---
+
+57. ENVIRONMENT VARIABLES
+
+Audit existing environment variables.
+
+Introduce only necessary variables.
+
+Potential examples depend on architecture:
+
+- Supabase URL
+- public/anon client key
+- server-side keys where needed
+- database connection string
+
+Use the project's naming convention.
+
+Never expose server-only keys through Expo public variables.
+
+Update ".env.example" without real values.
+
+---
+
+58. DEVELOPMENT, STAGING AND PRODUCTION
+
+Do not mix environments.
+
+Plan for:
+
+- development
+- testing/staging if available
+- production
+
+Avoid using production auth/database casually during local development.
+
+Document environment separation.
+
+---
+
+59. DEEP LINKS
+
+Authentication may require redirect URLs.
+
+Audit current:
+
+- Expo scheme
+- app scheme
+- deep links
+- universal links
+- OAuth redirects
+
+Do not change existing production-bound scheme blindly.
+
+Ensure:
+
+- email auth callbacks
+- Google callbacks
+- Apple callbacks
+
+resolve correctly in the chosen architecture.
+
+---
+
+60. CALORAAPP PRODUCT IDENTITY
+
+Use approved customer-facing product identity:
+
+CaloraApp
+
+Publisher:
+
+Etiendem Technologies
+
+Domain:
+
+mycaloraapp.com
+
+Authentication UI and messages must use CaloraApp branding consistently.
+
+Do not change technical bundle/package identity unless separately authorized after audit.
+
+---
+
+61. SETTINGS INTEGRATION
+
+Integrate authentication into the existing Settings structure.
+
+Where appropriate:
+
+Account
+
+Signed in as
+
+Connected providers
+
+Manage Account
+
+Sign Out
+
+Delete Account
+
+Do not create duplicate settings sections.
+
+Preserve existing UI hierarchy.
+
+---
+
+62. ONBOARDING
+
+Do not force existing users to repeat nutrition onboarding after authentication.
+
+If profile information already exists locally:
+
+Migrate it.
+
+Do not ask for the same data again unless required because information is missing.
+
+---
+
+63. LOGIN AFTER EXISTING USE
+
+This scenario must be tested explicitly:
+
+1. Use the app locally.
+2. Add food.
+3. Add weight.
+4. Create a meal plan.
+5. Save preferences.
+6. Close app.
+7. Reopen app.
+8. Create account.
+9. Authenticate.
+10. Verify all local state remains.
+11. Verify eligible data begins association with authenticated identity.
+12. Restart.
+13. Verify persistence.
+
+This is a release-critical path.
+
+---
+
+64. FRESH ACCOUNT
+
+Test:
+
+1. Fresh install/state.
+2. Create account.
+3. Complete onboarding.
+4. Add food.
+5. Restart.
+6. Verify state.
+7. Log out.
+8. Log back in.
+9. Verify ownership.
+
+---
+
+65. ACCOUNT SWITCHING TEST
+
+Test:
+
+1. User A signs in.
+2. User A creates private data.
+3. User A signs out.
+4. User B signs in.
+5. Verify User A's data is not visible.
+6. User B creates data.
+7. User B signs out.
+8. User A signs back in.
+9. Verify correct state returns.
+
+This must pass.
+
+---
+
+66. DATABASE MIGRATION VALIDATION
+
+Before calling Supabase migration successful, verify:
+
+- every table exists
+- foreign keys match
+- indexes exist
+- unique constraints exist
+- defaults match
+- expected data counts match
+- no unexpected nullability changes
+- Drizzle queries work
+- API routes work
+- migrations can run forward
+- rollback strategy remains available
+
+---
+
+67. DRIZZLE MIGRATIONS
+
+Preserve migration history where possible.
+
+Do not discard existing migrations just because the database host changes.
+
+If a new baseline is required, document precisely why.
+
+Avoid schema drift between Drizzle and Supabase.
+
+Drizzle remains the schema authority unless explicitly changed.
+
+---
+
+68. SUPABASE DASHBOARD CHANGES
+
+Do not claim external Supabase setup is complete unless actually configured.
+
+Document required external actions such as:
+
+- create project
+- configure Auth providers
+- configure redirect URLs
+- configure Google credentials
+- configure Apple credentials
+- configure email sender
+- obtain keys
+- configure database connection
+- review RLS
+- verify production URLs
+
+Mark each as external if Replit cannot perform it.
+
+---
+
+69. DO NOT DEPLOY
+
+Do not:
+
+- deploy production backend
+- change DNS
+- create store releases
+- run EAS production build
+- create APK
+- create AAB
+- create IPA
+- publish Supabase production changes without approval
+
+unless explicitly instructed.
+
+---
+
+70. FUNCTIONAL TESTING
+
+After implementation, test:
+
+1. Email authentication.
+2. Google authentication where locally testable.
+3. Apple authentication where locally testable.
+4. Session persistence.
+5. Logout.
+6. Login.
+7. Account switching.
+8. Existing local-state preservation.
+9. Migration retry.
+10. Migration crash recovery.
+11. Protected API access.
+12. Unauthorized API rejection.
+13. Expired token.
+14. Offline startup.
+15. Account deletion.
+16. Deep-link callback.
+17. Profile persistence.
+18. Diary persistence.
+19. Weight history.
+20. Planner.
+21. Recipes.
+22. Progress.
+23. AI Coach.
+24. Settings.
+25. Light mode.
+26. Dark mode.
+
+---
+
+71. AUTHORIZATION TESTING
+
+Attempt deliberate unauthorized access.
+
+Test:
+
+- no token
+- malformed token
+- expired token
+- token for User A accessing User B's records
+- fake "userId" in request
+- modified request body
+- deleted account token
+- disabled user if supported
+
+Private data must remain inaccessible.
+
+---
+
+72. REGRESSION TESTING
+
+Authentication and Supabase migration must not break:
+
+- app launch
+- onboarding
+- dashboard
+- food logging
+- Smart Scan
+- barcode lookup
+- nutrition calculations
+- diary
+- weight tracking
+- plans
+- recipes
+- shopping list
+- progress
+- AI Coach
+- settings
+- local persistence
+- themes
+- accessibility
+- backend recipes
+- AI capture
+- analytics
+- future subscription code
+
+Investigate and repair regressions caused by this mission.
+
+---
+
+73. PERFORMANCE
+
+Authentication and cloud support must not make app startup noticeably slow.
+
+Do not block rendering on unnecessary network calls.
+
+Prefer:
+
+local state first
+
+then
+
+background identity/cloud reconciliation
+
+where technically safe.
+
+Measure obvious regressions.
+
+---
+
+74. FAILURE RECOVERY
+
+Design for:
+
+- Supabase outage
+- Replit/API outage
+- network interruption
+- partial migration
+- duplicate request
+- database timeout
+- session expiration
+- provider failure
+
+The app must fail safely.
+
+Local nutrition data should remain available where appropriate.
+
+---
+
+75. OBSERVABILITY
+
+Add useful server logging for authentication without exposing sensitive data.
+
+Track:
+
+- auth success
+- auth failure category
+- user mapping creation
+- migration start
+- migration completion
+- migration failure
+- unauthorized request
+- account deletion
+
+Do not log tokens, OTPs or passwords.
+
+---
+
+76. ANALYTICS
+
+If analytics already exists, add safe events such as:
+
+- auth_screen_viewed
+- signup_started
+- signup_completed
+- login_started
+- login_completed
+- auth_failed
+- migration_started
+- migration_completed
+- logout_completed
+- account_deletion_started
+- account_deletion_completed
+
+Do not include raw credentials or sensitive health information.
+
+---
+
+77. DOCUMENTATION
+
+Create or update a technical document such as:
+
+"docs/AUTHENTICATION_ARCHITECTURE.md"
+
+Include:
+
+- identity model
+- Supabase architecture
+- internal user mapping
+- database ownership
+- token flow
+- API authorization
+- local migration
+- offline behavior
+- RevenueCat readiness
+- external configuration
+- environment variables
+- security assumptions
+- known limitations
+
+---
+
+78. MIGRATION DOCUMENT
+
+Create:
+
+"docs/SUPABASE_MIGRATION_PLAN.md"
+
+or equivalent.
+
+Include:
+
+- source architecture
+- target architecture
+- schema compatibility
+- migration steps
+- validation
+- rollback
+- external setup
+- production cutover plan
+
+Do not perform production cutover merely because the document exists.
+
+---
+
+79. FINAL REPORT
+
+Produce:
+
+CALORAAPP AUTHENTICATION + SUPABASE FOUNDATION REPORT
+
+Include:
+
+1. Executive Summary
+
+2. Pre-existing Architecture
+
+3. Supabase Architecture Implemented
+
+4. Authentication Methods
+
+5. Internal User Identity Model
+
+6. Supabase-to-Calora User Mapping
+
+7. Database Migration Findings
+
+8. Drizzle Compatibility
+
+9. Database Changes
+
+10. API Authentication
+
+11. Authorization Controls
+
+12. Local Data Migration
+
+13. Offline Behavior
+
+14. Account Switching
+
+15. Account Deletion
+
+16. RevenueCat Readiness
+
+17. Security Review
+
+18. Privacy Impact
+
+19. Environment Variables
+
+20. External Configuration Required
+
+21. Files Changed
+
+22. Files Created
+
+23. Functional Test Results
+
+24. Authorization Test Results
+
+25. Regression Test Results
+
+26. Performance Findings
+
+27. Known Limitations
+
+28. Production Blockers
+
+29. Migration Rollback Plan
+
+30. Final Status
+
+Choose one:
+
+AUTH + SUPABASE FOUNDATION COMPLETE
+
+COMPLETE WITH EXTERNAL CONFIGURATION REQUIRED
+
+BLOCKED
+
+---
+
+80. DEFINITION OF DONE
+
+This mission is not complete because login works.
+
+It is complete when this chain is sound:
+
+Existing Local User
+
+↓
+
+Supabase Authentication
+
+↓
+
+Stable External Identity
+
+↓
+
+Mapped Internal CaloraApp User
+
+↓
+
+Secure Session
+
+↓
+
+Protected Express API
+
+↓
+
+Internal user ownership
+
+↓
+
+Local Data Preserved
+
+↓
+
+Cloud-Compatible Data
+
+↓
+
+Account Switching Isolation
+
+↓
+
+Account Recovery
+
+↓
+
+Account Deletion
+
+↓
+
+RevenueCat-Ready Identity
+
+and the existing CaloraApp experience remains intact.
+
+---
+
+81. CRITICAL OPERATING RULES
+
+Throughout this mission:
+
+Audit before changing architecture.
+
+Preserve Drizzle.
+
+Preserve PostgreSQL relational design.
+
+Use Supabase, not Firebase.
+
+Do not replace internal CaloraApp user IDs with provider IDs blindly.
+
+Do not trust client-supplied user IDs.
+
+Do not destroy the existing Replit database.
+
+Do not erase local app data.
+
+Do not expose server credentials.
+
+Do not fake completed external configuration.
+
+Do not deploy.
+
+Do not build unless explicitly instructed.
+
+Do not resume the payment-system mission yet.
+
+Authentication and identity must be proven first.
+
+Begin with a compatibility review of the already-discovered architecture, then prepare the migration plan, then proceed with implementation only where safe.
