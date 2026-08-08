@@ -16,6 +16,7 @@ import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { CaloraProvider } from '@/context/CaloraContext';
+import { AuthProvider } from '@/context/AuthContext';
 import { setBaseUrl } from '@workspace/api-client-react';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -102,6 +103,8 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="coach" options={{ headerShown: false }} />
         <Stack.Screen name="memory" options={{ headerShown: false }} />
+        {/* OAuth deep-link callback — caloraapp://auth/callback */}
+        <Stack.Screen name="auth/callback" options={{ headerShown: false, presentation: 'transparentModal' }} />
       </Stack>
     </>
   );
@@ -126,15 +129,17 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <CaloraProvider>
-          <QueryClientProvider client={queryClient}>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <KeyboardProvider>
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
-          </QueryClientProvider>
-        </CaloraProvider>
+        <AuthProvider>
+          <CaloraProvider>
+            <QueryClientProvider client={queryClient}>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardProvider>
+                  <RootLayoutNav />
+                </KeyboardProvider>
+              </GestureHandlerRootView>
+            </QueryClientProvider>
+          </CaloraProvider>
+        </AuthProvider>
       </ErrorBoundary>
     </SafeAreaProvider>
   );
