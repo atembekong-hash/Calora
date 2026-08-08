@@ -500,24 +500,47 @@ function WeightLineChart({
         )}
       </View>
 
-      {/* weight value labels */}
-      <View style={styles.weightSparkLabels}>
-        {entries.map((entry, i) => (
-          <Text
-            key={entry.kg + String(i)}
-            style={[
-              styles.weightSparkLabel,
-              { color: i === lastIdx ? colors.primary : colors.mutedForeground, flex: 1, textAlign: i === 0 ? 'left' : i === lastIdx ? 'right' : 'center' },
-            ]}
-            numberOfLines={1}
-          >
-            {entry.kg.toFixed(1)}
-          </Text>
-        ))}
-      </View>
+      {/* weight value labels — compact mode only */}
+      {!expanded && (
+        <View style={styles.weightSparkLabels}>
+          {entries.map((entry, i) => (
+            <Text
+              key={entry.kg + String(i)}
+              style={[
+                styles.weightSparkLabel,
+                { color: i === lastIdx ? colors.primary : colors.mutedForeground, flex: 1, textAlign: i === 0 ? 'left' : i === lastIdx ? 'right' : 'center' },
+              ]}
+              numberOfLines={1}
+            >
+              {entry.kg.toFixed(1)}
+            </Text>
+          ))}
+        </View>
+      )}
 
-      {/* date range label — only when the span covers more than one unique date */}
-      {entries[0]?.date && entries[entries.length - 1]?.date && entries[0].date !== entries[entries.length - 1].date && (
+      {/* date labels under each dot — expanded mode only */}
+      {expanded && (
+        <View style={styles.weightExpandedDateRow}>
+          {pts.map((pt, i) => (
+            <Text
+              key={entries[i]?.date ?? i}
+              numberOfLines={1}
+              style={[
+                styles.weightExpandedDateLabel,
+                {
+                  color: i === lastIdx ? colors.primary : colors.mutedForeground,
+                  left: pt.x * xScale,
+                },
+              ]}
+            >
+              {entries[i]?.date ? formatDate(entries[i].date) : ''}
+            </Text>
+          ))}
+        </View>
+      )}
+
+      {/* date range label — compact mode only, when span covers more than one unique date */}
+      {!expanded && entries[0]?.date && entries[entries.length - 1]?.date && entries[0].date !== entries[entries.length - 1].date && (
         <Text style={[styles.weightSparkDateRange, { color: colors.mutedForeground }]}>
           {formatDate(entries[0].date)} – {formatDate(entries[entries.length - 1].date)}
         </Text>
@@ -1595,6 +1618,8 @@ function makeStyles(f: number) {
   weightSparkLabels: { flexDirection: 'row', marginTop: 5, paddingHorizontal: 2 },
   weightSparkLabel: { fontFamily: 'Inter_400Regular', fontSize: 8 * f },
   weightSparkDateRange: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 4, textAlign: 'center', opacity: 0.6 },
+  weightExpandedDateRow: { position: 'relative', height: 18, marginTop: 6 },
+  weightExpandedDateLabel: { position: 'absolute', fontFamily: 'Inter_400Regular', fontSize: 9 * f, opacity: 0.72, transform: [{ translateX: -18 }] },
   weightTooltip: { position: 'absolute', width: 122, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, zIndex: 20 },
   weightTooltipDate: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
   weightTooltipKg: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, marginTop: 1 },
