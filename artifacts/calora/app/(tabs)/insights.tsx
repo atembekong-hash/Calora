@@ -1576,14 +1576,14 @@ export default function InsightsScreen() {
               <Text style={[styles.weightValue, { color: colors.foreground }]}>{latestWeight.toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>kg</Text></Text>
               <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length - (pendingDelete ? 1 : 0) > 1 ? `${weights.length - (pendingDelete ? 1 : 0)} weigh-ins recorded locally` : 'Optional · add a few weigh-ins to unlock trend guidance'}</Text>
             </View>
-            {weights.length >= 3 && (
+            {weights.length - (pendingDelete ? 1 : 0) >= 3 && (
               <View style={[styles.weightDeltaBadge, { backgroundColor: weightDelta <= 0 ? '#e6f6ec' : '#fff3e0' }]}>
                 <Feather name={weightDelta <= 0 ? 'trending-down' : 'trending-up'} size={13} color={weightDelta <= 0 ? colors.success : colors.warning} />
                 <Text style={[styles.weightDeltaText, { color: weightDelta <= 0 ? colors.success : colors.warning }]}>{weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)} kg</Text>
               </View>
             )}
           </View>
-          {weights.length >= 3 ? (
+          {weights.length - (pendingDelete ? 1 : 0) >= 3 ? (
             <Pressable
               onPress={() => { Haptics.selectionAsync(); setShowExpandedChart(true); }}
               accessibilityLabel="Expand weight chart"
@@ -1597,7 +1597,7 @@ export default function InsightsScreen() {
               </View>
             </Pressable>
           ) : (
-            <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length > 1 ? '50%' : '0%' }]} /></View>
+            <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length - (pendingDelete ? 1 : 0) > 1 ? '50%' : '0%' }]} /></View>
           )}
           {showGoalCelebration && showGoalProgress ? (
             <View style={styles.celebrationWrapper}>
