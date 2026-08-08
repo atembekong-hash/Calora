@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
 import { filterForgottenSources } from '@/lib/livingMemory';
+import { celebrationGate } from '@/lib/goalCelebration';
 
 const moodColors: Record<Mood, string> = {
   energized: '#e5ad55',
@@ -1058,18 +1059,44 @@ export default function InsightsScreen() {
   useEffect(() => {
     setShowGoalCelebration(false);
   }, [targetWeight]);
+
+  // Capture whether the goal was already reached at the exact moment hydration completed.
+  // This ref is set synchronously during render (not in a useEffect) so its value is
+  // immediately visible to the celebration effect on the same render cycle.
+  // When true, the gate returns 'markSeenSilently' instead of 'show', preventing the
+  // fresh-install scenario from triggering a false celebration: if the very first
+  // weigh-in the user logs already satisfies the goal, they have not earned a
+  // celebration within this session.
+  const hydrationBaselineRef = useRef<{ established: boolean; goalReachedAtHydration: boolean }>({
+    established: false,
+    goalReachedAtHydration: false,
+  });
+  if (hydrated && !hydrationBaselineRef.current.established) {
+    hydrationBaselineRef.current = {
+      established: true,
+      goalReachedAtHydration: goalReached && showGoalProgress,
+    };
+  }
+
   useEffect(() => {
-    // Wait until storage has been read so that goalCelebrationSeenTargetKg reflects the
-    // persisted value. Without this guard the effect fires on the first render with
-    // goalCelebrationSeenTargetKg = null, incorrectly re-showing the banner the user
-    // already dismissed before the last app close.
-    if (!hydrated) return;
-    if (goalReached && showGoalProgress && goalCelebrationSeenTargetKg !== targetWeight) {
-      // First crossing (or re-crossing after a reset): fire the celebration.
+    const decision = celebrationGate({
+      hydrated,
+      goalReached,
+      showGoalProgress,
+      goalCelebrationSeenTargetKg,
+      targetWeight,
+      goalReachedAtHydration: hydrationBaselineRef.current.goalReachedAtHydration,
+    });
+    if (decision === 'show') {
+      // Genuine in-session crossing (or re-crossing after a reset): fire the celebration.
       setShowGoalCelebration(true);
       markGoalCelebrationSeen(targetWeight);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else if (!goalReached && showGoalProgress && goalCelebrationSeenTargetKg === targetWeight) {
+    } else if (decision === 'markSeenSilently') {
+      // Goal was already reached at hydration (fresh-install guard) — persist the seen-flag
+      // so future sessions don't re-evaluate this crossing, but show no banner or haptic.
+      markGoalCelebrationSeen(targetWeight);
+    } else if (decision === 'reset') {
       // User has drifted back above their goal after previously reaching it.
       // Reset the seen flag so the next genuine re-crossing replays the celebration and haptic.
       resetGoalCelebrationSeen();
