@@ -266,8 +266,8 @@ const SPARK_PAD_X = 6;
 const SPARK_PAD_Y = 8;
 const SPARK_DASH = 700;
 
-const TOOLTIP_W = 92;
-const TOOLTIP_H = 42;
+const TOOLTIP_W = 122;
+const TOOLTIP_H = 44;
 const DOT_HIT = 36;
 
 // Shared chart-rendering core used by both the compact sparkline and the expanded modal.
@@ -276,11 +276,14 @@ function WeightLineChart({
   colors,
   chartHeight = SPARK_H,
   expanded = false,
+  onRequestDelete,
 }: {
   entries: { id?: string; date: string; kg: number }[];
   colors: ReturnType<typeof useCalora>['colors'];
   chartHeight?: number;
   expanded?: boolean;
+  /** Called when the user taps the trash icon. Owner is responsible for the undo window and actual removal. */
+  onRequestDelete?: (entry: { id: string; kg: number; date: string }) => void;
 }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [chartWidth, setChartWidth] = useState(SPARK_W);
@@ -449,7 +452,7 @@ function WeightLineChart({
         {/* Tooltip callout */}
         {selectedIdx !== null && (
           <Animated.View
-            pointerEvents="none"
+            pointerEvents="box-none"
             style={[
               styles.weightTooltip,
               {
@@ -463,12 +466,36 @@ function WeightLineChart({
               tooltipAnimStyle,
             ]}
           >
-            <Text style={[styles.weightTooltipDate, { color: colors.background, opacity: 0.72 }]}>
-              {formatDate(entries[selectedIdx].date)}
-            </Text>
-            <Text style={[styles.weightTooltipKg, { color: colors.background }]}>
-              {entries[selectedIdx].kg.toFixed(1)} kg
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.weightTooltipDate, { color: colors.background, opacity: 0.72 }]}>
+                {formatDate(entries[selectedIdx].date)}
+              </Text>
+              <Text style={[styles.weightTooltipKg, { color: colors.background }]}>
+                {entries[selectedIdx].kg.toFixed(1)} kg
+              </Text>
+            </View>
+            {onRequestDelete && entries[selectedIdx]?.id && (
+              <Pressable
+                onPress={() => {
+                  const entry = entries[selectedIdx];
+                  if (!entry?.id) return;
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  // Dismiss tooltip
+                  if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
+                  tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
+                    if (finished) runOnJS(clearSelection)();
+                  });
+                  tooltipScale.value = withTiming(0.82, { duration: 150 });
+                  onRequestDelete({ id: entry.id, kg: entry.kg, date: entry.date });
+                }}
+                hitSlop={10}
+                accessibilityLabel={`Delete weigh-in ${formatDate(entries[selectedIdx].date)}`}
+                accessibilityRole="button"
+                style={styles.weightTooltipTrash}
+              >
+                <Feather name="trash-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
+              </Pressable>
+            )}
           </Animated.View>
         )}
       </View>
@@ -488,6 +515,7 @@ function WeightLineChart({
           </Text>
         ))}
       </View>
+
     </View>
   );
 }
@@ -498,11 +526,13 @@ function WeightChartModal({
   colors,
   visible,
   onClose,
+  onRequestDelete,
 }: {
   entries: { id?: string; date: string; kg: number }[];
   colors: ReturnType<typeof useCalora>['colors'];
   visible: boolean;
   onClose: () => void;
+  onRequestDelete?: (entry: { id: string; kg: number; date: string }) => void;
 }) {
   const insets = useSafeAreaInsets();
   const sheetY = useSharedValue(600);
@@ -576,7 +606,7 @@ function WeightChartModal({
           </View>
 
           {/* Expanded chart */}
-          <WeightLineChart entries={entries} colors={colors} chartHeight={200} expanded />
+          <WeightLineChart entries={entries} colors={colors} chartHeight={200} expanded onRequestDelete={onRequestDelete} />
 
           {/* Summary stats row */}
           <View style={[styles.chartModalStats, { borderTopColor: colors.border }]}>
@@ -725,7 +755,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale } = useCalora();
+  const { colors, logs, weights, addWeight, removeWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale } = useCalora();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showWeight, setShowWeight] = useState(false);
@@ -734,6 +764,67 @@ export default function InsightsScreen() {
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [goalInput, setGoalInput] = useState('');
   const [showExpandedChart, setShowExpandedChart] = useState(false);
+
+  // ── Pending-delete state (lifted so it survives modal close) ─────────────────
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; kg: number; date: string } | null>(null);
+  // Keep a ref in sync so timer callbacks always see the current value without stale closures.
+  const pendingDeleteRef = useRef<{ id: string; kg: number; date: string } | null>(null);
+  useEffect(() => { pendingDeleteRef.current = pendingDelete; }, [pendingDelete]);
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snackOpacity = useSharedValue(0);
+  const snackTranslateY = useSharedValue(8);
+  const snackAnimStyle = useAnimatedStyle(() => ({
+    opacity: snackOpacity.value,
+    transform: [{ translateY: snackTranslateY.value }],
+  }));
+
+  const handleRequestDelete = (entry: { id: string; kg: number; date: string }) => {
+    // Commit any prior pending deletion before starting a new window.
+    if (deleteTimerRef.current) {
+      clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = null;
+    }
+    if (pendingDeleteRef.current) {
+      removeWeight(pendingDeleteRef.current.id);
+    }
+    // Start new undo window.
+    setPendingDelete(entry);
+    snackOpacity.value = 0;
+    snackTranslateY.value = 8;
+    snackOpacity.value = withSpring(1, { damping: 16, stiffness: 240 });
+    snackTranslateY.value = withSpring(0, { damping: 16, stiffness: 240 });
+    deleteTimerRef.current = setTimeout(() => {
+      deleteTimerRef.current = null;
+      removeWeight(entry.id);
+      snackOpacity.value = withTiming(0, { duration: 200 }, (finished) => {
+        if (finished) runOnJS(setPendingDelete)(null);
+      });
+      snackTranslateY.value = withTiming(8, { duration: 200 });
+    }, 4000);
+  };
+
+  const undoDelete = () => {
+    if (deleteTimerRef.current) {
+      clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = null;
+    }
+    snackOpacity.value = withTiming(0, { duration: 180 });
+    snackTranslateY.value = withTiming(8, { duration: 180 });
+    setTimeout(() => setPendingDelete(null), 200);
+  };
+
+  // Commit any pending deletion on unmount (e.g. navigating away).
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current) {
+        clearTimeout(deleteTimerRef.current);
+        deleteTimerRef.current = null;
+        if (pendingDeleteRef.current) removeWeight(pendingDeleteRef.current.id);
+      }
+    };
+  // removeWeight is stable across re-renders; eslint can't verify it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Parallax scroll
   const scrollY = useSharedValue(0);
@@ -1170,7 +1261,7 @@ export default function InsightsScreen() {
               accessibilityRole="button"
               style={{ position: 'relative' }}
             >
-              <WeightLineChart entries={weights.slice(-7)} colors={colors} />
+              <WeightLineChart entries={weights.slice(-7)} colors={colors} onRequestDelete={handleRequestDelete} />
               {/* Expand affordance icon */}
               <View style={[styles.chartExpandHint, { backgroundColor: colors.muted }]} pointerEvents="none">
                 <Feather name="maximize-2" size={11} color={colors.mutedForeground} />
@@ -1292,7 +1383,31 @@ export default function InsightsScreen() {
           colors={colors}
           visible={showExpandedChart}
           onClose={() => setShowExpandedChart(false)}
+          onRequestDelete={handleRequestDelete}
         />
+      )}
+      {/* Undo-delete snackbar — rendered outside the chart/modal so it survives modal close */}
+      {pendingDelete !== null && (
+        <Animated.View
+          pointerEvents="box-none"
+          style={[
+            styles.weightDeleteSnack,
+            { backgroundColor: colors.foreground, bottom: insets.bottom + 90 },
+            snackAnimStyle,
+          ]}
+        >
+          <Text style={[styles.weightDeleteSnackText, { color: colors.background }]}>
+            {pendingDelete.kg.toFixed(1)} kg removed
+          </Text>
+          <Pressable
+            onPress={undoDelete}
+            hitSlop={10}
+            accessibilityLabel="Undo delete weigh-in"
+            accessibilityRole="button"
+          >
+            <Text style={[styles.weightDeleteSnackUndo, { color: colors.success }]}>Undo</Text>
+          </Pressable>
+        </Animated.View>
       )}
     </View>
   );
@@ -1438,9 +1553,13 @@ function makeStyles(f: number) {
   weightSparkline: { marginTop: 12 },
   weightSparkLabels: { flexDirection: 'row', marginTop: 5, paddingHorizontal: 2 },
   weightSparkLabel: { fontFamily: 'Inter_400Regular', fontSize: 8 * f },
-  weightTooltip: { position: 'absolute', width: 92, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, zIndex: 20 },
+  weightTooltip: { position: 'absolute', width: 122, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, zIndex: 20 },
   weightTooltipDate: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
   weightTooltipKg: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, marginTop: 1 },
+  weightTooltipTrash: { paddingLeft: 8, paddingVertical: 4 },
+  weightDeleteSnack: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5, zIndex: 30 },
+  weightDeleteSnackText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 12 * f },
+  weightDeleteSnackUndo: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, paddingHorizontal: 6 },
   goalProgressSection: { marginTop: 14 },
   goalProgressHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
   goalProgressText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, flex: 1 },
