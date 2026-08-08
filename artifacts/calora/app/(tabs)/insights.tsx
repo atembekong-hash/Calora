@@ -277,6 +277,7 @@ function WeightLineChart({
   chartHeight = SPARK_H,
   expanded = false,
   onRequestDelete,
+  pendingDeleteId,
 }: {
   entries: { id?: string; date: string; kg: number }[];
   colors: ReturnType<typeof useCalora>['colors'];
@@ -284,6 +285,8 @@ function WeightLineChart({
   expanded?: boolean;
   /** Called when the user taps the trash icon. Owner is responsible for the undo window and actual removal. */
   onRequestDelete?: (entry: { id: string; kg: number; date: string }) => void;
+  /** ID of the entry currently in the undo-delete window; its dot renders at reduced opacity. */
+  pendingDeleteId?: string;
 }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [chartWidth, setChartWidth] = useState(SPARK_W);
@@ -420,16 +423,20 @@ function WeightLineChart({
             animatedProps={animPathProps}
           />
           {/* data point dots */}
-          {pts.map((pt, i) => (
-            <Circle
-              key={i}
-              cx={pt.x}
-              cy={pt.y}
-              r={i === lastIdx || i === selectedIdx ? dotR.active : dotR.normal}
-              fill={i === lastIdx ? colors.primary : colors.success}
-              opacity={i === lastIdx || i === selectedIdx ? 1 : 0.65}
-            />
-          ))}
+          {pts.map((pt, i) => {
+            const isPending = pendingDeleteId != null && entries[i]?.id === pendingDeleteId;
+            const isActive = i === lastIdx || i === selectedIdx;
+            return (
+              <Circle
+                key={i}
+                cx={pt.x}
+                cy={pt.y}
+                r={isActive ? dotR.active : dotR.normal}
+                fill={i === lastIdx ? colors.primary : colors.success}
+                opacity={isPending ? 0.28 : isActive ? 1 : 0.65}
+              />
+            );
+          })}
         </Svg>
 
         {/* Transparent Pressable hit targets over each dot */}
@@ -557,12 +564,14 @@ function WeightChartModal({
   visible,
   onClose,
   onRequestDelete,
+  pendingDeleteId,
 }: {
   entries: { id?: string; date: string; kg: number }[];
   colors: ReturnType<typeof useCalora>['colors'];
   visible: boolean;
   onClose: () => void;
   onRequestDelete?: (entry: { id: string; kg: number; date: string }) => void;
+  pendingDeleteId?: string;
 }) {
   const insets = useSafeAreaInsets();
   const sheetY = useSharedValue(600);
@@ -640,7 +649,7 @@ function WeightChartModal({
 
           {/* Expanded chart — only rendered when there are enough points */}
           {safeEntries.length >= 2 && (
-            <WeightLineChart entries={safeEntries} colors={colors} chartHeight={200} expanded onRequestDelete={onRequestDelete} />
+            <WeightLineChart entries={safeEntries} colors={colors} chartHeight={200} expanded onRequestDelete={onRequestDelete} pendingDeleteId={pendingDeleteId} />
           )}
 
           {/* Summary stats row — guarded so undefined entries never crash while animating closed */}
@@ -1341,7 +1350,7 @@ export default function InsightsScreen() {
               accessibilityRole="button"
               style={{ position: 'relative' }}
             >
-              <WeightLineChart entries={weights.slice(-7)} colors={colors} onRequestDelete={handleRequestDelete} />
+              <WeightLineChart entries={weights.slice(-7)} colors={colors} onRequestDelete={handleRequestDelete} pendingDeleteId={pendingDelete?.id} />
               {/* Expand affordance icon */}
               <View style={[styles.chartExpandHint, { backgroundColor: colors.muted }]} pointerEvents="none">
                 <Feather name="maximize-2" size={11} color={colors.mutedForeground} />
@@ -1465,6 +1474,7 @@ export default function InsightsScreen() {
         visible={showExpandedChart && weights.length >= 3}
         onClose={() => setShowExpandedChart(false)}
         onRequestDelete={handleRequestDelete}
+        pendingDeleteId={pendingDelete?.id}
       />
       {/* Undo-delete snackbar — rendered outside the chart/modal so it survives modal close */}
       {pendingDelete !== null && (
