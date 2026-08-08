@@ -680,13 +680,28 @@ function SpringChip({ selected, children, onPress, style, accessibilityLabel, ac
   );
 }
 
-function GoalNudge({ colors }: { colors: ReturnType<typeof useCalora>['colors'] }) {
+function GoalNudge({
+  colors,
+  visible,
+  onExited,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  visible: boolean;
+  onExited: () => void;
+}) {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(6);
   useEffect(() => {
-    opacity.value = withDelay(180, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
-    translateY.value = withDelay(180, withTiming(0, { duration: 480, easing: Easing.out(Easing.cubic) }));
-  }, [opacity, translateY]);
+    if (visible) {
+      opacity.value = withDelay(180, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
+      translateY.value = withDelay(180, withTiming(0, { duration: 480, easing: Easing.out(Easing.cubic) }));
+    } else {
+      opacity.value = withTiming(0, { duration: 320, easing: Easing.in(Easing.cubic) }, (finished) => {
+        if (finished) runOnJS(onExited)();
+      });
+      translateY.value = withTiming(6, { duration: 320, easing: Easing.in(Easing.cubic) });
+    }
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
   const animStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
@@ -863,6 +878,12 @@ export default function InsightsScreen() {
   const showGoalProgress = weights.length >= 3 && hasGoal;
   // Nudge: 90–99% progress, goal not yet reached
   const showGoalNudge = showGoalProgress && !goalReached && goalProgressPct >= 90;
+  // Keep the nudge mounted during its exit animation; only unmount after onExited fires.
+  const [nudgeMounted, setNudgeMounted] = useState(showGoalNudge);
+  useEffect(() => {
+    if (showGoalNudge) setNudgeMounted(true);
+    // When showGoalNudge goes false, GoalNudge animates out and calls onExited → setNudgeMounted(false)
+  }, [showGoalNudge]);
   // Show celebration banner once per goal target — mark seen immediately so it won't show on reload.
   // Gate on showGoalProgress (weights.length >= 3 && hasGoal) to ensure the flag is only consumed
   // when the banner can actually be rendered; without this gate, reaching the goal with < 3 entries
@@ -1311,8 +1332,8 @@ export default function InsightsScreen() {
                 <Text style={[styles.goalProgressPct, { color: goalReached ? colors.success : colors.primary }]}>{goalReached ? '✓' : `${Math.round(goalProgressPct)}%`}</Text>
               </View>
               <AnimatedTrackFill percentage={goalProgressPct} color={goalReached ? colors.success : colors.primary} trackColor={colors.muted} />
-              {showGoalNudge && (
-                <GoalNudge colors={colors} />
+              {nudgeMounted && (
+                <GoalNudge colors={colors} visible={showGoalNudge} onExited={() => setNudgeMounted(false)} />
               )}
             </View>
           ) : null}
