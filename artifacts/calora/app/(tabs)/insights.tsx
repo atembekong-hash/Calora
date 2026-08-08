@@ -476,6 +476,13 @@ export default function InsightsScreen() {
   // when the banner can actually be rendered; without this gate, reaching the goal with < 3 entries
   // would mark it seen without the user ever seeing the banner.
   const [showGoalCelebration, setShowGoalCelebration] = useState(false);
+  // When the user sets a new goal target, reset the celebration flag so the confetti
+  // can fire again once the new target is reached. Without this reset, `showGoalCelebration`
+  // stays `true` from the previous goal and the ConfettiBurst `active` prop never
+  // transitions false → true, so the animation never replays.
+  useEffect(() => {
+    setShowGoalCelebration(false);
+  }, [targetWeight]);
   useEffect(() => {
     if (goalReached && showGoalProgress && goalCelebrationSeenTargetKg !== targetWeight) {
       setShowGoalCelebration(true);
