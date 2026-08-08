@@ -589,7 +589,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, fontScale } = useCalora();
+  const { colors, logs, weights, addWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale } = useCalora();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showWeight, setShowWeight] = useState(false);
@@ -642,11 +642,17 @@ export default function InsightsScreen() {
   }, [targetWeight]);
   useEffect(() => {
     if (goalReached && showGoalProgress && goalCelebrationSeenTargetKg !== targetWeight) {
+      // First crossing (or re-crossing after a reset): fire the celebration.
       setShowGoalCelebration(true);
       markGoalCelebrationSeen(targetWeight);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (!goalReached && showGoalProgress && goalCelebrationSeenTargetKg === targetWeight) {
+      // User has drifted back above their goal after previously reaching it.
+      // Reset the seen flag so the next genuine re-crossing replays the celebration and haptic.
+      resetGoalCelebrationSeen();
     }
-  // Intentionally run only when goalReached/showGoalProgress/targetWeight change, not on markGoalCelebrationSeen identity change.
+  // Intentionally run only when goalReached/showGoalProgress/targetWeight change, not on
+  // markGoalCelebrationSeen/resetGoalCelebrationSeen identity changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goalReached, showGoalProgress, targetWeight]);
   // todayKey is reactive: a 60-second interval checks whether the calendar date has rolled over

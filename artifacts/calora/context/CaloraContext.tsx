@@ -265,6 +265,12 @@ type CaloraContextValue = {
   goalCelebrationSeenTargetKg: number | null;
   /** Call once when the celebration banner is first shown so it won't appear again on reload. */
   markGoalCelebrationSeen: (targetKg: number) => void;
+  /**
+   * Reset the celebration seen flag to null so the celebration can replay if the user
+   * re-crosses their goal after previously going above it. Call when goalReached transitions
+   * from true → false (genuine drift above goal) with showGoalProgress in place.
+   */
+  resetGoalCelebrationSeen: () => void;
   plannerWeekStart: string;
   plannerMeals: PlannerMeal[];
   plannerPreferences: import('@/lib/planType').PlannerPreferences | null;
@@ -950,6 +956,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      setPendingPlannerAck,
      goalCelebrationSeenTargetKg,
      markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
+     resetGoalCelebrationSeen: () => setGoalCelebrationSeenTargetKg(null),
      }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerWeekStart, plannerViewedDay, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
