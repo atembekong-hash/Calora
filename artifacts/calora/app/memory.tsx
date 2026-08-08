@@ -254,7 +254,7 @@ export default function LivingMemoryScreen() {
           </Pressable>
           <View style={styles.headerCopy}>
             <Text style={[styles.eyebrow, { color: colors.primary }]}>LOCAL-FIRST</Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>What Calora remembers</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>What CaloraApp remembers</Text>
           </View>
         </View>
 
@@ -264,7 +264,7 @@ export default function LivingMemoryScreen() {
           </View>
           <Text style={[styles.introTitle, { color: colors.onHero }]}>You stay in control</Text>
           <Text style={[styles.introBody, { color: colors.heroMuted }]}>
-            These are small, confirmed signals from your Calora activity. They stay on this device and are never a score or diagnosis.
+            These are small, confirmed signals from your CaloraApp activity. They stay on this device and are never a score or diagnosis.
           </Text>
         </View>
 

@@ -145,7 +145,7 @@ describe('handleParseErrorExport: passes real bytes to Share.share, not null', (
     expect(shareMock).toHaveBeenCalledOnce();
     expect(shareMock).toHaveBeenCalledWith({
       message: corruptBytes,
-      title: 'Calora raw storage data',
+      title: 'CaloraApp raw storage data',
     });
     // Alert must NOT fire — data is present and shareable.
     expect(alertMock).not.toHaveBeenCalled();
@@ -159,7 +159,7 @@ describe('handleParseErrorExport: passes real bytes to Share.share, not null', (
 
     expect(shareMock).toHaveBeenCalledWith({
       message: truncated,
-      title: 'Calora raw storage data',
+      title: 'CaloraApp raw storage data',
     });
     expect(alertMock).not.toHaveBeenCalled();
   });
@@ -291,7 +291,7 @@ describe('handleParseErrorExport: Alert fallback fires when storage is genuinely
     // Bytes flow intact to the OS share sheet — not null, not transformed.
     expect(shareMock).toHaveBeenCalledWith({
       message: corruptBytes,
-      title: 'Calora raw storage data',
+      title: 'CaloraApp raw storage data',
     });
     expect(alertMock).not.toHaveBeenCalled();
   });

@@ -41,7 +41,7 @@ export interface ExportPayload {
 }
 
 /** Canonical export file name — share sheet and file system use this. */
-export const EXPORT_FILENAME = 'calora-export.json';
+export const EXPORT_FILENAME = 'caloraapp-export.json';
 
 /** MIME type for the export — routes the share sheet to appropriate apps. */
 export const EXPORT_MIME_TYPE = 'application/json';

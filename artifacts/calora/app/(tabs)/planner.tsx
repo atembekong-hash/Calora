@@ -591,14 +591,14 @@ export default function PlannerScreen() {
             <View style={styles.heroTitleRow}>
               <Text style={styles.heroTitle}>Weekly planner</Text>
               <ScalePressable
-                accessibilityLabel="Open Calora Coach"
+                accessibilityLabel="Open CaloraApp Coach"
                 onPress={() => router.push('/coach')}
                 scale={0.96}
                 haptic="light"
                 style={[styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f' }]}
               >
                 <Feather name="zap" size={15} color={colors.primaryForeground} />
-                <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask Calora</Text>
+                <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask CaloraApp</Text>
               </ScalePressable>
             </View>
             <Text style={styles.heroSubtitle}>A good plan leaves room for real life.</Text>
@@ -614,7 +614,7 @@ export default function PlannerScreen() {
             <Text style={[styles.nextStepEyebrow, { color: colors.primary }]}>A GOOD PLACE TO START</Text>
             <Text style={[styles.nextStepTitle, { color: colors.foreground }]}>{livingState.action.kind === 'open_planner' ? livingState.headline : 'Shape the week around real life.'}</Text>
           </View>
-          <Pressable accessibilityLabel="Open what Calora remembers" onPress={() => router.push('/memory')} hitSlop={8} style={styles.nextStepLink}>
+          <Pressable accessibilityLabel="Open what CaloraApp remembers" onPress={() => router.push('/memory')} hitSlop={8} style={styles.nextStepLink}>
             <Feather name="arrow-up-right" size={16} color={colors.mutedForeground} />
           </Pressable>
         </View>

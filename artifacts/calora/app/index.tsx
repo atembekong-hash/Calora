@@ -67,7 +67,7 @@ export default function OnboardingScreen() {
         <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
           <Feather name="sun" size={18} color={colors.primaryForeground} />
         </View>
-        <Text style={[styles.loadingBrand, { color: colors.foreground }]}>calora</Text>
+        <Text style={[styles.loadingBrand, { color: colors.foreground }]}>CaloraApp</Text>
         <ActivityIndicator color={colors.primary} style={{ marginTop: 18 }} />
         <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading your local rhythm…</Text>
       </View>
@@ -157,7 +157,7 @@ export default function OnboardingScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 22, paddingBottom: insets.bottom + 30 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.progressRow}>
           <View style={styles.brandMark}><Feather name="sun" size={18} color={colors.primaryForeground} /></View>
-          <Text style={[styles.brand, { color: colors.foreground }]}>calora</Text>
+          <Text style={[styles.brand, { color: colors.foreground }]}>CaloraApp</Text>
           <Text style={[styles.stepText, { color: colors.mutedForeground }]}>{step + 1} of 5</Text>
         </View>
         <View style={[styles.progressTrack, { backgroundColor: colors.muted }]}><View style={[styles.progressFill, { backgroundColor: colors.primary, width: `${((step + 1) / 5) * 100}%` }]} /></View>
@@ -166,7 +166,7 @@ export default function OnboardingScreen() {
           <View>
             <Text style={[styles.eyebrow, { color: colors.primary }]}>A STEADIER WAY TO TRACK</Text>
             <Text style={[styles.title, { color: colors.foreground }]}>Make food data feel human.</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>Calora keeps the numbers useful and the experience gentle. Start with your goal, then we’ll shape the day around you.</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>CaloraApp keeps the numbers useful and the experience gentle. Start with your goal, then we'll shape the day around you.</Text>
             <View style={styles.welcomeVisual}>
               <Image source={require('../assets/images/calora-onboarding-visual.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
               <View style={styles.welcomeVisualOverlay}><Feather name="sunrise" size={13} color="#d4eadc" /><Text style={styles.welcomeVisualText}>START WITH TRUST</Text></View>
@@ -200,7 +200,7 @@ export default function OnboardingScreen() {
           <View>
             <Text style={[styles.eyebrow, { color: colors.primary }]}>A LITTLE CONTEXT</Text>
             <Text style={[styles.title, { color: colors.foreground }]}>Make your target yours.</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>These numbers create a starting point, not a verdict. Calora will learn from your real trend over time.</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>These numbers create a starting point, not a verdict. CaloraApp will learn from your real trend over time.</Text>
             <View style={styles.formGrid}>
               <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>What should we call you?</Text><TextInput value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
               {[['Age', age, setAge], ['Height (cm)', height, setHeight], ['Current weight (kg)', weight, setWeight], ['Goal weight (kg)', targetWeight, setTargetWeight]].map(([label, value, setter]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput value={value as string} onChangeText={setter as (value: string) => void} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}
@@ -230,7 +230,7 @@ export default function OnboardingScreen() {
           <View>
             <Text style={[styles.eyebrow, { color: colors.primary }]}>YOUR DATA, YOUR CHOICE</Text>
             <Text style={[styles.title, { color: colors.foreground }]}>Start with clarity.</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>Calora is a wellness tool, not a doctor. Your data stays local in this preview and can be exported or deleted from settings.</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>CaloraApp is a wellness tool, not a doctor. Your data stays local in this preview and can be exported or deleted from settings.</Text>
             <Pressable onPress={() => setConsent(!consent)} style={[styles.consentCard, { backgroundColor: consent ? colors.accent : colors.card, borderColor: consent ? colors.primary : colors.border }]}>
               <View style={[styles.consentCheck, { backgroundColor: consent ? colors.primary : colors.muted }]}><Feather name={consent ? 'check' : 'shield'} size={17} color={consent ? colors.primaryForeground : colors.mutedForeground} /></View>
               <View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: colors.foreground }]}>I understand and agree</Text><Text style={[styles.optionBody, { color: colors.mutedForeground }]}>I’ll review AI estimates before logging them and understand calorie targets are starting estimates.</Text></View>
@@ -245,7 +245,7 @@ export default function OnboardingScreen() {
 
         <View style={styles.bottomActions}>
           {step > 0 && <Pressable onPress={() => setStep((current) => current - 1)} style={styles.backButton}><Feather name="arrow-left" size={18} color={colors.mutedForeground} /><Text style={[styles.backText, { color: colors.mutedForeground }]}>Back</Text></Pressable>}
-          <Pressable disabled={step === 4 && !consent} onPress={step === 4 ? finish : next} style={[styles.continueButton, { backgroundColor: step === 4 && !consent ? colors.muted : colors.primary }]}><Text style={[styles.continueText, { color: step === 4 && !consent ? colors.mutedForeground : colors.primaryForeground }]}>{step === 4 ? 'Enter Calora' : 'Continue'}</Text><Feather name="arrow-right" size={17} color={step === 4 && !consent ? colors.mutedForeground : colors.primaryForeground} /></Pressable>
+          <Pressable disabled={step === 4 && !consent} onPress={step === 4 ? finish : next} style={[styles.continueButton, { backgroundColor: step === 4 && !consent ? colors.muted : colors.primary }]}><Text style={[styles.continueText, { color: step === 4 && !consent ? colors.mutedForeground : colors.primaryForeground }]}>{step === 4 ? 'Enter CaloraApp' : 'Continue'}</Text><Feather name="arrow-right" size={17} color={step === 4 && !consent ? colors.mutedForeground : colors.primaryForeground} /></Pressable>
         </View>
       </ScrollView>
     </View>

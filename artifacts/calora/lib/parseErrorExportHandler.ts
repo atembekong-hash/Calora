@@ -40,7 +40,7 @@ export async function handleParseErrorExport(deps: ParseErrorExportDeps): Promis
       deps.alert('Nothing to export', 'Storage appears empty.');
       return;
     }
-    await deps.share({ message: raw, title: 'Calora raw storage data' });
+    await deps.share({ message: raw, title: 'CaloraApp raw storage data' });
   } catch {
     deps.alert('Export failed', 'Could not read raw storage data.');
   }

@@ -38,7 +38,7 @@ function RecipeImage({ recipe, height = 160 }: { recipe: Recipe | CaloraRecipe; 
       <LinearGradient colors={['rgba(18,34,24,0.18)', 'rgba(18,34,24,0.82)']} style={StyleSheet.absoluteFillObject} />
       <View style={styles.imageFallbackCopy}>
         <Feather name="book-open" size={22} color="#d4eadc" />
-        <Text style={styles.imageFallbackText}>Calora recipe</Text>
+        <Text style={styles.imageFallbackText}>CaloraApp recipe</Text>
       </View>
     </View>
   );
@@ -77,7 +77,7 @@ function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160,
         <Text numberOfLines={2} style={[styles.recipeName, { color: colors.foreground }]}>{recipe.name}</Text>
         <RecipeMeta recipe={recipe} colors={colors} />
         <View style={styles.cardFooter}>
-          <Text style={[styles.sourceText, { color: colors.mutedForeground }]}>{local ? 'Created in Calora' : `Open source · ${recipe.source}`}</Text>
+          <Text style={[styles.sourceText, { color: colors.mutedForeground }]}>{local ? 'Created in CaloraApp' : `Open source · ${recipe.source}`}</Text>
           <Feather name="arrow-up-right" size={13} color={colors.mutedForeground} />
         </View>
       </View>
@@ -480,7 +480,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                   </>
                 ) : null}
 
-                <Text style={[styles.attribution, { color: colors.mutedForeground }]}>Recipe source: {detail.source}. Calora does not claim third-party recipe content as its own.</Text>
+                <Text style={[styles.attribution, { color: colors.mutedForeground }]}>Recipe source: {detail.source}. CaloraApp does not claim third-party recipe content as its own.</Text>
                 <ScalePressable accessibilityLabel="Add recipe to plan" onPress={openPlanPicker} scale={0.98} haptic="none" style={[styles.secondaryAction, { borderColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primary} /><Text style={[styles.secondaryActionText, { color: colors.primary }]}>Add to weekly plan</Text></ScalePressable>
 
                 {/* Feature 6: diary — remote uses smart sheet; local uses full review */}
@@ -645,8 +645,8 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
       name: name.trim(),
       ingredients: ingredients.split('\n').map((item) => item.trim()).filter(Boolean),
       tags: ['My recipes'],
-      source: 'Created in Calora',
-      sourceUrl: 'https://calora.app/',
+      source: 'Created in CaloraApp',
+      sourceUrl: 'https://mycaloraapp.com/',
       calories: Number(calories),
       proteinG: Number(protein) || 0,
       carbsG: Number(carbs) || 0,
@@ -779,7 +779,7 @@ export default function RecipesScreen() {
             <View style={styles.recipeHeaderTop}>
               <View style={styles.recipeHeaderBadge}>
                 <Feather name="book-open" size={12} color="#d4eadc" />
-                <Text style={styles.recipeHeaderBadgeText}>THE CALORA COOKBOOK</Text>
+                <Text style={styles.recipeHeaderBadgeText}>THE CALORAAPP COOKBOOK</Text>
               </View>
               <Pressable accessibilityLabel="Create your own recipe" onPress={() => setShowCreate(true)} style={styles.recipeHeaderCreate}><Feather name="plus" size={15} color="#ffffff" /><Text style={styles.recipeHeaderCreateText}>Create</Text></Pressable>
             </View>
@@ -787,12 +787,12 @@ export default function RecipesScreen() {
             <View style={styles.recipeTitleRow}>
               <Text style={styles.recipeHeaderTitle}>Recipes</Text>
               <Pressable
-                accessibilityLabel="Open Calora Coach"
+                accessibilityLabel="Open CaloraApp Coach"
                 onPress={() => router.push('/coach')}
                 style={({ pressed }) => [styles.coachHeaderButton, { backgroundColor: 'rgba(212,234,220,0.18)', borderColor: 'rgba(255,255,255,0.28)', shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
               >
                 <Feather name="zap" size={15} color="#ffffff" />
-                <Text style={[styles.coachHeaderButtonText, { color: '#ffffff' }]}>Ask Calora</Text>
+                <Text style={[styles.coachHeaderButtonText, { color: '#ffffff' }]}>Ask CaloraApp</Text>
               </Pressable>
             </View>
             <Text style={styles.recipeHeaderSubtitle}>Discover meals worth making, with enough context to trust them.</Text>
@@ -806,14 +806,14 @@ export default function RecipesScreen() {
           <View style={[styles.fitIcon, { backgroundColor: 'rgba(157,215,189,0.15)' }]}><Feather name="target" size={18} color={colors.heroMuted} /></View>
           <Text style={[styles.fitEyebrow, { color: colors.heroMuted }]}>MADE FOR YOUR DAY</Text>
           <Text style={[styles.fitTitle, { color: colors.onHero }]}>{remainingCalories.toLocaleString()} kcal left to work with</Text>
-          <Text style={[styles.fitBody, { color: colors.heroMuted }]}>Browse by mood and cuisine. When a recipe has nutrition data, Calora will show exactly how it fits your target.</Text>
+          <Text style={[styles.fitBody, { color: colors.heroMuted }]}>Browse by mood and cuisine. When a recipe has nutrition data, CaloraApp will show exactly how it fits your target.</Text>
         </View>
 
         {savedRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your shortlist, ready when you are.</Text></View></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedRecipes.slice(0, 6).map((recipe) => <View key={recipeKey(recipe)} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} /></View>)}</ScrollView></>}
 
         <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length + localMatches.length} quick meals from loaded recipes` : `${visibleRemote.length + localMatches.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
         {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes from open sources…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>The cookbook is offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your saved and personal recipes remain available. Try again when a connection is available.</Text></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Recipes you create will live here, separate from open-source content.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create your first recipe</Text></Pressable></View>}<Animated.View entering={FadeInDown.springify().damping(20).delay(80)} style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</Animated.View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Connection lost — showing loaded recipes only.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Bringing in more recipes…</Text></View>}</>}
-        <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is provided by TheMealDB. Recipes remain attributed to their source; Calora’s nutrition confidence is shown separately.</Text>
+        <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is provided by TheMealDB. Recipes remain attributed to their source; CaloraApp's nutrition confidence is shown separately.</Text>
       </ScrollView>
       <RecipeDetailModal
         recipe={selected}

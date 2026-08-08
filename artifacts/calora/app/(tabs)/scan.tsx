@@ -51,7 +51,7 @@ function PermissionState({ colors, onRequest }: { colors: ReturnType<typeof useC
     <View style={styles.centerState}>
       <View style={[styles.permissionIcon, { backgroundColor: colors.accent }]}><Feather name="camera" size={30} color={colors.accentForeground} /></View>
       <Text style={[styles.centerTitle, { color: colors.foreground }]}>Camera access keeps logging easy</Text>
-      <Text style={[styles.centerBody, { color: colors.mutedForeground }]}>Allow camera access to scan barcodes and recognize any food or meal. Calora will always show a review before logging.</Text>
+      <Text style={[styles.centerBody, { color: colors.mutedForeground }]}>Allow camera access to scan barcodes and recognize any food or meal. CaloraApp will always show a review before logging.</Text>
       <Pressable accessibilityLabel="Allow camera access" onPress={onRequest} style={[styles.primaryButton, { backgroundColor: colors.primary }]}><Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Allow camera access</Text></Pressable>
     </View>
   );
@@ -137,7 +137,7 @@ export default function ScanScreen() {
   };
 
   const onVoicePress = () => {
-    setAltCaptureBanner("Voice capture isn't available on this device. Type your meal description below and Calora will estimate the nutrition.");
+    setAltCaptureBanner("Voice capture isn't available on this device. Type your meal description below and CaloraApp will estimate the nutrition.");
     setShowTextEntry(true);
   };
 
@@ -160,7 +160,7 @@ export default function ScanScreen() {
       await analyze({ mode: captureMode, imageBase64: photo.base64 });
     } else {
       setHasScanned(false);
-      Alert.alert('Photo unavailable', 'Calora could not read that photo. Try again or choose a photo from your library.');
+      Alert.alert('Photo unavailable', 'CaloraApp could not read that photo. Try again or choose a photo from your library.');
     }
   };
 
@@ -215,16 +215,16 @@ export default function ScanScreen() {
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View style={{ flex: 1, marginRight: 12 }}><Text style={[styles.eyebrow, { color: colors.primary }]}>CALORA SMART CAPTURE</Text><Text style={[styles.title, { color: colors.foreground }]}>Scan, then breathe.</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Barcodes and food photos in one calm, reviewable flow.</Text></View>
+          <View style={{ flex: 1, marginRight: 12 }}><Text style={[styles.eyebrow, { color: colors.primary }]}>CALORAAPP SMART CAPTURE</Text><Text style={[styles.title, { color: colors.foreground }]}>Scan, then breathe.</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Barcodes and food photos in one calm, reviewable flow.</Text></View>
           <View style={styles.scanHeaderRight}>
             <View style={[styles.liveBadge, { backgroundColor: colors.accent }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.liveText, { color: colors.accentForeground }]}>LIVE</Text></View>
             <Pressable
-              accessibilityLabel="Open Calora Coach"
+              accessibilityLabel="Open CaloraApp Coach"
               onPress={() => router.push('/coach')}
               style={({ pressed }) => [styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: colors.primary, shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
             >
               <Feather name="zap" size={14} color={colors.primaryForeground} />
-              <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask Calora</Text>
+              <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask CaloraApp</Text>
             </Pressable>
           </View>
         </View>

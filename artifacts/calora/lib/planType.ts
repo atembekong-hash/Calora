@@ -1,5 +1,5 @@
 /**
- * Plan type definitions for the Calora weekly meal planner.
+ * Plan type definitions for the CaloraApp weekly meal planner.
  *
  * Data model is forward-compatible: PlannerPreferences holds a required
  * `primary` nutrition style plus an optional `secondary[]` for modifier types

@@ -77,7 +77,7 @@ function NotificationHandler() {
       ]).catch(() => {});
     }
 
-    // Navigate to home when user taps any Calora notification.
+    // Navigate to home when user taps any CaloraApp notification.
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const category = response.notification.request.content.data?.category;

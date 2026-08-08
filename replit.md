@@ -1,6 +1,12 @@
-# Calora
+# CaloraApp
 
-Calora is a calm, fast calorie tracker for iOS and Android with verified food provenance, low-friction logging, adaptive insights, and transparent premium pricing.
+CaloraApp is a calm, AI-powered calorie and nutrition tracker for iOS and Android with verified food provenance, low-friction logging, adaptive insights, and transparent premium pricing.
+
+**Publisher:** Etiendem Technologies  
+**Tagline:** Eat Smarter. Live Better.  
+**Descriptor:** AI Nutrition & Calorie Tracker
+
+> Canonical product metadata lives in `docs/CALORAAPP_PRODUCT_METADATA.md`. Read it before modifying any product name, URL, identifier, or subscription configuration.
 
 ## Run & Operate
 
@@ -25,18 +31,22 @@ Calora is a calm, fast calorie tracker for iOS and Android with verified food pr
 
 - `artifacts/calora` — Expo mobile app
 - `artifacts/calora/context/CaloraContext.tsx` — local-first diary and theme state
-- `artifacts/calora/constants/colors.ts` — Calora light and dark semantic tokens
+- `artifacts/calora/constants/colors.ts` — CaloraApp light and dark semantic tokens
+- `artifacts/calora/lib/brand.ts` — canonical product metadata (single source of truth)
+- `docs/CALORAAPP_PRODUCT_METADATA.md` — full product identity, identifier decisions, privacy inventory
+- `docs/store-metadata/` — App Store and Google Play listing specifications
 - `docs/product-strategy.md` — competitive audit, scorecard, gaps, and verified-food schema
 
 ## Architecture decisions
 
 - The first build is local-first with AsyncStorage so logging remains useful offline and does not pretend a backend is complete.
 - Food suggestions carry provenance and confidence in the UI; photo results remain estimates until reviewed.
-- Premium pricing is displayed plainly at $9.99/month and $69.99/year; native billing is intentionally not faked until a billing provider is connected.
+- Premium pricing is displayed plainly at $9.99/month and $69.99/year (standard renewal); native billing is intentionally not faked until RevenueCat is connected.
+- `@calora/local-state-v2` (AsyncStorage key) and `calora-*` notification tags are persisted contracts — do not rename them without a backward-compatible migration.
 
 ## Product
 
-Calora gives users a daily calorie and macro view, verified food shortcuts, photo-assisted capture, manual quick add, weekly insights, adaptive-target framing, and explicit light/dark/system appearance controls.
+CaloraApp gives users a daily calorie and macro view, verified food shortcuts, photo-assisted capture, manual quick add, weekly insights, adaptive-target framing, and explicit light/dark/system appearance controls.
 
 ## User preferences
 

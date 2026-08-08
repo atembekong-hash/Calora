@@ -65,7 +65,7 @@ export function parseStorageValue<T>(
     return {
       state: null,
       error:
-        'Calora could not load your saved local data. Your data was not changed.',
+        'CaloraApp could not load your saved local data. Your data was not changed.',
     };
   }
 }

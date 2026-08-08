@@ -1318,7 +1318,7 @@ export default function InsightsScreen() {
             <View style={styles.heroTitleRow}>
               <Text style={styles.heroTitle}>Your insights</Text>
               <ScalePressable
-                accessibilityLabel="Open Calora Coach"
+                accessibilityLabel="Open CaloraApp Coach"
                 testID="open-calora-coach"
                 onPress={() => router.push('/coach')}
                 scale={0.96}
@@ -1326,7 +1326,7 @@ export default function InsightsScreen() {
                 style={[styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f' }]}
               >
                 <Feather name="zap" size={15} color={colors.primaryForeground} />
-                <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask Calora</Text>
+                <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask CaloraApp</Text>
               </ScalePressable>
             </View>
             <Text style={styles.heroSubtitle}>Patterns, not pressure. Use the signal to make tomorrow easier.</Text>
@@ -1704,7 +1704,7 @@ export default function InsightsScreen() {
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
           <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
-            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>A single weigh-in is just a data point. Calora looks for a trend.</Text>
+            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>A single weigh-in is just a data point. CaloraApp looks for a trend.</Text>
             <TextInput value={weightInput} onChangeText={setWeightInput} keyboardType="decimal-pad" placeholder={`${latestWeight.toFixed(1)} kg`} placeholderTextColor={colors.mutedForeground} style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} onFocus={() => { isEditingWeight.current = true; }} onEndEditing={() => { isEditingWeight.current = false; }} />
             <ScalePressable accessibilityLabel="Save weight" onPress={() => { const value = Number(weightInput); if (value > 0) { addWeight(value); setWeightInput(''); setShowWeight(false); setSaveNotice('Weight check-in saved locally.'); } }} scale={0.96} haptic="light" style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></ScalePressable>
             <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>

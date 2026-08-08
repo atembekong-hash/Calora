@@ -195,7 +195,7 @@ async function analyzeTextInput(textInput: string) {
       {
         role: "system",
         content: [
-          "You are Calora's food recognition engine.",
+          "You are CaloraApp's food recognition engine.",
           "Parse natural-language food descriptions into structured nutrition estimates.",
           "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
           "Use USDA average values for the described food if no brand is specified. Split mixed meals into one component per distinct item.",
@@ -224,7 +224,7 @@ async function analyzeNutritionLabel(imageBase64: string) {
       {
         role: "system",
         content: [
-          "You are Calora's nutrition label reader.",
+          "You are CaloraApp's nutrition label reader.",
           "Extract the exact nutrition facts from the visible nutrition label in the image.",
           "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, provenance, sourceLabel, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
           "Set provenance to 'Nutrition label' and sourceLabel to 'Label extract' for each component.",
@@ -262,7 +262,7 @@ async function analyzeFoodPhoto(imageBase64: string) {
       {
         role: "system",
         content: [
-          "You are Calora's food recognition engine.",
+          "You are CaloraApp's food recognition engine.",
           "Analyze any food, drink, packaged item, or mixed meal visible in the image.",
           "Do not refuse because the food is unfamiliar. Make the best reasonable estimate.",
           "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
@@ -311,7 +311,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
       mode: "voice",
       status: "unavailable",
       title: "Voice capture unavailable",
-      reviewMessage: "Voice capture requires a speech-to-text provider that is not yet connected. Type your meal description instead and Calora will estimate the nutrition.",
+      reviewMessage: "Voice capture requires a speech-to-text provider that is not yet connected. Type your meal description instead and CaloraApp will estimate the nutrition.",
       provider: "None",
       candidates: [],
       imageRetention: "not_collected",

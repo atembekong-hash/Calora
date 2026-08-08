@@ -300,7 +300,7 @@ describe('handleExportTap: across multiple taps, each tap independently reads th
  * email clients, or other appropriate targets rather than messaging apps.
  */
 describe('handleExportTap: export payload filename and mimeType', () => {
-  it('payload.filename is "calora-export.json"', async () => {
+  it('payload.filename is "caloraapp-export.json"', async () => {
     await handleExportTap({
       exportRawStorageData: async () => makeRawExport(),
       onNoData,
@@ -308,7 +308,7 @@ describe('handleExportTap: export payload filename and mimeType', () => {
     });
 
     const payload = onData.mock.calls[0][0] as ExportPayload;
-    expect(payload.filename).toBe('calora-export.json');
+    expect(payload.filename).toBe('caloraapp-export.json');
   });
 
   it('payload.mimeType is "application/json"', async () => {
@@ -322,8 +322,8 @@ describe('handleExportTap: export payload filename and mimeType', () => {
     expect(payload.mimeType).toBe('application/json');
   });
 
-  it('EXPORT_FILENAME constant equals "calora-export.json"', () => {
-    expect(EXPORT_FILENAME).toBe('calora-export.json');
+  it('EXPORT_FILENAME constant equals "caloraapp-export.json"', () => {
+    expect(EXPORT_FILENAME).toBe('caloraapp-export.json');
   });
 
   it('EXPORT_MIME_TYPE constant equals "application/json"', () => {
@@ -357,7 +357,7 @@ describe('handleExportTap: export payload filename and mimeType', () => {
     expect(onData).toHaveBeenCalledTimes(2);
     for (const call of onData.mock.calls) {
       const payload = call[0] as ExportPayload;
-      expect(payload.filename).toBe('calora-export.json');
+      expect(payload.filename).toBe('caloraapp-export.json');
       expect(payload.mimeType).toBe('application/json');
     }
   });
@@ -399,7 +399,7 @@ describe('shareExportFile: writes the export file and invokes the share sheet', 
 
     expect(writeAsStringAsync).toHaveBeenCalledTimes(1);
     const [path] = writeAsStringAsync.mock.calls[0] as [string, string];
-    expect(path).toContain('calora-export.json');
+    expect(path).toContain('caloraapp-export.json');
   });
 
   it('calls writeAsStringAsync with the exact unmodified content', async () => {
@@ -432,14 +432,14 @@ describe('shareExportFile: writes the export file and invokes the share sheet', 
     expect(opts.mimeType).toBe('application/json');
   });
 
-  it('passes dialogTitle "calora-export.json" to shareAsync', async () => {
+  it('passes dialogTitle "caloraapp-export.json" to shareAsync', async () => {
     const { adapter, shareAsync } = makeAdapter();
     await shareExportFile(
       { content: makeRawExport(), filename: EXPORT_FILENAME, mimeType: EXPORT_MIME_TYPE },
       adapter,
     );
     const [, opts] = shareAsync.mock.calls[0] as [string, { mimeType: string; dialogTitle: string }];
-    expect(opts.dialogTitle).toBe('calora-export.json');
+    expect(opts.dialogTitle).toBe('caloraapp-export.json');
   });
 
   it('passes the file URI (from cacheDirectory + filename) to shareAsync', async () => {
@@ -449,7 +449,7 @@ describe('shareExportFile: writes the export file and invokes the share sheet', 
       adapter,
     );
     const [uri] = shareAsync.mock.calls[0] as [string, unknown];
-    expect(uri).toContain('calora-export.json');
+    expect(uri).toContain('caloraapp-export.json');
     expect(uri).toContain('file:///tmp/cache/');
   });
 
@@ -516,7 +516,7 @@ describe('shareExportFile: writes the export file and invokes the share sheet', 
 // ---------------------------------------------------------------------------
 
 describe('handleExportTap → shareExportFile: filename and mimeType reach the platform share API', () => {
-  it('wires handleExportTap.onData through shareExportFile — adapter receives calora-export.json and application/json', async () => {
+  it('wires handleExportTap.onData through shareExportFile — adapter receives caloraapp-export.json and application/json', async () => {
     const raw = makeRawExport();
     const { adapter, writeAsStringAsync, shareAsync } = makeAdapter();
 
@@ -529,15 +529,15 @@ describe('handleExportTap → shareExportFile: filename and mimeType reach the p
     // File written with the correct name and unmodified content
     expect(writeAsStringAsync).toHaveBeenCalledTimes(1);
     const [writePath, writeContent] = writeAsStringAsync.mock.calls[0] as [string, string];
-    expect(writePath).toContain('calora-export.json');
+    expect(writePath).toContain('caloraapp-export.json');
     expect(writeContent).toBe(raw);
 
     // Share sheet opened with the correct MIME type and dialog title
     expect(shareAsync).toHaveBeenCalledTimes(1);
     const [shareUri, shareOpts] = shareAsync.mock.calls[0] as [string, { mimeType: string; dialogTitle: string }];
-    expect(shareUri).toContain('calora-export.json');
+    expect(shareUri).toContain('caloraapp-export.json');
     expect(shareOpts.mimeType).toBe('application/json');
-    expect(shareOpts.dialogTitle).toBe('calora-export.json');
+    expect(shareOpts.dialogTitle).toBe('caloraapp-export.json');
 
     expect(onNoData).not.toHaveBeenCalled();
   });

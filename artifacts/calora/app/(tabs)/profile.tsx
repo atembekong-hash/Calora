@@ -3,7 +3,9 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import Constants from 'expo-constants';
+import { URLS } from '@/lib/brand';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { type DietPreference, type Goal, SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
@@ -136,7 +138,7 @@ export default function ProfileScreen() {
     const count = await scheduleHydrationReminders(next);
     if (count === -1) {
       setReminderStatus('denied');
-      Alert.alert('Notification permission needed', 'To receive hydration reminders, allow Calora to send notifications in your device settings.');
+      Alert.alert('Notification permission needed', 'To receive hydration reminders, allow CaloraApp to send notifications in your device settings.');
     } else {
       setReminderStatus('scheduled');
     }
@@ -153,7 +155,7 @@ export default function ProfileScreen() {
     const granted = await scheduleMealReminders(next);
     if (!granted) {
       setMealReminderStatus('denied');
-      Alert.alert('Notification permission needed', 'To receive meal reminders, allow Calora to send notifications in your device settings.');
+      Alert.alert('Notification permission needed', 'To receive meal reminders, allow CaloraApp to send notifications in your device settings.');
     } else {
       const anyEnabled = next.breakfast || next.lunch || next.dinner;
       setMealReminderStatus(anyEnabled ? 'scheduled' : 'idle');
@@ -178,7 +180,7 @@ export default function ProfileScreen() {
     const granted = await scheduleGoalReminder(next);
     if (!granted) {
       setGoalReminderStatus('denied');
-      Alert.alert('Notification permission needed', 'To receive goal reminders, allow Calora to send notifications in your device settings.');
+      Alert.alert('Notification permission needed', 'To receive goal reminders, allow CaloraApp to send notifications in your device settings.');
     } else {
       setGoalReminderStatus('scheduled');
     }
@@ -301,7 +303,7 @@ export default function ProfileScreen() {
               <Feather name="user" size={12} color="#d4eadc" />
               <Text style={styles.profileHeaderBadgeText}>YOUR SPACE</Text>
             </View>
-            <Text style={styles.profileHeaderEyebrow}>CALORA, YOUR WAY</Text>
+            <Text style={styles.profileHeaderEyebrow}>CALORAAPP, YOUR WAY</Text>
             <Text style={styles.profileHeaderTitle}>Profile & settings</Text>
             <Text style={styles.profileHeaderSubtitle}>A quieter place to shape the experience around you.</Text>
           </View>
@@ -319,7 +321,7 @@ export default function ProfileScreen() {
             <Text style={[styles.profileSub, { color: colors.heroMuted }]}>
               {profile
                 ? `${profile.calorieTarget.toLocaleString()} kcal · ${profile.diet}${displayWeight ? ` · ${displayWeight}` : ''}`
-                : 'Finish onboarding to personalize Calora'}
+                : 'Finish onboarding to personalize CaloraApp'}
             </Text>
           </View>
           <Pressable accessibilityLabel="Edit profile" onPress={openProfileEdit} hitSlop={10}>
@@ -330,7 +332,7 @@ export default function ProfileScreen() {
         {/* ── Appearance ── */}
         <Animated.View entering={FadeInDown.springify().damping(20).delay(80)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
-        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Choose how Calora should feel at any hour.</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Choose how CaloraApp should feel at any hour.</Text>
         <View style={[styles.segmentedControl, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {themes.map((theme) => {
             const selected = themePreference === theme.key;
@@ -552,13 +554,13 @@ export default function ProfileScreen() {
         </View>
         </Animated.View>
 
-        {/* ── Calora Plus ── */}
+        {/* ── CaloraApp Pro ── */}
         <View style={styles.planHeader}>
           <View>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Calora Plus</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>CaloraApp Pro</Text>
             <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>The complete experience, without the noise.</Text>
           </View>
-          <View style={[styles.betaPill, { backgroundColor: colors.accent }]}><Text style={[styles.betaText, { color: colors.accentForeground }]}>PLUS</Text></View>
+          <View style={[styles.betaPill, { backgroundColor: colors.accent }]}><Text style={[styles.betaText, { color: colors.accentForeground }]}>PRO</Text></View>
         </View>
         <View style={[styles.planCard, { backgroundColor: colors.card, borderColor: colors.primary }]}>
           <Text style={[styles.planEyebrow, { color: colors.mutedForeground }]}>CHOOSE YOUR PACE</Text>
@@ -656,11 +658,11 @@ export default function ProfileScreen() {
 
         {/* ── Living memory ── */}
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 4 }]}>Living memory</Text>
-        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Review the small, confirmed signals Calora keeps on this device.</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Review the small, confirmed signals CaloraApp keeps on this device.</Text>
         <Pressable accessibilityLabel="Review living memory" testID="review-living-memory" onPress={() => router.push('/memory')} style={[styles.memoryShortcut, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name="layers" size={17} color={colors.accentForeground} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.settingTitle, { color: colors.foreground }]}>What Calora remembers</Text>
+            <Text style={[styles.settingTitle, { color: colors.foreground }]}>What CaloraApp remembers</Text>
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
               {Object.keys(livingMemory.mealObservations).length + Object.keys(livingMemory.waterObservations).length + Object.keys(livingMemory.moodObservations).length + Object.keys(livingMemory.activityObservations).length + Object.keys(livingMemory.plannerObservations).length > 0
                 ? 'Review, correct, or forget individual signals.'
@@ -676,9 +678,9 @@ export default function ProfileScreen() {
           <View style={[styles.connectionIcon, { backgroundColor: colors.primary }]}><Feather name="activity" size={17} color={colors.primaryForeground} /></View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Health data</Text>
-            <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{healthConnected ? 'Connected · steps and weight can sync' : 'Not connected · Calora works offline without it'}</Text>
+            <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{healthConnected ? 'Connected · steps and weight can sync' : 'Not connected · CaloraApp works offline without it'}</Text>
           </View>
-          <Pressable accessibilityLabel={healthConnected ? 'Disconnect health data' : 'Connect health data'} onPress={() => { setHealthConnected(!healthConnected); Alert.alert(healthConnected ? 'Health disconnected' : 'Health connection ready', healthConnected ? 'Calora will stop reading health data.' : 'Native HealthKit and Health Connect permissions are required before live data can sync. No data has been read.'); }} style={[styles.connectButton, { backgroundColor: colors.card }]}>
+          <Pressable accessibilityLabel={healthConnected ? 'Disconnect health data' : 'Connect health data'} onPress={() => { setHealthConnected(!healthConnected); Alert.alert(healthConnected ? 'Health disconnected' : 'Health connection ready', healthConnected ? 'CaloraApp will stop reading health data.' : 'Native HealthKit and Health Connect permissions are required before live data can sync. No data has been read.'); }} style={[styles.connectButton, { backgroundColor: colors.card }]}>
             <Text style={[styles.connectButtonText, { color: colors.primary }]}>{healthConnected ? 'Disconnect' : 'Connect'}</Text>
           </Pressable>
         </View>
@@ -704,7 +706,27 @@ export default function ProfileScreen() {
           </SettingRowPressable>
         ))}
 
-        <Text style={[styles.version, { color: colors.mutedForeground }]}>Calora 1.0 preview · Made for steadier days</Text>
+        {/* ── About CaloraApp ── */}
+        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>About</Text>
+        {[
+          { icon: 'info' as const, title: 'CaloraApp', body: `AI Nutrition & Calorie Tracker · v${Constants.expoConfig?.version ?? '1.0.0'}`, url: null },
+          { icon: 'globe' as const, title: 'Website', body: 'mycaloraapp.com', url: URLS.main },
+          { icon: 'shield' as const, title: 'Privacy Policy', body: 'How we handle your data', url: URLS.privacy },
+          { icon: 'file-text' as const, title: 'Terms of Use', body: 'Terms governing your use', url: URLS.terms },
+          { icon: 'mail' as const, title: 'Help & Support', body: 'support@mycaloraapp.com', url: URLS.support },
+        ].map((item) => (
+          <SettingRowPressable
+            key={item.title}
+            onPress={item.url ? () => Linking.openURL(item.url!) : () => {}}
+            disabled={!item.url}
+            style={[styles.settingRow, { backgroundColor: colors.card, borderColor: colors.border, opacity: item.url ? 1 : 0.75 }]}
+          >
+            <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}><Feather name={item.icon} size={17} color={colors.primary} /></View>
+            <View style={{ flex: 1 }}><Text style={[styles.settingTitle, { color: colors.foreground }]}>{item.title}</Text><Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{item.body}</Text></View>
+            {item.url && <Feather name="external-link" size={15} color={colors.mutedForeground} />}
+          </SettingRowPressable>
+        ))}
+        <Text style={[styles.version, { color: colors.mutedForeground }]}>© 2026 Etiendem Technologies · CaloraApp 1.0 · Made for steadier days</Text>
       </ScrollView>
 
       {/* ── Billing modal ── */}
@@ -721,7 +743,7 @@ export default function ProfileScreen() {
               {billingModal === 'purchase'
                 ? `You chose the ${selectedPlan} plan at ${selectedPrice} per ${selectedPeriod}. The App Store and Google Play connection must be enabled before a real charge can be made.`
                 : billingModal === 'restore'
-                  ? 'Once store billing is connected, this will look up your active Calora Plus entitlement on this device.'
+                  ? 'Once store billing is connected, this will look up your active CaloraApp Pro entitlement on this device.'
                   : 'Once store billing is connected, this will open the platform subscription settings so cancellation stays one tap away.'}
             </Text>
             <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
@@ -731,7 +753,7 @@ export default function ProfileScreen() {
             <Pressable accessibilityLabel="Close billing dialog" onPress={() => setBillingModal(null)} style={[styles.dialogButton, { backgroundColor: colors.primary }]}>
               <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Got it</Text>
             </Pressable>
-            <Pressable accessibilityLabel="View billing help" onPress={() => { setBillingModal(null); Alert.alert('Billing help', 'Calora will support App Store and Google Play subscriptions. Your plan, renewal date, and cancellation path will always be visible here.'); }} style={styles.dialogSecondaryButton}>
+            <Pressable accessibilityLabel="View billing help" onPress={() => { setBillingModal(null); Alert.alert('Billing help', 'CaloraApp will support App Store and Google Play subscriptions. Your plan, renewal date, and cancellation path will always be visible here.'); }} style={styles.dialogSecondaryButton}>
               <Text style={[styles.dialogSecondaryText, { color: colors.primary }]}>How billing works</Text>
             </Pressable>
           </View>
@@ -855,7 +877,7 @@ export default function ProfileScreen() {
               <>
                 {[
                   { icon: 'smartphone' as const, title: 'Stays on your device', body: 'Your diary, profile, and food memories live in your phone\'s local storage — not on a remote server.' },
-                  { icon: 'download' as const, title: 'You can export any time', body: 'Use Export your data to get a complete portable JSON copy of everything Calora has stored.' },
+                  { icon: 'download' as const, title: 'You can export any time', body: 'Use Export your data to get a complete portable JSON copy of everything CaloraApp has stored.' },
                   { icon: 'trash-2' as const, title: 'You can delete any time', body: 'Delete local data permanently removes every byte from this device immediately.' },
                   { icon: 'lock' as const, title: 'No cloud sync without consent', body: 'Sync is opt-in and never happens silently. You always see the sync state in your diary footer.' },
                 ].map((item) => (
@@ -873,9 +895,9 @@ export default function ProfileScreen() {
             {infoModal === 'no-ads' && (
               <>
                 {[
-                  { icon: 'eye-off' as const, title: 'No ad tracking', body: 'Calora does not share your food data, location, or behavior with ad networks.' },
+                  { icon: 'eye-off' as const, title: 'No ad tracking', body: 'CaloraApp does not share your food data, location, or behavior with ad networks.' },
                   { icon: 'bar-chart-2' as const, title: 'No behavioral profiling', body: 'Your meal patterns are used only to personalize your experience — never to build a profile for sale.' },
-                  { icon: 'dollar-sign' as const, title: 'Revenue from subscriptions only', body: 'Calora is funded by Calora Plus subscriptions. There is no ad-supported tier.' },
+                  { icon: 'dollar-sign' as const, title: 'Revenue from subscriptions only', body: 'CaloraApp is funded by CaloraApp Pro subscriptions. There is no ad-supported tier.' },
                   { icon: 'check-circle' as const, title: 'Built on trust', body: 'If that ever changes, we will ask for your explicit consent before anything new is collected.' },
                 ].map((item) => (
                   <View key={item.title} style={[styles.infoRow, { borderColor: colors.border }]}>

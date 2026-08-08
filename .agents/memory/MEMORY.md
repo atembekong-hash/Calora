@@ -17,3 +17,4 @@
 - [Animation system](animation-system.md) — four-tier animation architecture across all screens; patterns, component names, and pitfalls.
 - [RNW modal pitfalls](rnw-modal-pitfalls.md) — never nest Modals, maxHeight on ScrollView doesn't constrain on web, disable refetchOnWindowFocus, use entry.id not date as list key.
 - [Calora race condition pattern](calora-race-condition.md) — never setState then immediately read the new value; pass the object directly as a param instead.
+- [CaloraApp metadata lock-in](caloraapp-metadata-lockin.md) — canonical identity (brand.ts), preserved internal identifiers, and post-rename conventions.

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Calora",
+    "name": "CaloraApp",
     "slug": "calora",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "calora",
+    "scheme": "caloraapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -14,9 +14,12 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.etiendem.caloraapp"
     },
-    "android": {},
+    "android": {
+      "package": "com.etiendem.caloraapp"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -32,7 +35,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Calora uses your camera to identify food and scan product barcodes.",
+          "cameraPermission": "CaloraApp uses your camera to identify food and scan product barcodes.",
           "microphonePermission": false
         }
       ]
