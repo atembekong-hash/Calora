@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import Animated, { Easing, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
@@ -269,11 +269,18 @@ function WeightLineChart({ entries, colors }: { entries: { kg: number }[]; color
     d += ` C ${cpX} ${prev.y.toFixed(2)} ${cpX} ${curr.y.toFixed(2)} ${curr.x.toFixed(2)} ${curr.y.toFixed(2)}`;
   }
 
+  // Build a closed fill path: follow the bezier then drop to the bottom corners
+  const bottomY = (SPARK_H - SPARK_PAD_Y).toFixed(2);
+  const dFill = `${d} L ${pts[pts.length - 1].x.toFixed(2)} ${bottomY} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
+
   const dashOffset = useSharedValue(SPARK_DASH);
+  const fillOpacity = useSharedValue(0);
   const dataKey = vals.join(',');
   useEffect(() => {
     dashOffset.value = SPARK_DASH;
+    fillOpacity.value = 0;
     dashOffset.value = withTiming(0, { duration: 920, easing: Easing.out(Easing.cubic) });
+    fillOpacity.value = withTiming(1, { duration: 920, easing: Easing.out(Easing.cubic) });
   // Re-run whenever data changes; eslint can't verify the string identity dependency.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataKey]);
@@ -282,11 +289,28 @@ function WeightLineChart({ entries, colors }: { entries: { kg: number }[]; color
     strokeDashoffset: dashOffset.value,
   }));
 
+  const animFillProps = useAnimatedProps(() => ({
+    fillOpacity: fillOpacity.value,
+  }));
+
   const lastIdx = pts.length - 1;
 
   return (
     <View style={styles.weightSparkline}>
       <Svg width="100%" height={SPARK_H} viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}>
+        <Defs>
+          <SvgLinearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor={colors.success} stopOpacity={0.18} />
+            <Stop offset="100%" stopColor={colors.success} stopOpacity={0} />
+          </SvgLinearGradient>
+        </Defs>
+        {/* animated area fill */}
+        <AnimatedPath
+          d={dFill}
+          fill="url(#weightFill)"
+          stroke="none"
+          animatedProps={animFillProps}
+        />
         {/* track line */}
         <Path d={d} stroke="rgba(120,120,120,0.13)" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         {/* animated line */}
