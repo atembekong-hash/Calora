@@ -236,9 +236,18 @@ export default function ProfileScreen() {
       result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
     }
     if (!result.canceled && result.assets[0]) {
-      const dest = `${FileSystem.documentDirectory}calora-profile-photo.jpg`;
-      await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
-      setEditPhotoUri(dest + '?t=' + Date.now());
+      if (!FileSystem.documentDirectory) {
+        Alert.alert('Storage unavailable', 'Could not locate the app documents folder. Please try again.');
+        return;
+      }
+      try {
+        const dest = `${FileSystem.documentDirectory}calora-profile-photo.jpg`;
+        await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
+        setEditPhotoUri(dest + '?t=' + Date.now());
+      } catch (err) {
+        console.error('[pickPhoto] copyAsync failed', err);
+        Alert.alert('Photo error', 'Could not save the photo. Please try again.');
+      }
     }
   };
 
