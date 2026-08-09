@@ -10,6 +10,7 @@
     "test": "pnpm --filter @workspace/calora run test && pnpm --filter @workspace/api-server run test"
   },
   "private": true,
+  "packageManager": "pnpm@10.26.1",
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.1"
   },
