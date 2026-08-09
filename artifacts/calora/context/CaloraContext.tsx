@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { shouldAutosave, type HydrationErrorKind } from '@/lib/hydrationGuard';
 import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '@/lib/storageSchema';
 import { useHydrationEffect } from '@/lib/useHydrationEffect';
 import { PersistenceManager } from '@/lib/persistenceManager';
 import { performClearAllData, DEFAULT_HYDRATION_PREFS } from '@/lib/clearAllData';
+import { verifyProfilePhotoExists } from '@/lib/profilePhotoStorage';
 import { buildExportPayload, readRawStorageData } from '@/lib/exportPayload';
 import { makeClearedExportSnapshot, resolveExportData } from '@/lib/exportGap';
 import { useColorScheme } from 'react-native';
@@ -482,6 +484,27 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      if (saved.fontSizeScale) setFontSizeScaleState(saved.fontSizeScale as 'small' | 'default' | 'large' | 'xlarge');
      if (saved.profilePhotoUri) setProfilePhotoUriState(saved.profilePhotoUri);
   });
+
+  // ── Profile photo stale-URI guard ─────────────────────────────────────────
+  // On the first render after hydration completes, verify that the persisted
+  // photo URI still points to an existing file.  The OS may have reclaimed app
+  // storage between sessions, leaving the URI pointing to a missing file which
+  // would otherwise render as a broken image.  If the file is gone we clear the
+  // URI so the initials placeholder is shown instead.
+  useEffect(() => {
+    if (!hydrated || !profilePhotoUri) return;
+    let cancelled = false;
+    verifyProfilePhotoExists(profilePhotoUri, FileSystem).then((exists) => {
+      if (!cancelled && !exists) {
+        setProfilePhotoUriState(null);
+      }
+    });
+    return () => { cancelled = true; };
+  // Run once after hydration; profilePhotoUri is intentionally excluded from
+  // deps — re-running on every photo change would be wasteful and the picked
+  // photos are freshly copied so they always exist.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
 
   useEffect(() => {
     if (!shouldAutosave({ hydrated, error: hydrationError })) return;

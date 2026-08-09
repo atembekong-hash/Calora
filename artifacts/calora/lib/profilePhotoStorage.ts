@@ -14,7 +14,33 @@ export type FileSystemAdapter = {
   copyAsync: (opts: { from: string; to: string }) => Promise<void>;
   /** Mirrors FileSystem.deleteAsync. */
   deleteAsync: (path: string, opts?: { idempotent?: boolean }) => Promise<void>;
+  /** Mirrors FileSystem.getInfoAsync — used to check whether a file still exists on disk. */
+  getInfoAsync: (uri: string) => Promise<{ exists: boolean }>;
 };
+
+// ── Verify ────────────────────────────────────────────────────────────────────
+
+/**
+ * Check whether the persisted profile photo URI still points to a file on
+ * disk.  Returns `true` when the file exists and `false` when it is missing
+ * (e.g. the OS reclaimed storage between sessions) or the adapter cannot
+ * determine existence.  Never throws.
+ *
+ * Pass the raw stored URI — NOT a cache-busted variant with a `?t=…` suffix.
+ */
+export async function verifyProfilePhotoExists(
+  uri: string,
+  fs: FileSystemAdapter,
+): Promise<boolean> {
+  try {
+    const info = await fs.getInfoAsync(uri);
+    return info.exists;
+  } catch {
+    // If the check itself fails (e.g. storage completely unavailable), treat
+    // the photo as missing so we never show a broken image.
+    return false;
+  }
+}
 
 // ── Copy ──────────────────────────────────────────────────────────────────────
 

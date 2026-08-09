@@ -31,7 +31,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { copyProfilePhoto, deleteProfilePhoto } from '../profilePhotoStorage';
+import { copyProfilePhoto, deleteProfilePhoto, verifyProfilePhotoExists } from '../profilePhotoStorage';
 import type { FileSystemAdapter } from '../profilePhotoStorage';
 
 // ---------------------------------------------------------------------------
@@ -43,6 +43,7 @@ function makeFs(overrides: Partial<FileSystemAdapter> = {}): FileSystemAdapter {
     documentDirectory: '/data/user/0/com.calora/files/',
     copyAsync: vi.fn().mockResolvedValue(undefined),
     deleteAsync: vi.fn().mockResolvedValue(undefined),
+    getInfoAsync: vi.fn().mockResolvedValue({ exists: true }),
     ...overrides,
   };
 }
@@ -258,5 +259,53 @@ describe('deleteProfilePhoto — happy path', () => {
 
     const [, opts] = (fs.deleteAsync as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(opts).toEqual({ idempotent: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// verifyProfilePhotoExists
+// ---------------------------------------------------------------------------
+
+const STORED_URI = '/data/user/0/com.calora/files/calora-profile-photo.jpg';
+
+describe('verifyProfilePhotoExists — file present on disk', () => {
+  it('returns true when getInfoAsync reports exists:true', async () => {
+    const fs = makeFs({ getInfoAsync: vi.fn().mockResolvedValue({ exists: true }) });
+    expect(await verifyProfilePhotoExists(STORED_URI, fs)).toBe(true);
+  });
+
+  it('passes the URI directly to getInfoAsync', async () => {
+    const fs = makeFs();
+    await verifyProfilePhotoExists(STORED_URI, fs);
+    expect(fs.getInfoAsync).toHaveBeenCalledOnce();
+    expect(fs.getInfoAsync).toHaveBeenCalledWith(STORED_URI);
+  });
+});
+
+describe('verifyProfilePhotoExists — file missing (OS cleared storage)', () => {
+  it('returns false when getInfoAsync reports exists:false', async () => {
+    const fs = makeFs({ getInfoAsync: vi.fn().mockResolvedValue({ exists: false }) });
+    expect(await verifyProfilePhotoExists(STORED_URI, fs)).toBe(false);
+  });
+
+  it('state invariant: false return must cause the caller to clear profilePhotoUri', async () => {
+    // The CaloraContext effect reads the boolean return value to decide whether
+    // to call setProfilePhotoUriState(null).  This test confirms a stale URI
+    // (exists:false) cannot silently pass through as truthy.
+    const fs = makeFs({ getInfoAsync: vi.fn().mockResolvedValue({ exists: false }) });
+    const result = await verifyProfilePhotoExists(STORED_URI, fs);
+    expect(result).toBe(false); // caller must NOT keep the URI in state
+  });
+});
+
+describe('verifyProfilePhotoExists — getInfoAsync throws', () => {
+  it('returns false (treat as missing) when getInfoAsync throws', async () => {
+    const fs = makeFs({ getInfoAsync: vi.fn().mockRejectedValue(new Error('storage unavailable')) });
+    expect(await verifyProfilePhotoExists(STORED_URI, fs)).toBe(false);
+  });
+
+  it('never rejects — always resolves to a boolean', async () => {
+    const fs = makeFs({ getInfoAsync: vi.fn().mockRejectedValue(new Error('boom')) });
+    await expect(verifyProfilePhotoExists(STORED_URI, fs)).resolves.toBeDefined();
   });
 });
