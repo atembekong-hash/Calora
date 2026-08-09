@@ -29,7 +29,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCalora } from '@/context/CaloraContext';
 import { useAuth } from '@/context/AuthContext';
 import { BRAND } from '@/lib/brand';
@@ -39,11 +39,18 @@ export default function SignInScreen() {
   const { signInWithGoogle, signInWithEmail } = useAuth();
   const insets = useSafeAreaInsets();
 
+  // Read an explicit authError param passed by the OAuth callback (non-cancelled
+  // failures only). A cancelled redirect arrives with no params, so this will be
+  // undefined and the screen renders clean.
+  const { authError: authErrorParam } = useLocalSearchParams<{ authError?: string }>();
+  const initialError =
+    authErrorParam && authErrorParam !== 'cancelled' ? authErrorParam : null;
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState<'google' | 'email' | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
 
   const handleGoogle = useCallback(async () => {
     if (loading) return;
