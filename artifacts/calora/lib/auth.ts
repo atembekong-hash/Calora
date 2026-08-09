@@ -103,10 +103,35 @@ export async function signInWithGoogle(): Promise<AuthResult> {
       return { success: false, error: { code: 'cancelled', message: 'Sign-in was cancelled.' } };
     }
 
+    // iOS can return 'locked' when an ASWebAuthenticationSession is already in progress.
+    if (browserResult.type === 'locked') {
+      return { success: false, error: { code: 'cancelled', message: 'Sign-in was cancelled.' } };
+    }
+
     if (browserResult.type !== 'success' || !browserResult.url) {
       return {
         success: false,
         error: { code: 'unknown', message: 'Authentication did not complete. Please try again.' },
+      };
+    }
+
+    // Check whether the OAuth provider returned an error in the redirect URL
+    // before attempting the token exchange.  Google reports access_denied when
+    // the user explicitly denies consent; other values indicate a provider
+    // or configuration error.
+    //
+    // Example: caloraapp://auth/callback?error=access_denied&error_description=…
+    const redirectError = (() => {
+      try { return new URL(browserResult.url).searchParams.get('error'); } catch { return null; }
+    })();
+
+    if (redirectError) {
+      const isUserDenied = redirectError === 'access_denied';
+      return {
+        success: false,
+        error: isUserDenied
+          ? { code: 'cancelled', message: 'Sign-in was cancelled.' }
+          : { code: 'provider', message: resolveUserMessage('provider', redirectError) },
       };
     }
 
@@ -271,8 +296,32 @@ export async function signOut(): Promise<{ error?: AuthError }> {
 /**
  * Exchanges an OAuth/magic-link/recovery callback URL for a Supabase session.
  * Handles both PKCE (?code=) and implicit (#access_token=) flows.
+ *
+ * Also handles URLs that carry an error param from the OAuth provider (e.g.
+ * access_denied) without attempting a code exchange that would fail anyway.
  */
 export async function handleOAuthCallbackUrl(url: string): Promise<AuthResult> {
+  // Detect an error param that the provider embedded in the redirect URL before
+  // attempting the code exchange.  This covers cases where the callback screen
+  // receives the URL directly (deep-link path) and signInWithGoogle() has not
+  // already filtered it out.
+  try {
+    const urlObj = new URL(url);
+    const urlError = urlObj.searchParams.get('error');
+    if (urlError) {
+      const isUserDenied = urlError === 'access_denied';
+      return {
+        success: false,
+        error: isUserDenied
+          ? { code: 'cancelled', message: 'Sign-in was cancelled.' }
+          : { code: 'provider', message: resolveUserMessage('provider', urlError) },
+      };
+    }
+  } catch {
+    // Malformed URL — fall through to exchangeCodeForSession which will surface a
+    // clear error of its own.
+  }
+
   try {
     const { data, error } = await supabase.auth.exchangeCodeForSession(url);
 
@@ -282,7 +331,9 @@ export async function handleOAuthCallbackUrl(url: string): Promise<AuthResult> {
         ? 'expired'
         : lower.includes('duplicate') || lower.includes('already')
           ? 'duplicate'
-          : 'token';
+          : lower.includes('access_denied') || lower.includes('access denied')
+            ? 'provider'
+            : 'token';
       return {
         success: false,
         error: { code, message: resolveUserMessage(code, error.message) },
@@ -323,7 +374,9 @@ function classifyError(err: unknown): { success: false; error: AuthError } {
       ? 'network'
       : lower.includes('expired')
         ? 'expired'
-        : 'unknown';
+        : lower.includes('access_denied') || lower.includes('access denied')
+          ? 'provider'
+          : 'unknown';
   return { success: false, error: { code, message: resolveUserMessage(code, message) } };
 }
 
