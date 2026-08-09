@@ -268,15 +268,27 @@ export default function ProfileScreen() {
     setEditPhotoUri(profilePhotoUri);
     setProfileEditModal(true);
   };
-  const saveProfileEdit = () => {
+  const saveProfileEdit = async () => {
     const calories = Number(editCalories);
     if (!editName.trim() || !Number.isFinite(calories) || calories < 500 || calories > 9999) {
       Alert.alert('Check your inputs', 'Name is required and calorie target must be between 500 and 9,999.');
       return;
     }
-    updateProfile({ name: editName.trim(), calorieTarget: calories, diet: editDiet, goal: editGoal });
     // Strip the cache-bust query param before persisting
     const cleanUri = editPhotoUri ? editPhotoUri.split('?')[0] : null;
+    // If the user removed their photo (had one before, now cleared), delete the file from disk.
+    // This runs only on save so a remove-then-cancel leaves the file intact.
+    if (profilePhotoUri && !cleanUri && FileSystem.documentDirectory) {
+      const dest = `${FileSystem.documentDirectory}calora-profile-photo.jpg`;
+      try {
+        await FileSystem.deleteAsync(dest, { idempotent: true });
+      } catch (err) {
+        console.error('[saveProfileEdit] deleteAsync failed', err);
+        Alert.alert('Photo error', 'Could not remove the photo file. Please try again.');
+        return;
+      }
+    }
+    updateProfile({ name: editName.trim(), calorieTarget: calories, diet: editDiet, goal: editGoal });
     setProfilePhotoUri(cleanUri);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setProfileEditModal(false);
