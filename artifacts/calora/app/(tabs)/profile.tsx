@@ -18,6 +18,7 @@ import {
 import { cancelMealReminders, scheduleMealReminders, type MealReminderPrefs } from '@/lib/mealReminders';
 import { cancelGoalReminder, scheduleGoalReminder, type GoalReminderPrefs } from '@/lib/goalReminder';
 import * as FileSystem from 'expo-file-system/legacy';
+import { copyProfilePhoto, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -236,18 +237,17 @@ export default function ProfileScreen() {
       result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
     }
     if (!result.canceled && result.assets[0]) {
-      if (!FileSystem.documentDirectory) {
-        Alert.alert('Storage unavailable', 'Could not locate the app documents folder. Please try again.');
+      const copyResult = await copyProfilePhoto(result.assets[0].uri, FileSystem);
+      if (!copyResult.ok) {
+        if (copyResult.reason === 'no-directory') {
+          Alert.alert('Storage unavailable', 'Could not locate the app documents folder. Please try again.');
+        } else {
+          console.error('[pickPhoto] copyAsync failed', copyResult.error);
+          Alert.alert('Photo error', 'Could not save the photo. Please try again.');
+        }
         return;
       }
-      try {
-        const dest = `${FileSystem.documentDirectory}calora-profile-photo.jpg`;
-        await FileSystem.copyAsync({ from: result.assets[0].uri, to: dest });
-        setEditPhotoUri(dest + '?t=' + Date.now());
-      } catch (err) {
-        console.error('[pickPhoto] copyAsync failed', err);
-        Alert.alert('Photo error', 'Could not save the photo. Please try again.');
-      }
+      setEditPhotoUri(copyResult.dest + '?t=' + Date.now());
     }
   };
 
@@ -278,12 +278,10 @@ export default function ProfileScreen() {
     const cleanUri = editPhotoUri ? editPhotoUri.split('?')[0] : null;
     // If the user removed their photo (had one before, now cleared), delete the file from disk.
     // This runs only on save so a remove-then-cancel leaves the file intact.
-    if (profilePhotoUri && !cleanUri && FileSystem.documentDirectory) {
-      const dest = `${FileSystem.documentDirectory}calora-profile-photo.jpg`;
-      try {
-        await FileSystem.deleteAsync(dest, { idempotent: true });
-      } catch (err) {
-        console.error('[saveProfileEdit] deleteAsync failed', err);
+    if (profilePhotoUri && !cleanUri) {
+      const deleteResult = await deleteProfilePhoto(FileSystem);
+      if (!deleteResult.ok) {
+        console.error('[saveProfileEdit] deleteAsync failed', deleteResult.error);
         Alert.alert('Photo error', 'Could not remove the photo file. Please try again.');
         return;
       }
