@@ -13,7 +13,6 @@
  */
 
 import { Feather } from '@expo/vector-icons';
-import { customFetch } from '@workspace/api-client-react';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -123,10 +122,17 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
       // Call the server-side endpoint which uses the service-role key to
       // permanently remove the Supabase Auth user record. The user's JWT is
       // sent as a Bearer token; the server verifies and resolves the user ID.
-      await customFetch('/api/v1/account', {
+      const baseUrl = process.env.EXPO_PUBLIC_DOMAIN
+        ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
+        : '';
+      const response = await fetch(`${baseUrl}/api/v1/account`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? `Account deletion failed (${response.status})`);
+      }
 
       // Cloud record deleted — now clear local data and sign out.
       await clearAllData();
