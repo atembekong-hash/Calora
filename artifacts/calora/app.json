@@ -43,6 +43,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "vvault07",
+    "extra": {
+      "eas": {
+        "projectId": "1f202325-5b9a-4260-978f-abbd3252b9ee"
+      }
     }
   }
 }
