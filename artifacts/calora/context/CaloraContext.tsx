@@ -6,7 +6,7 @@ import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '@/lib/storageSchema';
 import { useHydrationEffect } from '@/lib/useHydrationEffect';
 import { PersistenceManager } from '@/lib/persistenceManager';
 import { performClearAllData, DEFAULT_HYDRATION_PREFS } from '@/lib/clearAllData';
-import { verifyProfilePhotoExists } from '@/lib/profilePhotoStorage';
+import { verifyProfilePhotoExists, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
 import { buildExportPayload, readRawStorageData } from '@/lib/exportPayload';
 import { makeClearedExportSnapshot, resolveExportData } from '@/lib/exportGap';
 import { useColorScheme } from 'react-native';
@@ -206,6 +206,8 @@ type CaloraContextValue = {
   setFontSizeScale: (scale: 'small' | 'default' | 'large' | 'xlarge') => void;
   profilePhotoUri: string | null;
   setProfilePhotoUri: (uri: string | null) => void;
+  /** Delete the profile photo file from disk and clear its URI from state. Call on sign-out. */
+  clearProfilePhoto: () => Promise<void>;
   coachConsentAccepted: boolean;
   coachMessages: CoachMessage[];
   livingState: LivingState;
@@ -829,6 +831,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     setFontSizeScale: setFontSizeScaleState,
     profilePhotoUri,
     setProfilePhotoUri: setProfilePhotoUriState,
+    clearProfilePhoto: async () => {
+      await deleteProfilePhoto(FileSystem);
+      setProfilePhotoUriState(null);
+    },
     mealReminders,
     goalReminder,
     setMealReminders: (prefs: MealReminderPrefs) => setMealRemindersState(prefs),

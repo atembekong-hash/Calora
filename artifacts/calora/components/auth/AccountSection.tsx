@@ -68,7 +68,7 @@ interface AccountSectionProps {
 }
 
 export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionProps) {
-  const { colors } = useCalora();
+  const { colors, clearProfilePhoto } = useCalora();
   const { session, signOut } = useAuth();
 
   const [signOutLoading, setSignOutLoading] = useState(false);
@@ -97,6 +97,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
           onPress: async () => {
             setSignOutLoading(true);
             try {
+              await clearProfilePhoto();
               await signOut();
             } finally {
               setSignOutLoading(false);
@@ -105,7 +106,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
         },
       ],
     );
-  }, [signOut]);
+  }, [signOut, clearProfilePhoto]);
 
   const handleOpenDeleteModal = useCallback(() => {
     setDeleteConfirmText('');
