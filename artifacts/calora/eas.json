@@ -6,6 +6,7 @@
   },
   "build": {
     "development": {
+      "config": "eas.yml",
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
@@ -13,12 +14,14 @@
       }
     },
     "preview": {
+      "config": "eas.yml",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "config": "eas.yml",
       "autoIncrement": true,
       "ios": {
         "resourceClass": "m-medium"
@@ -27,5 +30,5 @@
         "buildType": "app-bundle"
       }
     }
-  },
+  }
 }
