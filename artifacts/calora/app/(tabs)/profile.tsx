@@ -24,6 +24,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Sharing from 'expo-sharing';
 import { deriveExportHasData, makeExportHandler } from '@/lib/exportUiHandler';
 import { SettingRowPressable } from '@/components/SettingRowPressable';
+import { AccountSection } from '@/components/auth/AccountSection';
 
 // ─── Static config ────────────────────────────────────────────────────────────
 
@@ -671,6 +672,9 @@ export default function ProfileScreen() {
           </View>
           <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
         </Pressable>
+
+        {/* ── Account ── */}
+        <AccountSection fontScale={fontScale} clearAllData={clearAllData} />
 
         {/* ── Trust & privacy ── */}
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Trust & privacy</Text>

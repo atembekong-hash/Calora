@@ -103,8 +103,8 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="coach" options={{ headerShown: false }} />
         <Stack.Screen name="memory" options={{ headerShown: false }} />
-        {/* OAuth deep-link callback — caloraapp://auth/callback */}
-        <Stack.Screen name="auth/callback" options={{ headerShown: false, presentation: 'transparentModal' }} />
+        {/* Auth screens group — sign-in, sign-up, forgot/reset password, callback */}
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
       </Stack>
     </>
   );
