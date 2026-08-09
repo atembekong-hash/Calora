@@ -7,14 +7,13 @@
  *
  * ─── Delete-account architecture note ────────────────────────────────────
  * Deleting the Supabase Auth user record requires the service-role key, which
- * must never appear in the mobile bundle. The full server-side deletion
- * endpoint (DELETE /api/v1/account) is a known follow-on task.  For now this
- * action: signs the user out, clears local data, and informs them that the
- * cloud record will be removed by the support team on request.  A TODO marker
- * is left so the server-side hook can be wired in transparently.
+ * must never appear in the mobile bundle. The DELETE /api/v1/account endpoint
+ * on the API server accepts the user's Bearer token, verifies it server-side,
+ * and calls supabase.auth.admin.deleteUser() with the resolved user ID.
  */
 
 import { Feather } from '@expo/vector-icons';
+import { customFetch } from '@workspace/api-client-react';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -116,30 +115,38 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
   const handleConfirmDelete = useCallback(async () => {
     if (deleteConfirmText.trim().toUpperCase() !== 'DELETE') return;
     if (deleteLoading) return;
+    if (!session) return;
 
     setDeleteLoading(true);
     try {
-      // TODO(server-side): Replace with DELETE /api/v1/account which uses the
-      // service-role key to remove the Supabase Auth user record server-side.
-      // For now: sign out + clear local data. The user must contact support
-      // to have the cloud auth record permanently removed.
+      // Call the server-side endpoint which uses the service-role key to
+      // permanently remove the Supabase Auth user record. The user's JWT is
+      // sent as a Bearer token; the server verifies and resolves the user ID.
+      await customFetch('/api/v1/account', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
 
+      // Cloud record deleted — now clear local data and sign out.
       await clearAllData();
       await signOut();
 
       setDeleteModal(false);
 
-      // Show confirmation that the request has been noted
       setTimeout(() => {
         Alert.alert(
-          'Local data cleared',
-          `You've been signed out and all local ${BRAND.name} data has been deleted from this device.\n\nTo permanently remove your account from our servers, please contact ${BRAND.name} support.`,
+          'Account deleted',
+          `Your ${BRAND.name} account and all associated data have been permanently removed.`,
         );
       }, 300);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      Alert.alert('Deletion failed', message);
     } finally {
       setDeleteLoading(false);
     }
-  }, [deleteConfirmText, deleteLoading, clearAllData, signOut]);
+  }, [deleteConfirmText, deleteLoading, session, clearAllData, signOut]);
 
   // ── Signed-out state ───────────────────────────────────────────────────────
 
@@ -249,7 +256,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
 
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Delete your account?</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>
-              This will permanently delete all your local diary entries, weight logs, meals, and profile from this device.
+              This will permanently delete your account and all data — diary entries, weight logs, meals, and profile — from this device and our servers. This cannot be undone.
               {'\n\n'}
               To confirm, type <Text style={{ fontFamily: 'Inter_700Bold', color: colors.destructive }}>DELETE</Text> below.
             </Text>
