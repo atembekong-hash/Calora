@@ -74,7 +74,14 @@ export default function AuthCallbackScreen() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             router.replace('/(tabs)' as any);
           }
+        } else if (result.error.code === 'cancelled') {
+          // User denied consent or dismissed the OAuth flow — navigate back to
+          // sign-in silently with no error banner so the experience feels clean.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          router.replace('/auth/sign-in' as any);
         } else {
+          // provider / token / other errors — show a brief inline message then
+          // redirect to the root screen so the user can try again.
           setStatusMessage(result.error.message);
           setTimeout(() => {
             router.replace({
