@@ -9,7 +9,14 @@
       "node": "20.19.4",
       "corepack": true,
       "pnpm": "10.26.1",
-      "image": "latest"
+      "android": {
+        "image": "latest",
+        "resourceClass": "medium"
+      },
+      "ios": {
+        "image": "latest",
+        "resourceClass": "m-medium"
+      }
     },
     "development": {
       "extends": "base",
@@ -24,27 +31,21 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "resourceClass": "medium"
+        "buildType": "apk"
       }
     },
     "preview": {
       "extends": "base",
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "resourceClass": "medium"
+        "buildType": "apk"
       }
     },
     "production": {
       "extends": "base",
       "autoIncrement": true,
-      "ios": {
-        "resourceClass": "m-medium"
-      },
       "android": {
-        "buildType": "app-bundle",
-        "resourceClass": "medium"
+        "buildType": "app-bundle"
       }
     }
   }
