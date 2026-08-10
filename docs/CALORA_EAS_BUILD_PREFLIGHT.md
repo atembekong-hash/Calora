@@ -45,10 +45,14 @@ All 32 test files and 703 tests passed.
 
 ## Before starting a build
 
-In Expo’s GitHub build settings, keep the app root directory set to:
+In Expo’s GitHub build settings, set the **Root Directory** to the repository root (the top-level directory containing `pnpm-workspace.yaml`).
 
-```text
-artifacts/calora
+Then, ensure the EAS build command points to the app directory:
+
+```bash
+eas build --path artifacts/calora
 ```
+
+If you are using the GitHub integration (Auto-build on push), Expo will automatically detect the monorepo structure if the Root Directory is set correctly to the repository root. Setting it to `artifacts/calora` may cause dependency installation failures because `pnpm` will not be able to find the workspace configuration.
 
 For a native OAuth test, choose the `development-device` profile. A remote build is intentionally not started by this preflight.
