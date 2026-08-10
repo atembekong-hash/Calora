@@ -4,7 +4,8 @@
 
 - The Expo app root is `artifacts/calora`.
 - `artifacts/calora/eas.json` is the only EAS build configuration.
-- Every build profile inherits a shared base profile that enables Corepack and pins Node.js 20.19.4 and pnpm 10.26.1.
+- Every build profile inherits a shared base profile that enables Corepack, pins Node.js 20.19.4 and pnpm 10.26.1, and uses the **latest** EAS build image (which includes JDK 17).
+- Android builds are configured to use the **medium** resource class to prevent Gradle daemon crashes.
 - There is no custom EAS build workflow or `eas.yml` file. EAS uses its supported default build pipeline.
 - `development` creates an iOS simulator development client.
 - `development-device` is the internal-distribution development-client profile for real-device deep-link and OAuth testing; Android requests produce an installable APK.

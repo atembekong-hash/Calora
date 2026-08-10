@@ -8,7 +8,8 @@
     "base": {
       "node": "20.19.4",
       "corepack": true,
-      "pnpm": "10.26.1"
+      "pnpm": "10.26.1",
+      "image": "latest"
     },
     "development": {
       "extends": "base",
@@ -23,14 +24,16 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "resourceClass": "medium"
       }
     },
     "preview": {
       "extends": "base",
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "resourceClass": "medium"
       }
     },
     "production": {
@@ -40,7 +43,8 @@
         "resourceClass": "m-medium"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "resourceClass": "medium"
       }
     }
   }
