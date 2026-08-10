@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getRecipe, useGetRecipe, useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
+import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { applySlotReplace, getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
@@ -135,59 +136,6 @@ function scaleIngredient(ingredient: string, multiplier: number): string {
     scaled === 1.25 ? '1¼' : scaled === 1.5 ? '1½' : scaled === 1.75 ? '1¾' :
     Number.isInteger(scaled) ? String(scaled) : scaled.toFixed(1);
   return ingredient.replace(match[0], `${formatted} `).trimEnd();
-}
-
-// Split recipe instructions into discrete cooking steps.
-// Handles TheMealDB (\r\n separated), numbered lists, and paragraph breaks.
-// Also cleans markdown chars, ingredient preambles, and filler phrases.
-function parseInstructionSteps(raw: string): string[] {
-  // ── Phase 1: strip markdown formatting ──────────────────────────────────
-  // TheMealDB uses **bold**, *bullet*, *italic*, and # headers in instructions.
-  let text = raw
-    .replace(/\*\*(.+?)\*\*/gs, '$1')   // **bold** → plain
-    .replace(/\*([^*\n]+?)\*/g, '$1')   // *italic* → plain
-    .replace(/__(.*?)__/gs, '$1')        // __underline__ → plain
-    .replace(/_(.*?)_/g, '$1')           // _italic_ → plain
-    .replace(/^#{1,6}\s*/gm, '')         // # headers → plain
-    .replace(/^[ \t]*[*\-•][ \t]*/gm, '') // leading bullet markers (* - •)
-    .replace(/\r\n/g, '\n')              // normalise CRLF → LF
-    .replace(/\r/g, '\n');               // bare CR → LF
-
-  // ── Phase 2: split into candidate steps ─────────────────────────────────
-  let steps: string[];
-
-  // Numbered list: "1. Step" or "Step 1: ..." or "STEP 1 ..."
-  const byNumbered = text.split(/\n\s*(?:step\s+)?\d+[.):\s]+/i);
-  if (byNumbered.length >= 3) {
-    steps = byNumbered.map((s) => s.trim()).filter(Boolean);
-  } else {
-    // Line-break separated (TheMealDB's primary format)
-    steps = text.split(/\n/).map((s) => s.trim()).filter(Boolean);
-    if (steps.length < 2) steps = [text.trim()];
-  }
-
-  // ── Phase 3: strip ingredient-list preamble ──────────────────────────────
-  // TheMealDB sometimes opens instructions with a list of ingredients before
-  // the actual cooking steps.  Detect the first line with a cooking verb and
-  // discard everything before it.
-  const COOKING_VERB = /\b(heat|add|mix|stir|cook|bake|fry|boil|simmer|combine|place|pour|remove|chop|slice|dice|season|drain|cover|bring|reduce|serve|transfer|whisk|fold|toss|coat|set aside|prepare|rinse|soak|wash|cut|peel|grate|melt|spray|preheat|marinate|roast|saut[eé]|blend|spread|roll|knead|rest|cool|refrigerate|strain|squeeze|brush|garnish|flip|grease|line|wrap|seal|break|separate|beat|cream|form|shape|drop|spoon|finish|top)\b/i;
-  const firstReal = steps.findIndex((s) => COOKING_VERB.test(s));
-  if (firstReal > 0) steps = steps.slice(firstReal);
-
-  // ── Phase 4: trim filler prefixes (reduces verbosity ~25%) ──────────────
-  const FILLER = /^(Now[,.]?\s+|Next[,.]?\s+|Then[,.]?\s+|After that[,.]?\s+|Once done[,.]?\s+|At this point[,.]?\s+|Finally[,.]?\s+|First of all[,.]?\s+|Lastly[,.]?\s+|Go ahead and\s+|Make sure to\s+|Be sure to\s+|You should\s+|You can\s+)/i;
-  steps = steps.map((s) => s.replace(FILLER, (m) => m[0].toUpperCase() === m[0] ? '' : m).trim());
-
-  // ── Phase 5: strip any residual markdown chars and collapse whitespace ───
-  steps = steps.map((s) =>
-    s
-      .replace(/[*_`#]/g, '')      // stray markdown punctuation
-      .replace(/\s{2,}/g, ' ')     // multiple spaces → single
-      .replace(/^[.,:;\s]+/, '')   // leading punctuation from stripping
-      .trim()
-  ).filter((s) => s.length > 4);   // drop near-empty fragments
-
-  return steps.length > 0 ? steps : [raw.trim().replace(/[*_`#]/g, '')];
 }
 
 function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void }) {
@@ -467,7 +415,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                         <Text style={[styles.methodLoadingText, { color: colors.mutedForeground }]}>Loading steps…</Text>
                       </View>
                     ) : detail.instructions ? (() => {
-                      const steps = parseInstructionSteps(detail.instructions);
+                      const steps = parseRecipeInstructionSteps(detail.instructions);
                       if (steps.length === 1) {
                         return <Text style={[styles.instructions, { color: colors.mutedForeground }]}>{steps[0]}</Text>;
                       }
