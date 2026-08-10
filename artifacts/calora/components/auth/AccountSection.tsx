@@ -28,6 +28,7 @@ import { router } from 'expo-router';
 import { useCalora } from '@/context/CaloraContext';
 import { useAuth } from '@/context/AuthContext';
 import { BRAND } from '@/lib/brand';
+import { getApiBaseUrl } from '@/lib/api-config';
 import { spacing, radius, typography } from '@/constants/tokens';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -122,9 +123,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
       // Call the server-side endpoint which uses the service-role key to
       // permanently remove the Supabase Auth user record. The user's JWT is
       // sent as a Bearer token; the server verifies and resolves the user ID.
-      const baseUrl = process.env.EXPO_PUBLIC_DOMAIN
-        ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-        : '';
+      const baseUrl = getApiBaseUrl();
       const response = await fetch(`${baseUrl}/api/v1/account`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${session.access_token}` },
