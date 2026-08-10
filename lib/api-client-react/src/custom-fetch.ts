@@ -29,6 +29,25 @@ export function setBaseUrl(url: string | null): void {
   _baseUrl = url ? url.replace(/\/+$/, "") : null;
 }
 
+function isRelativePathUrl(url: string): boolean {
+  return url.startsWith("/");
+}
+
+function logRequestDiagnostic(
+  event: "response" | "network_error",
+  requestInfo: { method: string; url: string },
+  details: Record<string, unknown>,
+): void {
+  // Deliberately log only the endpoint path/origin and transport metadata.
+  // Never include request bodies, headers, access tokens, or response bodies.
+  console.warn("[CaloraApp][network]", {
+    event,
+    method: requestInfo.method,
+    url: requestInfo.url.split("?")[0],
+    ...details,
+  });
+}
+
 /**
  * Register a getter that supplies a bearer auth token.  Before every fetch
  * the getter is invoked; when it returns a non-null string, an
@@ -326,6 +345,7 @@ export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
 ): Promise<T> {
+  const originalUrl = resolveUrl(input);
   input = applyBaseUrl(input);
   const { responseType = "auto", headers: headersInit, ...init } = options;
 
@@ -360,9 +380,34 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  if (isRelativePathUrl(requestInfo.url)) {
+    const error = new Error(
+      `Calora API base URL is not configured; cannot send native request to ${requestInfo.url}.`,
+    );
+    logRequestDiagnostic("network_error", requestInfo, {
+      errorName: error.name,
+      message: error.message,
+      originalUrl: originalUrl.split("?")[0],
+    });
+    throw error;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(input, { ...init, method, headers });
+  } catch (error) {
+    logRequestDiagnostic("network_error", requestInfo, {
+      errorName: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : "Unknown network error",
+    });
+    throw error;
+  }
 
   if (!response.ok) {
+    logRequestDiagnostic("response", requestInfo, {
+      status: response.status,
+      statusText: response.statusText,
+    });
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
   }

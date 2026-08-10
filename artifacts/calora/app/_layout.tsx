@@ -21,7 +21,45 @@ import { setBaseUrl } from '@workspace/api-client-react';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
-setBaseUrl(process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : null);
+
+function getApiBaseUrl(): string {
+  const configuredUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+
+  if (!configuredUrl) {
+    throw new Error(
+      '[CaloraApp] Missing required Expo public configuration: EXPO_PUBLIC_API_URL. ' +
+        'Set it to the HTTPS origin serving the Calora API (without /api), in the EAS environment selected by this build profile, then rebuild.',
+    );
+  }
+
+  let url: URL;
+  try {
+    url = new URL(configuredUrl);
+  } catch {
+    throw new Error(
+      '[CaloraApp] EXPO_PUBLIC_API_URL must be an absolute HTTPS URL without a path, query, or fragment.',
+    );
+  }
+
+  if (
+    url.protocol !== 'https:' ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash ||
+    url.username ||
+    url.password
+  ) {
+    throw new Error(
+      '[CaloraApp] EXPO_PUBLIC_API_URL must be an absolute HTTPS origin without a path, query, fragment, or credentials.',
+    );
+  }
+
+  return url.origin;
+}
+
+const apiBaseUrl = getApiBaseUrl();
+setBaseUrl(apiBaseUrl);
+console.info('[CaloraApp][network] API base configured', { origin: apiBaseUrl });
 
 // Configure foreground notification display (required by expo-notifications).
 Notifications.setNotificationHandler({
