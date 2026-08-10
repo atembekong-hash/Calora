@@ -11,7 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getRecipe, useGetRecipe, useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
-import { getRecipeMethodCharacterCount, parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
+import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { applySlotReplace, getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
@@ -416,48 +416,18 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                       </View>
                     ) : detail.instructions ? (() => {
                       const steps = parseRecipeInstructionSteps(detail.instructions);
-                      const methodCharacters = getRecipeMethodCharacterCount(detail.instructions);
-                      const meetsLengthTarget = methodCharacters >= 750;
-                      const sourceName = local ? 'your recipe' : detail.source;
-                      return (
-                        <>
-                          <View style={[styles.methodQualityCard, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-                            <Feather name={meetsLengthTarget ? 'check-circle' : 'info'} size={14} color={meetsLengthTarget ? colors.primary : colors.mutedForeground} />
-                            <View style={styles.methodQualityCopy}>
-                              <Text style={[styles.methodQualityTitle, { color: colors.foreground }]}>
-                                {meetsLengthTarget ? 'Detailed source method' : 'Concise source method'}
-                              </Text>
-                              <Text style={[styles.methodQualityText, { color: colors.mutedForeground }]}>
-                                {methodCharacters} of 750-character detail target · instructions preserved from {sourceName}.
-                              </Text>
-                            </View>
-                          </View>
-                          {!local && (
-                            <Text style={[styles.methodProvenance, { color: colors.mutedForeground }]}>
-                              Method provided by {detail.source}; {BRAND.name} formats the original instructions into steps without adding recipe-specific content.
-                            </Text>
-                          )}
-                          {steps.length === 1 ? (
-                            <Text style={[styles.instructions, { color: colors.mutedForeground }]}>{steps[0]}</Text>
-                          ) : steps.map((step, si) => (
-                            <View key={si} style={styles.stepRow}>
-                              <Text style={[styles.stepNumber, { color: colors.primary }]}>{String(si + 1).padStart(2, '0')}</Text>
-                              <Text style={[styles.stepText, { color: colors.mutedForeground }]}>{step}</Text>
-                            </View>
-                          ))}
-                        </>
-                      );
+                      if (steps.length === 1) {
+                        return <Text style={[styles.instructions, { color: colors.mutedForeground }]}>{steps[0]}</Text>;
+                      }
+                      return steps.map((step, si) => (
+                        <View key={si} style={styles.stepRow}>
+                          <Text style={[styles.stepNumber, { color: colors.primary }]}>{String(si + 1).padStart(2, '0')}</Text>
+                          <Text style={[styles.stepText, { color: colors.mutedForeground }]}>{step}</Text>
+                        </View>
+                      ));
                     })() : null}
                   </>
                 ) : null}
-
-                <View style={[styles.cookingGuidanceCard, { backgroundColor: colors.accent, borderColor: colors.border }]}>
-                  <Feather name="shield" size={16} color={colors.accentForeground} />
-                  <View style={styles.cookingGuidanceCopy}>
-                    <Text style={[styles.cookingGuidanceTitle, { color: colors.foreground }]}>Cooking guidance</Text>
-                    <Text style={[styles.cookingGuidanceText, { color: colors.accentForeground }]}>Use the source method for recipe-specific steps. Taste as you go, use clean utensils, and cook ingredients to a safe temperature when applicable.</Text>
-                  </View>
-                </View>
 
                 <Text style={[styles.attribution, { color: colors.mutedForeground }]}>Recipe source: {detail.source}. {BRAND.name} does not claim third-party recipe content as its own.</Text>
                 <ScalePressable accessibilityLabel="Add recipe to plan" onPress={openPlanPicker} scale={0.98} haptic="none" style={[styles.secondaryAction, { borderColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primary} /><Text style={[styles.secondaryActionText, { color: colors.primary }]}>Add to weekly plan</Text></ScalePressable>
@@ -939,19 +909,10 @@ function makeStyles(f: number) {
   notice: { flexDirection: 'row', gap: 9, borderRadius: 14, padding: 12, marginTop: 12 },
   noticeText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15 },
   detailSectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 * f, marginTop: 23, marginBottom: 9 },
-   methodQualityCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderWidth: 1, borderRadius: 12, padding: 10, marginBottom: 9 },
-   methodQualityCopy: { flex: 1, gap: 2 },
-   methodQualityTitle: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-   methodQualityText: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, lineHeight: 13 },
-   methodProvenance: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, lineHeight: 13, marginBottom: 10 },
   ingredientRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginBottom: 8 },
   ingredientDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
   ingredientText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17 },
   instructions: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 19 },
-   cookingGuidanceCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 19 },
-   cookingGuidanceCopy: { flex: 1, gap: 3 },
-   cookingGuidanceTitle: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-   cookingGuidanceText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15 },
   attribution: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, lineHeight: 14, marginTop: 22 },
   primaryAction: { minHeight: 48, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 16, marginTop: 17 },
   primaryActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
