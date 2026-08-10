@@ -234,6 +234,9 @@ importers:
 
   artifacts/calora:
     dependencies:
+      '@expo/metro-runtime':
+        specifier: ^6.1.2
+        version: 6.1.2(expo@54.0.36)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@supabase/supabase-js':
         specifier: ^2.112.2
         version: 2.112.2
@@ -252,6 +255,9 @@ importers:
       expo-sharing:
         specifier: ^14.0.8
         version: 14.0.8(expo@54.0.36)
+      whatwg-fetch:
+        specifier: ^3.6.20
+        version: 3.6.20
     devDependencies:
       '@babel/core':
         specifier: ^7.25.2
@@ -262,9 +268,6 @@ importers:
       '@expo/cli':
         specifier: 54.0.23
         version: 54.0.23(expo-router@6.0.24)(expo@54.0.36)(graphql@16.8.1)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(typescript@5.9.3)
-      '@expo/metro-runtime':
-        specifier: ~6.1.2
-        version: 6.1.2(expo@54.0.36)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@expo/ngrok':
         specifier: ^4.1.0
         version: 4.1.3

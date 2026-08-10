@@ -15,7 +15,6 @@
     "@babel/core": "^7.25.2",
     "@expo-google-fonts/inter": "^0.4.0",
     "@expo/cli": "54.0.23",
-    "@expo/metro-runtime": "~6.1.2",
     "@expo/ngrok": "^4.1.0",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -63,11 +62,13 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@expo/metro-runtime": "^6.1.2",
     "@supabase/supabase-js": "^2.112.2",
     "expo-camera": "~17.0.10",
     "expo-file-system": "^19.0.23",
     "expo-notifications": "^0.32.17",
     "expo-secure-store": "~15.0.8",
-    "expo-sharing": "^14.0.8"
+    "expo-sharing": "^14.0.8",
+    "whatwg-fetch": "^3.6.20"
   }
 }
