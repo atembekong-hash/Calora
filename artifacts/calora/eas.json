@@ -12,6 +12,7 @@
     },
     "development": {
       "extends": "base",
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
@@ -20,6 +21,7 @@
     },
     "development-device": {
       "extends": "base",
+      "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
       "android": {
@@ -28,6 +30,7 @@
     },
     "preview": {
       "extends": "base",
+      "environment": "preview",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
@@ -35,6 +38,7 @@
     },
     "production": {
       "extends": "base",
+      "environment": "production",
       "autoIncrement": true,
       "ios": {
         "resourceClass": "m-medium"
