@@ -28,6 +28,8 @@ import { deriveExportHasData, makeExportHandler } from '@/lib/exportUiHandler';
 import { SettingRowPressable } from '@/components/SettingRowPressable';
 import { AccountSection } from '@/components/auth/AccountSection';
 import { AppHeader } from '@/components/AppChrome';
+import { ReferralCard } from '@/components/ReferralCard';
+import { REVENUECAT_ENTITLEMENT_IDENTIFIER, useSubscription } from '@/lib/revenuecat';
 
 // ─── Static config ────────────────────────────────────────────────────────────
 
@@ -71,13 +73,24 @@ export default function ProfileScreen() {
   const hasExportData = deriveExportHasData(profile, logs);
   const insets = useSafeAreaInsets();
 
-  // Billing
+  // Billing — live RevenueCat offering is the price authority; the brand
+  // reference prices are only a cosmetic fallback while offerings load.
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
-  const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | null>(null);
-  const annualMonthlyEquivalent = (69.99 / 12).toFixed(2);
-  const annualSavings = (9.99 * 12 - 69.99).toFixed(2);
-  const selectedPrice = selectedPlan === 'annual' ? '$69.99' : '$9.99';
+  const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | 'confirm' | null>(null);
+  const [billingNotice, setBillingNotice] = useState<string | null>(null);
+  const { offerings, isSubscribed, purchase, restore, isPurchasing, isRestoring } = useSubscription();
+  const currentOffering = offerings?.current ?? null;
+  const monthlyPkg = currentOffering?.availablePackages.find((p) => p.identifier === '$rc_monthly') ?? currentOffering?.monthly ?? null;
+  const annualPkg = currentOffering?.availablePackages.find((p) => p.identifier === '$rc_annual') ?? currentOffering?.annual ?? null;
+  const monthlyPriceNum = monthlyPkg?.product.price ?? 9.99;
+  const annualPriceNum = annualPkg?.product.price ?? 69.99;
+  const monthlyPriceString = monthlyPkg?.product.priceString ?? '$9.99';
+  const annualPriceString = annualPkg?.product.priceString ?? '$69.99';
+  const annualMonthlyEquivalent = (annualPriceNum / 12).toFixed(2);
+  const annualSavings = (monthlyPriceNum * 12 - annualPriceNum).toFixed(2);
+  const selectedPrice = selectedPlan === 'annual' ? annualPriceString : monthlyPriceString;
   const selectedPeriod = selectedPlan === 'annual' ? 'year' : 'month';
+  const selectedPackage = selectedPlan === 'annual' ? annualPkg : monthlyPkg;
 
   // Privacy / delete
   const [privacyModal, setPrivacyModal] = useState<'delete' | null>(null);
@@ -197,8 +210,49 @@ export default function ProfileScreen() {
     });
 
   /** Billing */
-  const handlePurchase = () => setBillingModal('purchase');
-  const handleRestore = () => setBillingModal('restore');
+  const handlePurchase = () => {
+    if (isSubscribed) {
+      setBillingNotice(`${BRAND.premiumName} is already active on this account.`);
+      return;
+    }
+    if (!selectedPackage) {
+      // Offerings unavailable (offline / not yet loaded) — informational fallback.
+      setBillingModal('purchase');
+      return;
+    }
+    setBillingModal('confirm');
+  };
+
+  const confirmPurchase = async () => {
+    if (!selectedPackage || isPurchasing) return;
+    try {
+      await purchase(selectedPackage);
+      setBillingModal(null);
+      setBillingNotice(`Welcome to ${BRAND.premiumName}! Your subscription is active.`);
+    } catch (err) {
+      setBillingModal(null);
+      const cancelled = !!(err && typeof err === 'object' && 'userCancelled' in err && (err as { userCancelled?: boolean }).userCancelled);
+      if (!cancelled) {
+        setBillingNotice('The purchase could not be completed. You have not been charged.');
+      }
+    }
+  };
+
+  const handleRestore = async () => {
+    if (isRestoring) return;
+    try {
+      const info = await restore();
+      const active = info?.entitlements.active?.[REVENUECAT_ENTITLEMENT_IDENTIFIER];
+      setBillingNotice(
+        active
+          ? `${BRAND.premiumName} has been restored on this device.`
+          : 'No previous purchases were found for this account.',
+      );
+    } catch {
+      setBillingNotice('Restore failed. Please check your connection and try again.');
+    }
+  };
+
   const handleManage = () => setBillingModal('manage');
 
   /** Export — locked against concurrent invocations via exportLockRef */
@@ -581,7 +635,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.planName, { color: colors.foreground }]}>Monthly</Text>
                 <Text style={[styles.planHint, { color: colors.mutedForeground }]}>Cancel anytime</Text>
               </View>
-              <Text style={[styles.planPrice, { color: colors.foreground }]}>$9.99<Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / mo</Text></Text>
+              <Text style={[styles.planPrice, { color: colors.foreground }]}>{monthlyPriceString}<Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / mo</Text></Text>
             </Pressable>
             <Pressable accessibilityLabel="Choose annual plan" testID="billing-plan-annual" onPress={() => setSelectedPlan('annual')} style={[styles.planChoice, { borderColor: selectedPlan === 'annual' ? colors.primary : colors.border, backgroundColor: selectedPlan === 'annual' ? colors.accent : colors.card }]}>
               <View style={[styles.radio, { borderColor: selectedPlan === 'annual' ? colors.primary : colors.mutedForeground }]}>
@@ -591,7 +645,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.planName, { color: colors.foreground }]}>Annual <Text style={[styles.savePill, { color: colors.accentForeground, backgroundColor: colors.accent }]}>SAVE 42%</Text></Text>
                 <Text style={[styles.planHint, { color: colors.mutedForeground }]}>${annualMonthlyEquivalent} / month equivalent</Text>
               </View>
-              <Text style={[styles.planPrice, { color: colors.foreground }]}>$69.99<Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / yr</Text></Text>
+              <Text style={[styles.planPrice, { color: colors.foreground }]}>{annualPriceString}<Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / yr</Text></Text>
             </Pressable>
           </View>
           <View style={[styles.valueLine, { backgroundColor: colors.muted }]}>
@@ -607,8 +661,10 @@ export default function ProfileScreen() {
             ))}
           </View>
           <Pressable accessibilityLabel="Continue to billing" testID="billing-continue" onPress={handlePurchase} style={({ pressed }) => [styles.planButton, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}>
-            <Text style={[styles.planButtonText, { color: colors.primaryForeground }]}>Continue with {selectedPrice} / {selectedPeriod}</Text>
-            <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
+            <Text style={[styles.planButtonText, { color: colors.primaryForeground }]}>
+              {isSubscribed ? `${BRAND.premiumName} is active` : `Continue with ${selectedPrice} / ${selectedPeriod}`}
+            </Text>
+            {!isSubscribed && <Feather name="arrow-right" size={16} color={colors.primaryForeground} />}
           </Pressable>
           <Text style={[styles.billingNote, { color: colors.mutedForeground }]}>Subscription renews automatically unless canceled at least 24 hours before the renewal date. Final price may vary by local taxes and currency.</Text>
           <View style={styles.billingLinks}>
@@ -617,6 +673,9 @@ export default function ProfileScreen() {
             <Pressable accessibilityLabel="Manage subscription" onPress={handleManage}><Text style={[styles.billingLink, { color: colors.primary }]}>Manage subscription</Text></Pressable>
           </View>
         </View>
+
+        {/* ── Invite friends ── */}
+        <ReferralCard fontScale={fontScale} />
 
         {/* ── Saved meals ── */}
         <View style={styles.savedHeader}>
@@ -745,27 +804,60 @@ export default function ProfileScreen() {
         <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
           <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
             <View style={[styles.dialogIcon, { backgroundColor: colors.accent }]}>
-              <Feather name={billingModal === 'purchase' ? 'lock' : billingModal === 'restore' ? 'rotate-ccw' : 'external-link'} size={20} color={colors.accentForeground} />
+              <Feather name={billingModal === 'confirm' ? 'credit-card' : billingModal === 'purchase' ? 'lock' : billingModal === 'restore' ? 'rotate-ccw' : 'external-link'} size={20} color={colors.accentForeground} />
             </View>
             <Text style={[styles.dialogTitle, { color: colors.foreground }]}>
-              {billingModal === 'purchase' ? 'Billing is ready for setup' : billingModal === 'restore' ? 'Restore purchases' : 'Manage subscription'}
+              {billingModal === 'confirm' ? 'Confirm your purchase' : billingModal === 'purchase' ? 'Billing is ready for setup' : billingModal === 'restore' ? 'Restore purchases' : 'Manage subscription'}
             </Text>
             <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>
-              {billingModal === 'purchase'
-                ? `You chose the ${selectedPlan} plan at ${selectedPrice} per ${selectedPeriod}. The App Store and Google Play connection must be enabled before a real charge can be made.`
+              {billingModal === 'confirm'
+                ? `Subscribe to ${BRAND.premiumName} (${selectedPlan}) at ${selectedPrice} per ${selectedPeriod}? The store purchase sheet will complete the payment.`
+                : billingModal === 'purchase'
+                ? `You chose the ${selectedPlan} plan at ${selectedPrice} per ${selectedPeriod}. Plans are still loading or unavailable offline — please try again in a moment.`
                 : billingModal === 'restore'
-                  ? `Once store billing is connected, this will look up your active ${BRAND.premiumName} entitlement on this device.`
-                  : 'Once store billing is connected, this will open the platform subscription settings so cancellation stays one tap away.'}
+                  ? `This will look up your active ${BRAND.premiumName} entitlement on this device.`
+                  : 'This will open the platform subscription settings so cancellation stays one tap away.'}
             </Text>
-            <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
-              <Feather name="info" size={15} color={colors.primary} />
-              <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>No payment has been taken.</Text>
-            </View>
-            <Pressable accessibilityLabel="Close billing dialog" onPress={() => setBillingModal(null)} style={[styles.dialogButton, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Got it</Text>
-            </Pressable>
+            {billingModal !== 'confirm' && (
+              <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
+                <Feather name="info" size={15} color={colors.primary} />
+                <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>No payment has been taken.</Text>
+              </View>
+            )}
+            {billingModal === 'confirm' ? (
+              <Pressable accessibilityLabel="Confirm purchase" testID="billing-confirm-purchase" onPress={confirmPurchase} disabled={isPurchasing} style={[styles.dialogButton, { backgroundColor: colors.primary, opacity: isPurchasing ? 0.6 : 1 }]}>
+                {isPurchasing
+                  ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                  : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Confirm purchase</Text>}
+              </Pressable>
+            ) : (
+              <Pressable accessibilityLabel="Close billing dialog" onPress={() => setBillingModal(null)} style={[styles.dialogButton, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Got it</Text>
+              </Pressable>
+            )}
+            {billingModal === 'confirm' && (
+              <Pressable accessibilityLabel="Cancel purchase" onPress={() => setBillingModal(null)} style={styles.dialogSecondaryButton}>
+                <Text style={[styles.dialogSecondaryText, { color: colors.primary }]}>Cancel</Text>
+              </Pressable>
+            )}
             <Pressable accessibilityLabel="View billing help" onPress={() => { setBillingModal(null); Alert.alert('Billing help', `${BRAND.name} will support App Store and Google Play subscriptions. Your plan, renewal date, and cancellation path will always be visible here.`); }} style={styles.dialogSecondaryButton}>
               <Text style={[styles.dialogSecondaryText, { color: colors.primary }]}>How billing works</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Billing notice modal ── */}
+      <Modal visible={billingNotice !== null} transparent animationType="fade" onRequestClose={() => setBillingNotice(null)}>
+        <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+          <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.dialogIcon, { backgroundColor: colors.accent }]}>
+              <Feather name="info" size={20} color={colors.accentForeground} />
+            </View>
+            <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Billing</Text>
+            <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>{billingNotice}</Text>
+            <Pressable accessibilityLabel="Close billing notice" testID="billing-notice-close" onPress={() => setBillingNotice(null)} style={[styles.dialogButton, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Got it</Text>
             </Pressable>
           </View>
         </View>

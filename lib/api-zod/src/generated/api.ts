@@ -483,9 +483,11 @@ export const ListRecipesResponse = zod.object({
   "proteinG": zod.number().nullish(),
   "carbsG": zod.number().nullish(),
   "fatG": zod.number().nullish(),
+  "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
   "source": zod.string(),
   "sourceUrl": zod.string().url()
-}))
+})),
+  "warmupPending": zod.boolean().optional().describe('True while the server\'s background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available.\n')
 })
 
 
@@ -514,6 +516,7 @@ export const GetRecipeResponse = zod.object({
   "proteinG": zod.number().nullish(),
   "carbsG": zod.number().nullish(),
   "fatG": zod.number().nullish(),
+  "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
   "source": zod.string(),
   "sourceUrl": zod.string().url()
 })
@@ -938,6 +941,68 @@ export const RequestDataExportResponse = zod.object({
  */
 export const RequestDataDeletionResponse = zod.object({
   "status": zod.enum(['queued', 'complete'])
+})
+
+
+/**
+ * @summary Get the caller's referral code, invite link, and reward stats
+ */
+export const getReferralResponseCodeMin = 4;
+export const getReferralResponseCodeMax = 16;
+
+
+
+export const GetReferralResponse = zod.object({
+  "code": zod.string().min(getReferralResponseCodeMin).max(getReferralResponseCodeMax),
+  "inviteUrl": zod.string().url(),
+  "rewardDays": zod.number().int(),
+  "stats": zod.object({
+  "pendingCount": zod.number().int(),
+  "rewardedCount": zod.number().int(),
+  "monthRewardedCount": zod.number().int(),
+  "monthCap": zod.number().int()
+}),
+  "redemption": zod.object({
+  "status": zod.enum(['none', 'pending', 'rewarded']),
+  "code": zod.string().optional()
+}).describe('The caller\'s own redemption of someone else\'s code, if any.')
+})
+
+
+/**
+ * Records a pending referral redemption for the authenticated user.
+ * Rewards unlock for both parties once the new user logs their first
+ * approved food entry. One redemption per account; self-referrals are
+ * rejected.
+ * @summary Redeem an invite code on a new account
+ */
+export const redeemReferralBodyCodeMin = 4;
+export const redeemReferralBodyCodeMax = 16;
+
+
+
+export const RedeemReferralBody = zod.object({
+  "code": zod.string().min(redeemReferralBodyCodeMin).max(redeemReferralBodyCodeMax)
+})
+
+export const RedeemReferralResponse = zod.object({
+  "status": zod.enum(['pending']),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * Called once the referred user records their first approved food log.
+ * Grants seven days of Pro to both parties (the referrer's grant is
+ * subject to a monthly cap). Idempotent — repeat calls return the
+ * current state without granting again.
+ * @summary Unlock referral rewards after the first approved food log
+ */
+export const ActivateReferralResponse = zod.object({
+  "status": zod.enum(['none', 'pending', 'rewarded']),
+  "referredRewarded": zod.boolean(),
+  "referrerRewarded": zod.boolean(),
+  "message": zod.string().optional()
 })
 
 

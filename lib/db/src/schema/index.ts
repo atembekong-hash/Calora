@@ -163,6 +163,35 @@ export const subscriptionsTable = pgTable("calora_subscriptions", {
   userProductIndex: uniqueIndex("calora_subscription_user_product_idx").on(table.userId, table.productId),
 }));
 
+/**
+ * Referral program tables.
+ *
+ * Keyed by the Supabase Auth user id (text) rather than calora_users — the
+ * referral flow runs on freshly signed-up accounts that may not have a synced
+ * profile row yet, and the API server verifies identity from the Supabase JWT.
+ */
+export const referralCodesTable = pgTable("calora_referral_codes", {
+  userId: text("user_id").primaryKey(),
+  code: text("code").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  codeIndex: uniqueIndex("calora_referral_codes_code_idx").on(table.code),
+}));
+
+export const referralRedemptionsTable = pgTable("calora_referral_redemptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  code: text("code").notNull(),
+  referrerUserId: text("referrer_user_id").notNull(),
+  /** One redemption per referred account, enforced by the unique index. */
+  referredUserId: text("referred_user_id").notNull(),
+  status: text("status").notNull().default("pending"), // pending | rewarded
+  referredRewardedAt: timestamp("referred_rewarded_at", { withTimezone: true }),
+  referrerRewardedAt: timestamp("referrer_rewarded_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  referredIndex: uniqueIndex("calora_referral_redemptions_referred_idx").on(table.referredUserId),
+}));
+
 export const syncMutationsTable = pgTable("calora_sync_mutations", {
   mutationId: uuid("mutation_id").primaryKey(),
   userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),

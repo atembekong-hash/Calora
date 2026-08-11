@@ -18,3 +18,4 @@
 - [RNW modal pitfalls](rnw-modal-pitfalls.md) — never nest Modals, maxHeight on ScrollView doesn't constrain on web, disable refetchOnWindowFocus, use entry.id not date as list key.
 - [Calora race condition pattern](calora-race-condition.md) — never setState then immediately read the new value; pass the object directly as a param instead.
 - [CaloraApp metadata lock-in](caloraapp-metadata-lockin.md) — canonical identity (brand.ts), preserved internal identifiers, and post-rename conventions.
+- [Referral rewards design](referral-rewards.md) — server-authoritative, claim-first idempotent RevenueCat promo grants that always extend end dates; cap counted under a row lock.

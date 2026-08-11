@@ -30,6 +30,8 @@ tags:
     description: Personalized weekly meal planning
   - name: coach
     description: Context-aware nutrition coaching
+  - name: referral
+    description: Invite-a-friend referral rewards
 paths:
   /healthz:
     get:
@@ -401,6 +403,73 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeletionRequest"
+  /v1/referral:
+    get:
+      operationId: getReferral
+      tags: [referral]
+      summary: Get the caller's referral code, invite link, and reward stats
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Referral summary for the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSummary"
+        "401":
+          description: Missing or invalid token
+  /v1/referral/redeem:
+    post:
+      operationId: redeemReferral
+      tags: [referral]
+      summary: Redeem an invite code on a new account
+      description: |
+        Records a pending referral redemption for the authenticated user.
+        Rewards unlock for both parties once the new user logs their first
+        approved food entry. One redemption per account; self-referrals are
+        rejected.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReferralRedeemInput"
+      responses:
+        "200":
+          description: Redemption recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralRedeemResult"
+        "400":
+          description: Invalid or self-referral code
+        "401":
+          description: Missing or invalid token
+        "404":
+          description: Unknown invite code
+        "409":
+          description: Account already redeemed an invite code
+  /v1/referral/activate:
+    post:
+      operationId: activateReferral
+      tags: [referral]
+      summary: Unlock referral rewards after the first approved food log
+      description: |
+        Called once the referred user records their first approved food log.
+        Grants seven days of Pro to both parties (the referrer's grant is
+        subject to a monthly cap). Idempotent — repeat calls return the
+        current state without granting again.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Activation state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralActivateResult"
+        "401":
+          description: Missing or invalid token
 components:
   securitySchemes:
     bearerAuth:
@@ -935,3 +1004,44 @@ components:
               type: array
               items: { type: string }
 
+    ReferralSummary:
+      type: object
+      required: [code, inviteUrl, rewardDays, stats, redemption]
+      properties:
+        code: { type: string, minLength: 4, maxLength: 16 }
+        inviteUrl: { type: string, format: uri }
+        rewardDays: { type: integer }
+        stats:
+          type: object
+          required: [pendingCount, rewardedCount, monthRewardedCount, monthCap]
+          properties:
+            pendingCount: { type: integer }
+            rewardedCount: { type: integer }
+            monthRewardedCount: { type: integer }
+            monthCap: { type: integer }
+        redemption:
+          type: object
+          description: The caller's own redemption of someone else's code, if any.
+          required: [status]
+          properties:
+            status: { type: string, enum: [none, pending, rewarded] }
+            code: { type: string }
+    ReferralRedeemInput:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, minLength: 4, maxLength: 16 }
+    ReferralRedeemResult:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [pending] }
+        message: { type: string }
+    ReferralActivateResult:
+      type: object
+      required: [status, referredRewarded, referrerRewarded]
+      properties:
+        status: { type: string, enum: [none, pending, rewarded] }
+        referredRewarded: { type: boolean }
+        referrerRewarded: { type: boolean }
+        message: { type: string }

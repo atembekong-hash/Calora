@@ -5,6 +5,7 @@ import captureRouter from "./capture";
 import plannerRouter from "./planner";
 import coachRouter from "./coach";
 import accountRouter from "./account";
+import referralRouter from "./referral";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(captureRouter);
 router.use(plannerRouter);
 router.use(coachRouter);
 router.use(accountRouter);
+router.use(referralRouter);
 
 export default router;
