@@ -9,8 +9,14 @@
  *
  * The sync is best-effort: failures are logged but never surface to the UI,
  * and the local diary remains the source of truth at all times.
+ *
+ * Concurrency: if a second diary change arrives while a sync run is in
+ * flight, syncInProgressRef blocks a duplicate run. When the in-flight run
+ * finishes it compares the logsKey it started with against the latest value
+ * (tracked in logsKeyRef). If they differ, it bumps syncGeneration, which
+ * re-fires the effect so the missed change is picked up immediately.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useCalora } from '@/context/CaloraContext';
 import {
@@ -56,12 +62,24 @@ export function useDiarySync() {
     .map((l) => `${l.id}:${l.date}:${l.meal}:${l.name}:${Math.round(l.calories)}`)
     .join('|');
 
+  // Always reflects the latest logsKey so the in-flight run can detect drift
+  // even after the component has re-rendered.
+  const logsKeyRef = useRef(logsKey);
+  logsKeyRef.current = logsKey;
+
   const syncInProgressRef = useRef(false);
+
+  // Bumped after a sync run finishes when it detects that logsKey changed
+  // while the run was in flight. Incrementing this causes the effect to
+  // re-fire so the missed change is picked up immediately.
+  const [syncGeneration, setSyncGeneration] = useState(0);
 
   useEffect(() => {
     if (!user || !hydrated || !initializedRef.current) return;
     if (syncInProgressRef.current) return;
 
+    // Snapshot the key this run was started with so we can detect drift later.
+    const logsKeyAtStart = logsKey;
     syncInProgressRef.current = true;
 
     const currentNonStarterIds = new Set(
@@ -90,11 +108,19 @@ export function useDiarySync() {
         console.warn('[diary-sync] background sync failed', err);
       } finally {
         syncInProgressRef.current = false;
+
+        // If logsKey changed while this run was in flight, a follow-up sync
+        // is needed. Bumping syncGeneration re-fires the effect immediately
+        // with the current logs so the missed change is not dropped.
+        if (logsKeyRef.current !== logsKeyAtStart) {
+          setSyncGeneration((g) => g + 1);
+        }
       }
     };
 
     void run();
-  // Re-run when auth state changes or the diary content changes (add/edit/delete).
+  // Re-run when auth state changes, the diary content changes (add/edit/delete),
+  // or a follow-up sync was queued because a change arrived mid-flight.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, hydrated, logsKey]);
+  }, [user, hydrated, logsKey, syncGeneration]);
 }
