@@ -21,7 +21,7 @@
  */
 import { Router, type IRouter } from "express";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { SyncFirstDiaryEntryBody } from "@workspace/api-zod";
+import { CreateDiaryEntryBody, SyncFirstDiaryEntryBody } from "@workspace/api-zod";
 import { db, aiCaptureCandidatesTable, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
@@ -152,30 +152,42 @@ router.get("/v1/diary", async (req, res) => {
   if (!auth) return res.status(401).json({ message: "Please sign in to view your diary." });
   const date = typeof req.query.date === "string" ? req.query.date : "";
   if (!isDate(date)) return res.status(400).json({ message: "A valid date is required." });
-    const user = await verifyBearerToken(req);
-  const rows = await db.select().from(diaryEntriesTable).where(and(eq(diaryEntriesTable.userId, user.id), eq(diaryEntriesTable.entryDate, date))).orderBy(desc(diaryEntriesTable.createdAt));
+  const userId = await ensureUserRow(auth.id, auth.email);
+  const rows = await db.select().from(diaryEntriesTable).where(and(eq(diaryEntriesTable.userId, userId), eq(diaryEntriesTable.entryDate, date))).orderBy(desc(diaryEntriesTable.createdAt));
   return res.json({ date, entries: rows.map(serialize) });
 });
 
 router.post("/v1/diary", async (req, res) => {
   const auth = await verifyBearerToken(req);
   if (!auth) return res.status(401).json({ message: "Please sign in to save a diary entry." });
-    const parsed = SyncFirstDiaryEntryBody.safeParse(req.body);
-  if (!parsed.ok) return res.status(400).json({ message: parsed.message });
-    const user = await verifyBearerToken(req);
-  const [created] = await db.insert(diaryEntriesTable).values({
-    ...parsed.value,
-    userId: user.id,
-    clientUpdatedAt: new Date(parsed.value.clientUpdatedAt),
-  }).returning();
+  const parsed = CreateDiaryEntryBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid diary entry" });
+  const entry = parsed.data;
+  const userId = await ensureUserRow(auth.id, auth.email);
+  const values: typeof diaryEntriesTable.$inferInsert = {
+    userId,
+    entryDate: entry.entryDate.toISOString().slice(0, 10),
+    meal: entry.meal,
+    name: entry.name,
+    serving: entry.serving,
+    calories: String(entry.calories),
+    proteinG: String(entry.proteinG),
+    carbsG: String(entry.carbsG),
+    fatG: String(entry.fatG),
+    provenance: entry.provenance,
+    confidence: entry.confidence,
+    notes: entry.notes ?? null,
+    clientUpdatedAt: entry.clientUpdatedAt,
+  };
+  const [created] = await db.insert(diaryEntriesTable).values(values).returning();
   return res.status(201).json(serialize(created));
 });
 
 router.delete("/v1/diary/:entryId", async (req, res) => {
   const auth = await verifyBearerToken(req);
   if (!auth) return res.status(401).json({ message: "Please sign in to delete a diary entry." });
-    const user = await verifyBearerToken(req);
-  await db.delete(diaryEntriesTable).where(and(eq(diaryEntriesTable.id, req.params.entryId), eq(diaryEntriesTable.userId, user.id)));
+  const userId = await ensureUserRow(auth.id, auth.email);
+  await db.delete(diaryEntriesTable).where(and(eq(diaryEntriesTable.id, req.params.entryId), eq(diaryEntriesTable.userId, userId)));
   return res.status(204).send();
 });
 

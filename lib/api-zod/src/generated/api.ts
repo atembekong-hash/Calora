@@ -1024,6 +1024,10 @@ export const SyncFirstDiaryEntryResponse = zod.object({
 
 export const syncFirstDiaryEntryBodyCaloriesMin = 0;
 
+export const syncFirstDiaryEntryBodyConfidenceMin = 0;
+
+export const syncFirstDiaryEntryBodyNotesMax = 2000;
+
 export const SyncFirstDiaryEntryBody = zod.object({
   "captureSessionId": zod.string().uuid().describe('Server-issued capture session id returned by \/v1\/capture\/analyze\nfor an authenticated request. The synced entry must correspond to\nthat server-recorded analysis; fabricated payloads are rejected.\n'),
   "entryDate": zod.coerce.date(),
@@ -1039,7 +1043,3 @@ export const SyncFirstDiaryEntryBody = zod.object({
   "notes": zod.string().max(syncFirstDiaryEntryBodyNotesMax).optional(),
   "clientUpdatedAt": zod.coerce.date()
 })
-
-export const syncFirstDiaryEntryBodyConfidenceMin = 0;
-
-export const syncFirstDiaryEntryBodyNotesMax = 2000;

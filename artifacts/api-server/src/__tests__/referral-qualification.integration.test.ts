@@ -113,6 +113,37 @@ describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () =
     expect(rows.rowCount).toBe(0);
   });
 
+  it('ADVERSARIAL: a fabricated plain diary POST persists an entry but never qualifies the referral', async () => {
+    // /v1/diary accepts a valid ordinary payload from any authenticated user
+    // and MUST persist it — but qualification is anchored to a claimed
+    // capture session, so the persisted row must not unlock rewards.
+    const { captureSessionId: _omit, ...plainEntry } = entry();
+    const fabricated = await request(app).post('/v1/diary').send(plainEntry);
+    expect(fabricated.status).toBe(201);
+    expect(fabricated.body.name).toBe('Grilled chicken bowl');
+
+    const persisted = await pool.query(
+      `SELECT d.id FROM calora_diary_entries d
+       JOIN calora_users u ON u.id = d.user_id
+       WHERE u.external_id = $1`,
+      [referredId],
+    );
+    expect(persisted.rowCount).toBe(1);
+
+    const activation = await request(app).post('/v1/referral/activate').send({});
+    expect(activation.status).toBe(200);
+    expect(activation.body.status).toBe('pending');
+    expect(activation.body.referredRewarded).toBe(false);
+    expect(grantPromoDays).not.toHaveBeenCalled();
+
+    // Clean up any persisted entry so it can't affect later assertions.
+    await pool.query(
+      `DELETE FROM calora_diary_entries WHERE user_id IN
+         (SELECT id FROM calora_users WHERE external_id = $1)`,
+      [referredId],
+    );
+  });
+
   it('a real server-recorded capture session qualifies the referral end-to-end', async () => {
     // Simulate what routes/capture.ts persists for an authenticated analysis.
     const { ensureUserRow } = await import('../lib/user-rows.js');

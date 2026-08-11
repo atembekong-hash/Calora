@@ -19,7 +19,7 @@
 import { Router, type IRouter } from "express";
 import { randomBytes } from "node:crypto";
 import { and, count, eq, gte, isNotNull, sql } from "drizzle-orm";
-import { db, referralCodesTable, referralQualificationsTable, referralRedemptionsTable } from "@workspace/db";
+import { db, referralCodesTable, referralRedemptionsTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { grantPromoDays } from "../lib/revenuecat.js";
 import { hasSyncedDiaryEntry } from "../lib/referral-qualification.js";
@@ -232,8 +232,23 @@ router.post("/v1/referral/activate", async (req, res) => {
 
     let redemption = rows[0];
 
-    const alreadyRewarded =
-      redemption.referredRewardedAt !== null || redemption.referrerRewardedAt !== null;
+    // ── Qualification — server-authoritative ─────────────────────────────
+    // Rewards require a server-observed food log (a diary entry persisted
+    // through the authenticated capture → first-log flow). A bare client
+    // claim never qualifies. The stamp is an atomic UPDATE so concurrent
+    // activations qualify the redemption exactly once; a loser re-reads the
+    // fresh row and works from the winner's state.
+    if (redemption.qualifiedAt === null) {
+      const qualified = await hasSyncedDiaryEntry(user.id);
+      if (!qualified) {
+        res.json({
+          status: "pending",
+          referredRewarded: false,
+          referrerRewarded: false,
+          message: "Capture and confirm a food or barcode to unlock your invite reward.",
+        });
+        return;
+      }
 
       const stamped = await db
         .update(referralRedemptionsTable)
@@ -246,27 +261,24 @@ router.post("/v1/referral/activate", async (req, res) => {
         )
         .returning({ id: referralRedemptionsTable.id });
 
-    // Qualification is server-authoritative: it requires an authenticated
-    // image/barcode capture that the user reviewed and confirmed. A scripted
-    // diary POST, a manual entry, and the local demo logs cannot satisfy it.
-    const qualification = await db
-      .select({ id: referralQualificationsTable.id })
-      .from(referralQualificationsTable)
-      .where(
-        and(
-          eq(referralQualificationsTable.externalUserId, user.id),
-          isNotNull(referralQualificationsTable.approvedAt),
-        ),
-      )
-      .limit(1);
-    if (!qualification[0]) {
-      res.status(409).json({
-        status: "pending",
-        referredRewarded: false,
-        referrerRewarded: false,
-        message: "Capture and confirm a food or barcode to unlock your invite reward.",
-      });
-      return;
+      if (stamped.length === 0) {
+        // A concurrent activation stamped first — never trust the stale row.
+        const fresh = await db
+          .select()
+          .from(referralRedemptionsTable)
+          .where(eq(referralRedemptionsTable.id, redemption.id))
+          .limit(1);
+        if (fresh.length === 0 || fresh[0].qualifiedAt === null) {
+          res.json({
+            status: "pending",
+            referredRewarded: false,
+            referrerRewarded: false,
+            message: "Capture and confirm a food or barcode to unlock your invite reward.",
+          });
+          return;
+        }
+        redemption = fresh[0];
+      }
     }
 
     // ── Referred user's reward — claim-first idempotency ─────────────────
@@ -376,9 +388,3 @@ router.post("/v1/referral/activate", async (req, res) => {
 });
 
 export default router;
-
-        const fresh = await db
-          .select()
-          .from(referralRedemptionsTable)
-          .where(eq(referralRedemptionsTable.id, redemption.id))
-          .limit(1);

@@ -16,3 +16,5 @@ Rule: referral rewards ("1 referral = 1 week of Pro each") must be server-author
 - RevenueCat app_user_id = Supabase user id; client calls `Purchases.logIn(user.id)` and customer-info queries wait until identity sync settles.
 - Activation is server-gated on a durable diary record with server-verified provenance: the first-log sync must cite a server-issued capture session (persisted at analyze time for authenticated callers) that belongs to the user, is unused, recent, and nutritionally consistent with the submitted entry. A fabricated payload alone can never create the qualifying record; manual logs and anonymous captures cannot qualify. Unqualified activations return status "pending" and the client retries next session.
 - Public API keys are env-selected per platform; only the key for the current runtime is required (test key in dev/web preview).
+
+**Qualification anchor:** referral qualification must key off the claimed capture session (`reviewed_at`, stamped only by the verified first-log flow), never off the mere existence of a diary row — plain diary POSTs are client-fabricatable and would let scripts farm rewards.
