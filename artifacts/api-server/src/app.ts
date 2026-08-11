@@ -7,6 +7,13 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Trust one proxy hop (the Replit edge / ingress) so that req.ip resolves to
+// the real client address from the X-Forwarded-For chain rather than the proxy
+// socket address.  Setting this to 1 prevents clients from injecting arbitrary
+// X-Forwarded-For headers — Express peels exactly one hop from the right of
+// the header, which is the value written by the trusted infrastructure.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,

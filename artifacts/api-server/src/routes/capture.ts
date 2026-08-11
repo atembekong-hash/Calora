@@ -4,8 +4,70 @@ import { AnalyzeCaptureBody } from "@workspace/api-zod";
 import { db, aiCaptureSessionsTable, aiCaptureCandidatesTable } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
-import { verifyBearerToken } from "../lib/supabase-auth.js";
+import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
+
+// ---------------------------------------------------------------------------
+// In-memory rate limiter for POST /v1/capture/analyze
+//
+// Bucket key priority:
+//   1. Verified user ID — from a Supabase-validated Bearer token.  This is
+//      the only key that cannot be spoofed: the token is verified before the
+//      bucket is looked up, so a forged or unsigned JWT falls back to IP.
+//   2. req.ip — Express resolves this from the X-Forwarded-For chain using
+//      the configured trust proxy depth (set in app.ts).  Clients cannot
+//      inject arbitrary entries because the trusted proxy overwrites the
+//      outermost hop.
+//
+// A 1-hour fixed window keeps bursting expensive while staying invisible to
+// genuine users logging meals throughout the day.
+// ---------------------------------------------------------------------------
+const CAPTURE_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const CAPTURE_RATE_LIMIT = 30; // max requests per window
+
+interface RateLimitBucket {
+  count: number;
+  resetAt: number;
+}
+
+const captureRateBuckets = new Map<string, RateLimitBucket>();
+
+/** Resets all in-memory rate-limit state. Exported for use in tests only. */
+export function resetCaptureRateLimiter(): void {
+  captureRateBuckets.clear();
+}
+
+/**
+ * Check and increment the rate-limit bucket for a pre-computed key.
+ * The caller is responsible for deriving a tamper-resistant key (verified
+ * user ID or trusted req.ip — never a raw client-supplied header value).
+ */
+function checkRateLimit(key: string): { allowed: boolean; retryAfterSecs: number } {
+  const now = Date.now();
+  const bucket = captureRateBuckets.get(key);
+
+  if (!bucket || now >= bucket.resetAt) {
+    captureRateBuckets.set(key, { count: 1, resetAt: now + CAPTURE_RATE_WINDOW_MS });
+    return { allowed: true, retryAfterSecs: 0 };
+  }
+
+  if (bucket.count >= CAPTURE_RATE_LIMIT) {
+    const retryAfterSecs = Math.ceil((bucket.resetAt - now) / 1000);
+    return { allowed: false, retryAfterSecs };
+  }
+
+  bucket.count += 1;
+  return { allowed: true, retryAfterSecs: 0 };
+}
+
+/**
+ * Resolve a tamper-resistant rate-limit key for the request.
+ * Verified user ID is preferred; req.ip (trusted-proxy-resolved) is the fallback.
+ */
+function rateLimitKey(verifiedUser: VerifiedUser | null, req: Request): string {
+  if (verifiedUser) return `user:${verifiedUser.id}`;
+  return `ip:${req.ip ?? req.socket?.remoteAddress ?? "unknown"}`;
+}
 
 /**
  * Persists a successful analysis as a server-recorded capture session for
@@ -13,19 +75,22 @@ import { ensureUserRow } from "../lib/user-rows.js";
  * only id the diary first-log sync accepts, which anchors referral
  * qualification in a server-verified event instead of a client claim.
  *
+ * Accepts a pre-verified user so the route can verify the token once and
+ * share the result across rate limiting and session persistence without a
+ * second Supabase round-trip.
+ *
  * Anonymous or unverifiable requests persist nothing and fall back to the
  * client-provided/random session id (analysis still works, it just cannot
  * qualify a referral).
  */
 async function persistCaptureSession(
-  req: Request,
+  user: VerifiedUser | null,
   mode: string,
   candidates: Array<Pick<CaptureCandidate, "name" | "calories" | "proteinG" | "carbsG" | "fatG" | "confidence" | "serving" | "provenance" | "sourceLabel">>,
 ): Promise<string | null> {
   if (candidates.length === 0) return null;
+  if (!user) return null;
   try {
-    const user = await verifyBearerToken(req);
-    if (!user) return null;
     const userId = await ensureUserRow(user.id, user.email);
     const sessionId = randomUUID();
     await db.insert(aiCaptureSessionsTable).values({ id: sessionId, userId, mode, status: "review" });
@@ -341,6 +406,27 @@ async function analyzeFoodPhoto(imageBase64: string) {
 }
 
 router.post("/v1/capture/analyze", async (req, res) => {
+  // Verify the Bearer token once and share the result across rate limiting and
+  // session persistence — avoids a second Supabase round-trip.  A missing,
+  // malformed, or cryptographically invalid token resolves to null here, which
+  // directs rate limiting to the trusted req.ip bucket instead.
+  let verifiedUser: VerifiedUser | null = null;
+  try {
+    verifiedUser = await verifyBearerToken(req);
+  } catch {
+    // Supabase not configured or unreachable — treat as anonymous.
+  }
+
+  const { allowed, retryAfterSecs } = checkRateLimit(rateLimitKey(verifiedUser, req));
+  if (!allowed) {
+    res.setHeader("Retry-After", String(retryAfterSecs));
+    res.status(429).json({
+      message: "Too many capture requests. Please wait before trying again.",
+      retryAfterSecs,
+    });
+    return;
+  }
+
   const parsed = AnalyzeCaptureBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid capture input" });
@@ -408,7 +494,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
     // Text mode — parse natural-language description with AI.
     if (body.mode === "text" && hasText) {
       const result = await analyzeTextInput(body.textInput!.trim());
-      const serverSessionId = await persistCaptureSession(req, "text", result.candidates);
+      const serverSessionId = await persistCaptureSession(verifiedUser, "text", result.candidates);
       res.json({
         sessionId: serverSessionId || body.clientSessionId || randomUUID(),
         mode: "text",
@@ -438,7 +524,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
     // Nutrition label mode — extract structured values from a label image.
     if (body.mode === "nutrition_label" && body.imageBase64) {
       const result = await analyzeNutritionLabel(body.imageBase64);
-      const serverSessionId = await persistCaptureSession(req, "nutrition_label", result.candidates);
+      const serverSessionId = await persistCaptureSession(verifiedUser, "nutrition_label", result.candidates);
       res.json({
         sessionId: serverSessionId || body.clientSessionId || randomUUID(),
         mode: "nutrition_label",
@@ -468,7 +554,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
     if (hasBarcode && (body.mode === "auto" || body.mode === "barcode")) {
       const result = await lookupBarcode(barcode);
       if (result) {
-        const serverSessionId = await persistCaptureSession(req, "barcode", [result.candidate]);
+        const serverSessionId = await persistCaptureSession(verifiedUser, "barcode", [result.candidate]);
         res.json({
           sessionId: serverSessionId || body.clientSessionId || randomUUID(),
           mode: "barcode",
@@ -503,7 +589,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
       return;
     }
     const result = await analyzeFoodPhoto(body.imageBase64);
-    const serverSessionId = await persistCaptureSession(req, "food", result.candidates);
+    const serverSessionId = await persistCaptureSession(verifiedUser, "food", result.candidates);
     res.json({
       sessionId: serverSessionId || body.clientSessionId || randomUUID(),
       mode: "food",

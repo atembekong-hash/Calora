@@ -1,19 +1,43 @@
 /**
  * Server-observable referral qualification.
  *
- * A referral redemption is qualified when the user has completed the
- * verified first-log flow: an authenticated capture analysis whose session
- * was atomically claimed (reviewed_at stamped) by POST /v1/diary/first-log.
- * This path requires the user to have scanned real food, making it the
- * highest-confidence anti-farming signal available.
+ * ── Qualification signal ────────────────────────────────────────────────────
+ * A referral redemption is qualified when the referee has completed the
+ * verified first-log flow:
+ *   1. POST /v1/capture/analyze  — server records the session (ai_capture_sessions)
+ *   2. POST /v1/diary/first-log  — atomically claims that session (reviewed_at stamped)
  *
- * Diary entries written via POST /v1/sync are synced for backup and
- * cross-device continuity but are NOT currently counted as a qualification
- * signal — that upgrade path is gated behind the farming-resistance measures
- * in the dedicated anti-farming task.
+ * The reviewed_at stamp is only written once, inside a transaction, after
+ * server-side nutrition consistency checks pass.  A session that was analysed
+ * but never logged does NOT qualify, preventing pre-generated session farming.
  *
- * A bare POST /v1/diary (no verified capture session) does NOT qualify —
- * otherwise a scripted payload could farm referral rewards.
+ * A bare POST /v1/diary (no verified capture session) does NOT qualify.
+ * Diary entries written via POST /v1/sync are synced for continuity but are
+ * NOT a qualification signal (see hasSyncedDiaryEntry below for a future path).
+ *
+ * ── Anti-farming measures ────────────────────────────────────────────────────
+ * Text-mode capture (a one-line food description) is the cheapest signal to
+ * script, so the following controls raise the cost of abuse:
+ *
+ *  a) Rate limiting — POST /v1/capture/analyze enforces a per-user/IP sliding
+ *     window of 30 requests per hour.  Legitimate users logging 3–4 meals with
+ *     multiple items will never approach this limit; a farming script hitting
+ *     the endpoint repeatedly receives HTTP 429 with a Retry-After header.
+ *     The limit is applied before any AI inference, protecting AI spend too.
+ *
+ *  b) Cap on referrer rewards — the referral table allows at most 4 confirmed
+ *     rewards per referrer per month, bounding total damage even if one user
+ *     farms with multiple referee accounts.
+ *
+ *  c) Future: exclude text-mode sessions from qualification once diary sync
+ *     (POST /v1/sync) becomes the primary long-term signal.  Image/barcode
+ *     modes are materially harder to script at scale.
+ *
+ * ── Future qualification via sync ────────────────────────────────────────────
+ * hasSyncedDiaryEntry() below is a planned alternate qualification path that
+ * would count server-verified sync entries.  It is not wired to the reward
+ * grant yet and must not be enabled until the text-mode farming risk is
+ * addressed (e.g. via the text exclusion mentioned above).
  */
 
 import { and, eq, isNotNull } from "drizzle-orm";
