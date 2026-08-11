@@ -298,12 +298,13 @@ function WeightLineChart({
 }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [chartWidth, setChartWidth] = useState(SPARK_W);
-  // Start as true: chart scrolls to the rightmost (most recent) entry on mount.
-  const [scrolledToEnd, setScrolledToEnd] = useState(true);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const tooltipOpacity = useSharedValue(0);
   const tooltipScale = useSharedValue(0.82);
+  // Scroll-hint gradient opacities — start scrolled to end, so left edge is visible.
+  const leftGradientOpacity = useSharedValue(1);
+  const rightGradientOpacity = useSharedValue(0);
 
   const vals = entries.map((e) => e.kg);
   const min = Math.min(...vals);
@@ -389,6 +390,9 @@ function WeightLineChart({
     opacity: tooltipOpacity.value,
     transform: [{ scale: tooltipScale.value }],
   }));
+
+  const leftGradientStyle = useAnimatedStyle(() => ({ opacity: leftGradientOpacity.value }));
+  const rightGradientStyle = useAnimatedStyle(() => ({ opacity: rightGradientOpacity.value }));
 
   // When the chart scrolls (expanded with many points), SVG width === viewBox width so
   // there is no scaling — pixel coordinates match the SVG coordinate space directly.
@@ -673,42 +677,33 @@ function WeightLineChart({
             onScroll={(e) => {
               const x = e.nativeEvent.contentOffset.x;
               const maxScroll = svgViewW + SCROLL_PADDING_RIGHT - chartWidth;
-              setScrolledToEnd(x >= maxScroll - 8);
+              const atEnd = x >= maxScroll - 8;
+              const fadeDuration = 200;
+              const fadeEasing = Easing.inOut(Easing.ease);
+              leftGradientOpacity.value = withTiming(atEnd ? 1 : 0, { duration: fadeDuration, easing: fadeEasing });
+              rightGradientOpacity.value = withTiming(atEnd ? 0 : 1, { duration: fadeDuration, easing: fadeEasing });
             }}
           >
             {chartContent}
           </ScrollView>
-          {/* Scroll-hint fade: right edge when there is more content to the right,
-              left edge once the user has scrolled to the end (most recent entry). */}
-          {scrolledToEnd ? (
+          {/* Scroll-hint fades — both always rendered, opacity animated with ease-in-out.
+              Right edge visible when more content lies to the right; left edge once scrolled to end. */}
+          <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 48 }, leftGradientStyle]}>
             <LinearGradient
               colors={[colors.background, 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 48,
-              }}
+              style={{ flex: 1 }}
             />
-          ) : (
+          </Animated.View>
+          <Animated.View pointerEvents="none" style={[{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 48 }, rightGradientStyle]}>
             <LinearGradient
               colors={['transparent', colors.background]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                right: 0,
-                top: 0,
-                bottom: 0,
-                width: 48,
-              }}
+              style={{ flex: 1 }}
             />
-          )}
+          </Animated.View>
         </View>
       ) : (
         chartContent
