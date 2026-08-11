@@ -13,6 +13,16 @@ const SOURCE_URL = "https://www.themealdb.com/";
 
 type NutritionEstimate = { calories: number; proteinG: number; carbsG: number; fatG: number };
 
+// Maximum time to wait for an OpenAI response before giving up.  8 s is
+// generous enough for a well-behaved call while still preventing the HTTP
+// request from hanging indefinitely when OpenAI is slow or unreachable.
+// Tests may shorten this via OPENAI_TIMEOUT_MS_OVERRIDE so they run without
+// fake timers and still validate the abort/fallback path quickly.
+const OPENAI_TIMEOUT_MS =
+  process.env.OPENAI_TIMEOUT_MS_OVERRIDE
+    ? Number(process.env.OPENAI_TIMEOUT_MS_OVERRIDE)
+    : 8_000;
+
 // TTL for database-persisted nutrition estimates.  7 days is long enough that
 // popular meals are rarely re-estimated, but short enough that upstream
 // ingredient changes from TheMealDB surface within a reasonable window.
@@ -75,23 +85,28 @@ async function saveNutritionToDb(mealId: string, nutrition: NutritionEstimate): 
 }
 
 async function estimateNutrition(name: string, ingredients: string[]): Promise<NutritionEstimate | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5.4-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a nutrition expert. Return ONLY a JSON object — no markdown, no prose — with these four integer keys: calories, proteinG, carbsG, fatG. Estimate values for one typical serving.",
-        },
-        {
-          role: "user",
-          content: `Recipe: ${name}\nIngredients: ${ingredients.join(", ")}`,
-        },
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 80,
-    });
+    const completion = await openai.chat.completions.create(
+      {
+        model: "gpt-5.4-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a nutrition expert. Return ONLY a JSON object — no markdown, no prose — with these four integer keys: calories, proteinG, carbsG, fatG. Estimate values for one typical serving.",
+          },
+          {
+            role: "user",
+            content: `Recipe: ${name}\nIngredients: ${ingredients.join(", ")}`,
+          },
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 80,
+      },
+      { signal: controller.signal },
+    );
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const calories = Math.round(Number(parsed.calories) || 0);
@@ -102,6 +117,8 @@ async function estimateNutrition(name: string, ingredients: string[]): Promise<N
     return { calories, proteinG, carbsG, fatG };
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

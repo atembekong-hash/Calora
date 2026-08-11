@@ -26,6 +26,12 @@ const {
   mockInsert,
   mockOpenAiCreate,
 } = vi.hoisted(() => {
+  // Shorten the OpenAI timeout so the slow-response test completes in real
+  // time without fake timers.  Production default is 8 000 ms; 300 ms is
+  // enough to validate the abort/fallback path while keeping the suite fast.
+  // Must be set before any module is imported (vi.hoisted runs first).
+  process.env.OPENAI_TIMEOUT_MS_OVERRIDE = "300";
+
   const mockLimit = vi.fn();
   const mockWhere = vi.fn(() => ({ limit: mockLimit }));
   const mockFrom = vi.fn(() => ({ where: mockWhere }));
@@ -359,6 +365,45 @@ describe("GET /v1/recipes/:recipeId — nutrition persistence", () => {
     expect(res.status).toBe(404);
     expect(res.body.message).toMatch(/not found/i);
   });
+
+  it("returns nutritionPending:true with a 200 within the deadline when OpenAI is slow", async () => {
+    // This test uses REAL timers.  The module's OPENAI_TIMEOUT_MS is overridden
+    // to 300 ms (via OPENAI_TIMEOUT_MS_OVERRIDE set in vi.hoisted above), so
+    // the AbortController fires after 300 real ms and the test completes quickly.
+    const MEAL_ID = "52780-openai-slow";
+
+    // DB miss — force the cold-cache path so estimateNutrition is called.
+    mockLimit.mockResolvedValueOnce([]);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mealLookupResponse(MEAL_ID),
+    } as any);
+
+    // OpenAI hangs indefinitely — resolves only when the AbortController fires.
+    // The route's 300 ms AbortController deadline aborts this call, causing the
+    // catch block to return null → the route falls through to nutritionPending:true.
+    mockOpenAiCreate.mockImplementation(
+      (_params: unknown, options?: { signal?: AbortSignal }) =>
+        new Promise<never>((_resolve, reject) => {
+          options?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted.", "AbortError"));
+          });
+        }),
+    );
+
+    const res = await request(app).get(`/v1/recipes/${MEAL_ID}`);
+
+    // The route must return 200 with nutritionPending rather than hanging or 5xx.
+    expect(res.status).toBe(200);
+    expect(res.body.nutritionPending).toBe(true);
+    // toRecipe() initialises calories to null; a successful OpenAI estimate would
+    // overwrite it with a positive integer.  Verify no estimate was applied.
+    expect(res.body.calories).toBeNull();
+
+    // OpenAI was attempted exactly once before the deadline fired.
+    expect(mockOpenAiCreate).toHaveBeenCalledTimes(1);
+  }, 5_000);
 });
 
 // ---------------------------------------------------------------------------
