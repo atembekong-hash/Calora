@@ -378,8 +378,8 @@ export default function ProfileScreen() {
             <Text style={{ fontSize: 13 * fontScale, fontFamily: 'Inter_400Regular', color: colors.mutedForeground, marginTop: 3 }} numberOfLines={1}>Grilled chicken salad · 510 kcal</Text>
           </View>
           <View style={styles.unitChips}>
-            {(['small', 'default', 'large', 'xlarge'] as const).map((key) => {
-              const label = { small: 'A−', default: 'A', large: 'A+', xlarge: 'A⁺⁺' }[key];
+            {(['small', 'default', 'large'] as const).map((key) => {
+              const label = { small: 'A−', default: 'A', large: 'A+' }[key];
               const sel = fontSizeScale === key;
               return (
                 <Pressable key={key} accessibilityLabel={`${key} text size`} onPress={() => setFontSizeScale(key)} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>

@@ -416,7 +416,9 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [goalCelebrationSeenTargetKg, setGoalCelebrationSeenTargetKg] = useState<number | null>(null);
   const [plannerPreferences, setPlannerPreferencesState] = useState<import('@/lib/planType').PlannerPreferences | null>(null);
   const [fontSizeScale, setFontSizeScaleState] = useState<'small' | 'default' | 'large' | 'xlarge'>('default');
-  const fontScale = ({ small: 0.82, default: 1.0, large: 1.2, xlarge: 1.42 } as const)[fontSizeScale];
+  // Keep xlarge as a legacy persisted value, but render it at the new maximum
+  // so people who selected it before the option was removed land on A+.
+  const fontScale = ({ small: 0.82, default: 1.0, large: 1.2, xlarge: 1.2 } as const)[fontSizeScale];
   const [profilePhotoUri, setProfilePhotoUriState] = useState<string | null>(null);
   const [livingMemory, setLivingMemory] = useState<LivingMemory>(() => buildLivingMemory({
     logs: starterLogs,
@@ -828,7 +830,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     fontScale,
     fontSizeScale,
-    setFontSizeScale: setFontSizeScaleState,
+    setFontSizeScale: (scale) => setFontSizeScaleState(scale === 'xlarge' ? 'large' : scale),
     profilePhotoUri,
     setProfilePhotoUri: setProfilePhotoUriState,
     clearProfilePhoto: async () => {
