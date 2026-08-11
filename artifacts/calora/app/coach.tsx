@@ -23,6 +23,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { buildCoachContext } from '@/lib/coachContext';
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { useCalora } from '@/context/CaloraContext';
+import { AppHeader } from '@/components/AppChrome';
 
 type DisplayTurn = {
   id: string;
@@ -202,27 +203,27 @@ export default function CoachScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <KeyboardAwareScrollViewCompat
-        contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 118 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Pressable accessibilityLabel={`Close ${BRAND.name} Coach`} onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Feather name="arrow-left" size={18} color={colors.foreground} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={[styles.eyebrow, { color: colors.primary }]}>{BRAND.name.toUpperCase()} INTELLIGENCE</Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>{BRAND.name} Coach</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Your food, wellness, and planning context in one place.</Text>
-          </View>
+      <AppHeader
+        back
+        title={`${BRAND.name} Coach`}
+        action={
           <Pressable
             accessibilityLabel="Open Coach main menu"
             testID="coach-main-menu"
             onPress={() => setMenuVisible(true)}
-            style={({ pressed }) => [styles.menuButton, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}
+            hitSlop={10}
           >
-            <Feather name="menu" size={19} color={colors.foreground} />
+            <Feather name="menu" size={21} color={colors.foreground} />
           </Pressable>
+        }
+      />
+      <KeyboardAwareScrollViewCompat
+        contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 118 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.headerCopy}>
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>{BRAND.name.toUpperCase()} INTELLIGENCE</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Your food, wellness, and planning context in one place.</Text>
         </View>
 
         {!coachConsentAccepted ? (
@@ -409,13 +410,9 @@ export default function CoachScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, marginBottom: 22 },
-  backButton: { width: 38, height: 38, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  headerCopy: { flex: 1 },
+  headerCopy: { marginBottom: 18 },
   eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.2, marginBottom: 4 },
-  title: { fontFamily: 'Inter_700Bold', fontSize: 25, letterSpacing: -0.6 },
-  subtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginTop: 4 },
-  menuButton: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  subtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
   consentCard: { borderRadius: 25, padding: 20 },
   coachMark: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   consentTitle: { fontFamily: 'Inter_700Bold', fontSize: 23, letterSpacing: -0.4 },

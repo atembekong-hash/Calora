@@ -20,10 +20,11 @@ export function AppStatusBar() {
 type AppHeaderProps = {
   title: string;
   back?: boolean;
+  onBack?: () => void;
   action?: React.ReactNode;
 };
 
-export function AppHeader({ title, back = false, action }: AppHeaderProps) {
+export function AppHeader({ title, back = false, onBack, action }: AppHeaderProps) {
   const { colors } = useCalora();
   const insets = useSafeAreaInsets();
 
@@ -31,7 +32,7 @@ export function AppHeader({ title, back = false, action }: AppHeaderProps) {
     <View style={[styles.wrap, { backgroundColor: colors.background, paddingTop: insets.top, borderBottomColor: colors.border }]}>
       <View style={styles.bar}>
         {back ? (
-          <Pressable accessibilityLabel="Go back" onPress={() => router.back()} hitSlop={10} style={[styles.backButton, { backgroundColor: colors.muted }]}>
+          <Pressable accessibilityLabel="Go back" onPress={onBack ?? (() => router.back())} hitSlop={10} style={[styles.backButton, { backgroundColor: colors.muted }]}>
             <Feather name="arrow-left" size={18} color={colors.foreground} />
           </Pressable>
         ) : <View style={styles.backSpacer} />}

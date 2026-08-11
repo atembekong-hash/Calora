@@ -1,6 +1,5 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
@@ -28,6 +27,7 @@ import * as Sharing from 'expo-sharing';
 import { deriveExportHasData, makeExportHandler } from '@/lib/exportUiHandler';
 import { SettingRowPressable } from '@/components/SettingRowPressable';
 import { AccountSection } from '@/components/auth/AccountSection';
+import { AppHeader } from '@/components/AppChrome';
 
 // ─── Static config ────────────────────────────────────────────────────────────
 
@@ -314,22 +314,8 @@ export default function ProfileScreen() {
   // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
-
-        {/* ── Hero header ── */}
-        <View style={styles.profileHeader}>
-          <Image source={require('../../assets/images/calora-profile-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
-          <LinearGradient colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
-          <View style={styles.profileHeaderContent}>
-            <View style={styles.profileHeaderBadge}>
-              <Feather name="user" size={12} color="#d4eadc" />
-              <Text style={styles.profileHeaderBadgeText}>YOUR SPACE</Text>
-            </View>
-            <Text style={styles.profileHeaderEyebrow}>{BRAND.name.toUpperCase()}, YOUR WAY</Text>
-            <Text style={styles.profileHeaderTitle}>Profile & settings</Text>
-            <Text style={styles.profileHeaderSubtitle}>A quieter place to shape the experience around you.</Text>
-          </View>
-        </View>
+      <AppHeader back title="Profile & settings" />
+      <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
 
         {/* ── Profile card ── */}
         <Animated.View entering={FadeInDown.springify().damping(20).delay(0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
@@ -968,15 +954,6 @@ export default function ProfileScreen() {
 function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
-
-  // Hero header
-  profileHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
-  profileHeaderContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
-  profileHeaderBadge: { position: 'absolute', top: 17, right: 17, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
-  profileHeaderBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1 },
-  profileHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 6 },
-  profileHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 27 * f, letterSpacing: -0.7 },
-  profileHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17, marginTop: 7, maxWidth: 280 },
 
   // Profile card
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 23, padding: 16, marginBottom: 26 },

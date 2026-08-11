@@ -9,6 +9,7 @@ import { BRAND } from '@/lib/brand';
 import type { LivingMemoryKind } from '@/lib/livingMemory';
 import { buildDiaryRows, buildWellnessRows, buildPlannerRows } from '@/lib/memorySections';
 import { isStaleDate, relativeTime as computeRelativeTime } from '@/lib/memoryDateHelpers';
+import { AppHeader } from '@/components/AppChrome';
 
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 const moodLabels: Record<Mood, string> = {
@@ -245,18 +246,14 @@ export default function LivingMemoryScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
+      <AppHeader back title="Living memory" />
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: insets.bottom + 28 }}
+        contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 28 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Pressable accessibilityLabel="Close living memory" onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Feather name="arrow-left" size={18} color={colors.foreground} />
-          </Pressable>
-          <View style={styles.headerCopy}>
-            <Text style={[styles.eyebrow, { color: colors.primary }]}>LOCAL-FIRST</Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>What {BRAND.name} remembers</Text>
-          </View>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>LOCAL-FIRST</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>What {BRAND.name} remembers</Text>
         </View>
 
         <View style={[styles.introCard, { backgroundColor: colors.hero }]}>
@@ -482,9 +479,7 @@ function MemorySection({ title, caption, colors, children }: { title: string; ca
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
-  backButton: { width: 40, height: 40, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  headerCopy: { flex: 1 },
+  headerCopy: { marginBottom: 18 },
   eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.3, marginBottom: 4 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 25, letterSpacing: -0.7 },
   introCard: { borderRadius: 22, padding: 17, marginBottom: 24 },
