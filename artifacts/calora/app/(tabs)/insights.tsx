@@ -298,7 +298,10 @@ function WeightLineChart({
 }) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [chartWidth, setChartWidth] = useState(SPARK_W);
+  // Start as true: chart scrolls to the rightmost (most recent) entry on mount.
+  const [scrolledToEnd, setScrolledToEnd] = useState(true);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const tooltipOpacity = useSharedValue(0);
   const tooltipScale = useSharedValue(0.82);
 
@@ -316,8 +319,13 @@ function WeightLineChart({
   const svgViewW = expanded
     ? Math.max(SPARK_W, entries.length * MIN_ENTRY_SPACING)
     : SPARK_W;
-  // The chart becomes horizontally scrollable when the content is wider than SPARK_W.
-  const isScrollable = expanded && svgViewW > SPARK_W;
+  // 12px matches the ScrollView's contentContainerStyle paddingRight.
+  const SCROLL_PADDING_RIGHT = 12;
+  // The chart becomes horizontally scrollable only when the drawn content (SVG + padding)
+  // genuinely overflows the measured container. Comparing against the measured chartWidth
+  // (not the SPARK_W constant) prevents false positives when the modal viewport is wider
+  // than SPARK_W but the content still fits without scrolling.
+  const isScrollable = expanded && (svgViewW + SCROLL_PADDING_RIGHT) > chartWidth;
 
   const pts = vals.map((v, i) => ({
     x: SPARK_PAD_X + (i / (vals.length - 1)) * (svgViewW - SPARK_PAD_X * 2),
@@ -356,6 +364,18 @@ function WeightLineChart({
   useEffect(() => {
     return () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current); };
   }, []);
+
+  // Scroll to the rightmost (most recent) entry whenever entries change.
+  // Uses a stable ref so the callback is never recreated mid-render, which
+  // would otherwise snap the chart back to the end every time the fade-state
+  // triggers a re-render.
+  useEffect(() => {
+    if (isScrollable) {
+      scrollViewRef.current?.scrollToEnd({ animated: false });
+    }
+  // Re-run when the entry list changes; dataKey captures that dependency.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isScrollable, dataKey]);
 
   const animPathProps = useAnimatedProps(() => ({
     strokeDashoffset: dashOffset.value,
@@ -643,15 +663,53 @@ function WeightLineChart({
   return (
     <View style={styles.weightSparkline} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
       {isScrollable ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingRight: 12 }}
-          // Scroll to the end (most recent entry) on mount/data change
-          ref={(ref) => { if (ref) ref.scrollToEnd({ animated: false }); }}
-        >
-          {chartContent}
-        </ScrollView>
+        <View style={{ position: 'relative' }}>
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingRight: 12 }}
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              const x = e.nativeEvent.contentOffset.x;
+              const maxScroll = svgViewW + SCROLL_PADDING_RIGHT - chartWidth;
+              setScrolledToEnd(x >= maxScroll - 8);
+            }}
+          >
+            {chartContent}
+          </ScrollView>
+          {/* Scroll-hint fade: right edge when there is more content to the right,
+              left edge once the user has scrolled to the end (most recent entry). */}
+          {scrolledToEnd ? (
+            <LinearGradient
+              colors={[colors.background, 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 48,
+              }}
+            />
+          ) : (
+            <LinearGradient
+              colors={['transparent', colors.background]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: 48,
+              }}
+            />
+          )}
+        </View>
       ) : (
         chartContent
       )}
