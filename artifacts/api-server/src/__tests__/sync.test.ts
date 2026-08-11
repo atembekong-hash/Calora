@@ -111,7 +111,7 @@ function validUpsertPayload(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function validUpsert(payloadOverrides: Record<string, unknown> = {}, mutationId = MUTATION_ID) {
+function validUpsert(payloadOverrides: Record<string, unknown> = {}, mutationId: string = MUTATION_ID) {
   return {
     mutationId,
     entity: 'diaryEntry',
@@ -330,6 +330,69 @@ describe('POST /v1/sync', () => {
     expect(res.body.conflicts).toHaveLength(1);
     expect(res.body.conflicts[0].reason).toBe('unsupported_operation');
     expect(executeCalls).toHaveLength(0);
+  });
+
+  // ── Non-UUID mutationId ───────────────────────────────────────────────────
+
+  it('conflicts a upsert with a non-UUID mutationId and writes nothing to the DB', async () => {
+    verifyBearerToken.mockResolvedValue(USER);
+
+    // Non-UUID mutationIds cannot be recorded in calora_sync_mutations (uuid PK)
+    // so the route rejects them upfront rather than applying an un-deduplicated write.
+    const nonUuidId = 'my-custom-id-123';
+    const mutation = validUpsert({}, nonUuidId);
+    const res = await request(app).post('/v1/sync').send(body([mutation]));
+
+    expect(res.status).toBe(200);
+    expect(res.body.accepted).not.toContain(nonUuidId);
+    expect(res.body.conflicts).toHaveLength(1);
+    expect(res.body.conflicts[0].mutationId).toBe(nonUuidId);
+    expect(res.body.conflicts[0].reason).toBe('invalid_mutation_id');
+    // No DB writes — the mutation is rejected before any diary or sync_mutations insert.
+    expect(executeCalls).toHaveLength(0);
+  });
+
+  it('conflicts a delete with a non-UUID mutationId and writes nothing to the DB', async () => {
+    verifyBearerToken.mockResolvedValue(USER);
+
+    const nonUuidId = 'delete-op-no-uuid';
+    const mutation = {
+      mutationId: nonUuidId,
+      entity: 'diaryEntry',
+      operation: 'delete',
+      clientUpdatedAt: '2026-08-11T11:00:00Z',
+      payload: { clientId: CLIENT_ID },
+    };
+    const res = await request(app).post('/v1/sync').send(body([mutation]));
+
+    expect(res.status).toBe(200);
+    expect(res.body.conflicts).toHaveLength(1);
+    expect(res.body.conflicts[0].mutationId).toBe(nonUuidId);
+    expect(res.body.conflicts[0].reason).toBe('invalid_mutation_id');
+    // No DB writes — rejected before any diary DELETE or sync_mutations insert.
+    expect(executeCalls).toHaveLength(0);
+  });
+
+  it('conflicts a non-UUID mutation but still accepts valid UUID mutations in the same batch', async () => {
+    verifyBearerToken.mockResolvedValue(USER);
+
+    const nonUuidId = 'legacy-id-abc';
+    const uuidId = randomUUID();
+    const mutationNonUuid = validUpsert({ clientId: 'log-non-uuid' }, nonUuidId);
+    const mutationUuid = validUpsert({ clientId: 'log-uuid' }, uuidId);
+
+    const res = await request(app)
+      .post('/v1/sync')
+      .send(body([mutationNonUuid, mutationUuid]));
+
+    expect(res.status).toBe(200);
+    expect(res.body.accepted).toContain(uuidId);
+    expect(res.body.accepted).not.toContain(nonUuidId);
+    expect(res.body.conflicts).toHaveLength(1);
+    expect(res.body.conflicts[0].mutationId).toBe(nonUuidId);
+    expect(res.body.conflicts[0].reason).toBe('invalid_mutation_id');
+    // Only 2 execute calls for the UUID mutation (diary upsert + sync_mutations insert).
+    expect(executeCalls).toHaveLength(2);
   });
 
   // ── Mixed batch ───────────────────────────────────────────────────────────

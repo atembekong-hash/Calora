@@ -236,6 +236,18 @@ router.post("/v1/sync", async (req, res) => {
     const conflicts: Array<{ mutationId: string; reason: string }> = [];
 
     for (const mutation of mutations) {
+      // Require a canonical UUID so the mutation can be recorded in
+      // calora_sync_mutations (uuid PK) for cross-session deduplication.
+      // Non-UUID mutationIds are never safe to accept because they cannot be
+      // deduplicated — the client must use crypto.randomUUID().
+      if (!isUuid(mutation.mutationId)) {
+        conflicts.push({
+          mutationId: mutation.mutationId,
+          reason: "invalid_mutation_id",
+        });
+        continue;
+      }
+
       // Reject unsupported entity types explicitly so the client knows the
       // mutation was not applied.
       if (mutation.entity !== "diaryEntry") {
@@ -295,18 +307,16 @@ router.post("/v1/sync", async (req, res) => {
           // Record the accepted mutation for cross-session deduplication.
           // ON CONFLICT DO NOTHING means a second sync of the same mutationId
           // (after an app restart) never creates a duplicate log entry.
-          if (isUuid(mutation.mutationId)) {
-            await db.execute(sql`
-              INSERT INTO calora_sync_mutations
-                (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
-              VALUES
-                (${mutation.mutationId}::uuid, ${userId}::uuid,
-                 ${mutation.entity}, ${mutation.operation},
-                 ${JSON.stringify(mutation.payload)}::jsonb,
-                 ${mutation.clientUpdatedAt}::timestamptz, now())
-              ON CONFLICT (mutation_id) DO NOTHING
-            `);
-          }
+          await db.execute(sql`
+            INSERT INTO calora_sync_mutations
+              (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
+            VALUES
+              (${mutation.mutationId}::uuid, ${userId}::uuid,
+               ${mutation.entity}, ${mutation.operation},
+               ${JSON.stringify(mutation.payload)}::jsonb,
+               ${mutation.clientUpdatedAt}::timestamptz, now())
+            ON CONFLICT (mutation_id) DO NOTHING
+          `);
 
           accepted.push(mutation.mutationId);
         } else if (mutation.operation === "delete") {
@@ -328,18 +338,16 @@ router.post("/v1/sync", async (req, res) => {
           `);
 
           // Record the delete mutation for auditability across sessions.
-          if (isUuid(mutation.mutationId)) {
-            await db.execute(sql`
-              INSERT INTO calora_sync_mutations
-                (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
-              VALUES
-                (${mutation.mutationId}::uuid, ${userId}::uuid,
-                 ${mutation.entity}, ${mutation.operation},
-                 ${JSON.stringify(mutation.payload)}::jsonb,
-                 ${mutation.clientUpdatedAt}::timestamptz, now())
-              ON CONFLICT (mutation_id) DO NOTHING
-            `);
-          }
+          await db.execute(sql`
+            INSERT INTO calora_sync_mutations
+              (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
+            VALUES
+              (${mutation.mutationId}::uuid, ${userId}::uuid,
+               ${mutation.entity}, ${mutation.operation},
+               ${JSON.stringify(mutation.payload)}::jsonb,
+               ${mutation.clientUpdatedAt}::timestamptz, now())
+            ON CONFLICT (mutation_id) DO NOTHING
+          `);
 
           accepted.push(mutation.mutationId);
         } else {
