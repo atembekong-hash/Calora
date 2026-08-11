@@ -1430,21 +1430,6 @@ export default function InsightsScreen() {
 
         <MotivationalQuote colors={colors} style={{ marginBottom: 16 }} />
 
-        <AnimatedReveal delay={80}>
-        <View style={[styles.adaptiveCard, { backgroundColor: colors.hero }]}>
-          <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={styles.adaptiveTexture} />
-          <LinearGradient colors={['rgba(20,63,52,0.04)', 'rgba(20,63,52,0.62)']} style={styles.adaptiveTextureOverlay} />
-          <PulseIcon colors={colors} />
-          <Text style={[styles.cardEyebrow, { color: colors.heroMuted }]}>ADAPTIVE TARGET</Text>
-          <Text style={[styles.adaptiveTitle, { color: colors.onHero }]}>Your target is working with you.</Text>
-             <Text style={[styles.adaptiveBody, { color: colors.heroMuted }]}>{averageWeekCalories ? `You’re averaging ${formatWhole(averageWeekCalories)} kcal across ${signalDays} tracked ${signalDays === 1 ? 'day' : 'days'} this week.` : 'Keep logging to reveal a more personal weekly recommendation.'}</Text>
-          <View style={styles.adaptiveFooter}>
-            <Text style={[styles.adaptiveFooterText, { color: colors.onHero }]}>{signalDays} / 7 days of signal</Text>
-             <AnimatedTrackFill percentage={(signalDays / 7) * 100} color={colors.primary} trackColor="rgba(157,215,189,0.18)" />
-          </View>
-        </View>
-        </AnimatedReveal>
-
         <AnimatedReveal delay={150} style={styles.statRow}>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <AnimatedCountUp to={weeklySignals.foodDays} style={[styles.statValue, { color: colors.foreground }]} />
