@@ -38,6 +38,8 @@ export const getProfileResponseOneCalorieTargetMin = 800;
 export const getProfileResponseOneCalorieTargetMax = 10000;
 
 
+
+
 export const GetProfileResponse = zod.object({
   "name": zod.string().min(1).max(getProfileResponseOneNameMax),
   "goal": zod.enum(['lose', 'maintain', 'gain']),
@@ -75,6 +77,8 @@ export const updateProfileBodyCalorieTargetMin = 800;
 export const updateProfileBodyCalorieTargetMax = 10000;
 
 
+
+
 export const UpdateProfileBody = zod.object({
   "name": zod.string().min(1).max(updateProfileBodyNameMax),
   "goal": zod.enum(['lose', 'maintain', 'gain']),
@@ -106,6 +110,8 @@ export const updateProfileResponseOneCalorieTargetMin = 800;
 export const updateProfileResponseOneCalorieTargetMax = 10000;
 
 
+
+
 export const UpdateProfileResponse = zod.object({
   "name": zod.string().min(1).max(updateProfileResponseOneNameMax),
   "goal": zod.enum(['lose', 'maintain', 'gain']),
@@ -130,6 +136,7 @@ export const ListDiaryEntriesQueryParams = zod.object({
 })
 
 
+
 export const listDiaryEntriesResponseEntriesItemOneCaloriesMin = 0;
 
 export const listDiaryEntriesResponseEntriesItemOneProteinGMin = 0;
@@ -140,6 +147,7 @@ export const listDiaryEntriesResponseEntriesItemOneFatGMin = 0;
 
 export const listDiaryEntriesResponseEntriesItemOneConfidenceMin = 0;
 export const listDiaryEntriesResponseEntriesItemOneConfidenceMax = 100;
+
 
 
 export const ListDiaryEntriesResponse = zod.object({
@@ -181,6 +189,7 @@ export const createDiaryEntryBodyConfidenceMin = 0;
 export const createDiaryEntryBodyConfidenceMax = 100;
 
 
+
 export const CreateDiaryEntryBody = zod.object({
   "entryDate": zod.coerce.date(),
   "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']),
@@ -197,6 +206,7 @@ export const CreateDiaryEntryBody = zod.object({
 })
 
 
+
 export const createDiaryEntryResponseOneCaloriesMin = 0;
 
 export const createDiaryEntryResponseOneProteinGMin = 0;
@@ -207,6 +217,7 @@ export const createDiaryEntryResponseOneFatGMin = 0;
 
 export const createDiaryEntryResponseOneConfidenceMin = 0;
 export const createDiaryEntryResponseOneConfidenceMax = 100;
+
 
 
 export const CreateDiaryEntryResponse = zod.object({
@@ -244,6 +255,7 @@ export const updateDiaryEntryBodyCarbsGMin = 0;
 export const updateDiaryEntryBodyFatGMin = 0;
 
 
+
 export const UpdateDiaryEntryBody = zod.object({
   "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']).optional(),
   "serving": zod.string().optional(),
@@ -256,6 +268,7 @@ export const UpdateDiaryEntryBody = zod.object({
 })
 
 
+
 export const updateDiaryEntryResponseOneCaloriesMin = 0;
 
 export const updateDiaryEntryResponseOneProteinGMin = 0;
@@ -266,6 +279,7 @@ export const updateDiaryEntryResponseOneFatGMin = 0;
 
 export const updateDiaryEntryResponseOneConfidenceMin = 0;
 export const updateDiaryEntryResponseOneConfidenceMax = 100;
+
 
 
 export const UpdateDiaryEntryResponse = zod.object({
@@ -306,11 +320,15 @@ export const searchFoodsQueryLimitDefault = 20;
 export const searchFoodsQueryLimitMax = 50;
 
 
+
 export const SearchFoodsQueryParams = zod.object({
   "q": zod.coerce.string().min(searchFoodsQueryQMin),
   "barcode": zod.coerce.string().optional(),
   "limit": zod.coerce.number().int().min(1).max(searchFoodsQueryLimitMax).default(searchFoodsQueryLimitDefault)
 })
+
+
+
 
 
 export const SearchFoodsResponse = zod.object({
@@ -351,6 +369,7 @@ export const listWeightsResponseOneWeightKgMin = 25;
 export const listWeightsResponseOneWeightKgMax = 500;
 
 
+
 export const ListWeightsResponseItem = zod.object({
   "entryDate": zod.coerce.date(),
   "weightKg": zod.number().min(listWeightsResponseOneWeightKgMin).max(listWeightsResponseOneWeightKgMax),
@@ -370,6 +389,7 @@ export const createWeightBodyWeightKgMin = 25;
 export const createWeightBodyWeightKgMax = 500;
 
 
+
 export const CreateWeightBody = zod.object({
   "entryDate": zod.coerce.date(),
   "weightKg": zod.number().min(createWeightBodyWeightKgMin).max(createWeightBodyWeightKgMax),
@@ -379,6 +399,7 @@ export const CreateWeightBody = zod.object({
 
 export const createWeightResponseOneWeightKgMin = 25;
 export const createWeightResponseOneWeightKgMax = 500;
+
 
 
 export const CreateWeightResponse = zod.object({
@@ -397,6 +418,7 @@ export const CreateWeightResponse = zod.object({
  */
 
 export const syncOutboxBodyMutationsMax = 100;
+
 
 
 export const SyncOutboxBody = zod.object({
@@ -436,6 +458,7 @@ export const listRecipesQueryOffsetDefault = 0;
 export const listRecipesQueryOffsetMin = 0;
 
 
+
 export const ListRecipesQueryParams = zod.object({
   "query": zod.coerce.string().max(listRecipesQueryQueryMax).optional(),
   "category": zod.coerce.string().max(listRecipesQueryCategoryMax).optional(),
@@ -471,6 +494,7 @@ export const ListRecipesResponse = zod.object({
 /**
  * @summary Get an open-source recipe detail
  */
+
 
 
 export const GetRecipeParams = zod.object({
@@ -513,6 +537,7 @@ export const analyzeCaptureBodyImageBase64Max = 12000000;
 export const analyzeCaptureBodyTextInputMax = 2000;
 
 export const analyzeCaptureBodyClientSessionIdMax = 120;
+
 
 
 export const AnalyzeCaptureBody = zod.object({
@@ -563,6 +588,7 @@ export const analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPreparat
 export const analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesLowMin = 0;
 
 export const analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesHighMin = 0;
+
 
 
 export const AnalyzeCaptureResponse = zod.object({
@@ -646,6 +672,7 @@ export const generatePlannerBodyProfileCalorieTargetMin = 800;
 export const generatePlannerBodyProfileCalorieTargetMax = 10000;
 
 
+
 export const GeneratePlannerBody = zod.object({
   "weekStart": zod.coerce.date(),
   "profile": zod.object({
@@ -666,6 +693,7 @@ export const generatePlannerResponseMealsItemCarbsGMin = 0;
 export const generatePlannerResponseMealsItemFatGMin = 0;
 
 export const generatePlannerResponseMealsItemPrepMinutesMin = 0;
+
 
 
 export const GeneratePlannerResponse = zod.object({
@@ -789,6 +817,7 @@ export const respondCoachBodyMessagesMax = 12;
 export const respondCoachBodyCurrentScreenMax = 64;
 
 
+
 export const RespondCoachBody = zod.object({
   "context": zod.object({
   "schemaVersion": zod.number().int().min(1),
@@ -886,6 +915,7 @@ export const respondCoachResponseLimitationsItemMax = 240;
 export const respondCoachResponseLimitationsMax = 4;
 
 
+
 export const RespondCoachResponse = zod.object({
   "message": zod.string().max(respondCoachResponseMessageMax),
   "observations": zod.array(zod.object({
@@ -934,6 +964,7 @@ export const getReferralResponseCodeMin = 4;
 export const getReferralResponseCodeMax = 16;
 
 
+
 export const GetReferralResponse = zod.object({
   "code": zod.string().min(getReferralResponseCodeMin).max(getReferralResponseCodeMax),
   "inviteUrl": zod.string().url(),
@@ -962,6 +993,7 @@ export const redeemReferralBodyCodeMin = 4;
 export const redeemReferralBodyCodeMax = 16;
 
 
+
 export const RedeemReferralBody = zod.object({
   "code": zod.string().min(redeemReferralBodyCodeMin).max(redeemReferralBodyCodeMax)
 })
@@ -970,6 +1002,7 @@ export const RedeemReferralResponse = zod.object({
   "status": zod.enum(['pending']),
   "message": zod.string().optional()
 })
+
 
 /**
  * The diary is local-first; this endpoint durably records the user's
@@ -980,53 +1013,31 @@ export const RedeemReferralResponse = zod.object({
  * @summary Persist the user's first approved food log on the server
  */
 export const syncFirstDiaryEntryBodyMealMax = 40;
-/**
- * Called once the referred user records their first approved food log.
- * Grants seven days of Pro to both parties (the referrer's grant is
- * subject to a monthly cap). Idempotent — repeat calls return the
- * current state without granting again.
- * @summary Unlock referral rewards after the first approved food log
- */
-export const ActivateReferralResponse = zod.object({
-  "status": zod.enum(['none', 'pending', 'rewarded']),
-  "referredRewarded": zod.boolean(),
-  "referrerRewarded": zod.boolean(),
-  "message": zod.string().optional()
-})
-
-
-export const syncFirstDiaryEntryBodyConfidenceMax = 100;
-
-export const syncFirstDiaryEntryBodyProteinGMin = 0;
-
-export const syncFirstDiaryEntryBodyServingMax = 120;
-
-export const syncFirstDiaryEntryBodyCarbsGMin = 0;
-
-export const syncFirstDiaryEntryBodyFatGMax = 5000;
-
-export const syncFirstDiaryEntryBodyProteinGMax = 5000;
 
 export const syncFirstDiaryEntryBodyNameMax = 200;
 
-export const syncFirstDiaryEntryBodyFatGMin = 0;
+export const syncFirstDiaryEntryBodyServingMax = 120;
 
+export const syncFirstDiaryEntryBodyCaloriesMin = 0;
 export const syncFirstDiaryEntryBodyCaloriesMax = 20000;
+
+export const syncFirstDiaryEntryBodyProteinGMin = 0;
+export const syncFirstDiaryEntryBodyProteinGMax = 5000;
+
+export const syncFirstDiaryEntryBodyCarbsGMin = 0;
+export const syncFirstDiaryEntryBodyCarbsGMax = 5000;
+
+export const syncFirstDiaryEntryBodyFatGMin = 0;
+export const syncFirstDiaryEntryBodyFatGMax = 5000;
 
 export const syncFirstDiaryEntryBodyProvenanceMax = 80;
 
-export const syncFirstDiaryEntryBodyCarbsGMax = 5000;
-
-export const SyncFirstDiaryEntryResponse = zod.object({
-  "synced": zod.boolean(),
-  "alreadyExisted": zod.boolean()
-})
-
-export const syncFirstDiaryEntryBodyCaloriesMin = 0;
-
 export const syncFirstDiaryEntryBodyConfidenceMin = 0;
+export const syncFirstDiaryEntryBodyConfidenceMax = 100;
 
 export const syncFirstDiaryEntryBodyNotesMax = 2000;
+
+
 
 export const SyncFirstDiaryEntryBody = zod.object({
   "captureSessionId": zod.string().uuid().describe('Server-issued capture session id returned by \/v1\/capture\/analyze\nfor an authenticated request. The synced entry must correspond to\nthat server-recorded analysis; fabricated payloads are rejected.\n'),
@@ -1042,4 +1053,24 @@ export const SyncFirstDiaryEntryBody = zod.object({
   "confidence": zod.number().int().min(syncFirstDiaryEntryBodyConfidenceMin).max(syncFirstDiaryEntryBodyConfidenceMax),
   "notes": zod.string().max(syncFirstDiaryEntryBodyNotesMax).optional(),
   "clientUpdatedAt": zod.coerce.date()
+})
+
+export const SyncFirstDiaryEntryResponse = zod.object({
+  "synced": zod.boolean(),
+  "alreadyExisted": zod.boolean()
+})
+
+
+/**
+ * Called once the referred user records their first approved food log.
+ * Grants seven days of Pro to both parties (the referrer's grant is
+ * subject to a monthly cap). Idempotent — repeat calls return the
+ * current state without granting again.
+ * @summary Unlock referral rewards after the first approved food log
+ */
+export const ActivateReferralResponse = zod.object({
+  "status": zod.enum(['none', 'pending', 'rewarded']),
+  "referredRewarded": zod.boolean(),
+  "referrerRewarded": zod.boolean(),
+  "message": zod.string().optional()
 })

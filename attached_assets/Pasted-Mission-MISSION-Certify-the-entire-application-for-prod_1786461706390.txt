@@ -1,0 +1,227 @@
+Mission
+
+MISSION: Certify the entire application for production security readiness through systematic security validation, adversarial testing, repair, and regression verification.
+
+Operate only against systems, accounts, infrastructure, and environments authorized for this application. Avoid destructive testing against production data or third-party systems.
+
+1. Map the Security Surface
+
+Before testing, build a complete Security Surface Map.
+
+Identify every applicable:
+
+- Authentication flow
+- Authorization boundary
+- User role and permission
+- API endpoint
+- Database interaction
+- File upload or download
+- External integration
+- Payment integration
+- AI integration
+- Administrative function
+- Session mechanism
+- Token or credential
+- Secret and configuration
+- User-controlled input
+- Sensitive data flow
+- Storage mechanism
+- Logging and analytics system
+- Network communication
+- Deep link or redirect
+- Background process
+- Publicly reachable service
+
+Identify what each surface protects, who should have access, and what trust boundary exists.
+
+Prioritize testing by risk and potential impact.
+
+2. Validate Security as a Real User and Adversarial User
+
+Test normal behavior first.
+
+Then deliberately attempt to violate the application's security assumptions using authorized test accounts and environments.
+
+Test applicable areas including:
+
+- Authentication bypass
+- Broken authorization
+- Horizontal privilege escalation
+- Vertical privilege escalation
+- Cross-account data access
+- Session fixation or persistence problems
+- Expired and revoked sessions
+- Token misuse
+- Password reset weaknesses
+- Account enumeration
+- Brute-force protections
+- Rate limiting
+- Input validation
+- Injection vulnerabilities
+- Cross-site scripting where applicable
+- CSRF where applicable
+- Unsafe redirects
+- File upload validation
+- Path and object access controls
+- API authorization
+- Client-side trust
+- Replay and duplicate requests
+- Race conditions
+- Sensitive information exposure
+- Error-message leakage
+- Debug information exposure
+- Insecure local storage
+- Secrets committed to client code or repositories
+- Transport security
+- Security headers where applicable
+- Dependency vulnerabilities
+- Misconfiguration
+- Unsafe default permissions
+
+Do not assume frontend restrictions provide security. Verify important controls at the authoritative backend boundary.
+
+3. Validate Access Control
+
+For every protected resource and important action, verify:
+
+Unauthenticated user → authenticated user → authorized user → unauthorized user → elevated role
+
+Where applicable, attempt to access another user's:
+
+- Profile
+- Files
+- Classes
+- Messages
+- History
+- Purchases
+- Premium entitlement
+- Records
+- Private content
+- Administrative functionality
+
+Changing a client-side identifier, route, request, or application state must never grant access the server does not authorize.
+
+4. Validate Data Protection
+
+Trace sensitive information from collection through transmission, processing, storage, logging, and deletion.
+
+Verify:
+
+- Sensitive data is collected only where required.
+- Access is appropriately restricted.
+- Secrets are not exposed to clients unnecessarily.
+- Passwords are handled securely.
+- Tokens and credentials are stored appropriately.
+- Sensitive information does not leak through logs or errors.
+- Deleted or logged-out users cannot improperly retain protected access.
+- Private data cannot cross account boundaries.
+- Production secrets are not committed to source control.
+
+5. Repair Security Defects
+
+Whenever a vulnerability or weakness is discovered:
+
+1. Confirm and understand the root cause.
+2. Determine the affected security boundary and potential impact.
+3. Check whether the same weakness exists elsewhere.
+4. Repair the root cause using a secure, maintainable solution.
+5. Verify the original vulnerability can no longer be reproduced.
+6. Verify legitimate users can still complete the intended workflow.
+7. Regression-test affected and dependent systems.
+8. Repeat until the security boundary holds.
+
+Do not weaken security controls merely to make a failing workflow pass.
+
+6. Strict Security Pass Gate
+
+A security area is PASSED only when:
+
+- Intended users retain correct access.
+- Unauthorized users are denied access.
+- Cross-account access is prevented.
+- Privilege boundaries are enforced.
+- Sensitive information remains protected.
+- Sessions and credentials behave securely.
+- Relevant abuse and failure scenarios have been exercised.
+- Repairs have survived regression testing.
+- Objective evidence supports the result.
+
+Code inspection or automated scanning alone is not sufficient.
+
+Maintain a live Security Validation Ledger containing:
+
+- Security surface
+- Risk level
+- Test performed
+- Expected security boundary
+- Result
+- Vulnerability or weakness
+- Impact
+- Root cause
+- Repair
+- Verification
+- Regression result
+- Evidence
+- Remaining risk
+
+Use:
+
+NOT TESTED → IN PROGRESS → VULNERABLE → REPAIRED → RETESTING → PASSED
+
+Never mark PASSED without evidence.
+
+7. Final Security Regression Sweep
+
+After all identified security surfaces have passed, perform a final application-wide security sweep.
+
+Revalidate the highest-risk boundaries, especially:
+
+- Authentication
+- Authorization
+- Account isolation
+- Administrative privileges
+- APIs
+- Sensitive data
+- Sessions and tokens
+- Payments and entitlements
+- File handling
+- External integrations
+- Secrets and configuration
+- Critical dependencies
+
+Confirm that security repairs have not broken legitimate user journeys.
+
+If a vulnerability appears, reopen the affected area, repair it, recertify it, and repeat the relevant regression checks.
+
+Completion Standard
+
+The mission ends only when:
+
+- Every identified security surface has been accounted for.
+- High-risk security boundaries have been actively tested.
+- No known unresolved critical or high-severity vulnerability remains.
+- Security repairs have been verified.
+- Relevant functional regression testing has passed.
+- Remaining risks, untested surfaces, and external limitations are explicitly documented.
+
+Do not claim that the application is "100% secure" or "vulnerability-free." Report the security coverage achieved and the residual risk supported by the evidence.
+
+Final Report
+
+Provide:
+
+1. Security Surface Map
+2. Security Validation Ledger
+3. Vulnerabilities and weaknesses discovered
+4. Severity and impact
+5. Root causes
+6. Repairs made
+7. Verification evidence
+8. Regression results
+9. Dependency and configuration findings
+10. Untested surfaces and remaining risks
+11. Final production-security readiness verdict
+
+Do not include secrets, passwords, private tokens, or sensitive credentials in the report.
+
+Work autonomously until the mission is complete or an external blocker makes further authorized testing impossible.
