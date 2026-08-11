@@ -8,6 +8,7 @@ import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, Style
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
+import { AppHeader } from '@/components/AppChrome';
 import { BRAND } from '@/lib/brand';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -215,19 +216,24 @@ export default function ScanScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
+      <AppHeader
+        title="Scan"
+        action={
+          <Pressable
+            accessibilityLabel={`Open ${BRAND.name} Coach`}
+            onPress={() => router.push('/coach')}
+            style={({ pressed }) => [styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: colors.primary, shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
+          >
+            <Feather name="zap" size={14} color={colors.primaryForeground} />
+            <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
+          </Pressable>
+        }
+      />
+      <ScrollView contentContainerStyle={{ paddingTop: 18, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={{ flex: 1, marginRight: 12 }}><Text style={[styles.eyebrow, { color: colors.primary }]}>{BRAND.name.toUpperCase()} SMART CAPTURE</Text><Text style={[styles.title, { color: colors.foreground }]}>Scan, then breathe.</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Barcodes and food photos in one calm, reviewable flow.</Text></View>
           <View style={styles.scanHeaderRight}>
             <View style={[styles.liveBadge, { backgroundColor: colors.accent }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.liveText, { color: colors.accentForeground }]}>LIVE</Text></View>
-            <Pressable
-              accessibilityLabel={`Open ${BRAND.name} Coach`}
-              onPress={() => router.push('/coach')}
-              style={({ pressed }) => [styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: colors.primary, shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
-            >
-              <Feather name="zap" size={14} color={colors.primaryForeground} />
-              <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
-            </Pressable>
           </View>
         </View>
         {!permission.granted ? <PermissionState colors={colors} onRequest={() => { void requestPermission(); }} /> : (

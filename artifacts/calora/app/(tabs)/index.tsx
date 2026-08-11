@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
+import { AppHeader } from '@/components/AppChrome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -835,30 +836,40 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 104 }]} showsVerticalScrollIndicator={false}>
+      <AppHeader
+        title="Today"
+        action={
+          <View style={styles.homeHeaderActions}>
+            {/* Icon-only in the compact header: a labeled pill plus the avatar can
+                crowd out the header title at large accessibility font scales. */}
+            <ScalePressable
+              accessibilityLabel={`Open ${BRAND.name} Coach`}
+              onPress={() => router.push('/coach')}
+              scale={0.96}
+              haptic="light"
+              style={[styles.homeHeaderCoachIcon, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+            >
+              <Feather name="zap" size={16} color={colors.primaryForeground} />
+            </ScalePressable>
+            <Pressable
+              accessibilityLabel="Profile shortcut"
+              onPress={() => router.navigate('/(tabs)/profile')}
+              style={[styles.homeHeaderAvatar, { backgroundColor: colors.muted, borderColor: colors.border }, profilePhotoUri ? { padding: 0, overflow: 'hidden' } : {}]}
+            >
+              {profilePhotoUri
+                ? <Image source={{ uri: profilePhotoUri }} style={{ width: 38, height: 38 }} contentFit="cover" />
+                : <Text style={[styles.homeHeaderAvatarText, { color: colors.foreground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
+            </Pressable>
+          </View>
+        }
+      />
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: 14, paddingBottom: insets.bottom + 104 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.homeHeader}>
           <Image source={require('../../assets/images/calora-home-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
           <LinearGradient colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
               <View style={styles.homeHeaderBadge}><Feather name="sunrise" size={12} color="#d4eadc" /><Text style={styles.homeHeaderBadgeText}>DAILY RHYTHM</Text></View>
-              <View style={styles.homeHeaderActions}>
-                <ScalePressable
-                  accessibilityLabel={`Open ${BRAND.name} Coach`}
-                  onPress={() => router.push('/coach')}
-                  scale={0.96}
-                  haptic="light"
-                  style={[styles.homeHeaderCoach, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f' }]}
-                >
-                  <Feather name="zap" size={14} color={colors.primaryForeground} />
-                  <Text style={[styles.homeHeaderCoachText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
-                </ScalePressable>
-                <Pressable accessibilityLabel="Profile shortcut" onPress={() => router.navigate('/(tabs)/profile')} style={[styles.homeHeaderAvatar, profilePhotoUri ? { padding: 0, overflow: 'hidden' } : {}]}>
-                  {profilePhotoUri
-                    ? <Image source={{ uri: profilePhotoUri }} style={{ width: 38, height: 38 }} contentFit="cover" />
-                    : <Text style={styles.homeHeaderAvatarText}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
-                </Pressable>
-              </View>
             </View>
             <Text style={styles.homeHeaderEyebrow}>{formatDateLabel(selectedDate)}</Text>
             <Text style={styles.homeHeaderTitle}>{livingState.greeting}, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
@@ -1010,6 +1021,7 @@ function makeStyles(f: number) {
   homeHeaderAvatar: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   homeHeaderAvatarText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 15 * f },
   homeHeaderCoach: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(212,234,220,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' },
+  homeHeaderCoachIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   homeHeaderCoachText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.1 },
   homeHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.2, marginBottom: 6 },
   homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 26 * f, letterSpacing: -0.7 },

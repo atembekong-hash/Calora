@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
+import { AppHeader } from '@/components/AppChrome';
 import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -1388,7 +1389,23 @@ export default function InsightsScreen() {
   }, [saveNotice]);
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
+      <AppHeader
+        title="Insights"
+        action={
+          <ScalePressable
+            accessibilityLabel={`Open ${BRAND.name} Coach`}
+            testID="open-calora-coach"
+            onPress={() => router.push('/coach')}
+            scale={0.96}
+            haptic="light"
+            style={[styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: colors.primary, shadowColor: '#08160f' }]}
+          >
+            <Feather name="zap" size={14} color={colors.primaryForeground} />
+            <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
+          </ScalePressable>
+        }
+      />
+      <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
         <View style={styles.heroHeader}>
           <Animated.View style={[StyleSheet.absoluteFillObject, heroParallaxStyle]}>
             <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
@@ -1405,20 +1422,9 @@ export default function InsightsScreen() {
             </View>
             <Text style={styles.heroEyebrow}>THE BIGGER PICTURE</Text>
             <View style={styles.heroTitleRow}>
-              <Text style={styles.heroTitle}>Your insights</Text>
-              <ScalePressable
-                accessibilityLabel={`Open ${BRAND.name} Coach`}
-                testID="open-calora-coach"
-                onPress={() => router.push('/coach')}
-                scale={0.96}
-                haptic="light"
-                style={[styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f' }]}
-              >
-                <Feather name="zap" size={15} color={colors.primaryForeground} />
-                <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
-              </ScalePressable>
+              <Text style={styles.heroTitle}>Patterns, not pressure</Text>
             </View>
-            <Text style={styles.heroSubtitle}>Patterns, not pressure. Use the signal to make tomorrow easier.</Text>
+            <Text style={styles.heroSubtitle}>Use the signal to make tomorrow easier.</Text>
           </View>
         </View>
 
