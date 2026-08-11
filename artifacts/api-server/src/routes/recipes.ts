@@ -442,14 +442,19 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
       return;
     }
 
-    // ── Cache miss: return instructions immediately, estimate in background ─
-    // Never block the response on an OpenAI call — instructions are what the
-    // user needs right now.  The client polls (refetchInterval) until the
-    // background estimate lands in L1 and the next request serves it from
-    // memory without touching OpenAI again.
-    if (base.ingredients.length > 0 && !nutritionRefreshInFlight.has(base.id)) {
-      nutritionRefreshInFlight.add(base.id);
-      void refreshNutritionInBackground(base.id, base.name, base.ingredients);
+    // ── Cache miss: call OpenAI now so this response includes nutrition ─────
+    // We await the estimate here rather than deferring it — callers should
+    // always get a value on first fetch when OpenAI is reachable.  The result
+    // is written to both L1 and L2 so subsequent requests (and server restarts)
+    // are served from cache without a further OpenAI call.
+    if (base.ingredients.length > 0) {
+      const fresh = await estimateNutrition(base.name, base.ingredients);
+      if (fresh) {
+        nutritionCache.set(base.id, { estimate: fresh, cachedAt: Date.now() });
+        void saveNutritionToDb(base.id, fresh);
+        res.json({ ...base, ...fresh });
+        return;
+      }
     }
     res.json({ ...base, nutritionPending: true });
     return;
