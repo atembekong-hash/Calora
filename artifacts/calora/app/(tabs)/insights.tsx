@@ -404,7 +404,36 @@ function WeightLineChart({
 
   const clearSelection = () => setSelectedIdx(null);
 
+  // Identity of the entry the tooltip currently points at. Tracked by ID (not
+  // index) because indices shift when an expired pending-delete entry leaves
+  // the dataset — comparing by index would miss a selected middle point.
+  const selectedEntryIdRef = useRef<string | undefined>(undefined);
+
+  // Dismiss the tooltip promptly when the pending-delete entry it refers to is
+  // resolved — either undo restored it (pendingDeleteId cleared) or the undo
+  // window expired (entry removed). Otherwise the "Pending removal" tooltip
+  // would flip to stale content and linger until its 2s auto-dismiss.
+  const prevPendingIdRef = useRef<string | undefined>(pendingDeleteId);
+  useEffect(() => {
+    const prevPendingId = prevPendingIdRef.current;
+    prevPendingIdRef.current = pendingDeleteId;
+    if (prevPendingId == null || pendingDeleteId === prevPendingId) return;
+    if (selectedIdx === null) return;
+    if (selectedEntryIdRef.current === prevPendingId) {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
+      }
+      tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
+        if (finished) runOnJS(clearSelection)();
+      });
+      tooltipScale.value = withTiming(0.82, { duration: 150 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingDeleteId]);
+
   const handleDotPress = (i: number) => {
+    selectedEntryIdRef.current = entries[i]?.id;
     Haptics.selectionAsync();
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
     // Reset animation values so re-tapping the same dot re-springs in cleanly
@@ -1092,8 +1121,13 @@ export default function InsightsScreen() {
   // ── Pending-edit state ────────────────────────────────────────────────────────
   const [editEntry, setEditEntry] = useState<{ id: string; kg: number; date: string } | null>(null);
   const [editInput, setEditInput] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
 
   const handleRequestEdit = (entry: { id: string; kg: number; date: string }) => {
+    // A weigh-in queued for deletion must not be editable — the edit could be
+    // silently discarded when the undo window expires and the entry is removed.
+    if (pendingDeleteRef.current?.id === entry.id) return;
+    setEditError(null);
     setEditInput(String(entry.kg));
     setEditEntry(entry);
   };
@@ -1814,21 +1848,42 @@ export default function InsightsScreen() {
             </Text>
             <TextInput
               value={editInput}
-              onChangeText={setEditInput}
+              onChangeText={(text) => {
+                setEditInput(text);
+                if (editError) setEditError(null);
+              }}
               keyboardType="decimal-pad"
               placeholder="e.g. 76.6 kg"
               placeholderTextColor={colors.mutedForeground}
-              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]}
+              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: editError ? colors.destructive : colors.input }]}
               autoFocus
             />
+            {editError != null && (
+              <Text
+                accessibilityRole="alert"
+                style={[styles.modalBody, { color: colors.destructive, marginTop: 6 }]}
+              >
+                {editError}
+              </Text>
+            )}
             <ScalePressable
               accessibilityLabel="Save edited weigh-in"
               onPress={() => {
-                const value = Number(editInput);
-                if (value > 0 && editEntry) {
+                const trimmed = editInput.trim();
+                const value = Number(trimmed);
+                if (trimmed === '' || !Number.isFinite(value)) {
+                  setEditError('Enter a weight as a number, e.g. 76.6');
+                  return;
+                }
+                if (value <= 0) {
+                  setEditError('Weight must be greater than zero.');
+                  return;
+                }
+                if (editEntry) {
                   updateWeight(editEntry.id, value);
                   setEditEntry(null);
                   setEditInput('');
+                  setEditError(null);
                   setSaveNotice('Weigh-in updated.');
                 }
               }}
