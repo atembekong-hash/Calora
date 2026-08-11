@@ -72,7 +72,12 @@ type ValidDiaryInput = {
 };
 
 function isDate(value: unknown): value is string {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  // Use UTC to avoid timezone shifts. If the browser/runtime normalises an
+  // overflow date (e.g. Feb 31 → Mar 3) the reconstructed values won't match.
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
 }
 
 function numeric(value: unknown): number | null {
