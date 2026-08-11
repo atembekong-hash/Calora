@@ -108,11 +108,13 @@ function renderInvitePage(code: string, res: Response): void {
     .status(200)
     .set("Content-Type", "text/html; charset=utf-8")
     .set("Cache-Control", "no-store")
+    .set("X-Robots-Tag", "noindex")
     .send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
   <title>You're invited to Calora!</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
