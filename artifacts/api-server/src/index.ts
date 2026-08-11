@@ -189,6 +189,31 @@ async function runStartupMigrations(): Promise<void> {
   logger.info("Startup migrations complete");
 }
 
+// ---------------------------------------------------------------------------
+// Periodic cleanup — remove rate-limit rows that expired more than 2 hours
+// ago.  Expired rows are already inert (the upsert resets any window whose
+// reset_at is in the past) so this is purely a storage hygiene pass.
+// Runs once per hour; errors are logged but never crash the server.
+// ---------------------------------------------------------------------------
+const RATE_LIMIT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+
+async function cleanupExpiredRateLimitRows(): Promise<void> {
+  try {
+    const result = await pool.query<{ count: string }>(
+      `WITH deleted AS (
+         DELETE FROM calora_capture_rate_limits
+         WHERE reset_at < NOW() - INTERVAL '2 hours'
+         RETURNING 1
+       )
+       SELECT COUNT(*)::text AS count FROM deleted`,
+    );
+    const count = Number(result.rows[0]?.count ?? 0);
+    logger.info({ count }, "Rate-limit cleanup: removed expired rows");
+  } catch (err) {
+    logger.error({ err }, "Rate-limit cleanup failed");
+  }
+}
+
 runStartupMigrations()
   .then(() => {
     app.listen(port, (err) => {
@@ -197,6 +222,12 @@ runStartupMigrations()
         process.exit(1);
       }
       logger.info({ port }, "Server listening");
+
+      // Schedule the first cleanup shortly after boot, then repeat hourly.
+      setTimeout(() => {
+        cleanupExpiredRateLimitRows();
+        setInterval(cleanupExpiredRateLimitRows, RATE_LIMIT_CLEANUP_INTERVAL_MS);
+      }, 60_000); // initial delay: 1 minute after startup
     });
   })
   .catch((err) => {
