@@ -153,6 +153,84 @@ describe('GET /invite/:code — App Store URL', () => {
   });
 });
 
+describe('GET /invite/:code — Open Graph and Twitter Card meta tags', () => {
+  const app = makeApp();
+
+  it('includes og:title', async () => {
+    const res = await request(app).get('/invite/TESTCODE');
+    expect(res.text).toContain('property="og:title"');
+    expect(res.text).toContain("You're invited to Calora!");
+  });
+
+  it('includes og:description', async () => {
+    const res = await request(app).get('/invite/TESTCODE');
+    expect(res.text).toContain('property="og:description"');
+    expect(res.text).toContain('free week of Calora Pro');
+  });
+
+  it('includes og:image pointing to an absolute PNG URL', async () => {
+    const res = await request(app).get('/invite/TESTCODE');
+    expect(res.text).toMatch(/property="og:image"\s+content="https?:\/\/[^"]+\/invite\/og-image\.png"/);
+  });
+
+  it('declares og:image:type as image/png', async () => {
+    const res = await request(app).get('/invite/TESTCODE');
+    expect(res.text).toContain('content="image/png"');
+  });
+
+  it('declares og:image:width and og:image:height', async () => {
+    const res = await request(app).get('/invite/TESTCODE');
+    expect(res.text).toContain('content="1200"');
+    expect(res.text).toContain('content="630"');
+  });
+
+  it('includes og:url with the page URL', async () => {
+    const res = await request(app).get('/invite/TESTCODE');
+    expect(res.text).toMatch(/property="og:url"\s+content="https?:\/\/[^"]+\/invite\/TESTCODE"/);
+  });
+
+  it('sets twitter:card to summary_large_image', async () => {
+    const res = await request(app).get('/invite/TESTCODE');
+    expect(res.text).toContain('name="twitter:card"');
+    expect(res.text).toContain('content="summary_large_image"');
+  });
+
+  it('includes twitter:image pointing to the PNG', async () => {
+    const res = await request(app).get('/invite/TESTCODE');
+    expect(res.text).toMatch(/name="twitter:image"\s+content="https?:\/\/[^"]+\/invite\/og-image\.png"/);
+  });
+});
+
+describe('GET /invite/og-image.png — preview image', () => {
+  const app = makeApp();
+
+  it('returns HTTP 200', async () => {
+    const res = await request(app).get('/invite/og-image.png');
+    expect(res.status).toBe(200);
+  });
+
+  it('sends image/png content-type', async () => {
+    const res = await request(app).get('/invite/og-image.png');
+    expect(res.headers['content-type']).toMatch(/image\/png/);
+  });
+
+  it('sets a long-lived Cache-Control header', async () => {
+    const res = await request(app).get('/invite/og-image.png');
+    expect(res.headers['cache-control']).toContain('max-age=86400');
+  });
+
+  it('responds with a non-empty body (valid PNG bytes)', async () => {
+    const res = await request(app).get('/invite/og-image.png');
+    // PNG magic bytes: 89 50 4E 47 …
+    const buf = Buffer.from(res.body as Buffer);
+    expect(buf.length).toBeGreaterThan(0);
+    expect(buf[0]).toBe(0x89);
+    expect(buf[1]).toBe(0x50); // P
+    expect(buf[2]).toBe(0x4e); // N
+    expect(buf[3]).toBe(0x47); // G
+  });
+});
+
 describe('GET /.well-known/apple-app-site-association', () => {
   const savedTeamId = process.env['APPLE_TEAM_ID'];
 

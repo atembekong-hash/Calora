@@ -16,6 +16,7 @@
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
+import { Resvg } from "@resvg/resvg-js";
 
 const router: IRouter = Router();
 
@@ -95,14 +96,71 @@ router.get(
   },
 );
 
+// ── /invite/og-image.png — branded Open Graph preview image ──────────────────
+// Generated at request time from SVG via @resvg/resvg-js (WASM, no native deps).
+// Cached in-process after the first render; the image is static so one copy is fine.
+let cachedOgPng: Buffer | null = null;
+
+function buildOgSvg(): string {
+  return `<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff8f5"/>
+      <stop offset="100%" stop-color="#ffe8dc"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1100" cy="80" r="160" fill="#ff6b35" opacity="0.08"/>
+  <circle cx="100" cy="550" r="120" fill="#ff6b35" opacity="0.06"/>
+  <rect x="260" y="115" width="680" height="400" rx="32" fill="#ffffff" opacity="0.95"/>
+  <rect x="556" y="165" width="88" height="88" rx="22" fill="#ff6b35"/>
+  <text x="600" y="220" font-family="Arial,Helvetica,sans-serif" font-size="52" text-anchor="middle" dominant-baseline="middle">C</text>
+  <text x="600" y="300" font-family="Arial,Helvetica,sans-serif" font-size="40" font-weight="700" fill="#1a1a1a" text-anchor="middle">You&#x27;re invited to Calora!</text>
+  <text x="600" y="352" font-family="Arial,Helvetica,sans-serif" font-size="22" fill="#666666" text-anchor="middle">Track nutrition effortlessly with AI</text>
+  <rect x="436" y="386" width="328" height="56" rx="28" fill="#ff6b35"/>
+  <text x="600" y="414" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">Get 1 week of Pro free</text>
+  <text x="600" y="570" font-family="Arial,Helvetica,sans-serif" font-size="20" fill="#ff6b35" text-anchor="middle" opacity="0.7">calora.app</text>
+</svg>`;
+}
+
+function getOgPng(): Buffer {
+  if (!cachedOgPng) {
+    const resvg = new Resvg(buildOgSvg(), { fitTo: { mode: "width", value: 1200 } });
+    cachedOgPng = Buffer.from(resvg.render().asPng());
+  }
+  return cachedOgPng;
+}
+
+router.get("/invite/og-image.png", (_req: Request, res: Response) => {
+  try {
+    const png = getOgPng();
+    res
+      .status(200)
+      .set("Content-Type", "image/png")
+      .set("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800")
+      .send(png);
+  } catch (err) {
+    res.status(500).send("Image generation failed");
+  }
+});
+
 // ── /invite and /invite/:code — fallback landing page for users without the app
-function renderInvitePage(code: string, res: Response): void {
+function renderInvitePage(code: string, req: Request, res: Response): void {
   const appStoreId = process.env["APPLE_APP_STORE_ID"] ?? "";
   const appStoreUrl = appStoreId
     ? `https://apps.apple.com/app/id${appStoreId}`
     : "https://apps.apple.com/search?term=calora";
   const playStoreUrl = `https://play.google.com/store/apps/details?id=${PACKAGE_NAME}`;
   const deepLink = `caloraapp://invite/${code}`;
+
+  // Build absolute base URL from the incoming request so OG tags are correct
+  // in both dev (replit.dev) and production.
+  const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
+  const host = req.get("x-forwarded-host") ?? req.get("host") ?? "calora.app";
+  const baseUrl = `${proto}://${host}`;
+  const pageUrl = code ? `${baseUrl}/invite/${code}` : `${baseUrl}/invite`;
+  const ogImageUrl = `${baseUrl}/invite/og-image.png`;
 
   res
     .status(200)
@@ -116,6 +174,23 @@ function renderInvitePage(code: string, res: Response): void {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex, nofollow" />
   <title>You're invited to Calora!</title>
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Calora" />
+  <meta property="og:title" content="You're invited to Calora!" />
+  <meta property="og:description" content="A friend invited you to track nutrition effortlessly with AI. Get a free week of Calora Pro when you sign up using their invite link." />
+  <meta property="og:image" content="${ogImageUrl}" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:url" content="${pageUrl}" />
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="You're invited to Calora!" />
+  <meta name="twitter:description" content="Track nutrition effortlessly with AI. Get a free week of Calora Pro." />
+  <meta name="twitter:image" content="${ogImageUrl}" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -239,8 +314,8 @@ function renderInvitePage(code: string, res: Response): void {
 }
 
 // /invite (no code) — same page, no badge, no deep-link attempt
-router.get("/invite", (_req: Request, res: Response) => {
-  renderInvitePage("", res);
+router.get("/invite", (req: Request, res: Response) => {
+  renderInvitePage("", req, res);
 });
 
 // /invite/:code — fallback landing page for users without the app
@@ -250,7 +325,7 @@ router.get("/invite/:code", (req: Request, res: Response) => {
     /[^A-Za-z0-9]/g,
     "",
   );
-  renderInvitePage(code, res);
+  renderInvitePage(code, req, res);
 });
 
 export default router;
