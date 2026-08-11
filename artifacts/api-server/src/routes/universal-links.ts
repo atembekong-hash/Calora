@@ -201,18 +201,35 @@ function renderInvitePage(code: string, res: Response): void {
   </div>
 
   <script>
-    // Attempt the deep link; if the app is installed the OS will hand off.
-    // After a short delay, do nothing (the store links are manual fallbacks).
+    // Deep-link attempt is ONLY triggered by explicit user interaction.
+    // We never auto-redirect on page load so that social-preview crawlers
+    // (WhatsApp, Telegram, LinkedIn, etc.) that run on mobile user-agent
+    // strings receive the full HTML card instead of a broken custom-scheme
+    // redirect.
     (function () {
       var code = ${JSON.stringify(code)};
       if (!code) return;
-      // Only auto-attempt on mobile where the app might actually be installed.
-      var ua = navigator.userAgent || "";
-      if (/iPhone|iPad|iPod|Android/i.test(ua)) {
-        setTimeout(function () {
-          window.location.href = "caloraapp://invite/" + code;
-        }, 300);
-      }
+
+      var btn = document.getElementById("openApp");
+      if (!btn) return;
+
+      btn.addEventListener("click", function (e) {
+        // Only attempt the custom scheme on real mobile browsers.
+        // navigator.maxTouchPoints > 0 is a reliable signal for touch-capable
+        // hardware that crawlers typically lack even when spoofing a mobile UA.
+        var ua = navigator.userAgent || "";
+        var isMobileUA = /iPhone|iPad|iPod|Android/i.test(ua);
+        var hasTouchPoints = navigator.maxTouchPoints > 0;
+        if (isMobileUA && hasTouchPoints) {
+          // Let the href do the navigation; no need to preventDefault.
+          // The href is already set to the caloraapp:// deep link.
+          return;
+        }
+        // On desktop (or a crawler with a mobile UA but no touch), prevent
+        // the custom-scheme navigation and do nothing — the store links below
+        // serve as the manual fallback.
+        e.preventDefault();
+      });
     })();
   </script>
 </body>
