@@ -243,6 +243,14 @@ router.post("/v1/diary/first-log", async (req, res) => {
       return;
     }
 
+    // Text-mode captures (plain one-line food descriptions) are excluded from
+    // referral qualification. Only image or barcode sessions may anchor a
+    // first-log sync that unlocks a referral reward.
+    if (session.mode === 'text') {
+      res.status(422).json({ message: "Text-only captures cannot qualify a referral reward. Use image or barcode capture." });
+      return;
+    }
+
     // The submitted nutrition must be consistent with what the server
     // analyzed (portion edits allowed within a generous band).
     const candidates = await db

@@ -47,6 +47,11 @@ describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () =
   const syncReferredEmail = `it-sync-${run}@example.com`;
   const syncCode = `ITSYNC${run.toUpperCase()}`;
 
+  // Separate identity used exclusively by text-mode exclusion tests.
+  const textReferredId = `it-text-referred-${run}`;
+  const textReferredEmail = `it-text-${run}@example.com`;
+  const textCode = `ITTEXT${run.toUpperCase()}`;
+
   beforeAll(async () => {
     schema = await import('@workspace/db');
     db = schema.db;
@@ -86,13 +91,27 @@ describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () =
        VALUES ($1, $2, $3)`,
       [syncCode, referrerId, syncReferredId],
     );
+
+    // Seed a third referral code + pending redemption for the text-mode
+    // exclusion tests so they have their own isolated redemption row.
+    await pool.query(
+      `INSERT INTO calora_referral_codes (user_id, code) VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE SET code = EXCLUDED.code`,
+      [referrerId, textCode],
+    );
+    await pool.query(
+      `INSERT INTO calora_referral_redemptions (code, referrer_user_id, referred_user_id)
+       VALUES ($1, $2, $3)`,
+      [textCode, referrerId, textReferredId],
+    );
   });
 
   afterAll(async () => {
-    await pool.query(`DELETE FROM calora_referral_redemptions WHERE referred_user_id IN ($1, $2)`, [referredId, syncReferredId]);
+    await pool.query(`DELETE FROM calora_referral_redemptions WHERE referred_user_id IN ($1, $2, $3)`, [referredId, syncReferredId, textReferredId]);
     await pool.query(`DELETE FROM calora_referral_codes WHERE user_id = $1`, [referrerId]);
-    await pool.query(`DELETE FROM calora_diary_entries WHERE user_id IN (SELECT id FROM calora_users WHERE external_id IN ($1, $2))`, [referredId, syncReferredId]);
-    await pool.query(`DELETE FROM calora_users WHERE external_id IN ($1, $2)`, [referredId, syncReferredId]);
+    await pool.query(`DELETE FROM calora_ai_capture_sessions WHERE user_id IN (SELECT id FROM calora_users WHERE external_id IN ($1, $2, $3))`, [referredId, syncReferredId, textReferredId]);
+    await pool.query(`DELETE FROM calora_diary_entries WHERE user_id IN (SELECT id FROM calora_users WHERE external_id IN ($1, $2, $3))`, [referredId, syncReferredId, textReferredId]);
+    await pool.query(`DELETE FROM calora_users WHERE external_id IN ($1, $2, $3)`, [referredId, syncReferredId, textReferredId]);
   });
 
   beforeEach(() => {
@@ -268,6 +287,74 @@ describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () =
     const reactivation = await request(app).post('/v1/referral/activate').send({});
     expect(reactivation.status).toBe(200);
     expect(reactivation.body.status).toBe('rewarded');
+    expect(grantPromoDays).not.toHaveBeenCalled();
+  });
+
+  // ── Text-mode exclusion tests ───────────────────────────────────────────────
+  // Text-only captures (mode = 'text') must not qualify a referral reward.
+
+  it('ADVERSARIAL (text-mode): first-log rejects a text-mode capture session with 422', async () => {
+    // Use textReferredId so this test has its own isolated identity.
+    verifyBearerToken.mockResolvedValue({ id: textReferredId, email: textReferredEmail });
+
+    const { ensureUserRow } = await import('../lib/user-rows.js');
+    const userId = await ensureUserRow(textReferredId, textReferredEmail);
+
+    // Create a text-mode capture session directly (simulating what
+    // capture/analyze would persist for a text-only input).
+    const textSessionId = randomUUID();
+    await db.insert(schema.aiCaptureSessionsTable).values({
+      id: textSessionId,
+      userId,
+      mode: 'text',
+      status: 'review',
+    });
+    await db.insert(schema.aiCaptureCandidatesTable).values({
+      sessionId: textSessionId,
+      name: 'Chicken salad',
+      calories: '400',
+      proteinG: '30',
+      carbsG: '20',
+      fatG: '15',
+      confidence: 70,
+      evidence: {},
+    });
+
+    // first-log must reject the text-mode session.
+    const firstLog = await request(app).post('/v1/diary/first-log').send(
+      entry({ captureSessionId: textSessionId, calories: 400 }),
+    );
+    expect(firstLog.status).toBe(422);
+    expect(firstLog.body.message).toMatch(/text/i);
+
+    // Activation must remain pending — the text-mode session cannot qualify.
+    const activation = await request(app).post('/v1/referral/activate').send({});
+    expect(activation.status).toBe(200);
+    expect(activation.body.status).toBe('pending');
+    expect(activation.body.referredRewarded).toBe(false);
+    expect(grantPromoDays).not.toHaveBeenCalled();
+  });
+
+  it('ADVERSARIAL (text-mode): a text-mode session with reviewedAt stamped does not qualify via hasSyncedDiaryEntry', async () => {
+    // Use textReferredId — the text-mode session from the previous test still
+    // exists without reviewedAt (first-log was rejected). We stamp it directly
+    // to simulate legacy data and confirm hasSyncedDiaryEntry ignores it.
+    verifyBearerToken.mockResolvedValue({ id: textReferredId, email: textReferredEmail });
+
+    // Stamp reviewedAt directly, bypassing the first-log route restriction.
+    await pool.query(
+      `UPDATE calora_ai_capture_sessions
+       SET reviewed_at = now()
+       WHERE user_id IN (SELECT id FROM calora_users WHERE external_id = $1)
+         AND mode = 'text'`,
+      [textReferredId],
+    );
+
+    // Even with reviewedAt stamped, a text-mode session must not qualify.
+    const activation = await request(app).post('/v1/referral/activate').send({});
+    expect(activation.status).toBe(200);
+    expect(activation.body.status).toBe('pending');
+    expect(activation.body.referredRewarded).toBe(false);
     expect(grantPromoDays).not.toHaveBeenCalled();
   });
 

@@ -36,13 +36,17 @@
  *  b) One redemption per referred account (unique index on referred_user_id).
  *     Each fresh Supabase account must be registered with a valid email.
  *
- *  c) Future hardening: exclude Manual/text provenance sync entries; require
- *     image or barcode provenance verified by the capture pipeline; or introduce
- *     a server-issued sync token that proves a capture session was completed
+ *  c) Text-mode capture exclusion (LIVE): ai_capture_sessions with mode =
+ *     'text' are excluded from Path 1 qualification.  The first-log route
+ *     also rejects text-mode sessions at write time so reviewed_at is never
+ *     stamped on them.  Only image and barcode sessions can anchor a
+ *     qualifying first-log.  Further hardening options: require image or
+ *     barcode provenance for Path 2 sync entries, or introduce a
+ *     server-issued sync token that proves a capture session was completed
  *     before the diary entry was synced.
  */
 
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, ne } from "drizzle-orm";
 import { db, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
 
 /**
@@ -65,6 +69,11 @@ export async function hasSyncedDiaryEntry(supabaseUserId: string): Promise<boole
       and(
         eq(usersTable.externalId, supabaseUserId),
         isNotNull(aiCaptureSessionsTable.reviewedAt),
+        // Text-only captures are excluded from referral qualification.
+        // Only image and barcode sessions (mode != 'text') count.  The
+        // first-log route also rejects text-mode sessions at write time; this
+        // filter is defence-in-depth for any legacy rows.
+        ne(aiCaptureSessionsTable.mode, 'text'),
       ),
     )
     .limit(1);
