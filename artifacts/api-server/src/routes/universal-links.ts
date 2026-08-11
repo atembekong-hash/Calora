@@ -95,13 +95,8 @@ router.get(
   },
 );
 
-// ── /invite/:code — fallback landing page for users without the app ──────────
-router.get("/invite/:code", (req: Request, res: Response) => {
-  const rawCode = req.params["code"];
-  const code = (Array.isArray(rawCode) ? rawCode[0] : rawCode ?? "").replace(
-    /[^A-Za-z0-9]/g,
-    "",
-  );
+// ── /invite and /invite/:code — fallback landing page for users without the app
+function renderInvitePage(code: string, res: Response): void {
   const appStoreId = process.env["APPLE_APP_STORE_ID"] ?? "";
   const appStoreUrl = appStoreId
     ? `https://apps.apple.com/app/id${appStoreId}`
@@ -222,6 +217,21 @@ router.get("/invite/:code", (req: Request, res: Response) => {
   </script>
 </body>
 </html>`);
+}
+
+// /invite (no code) — same page, no badge, no deep-link attempt
+router.get("/invite", (_req: Request, res: Response) => {
+  renderInvitePage("", res);
+});
+
+// /invite/:code — fallback landing page for users without the app
+router.get("/invite/:code", (req: Request, res: Response) => {
+  const rawCode = req.params["code"];
+  const code = (Array.isArray(rawCode) ? rawCode[0] : rawCode ?? "").replace(
+    /[^A-Za-z0-9]/g,
+    "",
+  );
+  renderInvitePage(code, res);
 });
 
 export default router;
