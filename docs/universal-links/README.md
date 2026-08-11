@@ -10,23 +10,37 @@ For those links to open the app directly (instead of the browser), two pieces ar
      (path `/invite/<code>` maps to it automatically).
    - These take effect in the next EAS build (they are native config, not OTA-updatable).
 
-2. **Files hosted on mycaloraapp.com** — templates in this directory:
+2. **Files hosted on mycaloraapp.com** — served dynamically by the API server
+   (`artifacts/api-server/src/routes/universal-links.ts`):
 
-   | Template | Must be served at | Notes |
-   |---|---|---|
-   | `apple-app-site-association` | `https://mycaloraapp.com/.well-known/apple-app-site-association` | `Content-Type: application/json`, **no** file extension, no redirects |
-   | `assetlinks.json` | `https://mycaloraapp.com/.well-known/assetlinks.json` | `Content-Type: application/json` |
+   | Path | Notes |
+   |---|---|
+   | `/.well-known/apple-app-site-association` | `Content-Type: application/json`, no redirects |
+   | `/.well-known/assetlinks.json` | `Content-Type: application/json` |
+   | `/invite/<code>` | Fallback landing page with App Store / Play Store links |
 
-## Placeholders to fill in before hosting
+   The template files in this directory (`apple-app-site-association`,
+   `assetlinks.json`) are kept as reference; the live endpoint builds the
+   JSON from the environment variables below.
 
-- `<APPLE_TEAM_ID>` in `apple-app-site-association`: the Apple Developer Team ID
-  (Apple Developer → Membership, e.g. `AB12CD34EF`). The final appID is
-  `<TEAM_ID>.com.etiendem.caloraapp`.
-- `<ANDROID_APP_SIGNING_SHA256_FINGERPRINT>` in `assetlinks.json`: the SHA-256
-  fingerprint of the **app signing key**. For Play App Signing, copy it from
-  Play Console → Setup → App signing. For an EAS-managed keystore, run
-  `eas credentials -p android` and use the SHA-256 fingerprint shown.
-  You can list multiple fingerprints (e.g. upload + Play signing keys).
+## Required environment variables (set as Replit secrets)
+
+| Secret | Where to find it |
+|---|---|
+| `APPLE_TEAM_ID` | Apple Developer → Membership (e.g. `AB12CD34EF`) |
+| `ANDROID_SHA256_FINGERPRINT` | Play Console → Setup → App signing **or** `eas credentials -p android`. Comma-separate multiple fingerprints (upload key + Play signing key). |
+| `APPLE_APP_STORE_ID` | App Store Connect → App Information → Apple ID (numeric, e.g. `1234567890`) |
+
+Until these are set, the `/.well-known/` endpoints return HTTP 503; the
+`/invite/<code>` page always renders (store links fall back gracefully).
+
+## Placeholders in template files
+
+The `docs/universal-links/` files still contain the original placeholders
+for reference only — the live server reads from the env vars above:
+
+- `<APPLE_TEAM_ID>` in `apple-app-site-association`
+- `<ANDROID_APP_SIGNING_SHA256_FINGERPRINT>` in `assetlinks.json`
 
 ## Verifying
 
@@ -43,7 +57,8 @@ For those links to open the app directly (instead of the browser), two pieces ar
 
 ## Fallback for users without the app
 
-Whatever serves `mycaloraapp.com` should render a landing page at `/invite/<code>`
-that links to the App Store / Play Store (and optionally tries
-`caloraapp://invite/<code>`), since universal links only fire when the app is
-installed.
+`GET /invite/<code>` renders an HTML landing page that:
+
+1. Shows App Store and Play Store download buttons.
+2. On mobile, attempts `caloraapp://invite/<code>` via a short JS delay —
+   the OS will hand off to the app if installed, and silently fail otherwise.
