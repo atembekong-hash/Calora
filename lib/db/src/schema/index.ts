@@ -256,6 +256,19 @@ export const recipeNutritionTable = pgTable("calora_recipe_nutrition", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * Persistent fixed-window rate-limit buckets for POST /v1/capture/analyze.
+ *
+ * One row per rate-limit key (user:<id> or ip:<address>). The upsert that
+ * checks and increments the counter is a single atomic SQL statement, so
+ * state is consistent across server restarts and multiple instances.
+ */
+export const captureRateLimitsTable = pgTable("calora_capture_rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+});
+
 export const insertRecipeNutritionSchema = createInsertSchema(recipeNutritionTable);
 export type RecipeNutrition = typeof recipeNutritionTable.$inferSelect;
 

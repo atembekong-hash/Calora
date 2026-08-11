@@ -177,6 +177,15 @@ async function runStartupMigrations(): Promise<void> {
       processed_at     TIMESTAMPTZ
     )
   `);
+  // Persistent rate-limit buckets for POST /v1/capture/analyze.
+  // State survives restarts and is consistent across multiple instances.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS calora_capture_rate_limits (
+      key      TEXT        PRIMARY KEY,
+      count    INTEGER     NOT NULL,
+      reset_at TIMESTAMPTZ NOT NULL
+    )
+  `);
   logger.info("Startup migrations complete");
 }
 
