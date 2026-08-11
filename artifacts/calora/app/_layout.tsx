@@ -19,6 +19,7 @@ import { CaloraProvider } from '@/context/CaloraContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { setBaseUrl } from '@workspace/api-client-react';
 import { getApiBaseUrl } from '@/lib/api-config';
+import { AppStatusBar } from '@/components/AppChrome';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -138,6 +139,7 @@ export default function RootLayout() {
             <QueryClientProvider client={queryClient}>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
+                  <AppStatusBar />
                   <RootLayoutNav />
                 </KeyboardProvider>
               </GestureHandlerRootView>

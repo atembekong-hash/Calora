@@ -28,6 +28,7 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { PlannerPeek } from '@/components/PlannerPeek';
 import { trustScore } from '@/lib/weeklySignals';
+import { formatWhole } from '@/lib/formatters';
 import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
 import {
   clearWaterConfirmation,
@@ -420,7 +421,7 @@ function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typ
           </View>
         </View>
       </View>
-      <Text style={[styles.mealCalories, { color: colors.foreground }]}>{log.calories}</Text>
+      <Text style={[styles.mealCalories, { color: colors.foreground }]}>{formatWhole(log.calories)}</Text>
       <Text style={[styles.kcalLabel, { color: colors.mutedForeground }]}>kcal</Text>
       <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
     </ScalePressable>

@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Constants from 'expo-constants';
 import { BRAND, EMAILS, URLS } from '@/lib/brand';
+import { formatQuantity } from '@/lib/formatters';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { type DietPreference, type Goal, SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
@@ -306,7 +307,7 @@ export default function ProfileScreen() {
   const displayWeight = profile
     ? units === 'imperial'
       ? `${Math.round(profile.weightKg * 2.20462)} lbs`
-      : `${profile.weightKg} kg`
+      : `${formatQuantity(profile.weightKg)} kg`
     : null;
 
   // ─── JSX ──────────────────────────────────────────────────────────────────

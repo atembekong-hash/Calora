@@ -9,6 +9,7 @@ import { ScalePressable } from '@/components/ScalePressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
+import { formatCalories, formatGrams, formatWhole } from '@/lib/formatters';
 import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
 import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
@@ -83,9 +84,9 @@ function MealCard({
           <Text numberOfLines={2} style={[styles.mealName, { color: colors.foreground }]}>{meal.name}</Text>
         </Pressable>
         <View style={styles.macroLine}>
-          <Text style={[styles.mealCalories, { color: colors.foreground }]}>{Math.round(meal.calories)} kcal</Text>
-          <Text style={[styles.macroText, { color: colors.protein }]}>P {Math.round(meal.proteinG)}g</Text>
-          <Text style={[styles.macroText, { color: colors.carbs }]}>C {Math.round(meal.carbsG)}g</Text>
+          <Text style={[styles.mealCalories, { color: colors.foreground }]}>{formatCalories(meal.calories)}</Text>
+          <Text style={[styles.macroText, { color: colors.protein }]}>P {formatGrams(meal.proteinG)}</Text>
+          <Text style={[styles.macroText, { color: colors.carbs }]}>C {formatGrams(meal.carbsG)}</Text>
           <ScalePressable accessibilityLabel={`Log ${meal.name} to diary`} onPress={onLog} scale={0.96} haptic="light" style={[styles.logMealButton, { backgroundColor: colors.primary }]}>
             <Feather name="plus" size={13} color={colors.primaryForeground} />
             <Text style={[styles.logMealButtonText, { color: colors.primaryForeground }]}>Log</Text>
@@ -117,9 +118,9 @@ function SummaryBar({ meals, target, colors }: { meals: PlannerMeal[]; target: n
       </View>
       <View style={[styles.goalTrack, { backgroundColor: 'rgba(157,215,189,0.18)' }]}><View style={[styles.goalFill, { width: `${goalProgress * 100}%`, backgroundColor: colors.primary }]} /></View>
       <View style={styles.summaryMacros}>
-        <View><Text style={[styles.summaryMacroValue, { color: colors.onHero }]}>{Math.round(totals.protein / 7)}g</Text><Text style={[styles.summaryMacroLabel, { color: colors.heroMuted }]}>protein / day</Text></View>
-        <View><Text style={[styles.summaryMacroValue, { color: colors.onHero }]}>{Math.round(totals.carbs / 7)}g</Text><Text style={[styles.summaryMacroLabel, { color: colors.heroMuted }]}>carbs / day</Text></View>
-        <View><Text style={[styles.summaryMacroValue, { color: colors.onHero }]}>{Math.round(totals.fat / 7)}g</Text><Text style={[styles.summaryMacroLabel, { color: colors.heroMuted }]}>fat / day</Text></View>
+        <View><Text style={[styles.summaryMacroValue, { color: colors.onHero }]}>{formatGrams(totals.protein / 7)}</Text><Text style={[styles.summaryMacroLabel, { color: colors.heroMuted }]}>protein / day</Text></View>
+        <View><Text style={[styles.summaryMacroValue, { color: colors.onHero }]}>{formatGrams(totals.carbs / 7)}</Text><Text style={[styles.summaryMacroLabel, { color: colors.heroMuted }]}>carbs / day</Text></View>
+        <View><Text style={[styles.summaryMacroValue, { color: colors.onHero }]}>{formatGrams(totals.fat / 7)}</Text><Text style={[styles.summaryMacroLabel, { color: colors.heroMuted }]}>fat / day</Text></View>
       </View>
     </View>
   );
@@ -680,7 +681,7 @@ export default function PlannerScreen() {
         {generationMessage && <View accessibilityLiveRegion="polite" style={[styles.generationStatus, { backgroundColor: colors.accent }]}><Feather name="check-circle" size={16} color={colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
          <Animated.View entering={FadeInDown.springify().damping(20).delay(60)} style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
             <Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{dayFormatter.format(parseDate(selectedDay))}</Text>
-            <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{Math.round(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))} kcal</Text>
+            <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
           </Animated.View>
            <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Tap to choose or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}
         </Animated.View>

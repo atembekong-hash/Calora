@@ -12,6 +12,8 @@ import { getRecipe, useGetRecipe, useListRecipes, type Recipe } from '@workspace
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
+import { formatCalories, formatGrams, formatWhole } from '@/lib/formatters';
+import { AppHeader } from '@/components/AppChrome';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { applySlotReplace, getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
@@ -51,12 +53,12 @@ function RecipeMeta({ recipe, colors }: { recipe: Recipe | CaloraRecipe; colors:
   // Non-local recipes always have AI-estimated nutrition — prefix with ~ so
   // the user knows it is approximate. Local recipes have user-entered values.
   const nutrition = recipe.calories
-    ? `${local ? '' : '~'}${Math.round(recipe.calories)} kcal`
+    ? `${local ? '' : '~'}${formatCalories(recipe.calories)}`
     : 'Nutrition review needed';
   return (
     <View style={styles.recipeMeta}>
       <Text style={[styles.recipeKcal, { color: recipe.calories ? colors.foreground : colors.warning }]}>{nutrition}</Text>
-      {recipe.proteinG ? <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{local ? '' : '~'}{Math.round(recipe.proteinG)}g P</Text> : null}
+      {recipe.proteinG ? <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{local ? '' : '~'}{formatGrams(recipe.proteinG)} P</Text> : null}
       {recipe.prepMinutes ? <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{recipe.prepMinutes} min</Text> : null}
     </View>
   );
@@ -100,10 +102,10 @@ function ReviewComponent({ component, colors, onChange }: { component: FoodMemor
         </View>
       </View>
       <View style={styles.reviewNutritionRow}>
-        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{Math.round(component.calories * component.eatenFraction)}</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
-        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{Math.round(component.proteinG * component.eatenFraction)}g</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
-        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{Math.round(component.carbsG * component.eatenFraction)}g</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
-        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{Math.round(component.fatG * component.eatenFraction)}g</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
+        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatWhole(component.calories * component.eatenFraction)}</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
+        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatGrams(component.proteinG * component.eatenFraction)}</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
+        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatGrams(component.carbsG * component.eatenFraction)}</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
+        <View><Text style={[styles.reviewNutritionValue, { color: colors.foreground }]}>{formatGrams(component.fatG * component.eatenFraction)}</Text><Text style={[styles.reviewNutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
       </View>
       <Text style={[styles.reviewFieldLabel, { color: colors.mutedForeground }]}>How much did you eat?</Text>
       <View style={styles.reviewFractionRow}>
@@ -716,7 +718,8 @@ export default function RecipesScreen() {
   };
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false} onScroll={handleRecipeScroll} onMomentumScrollEnd={handleRecipeScroll} scrollEventThrottle={16} decelerationRate="normal">
+      <AppHeader title="Recipes" action={<Pressable accessibilityLabel="Create your own recipe" onPress={() => setShowCreate(true)}><Feather name="plus" size={21} color={colors.primary} /></Pressable>} />
+      <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false} onScroll={handleRecipeScroll} onMomentumScrollEnd={handleRecipeScroll} scrollEventThrottle={16} decelerationRate="normal">
         <View style={styles.recipeHeader}>
           <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
           <LinearGradient
