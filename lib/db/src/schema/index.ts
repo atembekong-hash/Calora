@@ -1,4 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
+import { sql } from "drizzle-orm";
 import {
   boolean,
   date,
@@ -66,6 +67,12 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   foodItemId: uuid("food_item_id").references(() => foodItemsTable.id, { onDelete: "set null" }),
+  /**
+   * Stable client-generated identifier (the local log id). Used as an
+   * idempotency key for the sync endpoint so repeated pushes don't create
+   * duplicate rows. Nullable for rows written before sync was introduced.
+   */
+  clientId: text("client_id"),
   entryDate: date("entry_date").notNull(),
   meal: text("meal").notNull(),
   name: text("name").notNull(),
@@ -80,7 +87,11 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
   clientUpdatedAt: timestamp("client_updated_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+  userClientIdIndex: uniqueIndex("calora_diary_entries_user_client_id_idx")
+    .on(table.userId, table.clientId)
+    .where(sql`${table.clientId} IS NOT NULL`),
+}));
 
 export const weightEntriesTable = pgTable("calora_weight_entries", {
   id: uuid("id").defaultRandom().primaryKey(),

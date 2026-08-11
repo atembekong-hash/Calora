@@ -23,6 +23,7 @@ import { getApiBaseUrl } from '@/lib/api-config';
 import { AppStatusBar } from '@/components/AppChrome';
 import { initializeRevenueCat, SubscriptionProvider } from '@/lib/revenuecat';
 import { ReferralActivator } from '@/components/ReferralActivator';
+import { useDiarySync } from '@/hooks/useDiarySync';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -116,6 +117,12 @@ function NotificationHandler() {
   return null;
 }
 
+/** Invisible worker that background-syncs confirmed diary logs to the server. */
+function DiarySyncWorker() {
+  useDiarySync();
+  return null;
+}
+
 function RootLayoutNav() {
   return (
     <>
@@ -158,6 +165,7 @@ export default function RootLayout() {
                 <GestureHandlerRootView style={{ flex: 1 }}>
                   <KeyboardProvider>
                     <AppStatusBar />
+                    <DiarySyncWorker />
                     <ReferralActivator />
                     <RootLayoutNav />
                   </KeyboardProvider>

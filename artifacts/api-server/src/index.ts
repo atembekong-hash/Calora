@@ -154,6 +154,29 @@ async function runStartupMigrations(): Promise<void> {
       ADD COLUMN IF NOT EXISTS qualified_at TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS qualified_signal TEXT
   `);
+  // client_id for idempotent diary sync — nullable so pre-sync rows are
+  // unaffected; unique per user when present.
+  await pool.query(`
+    ALTER TABLE calora_diary_entries
+      ADD COLUMN IF NOT EXISTS client_id TEXT
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS calora_diary_entries_user_client_id_idx
+      ON calora_diary_entries (user_id, client_id)
+      WHERE client_id IS NOT NULL
+  `);
+  // Mutation ledger for outbox sync idempotency.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS calora_sync_mutations (
+      mutation_id      UUID        PRIMARY KEY,
+      user_id          UUID        NOT NULL REFERENCES calora_users(id) ON DELETE CASCADE,
+      entity           TEXT        NOT NULL,
+      operation        TEXT        NOT NULL,
+      payload          JSONB       NOT NULL,
+      client_updated_at TIMESTAMPTZ NOT NULL,
+      processed_at     TIMESTAMPTZ
+    )
+  `);
   logger.info("Startup migrations complete");
 }
 
