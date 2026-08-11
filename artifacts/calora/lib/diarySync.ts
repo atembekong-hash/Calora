@@ -27,6 +27,13 @@ import type { FoodLog } from '@/context/CaloraContext';
 // ── Persistence ───────────────────────────────────────────────────────────────
 
 const SYNCED_IDS_KEY = '@calora/synced-diary-ids';
+/**
+ * Persisted map of logId → content signature for logs the server has
+ * accepted.  Loading this on startup means we skip re-sending unchanged
+ * entries after an app restart or reinstall, keeping large initial syncs
+ * from re-batching hundreds of already-synced entries.
+ */
+const SYNCED_SIGS_KEY = '@calora/synced-diary-sigs';
 
 /** Lazily-loaded, in-memory cache of the persisted synced ID set. */
 let _syncedIdSet: Set<string> | null = null;
@@ -50,6 +57,60 @@ async function persistSyncedIds(): Promise<void> {
     // Persist failure is non-fatal; next restart re-syncs from the current
     // local logs, which is always correct.
   }
+}
+
+/** Load persisted signatures into the in-memory map. Called once on startup. */
+async function loadSyncedSignatures(): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(SYNCED_SIGS_KEY);
+    if (raw) {
+      const entries = JSON.parse(raw) as [string, string][];
+      for (const [id, sig] of entries) {
+        syncedSignatures.set(id, sig);
+      }
+    }
+  } catch {
+    // Non-fatal: cold start will re-send changed/new entries only.
+  }
+}
+
+async function persistSyncedSignatures(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      SYNCED_SIGS_KEY,
+      JSON.stringify([...syncedSignatures]),
+    );
+  } catch {
+    // Non-fatal.
+  }
+}
+
+/**
+ * Remove stale signature entries for IDs that are no longer in the synced
+ * set (e.g. after a delete).  Keeps the persisted map from growing unboundedly.
+ */
+async function pruneSignatures(syncedIds: Set<string>): Promise<void> {
+  let changed = false;
+  for (const id of [...syncedSignatures.keys()]) {
+    if (!syncedIds.has(id)) {
+      syncedSignatures.delete(id);
+      changed = true;
+    }
+  }
+  if (changed) await persistSyncedSignatures();
+}
+
+/** True once the persisted signatures have been loaded into the in-memory map. */
+let _sigsLoaded = false;
+
+/**
+ * Ensures the persisted signatures are loaded before the first sync.
+ * Subsequent calls are no-ops.
+ */
+export async function ensureSigsLoaded(): Promise<void> {
+  if (_sigsLoaded) return;
+  await loadSyncedSignatures();
+  _sigsLoaded = true;
 }
 
 // ── UUID helpers ──────────────────────────────────────────────────────────────
@@ -156,6 +217,10 @@ function toDeleteMutation(logId: string) {
  * (current session + persisted from prior sessions).
  */
 export async function syncDiaryLogs(logs: FoodLog[]): Promise<Set<string>> {
+  // Ensure persisted signatures are loaded so unchanged entries that were
+  // synced in a previous session are skipped rather than re-batched.
+  await ensureSigsLoaded();
+
   const syncedIds = await loadSyncedIds();
 
   if (upsertInFlight) return syncedIds;
@@ -183,7 +248,10 @@ export async function syncDiaryLogs(logs: FoodLog[]): Promise<Set<string>> {
             syncedIds.add(log.id);
           }
         }
+        // Persist both IDs and signatures after each successful batch so
+        // partial progress survives an app kill mid-large-sync.
         await persistSyncedIds();
+        await persistSyncedSignatures();
       } catch (err) {
         console.warn('[diary-sync] upsert batch failed', err);
       }
@@ -228,12 +296,16 @@ export async function syncDiaryDeletes(deletedIds: string[]): Promise<void> {
           logMutationIds.delete(id);
         }
         await persistSyncedIds();
+        await persistSyncedSignatures();
       } catch (err) {
         console.warn('[diary-sync] delete batch failed', err);
       }
     }
   } finally {
     deleteInFlight = false;
+    // Prune any leftover signature entries whose IDs are gone from the synced
+    // set (handles partial batch failures where some deletes succeeded).
+    await pruneSignatures(syncedIds);
   }
 }
 

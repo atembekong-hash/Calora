@@ -15,6 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCalora } from '@/context/CaloraContext';
 import {
   loadSyncedIds,
+  ensureSigsLoaded,
   syncDiaryLogs,
   syncDiaryDeletes,
   isStarterLog,
@@ -32,15 +33,19 @@ export function useDiarySync() {
   const syncedIdsRef = useRef<Set<string>>(new Set());
   const initializedRef = useRef(false);
 
-  // Load the persisted synced-ID set once on mount so we can detect
-  // deletions across app restarts.
+  // Load the persisted synced-ID set and content signatures once on mount.
+  // Loading signatures here means the first sync after a restart will skip
+  // entries that were already accepted by the server with identical content,
+  // avoiding a full re-batch of hundreds of historical entries.
   useEffect(() => {
-    loadSyncedIds().then((ids) => {
-      syncedIdsRef.current = ids;
-      initializedRef.current = true;
-    }).catch(() => {
-      initializedRef.current = true;
-    });
+    Promise.all([loadSyncedIds(), ensureSigsLoaded()])
+      .then(([ids]) => {
+        syncedIdsRef.current = ids;
+        initializedRef.current = true;
+      })
+      .catch(() => {
+        initializedRef.current = true;
+      });
   }, []);
 
   // A stable key that changes when any log is added, removed, or edited.
