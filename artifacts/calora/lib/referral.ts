@@ -16,6 +16,7 @@ export async function setPendingInviteCode(code: string): Promise<void> {
   if (normalized.length < 4 || normalized.length > 16) return;
   try {
     await AsyncStorage.setItem(PENDING_CODE_KEY, normalized);
+    console.log('[referral] pending invite code stored (length:', normalized.length, ')');
   } catch (err) {
     console.warn('[referral] failed to store pending invite code', err);
   }
@@ -23,7 +24,11 @@ export async function setPendingInviteCode(code: string): Promise<void> {
 
 export async function getPendingInviteCode(): Promise<string | null> {
   try {
-    return await AsyncStorage.getItem(PENDING_CODE_KEY);
+    const code = await AsyncStorage.getItem(PENDING_CODE_KEY);
+    if (code) {
+      console.log('[referral] pending invite code found (length:', code.length, ')');
+    }
+    return code;
   } catch {
     return null;
   }
@@ -51,5 +56,14 @@ export async function markReferralActivationSettled(userId: string): Promise<voi
     await AsyncStorage.setItem(ACTIVATED_KEY_PREFIX + userId, 'true');
   } catch (err) {
     console.warn('[referral] failed to persist activation state', err);
+  }
+}
+
+/** Reset the settled flag — intended for tests and edge-case resets only. */
+export async function clearReferralActivationSettled(userId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(ACTIVATED_KEY_PREFIX + userId);
+  } catch {
+    // Non-fatal.
   }
 }

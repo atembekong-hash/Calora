@@ -25,6 +25,7 @@ import { useCalora } from '@/context/CaloraContext';
 import { AppHeader } from '@/components/AppChrome';
 import { useAuth } from '@/context/AuthContext';
 import { BRAND } from '@/lib/brand';
+import { getPendingInviteCode } from '@/lib/referral';
 
 export default function SignUpScreen() {
   const { colors } = useCalora();
@@ -37,6 +38,12 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingCode, setPendingCode] = useState<string | null>(null);
+
+  // Surface any pending invite code so the user knows it survived a relaunch.
+  React.useEffect(() => {
+    getPendingInviteCode().then(setPendingCode);
+  }, []);
 
   const handleSignUp = useCallback(async () => {
     if (loading) return;
@@ -100,6 +107,16 @@ export default function SignUpScreen() {
         <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
           Start syncing your {BRAND.name} data securely across all your devices.
         </Text>
+
+        {/* Pending invite code notice */}
+        {pendingCode ? (
+          <View style={[styles.inviteNotice, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+            <Feather name="gift" size={13} color={colors.primary} />
+            <Text style={[styles.inviteNoticeText, { color: colors.foreground }]}>
+              Invite code <Text style={{ fontFamily: 'Inter_700Bold' }}>{pendingCode}</Text> will be applied after sign-up.
+            </Text>
+          </View>
+        ) : null}
 
         {/* Email */}
         <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>EMAIL</Text>
@@ -219,6 +236,8 @@ const styles = StyleSheet.create({
   passwordWrap: { position: 'relative', marginBottom: 16 },
   passwordInput: { paddingRight: 48, marginBottom: 0 },
   eyeButton: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
+  inviteNotice: { flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 20 },
+  inviteNoticeText: { fontFamily: 'Inter_400Regular', fontSize: 13, flex: 1, lineHeight: 18 },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 20 },
   hintText: { fontFamily: 'Inter_400Regular', fontSize: 12, flex: 1 },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16 },
