@@ -137,6 +137,23 @@ export const aiCaptureSessionsTable = pgTable("calora_ai_capture_sessions", {
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
 });
 
+/**
+ * One-time server-issued proof that a user completed an authenticated food
+ * capture and explicitly approved the review. Referral rewards may only use
+ * this proof — never a client-supplied diary payload or seeded demo entry.
+ */
+export const referralQualificationsTable = pgTable("calora_referral_qualifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  externalUserId: text("external_user_id").notNull(),
+  captureSessionId: text("capture_session_id").notNull(),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  sessionIndex: uniqueIndex("calora_referral_qualification_session_idx").on(table.captureSessionId),
+  userIndex: uniqueIndex("calora_referral_qualification_user_idx").on(table.externalUserId),
+}));
+
 export const aiCaptureCandidatesTable = pgTable("calora_ai_capture_candidates", {
   id: uuid("id").defaultRandom().primaryKey(),
   sessionId: uuid("session_id").notNull().references(() => aiCaptureSessionsTable.id, { onDelete: "cascade" }),

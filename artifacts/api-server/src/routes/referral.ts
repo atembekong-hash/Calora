@@ -19,7 +19,7 @@
 import { Router, type IRouter } from "express";
 import { randomBytes } from "node:crypto";
 import { and, count, eq, gte, isNotNull, sql } from "drizzle-orm";
-import { db, diaryEntriesTable, referralCodesTable, referralRedemptionsTable, usersTable } from "@workspace/db";
+import { db, referralCodesTable, referralQualificationsTable, referralRedemptionsTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { grantPromoDays } from "../lib/revenuecat.js";
 
@@ -231,33 +231,25 @@ router.post("/v1/referral/activate", async (req, res) => {
 
     const redemption = rows[0];
 
-    // Qualification is server-authoritative. A client may request activation
-    // as often as it likes, but no reward can be claimed until at least one
-    // validated diary entry has been persisted for this Supabase identity.
-    const dataUsers = await db
-      .select({ id: usersTable.id })
-      .from(usersTable)
-      .where(eq(usersTable.externalId, user.id))
+    // Qualification is server-authoritative: it requires an authenticated
+    // image/barcode capture that the user reviewed and confirmed. A scripted
+    // diary POST, a manual entry, and the local demo logs cannot satisfy it.
+    const qualification = await db
+      .select({ id: referralQualificationsTable.id })
+      .from(referralQualificationsTable)
+      .where(
+        and(
+          eq(referralQualificationsTable.externalUserId, user.id),
+          isNotNull(referralQualificationsTable.approvedAt),
+        ),
+      )
       .limit(1);
-    if (!dataUsers[0]) {
+    if (!qualification[0]) {
       res.status(409).json({
         status: "pending",
         referredRewarded: false,
         referrerRewarded: false,
-        message: "Log a meal while signed in to unlock your invite reward.",
-      });
-      return;
-    }
-    const qualifyingEntries = await db
-      .select({ value: count() })
-      .from(diaryEntriesTable)
-      .where(eq(diaryEntriesTable.userId, dataUsers[0].id));
-    if ((qualifyingEntries[0]?.value ?? 0) < 1) {
-      res.status(409).json({
-        status: "pending",
-        referredRewarded: false,
-        referrerRewarded: false,
-        message: "Log a meal while signed in to unlock your invite reward.",
+        message: "Capture and confirm a food or barcode to unlock your invite reward.",
       });
       return;
     }

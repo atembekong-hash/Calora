@@ -1,4 +1,4 @@
-import { useAnalyzeCapture, type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
+import { approveCapture, useAnalyzeCapture, type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
@@ -181,9 +181,19 @@ export default function ScanScreen() {
     updateFoodMemoryDraft(reviewDraft.id, reviewDraft.components.map((item) => item.id === component.id ? component : item));
   };
 
-  const acceptDraft = () => {
+  const acceptDraft = async () => {
     if (!reviewDraft) return;
-    acceptFoodMemory(reviewDraft.id);
+    const accepted = acceptFoodMemory(reviewDraft.id);
+    // Only authenticated photo/barcode analyses receive a server proof. It is
+    // consumed after the user explicitly accepts this review; local logging
+    // remains available offline, but cannot qualify a referral until then.
+    if (accepted && (analysis?.mode === 'food' || analysis?.mode === 'barcode')) {
+      try {
+        await approveCapture(analysis.sessionId);
+      } catch (error) {
+        console.warn('[capture] referral qualification confirmation failed', error);
+      }
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setAnalysis(null);
     setReviewDraftId(null);

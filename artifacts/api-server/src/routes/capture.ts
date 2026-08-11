@@ -1,8 +1,11 @@
 import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
 import { AnalyzeCaptureBody } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { db, referralQualificationsTable } from "@workspace/db";
 import { BRAND_NAME } from "../lib/brand.js";
+import { verifyBearerToken } from "../lib/supabase-auth.js";
 
 const router: IRouter = Router();
 const OPEN_FOOD_FACTS_ROOT = "https://world.openfoodfacts.org/api/v2";
@@ -10,6 +13,7 @@ const USDA_ROOT = "https://api.nal.usda.gov/fdc/v1";
 const USDA_KEY = process.env.USDA_FOODDATA_API_KEY ?? "DEMO_KEY";
 const VISION_MODEL = "gpt-5.6-terra";
 const TEXT_MODEL = "gpt-5.4-mini";
+const QUALIFICATION_TTL_MS = 30 * 60 * 1000;
 
 type Nutrition = {
   calories: number;
@@ -293,6 +297,11 @@ async function analyzeFoodPhoto(imageBase64: string) {
 }
 
 router.post("/v1/capture/analyze", async (req, res) => {
+  const auth = await verifyBearerToken(req);
+  if (!auth) {
+    res.status(401).json({ message: "Please sign in to analyze a food capture." });
+    return;
+  }
   const parsed = AnalyzeCaptureBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid capture input" });
@@ -358,7 +367,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
 
   try {
     // Text mode — parse natural-language description with AI.
-    if (body.mode === "text" && hasText) {
+    if (body.mode === "text" && body.textInput?.trim()) {
       const result = await analyzeTextInput(body.textInput!.trim());
       res.json({
         sessionId: body.clientSessionId || randomUUID(),
@@ -418,8 +427,14 @@ router.post("/v1/capture/analyze", async (req, res) => {
     if (hasBarcode && (body.mode === "auto" || body.mode === "barcode")) {
       const result = await lookupBarcode(barcode);
       if (result) {
+        const sessionId = randomUUID();
+        await db.insert(referralQualificationsTable).values({
+          externalUserId: auth.id,
+          captureSessionId: sessionId,
+          expiresAt: new Date(Date.now() + QUALIFICATION_TTL_MS),
+        }).onConflictDoNothing();
         res.json({
-          sessionId: body.clientSessionId || randomUUID(),
+          sessionId,
           mode: "barcode",
           status: "review",
           title: result.candidate.name,
@@ -452,8 +467,14 @@ router.post("/v1/capture/analyze", async (req, res) => {
       return;
     }
     const result = await analyzeFoodPhoto(body.imageBase64);
+    const sessionId = randomUUID();
+    await db.insert(referralQualificationsTable).values({
+      externalUserId: auth.id,
+      captureSessionId: sessionId,
+      expiresAt: new Date(Date.now() + QUALIFICATION_TTL_MS),
+    }).onConflictDoNothing();
     res.json({
-      sessionId: body.clientSessionId || randomUUID(),
+      sessionId,
       mode: "food",
       status: result.candidates.length ? "review" : "unavailable",
       title: result.title,
@@ -474,6 +495,33 @@ router.post("/v1/capture/analyze", async (req, res) => {
   } catch (error) {
     res.status(502).json({ message: error instanceof Error ? error.message : "Capture provider unavailable" });
   }
+});
+
+/**
+ * Commits a previously-issued capture proof after the user accepts its review.
+ * The proof is bound to the JWT identity, expires quickly, and is one-time.
+ */
+router.post("/v1/capture/:sessionId/approve", async (req, res) => {
+  const auth = await verifyBearerToken(req);
+  if (!auth) {
+    res.status(401).json({ message: "Please sign in to confirm a food capture." });
+    return;
+  }
+  const approved = await db
+    .update(referralQualificationsTable)
+    .set({ approvedAt: new Date() })
+    .where(
+      sql`${referralQualificationsTable.captureSessionId} = ${req.params.sessionId}
+        AND ${referralQualificationsTable.externalUserId} = ${auth.id}
+        AND ${referralQualificationsTable.approvedAt} IS NULL
+        AND ${referralQualificationsTable.expiresAt} > now()`,
+    )
+    .returning({ id: referralQualificationsTable.id });
+  if (!approved[0]) {
+    res.status(409).json({ message: "This capture can no longer be confirmed. Capture your food again." });
+    return;
+  }
+  res.status(204).send();
 });
 
 export default router;

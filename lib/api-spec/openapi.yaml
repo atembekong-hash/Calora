@@ -303,6 +303,7 @@ paths:
       operationId: analyzeCapture
       tags: [capture]
       summary: Analyze a barcode or food photo for review
+      security: [{ bearerAuth: [] }]
       description: |
         Accepts either a barcode or a base64-encoded camera image. Barcode
         requests are enriched from public nutrition sources and food photos
@@ -325,6 +326,28 @@ paths:
           description: Invalid capture input
         "502":
           description: Capture provider unavailable
+  /v1/capture/{sessionId}/approve:
+    post:
+      operationId: approveCapture
+      tags: [capture]
+      summary: Confirm a reviewed image or barcode capture
+      description: |
+        Consumes the authenticated user's short-lived, server-issued capture
+        proof. Only confirmed photo or barcode captures can qualify a referral
+        reward; text/manual and demo diary entries cannot.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Capture confirmed
+        "401":
+          description: Not signed in
+        "409":
+          description: Capture expired, already used, or belongs to another account
   /v1/planner/generate:
     post:
       operationId: generatePlanner

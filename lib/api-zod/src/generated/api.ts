@@ -650,6 +650,19 @@ export const AnalyzeCaptureResponse = zod.object({
 
 
 /**
+ * Consumes the authenticated user's short-lived, server-issued capture
+ * proof. Only confirmed photo or barcode captures can qualify a referral
+ * reward; text/manual and demo diary entries cannot.
+ * @summary Confirm a reviewed image or barcode capture
+ */
+export const ApproveCaptureParams = zod.object({
+  "sessionId": zod.coerce.string().uuid()
+})
+
+export const ApproveCaptureResponse = zod.void()
+
+
+/**
  * Uses the user's goals and preferences to select a reviewable weekly
  * meal plan from Calora's nutrition-labeled meal catalog. The client
  * keeps the resulting plan locally for offline use.

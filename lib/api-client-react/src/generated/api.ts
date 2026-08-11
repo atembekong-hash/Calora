@@ -1149,6 +1149,80 @@ export const useAnalyzeCapture = <TError = ErrorType<void>,
       return useMutation(getAnalyzeCaptureMutationOptions(options));
     }
 
+export const getApproveCaptureUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/v1/capture/${sessionId}/approve`
+}
+
+/**
+ * Consumes the authenticated user's short-lived, server-issued capture
+ * proof. Only confirmed photo or barcode captures can qualify a referral
+ * reward; text/manual and demo diary entries cannot.
+ * @summary Confirm a reviewed image or barcode capture
+ */
+export const approveCapture = async (sessionId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getApproveCaptureUrl(sessionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveCaptureMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCapture>>, TError,{sessionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveCapture>>, TError,{sessionId: string}, TContext> => {
+
+const mutationKey = ['approveCapture'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveCapture>>, {sessionId: string}> = (props) => {
+          const {sessionId} = props ?? {};
+
+          return  approveCapture(sessionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveCaptureMutationResult = NonNullable<Awaited<ReturnType<typeof approveCapture>>>
+
+    export type ApproveCaptureMutationError = ErrorType<void>
+
+    /**
+ * @summary Confirm a reviewed image or barcode capture
+ */
+export const useApproveCapture = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCapture>>, TError,{sessionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveCapture>>,
+        TError,
+        {sessionId: string},
+        TContext
+      > => {
+      return useMutation(getApproveCaptureMutationOptions(options));
+    }
+
 export const getGeneratePlannerUrl = () => {
 
 
