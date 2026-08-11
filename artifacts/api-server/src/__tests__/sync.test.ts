@@ -202,8 +202,8 @@ describe('POST /v1/sync', () => {
     expect(res.status).toBe(200);
     expect(res.body.accepted).toContain(MUTATION_ID);
     expect(res.body.conflicts).toHaveLength(0);
-    // One INSERT ... ON CONFLICT DO UPDATE was sent to the DB.
-    expect(executeCalls).toHaveLength(1);
+    // One INSERT ... ON CONFLICT DO UPDATE + one sync_mutations insert.
+    expect(executeCalls).toHaveLength(2);
   });
 
   it('accepts the same upsert mutationId twice (idempotent)', async () => {
@@ -214,8 +214,9 @@ describe('POST /v1/sync', () => {
 
     expect(r1.body.accepted).toContain(MUTATION_ID);
     expect(r2.body.accepted).toContain(MUTATION_ID);
-    // Two separate requests each wrote once (server-side upsert handles dedup).
-    expect(executeCalls).toHaveLength(2);
+    // Two requests × (diary upsert + sync_mutations insert) = 4 execute calls.
+    // The second sync_mutations insert is a no-op (ON CONFLICT DO NOTHING).
+    expect(executeCalls).toHaveLength(4);
   });
 
   it('accepts an edited entry (same clientId, updated name)', async () => {
@@ -227,7 +228,8 @@ describe('POST /v1/sync', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.accepted).toContain(mid);
-    expect(executeCalls).toHaveLength(1);
+    // diary upsert + sync_mutations insert.
+    expect(executeCalls).toHaveLength(2);
   });
 
   it('rejects an upsert with an invalid meal value', async () => {
@@ -267,8 +269,8 @@ describe('POST /v1/sync', () => {
     expect(res.status).toBe(200);
     expect(res.body.accepted).toContain(del.mutationId);
     expect(res.body.conflicts).toHaveLength(0);
-    // One DELETE was sent to the DB.
-    expect(executeCalls).toHaveLength(1);
+    // One DELETE + one sync_mutations insert.
+    expect(executeCalls).toHaveLength(2);
   });
 
   it('rejects a delete mutation with a missing clientId', async () => {
@@ -363,7 +365,7 @@ describe('POST /v1/sync', () => {
     const conflictReasons = res.body.conflicts.map((c: { reason: string }) => c.reason);
     expect(conflictReasons).toContain('unsupported_entity');
     expect(conflictReasons).toContain('unsupported_operation');
-    // Two DB writes: one upsert + one delete.
-    expect(executeCalls).toHaveLength(2);
+    // Two accepted mutations × (data write + sync_mutations insert) = 4 execute calls.
+    expect(executeCalls).toHaveLength(4);
   });
 });

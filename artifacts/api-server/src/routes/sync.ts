@@ -198,6 +198,16 @@ function parseRequest(
   return { ok: true, deviceId: b.deviceId as string, mutations };
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** True when s is a canonical UUID — required for the sync_mutations PK. */
+function isUuid(s: string): boolean {
+  return UUID_RE.test(s);
+}
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 router.post("/v1/sync", async (req, res) => {
@@ -282,6 +292,22 @@ router.post("/v1/sync", async (req, res) => {
               updated_at        = now()
           `);
 
+          // Record the accepted mutation for cross-session deduplication.
+          // ON CONFLICT DO NOTHING means a second sync of the same mutationId
+          // (after an app restart) never creates a duplicate log entry.
+          if (isUuid(mutation.mutationId)) {
+            await db.execute(sql`
+              INSERT INTO calora_sync_mutations
+                (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
+              VALUES
+                (${mutation.mutationId}::uuid, ${userId}::uuid,
+                 ${mutation.entity}, ${mutation.operation},
+                 ${JSON.stringify(mutation.payload)}::jsonb,
+                 ${mutation.clientUpdatedAt}::timestamptz, now())
+              ON CONFLICT (mutation_id) DO NOTHING
+            `);
+          }
+
           accepted.push(mutation.mutationId);
         } else if (mutation.operation === "delete") {
           const clientId = mutation.payload.clientId;
@@ -300,6 +326,20 @@ router.post("/v1/sync", async (req, res) => {
             WHERE user_id = ${userId}::uuid
               AND client_id = ${clientId}
           `);
+
+          // Record the delete mutation for auditability across sessions.
+          if (isUuid(mutation.mutationId)) {
+            await db.execute(sql`
+              INSERT INTO calora_sync_mutations
+                (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
+              VALUES
+                (${mutation.mutationId}::uuid, ${userId}::uuid,
+                 ${mutation.entity}, ${mutation.operation},
+                 ${JSON.stringify(mutation.payload)}::jsonb,
+                 ${mutation.clientUpdatedAt}::timestamptz, now())
+              ON CONFLICT (mutation_id) DO NOTHING
+            `);
+          }
 
           accepted.push(mutation.mutationId);
         } else {
