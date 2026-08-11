@@ -19,7 +19,7 @@
 import { Router, type IRouter } from "express";
 import { randomBytes } from "node:crypto";
 import { and, count, eq, gte, isNotNull, sql } from "drizzle-orm";
-import { db, referralCodesTable, referralRedemptionsTable } from "@workspace/db";
+import { db, diaryEntriesTable, referralCodesTable, referralRedemptionsTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { grantPromoDays } from "../lib/revenuecat.js";
 
@@ -230,6 +230,37 @@ router.post("/v1/referral/activate", async (req, res) => {
     }
 
     const redemption = rows[0];
+
+    // Qualification is server-authoritative. A client may request activation
+    // as often as it likes, but no reward can be claimed until at least one
+    // validated diary entry has been persisted for this Supabase identity.
+    const dataUsers = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.externalId, user.id))
+      .limit(1);
+    if (!dataUsers[0]) {
+      res.status(409).json({
+        status: "pending",
+        referredRewarded: false,
+        referrerRewarded: false,
+        message: "Log a meal while signed in to unlock your invite reward.",
+      });
+      return;
+    }
+    const qualifyingEntries = await db
+      .select({ value: count() })
+      .from(diaryEntriesTable)
+      .where(eq(diaryEntriesTable.userId, dataUsers[0].id));
+    if ((qualifyingEntries[0]?.value ?? 0) < 1) {
+      res.status(409).json({
+        status: "pending",
+        referredRewarded: false,
+        referrerRewarded: false,
+        message: "Log a meal while signed in to unlock your invite reward.",
+      });
+      return;
+    }
 
     // ── Referred user's reward — claim-first idempotency ─────────────────
     // The atomic UPDATE ... WHERE referred_rewarded_at IS NULL is the claim:

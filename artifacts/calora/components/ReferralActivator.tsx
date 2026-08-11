@@ -15,6 +15,7 @@ import { activateReferral, redeemReferral } from '@workspace/api-client-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCalora } from '@/context/CaloraContext';
 import { useSubscription } from '@/lib/revenuecat';
+import { syncFirstDiaryLog } from '@/lib/diarySync';
 import {
   clearPendingInviteCode,
   getPendingInviteCode,
@@ -29,8 +30,6 @@ export function ReferralActivator() {
 
   const redeemAttemptedRef = useRef<string | null>(null);
   const activateInFlightRef = useRef(false);
-
-  const hasLogs = logs.length > 0;
 
   // Auto-redeem a deep-linked invite code once per signed-in user.
   useEffect(() => {
@@ -54,14 +53,18 @@ export function ReferralActivator() {
     })();
   }, [user]);
 
-  // Activate rewards after the first approved food log.
+  // Persist a confirmed log first, then ask the server to activate. The
+  // endpoint independently verifies a diary record owned by this JWT user;
+  // `logs` only tells us there is something worth attempting to sync.
   useEffect(() => {
-    if (!user || !hasLogs || activateInFlightRef.current) return;
+    if (!user || logs.length === 0 || activateInFlightRef.current) return;
 
     (async () => {
       if (await isReferralActivationSettled(user.id)) return;
       activateInFlightRef.current = true;
       try {
+        const hasServerEntry = await syncFirstDiaryLog(logs);
+        if (!hasServerEntry) return;
         const result = await activateReferral();
         if (result.status === 'none' || result.status === 'rewarded') {
           await markReferralActivationSettled(user.id);
@@ -76,7 +79,7 @@ export function ReferralActivator() {
         activateInFlightRef.current = false;
       }
     })();
-  }, [user, hasLogs, refreshCustomerInfo]);
+  }, [user, logs, refreshCustomerInfo]);
 
   return null;
 }
