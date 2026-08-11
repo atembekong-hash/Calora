@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.etiendem.caloraapp"
     },
     "android": {
-      "package": "com.etiendem.caloraapp"
+      "package": "com.etiendem.caloraapp",
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/images/icon.png"
