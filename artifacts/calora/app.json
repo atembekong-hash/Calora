@@ -15,10 +15,25 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.etiendem.caloraapp"
+      "bundleIdentifier": "com.etiendem.caloraapp",
+      "associatedDomains": ["applinks:mycaloraapp.com"]
     },
     "android": {
-      "package": "com.etiendem.caloraapp"
+      "package": "com.etiendem.caloraapp",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "mycaloraapp.com",
+              "pathPrefix": "/invite"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
