@@ -1,61 +1,63 @@
 /**
- * Server-observable referral qualification.
+ * Referral qualification signals.
  *
- * ── Qualification signal ────────────────────────────────────────────────────
- * A referral redemption is qualified when the referee has completed the
- * verified first-log flow:
- *   1. POST /v1/capture/analyze  — server records the session (ai_capture_sessions)
- *   2. POST /v1/diary/first-log  — atomically claims that session (reviewed_at stamped)
+ * ── Trust levels ─────────────────────────────────────────────────────────────
+ * Two paths can qualify a referral redemption.  They have different trust levels
+ * and the distinction must be kept explicit.
  *
- * The reviewed_at stamp is only written once, inside a transaction, after
- * server-side nutrition consistency checks pass.  A session that was analysed
- * but never logged does NOT qualify, preventing pre-generated session farming.
+ *   Path 1 — SERVER-VERIFIED (capture-analysis first-log):
+ *     1. POST /v1/capture/analyze  — server records the AI session
+ *     2. POST /v1/diary/first-log  — server atomically claims the session
+ *        (reviewed_at stamped inside a transaction after nutrition checks).
+ *   The server independently observed and analysed the user's food input before
+ *   writing any qualifying record.  A session that was analysed but never logged
+ *   via first-log does NOT qualify.
  *
- * A bare POST /v1/diary (no verified capture session) does NOT qualify.
- * Diary entries written via POST /v1/sync are synced for continuity but are
- * NOT a qualification signal (see hasSyncedDiaryEntry below for a future path).
+ *   Path 2 — AUTHENTICATED-ONLY (outbox sync, POLICY DECISION):
+ *     POST /v1/sync with at least one diaryEntry upsert mutation causes the
+ *     server to write a diary row with a non-NULL client_id.  The server does
+ *     not independently verify the nutritional content; it trusts the
+ *     authenticated client's payload.  This is intentionally weaker than Path 1
+ *     and is a product policy choice, not a server-side verification.
  *
- * ── Anti-farming measures ────────────────────────────────────────────────────
- * Text-mode capture (a one-line food description) is the cheapest signal to
- * script, so the following controls raise the cost of abuse:
+ *   Consequence: an authenticated user who scripts one valid /v1/sync request
+ *   CAN qualify a redemption.  The controls below bound—but do not eliminate—
+ *   the farming risk.  Any tightening (e.g. requiring image/barcode provenance
+ *   or rate-limiting the sync endpoint itself) must be implemented before the
+ *   cap or these mitigations become the binding constraint.
  *
- *  a) Rate limiting — POST /v1/capture/analyze enforces a per-user/IP sliding
- *     window of 30 requests per hour.  Legitimate users logging 3–4 meals with
- *     multiple items will never approach this limit; a farming script hitting
- *     the endpoint repeatedly receives HTTP 429 with a Retry-After header.
- *     The limit is applied before any AI inference, protecting AI spend too.
+ *   A bare POST /v1/diary (no client_id) never qualifies under either path.
  *
- *  b) Cap on referrer rewards — the referral table allows at most 4 confirmed
- *     rewards per referrer per month, bounding total damage even if one user
- *     farms with multiple referee accounts.
+ * ── Anti-farming mitigations ─────────────────────────────────────────────────
+ *  a) Cap on referrer rewards — at most 4 confirmed referred rewards per
+ *     referrer per calendar month.  A farming ring abusing Path 2 can earn its
+ *     controller at most 4 × REWARD_DAYS days of Pro per month.
  *
- *  c) Future: exclude text-mode sessions from qualification once diary sync
- *     (POST /v1/sync) becomes the primary long-term signal.  Image/barcode
- *     modes are materially harder to script at scale.
+ *  b) One redemption per referred account (unique index on referred_user_id).
+ *     Each fresh Supabase account must be registered with a valid email.
  *
- * ── Future qualification via sync ────────────────────────────────────────────
- * hasSyncedDiaryEntry() below is a planned alternate qualification path that
- * would count server-verified sync entries.  It is not wired to the reward
- * grant yet and must not be enabled until the text-mode farming risk is
- * addressed (e.g. via the text exclusion mentioned above).
+ *  c) Future hardening: exclude Manual/text provenance sync entries; require
+ *     image or barcode provenance verified by the capture pipeline; or introduce
+ *     a server-issued sync token that proves a capture session was completed
+ *     before the diary entry was synced.
  */
 
 import { and, eq, isNotNull } from "drizzle-orm";
-import { db, aiCaptureSessionsTable, usersTable } from "@workspace/db";
+import { db, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
 
 /**
- * Returns true when the JWT user has at least one server-verifiable proof of
- * genuine food logging via the capture-analysis first-log flow.
+ * Returns true when the authenticated user has at least one qualifying
+ * food-logging signal — either a server-verified capture session (Path 1) or
+ * an authenticated outbox sync entry (Path 2, policy-level trust only).
  *
- * The lookup goes through calora_users.external_id so the referral table's
- * Supabase user-id key maps to the internal user row.
+ * See the module comment above for the trust-level distinction between the two
+ * paths and the known farming-risk implications of Path 2.
  */
 export async function hasSyncedDiaryEntry(supabaseUserId: string): Promise<boolean> {
-  // reviewed_at is only ever stamped by the first-log route's atomic
-  // session claim after server-side nutrition consistency checks.
-  // A session that was never claimed (analyzed but not logged) does not
-  // qualify, preventing pre-generated sessions from farming rewards.
-  const rows = await db
+  // Path 1: server-verified capture-analysis first-log.
+  // reviewed_at is only ever stamped by the first-log route's atomic session
+  // claim after server-side nutrition consistency checks pass.
+  const captureSessions = await db
     .select({ id: aiCaptureSessionsTable.id })
     .from(aiCaptureSessionsTable)
     .innerJoin(usersTable, eq(aiCaptureSessionsTable.userId, usersTable.id))
@@ -66,5 +68,25 @@ export async function hasSyncedDiaryEntry(supabaseUserId: string): Promise<boole
       ),
     )
     .limit(1);
-  return rows.length > 0;
+  if (captureSessions.length > 0) return true;
+
+  // Path 2: authenticated outbox sync (policy-level qualification only).
+  // client_id is always present in POST /v1/sync diary upserts and is written
+  // to the row.  A bare POST /v1/diary leaves client_id NULL and does NOT
+  // qualify — only the authenticated sync path does.
+  // WARNING: the server does not verify the nutritional content of sync
+  // payloads.  An authenticated client that sends a single valid /v1/sync
+  // upsert qualifies.  See module comment for farming-risk context.
+  const syncedEntries = await db
+    .select({ id: diaryEntriesTable.id })
+    .from(diaryEntriesTable)
+    .innerJoin(usersTable, eq(diaryEntriesTable.userId, usersTable.id))
+    .where(
+      and(
+        eq(usersTable.externalId, supabaseUserId),
+        isNotNull(diaryEntriesTable.clientId),
+      ),
+    )
+    .limit(1);
+  return syncedEntries.length > 0;
 }

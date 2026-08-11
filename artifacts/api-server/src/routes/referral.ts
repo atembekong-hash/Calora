@@ -232,12 +232,13 @@ router.post("/v1/referral/activate", async (req, res) => {
 
     let redemption = rows[0];
 
-    // ── Qualification — server-authoritative ─────────────────────────────
-    // Rewards require a server-observed food log (a diary entry persisted
-    // through the authenticated capture → first-log flow). A bare client
-    // claim never qualifies. The stamp is an atomic UPDATE so concurrent
-    // activations qualify the redemption exactly once; a loser re-reads the
-    // fresh row and works from the winner's state.
+    // ── Qualification check ───────────────────────────────────────────────
+    // Two paths qualify: (1) server-verified capture-session first-log, or
+    // (2) authenticated outbox sync (policy-level trust — see referral-
+    // qualification.ts for the farming-risk tradeoffs of Path 2).
+    // A bare POST /v1/diary with no client_id never qualifies under either path.
+    // The stamp is an atomic UPDATE so concurrent activations qualify exactly
+    // once; a loser re-reads the fresh row and works from the winner's state.
     if (redemption.qualifiedAt === null) {
       const qualified = await hasSyncedDiaryEntry(user.id);
       if (!qualified) {
