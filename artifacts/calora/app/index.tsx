@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect } from 'expo-router';
 import { useCalora, ActivityLevel, DietPreference, Goal, Profile } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
+import { formatWhole } from '@/lib/formatters';
 import { handleParseErrorExport } from '@/lib/parseErrorExportHandler';
 import { deriveErrorScreenActions } from '@/lib/errorScreenActions';
 
@@ -206,7 +207,7 @@ export default function OnboardingScreen() {
               <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>What should we call you?</Text><TextInput value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
               {[['Age', age, setAge], ['Height (cm)', height, setHeight], ['Current weight (kg)', weight, setWeight], ['Goal weight (kg)', targetWeight, setTargetWeight]].map(([label, value, setter]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput value={value as string} onChangeText={setter as (value: string) => void} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}
             </View>
-            <View style={[styles.targetPreview, { backgroundColor: colors.accent }]}><Feather name="target" size={18} color={colors.accentForeground} /><Text style={[styles.targetText, { color: colors.accentForeground }]}>Starting target: <Text style={styles.targetBold}>{calorieTarget.toLocaleString()} kcal/day</Text></Text></View>
+             <View style={[styles.targetPreview, { backgroundColor: colors.accent }]}><Feather name="target" size={18} color={colors.accentForeground} /><Text style={[styles.targetText, { color: colors.accentForeground }]}>Starting target: <Text style={styles.targetBold}>{formatWhole(calorieTarget)} kcal/day</Text></Text></View>
           </View>
         )}
 
@@ -238,7 +239,7 @@ export default function OnboardingScreen() {
             </Pressable>
             <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.summaryEyebrow, { color: colors.mutedForeground }]}>YOUR STARTING POINT</Text>
-              <Text style={[styles.summaryCalories, { color: colors.foreground }]}>{calorieTarget.toLocaleString()} <Text style={[styles.summaryUnit, { color: colors.mutedForeground }]}>kcal/day</Text></Text>
+              <Text style={[styles.summaryCalories, { color: colors.foreground }]}>{formatWhole(calorieTarget)} <Text style={[styles.summaryUnit, { color: colors.mutedForeground }]}>kcal/day</Text></Text>
               <Text style={[styles.summaryBody, { color: colors.mutedForeground }]}>{goal === 'lose' ? 'A gentle deficit' : goal === 'gain' ? 'A supportive surplus' : 'A steady maintenance target'} · {diet}</Text>
             </View>
           </View>

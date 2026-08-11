@@ -12,7 +12,7 @@ import { getRecipe, useGetRecipe, useListRecipes, type Recipe } from '@workspace
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
-import { formatCalories, formatGrams, formatWhole } from '@/lib/formatters';
+import { formatCalories, formatGrams, formatQuantity, formatWhole } from '@/lib/formatters';
 import { AppHeader } from '@/components/AppChrome';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
@@ -136,7 +136,7 @@ function scaleIngredient(ingredient: string, multiplier: number): string {
   const formatted =
     scaled === 0.25 ? '¼' : scaled === 0.5 ? '½' : scaled === 0.75 ? '¾' :
     scaled === 1.25 ? '1¼' : scaled === 1.5 ? '1½' : scaled === 1.75 ? '1¾' :
-    Number.isInteger(scaled) ? String(scaled) : scaled.toFixed(1);
+    Number.isInteger(scaled) ? String(scaled) : formatQuantity(scaled, 1);
   return ingredient.replace(match[0], `${formatted} `).trimEnd();
 }
 

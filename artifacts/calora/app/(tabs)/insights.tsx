@@ -10,6 +10,7 @@ import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Stop } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
+import { formatGrams, formatWhole } from '@/lib/formatters';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { router } from 'expo-router';
@@ -1343,7 +1344,7 @@ export default function InsightsScreen() {
           <PulseIcon colors={colors} />
           <Text style={[styles.cardEyebrow, { color: colors.heroMuted }]}>ADAPTIVE TARGET</Text>
           <Text style={[styles.adaptiveTitle, { color: colors.onHero }]}>Your target is working with you.</Text>
-            <Text style={[styles.adaptiveBody, { color: colors.heroMuted }]}>{averageWeekCalories ? `You’re averaging ${averageWeekCalories.toLocaleString()} kcal across ${signalDays} tracked ${signalDays === 1 ? 'day' : 'days'} this week.` : 'Keep logging to reveal a more personal weekly recommendation.'}</Text>
+             <Text style={[styles.adaptiveBody, { color: colors.heroMuted }]}>{averageWeekCalories ? `You’re averaging ${formatWhole(averageWeekCalories)} kcal across ${signalDays} tracked ${signalDays === 1 ? 'day' : 'days'} this week.` : 'Keep logging to reveal a more personal weekly recommendation.'}</Text>
           <View style={styles.adaptiveFooter}>
             <Text style={[styles.adaptiveFooterText, { color: colors.onHero }]}>{signalDays} / 7 days of signal</Text>
              <AnimatedTrackFill percentage={(signalDays / 7) * 100} color={colors.primary} trackColor="rgba(157,215,189,0.18)" />
@@ -1396,7 +1397,7 @@ export default function InsightsScreen() {
         <View style={styles.sectionHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This week</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Calories against your {target.toLocaleString()} kcal target</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Calories against your {formatWhole(target)} kcal target</Text>
           </View>
           <Pressable accessibilityLabel="Change insights range" style={[styles.rangeButton, { backgroundColor: colors.muted }]}>
             <Text style={[styles.rangeText, { color: colors.foreground }]}>7D</Text>
@@ -1408,7 +1409,7 @@ export default function InsightsScreen() {
           <View style={styles.chart}>
             {weekDays.map((item, index) => (
               <View key={item.date} style={styles.barColumn}>
-                <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.hasData && item.kcal ? item.kcal.toLocaleString() : '—'}</Text>
+                <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.hasData && item.kcal ? formatWhole(item.kcal) : '—'}</Text>
                 <View style={[styles.barTrack, { backgroundColor: colors.muted }]}>
                   <AnimatedBar value={item.value} color={index === weekDays.length - 1 ? colors.primary : colors.success} delay={index * 65} />
                 </View>
@@ -1418,7 +1419,7 @@ export default function InsightsScreen() {
           </View>
           <View style={[styles.chartLegend, { borderTopColor: colors.border }]}>
             <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>on target</Text></View>
-            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{averageWeekCalories ? `Avg. ${averageWeekCalories.toLocaleString()} kcal` : 'No calorie average yet'}</Text>
+            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{averageWeekCalories ? `Avg. ${formatWhole(averageWeekCalories)} kcal` : 'No calorie average yet'}</Text>
           </View>
         </View>
         </AnimatedReveal>
@@ -1436,9 +1437,9 @@ export default function InsightsScreen() {
         <AnimatedReveal delay={420}>
         <View style={[styles.nutrientCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {[
-            { label: 'Fiber', value: `${Math.round(nutrientTotals.fiber)} g`, target: '25 g', color: colors.success },
-            { label: 'Sugar', value: `${Math.round(nutrientTotals.sugar)} g`, target: 'added + natural', color: colors.warning },
-            { label: 'Sodium', value: `${Math.round(nutrientTotals.sodium)} mg`, target: '2,300 mg guide', color: colors.primary },
+            { label: 'Fiber', value: formatGrams(nutrientTotals.fiber), target: '25 g', color: colors.success },
+            { label: 'Sugar', value: formatGrams(nutrientTotals.sugar), target: 'added + natural', color: colors.warning },
+            { label: 'Sodium', value: `${formatWhole(nutrientTotals.sodium)} mg`, target: '2,300 mg guide', color: colors.primary },
           ].map((item) => <View key={item.label} style={styles.nutrientRow}><View style={[styles.nutrientDot, { backgroundColor: item.color }]} /><Text style={[styles.nutrientLabel, { color: colors.foreground }]}>{item.label}</Text><Text style={[styles.nutrientValue, { color: colors.foreground }]}>{item.value}</Text><Text style={[styles.nutrientTarget, { color: colors.mutedForeground }]}>{item.target}</Text></View>)}
           <Text style={[styles.nutrientNote, { color: colors.mutedForeground }]}>Micronutrients appear as verified foods are added; photo and manual entries remain estimates until reviewed.</Text>
         </View>

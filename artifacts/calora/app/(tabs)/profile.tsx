@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleS
 import Constants from 'expo-constants';
 import { BRAND, EMAILS, URLS } from '@/lib/brand';
 import { formatQuantity } from '@/lib/formatters';
+import { formatGrams, formatWhole } from '@/lib/formatters';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { type DietPreference, type Goal, SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
@@ -341,7 +342,7 @@ export default function ProfileScreen() {
             <Text style={[styles.profileName, { color: colors.onHero }]}>{profile?.name ?? 'Your profile'}</Text>
             <Text style={[styles.profileSub, { color: colors.heroMuted }]}>
               {profile
-                ? `${profile.calorieTarget.toLocaleString()} kcal · ${profile.diet}${displayWeight ? ` · ${displayWeight}` : ''}`
+                ? `${formatWhole(profile.calorieTarget)} kcal · ${profile.diet}${displayWeight ? ` · ${displayWeight}` : ''}`
                 : `Finish onboarding to personalize ${BRAND.name}`}
             </Text>
           </View>
@@ -658,7 +659,7 @@ export default function ProfileScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.settingTitle, { color: colors.foreground }]}>{meal.name}</Text>
-                    <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.protein}g protein · {meal.kind}</Text>
+                    <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{formatWhole(meal.calories)} kcal · {formatGrams(meal.protein)} protein · {meal.kind}</Text>
                   </View>
                   <Pressable
                     accessibilityLabel={`Delete ${meal.name}`}

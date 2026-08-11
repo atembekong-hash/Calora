@@ -28,7 +28,7 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { PlannerPeek } from '@/components/PlannerPeek';
 import { trustScore } from '@/lib/weeklySignals';
-import { formatWhole } from '@/lib/formatters';
+import { formatGrams, formatWhole } from '@/lib/formatters';
 import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
 import {
   clearWaterConfirmation,
@@ -568,7 +568,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
           {savedMeals.length > 0 && <View>
             <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 2 }]}>SAVED MEALS & RECIPES</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedMealRow}>
-              {savedMeals.map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add saved ${meal.name}`} onPress={() => chooseSavedMeal(meal)} scale={0.98} haptic="none" style={[styles.savedMealChip, { backgroundColor: colors.accent, borderColor: colors.border }]}><Feather name={meal.kind === 'recipe' ? 'book-open' : 'bookmark'} size={13} color={colors.accentForeground} /><View><Text style={[styles.savedMealName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.savedMealMeta, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.kind}</Text></View></ScalePressable>)}
+              {savedMeals.map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add saved ${meal.name}`} onPress={() => chooseSavedMeal(meal)} scale={0.98} haptic="none" style={[styles.savedMealChip, { backgroundColor: colors.accent, borderColor: colors.border }]}><Feather name={meal.kind === 'recipe' ? 'book-open' : 'bookmark'} size={13} color={colors.accentForeground} /><View><Text style={[styles.savedMealName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.savedMealMeta, { color: colors.mutedForeground }]}>{formatWhole(meal.calories)} kcal · {meal.kind}</Text></View></ScalePressable>)}
             </ScrollView>
           </View>}
           <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input }]}>
@@ -584,7 +584,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.foodName, { color: colors.foreground }]}>{food.name}</Text>
-                  <Text style={[styles.foodMeta, { color: colors.mutedForeground }]}>{food.calories} kcal · {food.protein}g protein · {food.confidence}% confidence</Text>
+                  <Text style={[styles.foodMeta, { color: colors.mutedForeground }]}>{formatWhole(food.calories)} kcal · {formatGrams(food.protein)} protein · {food.confidence}% confidence</Text>
                 </View>
                 <Feather name="plus" size={18} color={colors.primary} />
               </ScalePressable>
