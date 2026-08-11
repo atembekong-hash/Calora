@@ -17,6 +17,7 @@ import { PLAN_TYPES, findPlanType, type PlanTypeId } from '@/lib/planType';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { AppHeader } from '@/components/AppChrome';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 
@@ -580,7 +581,25 @@ export default function PlannerScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 106 }]} showsVerticalScrollIndicator={false}>
+      <AppHeader
+        title="Planner"
+        action={
+          <Pressable
+            accessibilityLabel="Open shopping list"
+            onPress={() => setShoppingVisible(true)}
+            hitSlop={8}
+            style={[styles.headerShoppingButton, { backgroundColor: colors.muted }]}
+          >
+            <Feather name="shopping-bag" size={17} color={colors.foreground} />
+            {uncheckedShopping > 0 && (
+              <View style={[styles.shoppingCount, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.shoppingCountText, { color: colors.primaryForeground }]}>{uncheckedShopping}</Text>
+              </View>
+            )}
+          </Pressable>
+        }
+      />
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 14, paddingBottom: insets.bottom + 106 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.heroHeader}>
           <Image source={require('../../assets/images/calora-plan-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
           <LinearGradient
@@ -591,7 +610,7 @@ export default function PlannerScreen() {
           <View style={styles.heroContent}>
             <Text style={styles.heroEyebrow}>YOUR WEEK, MADE CALM</Text>
             <View style={styles.heroTitleRow}>
-              <Text style={styles.heroTitle}>Weekly planner</Text>
+              <Text style={styles.heroTitle}>Meals that fit real life</Text>
               <ScalePressable
                 accessibilityLabel={`Open ${BRAND.name} Coach`}
                 onPress={() => router.push('/coach')}
@@ -605,7 +624,6 @@ export default function PlannerScreen() {
             </View>
             <Text style={styles.heroSubtitle}>A good plan leaves room for real life.</Text>
           </View>
-          <Pressable accessibilityLabel="Open shopping list" onPress={() => setShoppingVisible(true)} style={styles.heroShoppingButton}><Feather name="shopping-bag" size={18} color="#ffffff" />{uncheckedShopping > 0 && <View style={[styles.shoppingCount, { backgroundColor: colors.primary }]}><Text style={[styles.shoppingCountText, { color: colors.primaryForeground }]}>{uncheckedShopping}</Text></View>}</Pressable>
         </View>
         <View style={[styles.nextStepCard, { backgroundColor: colors.muted }]}>
           <View style={[styles.nextStepAccent, { backgroundColor: colors.primary }]} />
@@ -1067,7 +1085,6 @@ function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
   content: { paddingHorizontal: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 },
   heroHeader: { minHeight: 180, borderRadius: 22, overflow: 'hidden', marginBottom: 14, backgroundColor: '#141a15', position: 'relative' },
   heroContent: { minHeight: 180, padding: 20, justifyContent: 'flex-end' },
   heroEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, letterSpacing: 1.6, marginBottom: 6 },
@@ -1076,7 +1093,7 @@ function makeStyles(f: number) {
   coachHeaderButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, paddingHorizontal: 11, paddingVertical: 9, borderWidth: 1, shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   coachHeaderButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.1 },
   heroSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17, marginTop: 7, maxWidth: 250 },
-  heroShoppingButton: { position: 'absolute', top: 16, right: 16, width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(20,26,21,0.52)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)' },
+  headerShoppingButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.3, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 28 * f, letterSpacing: -0.8 },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18, marginTop: 6 },
