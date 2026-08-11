@@ -66,6 +66,11 @@ export type FoodSource = 'USDA verified' | 'Brand verified' | 'Barcode verified'
 
 export type FoodLog = {
   id: string;
+  /**
+   * Server-issued capture session id (UUID) inherited from a capture-backed
+   * draft. Only logs carrying this can anchor the referral first-log sync.
+   */
+  captureSessionId?: string;
   name: string;
   date: string;
   meal: MealType;

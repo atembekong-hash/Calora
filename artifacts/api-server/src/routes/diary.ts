@@ -4,13 +4,32 @@
  * Local-first clients use this route to durably record confirmed entries. The
  * referral service relies on these server-owned records — never on a client
  * claim — when deciding whether a new account has qualified for its reward.
+ *
+ * POST /v1/diary/first-log additionally records the referred user's first
+ * approved food log. To prevent fabricated payloads from creating that
+ * record with a single request, a first-log sync must reference a
+ * server-issued capture session:
+ *
+ *   1. The authenticated user runs a real capture analysis; the server
+ *      persists the session + its candidates (see routes/capture.ts).
+ *   2. The synced entry must cite that session id, belong to the same user,
+ *      be recent, unused, and be nutritionally consistent with what the
+ *      server itself analyzed.
+ *
+ * Idempotent: once any diary entry exists for the user, repeat calls report
+ * the existing state and write nothing.
  */
 import { Router, type IRouter } from "express";
-import { and, desc, eq } from "drizzle-orm";
-import { db, diaryEntriesTable, usersTable } from "@workspace/db";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { SyncFirstDiaryEntryBody } from "@workspace/api-zod";
+import { db, aiCaptureCandidatesTable, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
+import { ensureUserRow } from "../lib/user-rows.js";
 
 const router: IRouter = Router();
+
+/** A session older than this can no longer anchor a first-log sync. */
+const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const MEALS = new Set(["Breakfast", "Lunch", "Dinner", "Snack"]);
 const PROVENANCE = new Set([
@@ -133,7 +152,7 @@ router.get("/v1/diary", async (req, res) => {
   if (!auth) return res.status(401).json({ message: "Please sign in to view your diary." });
   const date = typeof req.query.date === "string" ? req.query.date : "";
   if (!isDate(date)) return res.status(400).json({ message: "A valid date is required." });
-  const user = await ensureDataUser(auth.id, auth.email);
+    const user = await verifyBearerToken(req);
   const rows = await db.select().from(diaryEntriesTable).where(and(eq(diaryEntriesTable.userId, user.id), eq(diaryEntriesTable.entryDate, date))).orderBy(desc(diaryEntriesTable.createdAt));
   return res.json({ date, entries: rows.map(serialize) });
 });
@@ -141,9 +160,9 @@ router.get("/v1/diary", async (req, res) => {
 router.post("/v1/diary", async (req, res) => {
   const auth = await verifyBearerToken(req);
   if (!auth) return res.status(401).json({ message: "Please sign in to save a diary entry." });
-  const parsed = parseInput(req.body ?? {});
+    const parsed = SyncFirstDiaryEntryBody.safeParse(req.body);
   if (!parsed.ok) return res.status(400).json({ message: parsed.message });
-  const user = await ensureDataUser(auth.id, auth.email);
+    const user = await verifyBearerToken(req);
   const [created] = await db.insert(diaryEntriesTable).values({
     ...parsed.value,
     userId: user.id,
@@ -155,9 +174,118 @@ router.post("/v1/diary", async (req, res) => {
 router.delete("/v1/diary/:entryId", async (req, res) => {
   const auth = await verifyBearerToken(req);
   if (!auth) return res.status(401).json({ message: "Please sign in to delete a diary entry." });
-  const user = await ensureDataUser(auth.id, auth.email);
+    const user = await verifyBearerToken(req);
   await db.delete(diaryEntriesTable).where(and(eq(diaryEntriesTable.id, req.params.entryId), eq(diaryEntriesTable.userId, user.id)));
   return res.status(204).send();
+});
+
+// ── POST /v1/diary/first-log ────────────────────────────────────────────────
+router.post("/v1/diary/first-log", async (req, res) => {
+  try {
+    const user = await verifyBearerToken(req);
+    if (!user) {
+      res.status(401).json({ message: "Please sign in first." });
+      return;
+    }
+
+    const parsed = SyncFirstDiaryEntryBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid diary entry" });
+      return;
+    }
+    const entry = parsed.data;
+
+    const userId = await ensureUserRow(user.id, user.email);
+
+    const existing = await db
+      .select({ id: diaryEntriesTable.id })
+      .from(diaryEntriesTable)
+      .where(eq(diaryEntriesTable.userId, userId))
+      .limit(1);
+    if (existing.length > 0) {
+      res.json({ synced: true, alreadyExisted: true });
+      return;
+    }
+
+    // ── Server-verified provenance ─────────────────────────────────────
+    // The cited capture session must exist, belong to this user, be
+    // recent, and not have anchored a sync before.
+    const sessions = await db
+      .select()
+      .from(aiCaptureSessionsTable)
+      .where(
+        and(
+          eq(aiCaptureSessionsTable.id, entry.captureSessionId),
+          eq(aiCaptureSessionsTable.userId, userId),
+        ),
+      )
+      .limit(1);
+    const session = sessions[0];
+    if (!session || session.reviewedAt !== null || Date.now() - session.createdAt.getTime() > SESSION_MAX_AGE_MS) {
+      res.status(422).json({ message: "This entry doesn't match a recent food scan. Log a meal with capture first." });
+      return;
+    }
+
+    // The submitted nutrition must be consistent with what the server
+    // analyzed (portion edits allowed within a generous band).
+    const candidates = await db
+      .select({ calories: aiCaptureCandidatesTable.calories })
+      .from(aiCaptureCandidatesTable)
+      .where(eq(aiCaptureCandidatesTable.sessionId, entry.captureSessionId));
+    const analyzedCalories = candidates.reduce((sum, c) => sum + Number(c.calories), 0);
+    const withinBand =
+      analyzedCalories > 0 &&
+      entry.calories >= analyzedCalories * 0.25 &&
+      entry.calories <= analyzedCalories * 2.5 + 100;
+    if (!withinBand) {
+      res.status(422).json({ message: "This entry doesn't match the scanned meal's nutrition." });
+      return;
+    }
+
+    // Claim the session (single use) and write the entry atomically — a
+    // failed insert must not consume the user's only qualifying session.
+    const claimed = await db.transaction(async (tx) => {
+      const rows = await tx
+        .update(aiCaptureSessionsTable)
+        .set({ reviewedAt: sql`now()` })
+        .where(
+          and(
+            eq(aiCaptureSessionsTable.id, entry.captureSessionId),
+            sql`${aiCaptureSessionsTable.reviewedAt} IS NULL`,
+          ),
+        )
+        .returning({ id: aiCaptureSessionsTable.id });
+      if (rows.length === 0) return false;
+
+      const values: typeof diaryEntriesTable.$inferInsert = {
+        userId,
+        entryDate: entry.entryDate.toISOString().slice(0, 10),
+        meal: entry.meal,
+        name: entry.name,
+        serving: entry.serving,
+        calories: String(entry.calories),
+        proteinG: String(entry.proteinG),
+        carbsG: String(entry.carbsG),
+        fatG: String(entry.fatG),
+        provenance: entry.provenance,
+        confidence: entry.confidence,
+        notes: entry.notes,
+        clientUpdatedAt: entry.clientUpdatedAt,
+      };
+      await tx.insert(diaryEntriesTable).values(values);
+      return true;
+    });
+
+    if (!claimed) {
+      res.status(422).json({ message: "This food scan was already used." });
+      return;
+    }
+
+    res.json({ synced: true, alreadyExisted: false });
+  } catch (err) {
+    console.error("[diary] first-log sync failed:", err);
+    res.status(503).json({ message: "Diary sync is unavailable right now. Please try again later." });
+  }
 });
 
 export default router;

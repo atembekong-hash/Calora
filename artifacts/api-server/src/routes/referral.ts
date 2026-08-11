@@ -22,6 +22,7 @@ import { and, count, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { db, referralCodesTable, referralQualificationsTable, referralRedemptionsTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { grantPromoDays } from "../lib/revenuecat.js";
+import { hasSyncedDiaryEntry } from "../lib/referral-qualification.js";
 
 const router: IRouter = Router();
 
@@ -229,7 +230,21 @@ router.post("/v1/referral/activate", async (req, res) => {
       return;
     }
 
-    const redemption = rows[0];
+    let redemption = rows[0];
+
+    const alreadyRewarded =
+      redemption.referredRewardedAt !== null || redemption.referrerRewardedAt !== null;
+
+      const stamped = await db
+        .update(referralRedemptionsTable)
+        .set({ qualifiedAt: sql`now()`, qualifiedSignal: "diary_sync" })
+        .where(
+          and(
+            eq(referralRedemptionsTable.id, redemption.id),
+            sql`${referralRedemptionsTable.qualifiedAt} IS NULL`,
+          ),
+        )
+        .returning({ id: referralRedemptionsTable.id });
 
     // Qualification is server-authoritative: it requires an authenticated
     // image/barcode capture that the user reviewed and confirmed. A scripted
@@ -361,3 +376,9 @@ router.post("/v1/referral/activate", async (req, res) => {
 });
 
 export default router;
+
+        const fresh = await db
+          .select()
+          .from(referralRedemptionsTable)
+          .where(eq(referralRedemptionsTable.id, redemption.id))
+          .limit(1);

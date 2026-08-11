@@ -1,11 +1,56 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { randomUUID } from "node:crypto";
-import { sql } from "drizzle-orm";
 import { AnalyzeCaptureBody } from "@workspace/api-zod";
+import { db, aiCaptureSessionsTable, aiCaptureCandidatesTable } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { db, referralQualificationsTable } from "@workspace/db";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
+import { ensureUserRow } from "../lib/user-rows.js";
+
+/**
+ * Persists a successful analysis as a server-recorded capture session for
+ * the authenticated caller. The returned server-issued session id is the
+ * only id the diary first-log sync accepts, which anchors referral
+ * qualification in a server-verified event instead of a client claim.
+ *
+ * Anonymous or unverifiable requests persist nothing and fall back to the
+ * client-provided/random session id (analysis still works, it just cannot
+ * qualify a referral).
+ */
+async function persistCaptureSession(
+  req: Request,
+  mode: string,
+  candidates: Array<Pick<CaptureCandidate, "name" | "calories" | "proteinG" | "carbsG" | "fatG" | "confidence" | "serving" | "provenance" | "sourceLabel">>,
+): Promise<string | null> {
+  if (candidates.length === 0) return null;
+  try {
+    const user = await verifyBearerToken(req);
+    if (!user) return null;
+    const userId = await ensureUserRow(user.id, user.email);
+    const sessionId = randomUUID();
+    await db.insert(aiCaptureSessionsTable).values({ id: sessionId, userId, mode, status: "review" });
+    await db.insert(aiCaptureCandidatesTable).values(
+      candidates.map((candidate) => ({
+        sessionId,
+        name: candidate.name,
+        calories: String(candidate.calories),
+        proteinG: String(candidate.proteinG),
+        carbsG: String(candidate.carbsG),
+        fatG: String(candidate.fatG),
+        confidence: candidate.confidence,
+        evidence: {
+          serving: candidate.serving,
+          provenance: candidate.provenance,
+          sourceLabel: candidate.sourceLabel,
+        },
+      })),
+    );
+    return sessionId;
+  } catch (err) {
+    console.error("[capture] failed to persist capture session:", err);
+    return null;
+  }
+}
 
 const router: IRouter = Router();
 const OPEN_FOOD_FACTS_ROOT = "https://world.openfoodfacts.org/api/v2";
@@ -13,7 +58,6 @@ const USDA_ROOT = "https://api.nal.usda.gov/fdc/v1";
 const USDA_KEY = process.env.USDA_FOODDATA_API_KEY ?? "DEMO_KEY";
 const VISION_MODEL = "gpt-5.6-terra";
 const TEXT_MODEL = "gpt-5.4-mini";
-const QUALIFICATION_TTL_MS = 30 * 60 * 1000;
 
 type Nutrition = {
   calories: number;
@@ -297,11 +341,6 @@ async function analyzeFoodPhoto(imageBase64: string) {
 }
 
 router.post("/v1/capture/analyze", async (req, res) => {
-  const auth = await verifyBearerToken(req);
-  if (!auth) {
-    res.status(401).json({ message: "Please sign in to analyze a food capture." });
-    return;
-  }
   const parsed = AnalyzeCaptureBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid capture input" });
@@ -367,10 +406,11 @@ router.post("/v1/capture/analyze", async (req, res) => {
 
   try {
     // Text mode — parse natural-language description with AI.
-    if (body.mode === "text" && body.textInput?.trim()) {
+    if (body.mode === "text" && hasText) {
       const result = await analyzeTextInput(body.textInput!.trim());
+      const serverSessionId = await persistCaptureSession(req, "text", result.candidates);
       res.json({
-        sessionId: body.clientSessionId || randomUUID(),
+        sessionId: serverSessionId || body.clientSessionId || randomUUID(),
         mode: "text",
         status: result.candidates.length ? "review" : "unavailable",
         title: result.title,
@@ -398,8 +438,9 @@ router.post("/v1/capture/analyze", async (req, res) => {
     // Nutrition label mode — extract structured values from a label image.
     if (body.mode === "nutrition_label" && body.imageBase64) {
       const result = await analyzeNutritionLabel(body.imageBase64);
+      const serverSessionId = await persistCaptureSession(req, "nutrition_label", result.candidates);
       res.json({
-        sessionId: body.clientSessionId || randomUUID(),
+        sessionId: serverSessionId || body.clientSessionId || randomUUID(),
         mode: "nutrition_label",
         status: result.candidates.length ? "review" : "unavailable",
         title: result.title,
@@ -427,14 +468,9 @@ router.post("/v1/capture/analyze", async (req, res) => {
     if (hasBarcode && (body.mode === "auto" || body.mode === "barcode")) {
       const result = await lookupBarcode(barcode);
       if (result) {
-        const sessionId = randomUUID();
-        await db.insert(referralQualificationsTable).values({
-          externalUserId: auth.id,
-          captureSessionId: sessionId,
-          expiresAt: new Date(Date.now() + QUALIFICATION_TTL_MS),
-        }).onConflictDoNothing();
+        const serverSessionId = await persistCaptureSession(req, "barcode", [result.candidate]);
         res.json({
-          sessionId,
+          sessionId: serverSessionId || body.clientSessionId || randomUUID(),
           mode: "barcode",
           status: "review",
           title: result.candidate.name,
@@ -467,14 +503,9 @@ router.post("/v1/capture/analyze", async (req, res) => {
       return;
     }
     const result = await analyzeFoodPhoto(body.imageBase64);
-    const sessionId = randomUUID();
-    await db.insert(referralQualificationsTable).values({
-      externalUserId: auth.id,
-      captureSessionId: sessionId,
-      expiresAt: new Date(Date.now() + QUALIFICATION_TTL_MS),
-    }).onConflictDoNothing();
+    const serverSessionId = await persistCaptureSession(req, "food", result.candidates);
     res.json({
-      sessionId,
+      sessionId: serverSessionId || body.clientSessionId || randomUUID(),
       mode: "food",
       status: result.candidates.length ? "review" : "unavailable",
       title: result.title,
@@ -495,33 +526,6 @@ router.post("/v1/capture/analyze", async (req, res) => {
   } catch (error) {
     res.status(502).json({ message: error instanceof Error ? error.message : "Capture provider unavailable" });
   }
-});
-
-/**
- * Commits a previously-issued capture proof after the user accepts its review.
- * The proof is bound to the JWT identity, expires quickly, and is one-time.
- */
-router.post("/v1/capture/:sessionId/approve", async (req, res) => {
-  const auth = await verifyBearerToken(req);
-  if (!auth) {
-    res.status(401).json({ message: "Please sign in to confirm a food capture." });
-    return;
-  }
-  const approved = await db
-    .update(referralQualificationsTable)
-    .set({ approvedAt: new Date() })
-    .where(
-      sql`${referralQualificationsTable.captureSessionId} = ${req.params.sessionId}
-        AND ${referralQualificationsTable.externalUserId} = ${auth.id}
-        AND ${referralQualificationsTable.approvedAt} IS NULL
-        AND ${referralQualificationsTable.expiresAt} > now()`,
-    )
-    .returning({ id: referralQualificationsTable.id });
-  if (!approved[0]) {
-    res.status(409).json({ message: "This capture can no longer be confirmed. Capture your food again." });
-    return;
-  }
-  res.status(204).send();
 });
 
 export default router;

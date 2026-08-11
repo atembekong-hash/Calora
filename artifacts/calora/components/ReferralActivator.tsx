@@ -11,11 +11,11 @@
  * local entitlement state immediately.
  */
 import { useEffect, useRef } from 'react';
-import { activateReferral, redeemReferral } from '@workspace/api-client-react';
+import { activateReferral, redeemReferral, syncFirstDiaryEntry } from '@workspace/api-client-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCalora } from '@/context/CaloraContext';
 import { useSubscription } from '@/lib/revenuecat';
-import { syncFirstDiaryLog } from '@/lib/diarySync';
+import { findCaptureBackedLog } from '@/lib/referralQualification';
 import {
   clearPendingInviteCode,
   getPendingInviteCode,
@@ -63,8 +63,36 @@ export function ReferralActivator() {
       if (await isReferralActivationSettled(user.id)) return;
       activateInFlightRef.current = true;
       try {
-        const hasServerEntry = await syncFirstDiaryLog(logs);
-        if (!hasServerEntry) return;
+        // The server only unlocks rewards once it holds a durable diary
+        // entry anchored to a server-recorded capture session. Only logs
+        // carrying an explicit server-issued captureSessionId (UUID) can
+        // qualify; manual/recipe/planner logs are skipped, and any eligible
+        // capture log anywhere in the diary is considered.
+        const captureLog = findCaptureBackedLog(logs);
+        if (captureLog) {
+          const captureSessionId = captureLog.captureSessionId!;
+          try {
+            await syncFirstDiaryEntry({
+              captureSessionId,
+              entryDate: captureLog.date,
+              meal: captureLog.meal,
+              name: captureLog.name,
+              serving: captureLog.serving,
+              calories: captureLog.calories,
+              proteinG: captureLog.protein,
+              carbsG: captureLog.carbs,
+              fatG: captureLog.fat,
+              provenance: captureLog.source,
+              confidence: Math.min(Math.max(Math.round(captureLog.confidence), 0), 100),
+              notes: captureLog.notes,
+              clientUpdatedAt: new Date().toISOString(),
+            });
+          } catch (err) {
+            // 4xx = this log can't anchor a sync (stale/mismatched session);
+            // a future capture log will retry. Network errors retry too.
+            console.warn('[referral] first-log sync did not settle', err);
+          }
+        }
         const result = await activateReferral();
         if (result.status === 'none' || result.status === 'rewarded') {
           await markReferralActivationSettled(user.id);

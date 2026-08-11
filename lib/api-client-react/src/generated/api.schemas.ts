@@ -877,6 +877,69 @@ export interface ReferralRedeemResult {
   message?: string;
 }
 
+export interface DiaryFirstLogInput {
+  /**
+     * Server-issued capture session id returned by /v1/capture/analyze
+     * for an authenticated request. The synced entry must correspond to
+     * that server-recorded analysis; fabricated payloads are rejected.
+     */
+  captureSessionId: string;
+  entryDate: string;
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  meal: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  serving: string;
+  /**
+     * @minimum 0
+     * @maximum 20000
+     */
+  calories: number;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     */
+  proteinG: number;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     */
+  carbsG: number;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     */
+  fatG: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  provenance: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  confidence: number;
+  /** @maxLength 2000 */
+  notes?: string;
+  clientUpdatedAt: string;
+}
+
+export interface DiaryFirstLogResult {
+  synced: boolean;
+  alreadyExisted: boolean;
+}
+
 export type ReferralActivateResultStatus = typeof ReferralActivateResultStatus[keyof typeof ReferralActivateResultStatus];
 
 

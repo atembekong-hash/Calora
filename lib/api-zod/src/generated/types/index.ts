@@ -48,6 +48,8 @@ export * from './diaryEntryInputMeal';
 export * from './diaryEntryInputProvenance';
 export * from './diaryEntryPatch';
 export * from './diaryEntryPatchMeal';
+export * from './diaryFirstLogInput';
+export * from './diaryFirstLogResult';
 export * from './exportRequest';
 export * from './exportRequestStatus';
 export * from './foodItem';

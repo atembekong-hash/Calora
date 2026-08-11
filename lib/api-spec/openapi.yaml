@@ -473,6 +473,35 @@ paths:
           description: Unknown invite code
         "409":
           description: Account already redeemed an invite code
+  /v1/diary/first-log:
+    post:
+      operationId: syncFirstDiaryEntry
+      tags: [diary]
+      summary: Persist the user's first approved food log on the server
+      description: |
+        The diary is local-first; this endpoint durably records the user's
+        first approved food log server-side. It is the server-observable
+        signal that referral activation requires before granting rewards.
+        Idempotent — once any diary entry exists for the user, repeat calls
+        return the existing state without writing again.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiaryFirstLogInput"
+      responses:
+        "200":
+          description: Diary entry persisted (or already present)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiaryFirstLogResult"
+        "400":
+          description: Invalid entry payload
+        "401":
+          description: Missing or invalid token
   /v1/referral/activate:
     post:
       operationId: activateReferral
@@ -1060,6 +1089,35 @@ components:
       properties:
         status: { type: string, enum: [pending] }
         message: { type: string }
+    DiaryFirstLogInput:
+      type: object
+      required: [captureSessionId, entryDate, meal, name, serving, calories, proteinG, carbsG, fatG, provenance, confidence, clientUpdatedAt]
+      properties:
+        captureSessionId:
+          type: string
+          format: uuid
+          description: |
+            Server-issued capture session id returned by /v1/capture/analyze
+            for an authenticated request. The synced entry must correspond to
+            that server-recorded analysis; fabricated payloads are rejected.
+        entryDate: { type: string, format: date }
+        meal: { type: string, minLength: 1, maxLength: 40 }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        serving: { type: string, minLength: 1, maxLength: 120 }
+        calories: { type: number, minimum: 0, maximum: 20000 }
+        proteinG: { type: number, minimum: 0, maximum: 5000 }
+        carbsG: { type: number, minimum: 0, maximum: 5000 }
+        fatG: { type: number, minimum: 0, maximum: 5000 }
+        provenance: { type: string, minLength: 1, maxLength: 80 }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        notes: { type: string, maxLength: 2000 }
+        clientUpdatedAt: { type: string, format: date-time }
+    DiaryFirstLogResult:
+      type: object
+      required: [synced, alreadyExisted]
+      properties:
+        synced: { type: boolean }
+        alreadyExisted: { type: boolean }
     ReferralActivateResult:
       type: object
       required: [status, referredRewarded, referrerRewarded]
