@@ -116,9 +116,11 @@ export default function ProfileScreen() {
   const [savedMealProtein, setSavedMealProtein] = useState('');
   const [savedMealCarbs, setSavedMealCarbs] = useState('');
   const [savedMealFat, setSavedMealFat] = useState('');
+  const [savedMealError, setSavedMealError] = useState('');
 
   // Profile edit modal
   const [profileEditModal, setProfileEditModal] = useState(false);
+  const [profileEditError, setProfileEditError] = useState('');
   const [editName, setEditName] = useState('');
   const [editCalories, setEditCalories] = useState('');
   const [editDiet, setEditDiet] = useState<DietPreference>('Everything');
@@ -322,12 +324,13 @@ export default function ProfileScreen() {
     setEditDiet(profile?.diet ?? 'Everything');
     setEditGoal(profile?.goal ?? 'maintain');
     setEditPhotoUri(profilePhotoUri);
+    setProfileEditError('');
     setProfileEditModal(true);
   };
   const saveProfileEdit = async () => {
     const calories = Number(editCalories);
     if (!editName.trim() || !Number.isFinite(calories) || calories < 500 || calories > 9999) {
-      Alert.alert('Check your inputs', 'Name is required and calorie target must be between 500 and 9,999.');
+      setProfileEditError('Enter your name and a daily calorie target between 500 and 9,999.');
       return;
     }
     // Strip the cache-bust query param before persisting
@@ -345,15 +348,20 @@ export default function ProfileScreen() {
     updateProfile({ name: editName.trim(), calorieTarget: calories, diet: editDiet, goal: editGoal });
     setProfilePhotoUri(cleanUri);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setProfileEditError('');
     setProfileEditModal(false);
   };
 
   /** Saved meal creation */
   const createSavedMeal = () => {
     const calories = Number(savedMealCalories);
-    if (!savedMealName.trim() || !Number.isFinite(calories) || calories <= 0) return;
+    if (!savedMealName.trim() || !Number.isFinite(calories) || calories <= 0) {
+      setSavedMealError('Add a meal name and a positive calorie value.');
+      return;
+    }
     saveMeal({ name: savedMealName.trim(), kind: savedMealKind, foodIds: [], calories, protein: Number(savedMealProtein) || 0, carbs: Number(savedMealCarbs) || 0, fat: Number(savedMealFat) || 0 });
     setSavedMealName(''); setSavedMealCalories(''); setSavedMealProtein(''); setSavedMealCarbs(''); setSavedMealFat('');
+    setSavedMealError('');
     setSavedMealModal(false);
   };
 
@@ -896,15 +904,16 @@ export default function ProfileScreen() {
               <Pressable onPress={() => setSavedMealKind('meal')} style={[styles.savedKind, { backgroundColor: savedMealKind === 'meal' ? colors.primary : colors.card, borderColor: savedMealKind === 'meal' ? colors.primary : colors.border }]}><Text style={[styles.savedKindText, { color: savedMealKind === 'meal' ? colors.primaryForeground : colors.mutedForeground }]}>Meal</Text></Pressable>
               <Pressable onPress={() => setSavedMealKind('recipe')} style={[styles.savedKind, { backgroundColor: savedMealKind === 'recipe' ? colors.primary : colors.card, borderColor: savedMealKind === 'recipe' ? colors.primary : colors.border }]}><Text style={[styles.savedKindText, { color: savedMealKind === 'recipe' ? colors.primaryForeground : colors.mutedForeground }]}>Recipe</Text></Pressable>
             </View>
-            <TextInput accessibilityLabel="Saved meal name" value={savedMealName} onChangeText={setSavedMealName} placeholder="Name, e.g. Sunday chili" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+            <TextInput accessibilityLabel="Saved meal name" value={savedMealName} onChangeText={(value) => { setSavedMealName(value); if (savedMealError) setSavedMealError(''); }} placeholder="Name, e.g. Sunday chili" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: savedMealError ? colors.destructive : colors.input }]} />
             <View style={styles.savedNumbers}>
               {([['Calories', savedMealCalories, setSavedMealCalories], ['Protein g', savedMealProtein, setSavedMealProtein], ['Carbs g', savedMealCarbs, setSavedMealCarbs], ['Fat g', savedMealFat, setSavedMealFat]] as const).map(([label, value, setter]) => (
                 <View key={label} style={styles.savedNumber}>
                   <Text style={[styles.savedNumberLabel, { color: colors.mutedForeground }]}>{label}</Text>
-                  <TextInput value={value} onChangeText={setter as (v: string) => void} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+                  <TextInput accessibilityLabel={label} value={value} onChangeText={(nextValue) => { (setter as (v: string) => void)(nextValue); if (savedMealError) setSavedMealError(''); }} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: savedMealError && label === 'Calories' ? colors.destructive : colors.input }]} />
                 </View>
               ))}
             </View>
+            {!!savedMealError && <Text accessibilityRole="alert" style={[styles.formError, { color: colors.destructive }]}>{savedMealError}</Text>}
             <Pressable accessibilityLabel="Save meal template" onPress={createSavedMeal} style={[styles.dialogButton, { backgroundColor: colors.primary }]}><Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Save template</Text></Pressable>
             <Pressable accessibilityLabel="Cancel saved meal" onPress={() => setSavedMealModal(false)} style={styles.dialogSecondaryButton}><Text style={[styles.dialogSecondaryText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
           </View>
@@ -934,9 +943,9 @@ export default function ProfileScreen() {
             </Pressable>
 
             <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>YOUR NAME</Text>
-            <TextInput accessibilityLabel="Name" value={editName} onChangeText={setEditName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input, marginBottom: 14 }]} />
+            <TextInput accessibilityLabel="Name" value={editName} onChangeText={(value) => { setEditName(value); if (profileEditError) setProfileEditError(''); }} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: profileEditError ? colors.destructive : colors.input, marginBottom: 14 }]} />
             <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>DAILY CALORIE TARGET</Text>
-            <TextInput accessibilityLabel="Calorie target" value={editCalories} onChangeText={setEditCalories} keyboardType="number-pad" placeholder="e.g. 2000" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input, marginBottom: 14 }]} />
+            <TextInput accessibilityLabel="Calorie target" value={editCalories} onChangeText={(value) => { setEditCalories(value); if (profileEditError) setProfileEditError(''); }} keyboardType="number-pad" placeholder="e.g. 2000" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: profileEditError ? colors.destructive : colors.input, marginBottom: 14 }]} />
             <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>DIET</Text>
             <View style={styles.editChips}>
               {dietOptions.map((d) => (
@@ -953,6 +962,7 @@ export default function ProfileScreen() {
                 </Pressable>
               ))}
             </View>
+            {!!profileEditError && <Text accessibilityRole="alert" style={[styles.formError, { color: colors.destructive }]}>{profileEditError}</Text>}
             <Pressable accessibilityLabel="Save profile changes" onPress={saveProfileEdit} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 20 }]}>
               <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Save changes</Text>
             </Pressable>
@@ -1166,6 +1176,7 @@ function makeStyles(f: number) {
   savedKind: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingVertical: 10 },
   savedKindText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   savedInput: { height: 44, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
+  formError: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, lineHeight: 17 * f, marginTop: 10 },
   savedNumbers: { flexDirection: 'row', gap: 7, marginTop: 8 },
   savedNumber: { flex: 1 },
   savedNumberLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginBottom: 5 },

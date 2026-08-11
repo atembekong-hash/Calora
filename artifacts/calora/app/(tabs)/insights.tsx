@@ -1114,6 +1114,7 @@ export default function InsightsScreen() {
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
+  const [weightError, setWeightError] = useState('');
   const [minutesInput, setMinutesInput] = useState('');
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [goalInput, setGoalInput] = useState('');
@@ -1785,8 +1786,31 @@ export default function InsightsScreen() {
           <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>A single weigh-in is just a data point. {BRAND.name} looks for a trend.</Text>
-            <TextInput value={weightInput} onChangeText={setWeightInput} keyboardType="decimal-pad" placeholder={`${latestWeight.toFixed(1)} kg`} placeholderTextColor={colors.mutedForeground} style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} onFocus={() => { isEditingWeight.current = true; }} onEndEditing={() => { isEditingWeight.current = false; }} />
-            <ScalePressable accessibilityLabel="Save weight" onPress={() => { const value = Number(weightInput); if (value > 0) { addWeight(value); setWeightInput(''); setShowWeight(false); setSaveNotice('Weight check-in saved locally.'); } }} scale={0.96} haptic="light" style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></ScalePressable>
+            <TextInput
+              value={weightInput}
+              onChangeText={(value) => { setWeightInput(value); if (weightError) setWeightError(''); }}
+              keyboardType="decimal-pad"
+              placeholder={`${latestWeight.toFixed(1)} kg`}
+              placeholderTextColor={colors.mutedForeground}
+              accessibilityLabel="Weight in kilograms"
+              accessibilityHint="Enter a positive number before saving your weigh-in"
+              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: weightError ? colors.destructive : colors.input }]}
+              onFocus={() => { isEditingWeight.current = true; }}
+              onEndEditing={() => { isEditingWeight.current = false; }}
+            />
+            {!!weightError && <Text accessibilityRole="alert" style={[styles.weightError, { color: colors.destructive }]}>{weightError}</Text>}
+            <ScalePressable accessibilityLabel="Save weight" onPress={() => {
+              const value = Number(weightInput);
+              if (!Number.isFinite(value) || value <= 0) {
+                setWeightError('Enter a positive weight to save your check-in.');
+                return;
+              }
+              addWeight(value);
+              setWeightInput('');
+              setWeightError('');
+              setShowWeight(false);
+              setSaveNotice('Weight check-in saved locally.');
+            }} scale={0.96} haptic="light" style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></ScalePressable>
             <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
           </View>
         </View>
@@ -2045,6 +2069,7 @@ function makeStyles(f: number) {
   weightLineFill: { height: 7, borderRadius: 4 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   weightModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 30 },
+  weightError: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, marginTop: 8 },
   modalTitle: { fontFamily: 'Inter_700Bold', fontSize: 21 * f },
   modalBody: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18, marginTop: 7 },
   weightInput: { borderWidth: 1, borderRadius: 14, height: 48, paddingHorizontal: 13, fontFamily: 'Inter_500Medium', fontSize: 16 * f, marginTop: 17 },
