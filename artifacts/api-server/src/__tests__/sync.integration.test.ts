@@ -109,6 +109,14 @@ describe.skipIf(!HAS_DB)('diary sync idempotency (real schema)', () => {
   beforeAll(async () => {
     pool = (await import('@workspace/db')).pool;
 
+    // Apply any schema columns that may not exist on a pre-migration DB.
+    // Safe no-ops when the column already exists.
+    await pool.query(`
+      ALTER TABLE calora_diary_entries
+        ADD COLUMN IF NOT EXISTS capture_session_id UUID
+          REFERENCES calora_ai_capture_sessions(id) ON DELETE SET NULL
+    `);
+
     const express = (await import('express')).default;
     const syncRouter = (await import('../routes/sync.js')).default;
     app = express();

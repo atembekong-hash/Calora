@@ -19,10 +19,12 @@
  * impossible because userId comes from the verified token, not the payload.
  */
 import { Router, type IRouter } from "express";
+import { and, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { db } from "@workspace/db";
+import { db, aiCaptureSessionsTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
+import { QUALIFYING_CAPTURE_MODES } from "../lib/referral-qualification.js";
 
 const router: IRouter = Router();
 
@@ -54,6 +56,14 @@ function nonNeg(value: unknown): number | null {
 
 type DiaryUpsertPayload = {
   clientId: string;
+  /**
+   * Optional: a server-recorded capture session UUID that the client can
+   * supply to prove image/barcode provenance.  The server verifies the
+   * session belongs to the authenticated user and has mode != 'text' before
+   * writing it to the diary row and counting it toward referral qualification.
+   * NULL means the sync entry carries no verified provenance signal.
+   */
+  captureSessionId: string | null;
   entryDate: string;
   meal: string;
   name: string;
@@ -76,6 +86,19 @@ function parseDiaryUpsert(
     payload.clientId.length > 128
   )
     return { ok: false, message: "clientId is required" };
+
+  // captureSessionId is optional — null or absent means no provenance claim.
+  // When provided it must be a canonical UUID.
+  let captureSessionId: string | null = null;
+  if (payload.captureSessionId != null) {
+    if (
+      typeof payload.captureSessionId !== "string" ||
+      !UUID_RE.test(payload.captureSessionId)
+    )
+      return { ok: false, message: "captureSessionId must be a UUID when provided" };
+    captureSessionId = payload.captureSessionId;
+  }
+
   if (!isDate(payload.entryDate))
     return { ok: false, message: "A valid entry date is required" };
   if (typeof payload.meal !== "string" || !MEALS.has(payload.meal))
@@ -127,17 +150,18 @@ function parseDiaryUpsert(
   return {
     ok: true,
     value: {
-      clientId: payload.clientId,
-      entryDate: payload.entryDate,
-      meal: payload.meal,
-      name: payload.name.trim(),
-      serving: payload.serving.trim(),
+      clientId: payload.clientId as string,
+      captureSessionId,
+      entryDate: payload.entryDate as string,
+      meal: payload.meal as string,
+      name: (payload.name as string).trim(),
+      serving: (payload.serving as string).trim(),
       calories,
       proteinG,
       carbsG,
       fatG,
-      provenance: payload.provenance,
-      confidence: payload.confidence,
+      provenance: payload.provenance as string,
+      confidence: payload.confidence as number,
       notes,
     },
   };
@@ -270,6 +294,37 @@ router.post("/v1/sync", async (req, res) => {
           }
           const v = p.value;
 
+          // ── Capture session verification ───────────────────────────────────
+          // When the client supplies a captureSessionId the server verifies:
+          //   1. The session exists and belongs to the authenticated user.
+          //   2. The session mode is not 'text' (image/barcode only).
+          // On failure the session claim is silently dropped — the diary row
+          // is still written without a capture_session_id so the client's
+          // food log is not lost.  The farming gate in hasSyncedDiaryEntry
+          // will not count the entry toward referral qualification because
+          // capture_session_id will be NULL.
+          let verifiedCaptureSessionId: string | null = null;
+          if (v.captureSessionId !== null) {
+            const sessions = await db
+              .select({ id: aiCaptureSessionsTable.id, mode: aiCaptureSessionsTable.mode })
+              .from(aiCaptureSessionsTable)
+              .innerJoin(usersTable, eq(aiCaptureSessionsTable.userId, usersTable.id))
+              .where(
+                and(
+                  eq(aiCaptureSessionsTable.id, v.captureSessionId),
+                  eq(usersTable.id, userId),
+                ),
+              )
+              .limit(1);
+            if (sessions.length > 0 && (QUALIFYING_CAPTURE_MODES as readonly string[]).includes(sessions[0].mode)) {
+              verifiedCaptureSessionId = sessions[0].id;
+            }
+            // If the session is not found, doesn't belong to the user, or is
+            // not an approved image/barcode mode (text, voice, receipt, etc.),
+            // verifiedCaptureSessionId stays null and the row is written
+            // without a provenance anchor.
+          }
+
           // Upsert on (user_id, client_id): re-sending the same clientId
           // updates the existing row rather than creating a duplicate.
           // Raw SQL is required because the partial unique index
@@ -277,11 +332,12 @@ router.post("/v1/sync", async (req, res) => {
           // conflict target.
           await db.execute(sql`
             INSERT INTO calora_diary_entries
-              (user_id, client_id, entry_date, meal, name, serving,
+              (user_id, client_id, capture_session_id, entry_date, meal, name, serving,
                calories, protein_g, carbs_g, fat_g, provenance,
                confidence, notes, client_updated_at)
             VALUES
-              (${userId}::uuid, ${v.clientId}, ${v.entryDate}::date, ${v.meal},
+              (${userId}::uuid, ${v.clientId}, ${verifiedCaptureSessionId}::uuid,
+               ${v.entryDate}::date, ${v.meal},
                ${v.name}, ${v.serving},
                ${String(v.calories)}::numeric, ${String(v.proteinG)}::numeric,
                ${String(v.carbsG)}::numeric, ${String(v.fatG)}::numeric,
@@ -289,19 +345,20 @@ router.post("/v1/sync", async (req, res) => {
                ${v.notes}, now())
             ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL
             DO UPDATE SET
-              entry_date        = EXCLUDED.entry_date,
-              meal              = EXCLUDED.meal,
-              name              = EXCLUDED.name,
-              serving           = EXCLUDED.serving,
-              calories          = EXCLUDED.calories,
-              protein_g         = EXCLUDED.protein_g,
-              carbs_g           = EXCLUDED.carbs_g,
-              fat_g             = EXCLUDED.fat_g,
-              provenance        = EXCLUDED.provenance,
-              confidence        = EXCLUDED.confidence,
-              notes             = EXCLUDED.notes,
-              client_updated_at = EXCLUDED.client_updated_at,
-              updated_at        = now()
+              entry_date          = EXCLUDED.entry_date,
+              meal                = EXCLUDED.meal,
+              name                = EXCLUDED.name,
+              serving             = EXCLUDED.serving,
+              calories            = EXCLUDED.calories,
+              protein_g           = EXCLUDED.protein_g,
+              carbs_g             = EXCLUDED.carbs_g,
+              fat_g               = EXCLUDED.fat_g,
+              provenance          = EXCLUDED.provenance,
+              confidence          = EXCLUDED.confidence,
+              notes               = EXCLUDED.notes,
+              capture_session_id  = COALESCE(EXCLUDED.capture_session_id, calora_diary_entries.capture_session_id),
+              client_updated_at   = EXCLUDED.client_updated_at,
+              updated_at          = now()
           `);
 
           // Record the accepted mutation for cross-session deduplication.

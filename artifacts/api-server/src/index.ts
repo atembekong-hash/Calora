@@ -165,6 +165,17 @@ async function runStartupMigrations(): Promise<void> {
       ON calora_diary_entries (user_id, client_id)
       WHERE client_id IS NOT NULL
   `);
+  // capture_session_id links a synced diary row back to the server-recorded
+  // AI capture session that produced it.  Written by POST /v1/sync when the
+  // client provides a captureSessionId that the server can verify.  NULL for
+  // rows synced without a session reference or written via POST /v1/diary.
+  // Used by hasSyncedDiaryEntry Path 2 to gate referral qualification on
+  // image/barcode provenance.
+  await pool.query(`
+    ALTER TABLE calora_diary_entries
+      ADD COLUMN IF NOT EXISTS capture_session_id UUID
+        REFERENCES calora_ai_capture_sessions(id) ON DELETE SET NULL
+  `);
   // Mutation ledger for outbox sync idempotency.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS calora_sync_mutations (

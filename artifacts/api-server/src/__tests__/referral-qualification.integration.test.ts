@@ -47,15 +47,36 @@ describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () =
   const syncReferredEmail = `it-sync-${run}@example.com`;
   const syncCode = `ITSYNC${run.toUpperCase()}`;
 
-  // Separate identity used exclusively by text-mode exclusion tests.
+  // Separate identity used exclusively by text-mode exclusion tests (Path 1).
   const textReferredId = `it-text-referred-${run}`;
   const textReferredEmail = `it-text-${run}@example.com`;
   const textCode = `ITTEXT${run.toUpperCase()}`;
+
+  // Identity for ADVERSARIAL Path 2: sync entry referencing a text-mode session.
+  // The server must drop the session anchor and the entry must not qualify.
+  const syncTextReferredId = `it-stext-referred-${run}`;
+  const syncTextReferredEmail = `it-stext-${run}@example.com`;
+  const syncTextCode = `ITSTEXT${run.toUpperCase()}`;
+
+  // Identity for ADVERSARIAL Path 2: sync entry without any captureSessionId.
+  // Under the default REQUIRE_SESSION_FOR_SYNC=true policy this must not qualify.
+  const syncNoSessReferredId = `it-snos-referred-${run}`;
+  const syncNoSessReferredEmail = `it-snos-${run}@example.com`;
+  const syncNoSessCode = `ITSNOS${run.toUpperCase()}`;
 
   beforeAll(async () => {
     schema = await import('@workspace/db');
     db = schema.db;
     pool = schema.pool;
+
+    // Apply any schema columns that may not exist on a pre-migration DB.
+    // Safe no-ops when the column already exists.
+    await pool.query(`
+      ALTER TABLE calora_diary_entries
+        ADD COLUMN IF NOT EXISTS capture_session_id UUID
+          REFERENCES calora_ai_capture_sessions(id) ON DELETE SET NULL
+    `);
+
     const express = (await import('express')).default;
     const diaryRouter = (await import('../routes/diary.js')).default;
     const referralRouter = (await import('../routes/referral.js')).default;
@@ -104,14 +125,55 @@ describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () =
        VALUES ($1, $2, $3)`,
       [textCode, referrerId, textReferredId],
     );
+
+    // Seed a referral code + pending redemption for the Path 2 text-mode
+    // adversarial sync tests (captureSessionId referencing a text session).
+    await pool.query(
+      `INSERT INTO calora_referral_codes (user_id, code) VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE SET code = EXCLUDED.code`,
+      [referrerId, syncTextCode],
+    );
+    await pool.query(
+      `INSERT INTO calora_referral_redemptions (code, referrer_user_id, referred_user_id)
+       VALUES ($1, $2, $3)`,
+      [syncTextCode, referrerId, syncTextReferredId],
+    );
+
+    // Seed a referral code + pending redemption for the Path 2 no-session
+    // adversarial sync tests (sync without captureSessionId).
+    await pool.query(
+      `INSERT INTO calora_referral_codes (user_id, code) VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE SET code = EXCLUDED.code`,
+      [referrerId, syncNoSessCode],
+    );
+    await pool.query(
+      `INSERT INTO calora_referral_redemptions (code, referrer_user_id, referred_user_id)
+       VALUES ($1, $2, $3)`,
+      [syncNoSessCode, referrerId, syncNoSessReferredId],
+    );
   });
 
   afterAll(async () => {
-    await pool.query(`DELETE FROM calora_referral_redemptions WHERE referred_user_id IN ($1, $2, $3)`, [referredId, syncReferredId, textReferredId]);
+    const allReferredIds = [referredId, syncReferredId, textReferredId, syncTextReferredId, syncNoSessReferredId];
+    await pool.query(
+      `DELETE FROM calora_referral_redemptions WHERE referred_user_id = ANY($1::text[])`,
+      [allReferredIds],
+    );
     await pool.query(`DELETE FROM calora_referral_codes WHERE user_id = $1`, [referrerId]);
-    await pool.query(`DELETE FROM calora_ai_capture_sessions WHERE user_id IN (SELECT id FROM calora_users WHERE external_id IN ($1, $2, $3))`, [referredId, syncReferredId, textReferredId]);
-    await pool.query(`DELETE FROM calora_diary_entries WHERE user_id IN (SELECT id FROM calora_users WHERE external_id IN ($1, $2, $3))`, [referredId, syncReferredId, textReferredId]);
-    await pool.query(`DELETE FROM calora_users WHERE external_id IN ($1, $2, $3)`, [referredId, syncReferredId, textReferredId]);
+    await pool.query(
+      `DELETE FROM calora_ai_capture_sessions WHERE user_id IN
+         (SELECT id FROM calora_users WHERE external_id = ANY($1::text[]))`,
+      [allReferredIds],
+    );
+    await pool.query(
+      `DELETE FROM calora_diary_entries WHERE user_id IN
+         (SELECT id FROM calora_users WHERE external_id = ANY($1::text[]))`,
+      [allReferredIds],
+    );
+    await pool.query(
+      `DELETE FROM calora_users WHERE external_id = ANY($1::text[])`,
+      [allReferredIds],
+    );
   });
 
   beforeEach(() => {
@@ -226,14 +288,28 @@ describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () =
     );
   });
 
-  it('a diary entry synced via POST /v1/sync qualifies the referral end-to-end', async () => {
+  it('a diary entry synced via POST /v1/sync with an image-mode captureSessionId qualifies the referral end-to-end', async () => {
     // Override the mock so all requests act as the sync-path user.
     verifyBearerToken.mockResolvedValue({ id: syncReferredId, email: syncReferredEmail });
+
+    // Create an image-mode capture session for the sync user.  The sync handler
+    // will verify this session belongs to the user and has mode != 'text' before
+    // writing capture_session_id to the diary row.
+    const { ensureUserRow } = await import('../lib/user-rows.js');
+    const syncUserId = await ensureUserRow(syncReferredId, syncReferredEmail);
+    const imageSessionId = randomUUID();
+    await db.insert(schema.aiCaptureSessionsTable).values({
+      id: imageSessionId,
+      userId: syncUserId,
+      mode: 'food',
+      status: 'review',
+    });
 
     const clientId = randomUUID();
     const mutationId = randomUUID();
 
-    // POST /v1/sync with a diaryEntry upsert — client_id is written to the row.
+    // POST /v1/sync with a diaryEntry upsert including captureSessionId.
+    // The server verifies the session and writes capture_session_id to the row.
     const synced = await request(app).post('/v1/sync').send({
       deviceId: randomUUID(),
       mutations: [
@@ -244,6 +320,7 @@ describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () =
           clientUpdatedAt: '2026-08-11T14:00:00.000Z',
           payload: {
             clientId,
+            captureSessionId: imageSessionId,
             entryDate: '2026-08-11',
             meal: 'Dinner',
             name: 'Salmon with rice',
@@ -263,15 +340,16 @@ describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () =
     expect(synced.body.accepted).toContain(mutationId);
     expect(synced.body.conflicts).toHaveLength(0);
 
-    // Confirm the diary row has the client_id populated.
+    // Confirm the diary row has both client_id and capture_session_id populated.
     const rows = await pool.query(
-      `SELECT d.client_id FROM calora_diary_entries d
+      `SELECT d.client_id, d.capture_session_id FROM calora_diary_entries d
        JOIN calora_users u ON u.id = d.user_id
        WHERE u.external_id = $1`,
       [syncReferredId],
     );
     expect(rows.rowCount).toBe(1);
     expect(rows.rows[0].client_id).toBe(clientId);
+    expect(rows.rows[0].capture_session_id).toBe(imageSessionId);
 
     // Activation must now grant the reward via RevenueCat.
     const activation = await request(app).post('/v1/referral/activate').send({});
@@ -287,6 +365,204 @@ describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () =
     const reactivation = await request(app).post('/v1/referral/activate').send({});
     expect(reactivation.status).toBe(200);
     expect(reactivation.body.status).toBe('rewarded');
+    expect(grantPromoDays).not.toHaveBeenCalled();
+  });
+
+  // ── Path 2 session-anchor adversarial tests ────────────────────────────────
+  // Text-mode or absent captureSessionId must not qualify Path 2.
+
+  it('ADVERSARIAL (Path 2 text-mode session): sync entry referencing a text-mode session does not qualify', async () => {
+    // Use the isolated syncTextReferredId identity.
+    verifyBearerToken.mockResolvedValue({ id: syncTextReferredId, email: syncTextReferredEmail });
+
+    const { ensureUserRow } = await import('../lib/user-rows.js');
+    const userId = await ensureUserRow(syncTextReferredId, syncTextReferredEmail);
+
+    // Create a text-mode capture session for this user.
+    const textSessionId = randomUUID();
+    await db.insert(schema.aiCaptureSessionsTable).values({
+      id: textSessionId,
+      userId,
+      mode: 'text',
+      status: 'review',
+    });
+
+    const clientId = randomUUID();
+    const mutationId = randomUUID();
+
+    // POST /v1/sync with captureSessionId pointing to a text-mode session.
+    // The server must silently drop the anchor (capture_session_id stays NULL)
+    // and the entry must not qualify for a referral reward.
+    const synced = await request(app).post('/v1/sync').send({
+      deviceId: randomUUID(),
+      mutations: [
+        {
+          mutationId,
+          entity: 'diaryEntry',
+          operation: 'upsert',
+          clientUpdatedAt: '2026-08-11T15:00:00.000Z',
+          payload: {
+            clientId,
+            captureSessionId: textSessionId,
+            entryDate: '2026-08-11',
+            meal: 'Lunch',
+            name: 'Typed food entry',
+            serving: '1 bowl',
+            calories: 400,
+            proteinG: 30,
+            carbsG: 40,
+            fatG: 10,
+            provenance: 'Manual',
+            confidence: 60,
+            notes: null,
+          },
+        },
+      ],
+    });
+    expect(synced.status).toBe(200);
+    expect(synced.body.accepted).toContain(mutationId);
+
+    // The diary row must exist (food log is preserved) but capture_session_id
+    // must be NULL because the server rejected the text-mode session anchor.
+    const rows = await pool.query(
+      `SELECT d.client_id, d.capture_session_id FROM calora_diary_entries d
+       JOIN calora_users u ON u.id = d.user_id
+       WHERE u.external_id = $1`,
+      [syncTextReferredId],
+    );
+    expect(rows.rowCount).toBe(1);
+    expect(rows.rows[0].client_id).toBe(clientId);
+    expect(rows.rows[0].capture_session_id).toBeNull();
+
+    // Activation must stay pending — text-mode session anchor was rejected.
+    const activation = await request(app).post('/v1/referral/activate').send({});
+    expect(activation.status).toBe(200);
+    expect(activation.body.status).toBe('pending');
+    expect(activation.body.referredRewarded).toBe(false);
+    expect(grantPromoDays).not.toHaveBeenCalled();
+  });
+
+  it('ADVERSARIAL (Path 2 unapproved non-text mode): sync entry referencing a receipt-mode session does not qualify', async () => {
+    // Use the syncTextReferredId identity (already has a text session but no
+    // rewarded redemption).  Create a receipt-mode session for the same user
+    // and confirm that an unapproved non-text mode is also rejected.
+    verifyBearerToken.mockResolvedValue({ id: syncTextReferredId, email: syncTextReferredEmail });
+
+    const { ensureUserRow } = await import('../lib/user-rows.js');
+    const userId = await ensureUserRow(syncTextReferredId, syncTextReferredEmail);
+
+    const receiptSessionId = randomUUID();
+    await db.insert(schema.aiCaptureSessionsTable).values({
+      id: receiptSessionId,
+      userId,
+      mode: 'receipt', // image-based but not in the qualifying-mode allowlist
+      status: 'review',
+    });
+
+    const clientId = randomUUID();
+    const mutationId = randomUUID();
+
+    const synced = await request(app).post('/v1/sync').send({
+      deviceId: randomUUID(),
+      mutations: [
+        {
+          mutationId,
+          entity: 'diaryEntry',
+          operation: 'upsert',
+          clientUpdatedAt: '2026-08-11T16:00:00.000Z',
+          payload: {
+            clientId,
+            captureSessionId: receiptSessionId,
+            entryDate: '2026-08-11',
+            meal: 'Dinner',
+            name: 'Receipt-scanned meal',
+            serving: '1 portion',
+            calories: 500,
+            proteinG: 30,
+            carbsG: 50,
+            fatG: 15,
+            provenance: 'Manual',
+            confidence: 70,
+            notes: null,
+          },
+        },
+      ],
+    });
+    expect(synced.status).toBe(200);
+    expect(synced.body.accepted).toContain(mutationId);
+
+    // capture_session_id must be NULL — receipt mode is not in the allowlist.
+    const rows = await pool.query(
+      `SELECT d.capture_session_id FROM calora_diary_entries d
+       JOIN calora_users u ON u.id = d.user_id
+       WHERE u.external_id = $1 AND d.client_id = $2`,
+      [syncTextReferredId, clientId],
+    );
+    expect(rows.rowCount).toBe(1);
+    expect(rows.rows[0].capture_session_id).toBeNull();
+
+    // Activation must remain pending.
+    const activation = await request(app).post('/v1/referral/activate').send({});
+    expect(activation.status).toBe(200);
+    expect(activation.body.status).toBe('pending');
+    expect(activation.body.referredRewarded).toBe(false);
+    expect(grantPromoDays).not.toHaveBeenCalled();
+  });
+
+  it('ADVERSARIAL (Path 2 no session): sync entry without captureSessionId does not qualify under default policy', async () => {
+    // Use the isolated syncNoSessReferredId identity.
+    verifyBearerToken.mockResolvedValue({ id: syncNoSessReferredId, email: syncNoSessReferredEmail });
+
+    const clientId = randomUUID();
+    const mutationId = randomUUID();
+
+    // POST /v1/sync without a captureSessionId — capture_session_id stays NULL.
+    // Under the default REQUIRE_SESSION_FOR_SYNC=true policy this must not
+    // qualify for a referral reward even though client_id is present.
+    const synced = await request(app).post('/v1/sync').send({
+      deviceId: randomUUID(),
+      mutations: [
+        {
+          mutationId,
+          entity: 'diaryEntry',
+          operation: 'upsert',
+          clientUpdatedAt: '2026-08-11T15:30:00.000Z',
+          payload: {
+            clientId,
+            entryDate: '2026-08-11',
+            meal: 'Snack',
+            name: 'Apple',
+            serving: '1 medium',
+            calories: 95,
+            proteinG: 0,
+            carbsG: 25,
+            fatG: 0,
+            provenance: 'Manual',
+            confidence: 90,
+            notes: null,
+          },
+        },
+      ],
+    });
+    expect(synced.status).toBe(200);
+    expect(synced.body.accepted).toContain(mutationId);
+
+    // Confirm the row has a client_id but no capture_session_id.
+    const rows = await pool.query(
+      `SELECT d.client_id, d.capture_session_id FROM calora_diary_entries d
+       JOIN calora_users u ON u.id = d.user_id
+       WHERE u.external_id = $1`,
+      [syncNoSessReferredId],
+    );
+    expect(rows.rowCount).toBe(1);
+    expect(rows.rows[0].client_id).toBe(clientId);
+    expect(rows.rows[0].capture_session_id).toBeNull();
+
+    // Activation must stay pending — no capture session anchor means no reward.
+    const activation = await request(app).post('/v1/referral/activate').send({});
+    expect(activation.status).toBe(200);
+    expect(activation.body.status).toBe('pending');
+    expect(activation.body.referredRewarded).toBe(false);
     expect(grantPromoDays).not.toHaveBeenCalled();
   });
 

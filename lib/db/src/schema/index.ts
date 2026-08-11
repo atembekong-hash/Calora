@@ -73,6 +73,18 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
    * duplicate rows. Nullable for rows written before sync was introduced.
    */
   clientId: text("client_id"),
+  /**
+   * Server-verified capture session that originated this diary entry.
+   * Written by POST /v1/sync when the client supplies a captureSessionId.
+   * The sync handler verifies the session belongs to the authenticated user
+   * and has mode != 'text' before recording it here.  NULL means the entry
+   * was either written via the bare /v1/diary endpoint or synced without a
+   * session reference.
+   *
+   * Used by hasSyncedDiaryEntry Path 2 to gate referral qualification on
+   * provenance: only image/barcode-originated sync entries qualify.
+   */
+  captureSessionId: uuid("capture_session_id").references(() => aiCaptureSessionsTable.id, { onDelete: "set null" }),
   entryDate: date("entry_date").notNull(),
   meal: text("meal").notNull(),
   name: text("name").notNull(),
