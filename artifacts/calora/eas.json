@@ -8,7 +8,15 @@
     "base": {
       "node": "20.19.4",
       "corepack": true,
-      "pnpm": "10.26.1"
+      "pnpm": "10.26.1",
+      "android": {
+        "image": "latest",
+        "resourceClass": "medium"
+      },
+      "ios": {
+        "image": "latest",
+        "resourceClass": "m-medium"
+      }
     },
     "development": {
       "extends": "base",
@@ -40,9 +48,6 @@
       "extends": "base",
       "environment": "production",
       "autoIncrement": true,
-      "ios": {
-        "resourceClass": "m-medium"
-      },
       "android": {
         "buildType": "app-bundle"
       }
