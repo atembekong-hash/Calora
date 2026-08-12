@@ -38,7 +38,7 @@ import { handleOAuthCallbackUrl, OAUTH_REDIRECT_URI } from '@/lib/auth';
 import { useAuth } from '@/context/AuthContext';
 
 const REDIRECT_DELAY_MS = 1400;
-const URL_TIMEOUT_MS = 7000;
+const URL_TIMEOUT_MS = 10000; // Increased timeout for better diagnostics
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
@@ -80,11 +80,11 @@ export default function AuthCallbackScreen() {
 
     async function process() {
       try {
-        const result = await handleOAuthCallbackUrl(effectiveUrl!);
+        // Pass setStatusMessage to get fine-grained updates during the exchange
+        const result = await handleOAuthCallbackUrl(effectiveUrl!, setStatusMessage);
 
         if (result.success) {
-          // Brief pause so the onAuthStateChange event (PASSWORD_RECOVERY) has
-          // time to propagate through AuthContext before we navigate.
+          // Success!
           await new Promise<void>((r) => setTimeout(r, 150));
 
           if (recoveryRef.current) {
@@ -95,13 +95,11 @@ export default function AuthCallbackScreen() {
             router.replace('/(tabs)' as any);
           }
         } else if (result.error.code === 'cancelled') {
-          // User denied consent or dismissed the OAuth flow — navigate back to
-          // sign-in silently with no error banner so the experience feels clean.
+          // User denied consent or dismissed the OAuth flow
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           router.replace('/auth/sign-in' as any);
         } else {
-          // provider / token / other errors — show a brief inline message then
-          // redirect to the root screen so the user can try again.
+          // provider / token / other errors
           setStatusMessage(result.error.message);
           setTimeout(() => {
             router.replace({
@@ -110,7 +108,7 @@ export default function AuthCallbackScreen() {
             });
           }, REDIRECT_DELAY_MS);
         }
-      } catch {
+      } catch (err) {
         setStatusMessage('Something went wrong. Please try again.');
         setTimeout(() => router.replace('/'), REDIRECT_DELAY_MS);
       }

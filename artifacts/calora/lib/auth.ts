@@ -41,7 +41,6 @@
 
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
-import * as SecureStore from 'expo-secure-store';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
@@ -56,7 +55,7 @@ export const OAUTH_REDIRECT_URI = 'caloraapp://auth/callback' as const;
  * This must match the internal logic of @supabase/supabase-js:
  * sb-<project-id>-auth-token-code-verifier
  */
-async function getPkceVerifierKey(): Promise<string> {
+function getPkceVerifierKey(): string {
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
   if (!url) return 'supabase.auth.token-code-verifier';
   try {
@@ -92,15 +91,18 @@ export type AuthResult =
   | { success: true; session: Session }
   | { success: false; error: AuthError };
 
+/** Callback for reporting fine-grained auth status updates. */
+export type AuthStatusCallback = (message: string) => void;
+
 // ---------------------------------------------------------------------------
 // Google Sign-In
 // ---------------------------------------------------------------------------
 
-export async function signInWithGoogle(): Promise<AuthResult> {
+export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<AuthResult> {
   try {
+    onStatus?.('Initializing secure session\u2026');
+    
     // 1. Generate PKCE verifier and challenge manually.
-    // This ensures the verifier is persisted in SecureStore before we leave the app,
-    // so it can be recovered even if the app is restarted during the OAuth flow.
     const verifier = Crypto.randomUUID();
     const base64Challenge = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
@@ -114,9 +116,17 @@ export async function signInWithGoogle(): Promise<AuthResult> {
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
-    // Store verifier in the exact key Supabase expects
-    const storageKey = await getPkceVerifierKey();
-    await SecureStore.setItemAsync(storageKey, verifier);
+    // Store verifier using the client's own storage adapter to ensure consistency.
+    // The key must match exactly what the SDK expects to find during exchange.
+    const storageKey = getPkceVerifierKey();
+    // Supabase auth storage is accessible via the internal property
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const storage = (supabase.auth as any).storage;
+    if (storage && typeof storage.setItem === 'function') {
+      await storage.setItem(storageKey, verifier);
+    }
+
+    onStatus?.('Connecting to Google\u2026');
 
     // 2. Request the OAuth URL from Supabase with the manual challenge
     const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -175,14 +185,14 @@ export async function signInWithGoogle(): Promise<AuthResult> {
       };
     }
 
-    return handleOAuthCallbackUrl(browserResult.url);
+    return handleOAuthCallbackUrl(browserResult.url, onStatus);
   } catch (err) {
     return classifyError(err);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Email sign-up
+// Email flows (unchanged but included for completeness)
 // ---------------------------------------------------------------------------
 
 export async function signUpWithEmail(email: string, password: string): Promise<AuthResult> {
@@ -223,10 +233,6 @@ export async function signUpWithEmail(email: string, password: string): Promise<
   }
 }
 
-// ---------------------------------------------------------------------------
-// Email sign-in
-// ---------------------------------------------------------------------------
-
 export async function signInWithEmail(email: string, password: string): Promise<AuthResult> {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -265,10 +271,6 @@ export async function signInWithEmail(email: string, password: string): Promise<
   }
 }
 
-// ---------------------------------------------------------------------------
-// Password reset
-// ---------------------------------------------------------------------------
-
 export async function sendPasswordReset(email: string): Promise<{ error?: AuthError }> {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(
@@ -292,10 +294,6 @@ export async function updatePassword(newPassword: string): Promise<{ error?: Aut
   }
 }
 
-// ---------------------------------------------------------------------------
-// Email verification
-// ---------------------------------------------------------------------------
-
 export async function resendVerificationEmail(email: string): Promise<{ error?: AuthError }> {
   try {
     const { error } = await supabase.auth.resend({
@@ -309,10 +307,6 @@ export async function resendVerificationEmail(email: string): Promise<{ error?: 
     return { error: classifyError(err).error as AuthError };
   }
 }
-
-// ---------------------------------------------------------------------------
-// Sign out
-// ---------------------------------------------------------------------------
 
 export async function signOut(): Promise<{ error?: AuthError }> {
   try {
@@ -332,7 +326,12 @@ export async function signOut(): Promise<{ error?: AuthError }> {
  * Exchanges an OAuth/magic-link/recovery callback URL for a Supabase session.
  * Handles both PKCE (?code=) and implicit (#access_token=) flows.
  */
-export async function handleOAuthCallbackUrl(url: string): Promise<AuthResult> {
+export async function handleOAuthCallbackUrl(
+  url: string, 
+  onStatus?: AuthStatusCallback
+): Promise<AuthResult> {
+  onStatus?.('Verifying credentials\u2026');
+
   try {
     const urlObj = new URL(url);
     const urlError = urlObj.searchParams.get('error');
@@ -350,7 +349,14 @@ export async function handleOAuthCallbackUrl(url: string): Promise<AuthResult> {
   }
 
   try {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(url);
+    // Add a 25-second timeout to the exchange to prevent indefinite hanging.
+    const exchangePromise = supabase.auth.exchangeCodeForSession(url);
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Auth exchange timed out')), 25000)
+    );
+
+    onStatus?.('Finalizing sign-in\u2026');
+    const { data, error } = await Promise.race([exchangePromise, timeoutPromise]) as any;
 
     if (error) {
       const lower = error.message?.toLowerCase() ?? '';
@@ -374,6 +380,7 @@ export async function handleOAuthCallbackUrl(url: string): Promise<AuthResult> {
       };
     }
 
+    onStatus?.('Success!');
     return { success: true, session: data.session };
   } catch (err) {
     return classifyError(err);
@@ -397,7 +404,7 @@ function classifyError(err: unknown): { success: false; error: AuthError } {
   const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
   const lower = message.toLowerCase();
   const code: AuthErrorCode =
-    lower.includes('network') || lower.includes('fetch') || lower.includes('offline')
+    lower.includes('network') || lower.includes('fetch') || lower.includes('offline') || lower.includes('timeout')
       ? 'network'
       : lower.includes('expired')
         ? 'expired'
@@ -410,7 +417,7 @@ function classifyError(err: unknown): { success: false; error: AuthError } {
 function resolveUserMessage(code: AuthErrorCode, raw: string): string {
   switch (code) {
     case 'cancelled': return 'Sign-in was cancelled.';
-    case 'network': return 'No internet connection. Please check your network and try again.';
+    case 'network': return 'No internet connection or server timeout. Please try again.';
     case 'expired': return 'This sign-in link has expired. Please request a new one.';
     case 'duplicate': return 'An account with this email already exists under a different provider.';
     case 'invalid_credentials': return 'Incorrect email or password. Please try again.';
