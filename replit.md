@@ -52,6 +52,8 @@ CaloraApp gives users a daily calorie and macro view, verified food shortcuts, p
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
 
+- Sanitize every user-facing response before sending it: remove AI-style dash formatting, literal or escaped newline artifacts, Markdown residue, placeholder or internal text, invisible characters, duplicate blank lines, and excessive whitespace; preserve clear headings, paragraphs, and numbered lists using natural English punctuation.
+
 ## Gotchas
 
 _Populate as you build — sharp edges, "always run X before Y" rules._
