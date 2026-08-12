@@ -52,10 +52,21 @@ import { supabase } from './supabase';
 export const OAUTH_REDIRECT_URI = 'caloraapp://auth/callback' as const;
 
 /**
- * Supabase storage key for the PKCE code verifier.
- * Format: sb-<project-id>-auth-token-code-verifier
+ * Resolves the Supabase storage key for the PKCE code verifier.
+ * This must match the internal logic of @supabase/supabase-js:
+ * sb-<project-id>-auth-token-code-verifier
  */
-const PKCE_VERIFIER_KEY = 'sb-1f202325-5b9a-4260-978f-abbd3252b9ee-auth-token-code-verifier';
+async function getPkceVerifierKey(): Promise<string> {
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  if (!url) return 'supabase.auth.token-code-verifier';
+  try {
+    const hostname = new URL(url).hostname;
+    const projectId = hostname.split('.')[0];
+    return `sb-${projectId}-auth-token-code-verifier`;
+  } catch {
+    return 'supabase.auth.token-code-verifier';
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Result and error types
@@ -91,19 +102,21 @@ export async function signInWithGoogle(): Promise<AuthResult> {
     // This ensures the verifier is persisted in SecureStore before we leave the app,
     // so it can be recovered even if the app is restarted during the OAuth flow.
     const verifier = Crypto.randomUUID();
-    const challengeBuffer = await Crypto.digestStringAsync(
+    const base64Challenge = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
-      verifier
+      verifier,
+      { encoding: Crypto.CryptoEncoding.BASE64 }
     );
     
-    // Convert SHA256 buffer to base64url string
-    const challenge = btoa(challengeBuffer)
+    // Convert base64 to base64url string
+    const challenge = base64Challenge
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
     // Store verifier in the exact key Supabase expects
-    await SecureStore.setItemAsync(PKCE_VERIFIER_KEY, verifier);
+    const storageKey = await getPkceVerifierKey();
+    await SecureStore.setItemAsync(storageKey, verifier);
 
     // 2. Request the OAuth URL from Supabase with the manual challenge
     const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
