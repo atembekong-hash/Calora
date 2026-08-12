@@ -3,19 +3,6 @@
  *
  * This is the single application-wide Supabase instance.  Import `supabase`
  * from this module wherever SDK access is needed.
- *
- * ─── Security contract ────────────────────────────────────────────────────
- *  • Only EXPO_PUBLIC_* variables appear here — they are safe to bundle into
- *    the Expo application.
- *  • SUPABASE_SERVICE_ROLE_KEY must NEVER be imported, referenced, or used
- *    in any file reachable by the mobile client.  It belongs exclusively on
- *    the API server.
- *  • detectSessionInUrl is false because React Native has no window.location.
- *    Session tokens arrive explicitly through the OAuth callback screen.
- *  • On native platforms (iOS / Android), session tokens are stored in the
- *    platform keychain / keystore via expo-secure-store.
- *  • On Expo web preview, expo-secure-store is unavailable; Supabase falls
- *    back to in-memory storage — sessions do not persist across reloads on web.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -38,12 +25,10 @@ function requireSupabaseConfig(): { url: string; anonKey: string } {
   if (missing.length > 0) {
     throw new Error(
       `[CaloraApp] Missing required Expo public configuration: ${missing.join(', ')}. ` +
-        'Set these variables in the EAS environment selected by the build profile, then rebuild. ' +
-        'Do not add Supabase credentials to source control.',
+        'Set these variables in the EAS environment selected by the build profile, then rebuild.'
     );
   }
 
-  // The missing-value guard above makes these values present at runtime.
   return { url: SUPABASE_URL!, anonKey: SUPABASE_ANON_KEY! };
 }
 
@@ -53,12 +38,6 @@ const supabaseConfig = requireSupabaseConfig();
 // Secure storage adapter
 // ---------------------------------------------------------------------------
 
-/**
- * Storage adapter backed by expo-secure-store (iOS Keychain / Android Keystore).
- *
- * Passing `undefined` on web tells Supabase to use its default in-memory store.
- * SecureStore is not available in a browser environment.
- */
 const nativeSecureStorage =
   Platform.OS !== 'web'
     ? {
@@ -75,16 +54,22 @@ const nativeSecureStorage =
 // Client
 // ---------------------------------------------------------------------------
 
+/**
+ * We explicitly set storageKey to a fixed value.
+ * In monorepos/pnpm environments, Supabase's default key derivation can sometimes 
+ * vary between different entry points or build artifacts. Forcing a unified key 
+ * ensures that PKCE verifiers stored during sign-in are correctly retrieved 
+ * during the callback exchange.
+ */
+export const SUPABASE_STORAGE_KEY = 'calora-auth-storage';
+
 export const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey, {
   auth: {
     storage: nativeSecureStorage,
+    storageKey: SUPABASE_STORAGE_KEY,
     autoRefreshToken: true,
     persistSession: true,
-    /**
-     * Must be false for React Native.  There is no window.location to parse.
-     * Session tokens are delivered explicitly through handleOAuthCallbackUrl()
-     * called from the auth/callback screen or from signInWithGoogle().
-     */
     detectSessionInUrl: false,
+    flowType: 'pkce', // Explicitly enforce PKCE
   },
 });
