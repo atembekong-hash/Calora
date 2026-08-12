@@ -1,4 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
+import { sql } from "drizzle-orm";
 import {
   boolean,
   date,
@@ -66,6 +67,24 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   foodItemId: uuid("food_item_id").references(() => foodItemsTable.id, { onDelete: "set null" }),
+  /**
+   * Stable client-generated identifier (the local log id). Used as an
+   * idempotency key for the sync endpoint so repeated pushes don't create
+   * duplicate rows. Nullable for rows written before sync was introduced.
+   */
+  clientId: text("client_id"),
+  /**
+   * Server-verified capture session that originated this diary entry.
+   * Written by POST /v1/sync when the client supplies a captureSessionId.
+   * The sync handler verifies the session belongs to the authenticated user
+   * and has mode != 'text' before recording it here.  NULL means the entry
+   * was either written via the bare /v1/diary endpoint or synced without a
+   * session reference.
+   *
+   * Used by hasSyncedDiaryEntry Path 2 to gate referral qualification on
+   * provenance: only image/barcode-originated sync entries qualify.
+   */
+  captureSessionId: uuid("capture_session_id").references(() => aiCaptureSessionsTable.id, { onDelete: "set null" }),
   entryDate: date("entry_date").notNull(),
   meal: text("meal").notNull(),
   name: text("name").notNull(),
@@ -80,7 +99,11 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
   clientUpdatedAt: timestamp("client_updated_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+  userClientIdIndex: uniqueIndex("calora_diary_entries_user_client_id_idx")
+    .on(table.userId, table.clientId)
+    .where(sql`${table.clientId} IS NOT NULL`),
+}));
 
 export const weightEntriesTable = pgTable("calora_weight_entries", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -137,6 +160,23 @@ export const aiCaptureSessionsTable = pgTable("calora_ai_capture_sessions", {
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
 });
 
+/**
+ * One-time server-issued proof that a user completed an authenticated food
+ * capture and explicitly approved the review. Referral rewards may only use
+ * this proof — never a client-supplied diary payload or seeded demo entry.
+ */
+export const referralQualificationsTable = pgTable("calora_referral_qualifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  externalUserId: text("external_user_id").notNull(),
+  captureSessionId: text("capture_session_id").notNull(),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  sessionIndex: uniqueIndex("calora_referral_qualification_session_idx").on(table.captureSessionId),
+  userIndex: uniqueIndex("calora_referral_qualification_user_idx").on(table.externalUserId),
+}));
+
 export const aiCaptureCandidatesTable = pgTable("calora_ai_capture_candidates", {
   id: uuid("id").defaultRandom().primaryKey(),
   sessionId: uuid("session_id").notNull().references(() => aiCaptureSessionsTable.id, { onDelete: "cascade" }),
@@ -161,6 +201,43 @@ export const subscriptionsTable = pgTable("calora_subscriptions", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
   userProductIndex: uniqueIndex("calora_subscription_user_product_idx").on(table.userId, table.productId),
+}));
+
+/**
+ * Referral program tables.
+ *
+ * Keyed by the Supabase Auth user id (text) rather than calora_users — the
+ * referral flow runs on freshly signed-up accounts that may not have a synced
+ * profile row yet, and the API server verifies identity from the Supabase JWT.
+ */
+export const referralCodesTable = pgTable("calora_referral_codes", {
+  userId: text("user_id").primaryKey(),
+  code: text("code").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  codeIndex: uniqueIndex("calora_referral_codes_code_idx").on(table.code),
+}));
+
+export const referralRedemptionsTable = pgTable("calora_referral_redemptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  code: text("code").notNull(),
+  referrerUserId: text("referrer_user_id").notNull(),
+  /** One redemption per referred account, enforced by the unique index. */
+  referredUserId: text("referred_user_id").notNull(),
+  status: text("status").notNull().default("pending"), // pending | rewarded
+  /**
+   * Server-observed proof that the referred user really logged food
+   * (e.g. a successful capture analysis or a synced diary entry).
+   * Activation never grants rewards while this is NULL.
+   */
+  qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
+  /** Which server-side signal qualified this redemption (capture_analysis | diary_sync). */
+  qualifiedSignal: text("qualified_signal"),
+  referredRewardedAt: timestamp("referred_rewarded_at", { withTimezone: true }),
+  referrerRewardedAt: timestamp("referrer_rewarded_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  referredIndex: uniqueIndex("calora_referral_redemptions_referred_idx").on(table.referredUserId),
 }));
 
 export const syncMutationsTable = pgTable("calora_sync_mutations", {
@@ -189,6 +266,19 @@ export const recipeNutritionTable = pgTable("calora_recipe_nutrition", {
   carbsG: integer("carbs_g").notNull(),
   fatG: integer("fat_g").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Persistent fixed-window rate-limit buckets for POST /v1/capture/analyze.
+ *
+ * One row per rate-limit key (user:<id> or ip:<address>). The upsert that
+ * checks and increments the counter is a single atomic SQL statement, so
+ * state is consistent across server restarts and multiple instances.
+ */
+export const captureRateLimitsTable = pgTable("calora_capture_rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
 });
 
 export const insertRecipeNutritionSchema = createInsertSchema(recipeNutritionTable);

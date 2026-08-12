@@ -13,6 +13,16 @@ const SOURCE_URL = "https://www.themealdb.com/";
 
 type NutritionEstimate = { calories: number; proteinG: number; carbsG: number; fatG: number };
 
+// Maximum time to wait for an OpenAI response before giving up.  8 s is
+// generous enough for a well-behaved call while still preventing the HTTP
+// request from hanging indefinitely when OpenAI is slow or unreachable.
+// Tests may shorten this via OPENAI_TIMEOUT_MS_OVERRIDE so they run without
+// fake timers and still validate the abort/fallback path quickly.
+const OPENAI_TIMEOUT_MS =
+  process.env.OPENAI_TIMEOUT_MS_OVERRIDE
+    ? Number(process.env.OPENAI_TIMEOUT_MS_OVERRIDE)
+    : 8_000;
+
 // TTL for database-persisted nutrition estimates.  7 days is long enough that
 // popular meals are rarely re-estimated, but short enough that upstream
 // ingredient changes from TheMealDB surface within a reasonable window.
@@ -75,23 +85,28 @@ async function saveNutritionToDb(mealId: string, nutrition: NutritionEstimate): 
 }
 
 async function estimateNutrition(name: string, ingredients: string[]): Promise<NutritionEstimate | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5.4-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a nutrition expert. Return ONLY a JSON object — no markdown, no prose — with these four integer keys: calories, proteinG, carbsG, fatG. Estimate values for one typical serving.",
-        },
-        {
-          role: "user",
-          content: `Recipe: ${name}\nIngredients: ${ingredients.join(", ")}`,
-        },
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 80,
-    });
+    const completion = await openai.chat.completions.create(
+      {
+        model: "gpt-5.4-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a nutrition expert. Return ONLY a JSON object — no markdown, no prose — with these four integer keys: calories, proteinG, carbsG, fatG. Estimate values for one typical serving.",
+          },
+          {
+            role: "user",
+            content: `Recipe: ${name}\nIngredients: ${ingredients.join(", ")}`,
+          },
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 80,
+      },
+      { signal: controller.signal },
+    );
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const calories = Math.round(Number(parsed.calories) || 0);
@@ -102,6 +117,8 @@ async function estimateNutrition(name: string, ingredients: string[]): Promise<N
     return { calories, proteinG, carbsG, fatG };
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -442,14 +459,19 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
       return;
     }
 
-    // ── Cache miss: return instructions immediately, estimate in background ─
-    // Never block the response on an OpenAI call — instructions are what the
-    // user needs right now.  The client polls (refetchInterval) until the
-    // background estimate lands in L1 and the next request serves it from
-    // memory without touching OpenAI again.
-    if (base.ingredients.length > 0 && !nutritionRefreshInFlight.has(base.id)) {
-      nutritionRefreshInFlight.add(base.id);
-      void refreshNutritionInBackground(base.id, base.name, base.ingredients);
+    // ── Cache miss: call OpenAI now so this response includes nutrition ─────
+    // We await the estimate here rather than deferring it — callers should
+    // always get a value on first fetch when OpenAI is reachable.  The result
+    // is written to both L1 and L2 so subsequent requests (and server restarts)
+    // are served from cache without a further OpenAI call.
+    if (base.ingredients.length > 0) {
+      const fresh = await estimateNutrition(base.name, base.ingredients);
+      if (fresh) {
+        nutritionCache.set(base.id, { estimate: fresh, cachedAt: Date.now() });
+        void saveNutritionToDb(base.id, fresh);
+        res.json({ ...base, ...fresh });
+        return;
+      }
     }
     res.json({ ...base, nutritionPending: true });
     return;

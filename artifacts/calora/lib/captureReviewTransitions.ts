@@ -23,6 +23,11 @@ export type FoodSource =
 
 export type FoodLog = {
   id: string;
+  /**
+   * Server-issued capture session id (UUID) inherited from a capture-backed
+   * draft. Only logs carrying this can anchor the referral first-log sync.
+   */
+  captureSessionId?: string;
   name: string;
   date: string;
   meal: FoodMemoryDraft['meal'];
@@ -89,6 +94,7 @@ export function buildAcceptResult(
 
   const log: FoodLog = {
     id: logId,
+    captureSessionId: draft.captureSessionId,
     name: draft.title,
     date: draft.date,
     meal: draft.meal,

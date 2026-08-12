@@ -4,10 +4,74 @@
  * Strategy:
  * - Mock global fetch to control Open Food Facts and USDA responses
  * - Mock the OpenAI client module to avoid requiring API credentials
+ * - Mock @workspace/db pool.query with an in-memory simulation of the
+ *   rate-limit upsert so tests run without a real database and directly
+ *   exercise the DB-backed logic (not a fallthrough to fail-open).
  * - Import the Express app and use supertest for HTTP-level assertions
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
+
+// ---------------------------------------------------------------------------
+// Shared in-memory state that backs the pool.query mock below.
+// vi.hoisted ensures this is available inside the vi.mock factory (which
+// is hoisted to the top of the module by vitest).
+// ---------------------------------------------------------------------------
+const { mockRateBuckets } = vi.hoisted(() => ({
+  mockRateBuckets: new Map<string, { count: number; reset_at: Date }>(),
+}));
+
+// ---------------------------------------------------------------------------
+// Mock @workspace/db — pool.query simulates the rate-limit upsert using
+// mockRateBuckets so tests never need a real Postgres connection.
+// db.insert is stubbed so persistCaptureSession doesn't throw when a
+// verified user is present in a test.
+// ---------------------------------------------------------------------------
+vi.mock('@workspace/db', () => {
+  const mockQuery = vi.fn(async (sql: string, params?: unknown[]) => {
+    const trimmed = (sql ?? '').trim();
+
+    // Atomic rate-limit upsert (INSERT … ON CONFLICT … RETURNING count, reset_at)
+    if (trimmed.startsWith('INSERT INTO calora_capture_rate_limits')) {
+      const key = (params as [string, string])[0];
+      const windowSecs = Number((params as [string, string])[1]);
+      const now = new Date();
+      const existing = mockRateBuckets.get(key);
+      let count: number;
+      let reset_at: Date;
+      if (!existing || existing.reset_at <= now) {
+        // New bucket or expired window — reset to 1
+        count = 1;
+        reset_at = new Date(now.getTime() + windowSecs * 1000);
+      } else {
+        count = existing.count + 1;
+        reset_at = existing.reset_at;
+      }
+      mockRateBuckets.set(key, { count, reset_at });
+      return { rows: [{ count, reset_at }] };
+    }
+
+    // resetCaptureRateLimiter() — clear all buckets
+    if (trimmed.startsWith('DELETE FROM calora_capture_rate_limits')) {
+      mockRateBuckets.clear();
+      return { rows: [] };
+    }
+
+    return { rows: [] };
+  });
+
+  // Minimal db stub — only insert is needed for persistCaptureSession
+  const mockInsert = vi.fn().mockReturnValue({
+    values: vi.fn().mockResolvedValue(undefined),
+  });
+
+  return {
+    pool: { query: mockQuery },
+    db: { insert: mockInsert },
+    aiCaptureSessionsTable: {},
+    aiCaptureCandidatesTable: {},
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Mock @workspace/integrations-openai-ai-server before it is imported so that
@@ -24,11 +88,20 @@ vi.mock('@workspace/integrations-openai-ai-server', () => ({
 }));
 
 // ---------------------------------------------------------------------------
-// Imports that depend on the mocked module
+// Mock verifyBearerToken so the capture route doesn't try to reach Supabase.
+// Default: returns null (anonymous / no valid token).
+// ---------------------------------------------------------------------------
+vi.mock('../lib/supabase-auth.js', () => ({
+  verifyBearerToken: vi.fn().mockResolvedValue(null),
+}));
+
+// ---------------------------------------------------------------------------
+// Imports that depend on the mocked modules
 // ---------------------------------------------------------------------------
 import { openai } from '@workspace/integrations-openai-ai-server';
+import { verifyBearerToken } from '../lib/supabase-auth.js';
 import express from 'express';
-import captureRouter from '../routes/capture.js';
+import captureRouter, { resetCaptureRateLimiter } from '../routes/capture.js';
 
 // ---------------------------------------------------------------------------
 // Build a minimal Express app that mounts the capture router
@@ -124,11 +197,16 @@ describe('POST /v1/capture/analyze', () => {
   let app: ReturnType<typeof buildApp>;
   let mockFetch: ReturnType<typeof vi.fn>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     app = buildApp();
     mockFetch = vi.fn();
     vi.stubGlobal('fetch', mockFetch);
     vi.clearAllMocks();
+    // resetCaptureRateLimiter is async — it issues a DELETE against the
+    // (mocked) DB table so the in-memory simulation is cleared before each test.
+    await resetCaptureRateLimiter();
+    // Default: anonymous (no verified user). Individual tests can override this.
+    vi.mocked(verifyBearerToken).mockResolvedValue(null);
   });
 
   // -------------------------------------------------------------------------
@@ -607,6 +685,217 @@ describe('POST /v1/capture/analyze', () => {
       expect(res.body.mode).toBe('barcode');
       // openai should NOT have been called — barcode path was taken
       expect(openai.chat.completions.create).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Rate limiting — per user/IP sliding window
+  // -------------------------------------------------------------------------
+
+  describe('rate limiting', () => {
+    // The rate limiter is reset in the outer beforeEach so each test starts
+    // with a clean slate. We use voice mode (no network/AI calls) to exhaust
+    // the bucket quickly without mocking every provider.
+    //
+    // verifyBearerToken is mocked to return null (anonymous) by default.
+    // Tests that want a verified user identity override it directly.
+
+    it('returns 429 after exceeding the per-IP request limit', async () => {
+      // Exhaust the bucket (CAPTURE_RATE_LIMIT = 30).
+      for (let i = 0; i < 30; i++) {
+        await request(app)
+          .post('/v1/capture/analyze')
+          .send({ mode: 'voice' })
+          .set('Content-Type', 'application/json');
+      }
+
+      // The 31st request must be rejected.
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'voice' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(429);
+    });
+
+    it('429 response body contains a human-readable message and retryAfterSecs', async () => {
+      for (let i = 0; i < 30; i++) {
+        await request(app)
+          .post('/v1/capture/analyze')
+          .send({ mode: 'voice' })
+          .set('Content-Type', 'application/json');
+      }
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'voice' })
+        .set('Content-Type', 'application/json');
+
+      expect(typeof res.body.message).toBe('string');
+      expect(res.body.message.length).toBeGreaterThan(0);
+      expect(typeof res.body.retryAfterSecs).toBe('number');
+      expect(res.body.retryAfterSecs).toBeGreaterThan(0);
+    });
+
+    it('429 response includes a Retry-After header', async () => {
+      for (let i = 0; i < 30; i++) {
+        await request(app)
+          .post('/v1/capture/analyze')
+          .send({ mode: 'voice' })
+          .set('Content-Type', 'application/json');
+      }
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'voice' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.headers['retry-after']).toBeDefined();
+      expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
+    });
+
+    it('requests within the limit are still accepted', async () => {
+      // 30 requests — all should succeed (voice returns 200 even when unavailable).
+      for (let i = 0; i < 30; i++) {
+        const res = await request(app)
+          .post('/v1/capture/analyze')
+          .send({ mode: 'voice' })
+          .set('Content-Type', 'application/json');
+        expect(res.status).toBe(200);
+      }
+    });
+
+    it('verified users have separate buckets from each other', async () => {
+      // Exhaust bucket for user A (Supabase-verified identity).
+      vi.mocked(verifyBearerToken).mockResolvedValue({ id: 'user-a', email: null });
+      for (let i = 0; i < 30; i++) {
+        await request(app)
+          .post('/v1/capture/analyze')
+          .set('Authorization', 'Bearer token-a')
+          .send({ mode: 'voice' })
+          .set('Content-Type', 'application/json');
+      }
+
+      // User A is now rate-limited.
+      const resA = await request(app)
+        .post('/v1/capture/analyze')
+        .set('Authorization', 'Bearer token-a')
+        .send({ mode: 'voice' })
+        .set('Content-Type', 'application/json');
+      expect(resA.status).toBe(429);
+
+      // User B has a fresh bucket and should still get through.
+      vi.mocked(verifyBearerToken).mockResolvedValue({ id: 'user-b', email: null });
+      const resB = await request(app)
+        .post('/v1/capture/analyze')
+        .set('Authorization', 'Bearer token-b')
+        .send({ mode: 'voice' })
+        .set('Content-Type', 'application/json');
+      expect(resB.status).toBe(200);
+    });
+
+    it('an invalid or unsigned token falls back to the shared IP bucket, not a fresh user bucket', async () => {
+      // Anonymous (no auth) exhausts the IP bucket.
+      vi.mocked(verifyBearerToken).mockResolvedValue(null);
+      for (let i = 0; i < 30; i++) {
+        await request(app)
+          .post('/v1/capture/analyze')
+          .send({ mode: 'voice' })
+          .set('Content-Type', 'application/json');
+      }
+
+      // A request bearing an invalid/unverified token must NOT receive a fresh
+      // bucket — verifyBearerToken returns null for invalid tokens, so the
+      // request lands in the same IP bucket that is already exhausted.
+      vi.mocked(verifyBearerToken).mockResolvedValue(null);
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .set('Authorization', 'Bearer forged.unsigned.token')
+        .send({ mode: 'voice' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(429);
+    });
+
+    it('a spoofed X-Forwarded-For header does not bypass the rate limit', async () => {
+      // Exhaust the IP bucket with requests bearing no special headers.
+      vi.mocked(verifyBearerToken).mockResolvedValue(null);
+      for (let i = 0; i < 30; i++) {
+        await request(app)
+          .post('/v1/capture/analyze')
+          .send({ mode: 'voice' })
+          .set('Content-Type', 'application/json');
+      }
+
+      // Sending a spoofed X-Forwarded-For must not produce a fresh bucket.
+      // req.ip is determined by Express from the trusted-proxy chain set in
+      // app.ts, not from the raw header value; the test app uses the same
+      // loopback address regardless of what X-Forwarded-For says.
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .set('X-Forwarded-For', '1.2.3.4')
+        .send({ mode: 'voice' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(429);
+    });
+
+    it('rate-limit state persists across server restarts (shared DB-backed store)', async () => {
+      // Simulate "instance A" exhausting the bucket for a known user.
+      const appA = buildApp();
+      vi.mocked(verifyBearerToken).mockResolvedValue({ id: 'user-restart-test', email: null });
+
+      for (let i = 0; i < 30; i++) {
+        const res = await request(appA)
+          .post('/v1/capture/analyze')
+          .set('Authorization', 'Bearer token')
+          .send({ mode: 'voice' })
+          .set('Content-Type', 'application/json');
+        expect(res.status).toBe(200);
+      }
+
+      // Simulate a server restart by creating a completely new Express app
+      // (appB). Because rate-limit state lives in the mocked DB (mockRateBuckets)
+      // rather than in any module-level Map, the new instance must still reject
+      // the 31st request for the same user — just as a real restart would.
+      const appB = buildApp();
+      const res = await request(appB)
+        .post('/v1/capture/analyze')
+        .set('Authorization', 'Bearer token')
+        .send({ mode: 'voice' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(429);
+      expect(res.body.retryAfterSecs).toBeGreaterThan(0);
+      expect(res.headers['retry-after']).toBeDefined();
+    });
+
+    it('rate-limit counter resets once the window expires', async () => {
+      // Exhaust the bucket.
+      vi.mocked(verifyBearerToken).mockResolvedValue({ id: 'user-window-reset', email: null });
+      for (let i = 0; i < 30; i++) {
+        await request(app)
+          .post('/v1/capture/analyze')
+          .set('Authorization', 'Bearer token')
+          .send({ mode: 'voice' })
+          .set('Content-Type', 'application/json');
+      }
+
+      // Force the window to expire by back-dating the bucket's reset_at.
+      const key = 'user:user-window-reset';
+      const bucket = mockRateBuckets.get(key);
+      if (bucket) {
+        bucket.reset_at = new Date(Date.now() - 1); // expired 1 ms ago
+      }
+
+      // After expiry the next request should open a new window and succeed.
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .set('Authorization', 'Bearer token')
+        .send({ mode: 'voice' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(200);
     });
   });
 });

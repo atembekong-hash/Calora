@@ -16,11 +16,26 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.etiendem.caloraapp",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "associatedDomains": ["applinks:mycaloraapp.com"]
     },
     "android": {
       "package": "com.etiendem.caloraapp",
-      "versionCode": 4
+      "versionCode": 4,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "mycaloraapp.com",
+              "pathPrefix": "/invite"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"

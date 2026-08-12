@@ -28,6 +28,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useCalora } from '@/context/CaloraContext';
+import { AppHeader } from '@/components/AppChrome';
 import { useAuth } from '@/context/AuthContext';
 
 export default function ResetPasswordScreen() {
@@ -75,10 +76,11 @@ export default function ResetPasswordScreen() {
       style={[styles.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <AppHeader back title="Set new password" onBack={() => router.canGoBack() ? router.back() : router.replace('/auth/forgot-password' as any)} />
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: insets.top + 48, paddingBottom: insets.bottom + 32 },
+          { paddingTop: 28, paddingBottom: insets.bottom + 32 },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}

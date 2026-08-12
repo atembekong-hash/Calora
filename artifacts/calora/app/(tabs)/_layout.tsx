@@ -3,9 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useCalora } from '@/context/CaloraContext';
 import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Tabs } from 'expo-router';
-import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { SymbolView } from 'expo-symbols';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
@@ -16,37 +14,6 @@ function AnimatedTabIcon({ focused, children }: { focused: boolean; children: Re
   }, [focused, scale]);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return <Animated.View style={animStyle}>{children}</Animated.View>;
-}
-
-// IMPORTANT: iOS 26 uses NativeTabs for native tabs with liquid glass support.
-// NativeTabs intentionally does NOT use custom design tokens — liquid glass
-// is a system-level appearance provided by iOS and cannot be overridden.
-// Custom brand colors are applied only on the ClassicTabLayout path (older iOS / Android / web).
-function NativeTabLayout() {
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: 'house', selected: 'house.fill' }} />
-        <Label>Home</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="recipes">
-        <Icon sf={{ default: 'book.closed', selected: 'book.closed.fill' }} />
-        <Label>Recipes</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="scan">
-        <Icon sf={{ default: 'camera', selected: 'camera.fill' }} />
-        <Label>Scan</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="insights">
-        <Icon sf={{ default: 'chart.bar.xaxis', selected: 'chart.bar.xaxis' }} />
-        <Label>Progress</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="planner">
-        <Icon sf={{ default: 'calendar', selected: 'calendar' }} />
-        <Label>Plan</Label>
-      </NativeTabs.Trigger>
-    </NativeTabs>
-  );
 }
 
 function ClassicTabLayout() {
@@ -189,8 +156,5 @@ const styles = StyleSheet.create({
 });
 
 export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
   return <ClassicTabLayout />;
 }

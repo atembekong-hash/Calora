@@ -5,11 +5,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
+import { AppHeader } from '@/components/AppChrome';
 import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
+import { formatGrams, formatWhole } from '@/lib/formatters';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { router } from 'expo-router';
@@ -298,8 +300,12 @@ function WeightLineChart({
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [chartWidth, setChartWidth] = useState(SPARK_W);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const tooltipOpacity = useSharedValue(0);
   const tooltipScale = useSharedValue(0.82);
+  // Scroll-hint gradient opacities — start scrolled to end, so left edge is visible.
+  const leftGradientOpacity = useSharedValue(1);
+  const rightGradientOpacity = useSharedValue(0);
 
   const vals = entries.map((e) => e.kg);
   const min = Math.min(...vals);
@@ -315,8 +321,13 @@ function WeightLineChart({
   const svgViewW = expanded
     ? Math.max(SPARK_W, entries.length * MIN_ENTRY_SPACING)
     : SPARK_W;
-  // The chart becomes horizontally scrollable when the content is wider than SPARK_W.
-  const isScrollable = expanded && svgViewW > SPARK_W;
+  // 12px matches the ScrollView's contentContainerStyle paddingRight.
+  const SCROLL_PADDING_RIGHT = 12;
+  // The chart becomes horizontally scrollable only when the drawn content (SVG + padding)
+  // genuinely overflows the measured container. Comparing against the measured chartWidth
+  // (not the SPARK_W constant) prevents false positives when the modal viewport is wider
+  // than SPARK_W but the content still fits without scrolling.
+  const isScrollable = expanded && (svgViewW + SCROLL_PADDING_RIGHT) > chartWidth;
 
   const pts = vals.map((v, i) => ({
     x: SPARK_PAD_X + (i / (vals.length - 1)) * (svgViewW - SPARK_PAD_X * 2),
@@ -356,6 +367,18 @@ function WeightLineChart({
     return () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current); };
   }, []);
 
+  // Scroll to the rightmost (most recent) entry whenever entries change.
+  // Uses a stable ref so the callback is never recreated mid-render, which
+  // would otherwise snap the chart back to the end every time the fade-state
+  // triggers a re-render.
+  useEffect(() => {
+    if (isScrollable) {
+      scrollViewRef.current?.scrollToEnd({ animated: false });
+    }
+  // Re-run when the entry list changes; dataKey captures that dependency.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isScrollable, dataKey]);
+
   const animPathProps = useAnimatedProps(() => ({
     strokeDashoffset: dashOffset.value,
   }));
@@ -369,6 +392,9 @@ function WeightLineChart({
     transform: [{ scale: tooltipScale.value }],
   }));
 
+  const leftGradientStyle = useAnimatedStyle(() => ({ opacity: leftGradientOpacity.value }));
+  const rightGradientStyle = useAnimatedStyle(() => ({ opacity: rightGradientOpacity.value }));
+
   // When the chart scrolls (expanded with many points), SVG width === viewBox width so
   // there is no scaling — pixel coordinates match the SVG coordinate space directly.
   // In the compact / non-scrolling path, scale hit targets and tooltip to the real width.
@@ -379,7 +405,36 @@ function WeightLineChart({
 
   const clearSelection = () => setSelectedIdx(null);
 
+  // Identity of the entry the tooltip currently points at. Tracked by ID (not
+  // index) because indices shift when an expired pending-delete entry leaves
+  // the dataset — comparing by index would miss a selected middle point.
+  const selectedEntryIdRef = useRef<string | undefined>(undefined);
+
+  // Dismiss the tooltip promptly when the pending-delete entry it refers to is
+  // resolved — either undo restored it (pendingDeleteId cleared) or the undo
+  // window expired (entry removed). Otherwise the "Pending removal" tooltip
+  // would flip to stale content and linger until its 2s auto-dismiss.
+  const prevPendingIdRef = useRef<string | undefined>(pendingDeleteId);
+  useEffect(() => {
+    const prevPendingId = prevPendingIdRef.current;
+    prevPendingIdRef.current = pendingDeleteId;
+    if (prevPendingId == null || pendingDeleteId === prevPendingId) return;
+    if (selectedIdx === null) return;
+    if (selectedEntryIdRef.current === prevPendingId) {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
+      }
+      tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
+        if (finished) runOnJS(clearSelection)();
+      });
+      tooltipScale.value = withTiming(0.82, { duration: 150 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingDeleteId]);
+
   const handleDotPress = (i: number) => {
+    selectedEntryIdRef.current = entries[i]?.id;
     Haptics.selectionAsync();
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
     // Reset animation values so re-tapping the same dot re-springs in cleanly
@@ -642,15 +697,44 @@ function WeightLineChart({
   return (
     <View style={styles.weightSparkline} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
       {isScrollable ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingRight: 12 }}
-          // Scroll to the end (most recent entry) on mount/data change
-          ref={(ref) => { if (ref) ref.scrollToEnd({ animated: false }); }}
-        >
-          {chartContent}
-        </ScrollView>
+        <View style={{ position: 'relative' }}>
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingRight: 12 }}
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              const x = e.nativeEvent.contentOffset.x;
+              const maxScroll = svgViewW + SCROLL_PADDING_RIGHT - chartWidth;
+              const atEnd = x >= maxScroll - 8;
+              const fadeDuration = 200;
+              const fadeEasing = Easing.inOut(Easing.ease);
+              leftGradientOpacity.value = withTiming(atEnd ? 1 : 0, { duration: fadeDuration, easing: fadeEasing });
+              rightGradientOpacity.value = withTiming(atEnd ? 0 : 1, { duration: fadeDuration, easing: fadeEasing });
+            }}
+          >
+            {chartContent}
+          </ScrollView>
+          {/* Scroll-hint fades — both always rendered, opacity animated with ease-in-out.
+              Right edge visible when more content lies to the right; left edge once scrolled to end. */}
+          <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 48 }, leftGradientStyle]}>
+            <LinearGradient
+              colors={[colors.background, 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ flex: 1 }}
+            />
+          </Animated.View>
+          <Animated.View pointerEvents="none" style={[{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 48 }, rightGradientStyle]}>
+            <LinearGradient
+              colors={['transparent', colors.background]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ flex: 1 }}
+            />
+          </Animated.View>
+        </View>
       ) : (
         chartContent
       )}
@@ -1030,6 +1114,7 @@ export default function InsightsScreen() {
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
+  const [weightError, setWeightError] = useState('');
   const [minutesInput, setMinutesInput] = useState('');
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [goalInput, setGoalInput] = useState('');
@@ -1038,8 +1123,13 @@ export default function InsightsScreen() {
   // ── Pending-edit state ────────────────────────────────────────────────────────
   const [editEntry, setEditEntry] = useState<{ id: string; kg: number; date: string } | null>(null);
   const [editInput, setEditInput] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
 
   const handleRequestEdit = (entry: { id: string; kg: number; date: string }) => {
+    // A weigh-in queued for deletion must not be editable — the edit could be
+    // silently discarded when the undo window expires and the entry is removed.
+    if (pendingDeleteRef.current?.id === entry.id) return;
+    setEditError(null);
     setEditInput(String(entry.kg));
     setEditEntry(entry);
   };
@@ -1300,7 +1390,23 @@ export default function InsightsScreen() {
   }, [saveNotice]);
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
+      <AppHeader
+        title="Insights"
+        action={
+          <ScalePressable
+            accessibilityLabel={`Open ${BRAND.name} Coach`}
+            testID="open-calora-coach"
+            onPress={() => router.push('/coach')}
+            scale={0.96}
+            haptic="light"
+            style={[styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: colors.primary, shadowColor: '#08160f' }]}
+          >
+            <Feather name="zap" size={14} color={colors.primaryForeground} />
+            <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
+          </ScalePressable>
+        }
+      />
+      <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
         <View style={styles.heroHeader}>
           <Animated.View style={[StyleSheet.absoluteFillObject, heroParallaxStyle]}>
             <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
@@ -1317,39 +1423,13 @@ export default function InsightsScreen() {
             </View>
             <Text style={styles.heroEyebrow}>THE BIGGER PICTURE</Text>
             <View style={styles.heroTitleRow}>
-              <Text style={styles.heroTitle}>Your insights</Text>
-              <ScalePressable
-                accessibilityLabel={`Open ${BRAND.name} Coach`}
-                testID="open-calora-coach"
-                onPress={() => router.push('/coach')}
-                scale={0.96}
-                haptic="light"
-                style={[styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f' }]}
-              >
-                <Feather name="zap" size={15} color={colors.primaryForeground} />
-                <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
-              </ScalePressable>
+              <Text style={styles.heroTitle}>Patterns, not pressure</Text>
             </View>
-            <Text style={styles.heroSubtitle}>Patterns, not pressure. Use the signal to make tomorrow easier.</Text>
+            <Text style={styles.heroSubtitle}>Use the signal to make tomorrow easier.</Text>
           </View>
         </View>
 
         <MotivationalQuote colors={colors} style={{ marginBottom: 16 }} />
-
-        <AnimatedReveal delay={80}>
-        <View style={[styles.adaptiveCard, { backgroundColor: colors.hero }]}>
-          <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={styles.adaptiveTexture} />
-          <LinearGradient colors={['rgba(20,63,52,0.04)', 'rgba(20,63,52,0.62)']} style={styles.adaptiveTextureOverlay} />
-          <PulseIcon colors={colors} />
-          <Text style={[styles.cardEyebrow, { color: colors.heroMuted }]}>ADAPTIVE TARGET</Text>
-          <Text style={[styles.adaptiveTitle, { color: colors.onHero }]}>Your target is working with you.</Text>
-            <Text style={[styles.adaptiveBody, { color: colors.heroMuted }]}>{averageWeekCalories ? `You’re averaging ${averageWeekCalories.toLocaleString()} kcal across ${signalDays} tracked ${signalDays === 1 ? 'day' : 'days'} this week.` : 'Keep logging to reveal a more personal weekly recommendation.'}</Text>
-          <View style={styles.adaptiveFooter}>
-            <Text style={[styles.adaptiveFooterText, { color: colors.onHero }]}>{signalDays} / 7 days of signal</Text>
-             <AnimatedTrackFill percentage={(signalDays / 7) * 100} color={colors.primary} trackColor="rgba(157,215,189,0.18)" />
-          </View>
-        </View>
-        </AnimatedReveal>
 
         <AnimatedReveal delay={150} style={styles.statRow}>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -1396,7 +1476,7 @@ export default function InsightsScreen() {
         <View style={styles.sectionHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This week</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Calories against your {target.toLocaleString()} kcal target</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Calories against your {formatWhole(target)} kcal target</Text>
           </View>
           <Pressable accessibilityLabel="Change insights range" style={[styles.rangeButton, { backgroundColor: colors.muted }]}>
             <Text style={[styles.rangeText, { color: colors.foreground }]}>7D</Text>
@@ -1408,7 +1488,7 @@ export default function InsightsScreen() {
           <View style={styles.chart}>
             {weekDays.map((item, index) => (
               <View key={item.date} style={styles.barColumn}>
-                <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.hasData && item.kcal ? item.kcal.toLocaleString() : '—'}</Text>
+                <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.hasData && item.kcal ? formatWhole(item.kcal) : '—'}</Text>
                 <View style={[styles.barTrack, { backgroundColor: colors.muted }]}>
                   <AnimatedBar value={item.value} color={index === weekDays.length - 1 ? colors.primary : colors.success} delay={index * 65} />
                 </View>
@@ -1418,7 +1498,7 @@ export default function InsightsScreen() {
           </View>
           <View style={[styles.chartLegend, { borderTopColor: colors.border }]}>
             <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>on target</Text></View>
-            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{averageWeekCalories ? `Avg. ${averageWeekCalories.toLocaleString()} kcal` : 'No calorie average yet'}</Text>
+            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{averageWeekCalories ? `Avg. ${formatWhole(averageWeekCalories)} kcal` : 'No calorie average yet'}</Text>
           </View>
         </View>
         </AnimatedReveal>
@@ -1436,9 +1516,9 @@ export default function InsightsScreen() {
         <AnimatedReveal delay={420}>
         <View style={[styles.nutrientCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {[
-            { label: 'Fiber', value: `${Math.round(nutrientTotals.fiber)} g`, target: '25 g', color: colors.success },
-            { label: 'Sugar', value: `${Math.round(nutrientTotals.sugar)} g`, target: 'added + natural', color: colors.warning },
-            { label: 'Sodium', value: `${Math.round(nutrientTotals.sodium)} mg`, target: '2,300 mg guide', color: colors.primary },
+            { label: 'Fiber', value: formatGrams(nutrientTotals.fiber), target: '25 g', color: colors.success },
+            { label: 'Sugar', value: formatGrams(nutrientTotals.sugar), target: 'added + natural', color: colors.warning },
+            { label: 'Sodium', value: `${formatWhole(nutrientTotals.sodium)} mg`, target: '2,300 mg guide', color: colors.primary },
           ].map((item) => <View key={item.label} style={styles.nutrientRow}><View style={[styles.nutrientDot, { backgroundColor: item.color }]} /><Text style={[styles.nutrientLabel, { color: colors.foreground }]}>{item.label}</Text><Text style={[styles.nutrientValue, { color: colors.foreground }]}>{item.value}</Text><Text style={[styles.nutrientTarget, { color: colors.mutedForeground }]}>{item.target}</Text></View>)}
           <Text style={[styles.nutrientNote, { color: colors.mutedForeground }]}>Micronutrients appear as verified foods are added; photo and manual entries remain estimates until reviewed.</Text>
         </View>
@@ -1706,8 +1786,31 @@ export default function InsightsScreen() {
           <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>A single weigh-in is just a data point. {BRAND.name} looks for a trend.</Text>
-            <TextInput value={weightInput} onChangeText={setWeightInput} keyboardType="decimal-pad" placeholder={`${latestWeight.toFixed(1)} kg`} placeholderTextColor={colors.mutedForeground} style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} onFocus={() => { isEditingWeight.current = true; }} onEndEditing={() => { isEditingWeight.current = false; }} />
-            <ScalePressable accessibilityLabel="Save weight" onPress={() => { const value = Number(weightInput); if (value > 0) { addWeight(value); setWeightInput(''); setShowWeight(false); setSaveNotice('Weight check-in saved locally.'); } }} scale={0.96} haptic="light" style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></ScalePressable>
+            <TextInput
+              value={weightInput}
+              onChangeText={(value) => { setWeightInput(value); if (weightError) setWeightError(''); }}
+              keyboardType="decimal-pad"
+              placeholder={`${latestWeight.toFixed(1)} kg`}
+              placeholderTextColor={colors.mutedForeground}
+              accessibilityLabel="Weight in kilograms"
+              accessibilityHint="Enter a positive number before saving your weigh-in"
+              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: weightError ? colors.destructive : colors.input }]}
+              onFocus={() => { isEditingWeight.current = true; }}
+              onEndEditing={() => { isEditingWeight.current = false; }}
+            />
+            {!!weightError && <Text accessibilityRole="alert" style={[styles.weightError, { color: colors.destructive }]}>{weightError}</Text>}
+            <ScalePressable accessibilityLabel="Save weight" onPress={() => {
+              const value = Number(weightInput);
+              if (!Number.isFinite(value) || value <= 0) {
+                setWeightError('Enter a positive weight to save your check-in.');
+                return;
+              }
+              addWeight(value);
+              setWeightInput('');
+              setWeightError('');
+              setShowWeight(false);
+              setSaveNotice('Weight check-in saved locally.');
+            }} scale={0.96} haptic="light" style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></ScalePressable>
             <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
           </View>
         </View>
@@ -1760,21 +1863,42 @@ export default function InsightsScreen() {
             </Text>
             <TextInput
               value={editInput}
-              onChangeText={setEditInput}
+              onChangeText={(text) => {
+                setEditInput(text);
+                if (editError) setEditError(null);
+              }}
               keyboardType="decimal-pad"
               placeholder="e.g. 76.6 kg"
               placeholderTextColor={colors.mutedForeground}
-              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]}
+              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: editError ? colors.destructive : colors.input }]}
               autoFocus
             />
+            {editError != null && (
+              <Text
+                accessibilityRole="alert"
+                style={[styles.modalBody, { color: colors.destructive, marginTop: 6 }]}
+              >
+                {editError}
+              </Text>
+            )}
             <ScalePressable
               accessibilityLabel="Save edited weigh-in"
               onPress={() => {
-                const value = Number(editInput);
-                if (value > 0 && editEntry) {
+                const trimmed = editInput.trim();
+                const value = Number(trimmed);
+                if (trimmed === '' || !Number.isFinite(value)) {
+                  setEditError('Enter a weight as a number, e.g. 76.6');
+                  return;
+                }
+                if (value <= 0) {
+                  setEditError('Weight must be greater than zero.');
+                  return;
+                }
+                if (editEntry) {
                   updateWeight(editEntry.id, value);
                   setEditEntry(null);
                   setEditInput('');
+                  setEditError(null);
                   setSaveNotice('Weigh-in updated.');
                 }
               }}
@@ -1945,6 +2069,7 @@ function makeStyles(f: number) {
   weightLineFill: { height: 7, borderRadius: 4 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   weightModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 30 },
+  weightError: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, marginTop: 8 },
   modalTitle: { fontFamily: 'Inter_700Bold', fontSize: 21 * f },
   modalBody: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18, marginTop: 7 },
   weightInput: { borderWidth: 1, borderRadius: 14, height: 48, paddingHorizontal: 13, fontFamily: 'Inter_500Medium', fontSize: 16 * f, marginTop: 17 },

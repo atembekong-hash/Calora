@@ -1,4 +1,4 @@
-import { useAnalyzeCapture, type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
+import { approveCapture, useAnalyzeCapture, type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
@@ -8,10 +8,12 @@ import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, Style
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
+import { AppHeader } from '@/components/AppChrome';
 import { BRAND } from '@/lib/brand';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { router, useLocalSearchParams } from 'expo-router';
 import { dateKey } from '@/lib/dates';
+import { formatGrams, formatPercent, formatWhole } from '@/lib/formatters';
 
 type ScanMode = 'auto' | 'barcode' | 'food' | 'label';
 
@@ -29,15 +31,15 @@ function CandidateCard({ component, colors, onChange }: { component: FoodMemoryC
         <Text style={[styles.confidence, { color: component.provenance === 'photo_estimate' ? colors.warning : colors.success }]}>{component.confidence}%</Text>
       </View>
       <View style={styles.nutritionRow}>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(component.calories * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(component.proteinG * component.eatenFraction)}g</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(component.carbsG * component.eatenFraction)}g</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
-        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{Math.round(component.fatG * component.eatenFraction)}g</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatWhole(component.calories * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatGrams(component.proteinG * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatGrams(component.carbsG * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
+        <View><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatGrams(component.fatG * component.eatenFraction)}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
       </View>
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>How much did you eat?</Text>
       <View style={styles.fractionRow}>
         <Pressable accessibilityLabel={`Decrease ${component.name} portion`} onPress={() => onChange({ ...component, eatenFraction: Math.max(0, component.eatenFraction - 0.25) })} style={[styles.fractionButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={15} color={colors.foreground} /></Pressable>
-        <Text style={[styles.fractionValue, { color: colors.foreground }]}>{Math.round(component.eatenFraction * 100)}%</Text>
+        <Text style={[styles.fractionValue, { color: colors.foreground }]}>{formatPercent(component.eatenFraction * 100)}</Text>
         <Pressable accessibilityLabel={`Increase ${component.name} portion`} onPress={() => onChange({ ...component, eatenFraction: Math.min(1, component.eatenFraction + 0.25) })} style={[styles.fractionButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={15} color={colors.foreground} /></Pressable>
         <TextInput accessibilityLabel={`Serving for ${component.name}`} value={component.serving} onChangeText={(serving) => onChange({ ...component, serving })} style={[styles.servingInput, { flex: 1, color: colors.foreground, backgroundColor: colors.background, borderColor: colors.input }]} />
       </View>
@@ -179,9 +181,19 @@ export default function ScanScreen() {
     updateFoodMemoryDraft(reviewDraft.id, reviewDraft.components.map((item) => item.id === component.id ? component : item));
   };
 
-  const acceptDraft = () => {
+  const acceptDraft = async () => {
     if (!reviewDraft) return;
-    acceptFoodMemory(reviewDraft.id);
+    const accepted = acceptFoodMemory(reviewDraft.id);
+    // Only authenticated photo/barcode analyses receive a server proof. It is
+    // consumed after the user explicitly accepts this review; local logging
+    // remains available offline, but cannot qualify a referral until then.
+    if (accepted && (analysis?.mode === 'food' || analysis?.mode === 'barcode')) {
+      try {
+        await approveCapture(analysis.sessionId);
+      } catch (error) {
+        console.warn('[capture] referral qualification confirmation failed', error);
+      }
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setAnalysis(null);
     setReviewDraftId(null);
@@ -214,19 +226,24 @@ export default function ScanScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
+      <AppHeader
+        title="Scan"
+        action={
+          <Pressable
+            accessibilityLabel={`Open ${BRAND.name} Coach`}
+            onPress={() => router.push('/coach')}
+            style={({ pressed }) => [styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: colors.primary, shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
+          >
+            <Feather name="zap" size={14} color={colors.primaryForeground} />
+            <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
+          </Pressable>
+        }
+      />
+      <ScrollView contentContainerStyle={{ paddingTop: 18, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={{ flex: 1, marginRight: 12 }}><Text style={[styles.eyebrow, { color: colors.primary }]}>{BRAND.name.toUpperCase()} SMART CAPTURE</Text><Text style={[styles.title, { color: colors.foreground }]}>Scan, then breathe.</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Barcodes and food photos in one calm, reviewable flow.</Text></View>
           <View style={styles.scanHeaderRight}>
             <View style={[styles.liveBadge, { backgroundColor: colors.accent }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.liveText, { color: colors.accentForeground }]}>LIVE</Text></View>
-            <Pressable
-              accessibilityLabel={`Open ${BRAND.name} Coach`}
-              onPress={() => router.push('/coach')}
-              style={({ pressed }) => [styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: colors.primary, shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
-            >
-              <Feather name="zap" size={14} color={colors.primaryForeground} />
-              <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
-            </Pressable>
           </View>
         </View>
         {!permission.granted ? <PermissionState colors={colors} onRequest={() => { void requestPermission(); }} /> : (
@@ -275,7 +292,7 @@ export default function ScanScreen() {
         <View style={[styles.resultSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
              <View style={styles.resultHeader}><View><Text style={[styles.resultEyebrow, { color: colors.primary }]}>{modeEyebrow(analysis?.mode)}</Text><Text style={[styles.resultTitle, { color: colors.foreground }]}>{analysis?.title}</Text></View><Pressable accessibilityLabel="Close scan result" onPress={dismissDraft} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View>
-             {analysis?.status === 'unavailable' ? <View style={[styles.unavailableResult, { backgroundColor: colors.accent }]}><Feather name="help-circle" size={19} color={colors.accentForeground} /><Text style={[styles.unavailableResultText, { color: colors.foreground }]}>{analysis.reviewMessage}</Text></View> : <><Text style={[styles.reviewMessage, { color: colors.mutedForeground }]}>{analysis?.reviewMessage}</Text>{reviewDraft?.assumptions.length ? <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}><Feather name="info" size={15} color={colors.accentForeground} /><Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' · ')}</Text></View> : null}<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22 }}>{reviewDraft?.components.map((component) => <CandidateCard key={component.id} component={component} colors={colors} onChange={updateComponent} />)}<View style={[styles.totalCard, { backgroundColor: colors.hero }]}><View><Text style={[styles.totalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.totalValue, { color: colors.onHero }]}>{Math.round(reviewDraft?.nutrition.calories ?? 0)} kcal</Text></View><Text style={[styles.totalMacro, { color: colors.heroMuted }]}>P {Math.round(reviewDraft?.nutrition.proteinG ?? 0)}g · C {Math.round(reviewDraft?.nutrition.carbsG ?? 0)}g · F {Math.round(reviewDraft?.nutrition.fatG ?? 0)}g</Text></View><Pressable accessibilityLabel="Approve and add meal to diary" onPress={acceptDraft} style={[styles.addButton, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={16} color={colors.primaryForeground} /><Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>Approve and add to diary</Text></Pressable><Pressable accessibilityLabel="Discard food review" onPress={dismissDraft} style={styles.discardButton}><Text style={[styles.discardText, { color: colors.mutedForeground }]}>Not this meal</Text></Pressable></ScrollView></>}
+             {analysis?.status === 'unavailable' ? <View style={[styles.unavailableResult, { backgroundColor: colors.accent }]}><Feather name="help-circle" size={19} color={colors.accentForeground} /><Text style={[styles.unavailableResultText, { color: colors.foreground }]}>{analysis.reviewMessage}</Text></View> : <><Text style={[styles.reviewMessage, { color: colors.mutedForeground }]}>{analysis?.reviewMessage}</Text>{reviewDraft?.assumptions.length ? <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}><Feather name="info" size={15} color={colors.accentForeground} /><Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' · ')}</Text></View> : null}<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22 }}>{reviewDraft?.components.map((component) => <CandidateCard key={component.id} component={component} colors={colors} onChange={updateComponent} />)}<View style={[styles.totalCard, { backgroundColor: colors.hero }]}><View><Text style={[styles.totalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.totalValue, { color: colors.onHero }]}>{formatWhole(reviewDraft?.nutrition.calories)}</Text></View><Text style={[styles.totalMacro, { color: colors.heroMuted }]}>P {formatGrams(reviewDraft?.nutrition.proteinG)} · C {formatGrams(reviewDraft?.nutrition.carbsG)} · F {formatGrams(reviewDraft?.nutrition.fatG)}</Text></View><Pressable accessibilityLabel="Approve and add meal to diary" onPress={acceptDraft} style={[styles.addButton, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={16} color={colors.primaryForeground} /><Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>Approve and add to diary</Text></Pressable><Pressable accessibilityLabel="Discard food review" onPress={dismissDraft} style={styles.discardButton}><Text style={[styles.discardText, { color: colors.mutedForeground }]}>Not this meal</Text></Pressable></ScrollView></>}
           </View>
         </View>
       </Modal>

@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "python-base-3.13"]
+modules = ["nodejs-24", "python-base-3.13", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -21,3 +21,14 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY = "goog_oKaaAvrzOkZTXaWVRIkYSbvrOQq"
+EXPO_PUBLIC_REVENUECAT_IOS_API_KEY = "appl_OfSYcEvCwyDpfNqTMWCTRtGnCkc"
+EXPO_PUBLIC_REVENUECAT_TEST_API_KEY = "test_mnmdwtOOEAawaIUeFAoyKZQflod"
+REVENUECAT_APPLE_APP_STORE_APP_ID = "app24378a1078"
+REVENUECAT_GOOGLE_PLAY_STORE_APP_ID = "app3202103015"
+REVENUECAT_PROJECT_ID = "proj9890aae2"
+REVENUECAT_TEST_STORE_APP_ID = "app48c13d884c"

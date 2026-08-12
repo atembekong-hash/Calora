@@ -45,6 +45,13 @@ export type FoodMemoryComponent = {
 
 export type FoodMemoryDraft = {
   id: string;
+  /**
+   * Server-issued capture session id (UUID) when this draft came from an
+   * authenticated capture analysis persisted server-side. Locally derived
+   * drafts (manual, recipe, planner, anonymous captures) never carry one.
+   * Referral qualification syncs only logs with this explicit provenance.
+   */
+  captureSessionId?: string;
   schemaVersion: number;
   inputType: FoodMemoryInputType;
   status: FoodMemoryStatus;
@@ -202,8 +209,16 @@ export function captureAnalysisToDraft(
   const nutrition = nutritionForComponents(components, now);
   const confidence = confidenceForComponents(components);
   const provenance = components[0]?.provenance ?? 'photo_estimate';
+  // Only a server-issued session id (UUID) marks capture provenance; local
+  // fallback/client session ids never qualify a referral.
+  const captureSessionId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    analysis.sessionId,
+  )
+    ? analysis.sessionId
+    : undefined;
   return {
     id: `memory-draft-${analysis.sessionId}`,
+    captureSessionId,
     schemaVersion: FOOD_MEMORY_SCHEMA_VERSION,
     inputType,
     status: 'draft',

@@ -26,16 +26,28 @@ import { Platform } from 'react-native';
 // Configuration — values sourced from environment, never hardcoded
 // ---------------------------------------------------------------------------
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
-if (__DEV__ && (!SUPABASE_URL || !SUPABASE_ANON_KEY)) {
-  console.warn(
-    '[CaloraApp] Supabase credentials are not yet configured.\n' +
-      'Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.\n' +
-      'Authentication flows will not function until these values are provided.',
-  );
+function requireSupabaseConfig(): { url: string; anonKey: string } {
+  const missing = [
+    !SUPABASE_URL && 'EXPO_PUBLIC_SUPABASE_URL',
+    !SUPABASE_ANON_KEY && 'EXPO_PUBLIC_SUPABASE_ANON_KEY',
+  ].filter(Boolean);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `[CaloraApp] Missing required Expo public configuration: ${missing.join(', ')}. ` +
+        'Set these variables in the EAS environment selected by the build profile, then rebuild. ' +
+        'Do not add Supabase credentials to source control.',
+    );
+  }
+
+  // The missing-value guard above makes these values present at runtime.
+  return { url: SUPABASE_URL!, anonKey: SUPABASE_ANON_KEY! };
 }
+
+const supabaseConfig = requireSupabaseConfig();
 
 // ---------------------------------------------------------------------------
 // Secure storage adapter
@@ -63,7 +75,7 @@ const nativeSecureStorage =
 // Client
 // ---------------------------------------------------------------------------
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey, {
   auth: {
     storage: nativeSecureStorage,
     autoRefreshToken: true,

@@ -1,11 +1,12 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Constants from 'expo-constants';
 import { BRAND, EMAILS, URLS } from '@/lib/brand';
+import { formatQuantity } from '@/lib/formatters';
+import { formatGrams, formatWhole } from '@/lib/formatters';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { type DietPreference, type Goal, SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
@@ -26,6 +27,9 @@ import * as Sharing from 'expo-sharing';
 import { deriveExportHasData, makeExportHandler } from '@/lib/exportUiHandler';
 import { SettingRowPressable } from '@/components/SettingRowPressable';
 import { AccountSection } from '@/components/auth/AccountSection';
+import { AppHeader } from '@/components/AppChrome';
+import { ReferralCard } from '@/components/ReferralCard';
+import { REVENUECAT_ENTITLEMENT_IDENTIFIER, useSubscription } from '@/lib/revenuecat';
 
 // ─── Static config ────────────────────────────────────────────────────────────
 
@@ -69,13 +73,24 @@ export default function ProfileScreen() {
   const hasExportData = deriveExportHasData(profile, logs);
   const insets = useSafeAreaInsets();
 
-  // Billing
+  // Billing — live RevenueCat offering is the price authority; the brand
+  // reference prices are only a cosmetic fallback while offerings load.
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
-  const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | null>(null);
-  const annualMonthlyEquivalent = (69.99 / 12).toFixed(2);
-  const annualSavings = (9.99 * 12 - 69.99).toFixed(2);
-  const selectedPrice = selectedPlan === 'annual' ? '$69.99' : '$9.99';
+  const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | 'confirm' | null>(null);
+  const [billingNotice, setBillingNotice] = useState<string | null>(null);
+  const { offerings, isSubscribed, purchase, restore, isPurchasing, isRestoring } = useSubscription();
+  const currentOffering = offerings?.current ?? null;
+  const monthlyPkg = currentOffering?.availablePackages.find((p) => p.identifier === '$rc_monthly') ?? currentOffering?.monthly ?? null;
+  const annualPkg = currentOffering?.availablePackages.find((p) => p.identifier === '$rc_annual') ?? currentOffering?.annual ?? null;
+  const monthlyPriceNum = monthlyPkg?.product.price ?? 9.99;
+  const annualPriceNum = annualPkg?.product.price ?? 69.99;
+  const monthlyPriceString = monthlyPkg?.product.priceString ?? '$9.99';
+  const annualPriceString = annualPkg?.product.priceString ?? '$69.99';
+  const annualMonthlyEquivalent = (annualPriceNum / 12).toFixed(2);
+  const annualSavings = (monthlyPriceNum * 12 - annualPriceNum).toFixed(2);
+  const selectedPrice = selectedPlan === 'annual' ? annualPriceString : monthlyPriceString;
   const selectedPeriod = selectedPlan === 'annual' ? 'year' : 'month';
+  const selectedPackage = selectedPlan === 'annual' ? annualPkg : monthlyPkg;
 
   // Privacy / delete
   const [privacyModal, setPrivacyModal] = useState<'delete' | null>(null);
@@ -101,9 +116,11 @@ export default function ProfileScreen() {
   const [savedMealProtein, setSavedMealProtein] = useState('');
   const [savedMealCarbs, setSavedMealCarbs] = useState('');
   const [savedMealFat, setSavedMealFat] = useState('');
+  const [savedMealError, setSavedMealError] = useState('');
 
   // Profile edit modal
   const [profileEditModal, setProfileEditModal] = useState(false);
+  const [profileEditError, setProfileEditError] = useState('');
   const [editName, setEditName] = useState('');
   const [editCalories, setEditCalories] = useState('');
   const [editDiet, setEditDiet] = useState<DietPreference>('Everything');
@@ -195,8 +212,49 @@ export default function ProfileScreen() {
     });
 
   /** Billing */
-  const handlePurchase = () => setBillingModal('purchase');
-  const handleRestore = () => setBillingModal('restore');
+  const handlePurchase = () => {
+    if (isSubscribed) {
+      setBillingNotice(`${BRAND.premiumName} is already active on this account.`);
+      return;
+    }
+    if (!selectedPackage) {
+      // Offerings unavailable (offline / not yet loaded) — informational fallback.
+      setBillingModal('purchase');
+      return;
+    }
+    setBillingModal('confirm');
+  };
+
+  const confirmPurchase = async () => {
+    if (!selectedPackage || isPurchasing) return;
+    try {
+      await purchase(selectedPackage);
+      setBillingModal(null);
+      setBillingNotice(`Welcome to ${BRAND.premiumName}! Your subscription is active.`);
+    } catch (err) {
+      setBillingModal(null);
+      const cancelled = !!(err && typeof err === 'object' && 'userCancelled' in err && (err as { userCancelled?: boolean }).userCancelled);
+      if (!cancelled) {
+        setBillingNotice('The purchase could not be completed. You have not been charged.');
+      }
+    }
+  };
+
+  const handleRestore = async () => {
+    if (isRestoring) return;
+    try {
+      const info = await restore();
+      const active = info?.entitlements.active?.[REVENUECAT_ENTITLEMENT_IDENTIFIER];
+      setBillingNotice(
+        active
+          ? `${BRAND.premiumName} has been restored on this device.`
+          : 'No previous purchases were found for this account.',
+      );
+    } catch {
+      setBillingNotice('Restore failed. Please check your connection and try again.');
+    }
+  };
+
   const handleManage = () => setBillingModal('manage');
 
   /** Export — locked against concurrent invocations via exportLockRef */
@@ -266,12 +324,13 @@ export default function ProfileScreen() {
     setEditDiet(profile?.diet ?? 'Everything');
     setEditGoal(profile?.goal ?? 'maintain');
     setEditPhotoUri(profilePhotoUri);
+    setProfileEditError('');
     setProfileEditModal(true);
   };
   const saveProfileEdit = async () => {
     const calories = Number(editCalories);
     if (!editName.trim() || !Number.isFinite(calories) || calories < 500 || calories > 9999) {
-      Alert.alert('Check your inputs', 'Name is required and calorie target must be between 500 and 9,999.');
+      setProfileEditError('Enter your name and a daily calorie target between 500 and 9,999.');
       return;
     }
     // Strip the cache-bust query param before persisting
@@ -289,15 +348,20 @@ export default function ProfileScreen() {
     updateProfile({ name: editName.trim(), calorieTarget: calories, diet: editDiet, goal: editGoal });
     setProfilePhotoUri(cleanUri);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setProfileEditError('');
     setProfileEditModal(false);
   };
 
   /** Saved meal creation */
   const createSavedMeal = () => {
     const calories = Number(savedMealCalories);
-    if (!savedMealName.trim() || !Number.isFinite(calories) || calories <= 0) return;
+    if (!savedMealName.trim() || !Number.isFinite(calories) || calories <= 0) {
+      setSavedMealError('Add a meal name and a positive calorie value.');
+      return;
+    }
     saveMeal({ name: savedMealName.trim(), kind: savedMealKind, foodIds: [], calories, protein: Number(savedMealProtein) || 0, carbs: Number(savedMealCarbs) || 0, fat: Number(savedMealFat) || 0 });
     setSavedMealName(''); setSavedMealCalories(''); setSavedMealProtein(''); setSavedMealCarbs(''); setSavedMealFat('');
+    setSavedMealError('');
     setSavedMealModal(false);
   };
 
@@ -306,28 +370,14 @@ export default function ProfileScreen() {
   const displayWeight = profile
     ? units === 'imperial'
       ? `${Math.round(profile.weightKg * 2.20462)} lbs`
-      : `${profile.weightKg} kg`
+      : `${formatQuantity(profile.weightKg)} kg`
     : null;
 
   // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
-
-        {/* ── Hero header ── */}
-        <View style={styles.profileHeader}>
-          <Image source={require('../../assets/images/calora-profile-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
-          <LinearGradient colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
-          <View style={styles.profileHeaderContent}>
-            <View style={styles.profileHeaderBadge}>
-              <Feather name="user" size={12} color="#d4eadc" />
-              <Text style={styles.profileHeaderBadgeText}>YOUR SPACE</Text>
-            </View>
-            <Text style={styles.profileHeaderEyebrow}>{BRAND.name.toUpperCase()}, YOUR WAY</Text>
-            <Text style={styles.profileHeaderTitle}>Profile & settings</Text>
-            <Text style={styles.profileHeaderSubtitle}>A quieter place to shape the experience around you.</Text>
-          </View>
-        </View>
+      <AppHeader back title="Profile & settings" />
+      <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
 
         {/* ── Profile card ── */}
         <Animated.View entering={FadeInDown.springify().damping(20).delay(0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
@@ -340,7 +390,7 @@ export default function ProfileScreen() {
             <Text style={[styles.profileName, { color: colors.onHero }]}>{profile?.name ?? 'Your profile'}</Text>
             <Text style={[styles.profileSub, { color: colors.heroMuted }]}>
               {profile
-                ? `${profile.calorieTarget.toLocaleString()} kcal · ${profile.diet}${displayWeight ? ` · ${displayWeight}` : ''}`
+                ? `${formatWhole(profile.calorieTarget)} kcal · ${profile.diet}${displayWeight ? ` · ${displayWeight}` : ''}`
                 : `Finish onboarding to personalize ${BRAND.name}`}
             </Text>
           </View>
@@ -377,8 +427,8 @@ export default function ProfileScreen() {
             <Text style={{ fontSize: 13 * fontScale, fontFamily: 'Inter_400Regular', color: colors.mutedForeground, marginTop: 3 }} numberOfLines={1}>Grilled chicken salad · 510 kcal</Text>
           </View>
           <View style={styles.unitChips}>
-            {(['small', 'default', 'large', 'xlarge'] as const).map((key) => {
-              const label = { small: 'A−', default: 'A', large: 'A+', xlarge: 'A⁺⁺' }[key];
+            {(['small', 'default', 'large'] as const).map((key) => {
+              const label = { small: 'A−', default: 'A', large: 'A+' }[key];
               const sel = fontSizeScale === key;
               return (
                 <Pressable key={key} accessibilityLabel={`${key} text size`} onPress={() => setFontSizeScale(key)} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
@@ -593,7 +643,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.planName, { color: colors.foreground }]}>Monthly</Text>
                 <Text style={[styles.planHint, { color: colors.mutedForeground }]}>Cancel anytime</Text>
               </View>
-              <Text style={[styles.planPrice, { color: colors.foreground }]}>$9.99<Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / mo</Text></Text>
+              <Text style={[styles.planPrice, { color: colors.foreground }]}>{monthlyPriceString}<Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / mo</Text></Text>
             </Pressable>
             <Pressable accessibilityLabel="Choose annual plan" testID="billing-plan-annual" onPress={() => setSelectedPlan('annual')} style={[styles.planChoice, { borderColor: selectedPlan === 'annual' ? colors.primary : colors.border, backgroundColor: selectedPlan === 'annual' ? colors.accent : colors.card }]}>
               <View style={[styles.radio, { borderColor: selectedPlan === 'annual' ? colors.primary : colors.mutedForeground }]}>
@@ -603,7 +653,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.planName, { color: colors.foreground }]}>Annual <Text style={[styles.savePill, { color: colors.accentForeground, backgroundColor: colors.accent }]}>SAVE 42%</Text></Text>
                 <Text style={[styles.planHint, { color: colors.mutedForeground }]}>${annualMonthlyEquivalent} / month equivalent</Text>
               </View>
-              <Text style={[styles.planPrice, { color: colors.foreground }]}>$69.99<Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / yr</Text></Text>
+              <Text style={[styles.planPrice, { color: colors.foreground }]}>{annualPriceString}<Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / yr</Text></Text>
             </Pressable>
           </View>
           <View style={[styles.valueLine, { backgroundColor: colors.muted }]}>
@@ -619,8 +669,10 @@ export default function ProfileScreen() {
             ))}
           </View>
           <Pressable accessibilityLabel="Continue to billing" testID="billing-continue" onPress={handlePurchase} style={({ pressed }) => [styles.planButton, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}>
-            <Text style={[styles.planButtonText, { color: colors.primaryForeground }]}>Continue with {selectedPrice} / {selectedPeriod}</Text>
-            <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
+            <Text style={[styles.planButtonText, { color: colors.primaryForeground }]}>
+              {isSubscribed ? `${BRAND.premiumName} is active` : `Continue with ${selectedPrice} / ${selectedPeriod}`}
+            </Text>
+            {!isSubscribed && <Feather name="arrow-right" size={16} color={colors.primaryForeground} />}
           </Pressable>
           <Text style={[styles.billingNote, { color: colors.mutedForeground }]}>Subscription renews automatically unless canceled at least 24 hours before the renewal date. Final price may vary by local taxes and currency.</Text>
           <View style={styles.billingLinks}>
@@ -629,6 +681,9 @@ export default function ProfileScreen() {
             <Pressable accessibilityLabel="Manage subscription" onPress={handleManage}><Text style={[styles.billingLink, { color: colors.primary }]}>Manage subscription</Text></Pressable>
           </View>
         </View>
+
+        {/* ── Invite friends ── */}
+        <ReferralCard fontScale={fontScale} />
 
         {/* ── Saved meals ── */}
         <View style={styles.savedHeader}>
@@ -657,7 +712,7 @@ export default function ProfileScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.settingTitle, { color: colors.foreground }]}>{meal.name}</Text>
-                    <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{meal.calories} kcal · {meal.protein}g protein · {meal.kind}</Text>
+                    <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{formatWhole(meal.calories)} kcal · {formatGrams(meal.protein)} protein · {meal.kind}</Text>
                   </View>
                   <Pressable
                     accessibilityLabel={`Delete ${meal.name}`}
@@ -757,27 +812,60 @@ export default function ProfileScreen() {
         <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
           <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
             <View style={[styles.dialogIcon, { backgroundColor: colors.accent }]}>
-              <Feather name={billingModal === 'purchase' ? 'lock' : billingModal === 'restore' ? 'rotate-ccw' : 'external-link'} size={20} color={colors.accentForeground} />
+              <Feather name={billingModal === 'confirm' ? 'credit-card' : billingModal === 'purchase' ? 'lock' : billingModal === 'restore' ? 'rotate-ccw' : 'external-link'} size={20} color={colors.accentForeground} />
             </View>
             <Text style={[styles.dialogTitle, { color: colors.foreground }]}>
-              {billingModal === 'purchase' ? 'Billing is ready for setup' : billingModal === 'restore' ? 'Restore purchases' : 'Manage subscription'}
+              {billingModal === 'confirm' ? 'Confirm your purchase' : billingModal === 'purchase' ? 'Billing is ready for setup' : billingModal === 'restore' ? 'Restore purchases' : 'Manage subscription'}
             </Text>
             <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>
-              {billingModal === 'purchase'
-                ? `You chose the ${selectedPlan} plan at ${selectedPrice} per ${selectedPeriod}. The App Store and Google Play connection must be enabled before a real charge can be made.`
+              {billingModal === 'confirm'
+                ? `Subscribe to ${BRAND.premiumName} (${selectedPlan}) at ${selectedPrice} per ${selectedPeriod}? The store purchase sheet will complete the payment.`
+                : billingModal === 'purchase'
+                ? `You chose the ${selectedPlan} plan at ${selectedPrice} per ${selectedPeriod}. Plans are still loading or unavailable offline — please try again in a moment.`
                 : billingModal === 'restore'
-                  ? `Once store billing is connected, this will look up your active ${BRAND.premiumName} entitlement on this device.`
-                  : 'Once store billing is connected, this will open the platform subscription settings so cancellation stays one tap away.'}
+                  ? `This will look up your active ${BRAND.premiumName} entitlement on this device.`
+                  : 'This will open the platform subscription settings so cancellation stays one tap away.'}
             </Text>
-            <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
-              <Feather name="info" size={15} color={colors.primary} />
-              <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>No payment has been taken.</Text>
-            </View>
-            <Pressable accessibilityLabel="Close billing dialog" onPress={() => setBillingModal(null)} style={[styles.dialogButton, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Got it</Text>
-            </Pressable>
+            {billingModal !== 'confirm' && (
+              <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
+                <Feather name="info" size={15} color={colors.primary} />
+                <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>No payment has been taken.</Text>
+              </View>
+            )}
+            {billingModal === 'confirm' ? (
+              <Pressable accessibilityLabel="Confirm purchase" testID="billing-confirm-purchase" onPress={confirmPurchase} disabled={isPurchasing} style={[styles.dialogButton, { backgroundColor: colors.primary, opacity: isPurchasing ? 0.6 : 1 }]}>
+                {isPurchasing
+                  ? <ActivityIndicator size="small" color={colors.primaryForeground} />
+                  : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Confirm purchase</Text>}
+              </Pressable>
+            ) : (
+              <Pressable accessibilityLabel="Close billing dialog" onPress={() => setBillingModal(null)} style={[styles.dialogButton, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Got it</Text>
+              </Pressable>
+            )}
+            {billingModal === 'confirm' && (
+              <Pressable accessibilityLabel="Cancel purchase" onPress={() => setBillingModal(null)} style={styles.dialogSecondaryButton}>
+                <Text style={[styles.dialogSecondaryText, { color: colors.primary }]}>Cancel</Text>
+              </Pressable>
+            )}
             <Pressable accessibilityLabel="View billing help" onPress={() => { setBillingModal(null); Alert.alert('Billing help', `${BRAND.name} will support App Store and Google Play subscriptions. Your plan, renewal date, and cancellation path will always be visible here.`); }} style={styles.dialogSecondaryButton}>
               <Text style={[styles.dialogSecondaryText, { color: colors.primary }]}>How billing works</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Billing notice modal ── */}
+      <Modal visible={billingNotice !== null} transparent animationType="fade" onRequestClose={() => setBillingNotice(null)}>
+        <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+          <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.dialogIcon, { backgroundColor: colors.accent }]}>
+              <Feather name="info" size={20} color={colors.accentForeground} />
+            </View>
+            <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Billing</Text>
+            <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>{billingNotice}</Text>
+            <Pressable accessibilityLabel="Close billing notice" testID="billing-notice-close" onPress={() => setBillingNotice(null)} style={[styles.dialogButton, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Got it</Text>
             </Pressable>
           </View>
         </View>
@@ -816,15 +904,16 @@ export default function ProfileScreen() {
               <Pressable onPress={() => setSavedMealKind('meal')} style={[styles.savedKind, { backgroundColor: savedMealKind === 'meal' ? colors.primary : colors.card, borderColor: savedMealKind === 'meal' ? colors.primary : colors.border }]}><Text style={[styles.savedKindText, { color: savedMealKind === 'meal' ? colors.primaryForeground : colors.mutedForeground }]}>Meal</Text></Pressable>
               <Pressable onPress={() => setSavedMealKind('recipe')} style={[styles.savedKind, { backgroundColor: savedMealKind === 'recipe' ? colors.primary : colors.card, borderColor: savedMealKind === 'recipe' ? colors.primary : colors.border }]}><Text style={[styles.savedKindText, { color: savedMealKind === 'recipe' ? colors.primaryForeground : colors.mutedForeground }]}>Recipe</Text></Pressable>
             </View>
-            <TextInput accessibilityLabel="Saved meal name" value={savedMealName} onChangeText={setSavedMealName} placeholder="Name, e.g. Sunday chili" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+            <TextInput accessibilityLabel="Saved meal name" value={savedMealName} onChangeText={(value) => { setSavedMealName(value); if (savedMealError) setSavedMealError(''); }} placeholder="Name, e.g. Sunday chili" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: savedMealError ? colors.destructive : colors.input }]} />
             <View style={styles.savedNumbers}>
               {([['Calories', savedMealCalories, setSavedMealCalories], ['Protein g', savedMealProtein, setSavedMealProtein], ['Carbs g', savedMealCarbs, setSavedMealCarbs], ['Fat g', savedMealFat, setSavedMealFat]] as const).map(([label, value, setter]) => (
                 <View key={label} style={styles.savedNumber}>
                   <Text style={[styles.savedNumberLabel, { color: colors.mutedForeground }]}>{label}</Text>
-                  <TextInput value={value} onChangeText={setter as (v: string) => void} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+                  <TextInput accessibilityLabel={label} value={value} onChangeText={(nextValue) => { (setter as (v: string) => void)(nextValue); if (savedMealError) setSavedMealError(''); }} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: savedMealError && label === 'Calories' ? colors.destructive : colors.input }]} />
                 </View>
               ))}
             </View>
+            {!!savedMealError && <Text accessibilityRole="alert" style={[styles.formError, { color: colors.destructive }]}>{savedMealError}</Text>}
             <Pressable accessibilityLabel="Save meal template" onPress={createSavedMeal} style={[styles.dialogButton, { backgroundColor: colors.primary }]}><Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Save template</Text></Pressable>
             <Pressable accessibilityLabel="Cancel saved meal" onPress={() => setSavedMealModal(false)} style={styles.dialogSecondaryButton}><Text style={[styles.dialogSecondaryText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
           </View>
@@ -854,9 +943,9 @@ export default function ProfileScreen() {
             </Pressable>
 
             <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>YOUR NAME</Text>
-            <TextInput accessibilityLabel="Name" value={editName} onChangeText={setEditName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input, marginBottom: 14 }]} />
+            <TextInput accessibilityLabel="Name" value={editName} onChangeText={(value) => { setEditName(value); if (profileEditError) setProfileEditError(''); }} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: profileEditError ? colors.destructive : colors.input, marginBottom: 14 }]} />
             <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>DAILY CALORIE TARGET</Text>
-            <TextInput accessibilityLabel="Calorie target" value={editCalories} onChangeText={setEditCalories} keyboardType="number-pad" placeholder="e.g. 2000" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input, marginBottom: 14 }]} />
+            <TextInput accessibilityLabel="Calorie target" value={editCalories} onChangeText={(value) => { setEditCalories(value); if (profileEditError) setProfileEditError(''); }} keyboardType="number-pad" placeholder="e.g. 2000" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: profileEditError ? colors.destructive : colors.input, marginBottom: 14 }]} />
             <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>DIET</Text>
             <View style={styles.editChips}>
               {dietOptions.map((d) => (
@@ -873,6 +962,7 @@ export default function ProfileScreen() {
                 </Pressable>
               ))}
             </View>
+            {!!profileEditError && <Text accessibilityRole="alert" style={[styles.formError, { color: colors.destructive }]}>{profileEditError}</Text>}
             <Pressable accessibilityLabel="Save profile changes" onPress={saveProfileEdit} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 20 }]}>
               <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Save changes</Text>
             </Pressable>
@@ -966,15 +1056,6 @@ export default function ProfileScreen() {
 function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
-
-  // Hero header
-  profileHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
-  profileHeaderContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
-  profileHeaderBadge: { position: 'absolute', top: 17, right: 17, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
-  profileHeaderBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1 },
-  profileHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 6 },
-  profileHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 27 * f, letterSpacing: -0.7 },
-  profileHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17, marginTop: 7, maxWidth: 280 },
 
   // Profile card
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 23, padding: 16, marginBottom: 26 },
@@ -1095,6 +1176,7 @@ function makeStyles(f: number) {
   savedKind: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingVertical: 10 },
   savedKindText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   savedInput: { height: 44, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
+  formError: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, lineHeight: 17 * f, marginTop: 10 },
   savedNumbers: { flexDirection: 'row', gap: 7, marginTop: 8 },
   savedNumber: { flex: 1 },
   savedNumberLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginBottom: 5 },

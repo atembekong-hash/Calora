@@ -300,11 +300,7 @@ export interface Recipe {
   proteinG?: number | null;
   carbsG?: number | null;
   fatG?: number | null;
-  /**
-   * True when the server attempted AI nutrition estimation but it failed
-   * (timeout, nonsensical result, or API error). Show a clear
-   * "Nutrition unavailable" label and offer a retry rather than blanks.
-   */
+  /** True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear "Nutrition unavailable" label and offer a retry rather than silently showing blanks. */
   nutritionUnavailable?: boolean;
   source: string;
   sourceUrl: string;
@@ -313,7 +309,7 @@ export interface Recipe {
 export interface RecipeList {
   source: string;
   recipes: Recipe[];
-  /** True while the server's background nutrition warm-up is still running. */
+  /** True while the server's background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available. */
   warmupPending?: boolean;
 }
 
@@ -822,6 +818,142 @@ export interface CoachResponse {
      */
   limitations: string[];
   contextCoverage: CoachResponseContextCoverage;
+}
+
+export type ReferralSummaryStats = {
+  pendingCount: number;
+  rewardedCount: number;
+  monthRewardedCount: number;
+  monthCap: number;
+};
+
+export type ReferralSummaryRedemptionStatus = typeof ReferralSummaryRedemptionStatus[keyof typeof ReferralSummaryRedemptionStatus];
+
+
+export const ReferralSummaryRedemptionStatus = {
+  none: 'none',
+  pending: 'pending',
+  rewarded: 'rewarded',
+} as const;
+
+/**
+ * The caller's own redemption of someone else's code, if any.
+ */
+export type ReferralSummaryRedemption = {
+  status: ReferralSummaryRedemptionStatus;
+  code?: string;
+};
+
+export interface ReferralSummary {
+  /**
+     * @minLength 4
+     * @maxLength 16
+     */
+  code: string;
+  inviteUrl: string;
+  rewardDays: number;
+  stats: ReferralSummaryStats;
+  /** The caller's own redemption of someone else's code, if any. */
+  redemption: ReferralSummaryRedemption;
+}
+
+export interface ReferralRedeemInput {
+  /**
+     * @minLength 4
+     * @maxLength 16
+     */
+  code: string;
+}
+
+export type ReferralRedeemResultStatus = typeof ReferralRedeemResultStatus[keyof typeof ReferralRedeemResultStatus];
+
+
+export const ReferralRedeemResultStatus = {
+  pending: 'pending',
+} as const;
+
+export interface ReferralRedeemResult {
+  status: ReferralRedeemResultStatus;
+  message?: string;
+}
+
+export interface DiaryFirstLogInput {
+  /**
+     * Server-issued capture session id returned by /v1/capture/analyze
+     * for an authenticated request. The synced entry must correspond to
+     * that server-recorded analysis; fabricated payloads are rejected.
+     */
+  captureSessionId: string;
+  entryDate: string;
+  /**
+     * @minLength 1
+     * @maxLength 40
+     */
+  meal: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  serving: string;
+  /**
+     * @minimum 0
+     * @maximum 20000
+     */
+  calories: number;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     */
+  proteinG: number;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     */
+  carbsG: number;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     */
+  fatG: number;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  provenance: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  confidence: number;
+  /** @maxLength 2000 */
+  notes?: string;
+  clientUpdatedAt: string;
+}
+
+export interface DiaryFirstLogResult {
+  synced: boolean;
+  alreadyExisted: boolean;
+}
+
+export type ReferralActivateResultStatus = typeof ReferralActivateResultStatus[keyof typeof ReferralActivateResultStatus];
+
+
+export const ReferralActivateResultStatus = {
+  none: 'none',
+  pending: 'pending',
+  rewarded: 'rewarded',
+} as const;
+
+export interface ReferralActivateResult {
+  status: ReferralActivateResultStatus;
+  referredRewarded: boolean;
+  referrerRewarded: boolean;
+  message?: string;
 }
 
 export type DateQueryParameter = string;

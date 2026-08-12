@@ -17,11 +17,34 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { CaloraProvider } from '@/context/CaloraContext';
 import { AuthProvider } from '@/context/AuthContext';
-import { setBaseUrl } from '@workspace/api-client-react';
+import { setAuthTokenGetter, setBaseUrl } from '@workspace/api-client-react';
+import { supabase } from '@/lib/supabase';
+import { getApiBaseUrl } from '@/lib/api-config';
+import { AppStatusBar } from '@/components/AppChrome';
+import { initializeRevenueCat, SubscriptionProvider } from '@/lib/revenuecat';
+import { ReferralActivator } from '@/components/ReferralActivator';
+import { useDiarySync } from '@/hooks/useDiarySync';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
-setBaseUrl(process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : null);
+
+const apiBaseUrl = getApiBaseUrl();
+setBaseUrl(apiBaseUrl);
+console.info('[CaloraApp][network] API base configured', { origin: apiBaseUrl });
+
+// Attach the Supabase access token to every API call when signed in.
+setAuthTokenGetter(async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+});
+
+// Configure RevenueCat once at startup. In Expo Go / web preview the SDK
+// runs in Preview API Mode against the Test Store, so this is always safe.
+try {
+  initializeRevenueCat();
+} catch (err) {
+  console.warn('[CaloraApp][billing] RevenueCat unavailable:', err);
+}
 
 // Configure foreground notification display (required by expo-notifications).
 Notifications.setNotificationHandler({
@@ -94,6 +117,12 @@ function NotificationHandler() {
   return null;
 }
 
+/** Invisible worker that background-syncs confirmed diary logs to the server. */
+function DiarySyncWorker() {
+  useDiarySync();
+  return null;
+}
+
 function RootLayoutNav() {
   return (
     <>
@@ -132,11 +161,16 @@ export default function RootLayout() {
         <AuthProvider>
           <CaloraProvider>
             <QueryClientProvider client={queryClient}>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <KeyboardProvider>
-                  <RootLayoutNav />
-                </KeyboardProvider>
-              </GestureHandlerRootView>
+              <SubscriptionProvider>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <KeyboardProvider>
+                    <AppStatusBar />
+                    <DiarySyncWorker />
+                    <ReferralActivator />
+                    <RootLayoutNav />
+                  </KeyboardProvider>
+                </GestureHandlerRootView>
+              </SubscriptionProvider>
             </QueryClientProvider>
           </CaloraProvider>
         </AuthProvider>

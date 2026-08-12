@@ -21,6 +21,8 @@ export interface Recipe {
   proteinG?: number | null;
   carbsG?: number | null;
   fatG?: number | null;
+  /** True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear "Nutrition unavailable" label and offer a retry rather than silently showing blanks. */
+  nutritionUnavailable?: boolean;
   source: string;
   sourceUrl: string;
 }

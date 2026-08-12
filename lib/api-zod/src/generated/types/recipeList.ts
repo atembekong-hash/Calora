@@ -10,6 +10,6 @@ import type { Recipe } from './recipe';
 export interface RecipeList {
   source: string;
   recipes: Recipe[];
-  /** True while the server's background nutrition warm-up is still running. */
+  /** True while the server's background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available. */
   warmupPending?: boolean;
 }

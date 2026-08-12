@@ -1,8 +1,144 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { randomUUID } from "node:crypto";
 import { AnalyzeCaptureBody } from "@workspace/api-zod";
+import { db, pool, aiCaptureSessionsTable, aiCaptureCandidatesTable } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
+import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
+import { ensureUserRow } from "../lib/user-rows.js";
+
+// ---------------------------------------------------------------------------
+// DB-backed rate limiter for POST /v1/capture/analyze
+//
+// Bucket key priority:
+//   1. Verified user ID — from a Supabase-validated Bearer token.  This is
+//      the only key that cannot be spoofed: the token is verified before the
+//      bucket is looked up, so a forged or unsigned JWT falls back to IP.
+//   2. req.ip — Express resolves this from the X-Forwarded-For chain using
+//      the configured trust proxy depth (set in app.ts).  Clients cannot
+//      inject arbitrary entries because the trusted proxy overwrites the
+//      outermost hop.
+//
+// A 1-hour fixed window keeps bursting expensive while staying invisible to
+// genuine users logging meals throughout the day.
+//
+// State is stored in calora_capture_rate_limits (one row per key). A single
+// atomic upsert handles reset detection, counter increment, and reads in one
+// round-trip, so the limiter is consistent across server restarts and multiple
+// instances without any in-process coordination.
+// ---------------------------------------------------------------------------
+const CAPTURE_RATE_WINDOW_SECS = 60 * 60; // 1 hour
+const CAPTURE_RATE_LIMIT = 30; // max requests per window
+
+/**
+ * Atomically check and increment the persistent rate-limit bucket.
+ *
+ * The upsert resets the window when reset_at is in the past, otherwise
+ * increments the counter. The returned count reflects the state *after*
+ * the increment, so callers compare count > LIMIT to detect a violation.
+ *
+ * Falls back to allowing the request on any DB error so a transient
+ * database outage does not block legitimate users.
+ */
+async function checkRateLimit(key: string): Promise<{ allowed: boolean; retryAfterSecs: number }> {
+  try {
+    const result = await pool.query<{ count: number; reset_at: Date }>(
+      `INSERT INTO calora_capture_rate_limits (key, count, reset_at)
+       VALUES ($1, 1, NOW() + ($2 || ' seconds')::INTERVAL)
+       ON CONFLICT (key) DO UPDATE SET
+         count    = CASE
+                      WHEN calora_capture_rate_limits.reset_at <= NOW() THEN 1
+                      ELSE calora_capture_rate_limits.count + 1
+                    END,
+         reset_at = CASE
+                      WHEN calora_capture_rate_limits.reset_at <= NOW()
+                        THEN NOW() + ($2 || ' seconds')::INTERVAL
+                      ELSE calora_capture_rate_limits.reset_at
+                    END
+       RETURNING count, reset_at`,
+      [key, String(CAPTURE_RATE_WINDOW_SECS)],
+    );
+
+    const row = result.rows[0];
+    if (!row) return { allowed: true, retryAfterSecs: 0 };
+
+    if (row.count > CAPTURE_RATE_LIMIT) {
+      const retryAfterSecs = Math.max(1, Math.ceil((row.reset_at.getTime() - Date.now()) / 1000));
+      return { allowed: false, retryAfterSecs };
+    }
+
+    return { allowed: true, retryAfterSecs: 0 };
+  } catch (err) {
+    // Fail open — a DB outage should not block legitimate capture requests.
+    console.error("[capture] rate-limit DB check failed, allowing request:", err);
+    return { allowed: true, retryAfterSecs: 0 };
+  }
+}
+
+/**
+ * Clears all persisted rate-limit buckets. Exported for use in tests only.
+ * In production the table rows expire naturally when reset_at passes.
+ */
+export async function resetCaptureRateLimiter(): Promise<void> {
+  await pool.query("DELETE FROM calora_capture_rate_limits");
+}
+
+/**
+ * Resolve a tamper-resistant rate-limit key for the request.
+ * Verified user ID is preferred; req.ip (trusted-proxy-resolved) is the fallback.
+ */
+function rateLimitKey(verifiedUser: VerifiedUser | null, req: Request): string {
+  if (verifiedUser) return `user:${verifiedUser.id}`;
+  return `ip:${req.ip ?? req.socket?.remoteAddress ?? "unknown"}`;
+}
+
+/**
+ * Persists a successful analysis as a server-recorded capture session for
+ * the authenticated caller. The returned server-issued session id is the
+ * only id the diary first-log sync accepts, which anchors referral
+ * qualification in a server-verified event instead of a client claim.
+ *
+ * Accepts a pre-verified user so the route can verify the token once and
+ * share the result across rate limiting and session persistence without a
+ * second Supabase round-trip.
+ *
+ * Anonymous or unverifiable requests persist nothing and fall back to the
+ * client-provided/random session id (analysis still works, it just cannot
+ * qualify a referral).
+ */
+async function persistCaptureSession(
+  user: VerifiedUser | null,
+  mode: string,
+  candidates: Array<Pick<CaptureCandidate, "name" | "calories" | "proteinG" | "carbsG" | "fatG" | "confidence" | "serving" | "provenance" | "sourceLabel">>,
+): Promise<string | null> {
+  if (candidates.length === 0) return null;
+  if (!user) return null;
+  try {
+    const userId = await ensureUserRow(user.id, user.email);
+    const sessionId = randomUUID();
+    await db.insert(aiCaptureSessionsTable).values({ id: sessionId, userId, mode, status: "review" });
+    await db.insert(aiCaptureCandidatesTable).values(
+      candidates.map((candidate) => ({
+        sessionId,
+        name: candidate.name,
+        calories: String(candidate.calories),
+        proteinG: String(candidate.proteinG),
+        carbsG: String(candidate.carbsG),
+        fatG: String(candidate.fatG),
+        confidence: candidate.confidence,
+        evidence: {
+          serving: candidate.serving,
+          provenance: candidate.provenance,
+          sourceLabel: candidate.sourceLabel,
+        },
+      })),
+    );
+    return sessionId;
+  } catch (err) {
+    console.error("[capture] failed to persist capture session:", err);
+    return null;
+  }
+}
 
 const router: IRouter = Router();
 const OPEN_FOOD_FACTS_ROOT = "https://world.openfoodfacts.org/api/v2";
@@ -293,6 +429,27 @@ async function analyzeFoodPhoto(imageBase64: string) {
 }
 
 router.post("/v1/capture/analyze", async (req, res) => {
+  // Verify the Bearer token once and share the result across rate limiting and
+  // session persistence — avoids a second Supabase round-trip.  A missing,
+  // malformed, or cryptographically invalid token resolves to null here, which
+  // directs rate limiting to the trusted req.ip bucket instead.
+  let verifiedUser: VerifiedUser | null = null;
+  try {
+    verifiedUser = await verifyBearerToken(req);
+  } catch {
+    // Supabase not configured or unreachable — treat as anonymous.
+  }
+
+  const { allowed, retryAfterSecs } = await checkRateLimit(rateLimitKey(verifiedUser, req));
+  if (!allowed) {
+    res.setHeader("Retry-After", String(retryAfterSecs));
+    res.status(429).json({
+      message: "Too many capture requests. Please wait before trying again.",
+      retryAfterSecs,
+    });
+    return;
+  }
+
   const parsed = AnalyzeCaptureBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid capture input" });
@@ -360,8 +517,9 @@ router.post("/v1/capture/analyze", async (req, res) => {
     // Text mode — parse natural-language description with AI.
     if (body.mode === "text" && hasText) {
       const result = await analyzeTextInput(body.textInput!.trim());
+      const serverSessionId = await persistCaptureSession(verifiedUser, "text", result.candidates);
       res.json({
-        sessionId: body.clientSessionId || randomUUID(),
+        sessionId: serverSessionId || body.clientSessionId || randomUUID(),
         mode: "text",
         status: result.candidates.length ? "review" : "unavailable",
         title: result.title,
@@ -389,8 +547,9 @@ router.post("/v1/capture/analyze", async (req, res) => {
     // Nutrition label mode — extract structured values from a label image.
     if (body.mode === "nutrition_label" && body.imageBase64) {
       const result = await analyzeNutritionLabel(body.imageBase64);
+      const serverSessionId = await persistCaptureSession(verifiedUser, "nutrition_label", result.candidates);
       res.json({
-        sessionId: body.clientSessionId || randomUUID(),
+        sessionId: serverSessionId || body.clientSessionId || randomUUID(),
         mode: "nutrition_label",
         status: result.candidates.length ? "review" : "unavailable",
         title: result.title,
@@ -418,8 +577,9 @@ router.post("/v1/capture/analyze", async (req, res) => {
     if (hasBarcode && (body.mode === "auto" || body.mode === "barcode")) {
       const result = await lookupBarcode(barcode);
       if (result) {
+        const serverSessionId = await persistCaptureSession(verifiedUser, "barcode", [result.candidate]);
         res.json({
-          sessionId: body.clientSessionId || randomUUID(),
+          sessionId: serverSessionId || body.clientSessionId || randomUUID(),
           mode: "barcode",
           status: "review",
           title: result.candidate.name,
@@ -452,8 +612,9 @@ router.post("/v1/capture/analyze", async (req, res) => {
       return;
     }
     const result = await analyzeFoodPhoto(body.imageBase64);
+    const serverSessionId = await persistCaptureSession(verifiedUser, "food", result.candidates);
     res.json({
-      sessionId: body.clientSessionId || randomUUID(),
+      sessionId: serverSessionId || body.clientSessionId || randomUUID(),
       mode: "food",
       status: result.candidates.length ? "review" : "unavailable",
       title: result.title,

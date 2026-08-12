@@ -22,6 +22,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useCalora } from '@/context/CaloraContext';
+import { AppHeader } from '@/components/AppChrome';
 import { useAuth } from '@/context/AuthContext';
 import { BRAND } from '@/lib/brand';
 
@@ -61,18 +62,15 @@ export default function ForgotPasswordScreen() {
       style={[styles.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <AppHeader back title="Reset password" />
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 32 },
+          { paddingTop: 24, paddingBottom: insets.bottom + 32 },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={12} accessibilityLabel="Go back">
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </Pressable>
-
         {sent ? (
           /* ── Success state ── */
           <View style={styles.sentContainer}>

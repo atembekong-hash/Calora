@@ -30,6 +30,8 @@ tags:
     description: Personalized weekly meal planning
   - name: coach
     description: Context-aware nutrition coaching
+  - name: referral
+    description: Invite-a-friend referral rewards
 paths:
   /healthz:
     get:
@@ -301,6 +303,7 @@ paths:
       operationId: analyzeCapture
       tags: [capture]
       summary: Analyze a barcode or food photo for review
+      security: [{ bearerAuth: [] }]
       description: |
         Accepts either a barcode or a base64-encoded camera image. Barcode
         requests are enriched from public nutrition sources and food photos
@@ -323,6 +326,28 @@ paths:
           description: Invalid capture input
         "502":
           description: Capture provider unavailable
+  /v1/capture/{sessionId}/approve:
+    post:
+      operationId: approveCapture
+      tags: [capture]
+      summary: Confirm a reviewed image or barcode capture
+      description: |
+        Consumes the authenticated user's short-lived, server-issued capture
+        proof. Only confirmed photo or barcode captures can qualify a referral
+        reward; text/manual and demo diary entries cannot.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Capture confirmed
+        "401":
+          description: Not signed in
+        "409":
+          description: Capture expired, already used, or belongs to another account
   /v1/planner/generate:
     post:
       operationId: generatePlanner
@@ -401,6 +426,102 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeletionRequest"
+  /v1/referral:
+    get:
+      operationId: getReferral
+      tags: [referral]
+      summary: Get the caller's referral code, invite link, and reward stats
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Referral summary for the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSummary"
+        "401":
+          description: Missing or invalid token
+  /v1/referral/redeem:
+    post:
+      operationId: redeemReferral
+      tags: [referral]
+      summary: Redeem an invite code on a new account
+      description: |
+        Records a pending referral redemption for the authenticated user.
+        Rewards unlock for both parties once the new user logs their first
+        approved food entry. One redemption per account; self-referrals are
+        rejected.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReferralRedeemInput"
+      responses:
+        "200":
+          description: Redemption recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralRedeemResult"
+        "400":
+          description: Invalid or self-referral code
+        "401":
+          description: Missing or invalid token
+        "404":
+          description: Unknown invite code
+        "409":
+          description: Account already redeemed an invite code
+  /v1/diary/first-log:
+    post:
+      operationId: syncFirstDiaryEntry
+      tags: [diary]
+      summary: Persist the user's first approved food log on the server
+      description: |
+        The diary is local-first; this endpoint durably records the user's
+        first approved food log server-side. It is the server-observable
+        signal that referral activation requires before granting rewards.
+        Idempotent — once any diary entry exists for the user, repeat calls
+        return the existing state without writing again.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiaryFirstLogInput"
+      responses:
+        "200":
+          description: Diary entry persisted (or already present)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiaryFirstLogResult"
+        "400":
+          description: Invalid entry payload
+        "401":
+          description: Missing or invalid token
+  /v1/referral/activate:
+    post:
+      operationId: activateReferral
+      tags: [referral]
+      summary: Unlock referral rewards after the first approved food log
+      description: |
+        Called once the referred user records their first approved food log.
+        Grants seven days of Pro to both parties (the referrer's grant is
+        subject to a monthly cap). Idempotent — repeat calls return the
+        current state without granting again.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Activation state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralActivateResult"
+        "401":
+          description: Missing or invalid token
 components:
   securitySchemes:
     bearerAuth:
@@ -935,3 +1056,73 @@ components:
               type: array
               items: { type: string }
 
+    ReferralSummary:
+      type: object
+      required: [code, inviteUrl, rewardDays, stats, redemption]
+      properties:
+        code: { type: string, minLength: 4, maxLength: 16 }
+        inviteUrl: { type: string, format: uri }
+        rewardDays: { type: integer }
+        stats:
+          type: object
+          required: [pendingCount, rewardedCount, monthRewardedCount, monthCap]
+          properties:
+            pendingCount: { type: integer }
+            rewardedCount: { type: integer }
+            monthRewardedCount: { type: integer }
+            monthCap: { type: integer }
+        redemption:
+          type: object
+          description: The caller's own redemption of someone else's code, if any.
+          required: [status]
+          properties:
+            status: { type: string, enum: [none, pending, rewarded] }
+            code: { type: string }
+    ReferralRedeemInput:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, minLength: 4, maxLength: 16 }
+    ReferralRedeemResult:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [pending] }
+        message: { type: string }
+    DiaryFirstLogInput:
+      type: object
+      required: [captureSessionId, entryDate, meal, name, serving, calories, proteinG, carbsG, fatG, provenance, confidence, clientUpdatedAt]
+      properties:
+        captureSessionId:
+          type: string
+          format: uuid
+          description: |
+            Server-issued capture session id returned by /v1/capture/analyze
+            for an authenticated request. The synced entry must correspond to
+            that server-recorded analysis; fabricated payloads are rejected.
+        entryDate: { type: string, format: date }
+        meal: { type: string, minLength: 1, maxLength: 40 }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        serving: { type: string, minLength: 1, maxLength: 120 }
+        calories: { type: number, minimum: 0, maximum: 20000 }
+        proteinG: { type: number, minimum: 0, maximum: 5000 }
+        carbsG: { type: number, minimum: 0, maximum: 5000 }
+        fatG: { type: number, minimum: 0, maximum: 5000 }
+        provenance: { type: string, minLength: 1, maxLength: 80 }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        notes: { type: string, maxLength: 2000 }
+        clientUpdatedAt: { type: string, format: date-time }
+    DiaryFirstLogResult:
+      type: object
+      required: [synced, alreadyExisted]
+      properties:
+        synced: { type: boolean }
+        alreadyExisted: { type: boolean }
+    ReferralActivateResult:
+      type: object
+      required: [status, referredRewarded, referrerRewarded]
+      properties:
+        status: { type: string, enum: [none, pending, rewarded] }
+        referredRewarded: { type: boolean }
+        referrerRewarded: { type: boolean }
+        message: { type: string }

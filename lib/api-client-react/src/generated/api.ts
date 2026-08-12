@@ -28,6 +28,8 @@ import type {
   DiaryEntry,
   DiaryEntryInput,
   DiaryEntryPatch,
+  DiaryFirstLogInput,
+  DiaryFirstLogResult,
   ExportRequest,
   HealthStatus,
   ListDiaryEntries200,
@@ -40,6 +42,10 @@ import type {
   ProfileInput,
   Recipe,
   RecipeList,
+  ReferralActivateResult,
+  ReferralRedeemInput,
+  ReferralRedeemResult,
+  ReferralSummary,
   SearchFoods200,
   SearchFoodsParams,
   SyncRequest,
@@ -1145,6 +1151,80 @@ export const useAnalyzeCapture = <TError = ErrorType<void>,
       return useMutation(getAnalyzeCaptureMutationOptions(options));
     }
 
+export const getApproveCaptureUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/v1/capture/${sessionId}/approve`
+}
+
+/**
+ * Consumes the authenticated user's short-lived, server-issued capture
+ * proof. Only confirmed photo or barcode captures can qualify a referral
+ * reward; text/manual and demo diary entries cannot.
+ * @summary Confirm a reviewed image or barcode capture
+ */
+export const approveCapture = async (sessionId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getApproveCaptureUrl(sessionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveCaptureMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCapture>>, TError,{sessionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveCapture>>, TError,{sessionId: string}, TContext> => {
+
+const mutationKey = ['approveCapture'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveCapture>>, {sessionId: string}> = (props) => {
+          const {sessionId} = props ?? {};
+
+          return  approveCapture(sessionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveCaptureMutationResult = NonNullable<Awaited<ReturnType<typeof approveCapture>>>
+
+    export type ApproveCaptureMutationError = ErrorType<void>
+
+    /**
+ * @summary Confirm a reviewed image or barcode capture
+ */
+export const useApproveCapture = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveCapture>>, TError,{sessionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveCapture>>,
+        TError,
+        {sessionId: string},
+        TContext
+      > => {
+      return useMutation(getApproveCaptureMutationOptions(options));
+    }
+
 export const getGeneratePlannerUrl = () => {
 
 
@@ -1435,3 +1515,305 @@ export const useRequestDataDeletion = <TError = ErrorType<unknown>,
       return useMutation(getRequestDataDeletionMutationOptions(options));
     }
 
+export const getGetReferralUrl = () => {
+
+
+
+
+  return `/api/v1/referral`
+}
+
+/**
+ * @summary Get the caller's referral code, invite link, and reward stats
+ */
+export const getReferral = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReferralSummary> => {
+
+  return customFetch<ReferralSummary>(getGetReferralUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReferralQueryKey = () => {
+    return [
+    `/api/v1/referral`
+    ] as const;
+    }
+
+
+export const getGetReferralQueryOptions = <TData = Awaited<ReturnType<typeof getReferral>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReferralQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReferral>>> = ({ signal }) => getReferral({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReferralQueryResult = NonNullable<Awaited<ReturnType<typeof getReferral>>>
+export type GetReferralQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the caller's referral code, invite link, and reward stats
+ */
+
+export function useGetReferral<TData = Awaited<ReturnType<typeof getReferral>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReferralQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRedeemReferralUrl = () => {
+
+
+
+
+  return `/api/v1/referral/redeem`
+}
+
+/**
+ * Records a pending referral redemption for the authenticated user.
+ * Rewards unlock for both parties once the new user logs their first
+ * approved food entry. One redemption per account; self-referrals are
+ * rejected.
+ * @summary Redeem an invite code on a new account
+ */
+export const redeemReferral = async (referralRedeemInput: ReferralRedeemInput, options?: Parameters<typeof customFetch>[1]): Promise<ReferralRedeemResult> => {
+
+  return customFetch<ReferralRedeemResult>(getRedeemReferralUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(referralRedeemInput)
+  }
+);}
+
+
+
+
+
+export const getRedeemReferralMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<ReferralRedeemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<ReferralRedeemInput>}, TContext> => {
+
+const mutationKey = ['redeemReferral'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof redeemReferral>>, {data: BodyType<ReferralRedeemInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  redeemReferral(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RedeemReferralMutationResult = NonNullable<Awaited<ReturnType<typeof redeemReferral>>>
+    export type RedeemReferralMutationBody = BodyType<ReferralRedeemInput>
+    export type RedeemReferralMutationError = ErrorType<void>
+
+    /**
+ * @summary Redeem an invite code on a new account
+ */
+export const useRedeemReferral = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<ReferralRedeemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof redeemReferral>>,
+        TError,
+        {data: BodyType<ReferralRedeemInput>},
+        TContext
+      > => {
+      return useMutation(getRedeemReferralMutationOptions(options));
+    }
+
+export const getSyncFirstDiaryEntryUrl = () => {
+
+
+
+
+  return `/api/v1/diary/first-log`
+}
+
+/**
+ * The diary is local-first; this endpoint durably records the user's
+ * first approved food log server-side. It is the server-observable
+ * signal that referral activation requires before granting rewards.
+ * Idempotent — once any diary entry exists for the user, repeat calls
+ * return the existing state without writing again.
+ * @summary Persist the user's first approved food log on the server
+ */
+export const syncFirstDiaryEntry = async (diaryFirstLogInput: DiaryFirstLogInput, options?: Parameters<typeof customFetch>[1]): Promise<DiaryFirstLogResult> => {
+
+  return customFetch<DiaryFirstLogResult>(getSyncFirstDiaryEntryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(diaryFirstLogInput)
+  }
+);}
+
+
+
+
+
+export const getSyncFirstDiaryEntryMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncFirstDiaryEntry>>, TError,{data: BodyType<DiaryFirstLogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncFirstDiaryEntry>>, TError,{data: BodyType<DiaryFirstLogInput>}, TContext> => {
+
+const mutationKey = ['syncFirstDiaryEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncFirstDiaryEntry>>, {data: BodyType<DiaryFirstLogInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  syncFirstDiaryEntry(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncFirstDiaryEntryMutationResult = NonNullable<Awaited<ReturnType<typeof syncFirstDiaryEntry>>>
+    export type SyncFirstDiaryEntryMutationBody = BodyType<DiaryFirstLogInput>
+    export type SyncFirstDiaryEntryMutationError = ErrorType<void>
+
+    /**
+ * @summary Persist the user's first approved food log on the server
+ */
+export const useSyncFirstDiaryEntry = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncFirstDiaryEntry>>, TError,{data: BodyType<DiaryFirstLogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncFirstDiaryEntry>>,
+        TError,
+        {data: BodyType<DiaryFirstLogInput>},
+        TContext
+      > => {
+      return useMutation(getSyncFirstDiaryEntryMutationOptions(options));
+    }
+
+export const getActivateReferralUrl = () => {
+
+
+
+
+  return `/api/v1/referral/activate`
+}
+
+/**
+ * Called once the referred user records their first approved food log.
+ * Grants seven days of Pro to both parties (the referrer's grant is
+ * subject to a monthly cap). Idempotent — repeat calls return the
+ * current state without granting again.
+ * @summary Unlock referral rewards after the first approved food log
+ */
+export const activateReferral = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReferralActivateResult> => {
+
+  return customFetch<ReferralActivateResult>(getActivateReferralUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getActivateReferralMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof activateReferral>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof activateReferral>>, TError,void, TContext> => {
+
+const mutationKey = ['activateReferral'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof activateReferral>>, void> = () => {
+
+
+          return  activateReferral(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ActivateReferralMutationResult = NonNullable<Awaited<ReturnType<typeof activateReferral>>>
+
+    export type ActivateReferralMutationError = ErrorType<void>
+
+    /**
+ * @summary Unlock referral rewards after the first approved food log
+ */
+export const useActivateReferral = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof activateReferral>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof activateReferral>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getActivateReferralMutationOptions(options));
+    }

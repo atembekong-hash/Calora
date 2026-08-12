@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCalora } from '@/context/CaloraContext';
+import { AppHeader } from '@/components/AppChrome';
 import { useAuth } from '@/context/AuthContext';
 import { BRAND } from '@/lib/brand';
 
@@ -50,11 +51,12 @@ export default function VerifyEmailScreen() {
   }, [resendLoading, email, resendVerificationEmail]);
 
   return (
-    <ScrollView
-      style={[styles.root, { backgroundColor: colors.background }]}
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <AppHeader back title="Verify email" onBack={() => router.canGoBack() ? router.back() : router.replace('/auth/sign-in' as any)} />
+      <ScrollView
       contentContainerStyle={[
         styles.scroll,
-        { paddingTop: insets.top + 48, paddingBottom: insets.bottom + 32 },
+        { paddingTop: 28, paddingBottom: insets.bottom + 32 },
       ]}
       showsVerticalScrollIndicator={false}
     >
@@ -125,7 +127,8 @@ export default function VerifyEmailScreen() {
         <Feather name="arrow-left" size={15} color={colors.mutedForeground} />
         <Text style={[styles.backText, { color: colors.mutedForeground }]}>Back to sign in</Text>
       </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 

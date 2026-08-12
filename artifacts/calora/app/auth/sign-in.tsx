@@ -31,6 +31,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCalora } from '@/context/CaloraContext';
+import { AppHeader } from '@/components/AppChrome';
 import { useAuth } from '@/context/AuthContext';
 import { BRAND } from '@/lib/brand';
 
@@ -109,26 +110,15 @@ export default function SignInScreen() {
       style={[styles.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <AppHeader back title="Sign in" />
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 32 },
+          { paddingTop: 24, paddingBottom: insets.bottom + 32 },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Back button */}
-        {router.canGoBack() && (
-          <Pressable
-            onPress={() => router.back()}
-            style={styles.backButton}
-            hitSlop={12}
-            accessibilityLabel="Go back"
-          >
-            <Feather name="arrow-left" size={22} color={colors.foreground} />
-          </Pressable>
-        )}
-
         {/* Brand mark */}
         <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
           <Feather name="sun" size={22} color={colors.primaryForeground} />
