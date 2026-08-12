@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["<APPLE_TEAM_ID>.com.etiendem.caloraapp"],
+        "components": [
+          {
+            "/": "/invite/*",
+            "comment": "Open invite referral links in the CaloraApp"
+          }
+        ]
+      }
+    ]
+  }
+}

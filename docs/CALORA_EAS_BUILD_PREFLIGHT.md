@@ -5,7 +5,6 @@
 - The Expo app root is `artifacts/calora`.
 - `artifacts/calora/eas.json` is the only EAS build configuration.
 - Every build profile inherits a shared base profile that enables Corepack and pins Node.js 20.19.4 and pnpm 10.26.1.
-- Platform-specific defaults are set in the `base` profile: both Android and iOS use the **latest** build image, and resource classes are increased (**medium** for Android, **m-medium** for iOS) to ensure build stability.
 - There is no custom EAS build workflow or `eas.yml` file. EAS uses its supported default build pipeline.
 - `development` creates an iOS simulator development client.
 - `development-device` is the internal-distribution development-client profile for real-device deep-link and OAuth testing; Android requests produce an installable APK.
@@ -46,14 +45,10 @@ All 32 test files and 703 tests passed.
 
 ## Before starting a build
 
-In Expo’s GitHub build settings, set the **Root Directory** to the repository root (the top-level directory containing `pnpm-workspace.yaml`).
+In Expo’s GitHub build settings, keep the app root directory set to:
 
-Then, ensure the EAS build command points to the app directory:
-
-```bash
-eas build --path artifacts/calora
+```text
+artifacts/calora
 ```
-
-If you are using the GitHub integration (Auto-build on push), Expo will automatically detect the monorepo structure if the Root Directory is set correctly to the repository root. Setting it to `artifacts/calora` may cause dependency installation failures because `pnpm` will not be able to find the workspace configuration.
 
 For a native OAuth test, choose the `development-device` profile. A remote build is intentionally not started by this preflight.
