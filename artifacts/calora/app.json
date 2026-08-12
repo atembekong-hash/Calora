@@ -15,11 +15,12 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.etiendem.caloraapp"
+      "bundleIdentifier": "com.etiendem.caloraapp",
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.etiendem.caloraapp",
-      "versionCode": 3
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/images/icon.png"
