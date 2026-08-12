@@ -209,6 +209,57 @@ describe('POST /v1/capture/analyze', () => {
     vi.mocked(verifyBearerToken).mockResolvedValue(null);
   });
 
+  it('cleans AI-generated capture text before it reaches the review response', async () => {
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({
+      choices: [{
+        message: {
+          content: aiJsonResponse({
+            title: '## Chicken — rice\\n\\n{{internal}}\\u200B',
+            assumptions: ['- **Estimated** from photo.\\n\\nTODO', '<placeholder>'],
+            reviewQuestions: ['```text\\nHow much did you eat?\\n```'],
+            components: [{
+              name: 'Chicken\\n\\n---\\nRice',
+              brand: 'Brand — kitchen',
+              serving: '1\\n\\n bowl',
+              calories: 200,
+              proteinG: 10,
+              carbsG: 30,
+              fatG: 5,
+              confidence: 75,
+              provenance: 'Photo — estimate',
+              sourceLabel: 'Vision\\u200B model',
+              preparation: '- grilled **chicken**',
+              assumptions: ['[[internal]]', 'No sauce noted.'],
+              confidenceDimensions: { identity: 75, portion: 67, nutritionSource: 63, preparation: 60 },
+              reviewQuestions: ['- Was sauce included?'],
+            }],
+          }),
+        },
+      }],
+    } as never);
+
+    const res = await request(app)
+      .post('/v1/capture/analyze')
+      .send({ mode: 'text', textInput: 'chicken and rice' })
+      .set('Content-Type', 'application/json');
+
+    expect(res.status).toBe(200);
+    expect(res.body.title).toBe('Chicken, rice');
+    expect(res.body.components[0]).toMatchObject({
+      name: 'Chicken\n\nRice',
+      brand: 'Brand, kitchen',
+      serving: '1\n\nbowl',
+      provenance: 'Text estimate',
+      sourceLabel: 'Managed language model',
+      preparation: '• grilled chicken',
+      assumptions: ['No sauce noted.'],
+      reviewQuestions: ['• Was sauce included?'],
+    });
+    expect(res.body.assumptions).toEqual(['• Estimated from photo.']);
+    expect(res.body.reviewQuestions).toEqual(['How much did you eat?']);
+    expect(JSON.stringify(res.body)).not.toMatch(/```|{{|TODO|\u200B|—/);
+  });
+
   // -------------------------------------------------------------------------
   // Input validation
   // -------------------------------------------------------------------------

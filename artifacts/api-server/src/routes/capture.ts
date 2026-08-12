@@ -4,6 +4,7 @@ import { AnalyzeCaptureBody } from "@workspace/api-zod";
 import { db, pool, aiCaptureSessionsTable, aiCaptureCandidatesTable } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
+import { sanitizeAiText, sanitizeAiTextList } from "../lib/ai-text.js";
 import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 
@@ -195,16 +196,16 @@ function normalizeBarcode(value: string) {
 function ensureCandidate(candidate: Partial<CaptureCandidate>, index: number): CaptureCandidate {
   return {
     id: candidate.id || `capture-candidate-${index + 1}`,
-    name: candidate.name?.trim() || "Unidentified food",
-    brand: candidate.brand?.trim() || null,
-    serving: candidate.serving?.trim() || "1 serving",
+    name: sanitizeAiText(candidate.name, "Unidentified food", 180),
+    brand: sanitizeAiText(candidate.brand, "", 160) || null,
+    serving: sanitizeAiText(candidate.serving, "1 serving", 120),
     calories: numberOrZero(candidate.calories),
     proteinG: numberOrZero(candidate.proteinG),
     carbsG: numberOrZero(candidate.carbsG),
     fatG: numberOrZero(candidate.fatG),
     confidence: Math.min(Math.max(Math.round(numberOrZero(candidate.confidence)), 0), 100),
-    provenance: candidate.provenance || "Photo estimate",
-    sourceLabel: candidate.sourceLabel || "Managed vision estimate",
+    provenance: sanitizeAiText(candidate.provenance, "Photo estimate", 120),
+    sourceLabel: sanitizeAiText(candidate.sourceLabel, "Managed vision estimate", 160),
     editable: true,
   };
 }
@@ -224,13 +225,13 @@ function ensureComponent(candidate: Partial<CaptureComponent>, index: number, pr
   return {
     ...base,
     componentId: candidate.componentId || base.id || `component-${index + 1}`,
-    preparation: candidate.preparation?.trim() || null,
+    preparation: sanitizeAiText(candidate.preparation, "", 400) || null,
     included: candidate.included !== false,
     eatenFraction: Math.min(Math.max(Number(candidate.eatenFraction ?? 1), 0), 1),
     confidenceDimensions: { identity, portion, nutritionSource, preparation },
-    assumptions: Array.isArray(candidate.assumptions) ? candidate.assumptions.filter((item): item is string => typeof item === "string").slice(0, 6) : [],
+    assumptions: sanitizeAiTextList(candidate.assumptions, 6),
     nutritionRange: { caloriesLow: Math.min(low, high), caloriesHigh: Math.max(low, high) },
-    reviewQuestions: Array.isArray(candidate.reviewQuestions) ? candidate.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 4) : [],
+    reviewQuestions: sanitizeAiTextList(candidate.reviewQuestions, 4),
   };
 }
 
@@ -315,11 +316,13 @@ function parseVisionResponse(content: string) {
   const components = rawComponents.slice(0, 8).map((candidate, index) => ensureComponent(candidate, index)).filter((candidate) => candidate.name !== "Unidentified food");
   const candidates = components.map(({ componentId: _componentId, preparation: _preparation, included: _included, eatenFraction: _eatenFraction, confidenceDimensions: _confidenceDimensions, assumptions: _assumptions, nutritionRange: _nutritionRange, reviewQuestions: _reviewQuestions, ...candidate }) => candidate);
   return {
-    title: parsed.title?.trim() || (components[0]?.name ?? "Food photo review"),
+    title: sanitizeAiText(parsed.title, components[0]?.name ?? "Food photo review", 180),
     candidates,
     components,
-    assumptions: Array.isArray(parsed.assumptions) ? parsed.assumptions.filter((item): item is string => typeof item === "string").slice(0, 8) : [],
-    reviewQuestions: Array.isArray(parsed.reviewQuestions) ? parsed.reviewQuestions.filter((item): item is string => typeof item === "string").slice(0, 6) : components.flatMap((component) => component.reviewQuestions).slice(0, 6),
+    assumptions: sanitizeAiTextList(parsed.assumptions, 8),
+    reviewQuestions: Array.isArray(parsed.reviewQuestions)
+      ? sanitizeAiTextList(parsed.reviewQuestions, 6)
+      : components.flatMap((component) => component.reviewQuestions).slice(0, 6),
   };
 }
 
@@ -627,7 +630,11 @@ router.post("/v1/capture/analyze", async (req, res) => {
         sourceLabel: "Managed vision estimate",
         editable: true,
       }, index)),
-       components: result.components,
+       components: result.components.map((component, index) => ensureComponent({
+         ...component,
+         provenance: "Photo estimate",
+         sourceLabel: "Managed vision estimate",
+       }, index, "Photo estimate")),
        assumptions: result.assumptions,
        reviewQuestions: result.reviewQuestions,
        imageRetention: "delete_after_analysis",

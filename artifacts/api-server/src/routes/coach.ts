@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { RespondCoachBody, RespondCoachResponse } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
+import { sanitizeAiText, sanitizeAiTextList } from "../lib/ai-text.js";
 
 const router: IRouter = Router();
 const COACH_MODEL = "gpt-5.6-terra";
@@ -64,11 +65,28 @@ function sanitizeResponse(value: unknown) {
   if (!parsed.success) return null;
   return {
     ...parsed.data,
+    message: sanitizeAiText(parsed.data.message, "I can help you review your recent nutrition and wellness patterns."),
+    observations: parsed.data.observations
+      .map((observation) => ({
+        ...observation,
+        text: sanitizeAiText(observation.text),
+        evidenceKeys: sanitizeAiTextList(observation.evidenceKeys, 12, 120),
+      }))
+      .filter((observation) => Boolean(observation.text)),
+    limitations: sanitizeAiTextList(parsed.data.limitations, 6),
+    contextCoverage: {
+      usedSections: sanitizeAiTextList(parsed.data.contextCoverage.usedSections, 20, 120),
+      missingSections: sanitizeAiTextList(parsed.data.contextCoverage.missingSections, 20, 120),
+    },
     // The first release can only route users to known CaloraApp areas. It never
     // executes model-provided mutations or arbitrary routes.
     actions: parsed.data.actions
       .filter((action) => action.kind === "navigate" && allowedDestinations.has(action.destination))
-      .map((action) => ({ ...action, confirmationRequired: false }))
+      .map((action) => ({
+        ...action,
+        label: sanitizeAiText(action.label, "Open section", 120),
+        confirmationRequired: false,
+      }))
       .slice(0, 3),
   };
 }

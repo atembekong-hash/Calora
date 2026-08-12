@@ -140,4 +140,32 @@ describe("POST /v1/coach/respond", () => {
       }),
     ]);
   });
+
+  it("cleans formatting artifacts from all model-provided display text", async () => {
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            message: "## Today\\n\\n> ~~Focus~~ on `protein` — and hydration. <strong>Stay steady.</strong>\\n\\n---\\n\\n{{internal note}}\\u200B\\nInternal note: omit this",
+            observations: [{ text: "- **Lunch** was balanced.\\n\\n\\nTODO", confidence: "medium", evidenceKeys: ["daily\\nSummaries", "[[internal]]"] }],
+            actions: [{ id: "recipes", label: "Browse — recipes", kind: "navigate", destination: "recipes", confirmationRequired: false }],
+            safetyState: "normal",
+            limitations: ["```text\\nLimited evidence\\n```", "<placeholder>"],
+            contextCoverage: { usedSections: ["daily\\nSummaries"], missingSections: ["—"] },
+          }),
+        },
+      }],
+    } as never);
+
+    const response = await request(app).post("/v1/coach/respond").send(validBody());
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe("Today\n\nFocus on protein, and hydration. Stay steady.");
+    expect(response.body.observations[0].text).toBe("• Lunch was balanced.");
+    expect(response.body.actions[0].label).toBe("Browse, recipes");
+    expect(response.body.limitations).toEqual(["Limited evidence"]);
+    expect(response.body.contextCoverage.usedSections).toEqual(["daily\nSummaries"]);
+    expect(response.body.contextCoverage.missingSections).toEqual([]);
+    expect(JSON.stringify(response.body)).not.toMatch(/```|{{|TODO|\u200B|—|~~|`|<strong>/);
+  });
 });
