@@ -32,9 +32,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useURL } from 'expo-linking';
-import { handleOAuthCallbackUrl } from '@/lib/auth';
+import { handleOAuthCallbackUrl, OAUTH_REDIRECT_URI } from '@/lib/auth';
 import { useAuth } from '@/context/AuthContext';
 
 const REDIRECT_DELAY_MS = 1400;
@@ -42,7 +42,8 @@ const URL_TIMEOUT_MS = 7000;
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
-  const url = useURL();
+  const linkingUrl = useURL();
+  const params = useLocalSearchParams();
   const { isPasswordRecovery } = useAuth();
   const [statusMessage, setStatusMessage] = useState('Completing sign-in\u2026');
   const processed = useRef(false);
@@ -53,14 +54,33 @@ export default function AuthCallbackScreen() {
     recoveryRef.current = isPasswordRecovery;
   }, [isPasswordRecovery]);
 
+  // Determine the effective callback URL.
+  // On Android, useURL() may return null if the deep link was already consumed
+  // by Expo Router for navigation. In that case, we reconstruct the URL from
+  // the local search params.
+  const effectiveUrl = React.useMemo(() => {
+    if (linkingUrl) return linkingUrl;
+    
+    // Reconstruct URL from params if code or error exists
+    if (params.code || params.error) {
+      const search = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (typeof value === 'string') search.append(key, value);
+      });
+      return `${OAUTH_REDIRECT_URI}?${search.toString()}`;
+    }
+    
+    return null;
+  }, [linkingUrl, params]);
+
   // Process the callback URL once it resolves
   useEffect(() => {
-    if (!url || processed.current) return;
+    if (!effectiveUrl || processed.current) return;
     processed.current = true;
 
     async function process() {
       try {
-        const result = await handleOAuthCallbackUrl(url!);
+        const result = await handleOAuthCallbackUrl(effectiveUrl!);
 
         if (result.success) {
           // Brief pause so the onAuthStateChange event (PASSWORD_RECOVERY) has
@@ -97,7 +117,7 @@ export default function AuthCallbackScreen() {
     }
 
     process();
-  }, [url, router]);
+  }, [effectiveUrl, router]);
 
   // Timeout guard — if the URL never resolves (no deep link data)
   useEffect(() => {

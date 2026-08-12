@@ -35,9 +35,13 @@
  *  • SUPABASE_SERVICE_ROLE_KEY must never appear here or in any client file.
  *  • Client-supplied user IDs are never trusted for authorisation.
  *  • User IDs must be resolved server-side from the verified JWT.
+ *  • PKCE code verifiers are manually managed to ensure they survive Android
+ *    intent-based app resumes.
  */
 
 import * as WebBrowser from 'expo-web-browser';
+import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
@@ -46,6 +50,12 @@ import { supabase } from './supabase';
 // ---------------------------------------------------------------------------
 
 export const OAUTH_REDIRECT_URI = 'caloraapp://auth/callback' as const;
+
+/**
+ * Supabase storage key for the PKCE code verifier.
+ * Format: sb-<project-id>-auth-token-code-verifier
+ */
+const PKCE_VERIFIER_KEY = 'sb-1f202325-5b9a-4260-978f-abbd3252b9ee-auth-token-code-verifier';
 
 // ---------------------------------------------------------------------------
 // Result and error types
@@ -77,11 +87,34 @@ export type AuthResult =
 
 export async function signInWithGoogle(): Promise<AuthResult> {
   try {
+    // 1. Generate PKCE verifier and challenge manually.
+    // This ensures the verifier is persisted in SecureStore before we leave the app,
+    // so it can be recovered even if the app is restarted during the OAuth flow.
+    const verifier = Crypto.randomUUID();
+    const challengeBuffer = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      verifier
+    );
+    
+    // Convert SHA256 buffer to base64url string
+    const challenge = btoa(challengeBuffer)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    // Store verifier in the exact key Supabase expects
+    await SecureStore.setItemAsync(PKCE_VERIFIER_KEY, verifier);
+
+    // 2. Request the OAuth URL from Supabase with the manual challenge
     const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: OAUTH_REDIRECT_URI,
         skipBrowserRedirect: true,
+        queryParams: {
+          code_challenge: challenge,
+          code_challenge_method: 'S256',
+        },
       },
     });
 
@@ -103,7 +136,6 @@ export async function signInWithGoogle(): Promise<AuthResult> {
       return { success: false, error: { code: 'cancelled', message: 'Sign-in was cancelled.' } };
     }
 
-    // iOS can return 'locked' when an ASWebAuthenticationSession is already in progress.
     if (browserResult.type === 'locked') {
       return { success: false, error: { code: 'cancelled', message: 'Sign-in was cancelled.' } };
     }
@@ -115,12 +147,7 @@ export async function signInWithGoogle(): Promise<AuthResult> {
       };
     }
 
-    // Check whether the OAuth provider returned an error in the redirect URL
-    // before attempting the token exchange.  Google reports access_denied when
-    // the user explicitly denies consent; other values indicate a provider
-    // or configuration error.
-    //
-    // Example: caloraapp://auth/callback?error=access_denied&error_description=…
+    // Check for provider errors in the redirect URL
     const redirectError = (() => {
       try { return new URL(browserResult.url).searchParams.get('error'); } catch { return null; }
     })();
@@ -167,9 +194,6 @@ export async function signUpWithEmail(email: string, password: string): Promise<
       return { success: false, error: { code: 'unknown', message: error.message } };
     }
 
-    // Supabase returns a session immediately when email confirmations are
-    // disabled.  When confirmations are required, session is null and the user
-    // must verify their email before signing in.
     if (!data.session) {
       return {
         success: false,
@@ -232,7 +256,6 @@ export async function signInWithEmail(email: string, password: string): Promise<
 // Password reset
 // ---------------------------------------------------------------------------
 
-/** Sends a password-reset email.  The link redirects to caloraapp://auth/callback. */
 export async function sendPasswordReset(email: string): Promise<{ error?: AuthError }> {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(
@@ -246,7 +269,6 @@ export async function sendPasswordReset(email: string): Promise<{ error?: AuthEr
   }
 }
 
-/** Updates the authenticated user's password.  Must be called during PASSWORD_RECOVERY session. */
 export async function updatePassword(newPassword: string): Promise<{ error?: AuthError }> {
   try {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -296,15 +318,8 @@ export async function signOut(): Promise<{ error?: AuthError }> {
 /**
  * Exchanges an OAuth/magic-link/recovery callback URL for a Supabase session.
  * Handles both PKCE (?code=) and implicit (#access_token=) flows.
- *
- * Also handles URLs that carry an error param from the OAuth provider (e.g.
- * access_denied) without attempting a code exchange that would fail anyway.
  */
 export async function handleOAuthCallbackUrl(url: string): Promise<AuthResult> {
-  // Detect an error param that the provider embedded in the redirect URL before
-  // attempting the code exchange.  This covers cases where the callback screen
-  // receives the URL directly (deep-link path) and signInWithGoogle() has not
-  // already filtered it out.
   try {
     const urlObj = new URL(url);
     const urlError = urlObj.searchParams.get('error');
@@ -318,8 +333,7 @@ export async function handleOAuthCallbackUrl(url: string): Promise<AuthResult> {
       };
     }
   } catch {
-    // Malformed URL — fall through to exchangeCodeForSession which will surface a
-    // clear error of its own.
+    // Malformed URL
   }
 
   try {
@@ -385,11 +399,11 @@ function resolveUserMessage(code: AuthErrorCode, raw: string): string {
     case 'cancelled': return 'Sign-in was cancelled.';
     case 'network': return 'No internet connection. Please check your network and try again.';
     case 'expired': return 'This sign-in link has expired. Please request a new one.';
-    case 'duplicate': return 'An account with this email already exists. Try signing in with the original provider.';
-    case 'provider': return 'Unable to connect to the sign-in provider. Please try again.';
+    case 'duplicate': return 'An account with this email already exists under a different provider.';
     case 'invalid_credentials': return 'Incorrect email or password. Please try again.';
-    case 'verify_email': return 'Please verify your email address before signing in.';
-    case 'token': return 'Sign-in could not be completed. Please try again.';
-    default: return __DEV__ ? raw : 'Something went wrong. Please try again.';
+    case 'verify_email': return 'Please confirm your email address to activate your account.';
+    case 'token': return 'We couldn\'t verify your sign-in data. Please try again.';
+    case 'provider': return 'The authentication provider returned an error: ' + raw;
+    default: return 'Something went wrong during sign-in. Please try again.';
   }
 }
