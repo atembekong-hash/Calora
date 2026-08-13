@@ -17,11 +17,13 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.etiendem.caloraapp",
       "buildNumber": "1",
-      "associatedDomains": ["applinks:mycaloraapp.com"]
+      "associatedDomains": [
+        "applinks:mycaloraapp.com"
+      ]
     },
     "android": {
       "package": "com.etiendem.caloraapp",
-      "versionCode": 10,
+      "versionCode": 11,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -33,7 +35,10 @@
               "pathPrefix": "/invite"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -53,7 +58,7 @@
         "expo-camera",
         {
           "cameraPermission": "CaloraApp uses your camera to identify food and scan product barcodes.",
-          "microphonePermission": false
+          "microphonePermission": "CaloraApp uses your microphone only while you record a short meal description."
         }
       ]
     ],
