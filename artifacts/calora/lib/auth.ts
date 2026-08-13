@@ -3,14 +3,20 @@
  */
 
 import * as WebBrowser from 'expo-web-browser';
-import * as Crypto from 'expo-crypto';
 import type { Session } from '@supabase/supabase-js';
-import { supabase, SUPABASE_STORAGE_KEY } from './supabase';
+import { supabase } from './supabase';
 
 export const OAUTH_REDIRECT_URI = 'caloraapp://auth/callback' as const;
-const PKCE_VERIFIER_KEY = `${SUPABASE_STORAGE_KEY}-code-verifier`;
 
-export type AuthErrorCode = 'cancelled' | 'network' | 'provider' | 'token' | 'unknown';
+export type AuthErrorCode =
+  | 'cancelled'
+  | 'network'
+  | 'provider'
+  | 'token'
+  | 'unknown'
+  | 'invalid_credentials'
+  | 'verify_email'
+  | 'expired';
 
 export interface AuthError {
   code: AuthErrorCode;
@@ -23,33 +29,18 @@ export type AuthResult =
 
 export type AuthStatusCallback = (message: string) => void;
 
+// ---------------------------------------------------------------------------
+// Google OAuth Flow (PKCE)
+// ---------------------------------------------------------------------------
+
 export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<AuthResult> {
   try {
-    onStatus?.('Initializing secure session\u2026');
-    const verifier = Crypto.randomUUID();
-    const base64Challenge = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      verifier,
-      { encoding: Crypto.CryptoEncoding.BASE64 }
-    );
-    
-    const challenge = base64Challenge.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-
-    const storage = (supabase.auth as any).storage;
-    if (storage) {
-      await storage.setItem(PKCE_VERIFIER_KEY, verifier);
-    }
-
     onStatus?.('Connecting to Google\u2026');
     const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: OAUTH_REDIRECT_URI,
         skipBrowserRedirect: true,
-        queryParams: {
-          code_challenge: challenge,
-          code_challenge_method: 'S256',
-        },
       },
     });
 
@@ -63,22 +54,27 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
     onStatus?.('Opening browser\u2026');
     const browserResult = await WebBrowser.openAuthSessionAsync(data.url, OAUTH_REDIRECT_URI);
 
-    if (browserResult.type !== 'success') {
+    if (browserResult.type !== 'success' || !browserResult.url) {
       return { success: false, error: { code: 'cancelled', message: 'Sign-in was cancelled.' } };
     }
 
     return handleOAuthCallbackUrl(browserResult.url, onStatus);
   } catch (err) {
-    return { success: false, error: { code: 'unknown', message: 'An unexpected error occurred.' } };
+    return classifyError(err);
   }
 }
 
+/**
+ * Processes the deep-link callback URL and exchanges the code for a session.
+ */
 export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusCallback): Promise<AuthResult> {
   onStatus?.('Verifying credentials\u2026');
 
   try {
     const urlObj = new URL(url.replace('#', '?'));
     const code = urlObj.searchParams.get('code');
+    const accessToken = urlObj.searchParams.get('access_token');
+    const refreshToken = urlObj.searchParams.get('refresh_token');
     const error = urlObj.searchParams.get('error');
     const errorDescription = urlObj.searchParams.get('error_description');
 
@@ -87,35 +83,113 @@ export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusC
     }
 
     onStatus?.('Finalizing sign-in\u2026');
-    const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(url);
 
-    if (exchangeError) {
-      // Automatic fallback for non-PKCE links (like email)
-      if (exchangeError.status === 400 && exchangeError.message.includes('code verifier')) {
-        const { data: fallbackData, error: fallbackError } = await supabase.auth.exchangeCodeForSession(url);
-        if (fallbackError) return { success: false, error: { code: 'token', message: fallbackError.message } };
-        if (fallbackData?.session) return { success: true, session: fallbackData.session };
-      }
-      return { success: false, error: { code: 'token', message: exchangeError.message } };
+    // Case 1: PKCE Flow (Authorization Code)
+    // Used by Google OAuth and modern email links.
+    if (code) {
+      onStatus?.('Exchanging code\u2026');
+      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      if (exchangeError) return { success: false, error: { code: 'token', message: exchangeError.message } };
+      if (data?.session) return { success: true, session: data.session };
     }
 
-    if (data?.session) return { success: true, session: data.session };
-    return { success: false, error: { code: 'unknown', message: 'Sign-in failed.' } };
+    // Case 2: Implicit Flow Fallback (Access Token)
+    // Preserved for compatibility with legacy email confirmation links.
+    if (accessToken) {
+      onStatus?.('Setting session\u2026');
+      const { data, error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || '',
+      });
+      if (sessionError) return { success: false, error: { code: 'token', message: sessionError.message } };
+      if (data?.session) return { success: true, session: data.session };
+    }
+
+    return { success: false, error: { code: 'unknown', message: 'No valid authentication data found.' } };
   } catch (err) {
-    return { success: false, error: { code: 'unknown', message: 'Failed to process authentication link.' } };
+    return classifyError(err);
   }
 }
 
+// ---------------------------------------------------------------------------
+// Email/Password Flows
+// ---------------------------------------------------------------------------
+
 export async function signUpWithEmail(email: string, password: string): Promise<AuthResult> {
-  const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: OAUTH_REDIRECT_URI } });
-  if (error) return { success: false, error: { code: 'unknown', message: error.message } };
-  return data.session ? { success: true, session: data.session } : { success: false, error: { code: 'token', message: 'Check your email for a confirmation link.' } };
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+      options: { emailRedirectTo: OAUTH_REDIRECT_URI },
+    });
+    if (error) return { success: false, error: { code: 'unknown', message: error.message } };
+    if (!data.session) return { success: false, error: { code: 'verify_email', message: 'Check your email for a confirmation link.' } };
+    return { success: true, session: data.session };
+  } catch (err) { return classifyError(err); }
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<AuthResult> {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  return error ? { success: false, error: { code: 'unknown', message: error.message } } : { success: true, session: data!.session! };
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    if (error) return { success: false, error: { code: 'invalid_credentials', message: error.message } };
+    if (!data.session) return { success: false, error: { code: 'token', message: 'Sign-in failed.' } };
+    return { success: true, session: data.session };
+  } catch (err) { return classifyError(err); }
 }
 
-export const signOut = () => supabase.auth.signOut();
-export const getSession = async () => (await supabase.auth.getSession()).data.session;
+// ---------------------------------------------------------------------------
+// Account Recovery & Management
+// ---------------------------------------------------------------------------
+
+export async function sendPasswordReset(email: string) {
+  return supabase.auth.resetPasswordForEmail(email, { redirectTo: OAUTH_REDIRECT_URI });
+}
+
+export async function updatePassword(newPassword: string) {
+  return supabase.auth.updateUser({ password: newPassword });
+}
+
+export async function resendVerificationEmail(email: string) {
+  return supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: OAUTH_REDIRECT_URI } });
+}
+
+export async function signOut() {
+  return supabase.auth.signOut();
+}
+
+export async function getSession() {
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+}
+
+// ---------------------------------------------------------------------------
+// Error Handling
+// ---------------------------------------------------------------------------
+
+function classifyError(err: unknown): { success: false; error: AuthError } {
+  const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
+  const lower = message.toLowerCase();
+  const code: AuthErrorCode =
+    lower.includes('network') || lower.includes('fetch') || lower.includes('offline')
+      ? 'network'
+      : lower.includes('expired')
+        ? 'expired'
+        : 'unknown';
+  return { success: false, error: { code, message: resolveUserMessage(code, message) } };
+}
+
+function resolveUserMessage(code: AuthErrorCode, raw: string): string {
+  switch (code) {
+    case 'cancelled': return 'Sign-in was cancelled.';
+    case 'network': return 'No internet connection. Please check your network and try again.';
+    case 'expired': return 'This sign-in link has expired. Please request a new one.';
+    case 'provider': return 'Unable to connect to the sign-in provider. Please try again.';
+    case 'invalid_credentials': return 'Incorrect email or password. Please try again.';
+    case 'verify_email': return 'Please verify your email address before signing in.';
+    case 'token': return 'Sign-in could not be completed. Please try again.';
+    default: return __DEV__ ? raw : 'Something went wrong. Please try again.';
+  }
+}
