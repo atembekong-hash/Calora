@@ -15,8 +15,6 @@ export const OAUTH_REDIRECT_URI = 'caloraapp://auth/callback' as const;
 
 /**
  * The storage key for the PKCE code verifier.
- * This MUST match the pattern used by @supabase/auth-js:
- * `${storageKey}-code-verifier`
  */
 const PKCE_VERIFIER_KEY = `${SUPABASE_STORAGE_KEY}-code-verifier`;
 
@@ -47,7 +45,7 @@ export type AuthResult =
 export type AuthStatusCallback = (message: string) => void;
 
 // ---------------------------------------------------------------------------
-// Google Sign-In
+// Google Sign-In (PKCE)
 // ---------------------------------------------------------------------------
 
 export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<AuthResult> {
@@ -68,7 +66,6 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
       .replace(/=+$/, '');
 
     // 2. Persist the verifier using the Supabase client's storage adapter.
-    // This ensures it is saved to SecureStore under the unified key.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const storage = (supabase.auth as any).storage;
     if (storage && typeof storage.setItem === 'function') {
@@ -122,7 +119,7 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
 }
 
 // ---------------------------------------------------------------------------
-// OAuth callback exchange
+// OAuth / Magic Link callback exchange
 // ---------------------------------------------------------------------------
 
 export async function handleOAuthCallbackUrl(
@@ -133,6 +130,8 @@ export async function handleOAuthCallbackUrl(
 
   try {
     const urlObj = new URL(url);
+    
+    // Check for provider errors
     const urlError = urlObj.searchParams.get('error');
     if (urlError) {
       const isUserDenied = urlError === 'access_denied';
@@ -143,7 +142,22 @@ export async function handleOAuthCallbackUrl(
           : { code: 'provider', message: 'Provider error: ' + urlError },
       };
     }
-  } catch { /* ignore */ }
+
+    // DIAGNOSTIC: Determine if this is a PKCE flow or an implicit/email flow.
+    // PKCE flows have a 'code' parameter. Email confirmation links typically
+    // return access_token/refresh_token in the hash (implicit flow).
+    const hasCode = urlObj.searchParams.has('code');
+    const hasToken = url.includes('access_token=');
+
+    if (!hasCode && !hasToken) {
+      return {
+        success: false,
+        error: { code: 'token', message: 'No valid sign-in data found in the link.' },
+      };
+    }
+  } catch {
+    // Malformed URL
+  }
 
   try {
     const exchangePromise = supabase.auth.exchangeCodeForSession(url);
@@ -178,7 +192,7 @@ export async function handleOAuthCallbackUrl(
 }
 
 // ---------------------------------------------------------------------------
-// Remaining exports (simplified for context)
+// Email flows
 // ---------------------------------------------------------------------------
 
 export async function signUpWithEmail(email: string, password: string): Promise<AuthResult> {
