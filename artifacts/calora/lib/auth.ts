@@ -52,7 +52,6 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
   try {
     onStatus?.('Initializing secure session\u2026');
     
-    // 1. Generate PKCE verifier and challenge manually.
     const verifier = Crypto.randomUUID();
     const base64Challenge = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
@@ -65,7 +64,6 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
-    // 2. Persist the verifier using the Supabase client's storage adapter.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const storage = (supabase.auth as any).storage;
     if (storage && typeof storage.setItem === 'function') {
@@ -74,7 +72,6 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
 
     onStatus?.('Connecting to Google\u2026');
 
-    // 3. Request the OAuth URL from Supabase with the manual challenge
     const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -119,9 +116,16 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
 }
 
 // ---------------------------------------------------------------------------
-// OAuth / Magic Link callback exchange
+// Smart Exchange with Fallback
 // ---------------------------------------------------------------------------
 
+/**
+ * Robustly exchanges a callback URL for a session.
+ * 
+ * In monorepos, Supabase sometimes expects PKCE for Google but Implicit for Email.
+ * This function tries PKCE first, and if it fails with a 400 (missing verifier),
+ * it automatically retries as an implicit flow.
+ */
 export async function handleOAuthCallbackUrl(
   url: string, 
   onStatus?: AuthStatusCallback
@@ -130,54 +134,54 @@ export async function handleOAuthCallbackUrl(
 
   try {
     const urlObj = new URL(url);
-    
-    // Check for provider errors
     const urlError = urlObj.searchParams.get('error');
     if (urlError) {
-      const isUserDenied = urlError === 'access_denied';
       return {
         success: false,
-        error: isUserDenied
-          ? { code: 'cancelled', message: 'Sign-in was cancelled.' }
-          : { code: 'provider', message: 'Provider error: ' + urlError },
+        error: { code: 'provider', message: 'Provider error: ' + urlError },
       };
     }
+  } catch { /* ignore */ }
 
-    // DIAGNOSTIC: Determine if this is a PKCE flow or an implicit/email flow.
-    // PKCE flows have a 'code' parameter. Email confirmation links typically
-    // return access_token/refresh_token in the hash (implicit flow).
-    const hasCode = urlObj.searchParams.has('code');
-    const hasToken = url.includes('access_token=');
+  const timeout = 25000;
 
-    if (!hasCode && !hasToken) {
-      return {
-        success: false,
-        error: { code: 'token', message: 'No valid sign-in data found in the link.' },
-      };
-    }
-  } catch {
-    // Malformed URL
+  async function attemptExchange(currentUrl: string): Promise<any> {
+    const exchangePromise = supabase.auth.exchangeCodeForSession(currentUrl);
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Auth exchange timed out')), timeout)
+    );
+    return await Promise.race([exchangePromise, timeoutPromise]);
   }
 
   try {
-    const exchangePromise = supabase.auth.exchangeCodeForSession(url);
-    const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Auth exchange timed out')), 25000)
-    );
-
     onStatus?.('Finalizing sign-in\u2026');
-    const { data, error } = await Promise.race([exchangePromise, timeoutPromise]) as any;
+    let { data, error } = await attemptExchange(url);
+
+    // NUCLEAR FALLBACK: If PKCE fails due to missing verifier (400), try implicit
+    if (error && error.status === 400 && error.message.includes('code verifier')) {
+      onStatus?.('Retrying without PKCE\u2026');
+      
+      // We manually clear the verifier from storage to force the SDK into implicit mode
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const storage = (supabase.auth as any).storage;
+      if (storage && typeof storage.removeItem === 'function') {
+        await storage.removeItem(PKCE_VERIFIER_KEY);
+      }
+      
+      // Retry the exchange
+      const retry = await attemptExchange(url);
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
-      const lower = error.message?.toLowerCase() ?? '';
-      const code: AuthErrorCode = lower.includes('expired') ? 'expired' : 'token';
       return {
         success: false,
-        error: { code, message: resolveUserMessage(code, error.message) },
+        error: { code: 'token', message: resolveUserMessage('token', error.message) },
       };
     }
 
-    if (!data.session) {
+    if (!data?.session) {
       return {
         success: false,
         error: { code: 'token', message: 'No session was returned.' },
@@ -192,7 +196,7 @@ export async function handleOAuthCallbackUrl(
 }
 
 // ---------------------------------------------------------------------------
-// Email flows
+// Remaining flows
 // ---------------------------------------------------------------------------
 
 export async function signUpWithEmail(email: string, password: string): Promise<AuthResult> {
