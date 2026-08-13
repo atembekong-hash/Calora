@@ -1,5 +1,5 @@
 /**
- * CaloraApp authentication utilities.
+ * CaloraApp authentication utilities with deep diagnostics.
  */
 
 import * as WebBrowser from 'expo-web-browser';
@@ -7,35 +7,15 @@ import * as Crypto from 'expo-crypto';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, SUPABASE_STORAGE_KEY } from './supabase';
 
-// ---------------------------------------------------------------------------
-// Canonical redirect URI — single source of truth
-// ---------------------------------------------------------------------------
-
 export const OAUTH_REDIRECT_URI = 'caloraapp://auth/callback' as const;
-
-/**
- * The storage key for the PKCE code verifier.
- */
 const PKCE_VERIFIER_KEY = `${SUPABASE_STORAGE_KEY}-code-verifier`;
 
-// ---------------------------------------------------------------------------
-// Result and error types
-// ---------------------------------------------------------------------------
-
-export type AuthErrorCode =
-  | 'cancelled'           
-  | 'network'             
-  | 'provider'            
-  | 'token'               
-  | 'expired'             
-  | 'duplicate'           
-  | 'invalid_credentials' 
-  | 'verify_email'        
-  | 'unknown';
+export type AuthErrorCode = 'cancelled' | 'network' | 'provider' | 'token' | 'unknown';
 
 export interface AuthError {
   code: AuthErrorCode;
   message: string;
+  raw?: any;
 }
 
 export type AuthResult =
@@ -44,15 +24,9 @@ export type AuthResult =
 
 export type AuthStatusCallback = (message: string) => void;
 
-// ---------------------------------------------------------------------------
-// Google Sign-In (PKCE)
-// ---------------------------------------------------------------------------
-
 export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<AuthResult> {
   try {
-    onStatus?.('Initializing secure session\u2026');
-    
-    // Generate PKCE verifier
+    onStatus?.('DIAGNOSTIC: Generating PKCE verifier...');
     const verifier = Crypto.randomUUID();
     const base64Challenge = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
@@ -60,20 +34,15 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
       { encoding: Crypto.CryptoEncoding.BASE64 }
     );
     
-    const challenge = base64Challenge
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
+    const challenge = base64Challenge.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-    // Persist verifier for the callback
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const storage = (supabase.auth as any).storage;
-    if (storage && typeof storage.setItem === 'function') {
+    if (storage) {
       await storage.setItem(PKCE_VERIFIER_KEY, verifier);
+      onStatus?.('DIAGNOSTIC: Verifier stored successfully.');
     }
 
-    onStatus?.('Connecting to Google\u2026');
-
+    onStatus?.('DIAGNOSTIC: Requesting Google URL...');
     const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -89,185 +58,73 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
     if (oauthError || !data?.url) {
       return {
         success: false,
-        error: {
-          code: 'provider',
-          message: oauthError?.message ?? 'Failed to initiate Google sign-in.',
-        },
+        error: { code: 'provider', message: `Supabase OAuth Error: ${oauthError?.message || 'No URL returned'}`, raw: oauthError },
       };
     }
 
-    await WebBrowser.warmUpAsync().catch(() => {});
+    onStatus?.('DIAGNOSTIC: Opening browser...');
     const browserResult = await WebBrowser.openAuthSessionAsync(data.url, OAUTH_REDIRECT_URI);
-    await WebBrowser.coolDownAsync().catch(() => {});
 
-    if (browserResult.type === 'cancel' || browserResult.type === 'dismiss' || browserResult.type === 'locked') {
-      return { success: false, error: { code: 'cancelled', message: 'Sign-in was cancelled.' } };
-    }
-
-    if (browserResult.type !== 'success' || !browserResult.url) {
-      return {
-        success: false,
-        error: { code: 'unknown', message: 'Authentication did not complete.' },
-      };
+    if (browserResult.type !== 'success') {
+      return { success: false, error: { code: 'cancelled', message: `Browser closed: ${browserResult.type}` } };
     }
 
     return handleOAuthCallbackUrl(browserResult.url, onStatus);
   } catch (err) {
-    return classifyError(err);
+    return { success: false, error: { code: 'unknown', message: `Critical Error: ${err instanceof Error ? err.message : String(err)}` } };
   }
 }
 
-// ---------------------------------------------------------------------------
-// Multi-Flow Handler (PKCE, Implicit, OTP)
-// ---------------------------------------------------------------------------
-
-/**
- * Robustly handles any authentication callback URL.
- * Detects whether the link is PKCE (code), Implicit (access_token), or OTP (token/type).
- */
-export async function handleOAuthCallbackUrl(
-  url: string, 
-  onStatus?: AuthStatusCallback
-): Promise<AuthResult> {
-  onStatus?.('Verifying credentials\u2026');
+export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusCallback): Promise<AuthResult> {
+  onStatus?.(`DIAGNOSTIC: Received URL: ${url.substring(0, 30)}...`);
 
   try {
-    const urlObj = new URL(url.replace('#', '?')); // Normalize fragment to query for easier parsing
+    const urlObj = new URL(url.replace('#', '?'));
     const code = urlObj.searchParams.get('code');
-    const accessToken = urlObj.searchParams.get('access_token');
-    const refreshToken = urlObj.searchParams.get('refresh_token');
-    const token = urlObj.searchParams.get('token');
-    const type = urlObj.searchParams.get('type');
     const error = urlObj.searchParams.get('error');
     const errorDescription = urlObj.searchParams.get('error_description');
 
     if (error) {
-      return {
-        success: false,
-        error: { code: 'provider', message: errorDescription || error },
+      return { success: false, error: { code: 'provider', message: `Provider Error: ${errorDescription || error}` } };
+    }
+
+    if (!code && !urlObj.searchParams.get('access_token')) {
+      return { success: false, error: { code: 'token', message: 'No code or token found in redirect URL.' } };
+    }
+
+    onStatus?.('DIAGNOSTIC: Exchanging credentials with Supabase...');
+    const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(url);
+
+    if (exchangeError) {
+      // THIS IS THE KEY DIAGNOSTIC: Show the exact server error
+      return { 
+        success: false, 
+        error: { 
+          code: 'token', 
+          message: `SERVER ERROR: [${exchangeError.status}] ${exchangeError.message}`,
+          raw: exchangeError
+        } 
       };
     }
 
-    onStatus?.('Finalizing sign-in\u2026');
-
-    // Case 1: PKCE Flow (Google)
-    if (code) {
-      onStatus?.('Exchanging code\u2026');
-      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(url);
-      
-      if (exchangeError) {
-        // If PKCE fails due to verifier issues, it might be an environment mismatch
-        return {
-          success: false,
-          error: { code: 'token', message: exchangeError.message },
-        };
-      }
-      
-      if (data?.session) return { success: true, session: data.session };
-    }
-
-    // Case 2: Implicit Flow (Tokens in fragment/query)
-    if (accessToken) {
-      onStatus?.('Setting session\u2026');
-      const { data, error: sessionError } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken || '',
-      });
-      
-      if (sessionError) {
-        return {
-          success: false,
-          error: { code: 'token', message: sessionError.message },
-        };
-      }
-      
-      if (data?.session) return { success: true, session: data.session };
-    }
-
-    // Case 3: Email OTP / Confirmation (token + type)
-    if (token && type) {
-      onStatus?.('Verifying link\u2026');
-      const { data, error: otpError } = await supabase.auth.verifyOtp({
-        token,
-        type: type as any,
-        options: { redirectTo: OAUTH_REDIRECT_URI }
-      });
-      
-      if (otpError) {
-        return {
-          success: false,
-          error: { code: 'token', message: otpError.message },
-        };
-      }
-      
-      if (data?.session) return { success: true, session: data.session };
-    }
-
-    return {
-      success: false,
-      error: { code: 'unknown', message: 'No valid authentication data found in link.' },
-    };
+    if (data?.session) return { success: true, session: data.session };
+    return { success: false, error: { code: 'unknown', message: 'Exchange completed but no session returned.' } };
   } catch (err) {
-    return classifyError(err);
+    return { success: false, error: { code: 'unknown', message: `Parse Error: ${err instanceof Error ? err.message : String(err)}` } };
   }
 }
 
-// ---------------------------------------------------------------------------
-// Remaining flows
-// ---------------------------------------------------------------------------
-
+// Keep other functions minimal for now
 export async function signUpWithEmail(email: string, password: string): Promise<AuthResult> {
-  try {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-      options: { emailRedirectTo: OAUTH_REDIRECT_URI },
-    });
-    if (error) return { success: false, error: { code: 'unknown', message: error.message } };
-    if (!data.session) return { success: false, error: { code: 'verify_email', message: 'Check your email for a confirmation link.' } };
-    return { success: true, session: data.session };
-  } catch (err) { return classifyError(err); }
+  const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: OAUTH_REDIRECT_URI } });
+  if (error) return { success: false, error: { code: 'unknown', message: error.message } };
+  return data.session ? { success: true, session: data.session } : { success: false, error: { code: 'token', message: 'Check email.' } };
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<AuthResult> {
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-    if (error) return { success: false, error: { code: 'invalid_credentials', message: error.message } };
-    if (!data.session) return { success: false, error: { code: 'token', message: 'Sign-in failed.' } };
-    return { success: true, session: data.session };
-  } catch (err) { return classifyError(err); }
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  return error ? { success: false, error: { code: 'unknown', message: error.message } } : { success: true, session: data!.session! };
 }
 
-export async function sendPasswordReset(email: string) {
-  return supabase.auth.resetPasswordForEmail(email, { redirectTo: OAUTH_REDIRECT_URI });
-}
-
-export async function updatePassword(newPassword: string) {
-  return supabase.auth.updateUser({ password: newPassword });
-}
-
-export async function resendVerificationEmail(email: string) {
-  return supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: OAUTH_REDIRECT_URI } });
-}
-
-export async function signOut() {
-  return supabase.auth.signOut();
-}
-
-export async function getSession() {
-  const { data } = await supabase.auth.getSession();
-  return data.session;
-}
-
-function classifyError(err: unknown): { success: false; error: AuthError } {
-  const message = err instanceof Error ? err.message : String(err);
-  return { success: false, error: { code: 'unknown', message } };
-}
-
-function resolveUserMessage(code: AuthErrorCode, raw: string): string {
-  if (code === 'token') return 'We couldn\'t verify your sign-in data. ' + raw;
-  return 'Something went wrong: ' + raw;
-}
+export const signOut = () => supabase.auth.signOut();
+export const getSession = async () => (await supabase.auth.getSession()).data.session;
