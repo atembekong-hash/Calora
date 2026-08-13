@@ -7,12 +7,29 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 // ---------------------------------------------------------------------------
-// Configuration — Hardcoded for production stability
+// Configuration — sourced from EAS environment variables
 // ---------------------------------------------------------------------------
 
-// Based on forensic verification of the active Supabase project
-const SUPABASE_URL = 'https://pzdulhkpwbrbrgskwwwe.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_-3cvYunhb4ov7hJej3DAzg_WadMe74u';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
+
+function requireSupabaseConfig(): { url: string; anonKey: string } {
+  const missing = [
+    !SUPABASE_URL && 'EXPO_PUBLIC_SUPABASE_URL',
+    !SUPABASE_ANON_KEY && 'EXPO_PUBLIC_SUPABASE_ANON_KEY',
+  ].filter(Boolean);
+
+  if (missing.length > 0) {
+    throw new Error(
+      `[CaloraApp] Missing required Expo public configuration: ${missing.join(', ')}. ` +
+        'Set these variables in your EAS project secrets or environment, then rebuild.'
+    );
+  }
+
+  return { url: SUPABASE_URL!, anonKey: SUPABASE_ANON_KEY! };
+}
+
+const supabaseConfig = requireSupabaseConfig();
 
 // ---------------------------------------------------------------------------
 // Secure storage adapter
@@ -36,7 +53,7 @@ const nativeSecureStorage =
 
 export const SUPABASE_STORAGE_KEY = 'calora-auth-storage';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey, {
   auth: {
     storage: nativeSecureStorage,
     storageKey: SUPABASE_STORAGE_KEY,
