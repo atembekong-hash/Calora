@@ -70,6 +70,7 @@ export const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
-    flowType: 'pkce', // Explicitly enforce PKCE
+    // flowType is omitted to allow the SDK to handle both PKCE and Implicit flows
+    // based on the presence of a verifier or the URL structure.
   },
 });

@@ -52,6 +52,7 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
   try {
     onStatus?.('Initializing secure session\u2026');
     
+    // Generate PKCE verifier
     const verifier = Crypto.randomUUID();
     const base64Challenge = await Crypto.digestStringAsync(
       Crypto.CryptoDigestAlgorithm.SHA256,
@@ -64,6 +65,7 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
+    // Persist verifier for the callback
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const storage = (supabase.auth as any).storage;
     if (storage && typeof storage.setItem === 'function') {
@@ -116,15 +118,12 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
 }
 
 // ---------------------------------------------------------------------------
-// Smart Exchange with Fallback
+// Multi-Flow Handler (PKCE, Implicit, OTP)
 // ---------------------------------------------------------------------------
 
 /**
- * Robustly exchanges a callback URL for a session.
- * 
- * In monorepos, Supabase sometimes expects PKCE for Google but Implicit for Email.
- * This function tries PKCE first, and if it fails with a 400 (missing verifier),
- * it automatically retries as an implicit flow.
+ * Robustly handles any authentication callback URL.
+ * Detects whether the link is PKCE (code), Implicit (access_token), or OTP (token/type).
  */
 export async function handleOAuthCallbackUrl(
   url: string, 
@@ -133,63 +132,81 @@ export async function handleOAuthCallbackUrl(
   onStatus?.('Verifying credentials\u2026');
 
   try {
-    const urlObj = new URL(url);
-    const urlError = urlObj.searchParams.get('error');
-    if (urlError) {
-      return {
-        success: false,
-        error: { code: 'provider', message: 'Provider error: ' + urlError },
-      };
-    }
-  } catch { /* ignore */ }
-
-  const timeout = 25000;
-
-  async function attemptExchange(currentUrl: string): Promise<any> {
-    const exchangePromise = supabase.auth.exchangeCodeForSession(currentUrl);
-    const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Auth exchange timed out')), timeout)
-    );
-    return await Promise.race([exchangePromise, timeoutPromise]);
-  }
-
-  try {
-    onStatus?.('Finalizing sign-in\u2026');
-    let { data, error } = await attemptExchange(url);
-
-    // NUCLEAR FALLBACK: If PKCE fails due to missing verifier (400), try implicit
-    if (error && error.status === 400 && error.message.includes('code verifier')) {
-      onStatus?.('Retrying without PKCE\u2026');
-      
-      // We manually clear the verifier from storage to force the SDK into implicit mode
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const storage = (supabase.auth as any).storage;
-      if (storage && typeof storage.removeItem === 'function') {
-        await storage.removeItem(PKCE_VERIFIER_KEY);
-      }
-      
-      // Retry the exchange
-      const retry = await attemptExchange(url);
-      data = retry.data;
-      error = retry.error;
-    }
+    const urlObj = new URL(url.replace('#', '?')); // Normalize fragment to query for easier parsing
+    const code = urlObj.searchParams.get('code');
+    const accessToken = urlObj.searchParams.get('access_token');
+    const refreshToken = urlObj.searchParams.get('refresh_token');
+    const token = urlObj.searchParams.get('token');
+    const type = urlObj.searchParams.get('type');
+    const error = urlObj.searchParams.get('error');
+    const errorDescription = urlObj.searchParams.get('error_description');
 
     if (error) {
       return {
         success: false,
-        error: { code: 'token', message: resolveUserMessage('token', error.message) },
+        error: { code: 'provider', message: errorDescription || error },
       };
     }
 
-    if (!data?.session) {
-      return {
-        success: false,
-        error: { code: 'token', message: 'No session was returned.' },
-      };
+    onStatus?.('Finalizing sign-in\u2026');
+
+    // Case 1: PKCE Flow (Google)
+    if (code) {
+      onStatus?.('Exchanging code\u2026');
+      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(url);
+      
+      if (exchangeError) {
+        // If PKCE fails due to verifier issues, it might be an environment mismatch
+        return {
+          success: false,
+          error: { code: 'token', message: exchangeError.message },
+        };
+      }
+      
+      if (data?.session) return { success: true, session: data.session };
     }
 
-    onStatus?.('Success!');
-    return { success: true, session: data.session };
+    // Case 2: Implicit Flow (Tokens in fragment/query)
+    if (accessToken) {
+      onStatus?.('Setting session\u2026');
+      const { data, error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || '',
+      });
+      
+      if (sessionError) {
+        return {
+          success: false,
+          error: { code: 'token', message: sessionError.message },
+        };
+      }
+      
+      if (data?.session) return { success: true, session: data.session };
+    }
+
+    // Case 3: Email OTP / Confirmation (token + type)
+    if (token && type) {
+      onStatus?.('Verifying link\u2026');
+      const { data, error: otpError } = await supabase.auth.verifyOtp({
+        token,
+        type: type as any,
+        options: { redirectTo: OAUTH_REDIRECT_URI }
+      });
+      
+      if (otpError) {
+        return {
+          success: false,
+          error: { code: 'token', message: otpError.message },
+        };
+      }
+      
+      if (data?.session) return { success: true, session: data.session };
+    }
+
+    return {
+      success: false,
+      error: { code: 'unknown', message: 'No valid authentication data found in link.' },
+    };
   } catch (err) {
     return classifyError(err);
   }
@@ -207,7 +224,7 @@ export async function signUpWithEmail(email: string, password: string): Promise<
       options: { emailRedirectTo: OAUTH_REDIRECT_URI },
     });
     if (error) return { success: false, error: { code: 'unknown', message: error.message } };
-    if (!data.session) return { success: false, error: { code: 'verify_email', message: 'Check your email.' } };
+    if (!data.session) return { success: false, error: { code: 'verify_email', message: 'Check your email for a confirmation link.' } };
     return { success: true, session: data.session };
   } catch (err) { return classifyError(err); }
 }
@@ -247,10 +264,10 @@ export async function getSession() {
 
 function classifyError(err: unknown): { success: false; error: AuthError } {
   const message = err instanceof Error ? err.message : String(err);
-  return { success: false, error: { code: 'unknown', message: resolveUserMessage('unknown', message) } };
+  return { success: false, error: { code: 'unknown', message } };
 }
 
 function resolveUserMessage(code: AuthErrorCode, raw: string): string {
-  if (code === 'token') return 'We couldn\'t verify your sign-in data. Please try again.';
+  if (code === 'token') return 'We couldn\'t verify your sign-in data. ' + raw;
   return 'Something went wrong: ' + raw;
 }
