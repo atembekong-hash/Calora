@@ -611,16 +611,6 @@ export default function PlannerScreen() {
             <Text style={styles.heroEyebrow}>YOUR WEEK, MADE CALM</Text>
             <View style={styles.heroTitleRow}>
               <Text style={styles.heroTitle}>Meals that fit real life</Text>
-              <ScalePressable
-                accessibilityLabel={`Open ${BRAND.name} Coach`}
-                onPress={() => router.push('/coach')}
-                scale={0.96}
-                haptic="light"
-                style={[styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: '#ffd1c6', shadowColor: '#08160f' }]}
-              >
-                <Feather name="zap" size={15} color={colors.primaryForeground} />
-                <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
-              </ScalePressable>
             </View>
             <Text style={styles.heroSubtitle}>A good plan leaves room for real life.</Text>
           </View>
@@ -1090,8 +1080,6 @@ function makeStyles(f: number) {
   heroEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, letterSpacing: 1.6, marginBottom: 6 },
   heroTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 28 * f, letterSpacing: -0.7 },
   heroTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  coachHeaderButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, paddingHorizontal: 11, paddingVertical: 9, borderWidth: 1, shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
-  coachHeaderButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.1 },
   heroSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17, marginTop: 7, maxWidth: 250 },
   headerShoppingButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.3, marginBottom: 7 },

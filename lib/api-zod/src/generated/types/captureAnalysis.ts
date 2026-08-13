@@ -22,5 +22,7 @@ export interface CaptureAnalysis {
   components?: CaptureComponent[];
   assumptions?: string[];
   reviewQuestions?: string[];
+  /** Editable speech transcript returned before nutrition analysis. Raw audio is discarded after this response. */
+  transcript?: string;
   imageRetention?: CaptureAnalysisImageRetention;
 }

@@ -754,6 +754,14 @@ components:
           type: string
           description: Natural-language food description (text and voice modes) or any supplementary description
           maxLength: 2000
+        audioBase64:
+          type: string
+          description: Short voice recording encoded as base64 without a data URI prefix. Used only to produce an immediate transcript and not retained.
+          maxLength: 8000000
+        audioFormat:
+          type: string
+          enum: [mp4, m4a, wav, webm]
+          description: File container for audioBase64
         clientSessionId:
           type: string
           maxLength: 120
@@ -811,7 +819,7 @@ components:
       properties:
         sessionId: { type: string }
         mode: { type: string, enum: [barcode, food, text, nutrition_label, voice, receipt] }
-        status: { type: string, enum: [review, unavailable] }
+        status: { type: string, enum: [review, transcript, unavailable] }
         title: { type: string }
         reviewMessage: { type: string }
         provider: { type: string }
@@ -829,6 +837,9 @@ components:
         reviewQuestions:
           type: array
           items: { type: string }
+        transcript:
+          type: string
+          description: Editable speech transcript returned before nutrition analysis. Raw audio is discarded after this response.
         imageRetention:
           type: string
           enum: [delete_after_analysis, local_only, retained_with_consent]

@@ -480,6 +480,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
   const [search, setSearch] = useState('');
   const [customName, setCustomName] = useState('');
   const [customCalories, setCustomCalories] = useState('');
+  const [manualError, setManualError] = useState<string | null>(null);
   const [captureMode, setCaptureMode] = useState<'search' | 'voice' | 'barcode'>('search');
   const filtered = verifiedFoods.filter((food) => food.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -514,7 +515,14 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
 
   const addManual = () => {
     const kcal = Number(customCalories);
-    if (!customName.trim() || !Number.isFinite(kcal) || kcal <= 0) return;
+    if (!customName.trim()) {
+      setManualError('Add a food name before saving.');
+      return;
+    }
+    if (!Number.isFinite(kcal) || kcal <= 0) {
+      setManualError('Enter calories greater than zero.');
+      return;
+    }
     addLog({
       name: customName.trim(),
       date: entryDate,
@@ -529,6 +537,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
       serving: '1 serving',
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setManualError(null);
     setCustomName('');
     setCustomCalories('');
     onClose();
@@ -593,12 +602,13 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
           </ScrollView>
           <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 14 }]}>MANUAL QUICK ADD</Text>
           <View style={styles.manualRow}>
-            <TextInput value={customName} onChangeText={setCustomName} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
-            <TextInput value={customCalories} onChangeText={setCustomCalories} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+            <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
+            <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
             <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
               <Feather name="plus" size={20} color={colors.primaryForeground} />
             </ScalePressable>
           </View>
+          {manualError ? <Text accessibilityLiveRegion="polite" style={[styles.manualError, { color: colors.destructive }]}>{manualError}</Text> : null}
         </View>
       </View>
     </Modal>
@@ -870,8 +880,8 @@ export default function HomeScreen() {
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
               <View style={styles.homeHeaderBadge}><Feather name="sunrise" size={12} color="#d4eadc" /><Text style={styles.homeHeaderBadgeText}>DAILY RHYTHM</Text></View>
+              <Text style={styles.homeHeaderDate}>{formatDateLabel(selectedDate)}</Text>
             </View>
-            <Text style={styles.homeHeaderEyebrow}>{formatDateLabel(selectedDate)}</Text>
             <Text style={styles.homeHeaderTitle}>{livingState.greeting}, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
             <Text style={styles.homeHeaderSubtitle}>{livingState.message}</Text>
           </View>
@@ -957,7 +967,16 @@ export default function HomeScreen() {
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your balance</Text>
               <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>A simple view of what’s left</Text>
             </View>
-            <Feather name="sliders" size={18} color={colors.mutedForeground} />
+            <ScalePressable
+              accessibilityLabel="Edit nutrition goals"
+              accessibilityRole="button"
+              onPress={() => router.navigate('/(tabs)/profile')}
+              scale={0.9}
+              haptic="none"
+              style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="sliders" size={17} color={colors.mutedForeground} />
+            </ScalePressable>
           </View>
           <AnimatedMacroBar label="Protein" value={selectedTotals.protein} target={Math.round(target * 0.26 / 4)} color={colors.protein} colors={colors} />
           <AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={Math.round(target * 0.44 / 4)} color={colors.carbs} colors={colors} />
@@ -1023,7 +1042,7 @@ function makeStyles(f: number) {
   homeHeaderCoach: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(212,234,220,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' },
   homeHeaderCoachIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   homeHeaderCoachText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.1 },
-  homeHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.2, marginBottom: 6 },
+  homeHeaderDate: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 8 * f, letterSpacing: 0.7, textAlign: 'right', maxWidth: 146 },
   homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 26 * f, letterSpacing: -0.7 },
   homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, marginTop: 7 },
   scrollContent: { paddingHorizontal: 20 },
@@ -1108,6 +1127,7 @@ function makeStyles(f: number) {
   dateNavSub: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 2 },
   sectionCard: { borderWidth: 1, borderRadius: 22, padding: 17, marginBottom: 24 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 17 },
+  sectionHeaderAction: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.3 },
   sectionCaption: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, marginTop: 4 },
   macroBlock: { marginTop: 12 },
@@ -1160,6 +1180,7 @@ function makeStyles(f: number) {
   manualInput: { flex: 1, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, height: 42, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
   manualKcal: { width: 67, borderWidth: 1, borderRadius: 12, paddingHorizontal: 9, height: 42, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
   manualAdd: { width: 43, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  manualError: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, lineHeight: 16 * f, marginTop: 7 },
   captureModes: { flexDirection: 'row', borderRadius: 13, padding: 4, marginBottom: 13, gap: 3 },
   captureMode: { flex: 1, flexDirection: 'row', gap: 5, alignItems: 'center', justifyContent: 'center', borderRadius: 10, paddingVertical: 8 },
   captureModeText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },

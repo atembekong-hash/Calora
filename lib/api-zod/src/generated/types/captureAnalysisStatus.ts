@@ -11,5 +11,6 @@ export type CaptureAnalysisStatus = typeof CaptureAnalysisStatus[keyof typeof Ca
 
 export const CaptureAnalysisStatus = {
   review: 'review',
+  transcript: 'transcript',
   unavailable: 'unavailable',
 } as const;

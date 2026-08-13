@@ -326,6 +326,19 @@ export const CaptureAnalyzeInputMode = {
   receipt: 'receipt',
 } as const;
 
+/**
+ * File container for audioBase64
+ */
+export type CaptureAnalyzeInputAudioFormat = typeof CaptureAnalyzeInputAudioFormat[keyof typeof CaptureAnalyzeInputAudioFormat];
+
+
+export const CaptureAnalyzeInputAudioFormat = {
+  mp4: 'mp4',
+  m4a: 'm4a',
+  wav: 'wav',
+  webm: 'webm',
+} as const;
+
 export interface CaptureAnalyzeInput {
   mode: CaptureAnalyzeInputMode;
   /**
@@ -343,6 +356,13 @@ export interface CaptureAnalyzeInput {
      * @maxLength 2000
      */
   textInput?: string;
+  /**
+     * Short voice recording encoded as base64 without a data URI prefix. Used only to produce an immediate transcript and not retained.
+     * @maxLength 8000000
+     */
+  audioBase64?: string;
+  /** File container for audioBase64 */
+  audioFormat?: CaptureAnalyzeInputAudioFormat;
   /** @maxLength 120 */
   clientSessionId?: string;
 }
@@ -432,6 +452,7 @@ export type CaptureAnalysisStatus = typeof CaptureAnalysisStatus[keyof typeof Ca
 
 export const CaptureAnalysisStatus = {
   review: 'review',
+  transcript: 'transcript',
   unavailable: 'unavailable',
 } as const;
 
@@ -455,6 +476,8 @@ export interface CaptureAnalysis {
   components?: CaptureComponent[];
   assumptions?: string[];
   reviewQuestions?: string[];
+  /** Editable speech transcript returned before nutrition analysis. Raw audio is discarded after this response. */
+  transcript?: string;
   imageRetention?: CaptureAnalysisImageRetention;
 }
 

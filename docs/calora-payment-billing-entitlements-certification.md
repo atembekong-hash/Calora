@@ -72,3 +72,14 @@ The tester found no browser-console errors in the billing journey. Non-blocking 
 ## Conclusion
 
 This assessment verifies that the web paywall is navigable and that the referral implementation has meaningful automated resilience coverage. It does **not** certify CaloraApp for taking money. Native/provider lifecycle testing and the entitlement enforcement/remediation work above are mandatory before launch.
+
+## August 13, 2026 Test Store addendum
+
+A fresh supported-web journey reached the RevenueCat **Test Store** purchase path after annual plan selection and confirmation. The UI then displayed:
+
+- `Welcome to CaloraApp Pro! Your subscription is active.`
+- `CaloraApp Pro is active.`
+
+This is stronger evidence that the current web-preview provider wiring can activate the expected entitlement in a test environment. The same journey reconfirmed monthly and annual selection, confirmation before purchase, restore-empty feedback, and the Manage subscription informational modal.
+
+**Verdict unchanged: not certified for launch.** The Test Store observation is not proof of an App Store or Google Play charge, receipt, renewal, cancellation, refund, price/tax presentation, active-purchase restoration, or account-switch isolation. In particular, Manage subscription still provides no real platform settings destination, and paid benefits remain unenforced in the application.

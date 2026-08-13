@@ -291,6 +291,11 @@ const FOR_YOU_CATEGORIES = [
   "Vegetarian", "Seafood", "Chicken", "Pasta",
   "Beef", "Lamb", "Miscellaneous", "Side", "Dessert", "Starter",
 ];
+const MEAL_TIME_CATEGORIES: Record<string, readonly string[]> = {
+  Lunch: ["Starter", "Side", "Vegetarian", "Pasta"],
+  Dinner: ["Chicken", "Beef", "Lamb", "Seafood", "Pasta"],
+  Supper: ["Pasta", "Vegetarian", "Miscellaneous", "Side", "Starter"],
+};
 const FOR_YOU_TTL_MS = 1000 * 60 * 60; // 1 hour
 
 let forYouCache: Meal[] = [];
@@ -341,9 +346,9 @@ async function fetchJson(url: string) {
   return response.json() as Promise<{ meals?: Meal[] | null }>;
 }
 
-async function buildForYouPool(): Promise<Meal[]> {
+async function buildCategoryPool(categories: readonly string[]): Promise<Meal[]> {
   const results = await Promise.allSettled(
-    FOR_YOU_CATEGORIES.map((cat) => fetchJson(`${API_ROOT}/filter.php?c=${encodeURIComponent(cat)}`)),
+    categories.map((cat) => fetchJson(`${API_ROOT}/filter.php?c=${encodeURIComponent(cat)}`)),
   );
   // Interleave results so the feed has variety on every page rather than
   // showing one whole category then the next.
@@ -362,6 +367,10 @@ async function buildForYouPool(): Promise<Meal[]> {
     seen.add(m.idMeal);
     return true;
   });
+}
+
+async function buildForYouPool(): Promise<Meal[]> {
+  return buildCategoryPool(FOR_YOU_CATEGORIES);
 }
 
 async function getForYouMeals(): Promise<Meal[]> {
@@ -402,8 +411,13 @@ router.get("/v1/recipes", async (req, res) => {
       const data = await fetchJson(`${API_ROOT}/search.php?s=${encodeURIComponent(query)}`);
       meals = data.meals ?? [];
     } else if (category) {
-      const data = await fetchJson(`${API_ROOT}/filter.php?c=${encodeURIComponent(category)}`);
-      meals = data.meals ?? [];
+      const mealTimeCategories = MEAL_TIME_CATEGORIES[category];
+      if (mealTimeCategories) {
+        meals = await buildCategoryPool(mealTimeCategories);
+      } else {
+        const data = await fetchJson(`${API_ROOT}/filter.php?c=${encodeURIComponent(category)}`);
+        meals = data.meals ?? [];
+      }
     } else {
       // "For you" — multi-category interleaved pool, cached server-side
       meals = await getForYouMeals();

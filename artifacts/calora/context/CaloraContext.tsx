@@ -9,6 +9,7 @@ import { performClearAllData, DEFAULT_HYDRATION_PREFS } from '@/lib/clearAllData
 import { verifyProfilePhotoExists, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
 import { buildExportPayload, readRawStorageData } from '@/lib/exportPayload';
 import { makeClearedExportSnapshot, resolveExportData } from '@/lib/exportGap';
+import { normalizeHealthConnection } from '@/lib/healthConnection';
 import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
@@ -402,7 +403,11 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [localRecipes, setLocalRecipes] = useState<CaloraRecipe[]>([]);
   const [savedRecipeIds, setSavedRecipeIds] = useState<string[]>([]);
   const [themePreference, setThemePreference] = useState<ThemePreference>('system');
-  const [healthConnected, setHealthConnected] = useState(false);
+  const [healthConnected, setHealthConnectedState] = useState(false);
+  // Health provider support is intentionally not wired in this build. Retain
+  // the public setter for compatibility, but never allow local state to claim
+  // a connection without a provider-authoritative authorization result.
+  const setHealthConnected = () => setHealthConnectedState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [outbox, setOutbox] = useState<OutboxMutation[]>([]);
   const [plannerWeekStart, setPlannerWeekStart] = useState(getPlannerWeekStart());
@@ -477,7 +482,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     if (saved.localRecipes) setLocalRecipes(saved.localRecipes);
     if (saved.savedRecipeIds) setSavedRecipeIds(saved.savedRecipeIds);
     if (saved.themePreference) setThemePreference(saved.themePreference);
-    if (saved.healthConnected !== undefined) setHealthConnected(saved.healthConnected);
+    if (saved.healthConnected !== undefined) setHealthConnectedState(normalizeHealthConnection(saved.healthConnected));
     if (saved.consentAccepted !== undefined) setConsentAccepted(saved.consentAccepted);
     if (saved.outbox) setOutbox(saved.outbox);
     if (saved.plannerWeekStart) setPlannerWeekStart(saved.plannerWeekStart);

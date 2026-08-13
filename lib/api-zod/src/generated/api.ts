@@ -536,6 +536,8 @@ export const analyzeCaptureBodyImageBase64Max = 12000000;
 
 export const analyzeCaptureBodyTextInputMax = 2000;
 
+export const analyzeCaptureBodyAudioBase64Max = 8000000;
+
 export const analyzeCaptureBodyClientSessionIdMax = 120;
 
 
@@ -545,6 +547,8 @@ export const AnalyzeCaptureBody = zod.object({
   "barcode": zod.string().min(analyzeCaptureBodyBarcodeMin).max(analyzeCaptureBodyBarcodeMax).optional(),
   "imageBase64": zod.string().max(analyzeCaptureBodyImageBase64Max).optional().describe('JPEG or PNG image bytes encoded as base64 without a data URI prefix'),
   "textInput": zod.string().max(analyzeCaptureBodyTextInputMax).optional().describe('Natural-language food description (text and voice modes) or any supplementary description'),
+  "audioBase64": zod.string().max(analyzeCaptureBodyAudioBase64Max).optional().describe('Short voice recording encoded as base64 without a data URI prefix. Used only to produce an immediate transcript and not retained.'),
+  "audioFormat": zod.enum(['mp4', 'm4a', 'wav', 'webm']).optional().describe('File container for audioBase64'),
   "clientSessionId": zod.string().max(analyzeCaptureBodyClientSessionIdMax).optional()
 })
 
@@ -594,7 +598,7 @@ export const analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesHighMi
 export const AnalyzeCaptureResponse = zod.object({
   "sessionId": zod.string(),
   "mode": zod.enum(['barcode', 'food', 'text', 'nutrition_label', 'voice', 'receipt']),
-  "status": zod.enum(['review', 'unavailable']),
+  "status": zod.enum(['review', 'transcript', 'unavailable']),
   "title": zod.string(),
   "reviewMessage": zod.string(),
   "provider": zod.string(),
@@ -645,6 +649,7 @@ export const AnalyzeCaptureResponse = zod.object({
 }))).optional(),
   "assumptions": zod.array(zod.string()).optional(),
   "reviewQuestions": zod.array(zod.string()).optional(),
+  "transcript": zod.string().optional().describe('Editable speech transcript returned before nutrition analysis. Raw audio is discarded after this response.'),
   "imageRetention": zod.enum(['delete_after_analysis', 'local_only', 'retained_with_consent']).optional()
 })
 

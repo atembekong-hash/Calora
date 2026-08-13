@@ -59,10 +59,10 @@ interface AuthActions {
   signInWithGoogle: () => Promise<AuthResult>;
   signInWithEmail: (email: string, password: string) => Promise<AuthResult>;
   signUpWithEmail: (email: string, password: string) => Promise<AuthResult>;
-  sendPasswordReset: (email: string) => Promise<{ error?: AuthError }>;
-  updatePassword: (newPassword: string) => Promise<{ error?: AuthError }>;
-  resendVerificationEmail: (email: string) => Promise<{ error?: AuthError }>;
-  signOut: () => Promise<{ error?: AuthError }>;
+  sendPasswordReset: typeof doPasswordReset;
+  updatePassword: typeof doUpdatePassword;
+  resendVerificationEmail: typeof doResendVerification;
+  signOut: typeof doSignOut;
 }
 
 export type AuthContextValue = AuthState & AuthActions;

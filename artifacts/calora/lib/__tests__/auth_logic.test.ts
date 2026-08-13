@@ -1,13 +1,15 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { handleOAuthCallbackUrl } from '../auth';
+import { handleOAuthCallbackUrl, isValidEmail } from '../auth';
 
 // Mock Supabase
 const mockExchange = vi.fn();
+const mockSetSession = vi.fn();
 vi.mock('../supabase', () => ({
   supabase: {
     auth: {
       exchangeCodeForSession: (url: string) => mockExchange(url),
+      setSession: (session: { access_token: string; refresh_token: string }) => mockSetSession(session),
       storage: {
         setItem: vi.fn(),
         getItem: vi.fn(),
@@ -49,17 +51,17 @@ describe('Auth Logic Verification', () => {
     const result = await handleOAuthCallbackUrl(pkceUrl);
 
     expect(result.success).toBe(true);
-    expect(mockExchange).toHaveBeenCalledWith(pkceUrl);
+    expect(mockExchange).toHaveBeenCalledWith('test-code');
   });
 
   it('should handle Implicit flow (Email) correctly', async () => {
     const emailUrl = 'caloraapp://auth/callback#access_token=test-token&refresh_token=test-refresh';
-    mockExchange.mockResolvedValue({ data: { session: { user: {} } }, error: null });
+    mockSetSession.mockResolvedValue({ data: { session: { user: {} } }, error: null });
 
     const result = await handleOAuthCallbackUrl(emailUrl);
 
     expect(result.success).toBe(true);
-    expect(mockExchange).toHaveBeenCalledWith(emailUrl);
+    expect(mockSetSession).toHaveBeenCalledWith({ access_token: 'test-token', refresh_token: 'test-refresh' });
   });
 
   it('should handle provider errors correctly', async () => {
@@ -69,8 +71,15 @@ describe('Auth Logic Verification', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.code).toBe('cancelled');
+      expect(result.error.code).toBe('provider');
     }
     expect(mockExchange).not.toHaveBeenCalled();
+  });
+
+  it('rejects structurally malformed form email addresses before sign-in', () => {
+    for (const value of ['user@', '@example.com', 'user @example.com', 'user@example', '']) {
+      expect(isValidEmail(value)).toBe(false);
+    }
+    expect(isValidEmail('person@example.com')).toBe(true);
   });
 });

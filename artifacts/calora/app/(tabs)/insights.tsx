@@ -1478,10 +1478,9 @@ export default function InsightsScreen() {
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This week</Text>
             <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Calories against your {formatWhole(target)} kcal target</Text>
           </View>
-          <Pressable accessibilityLabel="Change insights range" style={[styles.rangeButton, { backgroundColor: colors.muted }]}>
+          <View accessibilityLabel="Insights show the last 7 days" style={[styles.rangeButton, { backgroundColor: colors.muted }]}>
             <Text style={[styles.rangeText, { color: colors.foreground }]}>7D</Text>
-            <Feather name="chevron-down" size={13} color={colors.mutedForeground} />
-          </Pressable>
+          </View>
         </View>
         <AnimatedReveal delay={280}>
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>

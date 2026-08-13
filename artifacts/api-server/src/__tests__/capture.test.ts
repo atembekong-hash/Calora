@@ -84,6 +84,11 @@ vi.mock('@workspace/integrations-openai-ai-server', () => ({
         create: vi.fn(),
       },
     },
+    audio: {
+      transcriptions: {
+        create: vi.fn(),
+      },
+    },
   },
 }));
 
@@ -189,6 +194,12 @@ function aiJsonResponse(overrides: Record<string, unknown> = {}) {
   });
 }
 
+const voiceCapturePayload = {
+  mode: 'voice',
+  audioBase64: Buffer.from('tiny test audio').toString('base64'),
+  audioFormat: 'mp4',
+};
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -207,6 +218,7 @@ describe('POST /v1/capture/analyze', () => {
     await resetCaptureRateLimiter();
     // Default: anonymous (no verified user). Individual tests can override this.
     vi.mocked(verifyBearerToken).mockResolvedValue(null);
+    vi.mocked(openai.audio.transcriptions.create).mockResolvedValue({ text: 'test meal' } as any);
   });
 
   // -------------------------------------------------------------------------
@@ -255,30 +267,54 @@ describe('POST /v1/capture/analyze', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Graceful degradation modes
+  // Alternate capture mode validation
   // -------------------------------------------------------------------------
 
-  describe('graceful degradation', () => {
-    it('returns status=unavailable and no candidates for voice mode', async () => {
+  describe('alternate capture modes', () => {
+    it('gives a recovery message when voice mode has no recording', async () => {
       const res = await request(app)
         .post('/v1/capture/analyze')
         .send({ mode: 'voice' })
         .set('Content-Type', 'application/json');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('unavailable');
-      expect(res.body.mode).toBe('voice');
-      expect(res.body.candidates).toEqual([]);
+      expect(res.body.reviewMessage).toMatch(/recording|type/i);
     });
 
-    it('returns status=unavailable and no candidates for receipt mode', async () => {
+    it('requires an image for receipt mode', async () => {
       const res = await request(app)
         .post('/v1/capture/analyze')
         .send({ mode: 'receipt' })
         .set('Content-Type', 'application/json');
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/receipt image/i);
+    });
+
+    it('returns an editable transcript from a short voice recording', async () => {
+      vi.mocked(openai.audio.transcriptions.create).mockResolvedValueOnce({ text: 'Turkey sandwich with apple' } as any);
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'voice', audioBase64: Buffer.from('audio').toString('base64'), audioFormat: 'mp4' })
+        .set('Content-Type', 'application/json');
       expect(res.status).toBe(200);
-      expect(res.body.status).toBe('unavailable');
-      expect(res.body.mode).toBe('receipt');
+      expect(res.body.status).toBe('transcript');
+      expect(res.body.transcript).toBe('Turkey sandwich with apple');
       expect(res.body.candidates).toEqual([]);
+    });
+
+    it('returns receipt items as reviewable estimates', async () => {
+      vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({
+        choices: [{ message: { content: aiJsonResponse({ title: 'Lunch receipt' }) } }],
+      } as any);
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'receipt', imageBase64: 'receipt-image' })
+        .set('Content-Type', 'application/json');
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('review');
+      expect(res.body.mode).toBe('receipt');
+      expect(res.body.components[0].provenance).toBe('Receipt estimate');
+      expect(res.body.components[0].sourceLabel).toBe('Receipt line-item estimate');
     });
   });
 

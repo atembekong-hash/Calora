@@ -29,6 +29,15 @@ export type AuthResult =
 
 export type AuthStatusCallback = (message: string) => void;
 
+/**
+ * Deliberately small client-side gate for forms. The provider remains the
+ * authority for account existence, but malformed addresses should never be
+ * sent as a credential attempt.
+ */
+export function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 // ---------------------------------------------------------------------------
 // Google OAuth Flow (PKCE)
 // ---------------------------------------------------------------------------

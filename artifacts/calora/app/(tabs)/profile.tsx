@@ -110,6 +110,7 @@ export default function ProfileScreen() {
 
   // Saved meal creation modal
   const [savedMealModal, setSavedMealModal] = useState(false);
+  const [savedMealPendingDelete, setSavedMealPendingDelete] = useState<SavedMeal | null>(null);
   const [savedMealName, setSavedMealName] = useState('');
   const [savedMealKind, setSavedMealKind] = useState<SavedMeal['kind']>('meal');
   const [savedMealCalories, setSavedMealCalories] = useState('');
@@ -128,7 +129,7 @@ export default function ProfileScreen() {
   const [editPhotoUri, setEditPhotoUri] = useState<string | null>(null);
 
   // Info sheets (food data / no ads / help)
-  const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help'>(null);
+  const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help' | 'health'>(null);
 
   // ─── OS reminder status sync ───────────────────────────────────────────────
   useEffect(() => {
@@ -363,6 +364,12 @@ export default function ProfileScreen() {
     setSavedMealName(''); setSavedMealCalories(''); setSavedMealProtein(''); setSavedMealCarbs(''); setSavedMealFat('');
     setSavedMealError('');
     setSavedMealModal(false);
+  };
+
+  const confirmSavedMealDelete = () => {
+    if (!savedMealPendingDelete) return;
+    deleteSavedMeal(savedMealPendingDelete.id);
+    setSavedMealPendingDelete(null);
   };
 
   // Derived
@@ -714,14 +721,9 @@ export default function ProfileScreen() {
                     <Text style={[styles.settingTitle, { color: colors.foreground }]}>{meal.name}</Text>
                     <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{formatWhole(meal.calories)} kcal · {formatGrams(meal.protein)} protein · {meal.kind}</Text>
                   </View>
-                  <Pressable
-                    accessibilityLabel={`Delete ${meal.name}`}
-                    onPress={() =>
-                      Alert.alert('Delete meal?', `Remove "${meal.name}" from your saved templates?`, [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Delete', style: 'destructive', onPress: () => deleteSavedMeal(meal.id) },
-                      ])
-                    }
+                   <Pressable
+                     accessibilityLabel={`Delete ${meal.name}`}
+                     onPress={() => setSavedMealPendingDelete(meal)}
                     style={[styles.deleteMealButton, { backgroundColor: colors.muted }]}
                   >
                     <Feather name="trash-2" size={14} color={colors.mutedForeground} />
@@ -756,10 +758,17 @@ export default function ProfileScreen() {
           <View style={[styles.connectionIcon, { backgroundColor: colors.primary }]}><Feather name="activity" size={17} color={colors.primaryForeground} /></View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Health data</Text>
-            <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{healthConnected ? 'Connected · steps and weight can sync' : `Not connected · ${BRAND.name} works offline without it`}</Text>
+           <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{healthConnected ? 'Connected · steps and weight can sync' : `Not connected · ${BRAND.name} works offline without it`}</Text>
           </View>
-          <Pressable accessibilityLabel={healthConnected ? 'Disconnect health data' : 'Connect health data'} onPress={() => { setHealthConnected(!healthConnected); Alert.alert(healthConnected ? 'Health disconnected' : 'Health connection ready', healthConnected ? `${BRAND.name} will stop reading health data.` : 'Native HealthKit and Health Connect permissions are required before live data can sync. No data has been read.'); }} style={[styles.connectButton, { backgroundColor: colors.card }]}>
-            <Text style={[styles.connectButtonText, { color: colors.primary }]}>{healthConnected ? 'Disconnect' : 'Connect'}</Text>
+           <Pressable
+             accessibilityLabel="Learn about health data"
+             onPress={() => {
+               if (healthConnected) setHealthConnected(false);
+               setInfoModal('health');
+             }}
+             style={[styles.connectButton, { backgroundColor: colors.card }]}
+           >
+             <Text style={[styles.connectButtonText, { color: colors.primary }]}>{healthConnected ? 'Disconnect' : 'Learn more'}</Text>
           </Pressable>
         </View>
         {[
@@ -920,6 +929,27 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* ── Saved meal deletion confirmation ── */}
+      <Modal visible={savedMealPendingDelete !== null} transparent animationType="fade" onRequestClose={() => setSavedMealPendingDelete(null)}>
+        <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+          <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.dialogIcon, { backgroundColor: colors.warning }]}>
+              <Feather name="trash-2" size={20} color={colors.foreground} />
+            </View>
+            <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Delete saved meal?</Text>
+            <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>
+              Remove “{savedMealPendingDelete?.name}” from your saved templates? This will not change any diary entries.
+            </Text>
+            <Pressable accessibilityLabel="Confirm saved meal deletion" onPress={confirmSavedMealDelete} style={[styles.dialogButton, { backgroundColor: colors.warning }]}>
+              <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Delete template</Text>
+            </Pressable>
+            <Pressable accessibilityLabel="Cancel saved meal deletion" onPress={() => setSavedMealPendingDelete(null)} style={[styles.dialogButton, { backgroundColor: colors.muted, marginTop: 8 }]}>
+              <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Keep template</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── Profile edit modal ── */}
       <Modal visible={profileEditModal} transparent animationType="slide" onRequestClose={() => setProfileEditModal(false)}>
         <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
@@ -976,10 +1006,10 @@ export default function ProfileScreen() {
           <View style={[styles.savedModal, { backgroundColor: colors.background }]}>
             <View style={styles.editModalHeader}>
               <View style={[styles.dialogIcon, { backgroundColor: colors.accent, marginBottom: 0 }]}>
-                <Feather name={infoModal === 'food-data' ? 'shield' : infoModal === 'no-ads' ? 'eye-off' : 'help-circle'} size={18} color={colors.accentForeground} />
+                <Feather name={infoModal === 'food-data' ? 'shield' : infoModal === 'no-ads' ? 'eye-off' : infoModal === 'health' ? 'activity' : 'help-circle'} size={18} color={colors.accentForeground} />
               </View>
               <Text style={[styles.dialogTitle, { color: colors.foreground, flex: 1, marginLeft: 12 }]}>
-                {infoModal === 'food-data' ? 'Your food data stays yours' : infoModal === 'no-ads' ? 'No surveillance ads' : 'Need a hand?'}
+                {infoModal === 'food-data' ? 'Your food data stays yours' : infoModal === 'no-ads' ? 'No surveillance ads' : infoModal === 'health' ? 'Health data is not connected' : 'Need a hand?'}
               </Text>
               <Pressable accessibilityLabel="Close" onPress={() => setInfoModal(null)} hitSlop={10}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
@@ -1021,6 +1051,18 @@ export default function ProfileScreen() {
                     </View>
                   </View>
                 ))}
+              </>
+            )}
+
+            {infoModal === 'health' && (
+              <>
+                <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>
+                  HealthKit and Health Connect are not connected in this build. {BRAND.name} continues to work locally without health data, and no steps or weight have been read.
+                </Text>
+                <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
+                  <Feather name="lock" size={15} color={colors.primary} />
+                  <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>A future connection will ask for explicit device permission first.</Text>
+                </View>
               </>
             )}
 

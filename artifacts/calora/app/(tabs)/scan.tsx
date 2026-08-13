@@ -1,6 +1,7 @@
 import { approveCapture, useAnalyzeCapture, type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
-import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
+import { CameraView, useCameraPermissions, useMicrophonePermissions, type BarcodeScanningResult } from 'expo-camera';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useRef, useState } from 'react';
@@ -16,6 +17,7 @@ import { dateKey } from '@/lib/dates';
 import { formatGrams, formatPercent, formatWhole } from '@/lib/formatters';
 
 type ScanMode = 'auto' | 'barcode' | 'food' | 'label';
+type TextEntryKind = 'text' | 'voice';
 
 function CandidateCard({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (component: FoodMemoryComponent) => void }) {
   return (
@@ -66,6 +68,7 @@ export default function ScanScreen() {
   const params = useLocalSearchParams<{ date?: string; draftId?: string }>();
   const entryDate = typeof params.date === 'string' ? params.date : dateKey();
   const [permission, requestPermission] = useCameraPermissions();
+  const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
   const cameraRef = useRef<CameraView>(null);
   const [mode, setMode] = useState<ScanMode>('auto');
   const [hasScanned, setHasScanned] = useState(false);
@@ -92,7 +95,10 @@ export default function ScanScreen() {
   const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
   const [showTextEntry, setShowTextEntry] = useState(false);
   const [textEntry, setTextEntry] = useState('');
+  const [textEntryKind, setTextEntryKind] = useState<TextEntryKind>('text');
   const [altCaptureBanner, setAltCaptureBanner] = useState<string | null>(null);
+  const [receiptCapture, setReceiptCapture] = useState(false);
+  const [voiceRecording, setVoiceRecording] = useState(false);
   const analyzeCapture = useAnalyzeCapture();
   const routeDraftId = typeof params.draftId === 'string' ? params.draftId : undefined;
   const reviewDraft = foodDrafts.find((draft) => draft.status === 'draft' && (draft.id === reviewDraftId || draft.id === routeDraftId)) ?? null;
@@ -119,13 +125,15 @@ export default function ScanScreen() {
     Haptics.notificationAsync(next.status === 'review' ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
   };
 
-  const analyze = async (input: Omit<CaptureAnalyzeInput, 'clientSessionId'>) => {
+  const analyze = async (input: Omit<CaptureAnalyzeInput, 'clientSessionId'>): Promise<CaptureAnalysis | null> => {
     try {
       const next = await analyzeCapture.mutateAsync({ data: input });
-      showAnalysis(next);
+      if (next.status !== 'transcript') showAnalysis(next);
+      return next;
     } catch (error) {
       Alert.alert('Scan unavailable', error instanceof Error ? error.message : 'Try again or use search.');
       setHasScanned(false);
+      return null;
     }
   };
 
@@ -133,19 +141,82 @@ export default function ScanScreen() {
     const text = textEntry.trim();
     if (!text || analyzeCapture.isPending) return;
     setHasScanned(true);
-    setShowTextEntry(false);
     setAltCaptureBanner(null);
-    await analyze({ mode: 'text', textInput: text });
-    setTextEntry('');
+    const next = await analyze({ mode: 'text', textInput: text });
+    if (next?.status === 'review') {
+      setShowTextEntry(false);
+      setTextEntry('');
+      setTextEntryKind('text');
+    }
+  };
+
+  const startVoiceCapture = async () => {
+    if (Platform.OS === 'web') {
+      setAltCaptureBanner('Voice recording works in the CaloraApp mobile build. You can type your meal description here instead.');
+      setTextEntryKind('voice');
+      setShowTextEntry(true);
+      return;
+    }
+    if (!cameraRef.current) {
+      setAltCaptureBanner('Open the camera first, then try recording your meal description again.');
+      return;
+    }
+    const granted = microphonePermission?.granted || (await requestMicrophonePermission()).granted;
+    if (!granted) {
+      setAltCaptureBanner('Microphone access was not allowed. You can enable it in device settings or type your meal description instead.');
+      setTextEntryKind('voice');
+      setShowTextEntry(true);
+      return;
+    }
+    try {
+      setAltCaptureBanner('Listening… tap Voice again when you are done.');
+      setVoiceRecording(true);
+      const recording = await cameraRef.current.recordAsync({ maxDuration: 12, maxFileSize: 6 * 1024 * 1024 });
+      setVoiceRecording(false);
+      if (!recording?.uri) {
+        setAltCaptureBanner('No recording was captured. Try again, or type your meal description instead.');
+        return;
+      }
+      const audioBase64 = await FileSystem.readAsStringAsync(recording.uri, { encoding: FileSystem.EncodingType.Base64 });
+      if (!audioBase64) throw new Error('The recording could not be read');
+      setHasScanned(true);
+      const next = await analyze({ mode: 'voice', audioBase64, audioFormat: 'mp4' });
+      if (next?.status === 'transcript' && next.transcript) {
+        setTextEntry(next.transcript);
+        setTextEntryKind('voice');
+        setShowTextEntry(true);
+        setAltCaptureBanner('Transcript ready. Edit anything that was misheard, then estimate nutrition.');
+        setHasScanned(false);
+      }
+    } catch (error) {
+      setVoiceRecording(false);
+      setHasScanned(false);
+      setAltCaptureBanner(error instanceof Error ? `${error.message} You can type your meal description instead.` : 'Recording failed. You can type your meal description instead.');
+    }
   };
 
   const onVoicePress = () => {
-    setAltCaptureBanner(`Voice capture isn't available on this device. Type your meal description below and ${BRAND.name} will estimate the nutrition.`);
-    setShowTextEntry(true);
+    if (voiceRecording) {
+      cameraRef.current?.stopRecording();
+      setAltCaptureBanner('Finishing your recording…');
+      return;
+    }
+    void startVoiceCapture();
   };
 
   const onReceiptPress = () => {
-    setAltCaptureBanner('Receipt scanning is coming soon. Snap a food photo or type your meal instead.');
+    setReceiptCapture(true);
+    setShowTextEntry(false);
+    setAltCaptureBanner('Receipt mode is ready. Keep the item lines flat and readable, then use the camera or Library.');
+  };
+
+  const chooseReceiptFromLibrary = () => {
+    if (Platform.OS === 'web') {
+      setAltCaptureBanner('Receipt import is available in the CaloraApp mobile build. On web, type your meal description instead.');
+      return;
+    }
+    setReceiptCapture(true);
+    void choosePhoto();
   };
 
   const onBarcodeScanned = (result: BarcodeScanningResult) => {
@@ -159,7 +230,7 @@ export default function ScanScreen() {
     setHasScanned(true);
     const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.75, skipProcessing: Platform.OS === 'android' });
     if (photo?.base64) {
-      const captureMode = mode === 'barcode' ? 'food' : mode === 'label' ? 'nutrition_label' : mode;
+      const captureMode = receiptCapture ? 'receipt' : mode === 'barcode' ? 'food' : mode === 'label' ? 'nutrition_label' : mode;
       await analyze({ mode: captureMode, imageBase64: photo.base64 });
     } else {
       setHasScanned(false);
@@ -171,8 +242,10 @@ export default function ScanScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75, base64: true });
     const base64 = result.canceled ? undefined : result.assets[0]?.base64;
     if (base64) {
-      const captureMode = mode === 'label' ? 'nutrition_label' : 'food';
+      const captureMode = receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : 'food';
       await analyze({ mode: captureMode, imageBase64: base64 });
+    } else if (!result.canceled) {
+      setAltCaptureBanner('That image could not be read. Choose another receipt or food photo.');
     }
   };
 
@@ -246,7 +319,21 @@ export default function ScanScreen() {
             <View style={[styles.liveBadge, { backgroundColor: colors.accent }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.liveText, { color: colors.accentForeground }]}>LIVE</Text></View>
           </View>
         </View>
-        {!permission.granted ? <PermissionState colors={colors} onRequest={() => { void requestPermission(); }} /> : (
+        {!permission.granted ? (
+          <>
+            <PermissionState colors={colors} onRequest={() => { void requestPermission(); }} />
+            <View style={[styles.permissionAlternatives, { borderColor: colors.border, backgroundColor: colors.card }]}>
+              <Text style={[styles.altCaptureHeading, { color: colors.mutedForeground }]}>LOG WITHOUT CAMERA</Text>
+              <View style={styles.altCaptureRow}>
+                <Pressable accessibilityLabel="Type food description" onPress={() => { setShowTextEntry((v) => !v); setTextEntryKind('text'); setAltCaptureBanner(null); }} style={[styles.altCaptureButton, showTextEntry && { backgroundColor: colors.muted }, { borderColor: colors.border }]}><Feather name="edit-3" size={18} color={showTextEntry ? colors.primary : colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: showTextEntry ? colors.foreground : colors.mutedForeground }]}>Type it</Text></Pressable>
+                <Pressable accessibilityLabel="Voice log" onPress={onVoicePress} style={[styles.altCaptureButton, { borderColor: colors.border }]}><Feather name="mic" size={18} color={colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: colors.mutedForeground }]}>Voice</Text></Pressable>
+                <Pressable accessibilityLabel="Choose receipt from library" onPress={chooseReceiptFromLibrary} style={[styles.altCaptureButton, { borderColor: colors.border }]}><Feather name="clipboard" size={18} color={colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: colors.mutedForeground }]}>Receipt</Text></Pressable>
+              </View>
+              {altCaptureBanner ? <View style={[styles.altCaptureBanner, { backgroundColor: colors.accent }]}><Feather name="info" size={14} color={colors.accentForeground} /><Text style={[styles.altCaptureBannerText, { color: colors.foreground }]}>{altCaptureBanner}</Text></View> : null}
+              {showTextEntry ? <View style={[styles.textEntryCard, { borderColor: colors.border, backgroundColor: colors.background }]}><Text style={[styles.textEntryHeading, { color: colors.foreground }]}>{textEntryKind === 'voice' ? 'Check what we heard' : 'Describe your meal'}</Text><TextInput accessibilityLabel={textEntryKind === 'voice' ? 'Editable meal transcript' : 'Describe what you ate'} placeholder="Describe what you ate — e.g. grilled chicken with rice and salad" placeholderTextColor={colors.mutedForeground} multiline value={textEntry} onChangeText={setTextEntry} style={[styles.textEntryInput, { color: colors.foreground }]} maxLength={2000} autoFocus /><Pressable accessibilityLabel="Estimate nutrition from description" onPress={() => void submitTextEntry()} disabled={!textEntry.trim() || analyzeCapture.isPending} style={[styles.textEntrySubmit, { backgroundColor: textEntry.trim() ? colors.primary : colors.muted }]}><Text style={[styles.textEntrySubmitText, { color: textEntry.trim() ? colors.primaryForeground : colors.mutedForeground }]}>Estimate nutrition</Text></Pressable></View> : null}
+            </View>
+          </>
+        ) : (
           <>
             <View style={[styles.cameraFrame, { borderColor: colors.border }]}>
               <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" onBarcodeScanned={mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned} barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] }} />
@@ -257,7 +344,7 @@ export default function ScanScreen() {
                   <View style={[styles.corner, styles.cornerBL, { borderColor: colors.onHero }]} />
                   <View style={[styles.corner, styles.cornerBR, { borderColor: colors.onHero }]} />
                 </Animated.View>
-                <View style={[styles.scanHint, { backgroundColor: 'rgba(20,63,52,0.78)' }]}><Feather name="maximize" size={14} color={colors.heroMuted} /><Text style={[styles.scanHintText, { color: colors.onHero }]}>{mode === 'food' ? 'Frame your food or meal' : mode === 'label' ? 'Frame the nutrition label' : 'Point at a barcode or food'}</Text></View>
+                <View style={[styles.scanHint, { backgroundColor: 'rgba(20,63,52,0.78)' }]}><Feather name="maximize" size={14} color={colors.heroMuted} /><Text style={[styles.scanHintText, { color: colors.onHero }]}>{receiptCapture ? 'Keep receipt lines flat and readable' : mode === 'food' ? 'Frame your food or meal' : mode === 'label' ? 'Frame the nutrition label' : 'Point at a barcode or food'}</Text></View>
               </View>
             </View>
             <View style={[styles.modePicker, { backgroundColor: colors.muted }]}>
@@ -272,14 +359,15 @@ export default function ScanScreen() {
             <View style={styles.altCaptureSection}>
               <Text style={[styles.altCaptureHeading, { color: colors.mutedForeground }]}>MORE WAYS TO LOG</Text>
               <View style={styles.altCaptureRow}>
-                <Pressable accessibilityLabel="Type food description" onPress={() => { setShowTextEntry((v) => !v); setAltCaptureBanner(null); }} style={[styles.altCaptureButton, showTextEntry && { backgroundColor: colors.card }, { borderColor: colors.border }]}><Feather name="edit-3" size={18} color={showTextEntry ? colors.primary : colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: showTextEntry ? colors.foreground : colors.mutedForeground }]}>Type it</Text></Pressable>
-                <Pressable accessibilityLabel="Voice log" onPress={onVoicePress} style={[styles.altCaptureButton, { borderColor: colors.border }]}><Feather name="mic" size={18} color={colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: colors.mutedForeground }]}>Voice</Text></Pressable>
-                <Pressable accessibilityLabel="Scan receipt" onPress={onReceiptPress} style={[styles.altCaptureButton, { borderColor: colors.border }]}><Feather name="clipboard" size={18} color={colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: colors.mutedForeground }]}>Receipt</Text></Pressable>
+                <Pressable accessibilityLabel="Type food description" onPress={() => { setShowTextEntry((v) => !v); setTextEntryKind('text'); setReceiptCapture(false); setAltCaptureBanner(null); }} style={[styles.altCaptureButton, showTextEntry && { backgroundColor: colors.card }, { borderColor: colors.border }]}><Feather name="edit-3" size={18} color={showTextEntry ? colors.primary : colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: showTextEntry ? colors.foreground : colors.mutedForeground }]}>Type it</Text></Pressable>
+                <Pressable accessibilityLabel={voiceRecording ? 'Stop voice recording' : 'Voice log'} onPress={onVoicePress} style={[styles.altCaptureButton, voiceRecording && { backgroundColor: colors.accent }, { borderColor: colors.border }]}><Feather name={voiceRecording ? 'square' : 'mic'} size={18} color={voiceRecording ? colors.accentForeground : colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: voiceRecording ? colors.foreground : colors.mutedForeground }]}>{voiceRecording ? 'Stop' : 'Voice'}</Text></Pressable>
+                <Pressable accessibilityLabel="Scan receipt" onPress={onReceiptPress} style={[styles.altCaptureButton, receiptCapture && { backgroundColor: colors.card }, { borderColor: colors.border }]}><Feather name="clipboard" size={18} color={receiptCapture ? colors.primary : colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: receiptCapture ? colors.foreground : colors.mutedForeground }]}>Receipt</Text></Pressable>
               </View>
               {altCaptureBanner ? <View style={[styles.altCaptureBanner, { backgroundColor: colors.accent }]}><Feather name="info" size={14} color={colors.accentForeground} /><Text style={[styles.altCaptureBannerText, { color: colors.foreground }]}>{altCaptureBanner}</Text></View> : null}
               {showTextEntry ? (
                 <View style={[styles.textEntryCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                  <TextInput accessibilityLabel="Describe what you ate" placeholder="Describe what you ate — e.g. grilled chicken with rice and salad" placeholderTextColor={colors.mutedForeground} multiline value={textEntry} onChangeText={setTextEntry} style={[styles.textEntryInput, { color: colors.foreground }]} maxLength={2000} />
+                  <Text style={[styles.textEntryHeading, { color: colors.foreground }]}>{textEntryKind === 'voice' ? 'Check what we heard' : 'Describe your meal'}</Text>
+                  <TextInput accessibilityLabel={textEntryKind === 'voice' ? 'Editable meal transcript' : 'Describe what you ate'} placeholder="Describe what you ate — e.g. grilled chicken with rice and salad" placeholderTextColor={colors.mutedForeground} multiline value={textEntry} onChangeText={setTextEntry} style={[styles.textEntryInput, { color: colors.foreground }]} maxLength={2000} autoFocus />
                   <Pressable accessibilityLabel="Estimate nutrition from description" onPress={() => void submitTextEntry()} disabled={!textEntry.trim() || analyzeCapture.isPending} style={[styles.textEntrySubmit, { backgroundColor: textEntry.trim() ? colors.primary : colors.muted }]}>{analyzeCapture.isPending ? <ActivityIndicator color={colors.primaryForeground} size="small" /> : <><Feather name="zap" size={14} color={textEntry.trim() ? colors.primaryForeground : colors.mutedForeground} /><Text style={[styles.textEntrySubmitText, { color: textEntry.trim() ? colors.primaryForeground : colors.mutedForeground }]}>Estimate nutrition</Text></>}</Pressable>
                 </View>
               ) : null}
@@ -337,6 +425,7 @@ const styles = StyleSheet.create({
   centerBody: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 8 },
   primaryButton: { borderRadius: 14, paddingHorizontal: 18, paddingVertical: 13, marginTop: 20 },
   primaryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  permissionAlternatives: { marginHorizontal: 20, marginTop: 30, padding: 14, borderRadius: 18, borderWidth: 1 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   resultSheet: { maxHeight: '90%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#b7c5bc', alignSelf: 'center', marginBottom: 17 },
@@ -382,6 +471,7 @@ const styles = StyleSheet.create({
   altCaptureBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 11, borderRadius: 13, marginTop: 12 },
   altCaptureBannerText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
   textEntryCard: { borderWidth: 1, borderRadius: 17, padding: 14, marginTop: 12, gap: 11 },
+  textEntryHeading: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   textEntryInput: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, minHeight: 64 },
   textEntrySubmit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, paddingVertical: 12 },
   textEntrySubmitText: { fontFamily: 'Inter_700Bold', fontSize: 11 },

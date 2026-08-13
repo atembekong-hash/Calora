@@ -34,6 +34,7 @@ import { useCalora } from '@/context/CaloraContext';
 import { AppHeader } from '@/components/AppChrome';
 import { useAuth } from '@/context/AuthContext';
 import { BRAND } from '@/lib/brand';
+import { isValidEmail } from '@/lib/auth';
 
 export default function SignInScreen() {
   const { colors } = useCalora();
@@ -82,6 +83,10 @@ export default function SignInScreen() {
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
       setError('Please enter your email and password.');
+      return;
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      setError('Please enter a valid email address.');
       return;
     }
     setError(null);

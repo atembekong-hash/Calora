@@ -146,6 +146,8 @@ const USDA_ROOT = "https://api.nal.usda.gov/fdc/v1";
 const USDA_KEY = process.env.USDA_FOODDATA_API_KEY ?? "DEMO_KEY";
 const VISION_MODEL = "gpt-5.6-terra";
 const TEXT_MODEL = "gpt-5.4-mini";
+const TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
+const MAX_AUDIO_BYTES = 6 * 1024 * 1024;
 
 type Nutrition = {
   calories: number;
@@ -428,6 +430,51 @@ async function analyzeFoodPhoto(imageBase64: string) {
   return parseVisionResponse(content);
 }
 
+async function analyzeReceipt(imageBase64: string) {
+  const completion = await openai.chat.completions.create({
+    model: VISION_MODEL,
+    max_completion_tokens: 4096,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: [
+          `You are ${BRAND_NAME}'s receipt-to-food review engine.`,
+          "Read a grocery or restaurant receipt and return only plausible food or drink line items as components.",
+          "Never include prices, taxes, tips, payment, loyalty data, merchant details, bag fees, or purchase history.",
+          "Return JSON only with this shape: { title: string, components: [{ name, brand, serving, calories, proteinG, carbsG, fatG, confidence, preparation, assumptions, confidenceDimensions: { identity, portion, nutritionSource, preparation }, reviewQuestions }], assumptions: string[], reviewQuestions: string[] }.",
+          "Receipt line names and quantities are often abbreviated. Treat every nutrition value as an estimate, use low confidence for uncertain abbreviations, and add a concise review question for ambiguous items.",
+          "If no plausible food or drink line item is readable, return an empty components array and explain why in assumptions.",
+        ].join(" "),
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "Extract food and drink items from this receipt into editable nutrition candidates. Exclude non-food lines rather than guessing." },
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: "high" } },
+        ],
+      },
+    ],
+  });
+  const content = completion.choices[0]?.message?.content;
+  if (!content) throw new Error("Receipt reader returned no analysis");
+  return parseVisionResponse(content);
+}
+
+async function transcribeVoice(audioBase64: string, audioFormat: "mp4" | "m4a" | "wav" | "webm" = "mp4") {
+  const audio = Buffer.from(audioBase64, "base64");
+  if (audio.length === 0 || audio.length > MAX_AUDIO_BYTES) {
+    throw new Error("That recording is too large. Please keep your meal description under 15 seconds.");
+  }
+  const file = new File([audio], `calora-voice.${audioFormat}`, { type: `audio/${audioFormat}` });
+  const result = await openai.audio.transcriptions.create({
+    file,
+    model: TRANSCRIPTION_MODEL,
+    prompt: "This is a short meal description. Preserve food names, portions, brands, and preparation details.",
+  });
+  return result.text.trim();
+}
+
 router.post("/v1/capture/analyze", async (req, res) => {
   // Verify the Bearer token once and share the result across rate limiting and
   // session persistence — avoids a second Supabase round-trip.  A missing,
@@ -462,34 +509,20 @@ router.post("/v1/capture/analyze", async (req, res) => {
   const hasImage = Boolean(body.imageBase64);
   const hasText = Boolean(body.textInput?.trim());
 
-  // Graceful degradation for voice — no audio transcription provider is connected.
   if (body.mode === "voice") {
-    res.json({
-      sessionId: body.clientSessionId || randomUUID(),
-      mode: "voice",
-      status: "unavailable",
-      title: "Voice capture unavailable",
-      reviewMessage: `Voice capture requires a speech-to-text provider that is not yet connected. Type your meal description instead and ${BRAND_NAME} will estimate the nutrition.`,
-      provider: "None",
-      candidates: [],
-      imageRetention: "not_collected",
-    });
-    return;
-  }
-
-  // Graceful degradation for receipt — no receipt parsing provider is connected.
-  if (body.mode === "receipt") {
-    res.json({
-      sessionId: body.clientSessionId || randomUUID(),
-      mode: "receipt",
-      status: "unavailable",
-      title: "Receipt scan unavailable",
-      reviewMessage: "Receipt scanning is not yet available. Take a food photo or type what you ate instead.",
-      provider: "None",
-      candidates: [],
-      imageRetention: "not_collected",
-    });
-    return;
+    if (!body.audioBase64) {
+      res.json({
+        sessionId: body.clientSessionId || randomUUID(),
+        mode: "voice",
+        status: "unavailable",
+        title: "Record a meal description",
+        reviewMessage: "No recording was received. Try recording again, or type your meal description instead.",
+        provider: "OpenAI transcription",
+        candidates: [],
+        imageRetention: "not_collected",
+      });
+      return;
+    }
   }
 
   if (body.mode === "text" && !hasText) {
@@ -506,6 +539,10 @@ router.post("/v1/capture/analyze", async (req, res) => {
   }
   if (body.mode === "food" && !hasImage) {
     res.status(400).json({ message: "A camera image is required for food mode" });
+    return;
+  }
+  if (body.mode === "receipt" && !hasImage) {
+    res.status(400).json({ message: "A receipt image is required for receipt mode" });
     return;
   }
   if (body.mode === "auto" && !hasBarcode && !hasImage) {
@@ -540,6 +577,69 @@ router.post("/v1/capture/analyze", async (req, res) => {
         assumptions: result.assumptions,
         reviewQuestions: result.reviewQuestions,
         imageRetention: "not_collected",
+      });
+      return;
+    }
+
+    // Voice is deliberately a two-step path: raw audio becomes an editable
+    // transcript, then the user explicitly requests the normal text estimate.
+    if (body.mode === "voice" && body.audioBase64) {
+      const transcript = await transcribeVoice(body.audioBase64, body.audioFormat);
+      if (!transcript) {
+        res.json({
+          sessionId: body.clientSessionId || randomUUID(),
+          mode: "voice",
+          status: "unavailable",
+          title: "We could not hear a meal description",
+          reviewMessage: "Try recording again in a quieter place, or type what you ate instead.",
+          provider: "OpenAI transcription",
+          candidates: [],
+          imageRetention: "not_collected",
+        });
+        return;
+      }
+      res.json({
+        sessionId: body.clientSessionId || randomUUID(),
+        mode: "voice",
+        status: "transcript",
+        title: "Check what we heard",
+        reviewMessage: "Edit this transcript if needed, then estimate nutrition. Your recording is discarded after transcription.",
+        provider: "OpenAI transcription",
+        transcript,
+        candidates: [],
+        imageRetention: "not_collected",
+      });
+      return;
+    }
+
+    if (body.mode === "receipt" && body.imageBase64) {
+      const result = await analyzeReceipt(body.imageBase64);
+      const serverSessionId = await persistCaptureSession(verifiedUser, "receipt", result.candidates);
+      res.json({
+        sessionId: serverSessionId || body.clientSessionId || randomUUID(),
+        mode: "receipt",
+        status: result.candidates.length ? "review" : "unavailable",
+        title: result.title || "Receipt food review",
+        reviewMessage: result.candidates.length
+          ? "These are receipt-based estimates. Check each item and remove anything you did not eat before adding it."
+          : "No clear food or drink items were found. Try a brighter, flatter photo or type your meal instead.",
+        provider: "Managed vision (receipt reader)",
+        candidates: result.candidates.map((candidate, index) => ensureCandidate({
+          ...candidate,
+          id: `receipt-${index + 1}`,
+          provenance: "Receipt estimate",
+          sourceLabel: "Receipt line-item estimate",
+          editable: true,
+        }, index)),
+        components: result.components.map((component, index) => ensureComponent({
+          ...component,
+          provenance: "Receipt estimate",
+          sourceLabel: "Receipt line-item estimate",
+          included: component.confidence >= 55,
+        }, index, "Receipt estimate")),
+        assumptions: result.assumptions,
+        reviewQuestions: result.reviewQuestions,
+        imageRetention: "delete_after_analysis",
       });
       return;
     }

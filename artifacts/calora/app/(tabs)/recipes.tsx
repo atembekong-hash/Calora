@@ -22,7 +22,7 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { dateKey } from '@/lib/dates';
 
-const categories = ['For you', 'Breakfast', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
+const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
 
 function recipeKey(recipe: Recipe | CaloraRecipe) {
@@ -68,24 +68,31 @@ function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160,
   const local = isLocalRecipe(recipe);
   const fitsGoal = remainingCalories !== undefined && remainingCalories > 0 && recipe.calories != null && recipe.calories > 0 && recipe.calories <= remainingCalories;
   return (
-    <ScalePressable accessibilityLabel={`Open ${recipe.name}`} onPress={onPress} scale={0.98} haptic="none" style={[styles.recipeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={[styles.recipeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View>
-        <RecipeImage recipe={recipe} height={imageHeight} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${recipe.name}`}
+          onPress={onPress}
+          style={({ pressed }) => ({ opacity: pressed ? 0.96 : 1 })}
+        >
+          <RecipeImage recipe={recipe} height={imageHeight} />
+          {fitsGoal && <View style={[styles.fitsBadge, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={8} color={colors.primaryForeground} /><Text style={[styles.fitsBadgeText, { color: colors.primaryForeground }]}>FITS YOUR GOAL</Text></View>}
+          {local && <View style={[styles.localBadge, { backgroundColor: colors.primary }]}><Text style={[styles.localBadgeText, { color: colors.primaryForeground }]}>MY RECIPE</Text></View>}
+          <View style={styles.cardContent}>
+            <Text numberOfLines={2} style={[styles.recipeName, { color: colors.foreground }]}>{recipe.name}</Text>
+            <RecipeMeta recipe={recipe} colors={colors} />
+            <View style={styles.cardFooter}>
+              <Text style={[styles.sourceText, { color: colors.mutedForeground }]}>{local ? `Created in ${BRAND.name}` : `Open source · ${recipe.source}`}</Text>
+              <Feather name="arrow-up-right" size={13} color={colors.mutedForeground} />
+            </View>
+          </View>
+        </Pressable>
         <Pressable accessibilityLabel={`${saved ? 'Remove' : 'Save'} ${recipe.name}`} onPress={onSave} style={[styles.saveButton, { backgroundColor: saved ? colors.primary : colors.card }]}>
           <Feather name="bookmark" size={16} color={saved ? colors.primaryForeground : colors.foreground} />
         </Pressable>
-        {fitsGoal && <View style={[styles.fitsBadge, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={8} color={colors.primaryForeground} /><Text style={[styles.fitsBadgeText, { color: colors.primaryForeground }]}>FITS YOUR GOAL</Text></View>}
-        {local && <View style={[styles.localBadge, { backgroundColor: colors.primary }]}><Text style={[styles.localBadgeText, { color: colors.primaryForeground }]}>MY RECIPE</Text></View>}
       </View>
-      <View style={styles.cardContent}>
-        <Text numberOfLines={2} style={[styles.recipeName, { color: colors.foreground }]}>{recipe.name}</Text>
-        <RecipeMeta recipe={recipe} colors={colors} />
-        <View style={styles.cardFooter}>
-          <Text style={[styles.sourceText, { color: colors.mutedForeground }]}>{local ? `Created in ${BRAND.name}` : `Open source · ${recipe.source}`}</Text>
-          <Feather name="arrow-up-right" size={13} color={colors.mutedForeground} />
-        </View>
-      </View>
-    </ScalePressable>
+    </View>
   );
 }
 
@@ -733,20 +740,8 @@ export default function RecipesScreen() {
                 <Feather name="book-open" size={12} color="#d4eadc" />
                 <Text style={styles.recipeHeaderBadgeText}>THE {BRAND.name.toUpperCase()} COOKBOOK</Text>
               </View>
-              <Pressable accessibilityLabel="Create your own recipe" onPress={() => setShowCreate(true)} style={styles.recipeHeaderCreate}><Feather name="plus" size={15} color="#ffffff" /><Text style={styles.recipeHeaderCreateText}>Create</Text></Pressable>
             </View>
             <Text style={styles.recipeHeaderEyebrow}>GOOD FOOD, WITH CONTEXT</Text>
-            <View style={styles.recipeTitleRow}>
-              <Text style={styles.recipeHeaderTitle}>Recipes</Text>
-              <Pressable
-                accessibilityLabel={`Open ${BRAND.name} Coach`}
-                onPress={() => router.push('/coach')}
-                style={({ pressed }) => [styles.coachHeaderButton, { backgroundColor: 'rgba(212,234,220,0.18)', borderColor: 'rgba(255,255,255,0.28)', shadowColor: '#08160f', opacity: pressed ? 0.8 : 1 }]}
-              >
-                <Feather name="zap" size={15} color="#ffffff" />
-                <Text style={[styles.coachHeaderButtonText, { color: '#ffffff' }]}>Ask {BRAND.name}</Text>
-              </Pressable>
-            </View>
             <Text style={styles.recipeHeaderSubtitle}>Discover meals worth making, with enough context to trust them.</Text>
           </View>
         </View>
@@ -802,18 +797,18 @@ function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
   recipeHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
-  recipeHeaderContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
-  recipeHeaderTop: { position: 'absolute', top: 16, left: 19, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+   recipeHeaderContent: { minHeight: 190, padding: 19, justifyContent: 'center', alignItems: 'center' },
+   recipeHeaderTop: { position: 'absolute', top: 16, left: 19, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   recipeHeaderBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
   recipeHeaderBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1 },
   recipeHeaderCreate: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(20,26,21,0.58)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)' },
   recipeHeaderCreateText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-  recipeHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.3, marginBottom: 6 },
+   recipeHeaderEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.3, marginBottom: 6, textAlign: 'center' },
   recipeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 29 * f, letterSpacing: -0.8 },
   recipeTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 2 },
   coachHeaderButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, paddingHorizontal: 11, paddingVertical: 9, borderWidth: 1, shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   coachHeaderButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.1 },
-  recipeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17, marginTop: 7, maxWidth: 290 },
+   recipeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17, marginTop: 7, maxWidth: 290, textAlign: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
   eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 29 * f, letterSpacing: -0.8 },

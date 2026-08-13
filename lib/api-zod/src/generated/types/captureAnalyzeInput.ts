@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CaptureAnalyzeInputAudioFormat } from './captureAnalyzeInputAudioFormat';
 import type { CaptureAnalyzeInputMode } from './captureAnalyzeInputMode';
 
 export interface CaptureAnalyzeInput {
@@ -24,6 +25,13 @@ export interface CaptureAnalyzeInput {
      * @maxLength 2000
      */
   textInput?: string;
+  /**
+     * Short voice recording encoded as base64 without a data URI prefix. Used only to produce an immediate transcript and not retained.
+     * @maxLength 8000000
+     */
+  audioBase64?: string;
+  /** File container for audioBase64 */
+  audioFormat?: CaptureAnalyzeInputAudioFormat;
   /** @maxLength 120 */
   clientSessionId?: string;
 }

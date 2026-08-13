@@ -11,6 +11,7 @@ export * from './captureAnalysisImageRetention';
 export * from './captureAnalysisMode';
 export * from './captureAnalysisStatus';
 export * from './captureAnalyzeInput';
+export * from './captureAnalyzeInputAudioFormat';
 export * from './captureAnalyzeInputMode';
 export * from './captureCandidate';
 export * from './captureComponent';
