@@ -7,7 +7,6 @@
   "build": {
     "base": {
       "node": "20.19.4",
-      "corepack": true,
       "pnpm": "10.26.1",
       "android": {
         "image": "latest",

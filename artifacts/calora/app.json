@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.etiendem.caloraapp",
-      "versionCode": 11,
+      "versionCode": 12,
       "intentFilters": [
         {
           "action": "VIEW",
