@@ -50,7 +50,9 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://pzdulhkpwbrbrgskwwwe.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_-3cvYunhb4ov7hJej3DAzg_WadMe74u"
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_-3cvYunhb4ov7hJej3DAzg_WadMe74u",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY": "goog_oKaaAvrzOkZTXaWVRIkYSbvrOQq",
+        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "appl_OfSYcEvCwyDpfNqTMWCTRtGnCkc"
       },
       "android": {
         "buildType": "app-bundle"
