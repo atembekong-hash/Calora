@@ -73,8 +73,8 @@ export default function ProfileScreen() {
   const hasExportData = deriveExportHasData(profile, logs);
   const insets = useSafeAreaInsets();
 
-  // Billing — live RevenueCat offering is the price authority; the brand
-  // reference prices are only a cosmetic fallback while offerings load.
+  // Billing — live RevenueCat offering is the price authority. Reference prices
+  // are shown only as expected US pricing when a purchasable store plan is unavailable.
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | 'confirm' | null>(null);
   const [billingNotice, setBillingNotice] = useState<string | null>(null);
@@ -82,15 +82,12 @@ export default function ProfileScreen() {
   const currentOffering = offerings?.current ?? null;
   const monthlyPkg = currentOffering?.availablePackages.find((p) => p.identifier === '$rc_monthly') ?? currentOffering?.monthly ?? null;
   const annualPkg = currentOffering?.availablePackages.find((p) => p.identifier === '$rc_annual') ?? currentOffering?.annual ?? null;
-  const monthlyPriceNum = monthlyPkg?.product.price ?? 9.99;
-  const annualPriceNum = annualPkg?.product.price ?? 69.99;
-  const monthlyPriceString = monthlyPkg?.product.priceString ?? '$9.99';
-  const annualPriceString = annualPkg?.product.priceString ?? '$69.99';
-  const annualMonthlyEquivalent = (annualPriceNum / 12).toFixed(2);
-  const annualSavings = (monthlyPriceNum * 12 - annualPriceNum).toFixed(2);
+  const monthlyPriceString = monthlyPkg?.product.priceString ?? null;
+  const annualPriceString = annualPkg?.product.priceString ?? null;
   const selectedPrice = selectedPlan === 'annual' ? annualPriceString : monthlyPriceString;
   const selectedPeriod = selectedPlan === 'annual' ? 'year' : 'month';
   const selectedPackage = selectedPlan === 'annual' ? annualPkg : monthlyPkg;
+  const isSelectedPlanAvailable = isSubscribed || !!selectedPackage;
 
   // Privacy / delete
   const [privacyModal, setPrivacyModal] = useState<'delete' | null>(null);
@@ -650,23 +647,28 @@ export default function ProfileScreen() {
                 <Text style={[styles.planName, { color: colors.foreground }]}>Monthly</Text>
                 <Text style={[styles.planHint, { color: colors.mutedForeground }]}>Cancel anytime</Text>
               </View>
-              <Text style={[styles.planPrice, { color: colors.foreground }]}>{monthlyPriceString}<Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / mo</Text></Text>
+              <Text style={[styles.planPrice, { color: colors.foreground }]}>{monthlyPriceString ?? 'Store price unavailable'}{monthlyPriceString && <Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / mo</Text>}</Text>
             </Pressable>
             <Pressable accessibilityLabel="Choose annual plan" testID="billing-plan-annual" onPress={() => setSelectedPlan('annual')} style={[styles.planChoice, { borderColor: selectedPlan === 'annual' ? colors.primary : colors.border, backgroundColor: selectedPlan === 'annual' ? colors.accent : colors.card }]}>
               <View style={[styles.radio, { borderColor: selectedPlan === 'annual' ? colors.primary : colors.mutedForeground }]}>
                 {selectedPlan === 'annual' && <View style={[styles.radioSelected, { backgroundColor: colors.primary }]} />}
               </View>
               <View style={styles.planChoiceCopy}>
-                <Text style={[styles.planName, { color: colors.foreground }]}>Annual <Text style={[styles.savePill, { color: colors.accentForeground, backgroundColor: colors.accent }]}>SAVE 42%</Text></Text>
-                <Text style={[styles.planHint, { color: colors.mutedForeground }]}>${annualMonthlyEquivalent} / month equivalent</Text>
+                <Text style={[styles.planName, { color: colors.foreground }]}>Annual</Text>
+                <Text style={[styles.planHint, { color: colors.mutedForeground }]}>$2.99 / month billed annually</Text>
               </View>
-              <Text style={[styles.planPrice, { color: colors.foreground }]}>{annualPriceString}<Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / yr</Text></Text>
+              <Text style={[styles.planPrice, { color: colors.foreground }]}>{annualPriceString ?? 'Store price unavailable'}{annualPriceString && <Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / yr</Text>}</Text>
             </Pressable>
           </View>
           <View style={[styles.valueLine, { backgroundColor: colors.muted }]}>
             <Feather name="check-circle" size={15} color={colors.success} />
-            <Text style={[styles.valueLineText, { color: colors.foreground }]}>You save ${annualSavings} with annual billing.</Text>
+            <Text style={[styles.valueLineText, { color: colors.foreground }]}>7-day free trial. Store eligibility and localized prices apply.</Text>
           </View>
+          {!selectedPackage && !isSubscribed && (
+            <Text style={[styles.billingNote, { color: colors.mutedForeground }]}>
+              Store pricing is unavailable, so this plan cannot be purchased yet. Expected US pricing: $4.99/month or $35.88/year.
+            </Text>
+          )}
           <View style={styles.featureList}>
             {['Unlimited photo and voice logging', 'Verified food confidence and source history', 'Adaptive calorie targets and deeper insights', 'Ad-free, offline-first diary'].map((feature) => (
               <View key={feature} style={styles.featureRow}>
@@ -675,13 +677,13 @@ export default function ProfileScreen() {
               </View>
             ))}
           </View>
-          <Pressable accessibilityLabel="Continue to billing" testID="billing-continue" onPress={handlePurchase} style={({ pressed }) => [styles.planButton, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}>
+          <Pressable accessibilityLabel={isSelectedPlanAvailable ? 'Continue to billing' : 'Selected store plan is unavailable'} accessibilityState={{ disabled: !isSelectedPlanAvailable }} testID="billing-continue" disabled={!isSelectedPlanAvailable} onPress={handlePurchase} style={({ pressed }) => [styles.planButton, { backgroundColor: colors.primary, opacity: !isSelectedPlanAvailable ? 0.55 : pressed ? 0.8 : 1 }]}>
             <Text style={[styles.planButtonText, { color: colors.primaryForeground }]}>
-              {isSubscribed ? `${BRAND.premiumName} is active` : `Continue with ${selectedPrice} / ${selectedPeriod}`}
+              {isSubscribed ? `${BRAND.premiumName} is active` : isSelectedPlanAvailable ? `Continue with ${selectedPrice} / ${selectedPeriod}` : 'Store plan unavailable'}
             </Text>
-            {!isSubscribed && <Feather name="arrow-right" size={16} color={colors.primaryForeground} />}
+            {!isSubscribed && isSelectedPlanAvailable && <Feather name="arrow-right" size={16} color={colors.primaryForeground} />}
           </Pressable>
-          <Text style={[styles.billingNote, { color: colors.mutedForeground }]}>Subscription renews automatically unless canceled at least 24 hours before the renewal date. Final price may vary by local taxes and currency.</Text>
+          <Text style={[styles.billingNote, { color: colors.mutedForeground }]}>After the 7-day free trial, your selected plan renews at the same plan price unless you change or cancel it through the store. Local taxes and currency may affect the store display.</Text>
           <View style={styles.billingLinks}>
             <Pressable accessibilityLabel="Restore purchases" onPress={handleRestore}><Text style={[styles.billingLink, { color: colors.primary }]}>Restore purchases</Text></Pressable>
             <View style={[styles.linkDot, { backgroundColor: colors.border }]} />
@@ -828,9 +830,9 @@ export default function ProfileScreen() {
             </Text>
             <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>
               {billingModal === 'confirm'
-                ? `Subscribe to ${BRAND.premiumName} (${selectedPlan}) at ${selectedPrice} per ${selectedPeriod}? The store purchase sheet will complete the payment.`
+                ? `Subscribe to ${BRAND.premiumName} (${selectedPlan}) at ${selectedPrice} per ${selectedPeriod}? The store determines 7-day trial eligibility and completes the payment.`
                 : billingModal === 'purchase'
-                ? `You chose the ${selectedPlan} plan at ${selectedPrice} per ${selectedPeriod}. Plans are still loading or unavailable offline — please try again in a moment.`
+                ? `The ${selectedPlan} store plan is unavailable, so no purchase can be started. Please try again when store pricing has loaded.`
                 : billingModal === 'restore'
                   ? `This will look up your active ${BRAND.premiumName} entitlement on this device.`
                   : 'This will open the platform subscription settings so cancellation stays one tap away.'}

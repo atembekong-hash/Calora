@@ -71,7 +71,7 @@ const PRODUCT_SPECS: ProductSpec[] = [
     duration: "P1M",
     packageIdentifier: "$rc_monthly",
     packageDisplayName: "Monthly Subscription",
-    prices: [{ amount_micros: 9_990_000, currency: "USD" }], // $9.99
+    prices: [{ amount_micros: 4_990_000, currency: "USD" }], // $4.99 recurring monthly
   },
   {
     label: "Pro Annual",
@@ -82,7 +82,7 @@ const PRODUCT_SPECS: ProductSpec[] = [
     duration: "P1Y",
     packageIdentifier: "$rc_annual",
     packageDisplayName: "Annual Subscription",
-    prices: [{ amount_micros: 69_990_000, currency: "USD" }], // $69.99
+    prices: [{ amount_micros: 35_880_000, currency: "USD" }], // $35.88 recurring annual
   },
 ];
 

@@ -41,7 +41,7 @@ CaloraApp is a calm, AI-powered calorie and nutrition tracker for iOS and Androi
 
 - The first build is local-first with AsyncStorage so logging remains useful offline and does not pretend a backend is complete.
 - Food suggestions carry provenance and confidence in the UI; photo results remain estimates until reviewed.
-- Premium pricing is displayed plainly at $9.99/month and $69.99/year (standard renewal); native billing is intentionally not faked until RevenueCat is connected.
+- Calora Pro uses a 7-day free trial, then permanent $4.99/month or $35.88/year pricing ($2.99/month billed annually). Store/RevenueCat products remain the authority for localized prices and trial eligibility.
 - `@calora/local-state-v2` (AsyncStorage key) and `calora-*` notification tags are persisted contracts — do not rename them without a backward-compatible migration.
 
 ## Product

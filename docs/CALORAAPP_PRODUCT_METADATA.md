@@ -85,28 +85,27 @@
 | Annual product ID (preferred) | `caloraapp_pro_annual` |
 | RevenueCat offering | `default` |
 
-### Approved Pricing Model
+### Final Production Pricing Model
 
-| Plan | Trial | Introductory | Standard |
+| Plan | Trial | Price | Renewal |
 |---|---|---|---|
-| Monthly | 7 days free | $4.99/month | $9.99/month |
-| Annual | 7 days free | $35.99 first year | $69.99/year (~$5.83/mo, save 42%) |
+| Monthly | 7-day free trial | $4.99/month | Renews at $4.99/month unless changed or canceled through the store |
+| Annual | 7-day free trial | $35.88/year ($2.99/month billed annually) | Renews at $35.88/year unless changed or canceled through the store |
 
 > **IMPORTANT:**
-> - These are business targets. Actual prices are configured in App Store Connect and Google Play Console — those configurations are authoritative.
-> - RevenueCat is **not yet integrated**. The current UI shows a placeholder billing experience.
-> - Do not hardcode introductory pricing in app code — use authoritative store/RevenueCat product data on the live paywall.
+> - These are the permanent US production prices. There is no introductory, first-year, or later higher renewal tier.
+> - Actual localized prices, taxes, and trial eligibility are configured in App Store Connect, Google Play Console, and RevenueCat — those configurations are authoritative.
+> - The live paywall must use authoritative store/RevenueCat product data when a valid store product is available.
 > - Trial eligibility must be determined by the store, not assumed.
 
 ### RevenueCat Status
-**Not yet integrated.** No SDK, API keys, or entitlement configuration exists in the repository.
-Required before production: RevenueCat project setup, product/entitlement configuration, SDK integration, purchase verification.
+RevenueCat client integration and repository seed configuration exist. Production still requires the external product, package, entitlement, and trial configuration to match this model, followed by native purchase verification.
 
 ---
 
 ## 6. Subscription Disclosure (required on paywall)
 
-> 7 days free for eligible customers. After the trial, your selected subscription begins automatically unless canceled. Introductory pricing applies only to eligible customers. Your subscription automatically renews at the applicable renewal price unless canceled before renewal.
+> Eligible customers receive a 7-day free trial. After the trial, your selected subscription begins at $4.99/month or $35.88/year ($2.99/month billed annually) and renews at the same plan price unless changed or canceled through the store.
 
 ---
 
@@ -243,9 +242,9 @@ iOS build numbers and Android versionCode values must increase monotonically. Do
 | App Store Connect — app record + bundle ID registration | REQUIRES STORE CONFIGURATION |
 | Apple Developer — Sign in with Apple (if added) | REQUIRES CREDENTIAL |
 | Google Play Console — app record + package ID registration | REQUIRES STORE CONFIGURATION |
-| RevenueCat — project, products, entitlements, SDK integration | REQUIRES OWNER ACTION |
+| RevenueCat — production offering, products, packages, entitlement, and trial configuration | REQUIRES OWNER ACTION |
 | Store subscription product IDs (`caloraapp_pro_monthly`, `caloraapp_pro_annual`) | REQUIRES STORE CONFIGURATION |
-| Store introductory pricing ($4.99/mo, $35.99/yr) + 7-day trial | REQUIRES STORE CONFIGURATION |
+| Store recurring pricing ($4.99/mo, $35.88/yr) + 7-day free trial | REQUIRES STORE CONFIGURATION |
 | App Store screenshots | REQUIRES OWNER ACTION |
 | Google Play feature graphic | REQUIRES OWNER ACTION |
 | `api.mycaloraapp.com` DNS and server deployment | REQUIRES OWNER ACTION |

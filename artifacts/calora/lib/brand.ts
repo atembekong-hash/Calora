@@ -66,7 +66,7 @@ export const SUBSCRIPTION = {
   offeringId: 'default',
   /** US reference pricing. Actual charges are determined by store/RevenueCat configuration. */
   pricing: {
-    monthly: { standard: 9.99, introductory: 4.99, trialDays: 7 },
-    annual: { standard: 69.99, introductory: 35.99, trialDays: 7 },
+    monthly: { recurring: 4.99, trialDays: 7 },
+    annual: { recurring: 35.88, monthlyEquivalent: 2.99, trialDays: 7 },
   },
 } as const;

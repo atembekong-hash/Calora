@@ -18,26 +18,22 @@ The browser paywall and its non-transactional states work, the RevenueCat integr
 | Referral automated suites | 163 API tests passed | Qualification, duplicate protection, retry rollback, concurrency behavior, and promotional extension logic are covered in test scenarios. | A real two-account referral, real provider promotional grant, or customer entitlement observed in RevenueCat. |
 | Source review | Completed | The client derives active status from the `caloraapp_pro` RevenueCat entitlement and synchronizes RevenueCat identity with the signed-in Supabase user. | That real store products map to the expected entitlement or that account-switch behavior is correct on a device. |
 
-## Observed browser billing journey
+## Current repository pricing model
 
-The following was run through the active Expo web preview after ordinary onboarding, without confirming a purchase:
+The final Calora Pro repository model is:
 
-1. The Profile screen displayed the CaloraApp Pro card, benefits, billing disclosure, restore link, and manage link.
-2. Selecting Monthly changed the CTA to `Continue with $9.99 / month`.
-3. Selecting Annual changed the CTA to `Continue with $69.99 / year`; the view also showed `SAVE 42%` and `You save $49.89 with annual billing.`
-4. Continuing opened a confirmation dialog rather than charging immediately:
-   - `Confirm your purchase`
-   - `Subscribe to CaloraApp Pro (annual) at $69.99 per year? The store purchase sheet will complete the payment.`
-5. Restore returned the explicit empty-account result: `No previous purchases were found for this account.`
-6. Manage subscription opened a local informational dialog. It stated that settings *will* open, but offered only `Got it` and never linked to platform settings.
+1. A 7-day free trial for eligible customers, determined by the store.
+2. A permanent $4.99/month plan.
+3. A permanent $35.88/year plan, equivalent to $2.99/month billed annually.
+4. Renewal at the same selected plan price unless the customer changes or cancels through the store.
 
-The tester found no browser-console errors in the billing journey. Non-blocking platform/deprecation warnings remain outside billing scope.
+The paywall reads store/RevenueCat package price strings when available. If a selected package is unavailable, it identifies the store price as unavailable and disables purchase instead of presenting a fallback price as purchasable.
 
 ## Lifecycle ledger
 
 | Lifecycle or integrity requirement | Status | Evidence / blocker |
 | --- | --- | --- |
-| Current offering loads and determines displayed plans | **Partially evidenced** | Browser showed monthly and annual prices. The client prefers offering package prices, but the same UI hard-falls back to `$9.99` and `$69.99`; no provider catalog response was directly inspected. |
+| Current offering loads and determines displayed plans | **Partially evidenced** | The client uses RevenueCat package prices when available. When a selected package is unavailable, the UI clearly disables purchase rather than treating repository reference pricing as a loaded store plan. |
 | Monthly and annual selection | **Passed — browser UI only** | Both selectors changed the visible CTA and annual summary. |
 | Pre-purchase confirmation | **Passed — browser UI only** | Confirmation dialog was observed; no payment was confirmed. |
 | Successful Test Store / sandbox purchase | **Blocked** | Requires a controlled test account and an intentionally executed purchase. |
@@ -56,7 +52,7 @@ The tester found no browser-console errors in the billing journey. Non-blocking 
 
 - RevenueCat customer state is computed from the single `caloraapp_pro` entitlement.
 - Signed-in identity is aligned to the Supabase user ID; anonymous/logout state is intentionally handled before customer information is fetched.
-- The paywall reads monthly and annual packages from RevenueCat when available, but silently displays reference prices while offerings are unavailable. Those fallbacks cannot be treated as verified storefront pricing.
+- The paywall reads monthly and annual packages from RevenueCat when available. When an offering or selected package is unavailable, it labels the price as unavailable and prevents the purchase flow from starting.
 - The referral server extends promotional access from the later of the current expiration or now, so it is designed not to shorten an existing entitlement.
 - The display promises four Pro benefits: unlimited photo/voice logging, verified-food/source history, adaptive targets/deeper insights, and an ad-free offline diary. Current entitlement state has no gating consumer beyond billing presentation.
 
@@ -67,7 +63,7 @@ The tester found no browser-console errors in the billing journey. Non-blocking 
 3. Replace the current informational Manage subscription dialog with an actual platform-appropriate cancellation/settings destination and verify it on each platform.
 4. Define and implement the genuine Pro boundary, then prove free users cannot receive paid-only functionality while active entitled users can.
 5. Complete the real two-account referral lifecycle under the dedicated referral mission; include direct provider entitlement evidence.
-6. Confirm hosted privacy, terms, support, and subscription-management destinations, along with final store-facing pricing, taxes/currency, and any trial disclosures.
+6. Configure and verify the final store-facing model: 7-day free trial, recurring $4.99/month, recurring $35.88/year, localized taxes/currency, and same-price renewal disclosure.
 
 ## Conclusion
 
