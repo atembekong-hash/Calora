@@ -24,7 +24,7 @@ The final Calora Pro repository model is:
 
 1. A 7-day free trial for eligible customers, determined by the store.
 2. A permanent $4.99/month plan.
-3. A permanent $35.88/year plan, equivalent to $2.99/month billed annually.
+3. A permanent $35.99/year plan ($2.99/month billed annually).
 4. Renewal at the same selected plan price unless the customer changes or cancels through the store.
 
 The paywall reads store/RevenueCat package price strings when available. If a selected package is unavailable, it identifies the store price as unavailable and disables purchase instead of presenting a fallback price as purchasable.
@@ -63,7 +63,7 @@ The paywall reads store/RevenueCat package price strings when available. If a se
 3. Replace the current informational Manage subscription dialog with an actual platform-appropriate cancellation/settings destination and verify it on each platform.
 4. Define and implement the genuine Pro boundary, then prove free users cannot receive paid-only functionality while active entitled users can.
 5. Complete the real two-account referral lifecycle under the dedicated referral mission; include direct provider entitlement evidence.
-6. Configure and verify the final store-facing model: 7-day free trial, recurring $4.99/month, recurring $35.88/year, localized taxes/currency, and same-price renewal disclosure.
+6. Configure and verify the final store-facing model: 7-day free trial, recurring $4.99/month, recurring $35.99/year, localized taxes/currency, and same-price renewal disclosure.
 
 ## Conclusion
 

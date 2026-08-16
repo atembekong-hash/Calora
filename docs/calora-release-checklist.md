@@ -13,7 +13,7 @@ This checklist separates the current local-first preview from the work required 
 
 ## Native integrations still required
 
-- [ ] RevenueCat or equivalent authorized and configured with a 7-day free trial, `$4.99/month`, and `$35.88/year` ($2.99/month billed annually) recurring products.
+- [ ] RevenueCat or equivalent authorized and configured with a 7-day free trial, `$4.99/month`, and `$35.99/year` ($2.99/month billed annually) recurring products.
 - [ ] Purchase, restore, entitlement, renewal, cancellation/manage, pending, failure, and unavailable-store states verified in sandbox.
 - [ ] Apple HealthKit and Android Health Connect permissions and imported-data provenance implemented.
 - [ ] Native camera, barcode, and microphone permissions and retry/denial states implemented.

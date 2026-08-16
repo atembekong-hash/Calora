@@ -90,7 +90,7 @@
 | Plan | Trial | Price | Renewal |
 |---|---|---|---|
 | Monthly | 7-day free trial | $4.99/month | Renews at $4.99/month unless changed or canceled through the store |
-| Annual | 7-day free trial | $35.88/year ($2.99/month billed annually) | Renews at $35.88/year unless changed or canceled through the store |
+| Annual | 7-day free trial | $35.99/year ($2.99/month billed annually) | Renews at $35.99/year unless changed or canceled through the store |
 
 > **IMPORTANT:**
 > - These are the permanent US production prices. There is no introductory, first-year, or later higher renewal tier.
@@ -105,7 +105,7 @@ RevenueCat client integration and repository seed configuration exist. Productio
 
 ## 6. Subscription Disclosure (required on paywall)
 
-> Eligible customers receive a 7-day free trial. After the trial, your selected subscription begins at $4.99/month or $35.88/year ($2.99/month billed annually) and renews at the same plan price unless changed or canceled through the store.
+> Eligible customers receive a 7-day free trial. After the trial, your selected subscription begins at $4.99/month or $35.99/year ($2.99/month billed annually) and renews at the same plan price unless changed or canceled through the store.
 
 ---
 
@@ -244,7 +244,7 @@ iOS build numbers and Android versionCode values must increase monotonically. Do
 | Google Play Console — app record + package ID registration | REQUIRES STORE CONFIGURATION |
 | RevenueCat — production offering, products, packages, entitlement, and trial configuration | REQUIRES OWNER ACTION |
 | Store subscription product IDs (`caloraapp_pro_monthly`, `caloraapp_pro_annual`) | REQUIRES STORE CONFIGURATION |
-| Store recurring pricing ($4.99/mo, $35.88/yr) + 7-day free trial | REQUIRES STORE CONFIGURATION |
+| Store recurring pricing ($4.99/mo, $35.99/yr) + 7-day free trial | REQUIRES STORE CONFIGURATION |
 | App Store screenshots | REQUIRES OWNER ACTION |
 | Google Play feature graphic | REQUIRES OWNER ACTION |
 | `api.mycaloraapp.com` DNS and server deployment | REQUIRES OWNER ACTION |
