@@ -257,14 +257,14 @@ export default function ScanScreen() {
   const acceptDraft = async () => {
     if (!reviewDraft) return;
     const accepted = acceptFoodMemory(reviewDraft.id);
-    // Only authenticated photo/barcode analyses receive a server proof. It is
-    // consumed after the user explicitly accepts this review; local logging
-    // remains available offline, but cannot qualify a referral until then.
+    // Authenticated photo/barcode analyses receive a server proof after the
+    // user explicitly accepts the review. Local logging remains available
+    // offline regardless of capture approval.
     if (accepted && (analysis?.mode === 'food' || analysis?.mode === 'barcode')) {
       try {
         await approveCapture(analysis.sessionId);
       } catch (error) {
-        console.warn('[capture] referral qualification confirmation failed', error);
+        console.warn('[capture] approval confirmation failed', error);
       }
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

@@ -655,9 +655,9 @@ export const AnalyzeCaptureResponse = zod.object({
 
 
 /**
- * Consumes the authenticated user's short-lived, server-issued capture
- * proof. Only confirmed photo or barcode captures can qualify a referral
- * reward; text/manual and demo diary entries cannot.
+ * Confirms an authenticated user's short-lived, server-issued image or
+ * barcode capture proof after review. This capture action is independent
+ * of referral qualification.
  * @summary Confirm a reviewed image or barcode capture
  */
 export const ApproveCaptureParams = zod.object({
@@ -976,9 +976,7 @@ export const GetReferralResponse = zod.object({
   "rewardDays": zod.number().int(),
   "stats": zod.object({
   "pendingCount": zod.number().int(),
-  "rewardedCount": zod.number().int(),
-  "monthRewardedCount": zod.number().int(),
-  "monthCap": zod.number().int()
+  "rewardedCount": zod.number().int()
 }),
   "redemption": zod.object({
   "status": zod.enum(['none', 'pending', 'rewarded']),
@@ -989,8 +987,8 @@ export const GetReferralResponse = zod.object({
 
 /**
  * Records a pending referral redemption for the authenticated user.
- * Rewards unlock for both parties once the new user logs their first
- * approved food entry. One redemption per account; self-referrals are
+ * Rewards unlock for both parties once the new user saves their first
+ * meal. One redemption per account; self-referrals are
  * rejected.
  * @summary Redeem an invite code on a new account
  */
@@ -1011,11 +1009,12 @@ export const RedeemReferralResponse = zod.object({
 
 /**
  * The diary is local-first; this endpoint durably records the user's
- * first approved food log server-side. It is the server-observable
- * signal that referral activation requires before granting rewards.
+ * capture-backed food log server-side. It is retained for capture
+ * persistence compatibility; referral qualification instead accepts any
+ * valid authenticated meal save.
  * Idempotent — once any diary entry exists for the user, repeat calls
  * return the existing state without writing again.
- * @summary Persist the user's first approved food log on the server
+ * @summary Persist the user's first capture-backed food log on the server
  */
 export const syncFirstDiaryEntryBodyMealMax = 40;
 
@@ -1067,11 +1066,11 @@ export const SyncFirstDiaryEntryResponse = zod.object({
 
 
 /**
- * Called once the referred user records their first approved food log.
- * Grants seven days of Pro to both parties (the referrer's grant is
- * subject to a monthly cap). Idempotent — repeat calls return the
+ * Called once the referred user records their first saved meal through an
+ * authenticated Calora diary persistence route. Grants 30 days of Pro to
+ * both parties with no referral cap. Idempotent — repeat calls return the
  * current state without granting again.
- * @summary Unlock referral rewards after the first approved food log
+ * @summary Unlock referral rewards after the first saved meal
  */
 export const ActivateReferralResponse = zod.object({
   "status": zod.enum(['none', 'pending', 'rewarded']),

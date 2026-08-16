@@ -2,12 +2,12 @@
  * Authenticated food-diary persistence.
  *
  * Local-first clients use this route to durably record confirmed entries. The
- * referral service relies on these server-owned records — never on a client
- * claim — when deciding whether a new account has qualified for its reward.
+ * referral service may use these server-owned records — never a client claim —
+ * when deciding whether a new account has qualified for its reward.
  *
- * POST /v1/diary/first-log additionally records the referred user's first
- * approved food log. To prevent fabricated payloads from creating that
- * record with a single request, a first-log sync must reference a
+ * POST /v1/diary/first-log is a legacy capture-first persistence route. To
+ * prevent fabricated payloads from creating that capture record with a single
+ * request, it must reference a
  * server-issued capture session:
  *
  *   1. The authenticated user runs a real capture analysis; the server
@@ -243,11 +243,9 @@ router.post("/v1/diary/first-log", async (req, res) => {
       return;
     }
 
-    // Text-mode captures (plain one-line food descriptions) are excluded from
-    // referral qualification. Only image or barcode sessions may anchor a
-    // first-log sync that unlocks a referral reward.
+    // Text-mode captures cannot anchor this capture-first sync route.
     if (session.mode === 'text') {
-      res.status(422).json({ message: "Text-only captures cannot qualify a referral reward. Use image or barcode capture." });
+      res.status(422).json({ message: "Text-only captures cannot be saved through this capture sync. Use image or barcode capture." });
       return;
     }
 

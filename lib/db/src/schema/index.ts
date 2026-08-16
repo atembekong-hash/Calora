@@ -81,8 +81,8 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
    * was either written via the bare /v1/diary endpoint or synced without a
    * session reference.
    *
-   * Used by hasSyncedDiaryEntry Path 2 to gate referral qualification on
-   * provenance: only image/barcode-originated sync entries qualify.
+    * This provenance is retained for nutrition traceability. Referral
+    * qualification instead accepts any valid authenticated saved meal.
    */
   captureSessionId: uuid("capture_session_id").references(() => aiCaptureSessionsTable.id, { onDelete: "set null" }),
   entryDate: date("entry_date").notNull(),
@@ -226,12 +226,11 @@ export const referralRedemptionsTable = pgTable("calora_referral_redemptions", {
   referredUserId: text("referred_user_id").notNull(),
   status: text("status").notNull().default("pending"), // pending | rewarded
   /**
-   * Server-observed proof that the referred user really logged food
-   * (e.g. a successful capture analysis or a synced diary entry).
+   * Server-observed proof that the referred user saved a meal.
    * Activation never grants rewards while this is NULL.
    */
   qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
-  /** Which server-side signal qualified this redemption (capture_analysis | diary_sync). */
+  /** Which server-side signal qualified this redemption (saved_meal). */
   qualifiedSignal: text("qualified_signal"),
   referredRewardedAt: timestamp("referred_rewarded_at", { withTimezone: true }),
   referrerRewardedAt: timestamp("referrer_rewarded_at", { withTimezone: true }),

@@ -51,7 +51,7 @@ The internal local-first product journeys exercised in the live Expo web preview
 | F-09 | Camera, barcode, image capture | BLOCKED | Live UI renders explicit camera permission gate. | Physical iOS/Android device permission, capture, barcode, library and denial/retry flows. |
 | F-10 | Authentication and OAuth | BLOCKED | Native app sign-up route and pending-invite display exist; no real account/OAuth callback was created during certification. | Supabase email/OAuth redirect configuration and real device/browser callback test. |
 | F-11 | Diary sync and authenticated capture proof | BLOCKED | Anonymous diary endpoint returned `401`; automated referral/sync coverage passes. | Authenticated end-to-end account plus live capture must prove sync and recovery. |
-| F-12 | Referral reward lifecycle | BLOCKED | Automated suite includes qualification and retry behavior; anonymous activation returned `401`. | Two real sandbox accounts, real qualifying capture, RevenueCat entitlement verification, cap/retry checks. |
+| F-12 | Referral reward lifecycle | BLOCKED | Automated suite includes first-saved-meal qualification and retry behavior; anonymous activation returned `401`. | Two real sandbox accounts, valid saved meal, RevenueCat entitlement verification, uncapped-grant and retry checks. |
 | F-13 | Invite web fallback | PASSED | Direct development service returned `200` for `/invite/TESTCODE`, with explicit install/deep-link actions and social-safe no-autoredirect behavior. Screenshot: `gn3w8f`. | The web fallback is correct; it is not the in-app `/invite/[code]` route. |
 | F-14 | In-app invite handoff and universal links | BLOCKED | App route persists code then sends signed-out users to sign-up; automated persistence tests pass. Direct service returned `200` association files. | Signed device build, `mycaloraapp.com` hosting/routing, Apple/Android OS verification, force-quit test. |
 | F-15 | Universal-link verification files | PASSED (development service) | `/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json` return `200` and configured identifiers. | Must be fetched at the production domain with production TLS and OS association cache behavior. |
@@ -95,7 +95,7 @@ Non-blocking development warnings observed:
 1. Build and install a fresh `development-device` EAS build after current auth and universal-link configuration.
 2. Verify `https://mycaloraapp.com/.well-known/apple-app-site-association` and `assetlinks.json` on the real production host, then test installed-app and no-app invite routes on iOS and Android.
 3. Configure and test Supabase email verification, password recovery, Google OAuth redirect/callback/error paths with real test accounts.
-4. Run authenticated diary sync, image/barcode capture review, referral qualification, and two-account reward verification against the live API and sandbox RevenueCat environment.
+4. Run authenticated diary sync through supported meal-entry methods, referral qualification, and two-account reward verification against the live API and sandbox RevenueCat environment.
 5. Verify RevenueCat offerings, purchase, restore, cancellation/manage, pending and unavailable-store states on real sandbox devices.
 6. Verify native camera/library, notifications, HealthKit/Health Connect, export share sheet, app lifecycle, and accessibility on supported devices.
 7. Deploy the intended production API/domain with migrations and production secrets, then rerun API health, token rejection, account deletion, rate limit, link verification, and privacy-deletion checks.

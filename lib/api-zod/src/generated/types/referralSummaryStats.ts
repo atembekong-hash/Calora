@@ -9,6 +9,4 @@
 export type ReferralSummaryStats = {
   pendingCount: number;
   rewardedCount: number;
-  monthRewardedCount: number;
-  monthCap: number;
 };

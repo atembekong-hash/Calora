@@ -1,33 +1,30 @@
 /**
- * Referral program routes — "1 referral = 1 week of Pro for both sides."
+ * Referral program routes — "1 completed referral = 30 days of Pro for both sides."
  *
  * Flow:
  *   1. Every authenticated user gets a stable invite code (GET /v1/referral).
  *   2. A new user redeems a code once (POST /v1/referral/redeem) → pending.
- *   3. After the new user's first approved food log, the client calls
- *      POST /v1/referral/activate → both parties receive 7 days of Pro via
- *      RevenueCat promotional entitlements (referrer capped per month).
+ *   3. After the new user's first successfully saved meal, the client calls
+ *      POST /v1/referral/activate → both parties receive 30 days of Pro via
+ *      RevenueCat promotional entitlements.
  *
  * Anti-abuse rules:
  *   • One redemption per referred account (unique index on referred_user_id).
  *   • Self-referrals rejected.
- *   • Referrer earns at most REFERRER_MONTHLY_CAP rewards per calendar month;
- *     the referred user always gets their reward.
  *   • Rewards extend existing entitlement end dates, never replace them.
  */
 
 import { Router, type IRouter } from "express";
 import { randomBytes } from "node:crypto";
-import { and, count, eq, gte, isNotNull, sql } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { db, referralCodesTable, referralRedemptionsTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { grantPromoDays } from "../lib/revenuecat.js";
-import { hasSyncedDiaryEntry } from "../lib/referral-qualification.js";
+import { hasSavedDiaryEntry } from "../lib/referral-qualification.js";
 
 const router: IRouter = Router();
 
-const REWARD_DAYS = 7;
-const REFERRER_MONTHLY_CAP = 4;
+const REWARD_DAYS = 30;
 const INVITE_BASE_URL = "https://mycaloraapp.com/invite";
 
 /** Unambiguous alphabet (no 0/O/1/I) for human-readable invite codes. */
@@ -72,25 +69,6 @@ async function ensureCode(userId: string): Promise<string> {
   throw new Error("Failed to allocate a referral code");
 }
 
-function startOfMonthUtc(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-}
-
-async function monthRewardedCount(referrerUserId: string): Promise<number> {
-  const rows = await db
-    .select({ value: count() })
-    .from(referralRedemptionsTable)
-    .where(
-      and(
-        eq(referralRedemptionsTable.referrerUserId, referrerUserId),
-        isNotNull(referralRedemptionsTable.referrerRewardedAt),
-        gte(referralRedemptionsTable.referrerRewardedAt, startOfMonthUtc()),
-      ),
-    );
-  return rows[0]?.value ?? 0;
-}
-
 // ── GET /v1/referral ────────────────────────────────────────────────────────
 router.get("/v1/referral", async (req, res) => {
   try {
@@ -102,7 +80,7 @@ router.get("/v1/referral", async (req, res) => {
 
     const code = await ensureCode(user.id);
 
-    const [statRows, ownRedemption, monthRewarded] = await Promise.all([
+    const [statRows, ownRedemption] = await Promise.all([
       db
         .select({
           status: referralRedemptionsTable.status,
@@ -116,7 +94,6 @@ router.get("/v1/referral", async (req, res) => {
         .from(referralRedemptionsTable)
         .where(eq(referralRedemptionsTable.referredUserId, user.id))
         .limit(1),
-      monthRewardedCount(user.id),
     ]);
 
     const pendingCount = statRows.find((r) => r.status === "pending")?.value ?? 0;
@@ -129,8 +106,6 @@ router.get("/v1/referral", async (req, res) => {
       stats: {
         pendingCount,
         rewardedCount,
-        monthRewardedCount: monthRewarded,
-        monthCap: REFERRER_MONTHLY_CAP,
       },
       redemption:
         ownRedemption.length === 0
@@ -233,20 +208,19 @@ router.post("/v1/referral/activate", async (req, res) => {
     let redemption = rows[0];
 
     // ── Qualification check ───────────────────────────────────────────────
-    // Two paths qualify: (1) server-verified capture-session first-log, or
-    // (2) authenticated outbox sync (policy-level trust — see referral-
-    // qualification.ts for the farming-risk tradeoffs of Path 2).
-    // A bare POST /v1/diary with no client_id never qualifies under either path.
+    // Any valid meal saved through an authenticated diary persistence route
+    // qualifies. The query independently verifies server ownership; local logs
+    // and an activation request alone cannot claim a reward.
     // The stamp is an atomic UPDATE so concurrent activations qualify exactly
     // once; a loser re-reads the fresh row and works from the winner's state.
     if (redemption.qualifiedAt === null) {
-      const qualified = await hasSyncedDiaryEntry(user.id);
+      const qualified = await hasSavedDiaryEntry(user.id);
       if (!qualified) {
         res.json({
           status: "pending",
           referredRewarded: false,
           referrerRewarded: false,
-          message: "Capture and confirm a food or barcode to unlock your invite reward.",
+          message: "Save your first meal to unlock your invite reward.",
         });
         return;
       }
@@ -274,7 +248,7 @@ router.post("/v1/referral/activate", async (req, res) => {
             status: "pending",
             referredRewarded: false,
             referrerRewarded: false,
-            message: "Capture and confirm a food or barcode to unlock your invite reward.",
+            message: "Save your first meal to unlock your invite reward.",
           });
           return;
         }
@@ -323,50 +297,32 @@ router.post("/v1/referral/activate", async (req, res) => {
       }
     }
 
-    // ── Referrer's reward — cap-checked under a per-referrer lock ────────
-    // The referrer's referral_codes row is locked FOR UPDATE so concurrent
-    // activations serialize the count-then-claim, preventing cap overruns.
+    // ── Referrer's reward — claim-first idempotency ──────────────────────
     let referrerRewarded = redemption.referrerRewardedAt !== null;
     if (!referrerRewarded) {
-      let claimedReferrerSlot = false;
+      let claimedReferrerReward = false;
       try {
-        claimedReferrerSlot = await db.transaction(async (tx) => {
-          await tx.execute(
-            sql`SELECT user_id FROM calora_referral_codes WHERE user_id = ${redemption.referrerUserId} FOR UPDATE`,
-          );
-          const counted = await tx
-            .select({ value: count() })
-            .from(referralRedemptionsTable)
-            .where(
-              and(
-                eq(referralRedemptionsTable.referrerUserId, redemption.referrerUserId),
-                isNotNull(referralRedemptionsTable.referrerRewardedAt),
-                gte(referralRedemptionsTable.referrerRewardedAt, startOfMonthUtc()),
-              ),
-            );
-          if ((counted[0]?.value ?? 0) >= REFERRER_MONTHLY_CAP) return false;
-          const rowsClaimed = await tx
-            .update(referralRedemptionsTable)
-            .set({ referrerRewardedAt: sql`now()` })
-            .where(
-              and(
-                eq(referralRedemptionsTable.id, redemption.id),
-                sql`${referralRedemptionsTable.referrerRewardedAt} IS NULL`,
-              ),
-            )
-            .returning();
-          return rowsClaimed.length > 0;
-        });
+        const rowsClaimed = await db
+          .update(referralRedemptionsTable)
+          .set({ referrerRewardedAt: sql`now()` })
+          .where(
+            and(
+              eq(referralRedemptionsTable.id, redemption.id),
+              sql`${referralRedemptionsTable.referrerRewardedAt} IS NULL`,
+            ),
+          )
+          .returning();
+        claimedReferrerReward = rowsClaimed.length > 0;
       } catch (err) {
-        console.error("[referral] referrer cap check failed for %s:", redemption.referrerUserId, err);
+        console.error("[referral] referrer reward claim failed for %s:", redemption.referrerUserId, err);
       }
 
-      if (claimedReferrerSlot) {
+      if (claimedReferrerReward) {
         try {
           await grantPromoDays(redemption.referrerUserId, REWARD_DAYS);
           referrerRewarded = true;
         } catch (err) {
-          // Release the cap slot so a later activation can retry the grant.
+          // Release the claim so a later activation can retry the grant.
           console.error("[referral] referrer grant failed for %s:", redemption.referrerUserId, err);
           await db
             .update(referralRedemptionsTable)

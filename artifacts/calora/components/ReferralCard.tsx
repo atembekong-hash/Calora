@@ -3,7 +3,7 @@
  *
  * Signed-in users see their invite code, share action, and reward stats.
  * Users who haven't redeemed a code yet can enter one here; rewards unlock
- * after their first approved food log (handled by ReferralActivator).
+ * after their first saved meal (handled by ReferralActivator).
  * Signed-out users see a short explainer instead.
  */
 import React, { useEffect, useMemo, useState } from 'react';
@@ -49,7 +49,7 @@ export function ReferralCard({ fontScale }: Props) {
           <Text style={[styles.title, { color: colors.foreground }]}>Invite friends</Text>
         </View>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          Sign in to get your invite code. Every friend who joins earns you both 7 days of Pro.
+          Invite a friend. When they join and log their first meal, you both get 30 days of Calora Pro.
         </Text>
       </View>
     );
@@ -96,7 +96,7 @@ export function ReferralCard({ fontScale }: Props) {
         <Text style={[styles.title, { color: colors.foreground }]}>Invite friends</Text>
       </View>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-        Each friend who joins and logs their first meal earns you both {data?.rewardDays ?? 7} days of Pro.
+          Invite a friend. When they join and log their first meal, you both get {data?.rewardDays ?? 30} days of Calora Pro.
       </Text>
 
       {referralQuery.isLoading ? (
@@ -128,12 +128,6 @@ export function ReferralCard({ fontScale }: Props) {
             <View style={styles.stat}>
               <Text style={[styles.statValue, { color: colors.foreground }]}>{data.stats.rewardedCount}</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Rewarded</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>
-                {data.stats.monthRewardedCount}/{data.stats.monthCap}
-              </Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>This month</Text>
             </View>
           </View>
 

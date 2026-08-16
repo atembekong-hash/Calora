@@ -169,8 +169,8 @@ async function runStartupMigrations(): Promise<void> {
   // AI capture session that produced it.  Written by POST /v1/sync when the
   // client provides a captureSessionId that the server can verify.  NULL for
   // rows synced without a session reference or written via POST /v1/diary.
-  // Used by hasSyncedDiaryEntry Path 2 to gate referral qualification on
-  // image/barcode provenance.
+  // Retained for capture provenance; referral qualification is based on any
+  // valid authenticated saved meal.
   await pool.query(`
     ALTER TABLE calora_diary_entries
       ADD COLUMN IF NOT EXISTS capture_session_id UUID

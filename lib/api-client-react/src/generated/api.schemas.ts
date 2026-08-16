@@ -846,8 +846,6 @@ export interface CoachResponse {
 export type ReferralSummaryStats = {
   pendingCount: number;
   rewardedCount: number;
-  monthRewardedCount: number;
-  monthCap: number;
 };
 
 export type ReferralSummaryRedemptionStatus = typeof ReferralSummaryRedemptionStatus[keyof typeof ReferralSummaryRedemptionStatus];

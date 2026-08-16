@@ -1160,9 +1160,9 @@ export const getApproveCaptureUrl = (sessionId: string,) => {
 }
 
 /**
- * Consumes the authenticated user's short-lived, server-issued capture
- * proof. Only confirmed photo or barcode captures can qualify a referral
- * reward; text/manual and demo diary entries cannot.
+ * Confirms an authenticated user's short-lived, server-issued image or
+ * barcode capture proof after review. This capture action is independent
+ * of referral qualification.
  * @summary Confirm a reviewed image or barcode capture
  */
 export const approveCapture = async (sessionId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
@@ -1602,8 +1602,8 @@ export const getRedeemReferralUrl = () => {
 
 /**
  * Records a pending referral redemption for the authenticated user.
- * Rewards unlock for both parties once the new user logs their first
- * approved food entry. One redemption per account; self-referrals are
+ * Rewards unlock for both parties once the new user saves their first
+ * meal. One redemption per account; self-referrals are
  * rejected.
  * @summary Redeem an invite code on a new account
  */
@@ -1677,11 +1677,12 @@ export const getSyncFirstDiaryEntryUrl = () => {
 
 /**
  * The diary is local-first; this endpoint durably records the user's
- * first approved food log server-side. It is the server-observable
- * signal that referral activation requires before granting rewards.
+ * capture-backed food log server-side. It is retained for capture
+ * persistence compatibility; referral qualification instead accepts any
+ * valid authenticated meal save.
  * Idempotent — once any diary entry exists for the user, repeat calls
  * return the existing state without writing again.
- * @summary Persist the user's first approved food log on the server
+ * @summary Persist the user's first capture-backed food log on the server
  */
 export const syncFirstDiaryEntry = async (diaryFirstLogInput: DiaryFirstLogInput, options?: Parameters<typeof customFetch>[1]): Promise<DiaryFirstLogResult> => {
 
@@ -1730,7 +1731,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SyncFirstDiaryEntryMutationError = ErrorType<void>
 
     /**
- * @summary Persist the user's first approved food log on the server
+ * @summary Persist the user's first capture-backed food log on the server
  */
 export const useSyncFirstDiaryEntry = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncFirstDiaryEntry>>, TError,{data: BodyType<DiaryFirstLogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1752,11 +1753,11 @@ export const getActivateReferralUrl = () => {
 }
 
 /**
- * Called once the referred user records their first approved food log.
- * Grants seven days of Pro to both parties (the referrer's grant is
- * subject to a monthly cap). Idempotent — repeat calls return the
+ * Called once the referred user records their first saved meal through an
+ * authenticated Calora diary persistence route. Grants 30 days of Pro to
+ * both parties with no referral cap. Idempotent — repeat calls return the
  * current state without granting again.
- * @summary Unlock referral rewards after the first approved food log
+ * @summary Unlock referral rewards after the first saved meal
  */
 export const activateReferral = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReferralActivateResult> => {
 
@@ -1805,7 +1806,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ActivateReferralMutationError = ErrorType<void>
 
     /**
- * @summary Unlock referral rewards after the first approved food log
+ * @summary Unlock referral rewards after the first saved meal
  */
 export const useActivateReferral = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof activateReferral>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}

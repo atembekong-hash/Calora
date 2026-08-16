@@ -332,9 +332,9 @@ paths:
       tags: [capture]
       summary: Confirm a reviewed image or barcode capture
       description: |
-        Consumes the authenticated user's short-lived, server-issued capture
-        proof. Only confirmed photo or barcode captures can qualify a referral
-        reward; text/manual and demo diary entries cannot.
+        Confirms an authenticated user's short-lived, server-issued image or
+        barcode capture proof after review. This capture action is independent
+        of referral qualification.
       security: [{ bearerAuth: [] }]
       parameters:
         - name: sessionId
@@ -448,8 +448,8 @@ paths:
       summary: Redeem an invite code on a new account
       description: |
         Records a pending referral redemption for the authenticated user.
-        Rewards unlock for both parties once the new user logs their first
-        approved food entry. One redemption per account; self-referrals are
+        Rewards unlock for both parties once the new user saves their first
+        meal. One redemption per account; self-referrals are
         rejected.
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -477,11 +477,12 @@ paths:
     post:
       operationId: syncFirstDiaryEntry
       tags: [diary]
-      summary: Persist the user's first approved food log on the server
+      summary: Persist the user's first capture-backed food log on the server
       description: |
         The diary is local-first; this endpoint durably records the user's
-        first approved food log server-side. It is the server-observable
-        signal that referral activation requires before granting rewards.
+        capture-backed food log server-side. It is retained for capture
+        persistence compatibility; referral qualification instead accepts any
+        valid authenticated meal save.
         Idempotent — once any diary entry exists for the user, repeat calls
         return the existing state without writing again.
       security: [{ bearerAuth: [] }]
@@ -506,11 +507,11 @@ paths:
     post:
       operationId: activateReferral
       tags: [referral]
-      summary: Unlock referral rewards after the first approved food log
+      summary: Unlock referral rewards after the first saved meal
       description: |
-        Called once the referred user records their first approved food log.
-        Grants seven days of Pro to both parties (the referrer's grant is
-        subject to a monthly cap). Idempotent — repeat calls return the
+        Called once the referred user records their first saved meal through an
+        authenticated Calora diary persistence route. Grants 30 days of Pro to
+        both parties with no referral cap. Idempotent — repeat calls return the
         current state without granting again.
       security: [{ bearerAuth: [] }]
       responses:
@@ -1076,12 +1077,10 @@ components:
         rewardDays: { type: integer }
         stats:
           type: object
-          required: [pendingCount, rewardedCount, monthRewardedCount, monthCap]
+          required: [pendingCount, rewardedCount]
           properties:
             pendingCount: { type: integer }
             rewardedCount: { type: integer }
-            monthRewardedCount: { type: integer }
-            monthCap: { type: integer }
         redemption:
           type: object
           description: The caller's own redemption of someone else's code, if any.

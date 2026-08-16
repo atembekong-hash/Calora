@@ -2,13 +2,12 @@
  * Regression tests for the referral activation qualification gate.
  *
  * POST /v1/referral/activate must never grant rewards on the client's word
- * alone: a redemption needs a server-observed food-log signal (a stamped
- * qualified_at from a capture analysis, or a synced diary entry) before any
+ * alone: a redemption needs a server-observed saved-meal signal before any
  * RevenueCat grant happens.
  *
  * Strategy:
  * - Mock @workspace/db with a thenable chain that serves queued results
- * - Mock supabase auth, RevenueCat grants, and the diary-sync lookup
+ * - Mock supabase auth, RevenueCat grants, and the saved-meal lookup
  * - Use supertest against a minimal Express app mounting the router
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -75,9 +74,9 @@ vi.mock('../lib/revenuecat.js', () => ({
   grantPromoDays: (...args: unknown[]) => grantPromoDays(...args),
 }));
 
-const hasSyncedDiaryEntry = vi.fn();
+const hasSavedDiaryEntry = vi.fn();
 vi.mock('../lib/referral-qualification.js', () => ({
-  hasSyncedDiaryEntry: (...args: unknown[]) => hasSyncedDiaryEntry(...args),
+  hasSavedDiaryEntry: (...args: unknown[]) => hasSavedDiaryEntry(...args),
 }));
 
 import express from 'express';
@@ -113,11 +112,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   verifyBearerToken.mockResolvedValue(USER);
   grantPromoDays.mockResolvedValue(undefined);
-  hasSyncedDiaryEntry.mockResolvedValue(false);
+  hasSavedDiaryEntry.mockResolvedValue(false);
 });
 
 describe('POST /v1/referral/activate — qualification gate', () => {
-  it('refuses to grant when there is no server-observed signal', async () => {
+  it('refuses to grant when there is no server-observed saved meal', async () => {
     queueResult([redemptionRow()]); // redemption lookup
 
     const res = await request(buildApp()).post('/v1/referral/activate');
@@ -127,13 +126,12 @@ describe('POST /v1/referral/activate — qualification gate', () => {
     expect(res.body.referredRewarded).toBe(false);
     expect(res.body.referrerRewarded).toBe(false);
     expect(grantPromoDays).not.toHaveBeenCalled();
-    expect(hasSyncedDiaryEntry).toHaveBeenCalledWith(USER.id);
+    expect(hasSavedDiaryEntry).toHaveBeenCalledWith(USER.id);
   });
 
-  it('grants both sides when the redemption was already qualified by a synced diary entry', async () => {
-    queueResult([redemptionRow({ qualifiedAt: new Date(), qualifiedSignal: 'diary_sync' })]);
+  it('grants both sides when the redemption was already qualified by a saved meal', async () => {
+    queueResult([redemptionRow({ qualifiedAt: new Date(), qualifiedSignal: 'saved_meal' })]);
     queueResult([{ id: 'redemption-1' }]); // referred claim UPDATE ... RETURNING wins
-    queueResult([{ value: 0 }]);           // referrer month count inside transaction
     queueResult([{ id: 'redemption-1' }]); // referrer claim UPDATE ... RETURNING wins
 
     const res = await request(buildApp()).post('/v1/referral/activate');
@@ -142,25 +140,24 @@ describe('POST /v1/referral/activate — qualification gate', () => {
     expect(res.body.status).toBe('rewarded');
     expect(res.body.referredRewarded).toBe(true);
     expect(res.body.referrerRewarded).toBe(true);
-    expect(grantPromoDays).toHaveBeenCalledWith(USER.id, 7);
-    expect(grantPromoDays).toHaveBeenCalledWith('referrer-user-1', 7);
+    expect(grantPromoDays).toHaveBeenCalledWith(USER.id, 30);
+    expect(grantPromoDays).toHaveBeenCalledWith('referrer-user-1', 30);
     // Already qualified — no diary lookup needed.
-    expect(hasSyncedDiaryEntry).not.toHaveBeenCalled();
+    expect(hasSavedDiaryEntry).not.toHaveBeenCalled();
   });
 
-  it('qualifies via a synced diary entry when no capture stamp exists', async () => {
-    hasSyncedDiaryEntry.mockResolvedValue(true);
+  it('qualifies via any saved diary entry when no qualification stamp exists', async () => {
+    hasSavedDiaryEntry.mockResolvedValue(true);
     queueResult([redemptionRow()]);        // redemption lookup (unqualified)
     queueResult([{ id: 'redemption-1' }]); // qualification stamp UPDATE ... RETURNING wins
     queueResult([{ id: 'redemption-1' }]); // referred claim wins
-    queueResult([{ value: 0 }]);           // referrer month count
     queueResult([{ id: 'redemption-1' }]); // referrer claim wins
 
     const res = await request(buildApp()).post('/v1/referral/activate');
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('rewarded');
-    expect(grantPromoDays).toHaveBeenCalledWith(USER.id, 7);
+    expect(grantPromoDays).toHaveBeenCalledWith(USER.id, 30);
   });
 
   it('CONCURRENCY: a losing qualification stamp re-reads fresh state and never treats stale claims as settled', async () => {
@@ -169,14 +166,14 @@ describe('POST /v1/referral/activate — qualification gate', () => {
     // qualified_at. It must re-read the redemption and work from the fresh
     // row — here the winner also already claimed BOTH rewards, so the loser
     // must not call RevenueCat at all and still report accurate state.
-    hasSyncedDiaryEntry.mockResolvedValue(true);
+    hasSavedDiaryEntry.mockResolvedValue(true);
     queueResult([redemptionRow()]); // stale lookup: unqualified, unrewarded
     queueResult([]);                // qualification stamp UPDATE ... RETURNING loses
     queueResult([
       redemptionRow({
         status: 'rewarded',
         qualifiedAt: new Date(),
-        qualifiedSignal: 'diary_sync',
+         qualifiedSignal: 'saved_meal',
         referredRewardedAt: new Date(),
         referrerRewardedAt: new Date(),
       }),
@@ -192,7 +189,7 @@ describe('POST /v1/referral/activate — qualification gate', () => {
   });
 
   it('CONCURRENCY: never proceeds to rewards when qualification cannot be confirmed after a lost stamp', async () => {
-    hasSyncedDiaryEntry.mockResolvedValue(true);
+    hasSavedDiaryEntry.mockResolvedValue(true);
     queueResult([redemptionRow()]); // stale lookup: unqualified
     queueResult([]);                // stamp loses
     queueResult([redemptionRow()]); // fresh read (anomalously) still unqualified

@@ -24,7 +24,6 @@ import { sql } from "drizzle-orm";
 import { db, aiCaptureSessionsTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
-import { QUALIFYING_CAPTURE_MODES } from "../lib/referral-qualification.js";
 
 const router: IRouter = Router();
 
@@ -60,8 +59,8 @@ type DiaryUpsertPayload = {
    * Optional: a server-recorded capture session UUID that the client can
    * supply to prove image/barcode provenance.  The server verifies the
    * session belongs to the authenticated user and has mode != 'text' before
-   * writing it to the diary row and counting it toward referral qualification.
-   * NULL means the sync entry carries no verified provenance signal.
+   * writing it to the diary row. NULL means the sync entry carries no verified
+   * capture provenance signal.
    */
   captureSessionId: string | null;
   entryDate: string;
@@ -299,10 +298,8 @@ router.post("/v1/sync", async (req, res) => {
           //   1. The session exists and belongs to the authenticated user.
           //   2. The session mode is not 'text' (image/barcode only).
           // On failure the session claim is silently dropped — the diary row
-          // is still written without a capture_session_id so the client's
-          // food log is not lost.  The farming gate in hasSyncedDiaryEntry
-          // will not count the entry toward referral qualification because
-          // capture_session_id will be NULL.
+           // is still written without a capture_session_id so the client's
+           // food log is not lost.
           let verifiedCaptureSessionId: string | null = null;
           if (v.captureSessionId !== null) {
             const sessions = await db
@@ -316,7 +313,7 @@ router.post("/v1/sync", async (req, res) => {
                 ),
               )
               .limit(1);
-            if (sessions.length > 0 && (QUALIFYING_CAPTURE_MODES as readonly string[]).includes(sessions[0].mode)) {
+            if (sessions.length > 0 && sessions[0].mode !== "text") {
               verifiedCaptureSessionId = sessions[0].id;
             }
             // If the session is not found, doesn't belong to the user, or is

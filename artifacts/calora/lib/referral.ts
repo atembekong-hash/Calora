@@ -3,13 +3,31 @@
  *
  * A code arriving via the caloraapp://invite/<code> deep link (or the
  * mycaloraapp.com/invite/<code> universal link) is stored locally until the
- * user signs in and redeems it. Activation ("first approved food log") is
+ * user signs in and redeems it. Activation ("first saved meal") is
  * tracked per user so the activate endpoint is only retried until it settles.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PENDING_CODE_KEY = 'calora-pending-invite-code';
 const ACTIVATED_KEY_PREFIX = 'calora-referral-activated:';
+
+type ActivationResult = {
+  status: 'none' | 'pending' | 'rewarded';
+  referredRewarded: boolean;
+  referrerRewarded: boolean;
+};
+
+/**
+ * A partial provider failure must remain retryable. `rewarded` only settles on
+ * device once both sides' grants are confirmed; `none` is also terminal.
+ */
+export function isReferralActivationComplete(result: ActivationResult): boolean {
+  return result.status === 'none' || (
+    result.status === 'rewarded' &&
+    result.referredRewarded &&
+    result.referrerRewarded
+  );
+}
 
 export async function setPendingInviteCode(code: string): Promise<void> {
   const normalized = code.trim().toUpperCase();

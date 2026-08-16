@@ -34,6 +34,7 @@ import {
   clearPendingInviteCode,
   clearReferralActivationSettled,
   getPendingInviteCode,
+  isReferralActivationComplete,
   isReferralActivationSettled,
   markReferralActivationSettled,
   setPendingInviteCode,
@@ -153,5 +154,33 @@ describe('referral activation settled state', () => {
     await markReferralActivationSettled('user-reset');
     await clearReferralActivationSettled('user-reset');
     expect(await isReferralActivationSettled('user-reset')).toBe(false);
+  });
+});
+
+describe('isReferralActivationComplete', () => {
+  it('settles when there is no redemption or both rewards are confirmed', () => {
+    expect(isReferralActivationComplete({
+      status: 'none',
+      referredRewarded: false,
+      referrerRewarded: false,
+    })).toBe(true);
+    expect(isReferralActivationComplete({
+      status: 'rewarded',
+      referredRewarded: true,
+      referrerRewarded: true,
+    })).toBe(true);
+  });
+
+  it('keeps a referrer-only provider failure retryable after the referred reward succeeds', () => {
+    expect(isReferralActivationComplete({
+      status: 'rewarded',
+      referredRewarded: true,
+      referrerRewarded: false,
+    })).toBe(false);
+    expect(isReferralActivationComplete({
+      status: 'pending',
+      referredRewarded: false,
+      referrerRewarded: false,
+    })).toBe(false);
   });
 });

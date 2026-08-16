@@ -2,13 +2,12 @@
  * Referral reward integrity under rapid retries — real database.
  *
  * Task focus: the activate endpoint's claim-first idempotency (atomic
- * UPDATE ... WHERE *_rewarded_at IS NULL) and the FOR UPDATE per-referrer
- * monthly cap must hold under concurrency and provider failures:
+ * UPDATE ... WHERE *_rewarded_at IS NULL) must hold under concurrency and
+ * provider failures:
  *   • double activate concurrency → exactly one RevenueCat grant per side
  *   • provider grant failure → claim released (rollback) → later retry grants
  *   • redeem guardrails: self-referral 400, duplicate redemption 409
- *   • monthly cap boundary: 4th reward granted, 5th withheld (referred side
- *     still rewarded)
+ *   • multiple completed referrals for one referrer each receive their reward
  *
  * Runs against DATABASE_URL (same schema as startup migrations); skipped
  * when no database is configured.
@@ -209,7 +208,7 @@ describe.skipIf(!HAS_DB)('referral rewards under rapid retries (real schema)', (
     expect(row.referred_rewarded_at).not.toBeNull();
   });
 
-  it('releases the referrer cap slot when only the referrer grant fails, then a retry grants once', async () => {
+  it('releases the referrer claim when only the referrer grant fails, then a retry grants once', async () => {
     const referred = `ct-ref-rollback-${run}`;
     await seedQualifiedRedemption(referred);
     actAs(referred);
@@ -226,7 +225,7 @@ describe.skipIf(!HAS_DB)('referral rewards under rapid retries (real schema)', (
 
     let row = await redemptionRow(referred);
     expect(row.referred_rewarded_at).not.toBeNull();
-    expect(row.referrer_rewarded_at).toBeNull(); // cap slot released
+    expect(row.referrer_rewarded_at).toBeNull(); // claim released
 
     grantPromoDays.mockClear();
     grantPromoDays.mockResolvedValue(new Date());
@@ -241,56 +240,47 @@ describe.skipIf(!HAS_DB)('referral rewards under rapid retries (real schema)', (
     expect(row.referrer_rewarded_at).not.toBeNull();
   });
 
-  // ── Monthly cap boundary ──────────────────────────────────────────────
-  it('grants the 4th referrer reward of the month but withholds the 5th (referred side still rewarded)', async () => {
-    // Fresh referrer so earlier tests' rewards don't pollute the count.
-    const capReferrer = `ct-cap-referrer-${run}`;
-    const capCode = `CTCAP${run.toUpperCase()}`;
+  // ── No referral cap ───────────────────────────────────────────────────
+  it('grants every completed referral for the same referrer without a monthly cap', async () => {
+    const uncappedReferrer = `ct-uncapped-referrer-${run}`;
+    const uncappedCode = `CTUNCAP${run.toUpperCase()}`;
     await pool.query(
       `INSERT INTO calora_referral_codes (user_id, code) VALUES ($1, $2)`,
-      [capReferrer, capCode],
+      [uncappedReferrer, uncappedCode],
     );
 
-    // Seed 3 already-rewarded redemptions this month.
+    // Existing rewards this month must not block subsequent valid referrals.
     for (let i = 0; i < 3; i++) {
-      const prior = `ct-cap-prior-${i}-${run}`;
+      const prior = `ct-uncapped-prior-${i}-${run}`;
       referredIds.push(prior);
       await pool.query(
         `INSERT INTO calora_referral_redemptions
            (code, referrer_user_id, referred_user_id, status, qualified_at, qualified_signal,
             referred_rewarded_at, referrer_rewarded_at)
          VALUES ($1, $2, $3, 'rewarded', now(), 'diary_sync', now(), now())`,
-        [capCode, capReferrer, prior],
+        [uncappedCode, uncappedReferrer, prior],
       );
     }
 
-    // 4th activation: exactly at the cap boundary — still granted.
-    const fourth = `ct-cap-4th-${run}`;
-    await seedQualifiedRedemption(fourth, capReferrer, capCode);
-    actAs(fourth);
-    const res4 = await request(app).post('/v1/referral/activate').send({});
-    expect(res4.status).toBe(200);
-    expect(res4.body.referredRewarded).toBe(true);
-    expect(res4.body.referrerRewarded).toBe(true);
-    expect(grantPromoDays.mock.calls.filter((c) => c[0] === capReferrer)).toHaveLength(1);
+    const laterReferrals = [`ct-uncapped-4-${run}`, `ct-uncapped-5-${run}`];
+    for (const referred of laterReferrals) {
+      await seedQualifiedRedemption(referred, uncappedReferrer, uncappedCode);
+      actAs(referred);
+      const result = await request(app).post('/v1/referral/activate').send({});
+      expect(result.status).toBe(200);
+      expect(result.body.referredRewarded).toBe(true);
+      expect(result.body.referrerRewarded).toBe(true);
+    }
 
-    // 5th activation: over the cap — referrer withheld, referred still rewarded.
-    grantPromoDays.mockClear();
-    const fifth = `ct-cap-5th-${run}`;
-    await seedQualifiedRedemption(fifth, capReferrer, capCode);
-    actAs(fifth);
-    const res5 = await request(app).post('/v1/referral/activate').send({});
-    expect(res5.status).toBe(200);
-    expect(res5.body.referredRewarded).toBe(true);
-    expect(res5.body.referrerRewarded).toBe(false);
-    expect(grantPromoDays.mock.calls.filter((c) => c[0] === capReferrer)).toHaveLength(0);
-    expect(grantPromoDays.mock.calls.filter((c) => c[0] === fifth)).toHaveLength(1);
+    expect(grantPromoDays.mock.calls.filter((c) => c[0] === uncappedReferrer)).toHaveLength(2);
+    for (const referred of laterReferrals) {
+      expect(grantPromoDays).toHaveBeenCalledWith(referred, 30);
+      const row = await redemptionRow(referred);
+      expect(row.referred_rewarded_at).not.toBeNull();
+      expect(row.referrer_rewarded_at).not.toBeNull();
+    }
 
-    const row = await redemptionRow(fifth);
-    expect(row.referred_rewarded_at).not.toBeNull();
-    expect(row.referrer_rewarded_at).toBeNull();
-
-    await pool.query(`DELETE FROM calora_referral_redemptions WHERE referrer_user_id = $1`, [capReferrer]);
-    await pool.query(`DELETE FROM calora_referral_codes WHERE user_id = $1`, [capReferrer]);
+    await pool.query(`DELETE FROM calora_referral_redemptions WHERE referrer_user_id = $1`, [uncappedReferrer]);
+    await pool.query(`DELETE FROM calora_referral_codes WHERE user_id = $1`, [uncappedReferrer]);
   });
 });
