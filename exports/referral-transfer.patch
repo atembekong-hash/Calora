@@ -1,0 +1,2251 @@
+From cafaa4d2e32be675fc2369c4ffc4dcb444a9d35d Mon Sep 17 00:00:00 2001
+From: Replit Agent <agent@replit.com>
+Date: Sun, 16 Aug 2026 01:25:43 +0000
+Subject: [PATCH] Refactor referral logic tests and update reward documentation
+
+Replit-Commit-Author: Agent
+---
+ .agents/memory/referral-rewards.md            |   9 +-
+ .../referral-concurrency.integration.test.ts  |  74 +-
+ ...referral-qualification.integration.test.ts | 655 ++----------------
+ .../api-server/src/__tests__/referral.test.ts |  39 +-
+ artifacts/api-server/src/index.ts             |   4 +-
+ .../src/lib/referral-qualification.ts         | 164 +----
+ artifacts/api-server/src/routes/diary.ts      |  16 +-
+ artifacts/api-server/src/routes/referral.ts   | 104 +--
+ artifacts/api-server/src/routes/sync.ts       |  13 +-
+ artifacts/calora/app/(tabs)/scan.tsx          |   8 +-
+ .../calora/components/ReferralActivator.tsx   |  48 +-
+ artifacts/calora/components/ReferralCard.tsx  |  12 +-
+ .../lib/__tests__/referralPersistence.test.ts |  29 +
+ .../__tests__/referralQualification.test.ts   | 105 ---
+ artifacts/calora/lib/referral.ts              |  20 +-
+ artifacts/calora/lib/referralQualification.ts |  21 -
+ ...lora-production-readiness-certification.md |   4 +-
+ docs/calora-referral-system-certification.md  |  14 +-
+ .../src/generated/api.schemas.ts              |   2 -
+ lib/api-client-react/src/generated/api.ts     |  29 +-
+ lib/api-spec/openapi.yaml                     |  29 +-
+ lib/api-zod/src/generated/api.ts              |  29 +-
+ .../generated/types/referralSummaryStats.ts   |   2 -
+ lib/db/src/schema/index.ts                    |   9 +-
+ 24 files changed, 306 insertions(+), 1133 deletions(-)
+ delete mode 100644 artifacts/calora/lib/__tests__/referralQualification.test.ts
+ delete mode 100644 artifacts/calora/lib/referralQualification.ts
+
+diff --git a/.agents/memory/referral-rewards.md b/.agents/memory/referral-rewards.md
+index be627e0..a4e96d1 100644
+--- a/.agents/memory/referral-rewards.md
++++ b/.agents/memory/referral-rewards.md
+@@ -5,16 +5,15 @@ description: Rules for the invite/referral Pro-reward system and its RevenueCat
+ 
+ # Referral rewards
+ 
+-Rule: referral rewards ("1 referral = 1 week of Pro each") must be server-authoritative, idempotent per side, and always EXTEND entitlement end dates.
++Rule: each completed referral grants 30 days of Pro to both people. Rewards are server-authoritative, idempotent per side, uncapped, and always EXTEND entitlement end dates.
+ 
+-**Why:** Promo grants via RevenueCat v1 promotional entitlements replace end dates unless the server computes `max(now, current expiry) + days`. Double-grants and cap overruns were the main review findings.
++**Why:** Promo grants via RevenueCat v1 promotional entitlements replace end dates unless the server computes `max(now, current expiry) + days`. Double-grants and provider retries remain the main integrity risks.
+ 
+ **How to apply:**
+ - Grants go through the API server only (RevenueCat Replit connection proxy, `/v1/subscribers/.../promotional` with `end_time_ms`). Never grant client-side.
+ - Claim-first idempotency: atomically set the per-side `*_rewarded_at` timestamp (`WHERE ... IS NULL`) before calling the provider; release the claim on provider failure.
+-- Referrer monthly cap (4) is counted under a `SELECT ... FOR UPDATE` lock on the referrer's `calora_referral_codes` row.
+ - RevenueCat app_user_id = Supabase user id; client calls `Purchases.logIn(user.id)` and customer-info queries wait until identity sync settles.
+-- Activation is server-gated on a durable diary record with server-verified provenance: the first-log sync must cite a server-issued capture session (persisted at analyze time for authenticated callers) that belongs to the user, is unused, recent, and nutritionally consistent with the submitted entry. A fabricated payload alone can never create the qualifying record; manual logs and anonymous captures cannot qualify. Unqualified activations return status "pending" and the client retries next session.
++- Activation is server-gated on a durable, valid diary record owned by the authenticated account. Any supported authenticated meal-save path qualifies; local-only logs and an activation request alone do not. Unqualified activations return status "pending" and the client retries next session.
+ - Public API keys are env-selected per platform; only the key for the current runtime is required (test key in dev/web preview).
+ 
+-**Qualification anchor:** referral qualification must key off the claimed capture session (`reviewed_at`, stamped only by the verified first-log flow), never off the mere existence of a diary row — plain diary POSTs are client-fabricatable and would let scripts farm rewards.
++**Qualification anchor:** referral qualification keys off the presence of a valid, server-persisted diary entry for the verified account. Capture provenance is nutrition metadata, not a referral requirement.
+diff --git a/artifacts/api-server/src/__tests__/referral-concurrency.integration.test.ts b/artifacts/api-server/src/__tests__/referral-concurrency.integration.test.ts
+index f1f5fe0..b5dae86 100644
+--- a/artifacts/api-server/src/__tests__/referral-concurrency.integration.test.ts
++++ b/artifacts/api-server/src/__tests__/referral-concurrency.integration.test.ts
+@@ -2,13 +2,12 @@
+  * Referral reward integrity under rapid retries — real database.
+  *
+  * Task focus: the activate endpoint's claim-first idempotency (atomic
+- * UPDATE ... WHERE *_rewarded_at IS NULL) and the FOR UPDATE per-referrer
+- * monthly cap must hold under concurrency and provider failures:
++ * UPDATE ... WHERE *_rewarded_at IS NULL) must hold under concurrency and
++ * provider failures:
+  *   • double activate concurrency → exactly one RevenueCat grant per side
+  *   • provider grant failure → claim released (rollback) → later retry grants
+  *   • redeem guardrails: self-referral 400, duplicate redemption 409
+- *   • monthly cap boundary: 4th reward granted, 5th withheld (referred side
+- *     still rewarded)
++ *   • multiple completed referrals for one referrer each receive their reward
+  *
+  * Runs against DATABASE_URL (same schema as startup migrations); skipped
+  * when no database is configured.
+@@ -209,7 +208,7 @@ describe.skipIf(!HAS_DB)('referral rewards under rapid retries (real schema)', (
+     expect(row.referred_rewarded_at).not.toBeNull();
+   });
+ 
+-  it('releases the referrer cap slot when only the referrer grant fails, then a retry grants once', async () => {
++  it('releases the referrer claim when only the referrer grant fails, then a retry grants once', async () => {
+     const referred = `ct-ref-rollback-${run}`;
+     await seedQualifiedRedemption(referred);
+     actAs(referred);
+@@ -226,7 +225,7 @@ describe.skipIf(!HAS_DB)('referral rewards under rapid retries (real schema)', (
+ 
+     let row = await redemptionRow(referred);
+     expect(row.referred_rewarded_at).not.toBeNull();
+-    expect(row.referrer_rewarded_at).toBeNull(); // cap slot released
++    expect(row.referrer_rewarded_at).toBeNull(); // claim released
+ 
+     grantPromoDays.mockClear();
+     grantPromoDays.mockResolvedValue(new Date());
+@@ -241,56 +240,47 @@ describe.skipIf(!HAS_DB)('referral rewards under rapid retries (real schema)', (
+     expect(row.referrer_rewarded_at).not.toBeNull();
+   });
+ 
+-  // ── Monthly cap boundary ──────────────────────────────────────────────
+-  it('grants the 4th referrer reward of the month but withholds the 5th (referred side still rewarded)', async () => {
+-    // Fresh referrer so earlier tests' rewards don't pollute the count.
+-    const capReferrer = `ct-cap-referrer-${run}`;
+-    const capCode = `CTCAP${run.toUpperCase()}`;
++  // ── No referral cap ───────────────────────────────────────────────────
++  it('grants every completed referral for the same referrer without a monthly cap', async () => {
++    const uncappedReferrer = `ct-uncapped-referrer-${run}`;
++    const uncappedCode = `CTUNCAP${run.toUpperCase()}`;
+     await pool.query(
+       `INSERT INTO calora_referral_codes (user_id, code) VALUES ($1, $2)`,
+-      [capReferrer, capCode],
++      [uncappedReferrer, uncappedCode],
+     );
+ 
+-    // Seed 3 already-rewarded redemptions this month.
++    // Existing rewards this month must not block subsequent valid referrals.
+     for (let i = 0; i < 3; i++) {
+-      const prior = `ct-cap-prior-${i}-${run}`;
++      const prior = `ct-uncapped-prior-${i}-${run}`;
+       referredIds.push(prior);
+       await pool.query(
+         `INSERT INTO calora_referral_redemptions
+            (code, referrer_user_id, referred_user_id, status, qualified_at, qualified_signal,
+             referred_rewarded_at, referrer_rewarded_at)
+          VALUES ($1, $2, $3, 'rewarded', now(), 'diary_sync', now(), now())`,
+-        [capCode, capReferrer, prior],
++        [uncappedCode, uncappedReferrer, prior],
+       );
+     }
+ 
+-    // 4th activation: exactly at the cap boundary — still granted.
+-    const fourth = `ct-cap-4th-${run}`;
+-    await seedQualifiedRedemption(fourth, capReferrer, capCode);
+-    actAs(fourth);
+-    const res4 = await request(app).post('/v1/referral/activate').send({});
+-    expect(res4.status).toBe(200);
+-    expect(res4.body.referredRewarded).toBe(true);
+-    expect(res4.body.referrerRewarded).toBe(true);
+-    expect(grantPromoDays.mock.calls.filter((c) => c[0] === capReferrer)).toHaveLength(1);
+-
+-    // 5th activation: over the cap — referrer withheld, referred still rewarded.
+-    grantPromoDays.mockClear();
+-    const fifth = `ct-cap-5th-${run}`;
+-    await seedQualifiedRedemption(fifth, capReferrer, capCode);
+-    actAs(fifth);
+-    const res5 = await request(app).post('/v1/referral/activate').send({});
+-    expect(res5.status).toBe(200);
+-    expect(res5.body.referredRewarded).toBe(true);
+-    expect(res5.body.referrerRewarded).toBe(false);
+-    expect(grantPromoDays.mock.calls.filter((c) => c[0] === capReferrer)).toHaveLength(0);
+-    expect(grantPromoDays.mock.calls.filter((c) => c[0] === fifth)).toHaveLength(1);
+-
+-    const row = await redemptionRow(fifth);
+-    expect(row.referred_rewarded_at).not.toBeNull();
+-    expect(row.referrer_rewarded_at).toBeNull();
++    const laterReferrals = [`ct-uncapped-4-${run}`, `ct-uncapped-5-${run}`];
++    for (const referred of laterReferrals) {
++      await seedQualifiedRedemption(referred, uncappedReferrer, uncappedCode);
++      actAs(referred);
++      const result = await request(app).post('/v1/referral/activate').send({});
++      expect(result.status).toBe(200);
++      expect(result.body.referredRewarded).toBe(true);
++      expect(result.body.referrerRewarded).toBe(true);
++    }
++
++    expect(grantPromoDays.mock.calls.filter((c) => c[0] === uncappedReferrer)).toHaveLength(2);
++    for (const referred of laterReferrals) {
++      expect(grantPromoDays).toHaveBeenCalledWith(referred, 30);
++      const row = await redemptionRow(referred);
++      expect(row.referred_rewarded_at).not.toBeNull();
++      expect(row.referrer_rewarded_at).not.toBeNull();
++    }
+ 
+-    await pool.query(`DELETE FROM calora_referral_redemptions WHERE referrer_user_id = $1`, [capReferrer]);
+-    await pool.query(`DELETE FROM calora_referral_codes WHERE user_id = $1`, [capReferrer]);
++    await pool.query(`DELETE FROM calora_referral_redemptions WHERE referrer_user_id = $1`, [uncappedReferrer]);
++    await pool.query(`DELETE FROM calora_referral_codes WHERE user_id = $1`, [uncappedReferrer]);
+   });
+ });
+diff --git a/artifacts/api-server/src/__tests__/referral-qualification.integration.test.ts b/artifacts/api-server/src/__tests__/referral-qualification.integration.test.ts
+index 966c339..76fca58 100644
+--- a/artifacts/api-server/src/__tests__/referral-qualification.integration.test.ts
++++ b/artifacts/api-server/src/__tests__/referral-qualification.integration.test.ts
+@@ -1,14 +1,9 @@
+ /**
+- * End-to-end referral qualification against the REAL database schema.
++ * Referral qualification against the real database schema.
+  *
+- * Exercises the full server-verified chain with actual SQL (no db-chain
+- * mocks):
+- *   • capture session + candidates → first-log sync → referral activation
+- *   • outbox sync (POST /v1/sync with client_id) → referral activation
+- *   • adversarial cases: fabricated first-log, plain diary POST (no client_id)
+- *
+- * Runs against DATABASE_URL (the same schema the startup migrations
+- * create); skipped when no database is configured.
++ * A referral becomes eligible only after the authenticated referred account
++ * successfully saves a valid diary meal. Capture mode, client id, and the
++ * retired SYNC_QUALIFICATION_REQUIRE_SESSION setting do not change that rule.
+  */
+ import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
+ import request from 'supertest';
+@@ -16,67 +11,57 @@ import { randomUUID } from 'node:crypto';
+ 
+ const HAS_DB = Boolean(process.env.DATABASE_URL);
+ 
+-// Auth mock: each test decides which Supabase user the bearer token maps to.
+ const verifyBearerToken = vi.fn();
+ vi.mock('../lib/supabase-auth.js', () => ({
+   verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args),
+ }));
+ 
+-// RevenueCat mock: counts grant attempts — the adversarial assertion.
+ const grantPromoDays = vi.fn();
+ vi.mock('../lib/revenuecat.js', () => ({
+   grantPromoDays: (...args: unknown[]) => grantPromoDays(...args),
+ }));
+ 
+-describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () => {
++describe.skipIf(!HAS_DB)('referral qualification (real schema)', () => {
+   let app: import('express').Express;
+   let pool: typeof import('@workspace/db')['pool'];
+-  let db: typeof import('@workspace/db')['db'];
+-  let schema: typeof import('@workspace/db');
+ 
+-  // Unique per-run identities so reruns never collide.
+   const run = randomUUID().slice(0, 8);
+   const referrerId = `it-referrer-${run}`;
+-  const referredId = `it-referred-${run}`;
+-  const referredEmail = `it-${run}@example.com`;
+   const code = `ITCODE${run.toUpperCase()}`;
++  const referredIds: string[] = [];
+ 
+-  // Separate identity used exclusively by the sync-path tests so those tests
+-  // don't affect the redemption row read by the capture-session happy-path test.
+-  const syncReferredId = `it-sync-referred-${run}`;
+-  const syncReferredEmail = `it-sync-${run}@example.com`;
+-  const syncCode = `ITSYNC${run.toUpperCase()}`;
+-
+-  // Separate identity used exclusively by text-mode exclusion tests (Path 1).
+-  const textReferredId = `it-text-referred-${run}`;
+-  const textReferredEmail = `it-text-${run}@example.com`;
+-  const textCode = `ITTEXT${run.toUpperCase()}`;
++  function actAs(id: string) {
++    verifyBearerToken.mockResolvedValue({ id, email: `${id}@example.com` });
++  }
+ 
+-  // Identity for ADVERSARIAL Path 2: sync entry referencing a text-mode session.
+-  // The server must drop the session anchor and the entry must not qualify.
+-  const syncTextReferredId = `it-stext-referred-${run}`;
+-  const syncTextReferredEmail = `it-stext-${run}@example.com`;
+-  const syncTextCode = `ITSTEXT${run.toUpperCase()}`;
++  function validMeal(overrides: Record<string, unknown> = {}) {
++    return {
++      entryDate: '2026-08-11',
++      meal: 'Lunch',
++      name: 'Grilled chicken bowl',
++      serving: '1 bowl',
++      calories: 520,
++      proteinG: 42,
++      carbsG: 45,
++      fatG: 18,
++      provenance: 'Manual',
++      confidence: 85,
++      clientUpdatedAt: '2026-08-11T12:30:00.000Z',
++      ...overrides,
++    };
++  }
+ 
+-  // Identity for ADVERSARIAL Path 2: sync entry without any captureSessionId.
+-  // Under the default REQUIRE_SESSION_FOR_SYNC=true policy this must not qualify.
+-  const syncNoSessReferredId = `it-snos-referred-${run}`;
+-  const syncNoSessReferredEmail = `it-snos-${run}@example.com`;
+-  const syncNoSessCode = `ITSNOS${run.toUpperCase()}`;
++  async function seedPendingRedemption(referred: string) {
++    referredIds.push(referred);
++    await pool.query(
++      `INSERT INTO calora_referral_redemptions (code, referrer_user_id, referred_user_id)
++       VALUES ($1, $2, $3)`,
++      [code, referrerId, referred],
++    );
++  }
+ 
+   beforeAll(async () => {
+-    schema = await import('@workspace/db');
+-    db = schema.db;
+-    pool = schema.pool;
+-
+-    // Apply any schema columns that may not exist on a pre-migration DB.
+-    // Safe no-ops when the column already exists.
+-    await pool.query(`
+-      ALTER TABLE calora_diary_entries
+-        ADD COLUMN IF NOT EXISTS capture_session_id UUID
+-          REFERENCES calora_ai_capture_sessions(id) ON DELETE SET NULL
+-    `);
+-
++    pool = (await import('@workspace/db')).pool;
+     const express = (await import('express')).default;
+     const diaryRouter = (await import('../routes/diary.js')).default;
+     const referralRouter = (await import('../routes/referral.js')).default;
+@@ -87,583 +72,89 @@ describe.skipIf(!HAS_DB)('referral qualification end-to-end (real schema)', () =
+     app.use(referralRouter);
+     app.use(syncRouter);
+ 
+-    // Seed a referral code + pending redemption for the referred user
+-    // (capture-session path tests).
+     await pool.query(
+       `INSERT INTO calora_referral_codes (user_id, code) VALUES ($1, $2)
+        ON CONFLICT (user_id) DO UPDATE SET code = EXCLUDED.code`,
+       [referrerId, code],
+     );
+-    await pool.query(
+-      `INSERT INTO calora_referral_redemptions (code, referrer_user_id, referred_user_id)
+-       VALUES ($1, $2, $3)`,
+-      [code, referrerId, referredId],
+-    );
+-
+-    // Seed a second referral code + pending redemption for the sync-path user
+-    // so sync-path tests have their own isolated redemption row.
+-    await pool.query(
+-      `INSERT INTO calora_referral_codes (user_id, code) VALUES ($1, $2)
+-       ON CONFLICT (user_id) DO UPDATE SET code = EXCLUDED.code`,
+-      [referrerId, syncCode],
+-    );
+-    await pool.query(
+-      `INSERT INTO calora_referral_redemptions (code, referrer_user_id, referred_user_id)
+-       VALUES ($1, $2, $3)`,
+-      [syncCode, referrerId, syncReferredId],
+-    );
+-
+-    // Seed a third referral code + pending redemption for the text-mode
+-    // exclusion tests so they have their own isolated redemption row.
+-    await pool.query(
+-      `INSERT INTO calora_referral_codes (user_id, code) VALUES ($1, $2)
+-       ON CONFLICT (user_id) DO UPDATE SET code = EXCLUDED.code`,
+-      [referrerId, textCode],
+-    );
+-    await pool.query(
+-      `INSERT INTO calora_referral_redemptions (code, referrer_user_id, referred_user_id)
+-       VALUES ($1, $2, $3)`,
+-      [textCode, referrerId, textReferredId],
+-    );
+-
+-    // Seed a referral code + pending redemption for the Path 2 text-mode
+-    // adversarial sync tests (captureSessionId referencing a text session).
+-    await pool.query(
+-      `INSERT INTO calora_referral_codes (user_id, code) VALUES ($1, $2)
+-       ON CONFLICT (user_id) DO UPDATE SET code = EXCLUDED.code`,
+-      [referrerId, syncTextCode],
+-    );
+-    await pool.query(
+-      `INSERT INTO calora_referral_redemptions (code, referrer_user_id, referred_user_id)
+-       VALUES ($1, $2, $3)`,
+-      [syncTextCode, referrerId, syncTextReferredId],
+-    );
+-
+-    // Seed a referral code + pending redemption for the Path 2 no-session
+-    // adversarial sync tests (sync without captureSessionId).
+-    await pool.query(
+-      `INSERT INTO calora_referral_codes (user_id, code) VALUES ($1, $2)
+-       ON CONFLICT (user_id) DO UPDATE SET code = EXCLUDED.code`,
+-      [referrerId, syncNoSessCode],
+-    );
+-    await pool.query(
+-      `INSERT INTO calora_referral_redemptions (code, referrer_user_id, referred_user_id)
+-       VALUES ($1, $2, $3)`,
+-      [syncNoSessCode, referrerId, syncNoSessReferredId],
+-    );
+   });
+ 
+   afterAll(async () => {
+-    const allReferredIds = [referredId, syncReferredId, textReferredId, syncTextReferredId, syncNoSessReferredId];
+-    await pool.query(
+-      `DELETE FROM calora_referral_redemptions WHERE referred_user_id = ANY($1::text[])`,
+-      [allReferredIds],
+-    );
+-    await pool.query(`DELETE FROM calora_referral_codes WHERE user_id = $1`, [referrerId]);
+     await pool.query(
+-      `DELETE FROM calora_ai_capture_sessions WHERE user_id IN
+-         (SELECT id FROM calora_users WHERE external_id = ANY($1::text[]))`,
+-      [allReferredIds],
++      `DELETE FROM calora_referral_redemptions WHERE referred_user_id = ANY($1::text[]) OR referrer_user_id = $2`,
++      [referredIds, referrerId],
+     );
+     await pool.query(
+       `DELETE FROM calora_diary_entries WHERE user_id IN
+-         (SELECT id FROM calora_users WHERE external_id = ANY($1::text[]))`,
+-      [allReferredIds],
+-    );
+-    await pool.query(
+-      `DELETE FROM calora_users WHERE external_id = ANY($1::text[])`,
+-      [allReferredIds],
++       (SELECT id FROM calora_users WHERE external_id = ANY($1::text[]))`,
++      [referredIds],
+     );
++    await pool.query(`DELETE FROM calora_users WHERE external_id = ANY($1::text[])`, [referredIds]);
++    await pool.query(`DELETE FROM calora_referral_codes WHERE user_id = $1`, [referrerId]);
+   });
+ 
+   beforeEach(() => {
+     vi.clearAllMocks();
+-    verifyBearerToken.mockResolvedValue({ id: referredId, email: referredEmail });
+     grantPromoDays.mockResolvedValue(new Date());
+   });
+ 
+-  const entry = (overrides: Record<string, unknown> = {}) => ({
+-    captureSessionId: randomUUID(),
+-    entryDate: '2026-08-11',
+-    meal: 'Lunch',
+-    name: 'Grilled chicken bowl',
+-    serving: '1 bowl',
+-    calories: 520,
+-    proteinG: 42,
+-    carbsG: 45,
+-    fatG: 18,
+-    provenance: 'Photo estimate',
+-    confidence: 85,
+-    clientUpdatedAt: '2026-08-11T12:30:00.000Z',
+-    ...overrides,
+-  });
+-
+-  it('ADVERSARIAL: fabricated first-log + activation never reaches RevenueCat', async () => {
+-    const fabricated = await request(app).post('/v1/diary/first-log').send(entry());
+-    expect(fabricated.status).toBe(422);
++  it('stays pending until the referred account has a saved meal', async () => {
++    const referred = `it-empty-${run}`;
++    await seedPendingRedemption(referred);
++    actAs(referred);
+ 
+     const activation = await request(app).post('/v1/referral/activate').send({});
+-    expect(activation.status).toBe(200);
+-    expect(activation.body.status).toBe('pending');
+-    expect(activation.body.referredRewarded).toBe(false);
+-    expect(grantPromoDays).not.toHaveBeenCalled();
+-
+-    const rows = await pool.query(
+-      `SELECT d.id FROM calora_diary_entries d
+-       JOIN calora_users u ON u.id = d.user_id
+-       WHERE u.external_id = $1`,
+-      [referredId],
+-    );
+-    expect(rows.rowCount).toBe(0);
+-  });
+ 
+-  it('ADVERSARIAL: a fabricated plain diary POST persists an entry but never qualifies the referral', async () => {
+-    // /v1/diary accepts a valid ordinary payload from any authenticated user
+-    // and MUST persist it — but qualification is anchored to a claimed
+-    // capture session, so the persisted row must not unlock rewards.
+-    const { captureSessionId: _omit, ...plainEntry } = entry();
+-    const fabricated = await request(app).post('/v1/diary').send(plainEntry);
+-    expect(fabricated.status).toBe(201);
+-    expect(fabricated.body.name).toBe('Grilled chicken bowl');
+-
+-    const persisted = await pool.query(
+-      `SELECT d.id FROM calora_diary_entries d
+-       JOIN calora_users u ON u.id = d.user_id
+-       WHERE u.external_id = $1`,
+-      [referredId],
+-    );
+-    expect(persisted.rowCount).toBe(1);
+-
+-    const activation = await request(app).post('/v1/referral/activate').send({});
+     expect(activation.status).toBe(200);
+     expect(activation.body.status).toBe('pending');
+-    expect(activation.body.referredRewarded).toBe(false);
+-    expect(grantPromoDays).not.toHaveBeenCalled();
+-
+-    // Clean up any persisted entry so it can't affect later assertions.
+-    await pool.query(
+-      `DELETE FROM calora_diary_entries WHERE user_id IN
+-         (SELECT id FROM calora_users WHERE external_id = $1)`,
+-      [referredId],
+-    );
+-  });
+-
+-  // ── Sync-path tests (POST /v1/sync) ────────────────────────────────────────
+-  // These tests use syncReferredId / syncCode so they have their own isolated
+-  // redemption row and cannot affect the capture-session happy-path below.
+-
+-  it('ADVERSARIAL (sync path): a plain POST /v1/diary without client_id does not qualify the sync redemption', async () => {
+-    // Override the mock so activation reads syncReferredId's redemption row.
+-    verifyBearerToken.mockResolvedValue({ id: syncReferredId, email: syncReferredEmail });
+-
+-    // POST /v1/diary writes a diary entry with no client_id — this must NOT
+-    // count as a synced entry and must NOT unlock the referral reward.
+-    const { captureSessionId: _omit, ...plainEntry } = entry();
+-    const posted = await request(app).post('/v1/diary').send(plainEntry);
+-    expect(posted.status).toBe(201);
+-    expect(posted.body.name).toBe('Grilled chicken bowl');
+-
+-    // Confirm the entry was persisted (client_id column is NULL).
+-    const persisted = await pool.query(
+-      `SELECT d.client_id FROM calora_diary_entries d
+-       JOIN calora_users u ON u.id = d.user_id
+-       WHERE u.external_id = $1`,
+-      [syncReferredId],
+-    );
+-    expect(persisted.rowCount).toBe(1);
+-    expect(persisted.rows[0].client_id).toBeNull();
+-
+-    // Activation must stay pending — a NULL-client_id row is not a sync signal.
+-    const activation = await request(app).post('/v1/referral/activate').send({});
+-    expect(activation.status).toBe(200);
+-    expect(activation.body.status).toBe('pending');
+-    expect(activation.body.referredRewarded).toBe(false);
+-    expect(grantPromoDays).not.toHaveBeenCalled();
+-
+-    // Clean up so the happy-path sync test starts from a known state.
+-    await pool.query(
+-      `DELETE FROM calora_diary_entries WHERE user_id IN
+-         (SELECT id FROM calora_users WHERE external_id = $1)`,
+-      [syncReferredId],
+-    );
+-  });
+-
+-  it('a diary entry synced via POST /v1/sync with an image-mode captureSessionId qualifies the referral end-to-end', async () => {
+-    // Override the mock so all requests act as the sync-path user.
+-    verifyBearerToken.mockResolvedValue({ id: syncReferredId, email: syncReferredEmail });
+-
+-    // Create an image-mode capture session for the sync user.  The sync handler
+-    // will verify this session belongs to the user and has mode != 'text' before
+-    // writing capture_session_id to the diary row.
+-    const { ensureUserRow } = await import('../lib/user-rows.js');
+-    const syncUserId = await ensureUserRow(syncReferredId, syncReferredEmail);
+-    const imageSessionId = randomUUID();
+-    await db.insert(schema.aiCaptureSessionsTable).values({
+-      id: imageSessionId,
+-      userId: syncUserId,
+-      mode: 'food',
+-      status: 'review',
+-    });
+-
+-    const clientId = randomUUID();
+-    const mutationId = randomUUID();
+-
+-    // POST /v1/sync with a diaryEntry upsert including captureSessionId.
+-    // The server verifies the session and writes capture_session_id to the row.
+-    const synced = await request(app).post('/v1/sync').send({
+-      deviceId: randomUUID(),
+-      mutations: [
+-        {
+-          mutationId,
+-          entity: 'diaryEntry',
+-          operation: 'upsert',
+-          clientUpdatedAt: '2026-08-11T14:00:00.000Z',
+-          payload: {
+-            clientId,
+-            captureSessionId: imageSessionId,
+-            entryDate: '2026-08-11',
+-            meal: 'Dinner',
+-            name: 'Salmon with rice',
+-            serving: '1 plate',
+-            calories: 680,
+-            proteinG: 54,
+-            carbsG: 60,
+-            fatG: 22,
+-            provenance: 'Photo estimate',
+-            confidence: 80,
+-            notes: null,
+-          },
+-        },
+-      ],
+-    });
+-    expect(synced.status).toBe(200);
+-    expect(synced.body.accepted).toContain(mutationId);
+-    expect(synced.body.conflicts).toHaveLength(0);
+-
+-    // Confirm the diary row has both client_id and capture_session_id populated.
+-    const rows = await pool.query(
+-      `SELECT d.client_id, d.capture_session_id FROM calora_diary_entries d
+-       JOIN calora_users u ON u.id = d.user_id
+-       WHERE u.external_id = $1`,
+-      [syncReferredId],
+-    );
+-    expect(rows.rowCount).toBe(1);
+-    expect(rows.rows[0].client_id).toBe(clientId);
+-    expect(rows.rows[0].capture_session_id).toBe(imageSessionId);
+-
+-    // Activation must now grant the reward via RevenueCat.
+-    const activation = await request(app).post('/v1/referral/activate').send({});
+-    expect(activation.status).toBe(200);
+-    expect(activation.body.status).toBe('rewarded');
+-    expect(activation.body.referredRewarded).toBe(true);
+-    expect(grantPromoDays).toHaveBeenCalled();
+-
+-    // Re-activating is idempotent — no second RevenueCat call.
+-    vi.clearAllMocks();
+-    verifyBearerToken.mockResolvedValue({ id: syncReferredId, email: syncReferredEmail });
+-    grantPromoDays.mockResolvedValue(new Date());
+-    const reactivation = await request(app).post('/v1/referral/activate').send({});
+-    expect(reactivation.status).toBe(200);
+-    expect(reactivation.body.status).toBe('rewarded');
+     expect(grantPromoDays).not.toHaveBeenCalled();
+   });
+ 
+-  // ── Path 2 session-anchor adversarial tests ────────────────────────────────
+-  // Text-mode or absent captureSessionId must not qualify Path 2.
+-
+-  it('ADVERSARIAL (Path 2 text-mode session): sync entry referencing a text-mode session does not qualify', async () => {
+-    // Use the isolated syncTextReferredId identity.
+-    verifyBearerToken.mockResolvedValue({ id: syncTextReferredId, email: syncTextReferredEmail });
+-
+-    const { ensureUserRow } = await import('../lib/user-rows.js');
+-    const userId = await ensureUserRow(syncTextReferredId, syncTextReferredEmail);
+-
+-    // Create a text-mode capture session for this user.
+-    const textSessionId = randomUUID();
+-    await db.insert(schema.aiCaptureSessionsTable).values({
+-      id: textSessionId,
+-      userId,
+-      mode: 'text',
+-      status: 'review',
+-    });
+-
+-    const clientId = randomUUID();
+-    const mutationId = randomUUID();
+-
+-    // POST /v1/sync with captureSessionId pointing to a text-mode session.
+-    // The server must silently drop the anchor (capture_session_id stays NULL)
+-    // and the entry must not qualify for a referral reward.
+-    const synced = await request(app).post('/v1/sync').send({
+-      deviceId: randomUUID(),
+-      mutations: [
+-        {
+-          mutationId,
+-          entity: 'diaryEntry',
+-          operation: 'upsert',
+-          clientUpdatedAt: '2026-08-11T15:00:00.000Z',
+-          payload: {
+-            clientId,
+-            captureSessionId: textSessionId,
+-            entryDate: '2026-08-11',
+-            meal: 'Lunch',
+-            name: 'Typed food entry',
+-            serving: '1 bowl',
+-            calories: 400,
+-            proteinG: 30,
+-            carbsG: 40,
+-            fatG: 10,
+-            provenance: 'Manual',
+-            confidence: 60,
+-            notes: null,
+-          },
+-        },
+-      ],
+-    });
+-    expect(synced.status).toBe(200);
+-    expect(synced.body.accepted).toContain(mutationId);
++  it('qualifies a normal authenticated manual diary save and grants 30 days to both people', async () => {
++    const referred = `it-manual-${run}`;
++    await seedPendingRedemption(referred);
++    actAs(referred);
+ 
+-    // The diary row must exist (food log is preserved) but capture_session_id
+-    // must be NULL because the server rejected the text-mode session anchor.
+-    const rows = await pool.query(
+-      `SELECT d.client_id, d.capture_session_id FROM calora_diary_entries d
+-       JOIN calora_users u ON u.id = d.user_id
+-       WHERE u.external_id = $1`,
+-      [syncTextReferredId],
+-    );
+-    expect(rows.rowCount).toBe(1);
+-    expect(rows.rows[0].client_id).toBe(clientId);
+-    expect(rows.rows[0].capture_session_id).toBeNull();
++    const saved = await request(app).post('/v1/diary').send(validMeal());
++    expect(saved.status).toBe(201);
+ 
+-    // Activation must stay pending — text-mode session anchor was rejected.
+     const activation = await request(app).post('/v1/referral/activate').send({});
+     expect(activation.status).toBe(200);
+-    expect(activation.body.status).toBe('pending');
+-    expect(activation.body.referredRewarded).toBe(false);
+-    expect(grantPromoDays).not.toHaveBeenCalled();
+-  });
+-
+-  it('ADVERSARIAL (Path 2 unapproved non-text mode): sync entry referencing a receipt-mode session does not qualify', async () => {
+-    // Use the syncTextReferredId identity (already has a text session but no
+-    // rewarded redemption).  Create a receipt-mode session for the same user
+-    // and confirm that an unapproved non-text mode is also rejected.
+-    verifyBearerToken.mockResolvedValue({ id: syncTextReferredId, email: syncTextReferredEmail });
+-
+-    const { ensureUserRow } = await import('../lib/user-rows.js');
+-    const userId = await ensureUserRow(syncTextReferredId, syncTextReferredEmail);
++    expect(activation.body).toMatchObject({ status: 'rewarded', referredRewarded: true, referrerRewarded: true });
++    expect(grantPromoDays).toHaveBeenCalledWith(referred, 30);
++    expect(grantPromoDays).toHaveBeenCalledWith(referrerId, 30);
+ 
+-    const receiptSessionId = randomUUID();
+-    await db.insert(schema.aiCaptureSessionsTable).values({
+-      id: receiptSessionId,
+-      userId,
+-      mode: 'receipt', // image-based but not in the qualifying-mode allowlist
+-      status: 'review',
+-    });
+-
+-    const clientId = randomUUID();
+-    const mutationId = randomUUID();
+-
+-    const synced = await request(app).post('/v1/sync').send({
+-      deviceId: randomUUID(),
+-      mutations: [
+-        {
+-          mutationId,
+-          entity: 'diaryEntry',
+-          operation: 'upsert',
+-          clientUpdatedAt: '2026-08-11T16:00:00.000Z',
+-          payload: {
+-            clientId,
+-            captureSessionId: receiptSessionId,
+-            entryDate: '2026-08-11',
+-            meal: 'Dinner',
+-            name: 'Receipt-scanned meal',
+-            serving: '1 portion',
+-            calories: 500,
+-            proteinG: 30,
+-            carbsG: 50,
+-            fatG: 15,
+-            provenance: 'Manual',
+-            confidence: 70,
+-            notes: null,
+-          },
+-        },
+-      ],
+-    });
+-    expect(synced.status).toBe(200);
+-    expect(synced.body.accepted).toContain(mutationId);
+-
+-    // capture_session_id must be NULL — receipt mode is not in the allowlist.
+-    const rows = await pool.query(
+-      `SELECT d.capture_session_id FROM calora_diary_entries d
+-       JOIN calora_users u ON u.id = d.user_id
+-       WHERE u.external_id = $1 AND d.client_id = $2`,
+-      [syncTextReferredId, clientId],
+-    );
+-    expect(rows.rowCount).toBe(1);
+-    expect(rows.rows[0].capture_session_id).toBeNull();
+-
+-    // Activation must remain pending.
+-    const activation = await request(app).post('/v1/referral/activate').send({});
+-    expect(activation.status).toBe(200);
+-    expect(activation.body.status).toBe('pending');
+-    expect(activation.body.referredRewarded).toBe(false);
++    grantPromoDays.mockClear();
++    const repeat = await request(app).post('/v1/referral/activate').send({});
++    expect(repeat.body.status).toBe('rewarded');
+     expect(grantPromoDays).not.toHaveBeenCalled();
+   });
+ 
+-  it('ADVERSARIAL (Path 2 no session): sync entry without captureSessionId does not qualify under default policy', async () => {
+-    // Use the isolated syncNoSessReferredId identity.
+-    verifyBearerToken.mockResolvedValue({ id: syncNoSessReferredId, email: syncNoSessReferredEmail });
++  it('qualifies a synced meal without a capture session even when the retired flag is set', async () => {
++    const referred = `it-sync-${run}`;
++    await seedPendingRedemption(referred);
++    actAs(referred);
++    process.env.SYNC_QUALIFICATION_REQUIRE_SESSION = 'true';
+ 
+-    const clientId = randomUUID();
+     const mutationId = randomUUID();
+-
+-    // POST /v1/sync without a captureSessionId — capture_session_id stays NULL.
+-    // Under the default REQUIRE_SESSION_FOR_SYNC=true policy this must not
+-    // qualify for a referral reward even though client_id is present.
+     const synced = await request(app).post('/v1/sync').send({
+       deviceId: randomUUID(),
+-      mutations: [
+-        {
+-          mutationId,
+-          entity: 'diaryEntry',
+-          operation: 'upsert',
+-          clientUpdatedAt: '2026-08-11T15:30:00.000Z',
+-          payload: {
+-            clientId,
+-            entryDate: '2026-08-11',
+-            meal: 'Snack',
+-            name: 'Apple',
+-            serving: '1 medium',
+-            calories: 95,
+-            proteinG: 0,
+-            carbsG: 25,
+-            fatG: 0,
+-            provenance: 'Manual',
+-            confidence: 90,
+-            notes: null,
+-          },
+-        },
+-      ],
++      mutations: [{
++        mutationId,
++        entity: 'diaryEntry',
++        operation: 'upsert',
++        clientUpdatedAt: '2026-08-11T14:00:00.000Z',
++        payload: { clientId: randomUUID(), ...validMeal() },
++      }],
+     });
+     expect(synced.status).toBe(200);
+     expect(synced.body.accepted).toContain(mutationId);
+ 
+-    // Confirm the row has a client_id but no capture_session_id.
+-    const rows = await pool.query(
+-      `SELECT d.client_id, d.capture_session_id FROM calora_diary_entries d
+-       JOIN calora_users u ON u.id = d.user_id
+-       WHERE u.external_id = $1`,
+-      [syncNoSessReferredId],
+-    );
+-    expect(rows.rowCount).toBe(1);
+-    expect(rows.rows[0].client_id).toBe(clientId);
+-    expect(rows.rows[0].capture_session_id).toBeNull();
+-
+-    // Activation must stay pending — no capture session anchor means no reward.
+-    const activation = await request(app).post('/v1/referral/activate').send({});
+-    expect(activation.status).toBe(200);
+-    expect(activation.body.status).toBe('pending');
+-    expect(activation.body.referredRewarded).toBe(false);
+-    expect(grantPromoDays).not.toHaveBeenCalled();
+-  });
+-
+-  // ── Text-mode exclusion tests ───────────────────────────────────────────────
+-  // Text-only captures (mode = 'text') must not qualify a referral reward.
+-
+-  it('ADVERSARIAL (text-mode): first-log rejects a text-mode capture session with 422', async () => {
+-    // Use textReferredId so this test has its own isolated identity.
+-    verifyBearerToken.mockResolvedValue({ id: textReferredId, email: textReferredEmail });
+-
+-    const { ensureUserRow } = await import('../lib/user-rows.js');
+-    const userId = await ensureUserRow(textReferredId, textReferredEmail);
+-
+-    // Create a text-mode capture session directly (simulating what
+-    // capture/analyze would persist for a text-only input).
+-    const textSessionId = randomUUID();
+-    await db.insert(schema.aiCaptureSessionsTable).values({
+-      id: textSessionId,
+-      userId,
+-      mode: 'text',
+-      status: 'review',
+-    });
+-    await db.insert(schema.aiCaptureCandidatesTable).values({
+-      sessionId: textSessionId,
+-      name: 'Chicken salad',
+-      calories: '400',
+-      proteinG: '30',
+-      carbsG: '20',
+-      fatG: '15',
+-      confidence: 70,
+-      evidence: {},
+-    });
+-
+-    // first-log must reject the text-mode session.
+-    const firstLog = await request(app).post('/v1/diary/first-log').send(
+-      entry({ captureSessionId: textSessionId, calories: 400 }),
+-    );
+-    expect(firstLog.status).toBe(422);
+-    expect(firstLog.body.message).toMatch(/text/i);
+-
+-    // Activation must remain pending — the text-mode session cannot qualify.
+-    const activation = await request(app).post('/v1/referral/activate').send({});
+-    expect(activation.status).toBe(200);
+-    expect(activation.body.status).toBe('pending');
+-    expect(activation.body.referredRewarded).toBe(false);
+-    expect(grantPromoDays).not.toHaveBeenCalled();
+-  });
+-
+-  it('ADVERSARIAL (text-mode): a text-mode session with reviewedAt stamped does not qualify via hasSyncedDiaryEntry', async () => {
+-    // Use textReferredId — the text-mode session from the previous test still
+-    // exists without reviewedAt (first-log was rejected). We stamp it directly
+-    // to simulate legacy data and confirm hasSyncedDiaryEntry ignores it.
+-    verifyBearerToken.mockResolvedValue({ id: textReferredId, email: textReferredEmail });
+-
+-    // Stamp reviewedAt directly, bypassing the first-log route restriction.
+-    await pool.query(
+-      `UPDATE calora_ai_capture_sessions
+-       SET reviewed_at = now()
+-       WHERE user_id IN (SELECT id FROM calora_users WHERE external_id = $1)
+-         AND mode = 'text'`,
+-      [textReferredId],
+-    );
+-
+-    // Even with reviewedAt stamped, a text-mode session must not qualify.
+-    const activation = await request(app).post('/v1/referral/activate').send({});
+-    expect(activation.status).toBe(200);
+-    expect(activation.body.status).toBe('pending');
+-    expect(activation.body.referredRewarded).toBe(false);
+-    expect(grantPromoDays).not.toHaveBeenCalled();
+-  });
+-
+-  // ── Capture-session happy-path ──────────────────────────────────────────────
+-
+-  it('a real server-recorded capture session qualifies the referral end-to-end', async () => {
+-    // Simulate what routes/capture.ts persists for an authenticated analysis.
+-    const { ensureUserRow } = await import('../lib/user-rows.js');
+-    const userId = await ensureUserRow(referredId, referredEmail);
+-    const sessionId = randomUUID();
+-    await db.insert(schema.aiCaptureSessionsTable).values({ id: sessionId, userId, mode: 'food', status: 'review' });
+-    await db.insert(schema.aiCaptureCandidatesTable).values({
+-      sessionId,
+-      name: 'Grilled chicken bowl',
+-      calories: '540',
+-      proteinG: '40',
+-      carbsG: '48',
+-      fatG: '17',
+-      confidence: 85,
+-      evidence: {},
+-    });
+-
+-    const synced = await request(app).post('/v1/diary/first-log').send(entry({ captureSessionId: sessionId }));
+-    expect(synced.status).toBe(200);
+-    expect(synced.body).toEqual({ synced: true, alreadyExisted: false });
+-
+-    // Session is single-use now.
+-    const reuse = await request(app).post('/v1/diary/first-log').send(entry({ captureSessionId: sessionId }));
+-    expect(reuse.body).toEqual({ synced: true, alreadyExisted: true });
+-
+     const activation = await request(app).post('/v1/referral/activate').send({});
+     expect(activation.status).toBe(200);
+-    expect(activation.body.referredRewarded).toBe(true);
+-    expect(grantPromoDays).toHaveBeenCalled();
++    expect(activation.body).toMatchObject({ status: 'rewarded', referredRewarded: true, referrerRewarded: true });
++    expect(grantPromoDays).toHaveBeenCalledWith(referred, 30);
++    expect(grantPromoDays).toHaveBeenCalledWith(referrerId, 30);
++    delete process.env.SYNC_QUALIFICATION_REQUIRE_SESSION;
+   });
+-});
++});
+\ No newline at end of file
+diff --git a/artifacts/api-server/src/__tests__/referral.test.ts b/artifacts/api-server/src/__tests__/referral.test.ts
+index f8cb0bb..4c333f0 100644
+--- a/artifacts/api-server/src/__tests__/referral.test.ts
++++ b/artifacts/api-server/src/__tests__/referral.test.ts
+@@ -2,13 +2,12 @@
+  * Regression tests for the referral activation qualification gate.
+  *
+  * POST /v1/referral/activate must never grant rewards on the client's word
+- * alone: a redemption needs a server-observed food-log signal (a stamped
+- * qualified_at from a capture analysis, or a synced diary entry) before any
++ * alone: a redemption needs a server-observed saved-meal signal before any
+  * RevenueCat grant happens.
+  *
+  * Strategy:
+  * - Mock @workspace/db with a thenable chain that serves queued results
+- * - Mock supabase auth, RevenueCat grants, and the diary-sync lookup
++ * - Mock supabase auth, RevenueCat grants, and the saved-meal lookup
+  * - Use supertest against a minimal Express app mounting the router
+  */
+ import { describe, it, expect, vi, beforeEach } from 'vitest';
+@@ -75,9 +74,9 @@ vi.mock('../lib/revenuecat.js', () => ({
+   grantPromoDays: (...args: unknown[]) => grantPromoDays(...args),
+ }));
+ 
+-const hasSyncedDiaryEntry = vi.fn();
++const hasSavedDiaryEntry = vi.fn();
+ vi.mock('../lib/referral-qualification.js', () => ({
+-  hasSyncedDiaryEntry: (...args: unknown[]) => hasSyncedDiaryEntry(...args),
++  hasSavedDiaryEntry: (...args: unknown[]) => hasSavedDiaryEntry(...args),
+ }));
+ 
+ import express from 'express';
+@@ -113,11 +112,11 @@ beforeEach(() => {
+   vi.clearAllMocks();
+   verifyBearerToken.mockResolvedValue(USER);
+   grantPromoDays.mockResolvedValue(undefined);
+-  hasSyncedDiaryEntry.mockResolvedValue(false);
++  hasSavedDiaryEntry.mockResolvedValue(false);
+ });
+ 
+ describe('POST /v1/referral/activate — qualification gate', () => {
+-  it('refuses to grant when there is no server-observed signal', async () => {
++  it('refuses to grant when there is no server-observed saved meal', async () => {
+     queueResult([redemptionRow()]); // redemption lookup
+ 
+     const res = await request(buildApp()).post('/v1/referral/activate');
+@@ -127,13 +126,12 @@ describe('POST /v1/referral/activate — qualification gate', () => {
+     expect(res.body.referredRewarded).toBe(false);
+     expect(res.body.referrerRewarded).toBe(false);
+     expect(grantPromoDays).not.toHaveBeenCalled();
+-    expect(hasSyncedDiaryEntry).toHaveBeenCalledWith(USER.id);
++    expect(hasSavedDiaryEntry).toHaveBeenCalledWith(USER.id);
+   });
+ 
+-  it('grants both sides when the redemption was already qualified by a synced diary entry', async () => {
+-    queueResult([redemptionRow({ qualifiedAt: new Date(), qualifiedSignal: 'diary_sync' })]);
++  it('grants both sides when the redemption was already qualified by a saved meal', async () => {
++    queueResult([redemptionRow({ qualifiedAt: new Date(), qualifiedSignal: 'saved_meal' })]);
+     queueResult([{ id: 'redemption-1' }]); // referred claim UPDATE ... RETURNING wins
+-    queueResult([{ value: 0 }]);           // referrer month count inside transaction
+     queueResult([{ id: 'redemption-1' }]); // referrer claim UPDATE ... RETURNING wins
+ 
+     const res = await request(buildApp()).post('/v1/referral/activate');
+@@ -142,25 +140,24 @@ describe('POST /v1/referral/activate — qualification gate', () => {
+     expect(res.body.status).toBe('rewarded');
+     expect(res.body.referredRewarded).toBe(true);
+     expect(res.body.referrerRewarded).toBe(true);
+-    expect(grantPromoDays).toHaveBeenCalledWith(USER.id, 7);
+-    expect(grantPromoDays).toHaveBeenCalledWith('referrer-user-1', 7);
++    expect(grantPromoDays).toHaveBeenCalledWith(USER.id, 30);
++    expect(grantPromoDays).toHaveBeenCalledWith('referrer-user-1', 30);
+     // Already qualified — no diary lookup needed.
+-    expect(hasSyncedDiaryEntry).not.toHaveBeenCalled();
++    expect(hasSavedDiaryEntry).not.toHaveBeenCalled();
+   });
+ 
+-  it('qualifies via a synced diary entry when no capture stamp exists', async () => {
+-    hasSyncedDiaryEntry.mockResolvedValue(true);
++  it('qualifies via any saved diary entry when no qualification stamp exists', async () => {
++    hasSavedDiaryEntry.mockResolvedValue(true);
+     queueResult([redemptionRow()]);        // redemption lookup (unqualified)
+     queueResult([{ id: 'redemption-1' }]); // qualification stamp UPDATE ... RETURNING wins
+     queueResult([{ id: 'redemption-1' }]); // referred claim wins
+-    queueResult([{ value: 0 }]);           // referrer month count
+     queueResult([{ id: 'redemption-1' }]); // referrer claim wins
+ 
+     const res = await request(buildApp()).post('/v1/referral/activate');
+ 
+     expect(res.status).toBe(200);
+     expect(res.body.status).toBe('rewarded');
+-    expect(grantPromoDays).toHaveBeenCalledWith(USER.id, 7);
++    expect(grantPromoDays).toHaveBeenCalledWith(USER.id, 30);
+   });
+ 
+   it('CONCURRENCY: a losing qualification stamp re-reads fresh state and never treats stale claims as settled', async () => {
+@@ -169,14 +166,14 @@ describe('POST /v1/referral/activate — qualification gate', () => {
+     // qualified_at. It must re-read the redemption and work from the fresh
+     // row — here the winner also already claimed BOTH rewards, so the loser
+     // must not call RevenueCat at all and still report accurate state.
+-    hasSyncedDiaryEntry.mockResolvedValue(true);
++    hasSavedDiaryEntry.mockResolvedValue(true);
+     queueResult([redemptionRow()]); // stale lookup: unqualified, unrewarded
+     queueResult([]);                // qualification stamp UPDATE ... RETURNING loses
+     queueResult([
+       redemptionRow({
+         status: 'rewarded',
+         qualifiedAt: new Date(),
+-        qualifiedSignal: 'diary_sync',
++         qualifiedSignal: 'saved_meal',
+         referredRewardedAt: new Date(),
+         referrerRewardedAt: new Date(),
+       }),
+@@ -192,7 +189,7 @@ describe('POST /v1/referral/activate — qualification gate', () => {
+   });
+ 
+   it('CONCURRENCY: never proceeds to rewards when qualification cannot be confirmed after a lost stamp', async () => {
+-    hasSyncedDiaryEntry.mockResolvedValue(true);
++    hasSavedDiaryEntry.mockResolvedValue(true);
+     queueResult([redemptionRow()]); // stale lookup: unqualified
+     queueResult([]);                // stamp loses
+     queueResult([redemptionRow()]); // fresh read (anomalously) still unqualified
+diff --git a/artifacts/api-server/src/index.ts b/artifacts/api-server/src/index.ts
+index 8592673..1b63b87 100644
+--- a/artifacts/api-server/src/index.ts
++++ b/artifacts/api-server/src/index.ts
+@@ -169,8 +169,8 @@ async function runStartupMigrations(): Promise<void> {
+   // AI capture session that produced it.  Written by POST /v1/sync when the
+   // client provides a captureSessionId that the server can verify.  NULL for
+   // rows synced without a session reference or written via POST /v1/diary.
+-  // Used by hasSyncedDiaryEntry Path 2 to gate referral qualification on
+-  // image/barcode provenance.
++  // Retained for capture provenance; referral qualification is based on any
++  // valid authenticated saved meal.
+   await pool.query(`
+     ALTER TABLE calora_diary_entries
+       ADD COLUMN IF NOT EXISTS capture_session_id UUID
+diff --git a/artifacts/api-server/src/lib/referral-qualification.ts b/artifacts/api-server/src/lib/referral-qualification.ts
+index b344647..42c78e4 100644
+--- a/artifacts/api-server/src/lib/referral-qualification.ts
++++ b/artifacts/api-server/src/lib/referral-qualification.ts
+@@ -1,157 +1,23 @@
+ /**
+- * Referral qualification signals.
+- *
+- * ── Trust levels ─────────────────────────────────────────────────────────────
+- * Two paths can qualify a referral redemption.  They have different trust levels
+- * and the distinction must be kept explicit.
+- *
+- *   Path 1 — SERVER-VERIFIED (capture-analysis first-log):
+- *     1. POST /v1/capture/analyze  — server records the AI session
+- *     2. POST /v1/diary/first-log  — server atomically claims the session
+- *        (reviewed_at stamped inside a transaction after nutrition checks).
+- *   The server independently observed and analysed the user's food input before
+- *   writing any qualifying record.  A session that was analysed but never logged
+- *   via first-log does NOT qualify.
+- *
+- *   Path 2 — SESSION-VERIFIED (outbox sync with image/barcode provenance):
+- *     POST /v1/sync with at least one diaryEntry upsert mutation that carries a
+- *     server-verified non-text capture session anchor (capture_session_id IS NOT
+- *     NULL, mode != 'text').  The sync handler verifies the session belongs to
+- *     the authenticated user and is not text-mode before writing it; the query
+- *     below re-verifies via JOIN so forged rows without a real session anchor
+- *     never qualify.
+- *
+- *   When SYNC_QUALIFICATION_REQUIRE_SESSION=false (policy rollout gate) the
+- *   old behaviour is restored: any sync entry with a non-NULL client_id counts,
+- *   regardless of capture session mode.  This flag should be removed once the
+- *   new column is backfilled and the gate has been validated in production.
+- *
+- *   A bare POST /v1/diary (no client_id) never qualifies under either path.
+- *
+- * ── Anti-farming mitigations ─────────────────────────────────────────────────
+- *  a) Cap on referrer rewards — at most 4 confirmed referred rewards per
+- *     referrer per calendar month.  A farming ring abusing Path 2 can earn its
+- *     controller at most 4 × REWARD_DAYS days of Pro per month.
+- *
+- *  b) One redemption per referred account (unique index on referred_user_id).
+- *     Each fresh Supabase account must be registered with a valid email.
+- *
+- *  c) Text-mode capture exclusion (LIVE on both paths): ai_capture_sessions
+- *     with mode = 'text' are excluded from Path 1 qualification.  The
+- *     first-log route also rejects text-mode sessions at write time so
+- *     reviewed_at is never stamped on them.  Path 2 now also requires a
+- *     server-verified non-text session anchor: sync entries without a
+- *     capture_session_id or with a text-mode session do not qualify.
++ * Referral qualification is deliberately method-agnostic: a referred account
++ * qualifies after its first legitimate meal has been successfully persisted by
++ * an authenticated Calora diary save. Capture provenance is useful nutrition
++ * metadata, but it is not a separate referral rule.
++ *
++ * The check remains server-owned. It joins the diary record to the internal
++ * user mapped from the verified Supabase identity, so a client cannot qualify
++ * another account or qualify merely by posting an activation request.
+  */
++import { eq } from "drizzle-orm";
++import { db, diaryEntriesTable, usersTable } from "@workspace/db";
+ 
+-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+-import { db, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
+-
+-/**
+- * Capture session modes that prove the user submitted a real food image or
+- * barcode scan — the only inputs the server independently observes before
+- * analysis.
+- *
+- * - `food`            — AI analysis of a camera food photo.
+- * - `barcode`         — UPC scan; server looks up verified nutritional data.
+- * - `nutrition_label` — AI extraction from a product nutrition-facts label image.
+- *
+- * Text, voice, and receipt modes are explicitly excluded: they cannot carry
+- * the same image/barcode provenance guarantee that makes Path 1 and Path 2
+- * meaningful anti-farming signals.
+- */
+-export const QUALIFYING_CAPTURE_MODES = ["food", "barcode", "nutrition_label"] as const;
+-export type QualifyingCaptureMode = typeof QUALIFYING_CAPTURE_MODES[number];
+-
+-/**
+- * When true (the default), Path 2 only qualifies sync entries that carry a
+- * server-verified non-text capture session anchor.  Set
+- * SYNC_QUALIFICATION_REQUIRE_SESSION=false in the environment to restore the
+- * legacy behaviour (any client_id-bearing sync entry qualifies) while rolling
+- * out the new column to existing data.
+- */
+-const REQUIRE_SESSION_FOR_SYNC =
+-  process.env.SYNC_QUALIFICATION_REQUIRE_SESSION !== "false";
+-
+-/**
+- * Returns true when the authenticated user has at least one qualifying
+- * food-logging signal — either a server-verified capture session (Path 1) or
+- * an authenticated outbox sync entry anchored to a non-text capture session
+- * (Path 2, image/barcode provenance required).
+- *
+- * See the module comment above for the trust-level distinction between the two
+- * paths and the farming-risk context.
+- */
+-export async function hasSyncedDiaryEntry(supabaseUserId: string): Promise<boolean> {
+-  // Path 1: server-verified capture-analysis first-log.
+-  // reviewed_at is only ever stamped by the first-log route's atomic session
+-  // claim after server-side nutrition consistency checks pass.
+-  const captureSessions = await db
+-    .select({ id: aiCaptureSessionsTable.id })
+-    .from(aiCaptureSessionsTable)
+-    .innerJoin(usersTable, eq(aiCaptureSessionsTable.userId, usersTable.id))
+-    .where(
+-      and(
+-        eq(usersTable.externalId, supabaseUserId),
+-        isNotNull(aiCaptureSessionsTable.reviewedAt),
+-        // Only explicitly approved image/barcode modes qualify.  Using an
+-        // allowlist (rather than excluding 'text') ensures that voice,
+-        // receipt, or any future non-image mode is never silently promoted
+-        // to a qualifying signal.  The first-log route already rejects
+-        // non-qualifying modes at write time; this filter is defence-in-depth.
+-        inArray(aiCaptureSessionsTable.mode, [...QUALIFYING_CAPTURE_MODES]),
+-      ),
+-    )
+-    .limit(1);
+-  if (captureSessions.length > 0) return true;
+-
+-  // Path 2: outbox sync with server-verified image/barcode provenance.
+-  //
+-  // When REQUIRE_SESSION_FOR_SYNC is true (the default), the diary row must
+-  // carry a capture_session_id that points to a non-text capture session
+-  // belonging to the authenticated user.  The sync handler already verifies
+-  // this at write time; the JOIN here is defence-in-depth.
+-  //
+-  // When REQUIRE_SESSION_FOR_SYNC is false (legacy/rollout mode), any sync
+-  // entry with a non-NULL client_id qualifies — same as the pre-hardening
+-  // behaviour.
+-  if (REQUIRE_SESSION_FOR_SYNC) {
+-    // Require a non-text session anchor on the diary row.
+-    const syncedEntries = await db
+-      .select({ id: diaryEntriesTable.id })
+-      .from(diaryEntriesTable)
+-      .innerJoin(usersTable, eq(diaryEntriesTable.userId, usersTable.id))
+-      .innerJoin(
+-        aiCaptureSessionsTable,
+-        eq(diaryEntriesTable.captureSessionId, aiCaptureSessionsTable.id),
+-      )
+-      .where(
+-        and(
+-          eq(usersTable.externalId, supabaseUserId),
+-          isNotNull(diaryEntriesTable.clientId),
+-          isNotNull(diaryEntriesTable.captureSessionId),
+-          inArray(aiCaptureSessionsTable.mode, [...QUALIFYING_CAPTURE_MODES]),
+-        ),
+-      )
+-      .limit(1);
+-    return syncedEntries.length > 0;
+-  }
+-
+-  // Legacy path (REQUIRE_SESSION_FOR_SYNC=false): any client_id-bearing sync
+-  // entry qualifies.  This branch exists only as a rollout gate and should be
+-  // removed once the new column is backfilled and verified in production.
+-  // WARNING: this path does not verify capture provenance.  An authenticated
+-  // client that sends a single valid /v1/sync upsert qualifies.
+-  const syncedEntries = await db
++/** Returns true when the authenticated user owns at least one saved meal. */
++export async function hasSavedDiaryEntry(supabaseUserId: string): Promise<boolean> {
++  const savedMeals = await db
+     .select({ id: diaryEntriesTable.id })
+     .from(diaryEntriesTable)
+     .innerJoin(usersTable, eq(diaryEntriesTable.userId, usersTable.id))
+-    .where(
+-      and(
+-        eq(usersTable.externalId, supabaseUserId),
+-        isNotNull(diaryEntriesTable.clientId),
+-      ),
+-    )
++    .where(eq(usersTable.externalId, supabaseUserId))
+     .limit(1);
+-  return syncedEntries.length > 0;
++  return savedMeals.length > 0;
+ }
+diff --git a/artifacts/api-server/src/routes/diary.ts b/artifacts/api-server/src/routes/diary.ts
+index 2431166..1f4018f 100644
+--- a/artifacts/api-server/src/routes/diary.ts
++++ b/artifacts/api-server/src/routes/diary.ts
+@@ -2,12 +2,12 @@
+  * Authenticated food-diary persistence.
+  *
+  * Local-first clients use this route to durably record confirmed entries. The
+- * referral service relies on these server-owned records — never on a client
+- * claim — when deciding whether a new account has qualified for its reward.
++ * referral service may use these server-owned records — never a client claim —
++ * when deciding whether a new account has qualified for its reward.
+  *
+- * POST /v1/diary/first-log additionally records the referred user's first
+- * approved food log. To prevent fabricated payloads from creating that
+- * record with a single request, a first-log sync must reference a
++ * POST /v1/diary/first-log is a legacy capture-first persistence route. To
++ * prevent fabricated payloads from creating that capture record with a single
++ * request, it must reference a
+  * server-issued capture session:
+  *
+  *   1. The authenticated user runs a real capture analysis; the server
+@@ -243,11 +243,9 @@ router.post("/v1/diary/first-log", async (req, res) => {
+       return;
+     }
+ 
+-    // Text-mode captures (plain one-line food descriptions) are excluded from
+-    // referral qualification. Only image or barcode sessions may anchor a
+-    // first-log sync that unlocks a referral reward.
++    // Text-mode captures cannot anchor this capture-first sync route.
+     if (session.mode === 'text') {
+-      res.status(422).json({ message: "Text-only captures cannot qualify a referral reward. Use image or barcode capture." });
++      res.status(422).json({ message: "Text-only captures cannot be saved through this capture sync. Use image or barcode capture." });
+       return;
+     }
+ 
+diff --git a/artifacts/api-server/src/routes/referral.ts b/artifacts/api-server/src/routes/referral.ts
+index 747c5f6..155b725 100644
+--- a/artifacts/api-server/src/routes/referral.ts
++++ b/artifacts/api-server/src/routes/referral.ts
+@@ -1,33 +1,30 @@
+ /**
+- * Referral program routes — "1 referral = 1 week of Pro for both sides."
++ * Referral program routes — "1 completed referral = 30 days of Pro for both sides."
+  *
+  * Flow:
+  *   1. Every authenticated user gets a stable invite code (GET /v1/referral).
+  *   2. A new user redeems a code once (POST /v1/referral/redeem) → pending.
+- *   3. After the new user's first approved food log, the client calls
+- *      POST /v1/referral/activate → both parties receive 7 days of Pro via
+- *      RevenueCat promotional entitlements (referrer capped per month).
++ *   3. After the new user's first successfully saved meal, the client calls
++ *      POST /v1/referral/activate → both parties receive 30 days of Pro via
++ *      RevenueCat promotional entitlements.
+  *
+  * Anti-abuse rules:
+  *   • One redemption per referred account (unique index on referred_user_id).
+  *   • Self-referrals rejected.
+- *   • Referrer earns at most REFERRER_MONTHLY_CAP rewards per calendar month;
+- *     the referred user always gets their reward.
+  *   • Rewards extend existing entitlement end dates, never replace them.
+  */
+ 
+ import { Router, type IRouter } from "express";
+ import { randomBytes } from "node:crypto";
+-import { and, count, eq, gte, isNotNull, sql } from "drizzle-orm";
++import { and, count, eq, sql } from "drizzle-orm";
+ import { db, referralCodesTable, referralRedemptionsTable } from "@workspace/db";
+ import { verifyBearerToken } from "../lib/supabase-auth.js";
+ import { grantPromoDays } from "../lib/revenuecat.js";
+-import { hasSyncedDiaryEntry } from "../lib/referral-qualification.js";
++import { hasSavedDiaryEntry } from "../lib/referral-qualification.js";
+ 
+ const router: IRouter = Router();
+ 
+-const REWARD_DAYS = 7;
+-const REFERRER_MONTHLY_CAP = 4;
++const REWARD_DAYS = 30;
+ const INVITE_BASE_URL = "https://mycaloraapp.com/invite";
+ 
+ /** Unambiguous alphabet (no 0/O/1/I) for human-readable invite codes. */
+@@ -72,25 +69,6 @@ async function ensureCode(userId: string): Promise<string> {
+   throw new Error("Failed to allocate a referral code");
+ }
+ 
+-function startOfMonthUtc(): Date {
+-  const now = new Date();
+-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+-}
+-
+-async function monthRewardedCount(referrerUserId: string): Promise<number> {
+-  const rows = await db
+-    .select({ value: count() })
+-    .from(referralRedemptionsTable)
+-    .where(
+-      and(
+-        eq(referralRedemptionsTable.referrerUserId, referrerUserId),
+-        isNotNull(referralRedemptionsTable.referrerRewardedAt),
+-        gte(referralRedemptionsTable.referrerRewardedAt, startOfMonthUtc()),
+-      ),
+-    );
+-  return rows[0]?.value ?? 0;
+-}
+-
+ // ── GET /v1/referral ────────────────────────────────────────────────────────
+ router.get("/v1/referral", async (req, res) => {
+   try {
+@@ -102,7 +80,7 @@ router.get("/v1/referral", async (req, res) => {
+ 
+     const code = await ensureCode(user.id);
+ 
+-    const [statRows, ownRedemption, monthRewarded] = await Promise.all([
++    const [statRows, ownRedemption] = await Promise.all([
+       db
+         .select({
+           status: referralRedemptionsTable.status,
+@@ -116,7 +94,6 @@ router.get("/v1/referral", async (req, res) => {
+         .from(referralRedemptionsTable)
+         .where(eq(referralRedemptionsTable.referredUserId, user.id))
+         .limit(1),
+-      monthRewardedCount(user.id),
+     ]);
+ 
+     const pendingCount = statRows.find((r) => r.status === "pending")?.value ?? 0;
+@@ -129,8 +106,6 @@ router.get("/v1/referral", async (req, res) => {
+       stats: {
+         pendingCount,
+         rewardedCount,
+-        monthRewardedCount: monthRewarded,
+-        monthCap: REFERRER_MONTHLY_CAP,
+       },
+       redemption:
+         ownRedemption.length === 0
+@@ -233,20 +208,19 @@ router.post("/v1/referral/activate", async (req, res) => {
+     let redemption = rows[0];
+ 
+     // ── Qualification check ───────────────────────────────────────────────
+-    // Two paths qualify: (1) server-verified capture-session first-log, or
+-    // (2) authenticated outbox sync (policy-level trust — see referral-
+-    // qualification.ts for the farming-risk tradeoffs of Path 2).
+-    // A bare POST /v1/diary with no client_id never qualifies under either path.
++    // Any valid meal saved through an authenticated diary persistence route
++    // qualifies. The query independently verifies server ownership; local logs
++    // and an activation request alone cannot claim a reward.
+     // The stamp is an atomic UPDATE so concurrent activations qualify exactly
+     // once; a loser re-reads the fresh row and works from the winner's state.
+     if (redemption.qualifiedAt === null) {
+-      const qualified = await hasSyncedDiaryEntry(user.id);
++      const qualified = await hasSavedDiaryEntry(user.id);
+       if (!qualified) {
+         res.json({
+           status: "pending",
+           referredRewarded: false,
+           referrerRewarded: false,
+-          message: "Capture and confirm a food or barcode to unlock your invite reward.",
++          message: "Save your first meal to unlock your invite reward.",
+         });
+         return;
+       }
+@@ -274,7 +248,7 @@ router.post("/v1/referral/activate", async (req, res) => {
+             status: "pending",
+             referredRewarded: false,
+             referrerRewarded: false,
+-            message: "Capture and confirm a food or barcode to unlock your invite reward.",
++            message: "Save your first meal to unlock your invite reward.",
+           });
+           return;
+         }
+@@ -323,50 +297,32 @@ router.post("/v1/referral/activate", async (req, res) => {
+       }
+     }
+ 
+-    // ── Referrer's reward — cap-checked under a per-referrer lock ────────
+-    // The referrer's referral_codes row is locked FOR UPDATE so concurrent
+-    // activations serialize the count-then-claim, preventing cap overruns.
++    // ── Referrer's reward — claim-first idempotency ──────────────────────
+     let referrerRewarded = redemption.referrerRewardedAt !== null;
+     if (!referrerRewarded) {
+-      let claimedReferrerSlot = false;
++      let claimedReferrerReward = false;
+       try {
+-        claimedReferrerSlot = await db.transaction(async (tx) => {
+-          await tx.execute(
+-            sql`SELECT user_id FROM calora_referral_codes WHERE user_id = ${redemption.referrerUserId} FOR UPDATE`,
+-          );
+-          const counted = await tx
+-            .select({ value: count() })
+-            .from(referralRedemptionsTable)
+-            .where(
+-              and(
+-                eq(referralRedemptionsTable.referrerUserId, redemption.referrerUserId),
+-                isNotNull(referralRedemptionsTable.referrerRewardedAt),
+-                gte(referralRedemptionsTable.referrerRewardedAt, startOfMonthUtc()),
+-              ),
+-            );
+-          if ((counted[0]?.value ?? 0) >= REFERRER_MONTHLY_CAP) return false;
+-          const rowsClaimed = await tx
+-            .update(referralRedemptionsTable)
+-            .set({ referrerRewardedAt: sql`now()` })
+-            .where(
+-              and(
+-                eq(referralRedemptionsTable.id, redemption.id),
+-                sql`${referralRedemptionsTable.referrerRewardedAt} IS NULL`,
+-              ),
+-            )
+-            .returning();
+-          return rowsClaimed.length > 0;
+-        });
++        const rowsClaimed = await db
++          .update(referralRedemptionsTable)
++          .set({ referrerRewardedAt: sql`now()` })
++          .where(
++            and(
++              eq(referralRedemptionsTable.id, redemption.id),
++              sql`${referralRedemptionsTable.referrerRewardedAt} IS NULL`,
++            ),
++          )
++          .returning();
++        claimedReferrerReward = rowsClaimed.length > 0;
+       } catch (err) {
+-        console.error("[referral] referrer cap check failed for %s:", redemption.referrerUserId, err);
++        console.error("[referral] referrer reward claim failed for %s:", redemption.referrerUserId, err);
+       }
+ 
+-      if (claimedReferrerSlot) {
++      if (claimedReferrerReward) {
+         try {
+           await grantPromoDays(redemption.referrerUserId, REWARD_DAYS);
+           referrerRewarded = true;
+         } catch (err) {
+-          // Release the cap slot so a later activation can retry the grant.
++          // Release the claim so a later activation can retry the grant.
+           console.error("[referral] referrer grant failed for %s:", redemption.referrerUserId, err);
+           await db
+             .update(referralRedemptionsTable)
+diff --git a/artifacts/api-server/src/routes/sync.ts b/artifacts/api-server/src/routes/sync.ts
+index f5f75e5..dd9bc49 100644
+--- a/artifacts/api-server/src/routes/sync.ts
++++ b/artifacts/api-server/src/routes/sync.ts
+@@ -24,7 +24,6 @@ import { sql } from "drizzle-orm";
+ import { db, aiCaptureSessionsTable, usersTable } from "@workspace/db";
+ import { verifyBearerToken } from "../lib/supabase-auth.js";
+ import { ensureUserRow } from "../lib/user-rows.js";
+-import { QUALIFYING_CAPTURE_MODES } from "../lib/referral-qualification.js";
+ 
+ const router: IRouter = Router();
+ 
+@@ -60,8 +59,8 @@ type DiaryUpsertPayload = {
+    * Optional: a server-recorded capture session UUID that the client can
+    * supply to prove image/barcode provenance.  The server verifies the
+    * session belongs to the authenticated user and has mode != 'text' before
+-   * writing it to the diary row and counting it toward referral qualification.
+-   * NULL means the sync entry carries no verified provenance signal.
++   * writing it to the diary row. NULL means the sync entry carries no verified
++   * capture provenance signal.
+    */
+   captureSessionId: string | null;
+   entryDate: string;
+@@ -299,10 +298,8 @@ router.post("/v1/sync", async (req, res) => {
+           //   1. The session exists and belongs to the authenticated user.
+           //   2. The session mode is not 'text' (image/barcode only).
+           // On failure the session claim is silently dropped — the diary row
+-          // is still written without a capture_session_id so the client's
+-          // food log is not lost.  The farming gate in hasSyncedDiaryEntry
+-          // will not count the entry toward referral qualification because
+-          // capture_session_id will be NULL.
++           // is still written without a capture_session_id so the client's
++           // food log is not lost.
+           let verifiedCaptureSessionId: string | null = null;
+           if (v.captureSessionId !== null) {
+             const sessions = await db
+@@ -316,7 +313,7 @@ router.post("/v1/sync", async (req, res) => {
+                 ),
+               )
+               .limit(1);
+-            if (sessions.length > 0 && (QUALIFYING_CAPTURE_MODES as readonly string[]).includes(sessions[0].mode)) {
++            if (sessions.length > 0 && sessions[0].mode !== "text") {
+               verifiedCaptureSessionId = sessions[0].id;
+             }
+             // If the session is not found, doesn't belong to the user, or is
+diff --git a/artifacts/calora/app/(tabs)/scan.tsx b/artifacts/calora/app/(tabs)/scan.tsx
+index 0e10eeb..dd06611 100644
+--- a/artifacts/calora/app/(tabs)/scan.tsx
++++ b/artifacts/calora/app/(tabs)/scan.tsx
+@@ -257,14 +257,14 @@ export default function ScanScreen() {
+   const acceptDraft = async () => {
+     if (!reviewDraft) return;
+     const accepted = acceptFoodMemory(reviewDraft.id);
+-    // Only authenticated photo/barcode analyses receive a server proof. It is
+-    // consumed after the user explicitly accepts this review; local logging
+-    // remains available offline, but cannot qualify a referral until then.
++    // Authenticated photo/barcode analyses receive a server proof after the
++    // user explicitly accepts the review. Local logging remains available
++    // offline regardless of capture approval.
+     if (accepted && (analysis?.mode === 'food' || analysis?.mode === 'barcode')) {
+       try {
+         await approveCapture(analysis.sessionId);
+       } catch (error) {
+-        console.warn('[capture] referral qualification confirmation failed', error);
++        console.warn('[capture] approval confirmation failed', error);
+       }
+     }
+     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+diff --git a/artifacts/calora/components/ReferralActivator.tsx b/artifacts/calora/components/ReferralActivator.tsx
+index d135310..7c19225 100644
+--- a/artifacts/calora/components/ReferralActivator.tsx
++++ b/artifacts/calora/components/ReferralActivator.tsx
+@@ -3,7 +3,7 @@
+  *
+  *  1. Auto-redeems a pending invite code captured from a deep link
+  *     (only when the account hasn't redeemed one already).
+- *  2. Once the user has at least one approved food log, calls the activate
++ *  2. Once the user has at least one saved meal, calls the activate
+  *     endpoint so both parties receive their Pro reward. Retries on the next
+  *     app session until the server reports a settled state.
+  *
+@@ -11,14 +11,14 @@
+  * local entitlement state immediately.
+  */
+ import { useEffect, useRef } from 'react';
+-import { activateReferral, redeemReferral, syncFirstDiaryEntry } from '@workspace/api-client-react';
++import { activateReferral, redeemReferral } from '@workspace/api-client-react';
+ import { useAuth } from '@/context/AuthContext';
+ import { useCalora } from '@/context/CaloraContext';
+ import { useSubscription } from '@/lib/revenuecat';
+-import { findCaptureBackedLog } from '@/lib/referralQualification';
+ import {
+   clearPendingInviteCode,
+   getPendingInviteCode,
++  isReferralActivationComplete,
+   isReferralActivationSettled,
+   markReferralActivationSettled,
+ } from '@/lib/referral';
+@@ -53,9 +53,10 @@ export function ReferralActivator() {
+     })();
+   }, [user]);
+ 
+-  // Persist a confirmed log first, then ask the server to activate. The
+-  // endpoint independently verifies a diary record owned by this JWT user;
+-  // `logs` only tells us there is something worth attempting to sync.
++  // Ask the server to activate after a saved local meal. The endpoint
++  // independently verifies that an authenticated diary persistence route
++  // stored a meal for this JWT user; `logs` only avoids needless attempts
++  // before the user has logged anything.
+   useEffect(() => {
+     if (!user || logs.length === 0 || activateInFlightRef.current) return;
+ 
+@@ -63,44 +64,15 @@ export function ReferralActivator() {
+       if (await isReferralActivationSettled(user.id)) return;
+       activateInFlightRef.current = true;
+       try {
+-        // The server only unlocks rewards once it holds a durable diary
+-        // entry anchored to a server-recorded capture session. Only logs
+-        // carrying an explicit server-issued captureSessionId (UUID) can
+-        // qualify; manual/recipe/planner logs are skipped, and any eligible
+-        // capture log anywhere in the diary is considered.
+-        const captureLog = findCaptureBackedLog(logs);
+-        if (captureLog) {
+-          const captureSessionId = captureLog.captureSessionId!;
+-          try {
+-            await syncFirstDiaryEntry({
+-              captureSessionId,
+-              entryDate: captureLog.date,
+-              meal: captureLog.meal,
+-              name: captureLog.name,
+-              serving: captureLog.serving,
+-              calories: captureLog.calories,
+-              proteinG: captureLog.protein,
+-              carbsG: captureLog.carbs,
+-              fatG: captureLog.fat,
+-              provenance: captureLog.source,
+-              confidence: Math.min(Math.max(Math.round(captureLog.confidence), 0), 100),
+-              notes: captureLog.notes,
+-              clientUpdatedAt: new Date().toISOString(),
+-            });
+-          } catch (err) {
+-            // 4xx = this log can't anchor a sync (stale/mismatched session);
+-            // a future capture log will retry. Network errors retry too.
+-            console.warn('[referral] first-log sync did not settle', err);
+-          }
+-        }
+         const result = await activateReferral();
+-        if (result.status === 'none' || result.status === 'rewarded') {
++        if (isReferralActivationComplete(result)) {
+           await markReferralActivationSettled(user.id);
+           if (result.referredRewarded) {
+             refreshCustomerInfo();
+           }
+         }
+-        // status === 'pending' (grant failed server-side): retry next session.
++        // Pending or partial rewards retry next session so a released provider
++        // claim can complete for both sides.
+       } catch (err) {
+         console.warn('[referral] activation attempt failed', err);
+       } finally {
+diff --git a/artifacts/calora/components/ReferralCard.tsx b/artifacts/calora/components/ReferralCard.tsx
+index 0aa5b89..032b3be 100644
+--- a/artifacts/calora/components/ReferralCard.tsx
++++ b/artifacts/calora/components/ReferralCard.tsx
+@@ -3,7 +3,7 @@
+  *
+  * Signed-in users see their invite code, share action, and reward stats.
+  * Users who haven't redeemed a code yet can enter one here; rewards unlock
+- * after their first approved food log (handled by ReferralActivator).
++ * after their first saved meal (handled by ReferralActivator).
+  * Signed-out users see a short explainer instead.
+  */
+ import React, { useEffect, useMemo, useState } from 'react';
+@@ -49,7 +49,7 @@ export function ReferralCard({ fontScale }: Props) {
+           <Text style={[styles.title, { color: colors.foreground }]}>Invite friends</Text>
+         </View>
+         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+-          Sign in to get your invite code. Every friend who joins earns you both 7 days of Pro.
++          Invite a friend. When they join and log their first meal, you both get 30 days of Calora Pro.
+         </Text>
+       </View>
+     );
+@@ -96,7 +96,7 @@ export function ReferralCard({ fontScale }: Props) {
+         <Text style={[styles.title, { color: colors.foreground }]}>Invite friends</Text>
+       </View>
+       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+-        Each friend who joins and logs their first meal earns you both {data?.rewardDays ?? 7} days of Pro.
++          Invite a friend. When they join and log their first meal, you both get {data?.rewardDays ?? 30} days of Calora Pro.
+       </Text>
+ 
+       {referralQuery.isLoading ? (
+@@ -129,12 +129,6 @@ export function ReferralCard({ fontScale }: Props) {
+               <Text style={[styles.statValue, { color: colors.foreground }]}>{data.stats.rewardedCount}</Text>
+               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Rewarded</Text>
+             </View>
+-            <View style={styles.stat}>
+-              <Text style={[styles.statValue, { color: colors.foreground }]}>
+-                {data.stats.monthRewardedCount}/{data.stats.monthCap}
+-              </Text>
+-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>This month</Text>
+-            </View>
+           </View>
+ 
+           {data.redemption.status === 'none' ? (
+diff --git a/artifacts/calora/lib/__tests__/referralPersistence.test.ts b/artifacts/calora/lib/__tests__/referralPersistence.test.ts
+index 8025d0a..62e6761 100644
+--- a/artifacts/calora/lib/__tests__/referralPersistence.test.ts
++++ b/artifacts/calora/lib/__tests__/referralPersistence.test.ts
+@@ -34,6 +34,7 @@ import {
+   clearPendingInviteCode,
+   clearReferralActivationSettled,
+   getPendingInviteCode,
++  isReferralActivationComplete,
+   isReferralActivationSettled,
+   markReferralActivationSettled,
+   setPendingInviteCode,
+@@ -155,3 +156,31 @@ describe('referral activation settled state', () => {
+     expect(await isReferralActivationSettled('user-reset')).toBe(false);
+   });
+ });
++
++describe('isReferralActivationComplete', () => {
++  it('settles when there is no redemption or both rewards are confirmed', () => {
++    expect(isReferralActivationComplete({
++      status: 'none',
++      referredRewarded: false,
++      referrerRewarded: false,
++    })).toBe(true);
++    expect(isReferralActivationComplete({
++      status: 'rewarded',
++      referredRewarded: true,
++      referrerRewarded: true,
++    })).toBe(true);
++  });
++
++  it('keeps a referrer-only provider failure retryable after the referred reward succeeds', () => {
++    expect(isReferralActivationComplete({
++      status: 'rewarded',
++      referredRewarded: true,
++      referrerRewarded: false,
++    })).toBe(false);
++    expect(isReferralActivationComplete({
++      status: 'pending',
++      referredRewarded: false,
++      referrerRewarded: false,
++    })).toBe(false);
++  });
++});
+diff --git a/artifacts/calora/lib/__tests__/referralQualification.test.ts b/artifacts/calora/lib/__tests__/referralQualification.test.ts
+deleted file mode 100644
+index 443fced..0000000
+--- a/artifacts/calora/lib/__tests__/referralQualification.test.ts
++++ /dev/null
+@@ -1,105 +0,0 @@
+-/**
+- * Selection of the diary log that anchors referral qualification.
+- *
+- * Only logs with an explicit server-issued capture session id (UUID) may be
+- * synced; manual/search/recipe/planner logs and anonymous-capture logs must
+- * be skipped even when they appear before a real capture log.
+- */
+-import { describe, it, expect } from 'vitest';
+-import { findCaptureBackedLog, isServerCaptureSessionId } from '../referralQualification';
+-import { buildAcceptResult } from '../captureReviewTransitions';
+-import { captureAnalysisToDraft } from '../foodMemory';
+-import type { FoodLog } from '../captureReviewTransitions';
+-import type { CaptureAnalysis } from '@workspace/api-client-react';
+-
+-const SERVER_SESSION = '4f8a2c9e-1b3d-4e5f-8a7b-9c0d1e2f3a4b';
+-
+-function log(overrides: Partial<FoodLog>): FoodLog {
+-  return {
+-    id: 'log-1',
+-    name: 'Meal',
+-    date: '2026-08-11',
+-    meal: 'Lunch',
+-    calories: 500,
+-    protein: 30,
+-    carbs: 50,
+-    fat: 15,
+-    source: 'Manual',
+-    confidence: 80,
+-    time: 'Just now',
+-    serving: '1 serving',
+-    ...overrides,
+-  };
+-}
+-
+-describe('isServerCaptureSessionId', () => {
+-  it('accepts server UUIDs and rejects local fallback ids', () => {
+-    expect(isServerCaptureSessionId(SERVER_SESSION)).toBe(true);
+-    expect(isServerCaptureSessionId('manual-1754899200000-abc')).toBe(false);
+-    expect(isServerCaptureSessionId('memory-draft-food-123')).toBe(false);
+-    expect(isServerCaptureSessionId(undefined)).toBe(false);
+-    expect(isServerCaptureSessionId('')).toBe(false);
+-  });
+-});
+-
+-describe('findCaptureBackedLog', () => {
+-  it('skips manual/search/recipe/planner logs that precede a capture-backed log', () => {
+-    const logs = [
+-      log({ id: 'manual', memoryId: 'memory-draft-manual-1754899200000' }),
+-      log({ id: 'recipe', memoryId: 'memory-draft-recipe-1754899200001' }),
+-      log({ id: 'planner', memoryId: 'memory-draft-planner-1754899200002' }),
+-      log({ id: 'capture', captureSessionId: SERVER_SESSION, memoryId: `memory-draft-${SERVER_SESSION}` }),
+-    ];
+-    expect(findCaptureBackedLog(logs)?.id).toBe('capture');
+-  });
+-
+-  it('returns undefined when no log is capture-backed', () => {
+-    const logs = [
+-      log({ id: 'manual', memoryId: 'memory-draft-manual-1754899200000' }),
+-      log({ id: 'anon-capture', captureSessionId: 'client-session-9' }),
+-    ];
+-    expect(findCaptureBackedLog(logs)).toBeUndefined();
+-  });
+-});
+-
+-describe('capture provenance threading (draft → accepted log)', () => {
+-  const analysis = (sessionId: string): CaptureAnalysis => ({
+-    sessionId,
+-    mode: 'food',
+-    status: 'review',
+-    title: 'Grilled chicken bowl',
+-    reviewMessage: 'Review',
+-    provider: 'Calora Vision',
+-    candidates: [
+-      {
+-        id: 'cand-1',
+-        editable: true,
+-        name: 'Grilled chicken bowl',
+-        serving: '1 bowl',
+-        calories: 520,
+-        proteinG: 42,
+-        carbsG: 45,
+-        fatG: 18,
+-        confidence: 85,
+-        provenance: 'Photo estimate',
+-        sourceLabel: 'Calora Vision',
+-      },
+-    ],
+-  });
+-
+-  it('carries a server session UUID from analysis through accept into the log', () => {
+-    const draft = captureAnalysisToDraft(analysis(SERVER_SESSION), '2026-08-11', 'Lunch');
+-    expect(draft.captureSessionId).toBe(SERVER_SESSION);
+-    const { log: accepted } = buildAcceptResult(draft, 'log-x', new Date().toISOString());
+-    expect(accepted.captureSessionId).toBe(SERVER_SESSION);
+-    expect(findCaptureBackedLog([accepted])?.id).toBe('log-x');
+-  });
+-
+-  it('does not mark anonymous/local session ids as capture-backed', () => {
+-    const draft = captureAnalysisToDraft(analysis('local-fallback-123'), '2026-08-11', 'Lunch');
+-    expect(draft.captureSessionId).toBeUndefined();
+-    const { log: accepted } = buildAcceptResult(draft, 'log-y', new Date().toISOString());
+-    expect(accepted.captureSessionId).toBeUndefined();
+-    expect(findCaptureBackedLog([accepted])).toBeUndefined();
+-  });
+-});
+diff --git a/artifacts/calora/lib/referral.ts b/artifacts/calora/lib/referral.ts
+index c42022a..00ac4d9 100644
+--- a/artifacts/calora/lib/referral.ts
++++ b/artifacts/calora/lib/referral.ts
+@@ -3,7 +3,7 @@
+  *
+  * A code arriving via the caloraapp://invite/<code> deep link (or the
+  * mycaloraapp.com/invite/<code> universal link) is stored locally until the
+- * user signs in and redeems it. Activation ("first approved food log") is
++ * user signs in and redeems it. Activation ("first saved meal") is
+  * tracked per user so the activate endpoint is only retried until it settles.
+  */
+ import AsyncStorage from '@react-native-async-storage/async-storage';
+@@ -11,6 +11,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
+ const PENDING_CODE_KEY = 'calora-pending-invite-code';
+ const ACTIVATED_KEY_PREFIX = 'calora-referral-activated:';
+ 
++type ActivationResult = {
++  status: 'none' | 'pending' | 'rewarded';
++  referredRewarded: boolean;
++  referrerRewarded: boolean;
++};
++
++/**
++ * A partial provider failure must remain retryable. `rewarded` only settles on
++ * device once both sides' grants are confirmed; `none` is also terminal.
++ */
++export function isReferralActivationComplete(result: ActivationResult): boolean {
++  return result.status === 'none' || (
++    result.status === 'rewarded' &&
++    result.referredRewarded &&
++    result.referrerRewarded
++  );
++}
++
+ export async function setPendingInviteCode(code: string): Promise<void> {
+   const normalized = code.trim().toUpperCase();
+   if (normalized.length < 4 || normalized.length > 16) return;
+diff --git a/artifacts/calora/lib/referralQualification.ts b/artifacts/calora/lib/referralQualification.ts
+deleted file mode 100644
+index c6bb91f..0000000
+--- a/artifacts/calora/lib/referralQualification.ts
++++ /dev/null
+@@ -1,21 +0,0 @@
+-/**
+- * Client-side selection of the diary log that can anchor the referral
+- * first-log sync.
+- *
+- * Only logs carrying an explicit server-issued capture session id (a UUID
+- * persisted by the API at analyze time) are eligible — manual, search,
+- * recipe, and planner logs never qualify, and neither do capture logs from
+- * anonymous sessions (their session ids are local fallbacks, not UUIDs).
+- * The whole diary is searched so earlier non-qualifying logs never shadow a
+- * later capture-backed one.
+- */
+-
+-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+-
+-export function isServerCaptureSessionId(value: string | undefined): value is string {
+-  return typeof value === 'string' && UUID_RE.test(value);
+-}
+-
+-export function findCaptureBackedLog<T extends { captureSessionId?: string }>(logs: T[]): T | undefined {
+-  return logs.find((log) => isServerCaptureSessionId(log.captureSessionId));
+-}
+diff --git a/docs/calora-production-readiness-certification.md b/docs/calora-production-readiness-certification.md
+index 64ba01c..bc1cf2f 100644
+--- a/docs/calora-production-readiness-certification.md
++++ b/docs/calora-production-readiness-certification.md
+@@ -51,7 +51,7 @@ The internal local-first product journeys exercised in the live Expo web preview
+ | F-09 | Camera, barcode, image capture | BLOCKED | Live UI renders explicit camera permission gate. | Physical iOS/Android device permission, capture, barcode, library and denial/retry flows. |
+ | F-10 | Authentication and OAuth | BLOCKED | Native app sign-up route and pending-invite display exist; no real account/OAuth callback was created during certification. | Supabase email/OAuth redirect configuration and real device/browser callback test. |
+ | F-11 | Diary sync and authenticated capture proof | BLOCKED | Anonymous diary endpoint returned `401`; automated referral/sync coverage passes. | Authenticated end-to-end account plus live capture must prove sync and recovery. |
+-| F-12 | Referral reward lifecycle | BLOCKED | Automated suite includes qualification and retry behavior; anonymous activation returned `401`. | Two real sandbox accounts, real qualifying capture, RevenueCat entitlement verification, cap/retry checks. |
++| F-12 | Referral reward lifecycle | BLOCKED | Automated suite includes first-saved-meal qualification and retry behavior; anonymous activation returned `401`. | Two real sandbox accounts, valid saved meal, RevenueCat entitlement verification, uncapped-grant and retry checks. |
+ | F-13 | Invite web fallback | PASSED | Direct development service returned `200` for `/invite/TESTCODE`, with explicit install/deep-link actions and social-safe no-autoredirect behavior. Screenshot: `gn3w8f`. | The web fallback is correct; it is not the in-app `/invite/[code]` route. |
+ | F-14 | In-app invite handoff and universal links | BLOCKED | App route persists code then sends signed-out users to sign-up; automated persistence tests pass. Direct service returned `200` association files. | Signed device build, `mycaloraapp.com` hosting/routing, Apple/Android OS verification, force-quit test. |
+ | F-15 | Universal-link verification files | PASSED (development service) | `/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json` return `200` and configured identifiers. | Must be fetched at the production domain with production TLS and OS association cache behavior. |
+@@ -95,7 +95,7 @@ Non-blocking development warnings observed:
+ 1. Build and install a fresh `development-device` EAS build after current auth and universal-link configuration.
+ 2. Verify `https://mycaloraapp.com/.well-known/apple-app-site-association` and `assetlinks.json` on the real production host, then test installed-app and no-app invite routes on iOS and Android.
+ 3. Configure and test Supabase email verification, password recovery, Google OAuth redirect/callback/error paths with real test accounts.
+-4. Run authenticated diary sync, image/barcode capture review, referral qualification, and two-account reward verification against the live API and sandbox RevenueCat environment.
++4. Run authenticated diary sync through supported meal-entry methods, referral qualification, and two-account reward verification against the live API and sandbox RevenueCat environment.
+ 5. Verify RevenueCat offerings, purchase, restore, cancellation/manage, pending and unavailable-store states on real sandbox devices.
+ 6. Verify native camera/library, notifications, HealthKit/Health Connect, export share sheet, app lifecycle, and accessibility on supported devices.
+ 7. Deploy the intended production API/domain with migrations and production secrets, then rerun API health, token rejection, account deletion, rate limit, link verification, and privacy-deletion checks.
+diff --git a/docs/calora-referral-system-certification.md b/docs/calora-referral-system-certification.md
+index d4d881d..9539677 100644
+--- a/docs/calora-referral-system-certification.md
++++ b/docs/calora-referral-system-certification.md
+@@ -7,7 +7,7 @@
+ 
+ **Implementation and safe preview journeys: certified. Real referral reward delivery: not certified.**
+ 
+-The invite and persistence surfaces behave safely, and automated server coverage proves the designed qualification, idempotency, concurrency, cap, and rollback rules. A genuine signed-in referral journey could not be started because account creation failed while sending the confirmation email. Therefore no real inviter/referred pair, qualifying capture, promotional entitlement extension, or RevenueCat customer state was observed.
++The invite and persistence surfaces behave safely, and automated server coverage proves the designed first-saved-meal qualification, idempotency, concurrency, uncapped reward, and rollback rules. A genuine signed-in referral journey could not be started because account creation failed while sending the confirmation email. Therefore no real inviter/referred pair, qualifying meal save, promotional entitlement extension, or RevenueCat customer state was observed.
+ 
+ ## Live evidence
+ 
+@@ -18,7 +18,7 @@ The invite and persistence surfaces behave safely, and automated server coverage
+ | Pending code persistence | Passed | A normalized pending invite code remained visible on sign-up after reload. This is local/browser evidence only. |
+ | Sign-up validation | Passed | Empty email receives visible local feedback. |
+ | Signed-in summary and redemption | Blocked | A controlled synthetic sign-up failed with `Error sending confirmation email.` and HTTP 500. |
+-| Two-account reward activation | Blocked | Requires the above account creation, a distinct inviter, an approved capture-backed diary qualification, and a live RevenueCat promotional grant. |
++| Two-account reward activation | Blocked | Requires the above account creation, a distinct inviter, a valid saved meal, and a live RevenueCat promotional grant. |
+ 
+ ## Automated integrity evidence
+ 
+@@ -27,12 +27,10 @@ The following focused commands passed:
+ ```sh
+ pnpm --filter @workspace/api-server test -- referral
+ pnpm --filter @workspace/calora exec vitest run \
+-  lib/__tests__/referralPersistence.test.ts \
+-  lib/__tests__/referralQualification.test.ts
++  lib/__tests__/referralPersistence.test.ts
+ ```
+ 
+-- **165 API tests passed.** These include referral qualification, concurrent claims, monthly-cap handling, duplicate prevention, provider-failure rollback, and retry behavior.
+-- **19 client tests passed.** These cover pending-code normalization, persistence through restart, replacement, clearing after settlement, retry preservation, and qualification source rules.
++- Focused API and client referral tests cover first-saved-meal qualification, concurrent claims, uncapped grants, duplicate prevention, provider-failure rollback, retry behavior, and durable invite state.
+ 
+ The simulated RevenueCat 503 messages in the API test output are deliberate failure-path assertions, not live-provider outages.
+ 
+@@ -40,8 +38,8 @@ The simulated RevenueCat 503 messages in the API test output are deliberate fail
+ 
+ 1. Resolve the confirmation-email delivery failure so controlled test accounts can be verified.
+ 2. Use two distinct, authenticated test accounts: an inviter and a referred user.
+-3. Redeem the inviter’s code on the referred account, then complete one server-approved capture-backed diary qualification.
+-4. Observe both seven-day promotional extensions in RevenueCat under the correct customer identities, including an already-entitled customer extension.
++3. Redeem the inviter’s code on the referred account, then save one valid meal through a normal logging flow.
++4. Observe both 30-day promotional extensions in RevenueCat under the correct customer identities, including an already-entitled customer extension.
+ 5. Repeat the activation/retry path once and verify no duplicate promotion is issued.
+ 
+ Until that evidence exists, referral must not be described as live-verified. The existing **“Prove subscriptions and referral rewards work with real test accounts”** task owns this final provider-authoritative proof.
+\ No newline at end of file
+diff --git a/lib/api-client-react/src/generated/api.schemas.ts b/lib/api-client-react/src/generated/api.schemas.ts
+index 8091466..b4d3f61 100644
+--- a/lib/api-client-react/src/generated/api.schemas.ts
++++ b/lib/api-client-react/src/generated/api.schemas.ts
+@@ -846,8 +846,6 @@ export interface CoachResponse {
+ export type ReferralSummaryStats = {
+   pendingCount: number;
+   rewardedCount: number;
+-  monthRewardedCount: number;
+-  monthCap: number;
+ };
+ 
+ export type ReferralSummaryRedemptionStatus = typeof ReferralSummaryRedemptionStatus[keyof typeof ReferralSummaryRedemptionStatus];
+diff --git a/lib/api-client-react/src/generated/api.ts b/lib/api-client-react/src/generated/api.ts
+index 64a7f7a..17dd208 100644
+--- a/lib/api-client-react/src/generated/api.ts
++++ b/lib/api-client-react/src/generated/api.ts
+@@ -1160,9 +1160,9 @@ export const getApproveCaptureUrl = (sessionId: string,) => {
+ }
+ 
+ /**
+- * Consumes the authenticated user's short-lived, server-issued capture
+- * proof. Only confirmed photo or barcode captures can qualify a referral
+- * reward; text/manual and demo diary entries cannot.
++ * Confirms an authenticated user's short-lived, server-issued image or
++ * barcode capture proof after review. This capture action is independent
++ * of referral qualification.
+  * @summary Confirm a reviewed image or barcode capture
+  */
+ export const approveCapture = async (sessionId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+@@ -1602,8 +1602,8 @@ export const getRedeemReferralUrl = () => {
+ 
+ /**
+  * Records a pending referral redemption for the authenticated user.
+- * Rewards unlock for both parties once the new user logs their first
+- * approved food entry. One redemption per account; self-referrals are
++ * Rewards unlock for both parties once the new user saves their first
++ * meal. One redemption per account; self-referrals are
+  * rejected.
+  * @summary Redeem an invite code on a new account
+  */
+@@ -1677,11 +1677,12 @@ export const getSyncFirstDiaryEntryUrl = () => {
+ 
+ /**
+  * The diary is local-first; this endpoint durably records the user's
+- * first approved food log server-side. It is the server-observable
+- * signal that referral activation requires before granting rewards.
++ * capture-backed food log server-side. It is retained for capture
++ * persistence compatibility; referral qualification instead accepts any
++ * valid authenticated meal save.
+  * Idempotent — once any diary entry exists for the user, repeat calls
+  * return the existing state without writing again.
+- * @summary Persist the user's first approved food log on the server
++ * @summary Persist the user's first capture-backed food log on the server
+  */
+ export const syncFirstDiaryEntry = async (diaryFirstLogInput: DiaryFirstLogInput, options?: Parameters<typeof customFetch>[1]): Promise<DiaryFirstLogResult> => {
+ 
+@@ -1730,7 +1731,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
+     export type SyncFirstDiaryEntryMutationError = ErrorType<void>
+ 
+     /**
+- * @summary Persist the user's first approved food log on the server
++ * @summary Persist the user's first capture-backed food log on the server
+  */
+ export const useSyncFirstDiaryEntry = <TError = ErrorType<void>,
+     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncFirstDiaryEntry>>, TError,{data: BodyType<DiaryFirstLogInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+@@ -1752,11 +1753,11 @@ export const getActivateReferralUrl = () => {
+ }
+ 
+ /**
+- * Called once the referred user records their first approved food log.
+- * Grants seven days of Pro to both parties (the referrer's grant is
+- * subject to a monthly cap). Idempotent — repeat calls return the
++ * Called once the referred user records their first saved meal through an
++ * authenticated Calora diary persistence route. Grants 30 days of Pro to
++ * both parties with no referral cap. Idempotent — repeat calls return the
+  * current state without granting again.
+- * @summary Unlock referral rewards after the first approved food log
++ * @summary Unlock referral rewards after the first saved meal
+  */
+ export const activateReferral = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReferralActivateResult> => {
+ 
+@@ -1805,7 +1806,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
+     export type ActivateReferralMutationError = ErrorType<void>
+ 
+     /**
+- * @summary Unlock referral rewards after the first approved food log
++ * @summary Unlock referral rewards after the first saved meal
+  */
+ export const useActivateReferral = <TError = ErrorType<void>,
+     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof activateReferral>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+diff --git a/lib/api-spec/openapi.yaml b/lib/api-spec/openapi.yaml
+index e5149c2..f5f85f6 100644
+--- a/lib/api-spec/openapi.yaml
++++ b/lib/api-spec/openapi.yaml
+@@ -332,9 +332,9 @@ paths:
+       tags: [capture]
+       summary: Confirm a reviewed image or barcode capture
+       description: |
+-        Consumes the authenticated user's short-lived, server-issued capture
+-        proof. Only confirmed photo or barcode captures can qualify a referral
+-        reward; text/manual and demo diary entries cannot.
++        Confirms an authenticated user's short-lived, server-issued image or
++        barcode capture proof after review. This capture action is independent
++        of referral qualification.
+       security: [{ bearerAuth: [] }]
+       parameters:
+         - name: sessionId
+@@ -448,8 +448,8 @@ paths:
+       summary: Redeem an invite code on a new account
+       description: |
+         Records a pending referral redemption for the authenticated user.
+-        Rewards unlock for both parties once the new user logs their first
+-        approved food entry. One redemption per account; self-referrals are
++        Rewards unlock for both parties once the new user saves their first
++        meal. One redemption per account; self-referrals are
+         rejected.
+       security: [{ bearerAuth: [] }]
+       requestBody:
+@@ -477,11 +477,12 @@ paths:
+     post:
+       operationId: syncFirstDiaryEntry
+       tags: [diary]
+-      summary: Persist the user's first approved food log on the server
++      summary: Persist the user's first capture-backed food log on the server
+       description: |
+         The diary is local-first; this endpoint durably records the user's
+-        first approved food log server-side. It is the server-observable
+-        signal that referral activation requires before granting rewards.
++        capture-backed food log server-side. It is retained for capture
++        persistence compatibility; referral qualification instead accepts any
++        valid authenticated meal save.
+         Idempotent — once any diary entry exists for the user, repeat calls
+         return the existing state without writing again.
+       security: [{ bearerAuth: [] }]
+@@ -506,11 +507,11 @@ paths:
+     post:
+       operationId: activateReferral
+       tags: [referral]
+-      summary: Unlock referral rewards after the first approved food log
++      summary: Unlock referral rewards after the first saved meal
+       description: |
+-        Called once the referred user records their first approved food log.
+-        Grants seven days of Pro to both parties (the referrer's grant is
+-        subject to a monthly cap). Idempotent — repeat calls return the
++        Called once the referred user records their first saved meal through an
++        authenticated Calora diary persistence route. Grants 30 days of Pro to
++        both parties with no referral cap. Idempotent — repeat calls return the
+         current state without granting again.
+       security: [{ bearerAuth: [] }]
+       responses:
+@@ -1076,12 +1077,10 @@ components:
+         rewardDays: { type: integer }
+         stats:
+           type: object
+-          required: [pendingCount, rewardedCount, monthRewardedCount, monthCap]
++          required: [pendingCount, rewardedCount]
+           properties:
+             pendingCount: { type: integer }
+             rewardedCount: { type: integer }
+-            monthRewardedCount: { type: integer }
+-            monthCap: { type: integer }
+         redemption:
+           type: object
+           description: The caller's own redemption of someone else's code, if any.
+diff --git a/lib/api-zod/src/generated/api.ts b/lib/api-zod/src/generated/api.ts
+index e3e16fa..d998c89 100644
+--- a/lib/api-zod/src/generated/api.ts
++++ b/lib/api-zod/src/generated/api.ts
+@@ -655,9 +655,9 @@ export const AnalyzeCaptureResponse = zod.object({
+ 
+ 
+ /**
+- * Consumes the authenticated user's short-lived, server-issued capture
+- * proof. Only confirmed photo or barcode captures can qualify a referral
+- * reward; text/manual and demo diary entries cannot.
++ * Confirms an authenticated user's short-lived, server-issued image or
++ * barcode capture proof after review. This capture action is independent
++ * of referral qualification.
+  * @summary Confirm a reviewed image or barcode capture
+  */
+ export const ApproveCaptureParams = zod.object({
+@@ -976,9 +976,7 @@ export const GetReferralResponse = zod.object({
+   "rewardDays": zod.number().int(),
+   "stats": zod.object({
+   "pendingCount": zod.number().int(),
+-  "rewardedCount": zod.number().int(),
+-  "monthRewardedCount": zod.number().int(),
+-  "monthCap": zod.number().int()
++  "rewardedCount": zod.number().int()
+ }),
+   "redemption": zod.object({
+   "status": zod.enum(['none', 'pending', 'rewarded']),
+@@ -989,8 +987,8 @@ export const GetReferralResponse = zod.object({
+ 
+ /**
+  * Records a pending referral redemption for the authenticated user.
+- * Rewards unlock for both parties once the new user logs their first
+- * approved food entry. One redemption per account; self-referrals are
++ * Rewards unlock for both parties once the new user saves their first
++ * meal. One redemption per account; self-referrals are
+  * rejected.
+  * @summary Redeem an invite code on a new account
+  */
+@@ -1011,11 +1009,12 @@ export const RedeemReferralResponse = zod.object({
+ 
+ /**
+  * The diary is local-first; this endpoint durably records the user's
+- * first approved food log server-side. It is the server-observable
+- * signal that referral activation requires before granting rewards.
++ * capture-backed food log server-side. It is retained for capture
++ * persistence compatibility; referral qualification instead accepts any
++ * valid authenticated meal save.
+  * Idempotent — once any diary entry exists for the user, repeat calls
+  * return the existing state without writing again.
+- * @summary Persist the user's first approved food log on the server
++ * @summary Persist the user's first capture-backed food log on the server
+  */
+ export const syncFirstDiaryEntryBodyMealMax = 40;
+ 
+@@ -1067,11 +1066,11 @@ export const SyncFirstDiaryEntryResponse = zod.object({
+ 
+ 
+ /**
+- * Called once the referred user records their first approved food log.
+- * Grants seven days of Pro to both parties (the referrer's grant is
+- * subject to a monthly cap). Idempotent — repeat calls return the
++ * Called once the referred user records their first saved meal through an
++ * authenticated Calora diary persistence route. Grants 30 days of Pro to
++ * both parties with no referral cap. Idempotent — repeat calls return the
+  * current state without granting again.
+- * @summary Unlock referral rewards after the first approved food log
++ * @summary Unlock referral rewards after the first saved meal
+  */
+ export const ActivateReferralResponse = zod.object({
+   "status": zod.enum(['none', 'pending', 'rewarded']),
+diff --git a/lib/api-zod/src/generated/types/referralSummaryStats.ts b/lib/api-zod/src/generated/types/referralSummaryStats.ts
+index 2f6a0a2..de72cfa 100644
+--- a/lib/api-zod/src/generated/types/referralSummaryStats.ts
++++ b/lib/api-zod/src/generated/types/referralSummaryStats.ts
+@@ -9,6 +9,4 @@
+ export type ReferralSummaryStats = {
+   pendingCount: number;
+   rewardedCount: number;
+-  monthRewardedCount: number;
+-  monthCap: number;
+ };
+diff --git a/lib/db/src/schema/index.ts b/lib/db/src/schema/index.ts
+index 7569528..7305bd5 100644
+--- a/lib/db/src/schema/index.ts
++++ b/lib/db/src/schema/index.ts
+@@ -81,8 +81,8 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
+    * was either written via the bare /v1/diary endpoint or synced without a
+    * session reference.
+    *
+-   * Used by hasSyncedDiaryEntry Path 2 to gate referral qualification on
+-   * provenance: only image/barcode-originated sync entries qualify.
++    * This provenance is retained for nutrition traceability. Referral
++    * qualification instead accepts any valid authenticated saved meal.
+    */
+   captureSessionId: uuid("capture_session_id").references(() => aiCaptureSessionsTable.id, { onDelete: "set null" }),
+   entryDate: date("entry_date").notNull(),
+@@ -226,12 +226,11 @@ export const referralRedemptionsTable = pgTable("calora_referral_redemptions", {
+   referredUserId: text("referred_user_id").notNull(),
+   status: text("status").notNull().default("pending"), // pending | rewarded
+   /**
+-   * Server-observed proof that the referred user really logged food
+-   * (e.g. a successful capture analysis or a synced diary entry).
++   * Server-observed proof that the referred user saved a meal.
+    * Activation never grants rewards while this is NULL.
+    */
+   qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
+-  /** Which server-side signal qualified this redemption (capture_analysis | diary_sync). */
++  /** Which server-side signal qualified this redemption (saved_meal). */
+   qualifiedSignal: text("qualified_signal"),
+   referredRewardedAt: timestamp("referred_rewarded_at", { withTimezone: true }),
+   referrerRewardedAt: timestamp("referrer_rewarded_at", { withTimezone: true }),
+-- 
+2.53.0
+
