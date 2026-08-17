@@ -52,6 +52,8 @@ CaloraApp gives users a daily calorie and macro view, verified food shortcuts, p
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
 
+- GitHub `main` is the authoritative Calora source. Before every requested change, fetch `origin/main` and stop on divergence; after validated work, commit intended changes, push safely, fetch again, and confirm local/remote SHA parity before reporting completion. Never force-push, rewrite published history, or commit secrets.
+
 ## Gotchas
 
 _Populate as you build — sharp edges, "always run X before Y" rules._
