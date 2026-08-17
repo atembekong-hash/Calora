@@ -24,6 +24,12 @@
     "android": {
       "package": "com.etiendem.caloraapp",
       "versionCode": 16,
+      "permissions": [
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_EXERCISE",
+        "android.permission.health.READ_WEIGHT"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -59,6 +65,15 @@
         {
           "cameraPermission": "CaloraApp uses your camera to identify food and scan product barcodes.",
           "microphonePermission": "CaloraApp uses your microphone only while you record a short meal description."
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "background": false,
+          "NSHealthShareUsageDescription": "Calora reads steps, active energy, workouts, and body weight you choose to share.",
+          "NSHealthUpdateUsageDescription": false
         }
       ]
     ],

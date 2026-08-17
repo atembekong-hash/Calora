@@ -58,7 +58,7 @@ export default function ProfileScreen() {
   const {
     colors, themePreference, setThemePreference,
     profile, updateProfile,
-    healthConnected, setHealthConnected,
+    healthConnected, healthConnection, connectHealth, syncHealth, disconnectHealth,
     exportRawStorageData, clearAllData, isClearing, syncState,
     savedMeals, saveMeal, deleteSavedMeal,
     hydrationReminders, setHydrationReminders,
@@ -127,6 +127,7 @@ export default function ProfileScreen() {
 
   // Info sheets (food data / no ads / help)
   const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help' | 'health'>(null);
+  const [healthBusy, setHealthBusy] = useState(false);
 
   // ─── OS reminder status sync ───────────────────────────────────────────────
   useEffect(() => {
@@ -278,6 +279,19 @@ export default function ProfileScreen() {
     confirmingRef.current = true;
     try { await clearAllData(); setPrivacyModal(null); }
     finally { confirmingRef.current = false; }
+  };
+
+  const handleHealthConnect = async () => {
+    if (healthBusy) return;
+    setHealthBusy(true);
+    try { await connectHealth(); }
+    finally { setHealthBusy(false); }
+  };
+  const handleHealthSync = async () => {
+    if (healthBusy) return;
+    setHealthBusy(true);
+    try { await syncHealth(); }
+    finally { setHealthBusy(false); }
   };
 
   /** Profile edit */
@@ -760,17 +774,16 @@ export default function ProfileScreen() {
           <View style={[styles.connectionIcon, { backgroundColor: colors.primary }]}><Feather name="activity" size={17} color={colors.primaryForeground} /></View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Health data</Text>
-           <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>{healthConnected ? 'Connected · steps and weight can sync' : `Not connected · ${BRAND.name} works offline without it`}</Text>
+            <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
+              {healthConnection.authorization === 'partial' ? 'Partial access · local health data only' : healthConnected ? 'Connected · local health data only' : healthConnection.authorization === 'denied' ? 'Permission not granted · Calora still works locally' : healthConnection.authorization === 'unavailable' ? 'Unavailable on this device' : `Not connected · ${BRAND.name} works offline without it`}
+            </Text>
           </View>
            <Pressable
-             accessibilityLabel="Learn about health data"
-             onPress={() => {
-               if (healthConnected) setHealthConnected(false);
-               setInfoModal('health');
-             }}
+              accessibilityLabel="Manage health data"
+              onPress={() => setInfoModal('health')}
              style={[styles.connectButton, { backgroundColor: colors.card }]}
            >
-             <Text style={[styles.connectButtonText, { color: colors.primary }]}>{healthConnected ? 'Disconnect' : 'Learn more'}</Text>
+              <Text style={[styles.connectButtonText, { color: colors.primary }]}>{healthConnected ? 'Manage' : 'Connect'}</Text>
           </Pressable>
         </View>
         {[
@@ -1011,7 +1024,7 @@ export default function ProfileScreen() {
                 <Feather name={infoModal === 'food-data' ? 'shield' : infoModal === 'no-ads' ? 'eye-off' : infoModal === 'health' ? 'activity' : 'help-circle'} size={18} color={colors.accentForeground} />
               </View>
               <Text style={[styles.dialogTitle, { color: colors.foreground, flex: 1, marginLeft: 12 }]}>
-                {infoModal === 'food-data' ? 'Your food data stays yours' : infoModal === 'no-ads' ? 'No surveillance ads' : infoModal === 'health' ? 'Health data is not connected' : 'Need a hand?'}
+                {infoModal === 'food-data' ? 'Your food data stays yours' : infoModal === 'no-ads' ? 'No surveillance ads' : infoModal === 'health' ? 'Health data' : 'Need a hand?'}
               </Text>
               <Pressable accessibilityLabel="Close" onPress={() => setInfoModal(null)} hitSlop={10}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
@@ -1059,12 +1072,35 @@ export default function ProfileScreen() {
             {infoModal === 'health' && (
               <>
                 <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>
-                  HealthKit and Health Connect are not connected in this build. {BRAND.name} continues to work locally without health data, and no steps or weight have been read.
+                  {healthConnection.authorization === 'unavailable'
+                    ? 'Health data is unavailable on this device. Calora will continue to work locally without it.'
+                    : healthConnection.authorization === 'denied'
+                      ? 'Health access was not granted. Calora continues to work normally, and no health data has been read.'
+                      : healthConnected
+                      ? `Your ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} data stays on this device. ${healthConnection.authorization === 'partial' ? 'Some requested categories are not available.' : 'Steps, active energy, workouts, and weight can be read when you sync.'}`
+                      : `Connect ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} only when you are ready. Calora reads selected data locally and never writes health records.`}
                 </Text>
                 <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
-                  <Feather name="lock" size={15} color={colors.primary} />
-                  <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>A future connection will ask for explicit device permission first.</Text>
+                  <Feather name={healthConnection.syncError ? 'alert-triangle' : 'lock'} size={15} color={colors.primary} />
+                  <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>
+                    {healthConnection.syncError ?? (healthConnection.lastSyncedAt ? `Last synced ${new Date(healthConnection.lastSyncedAt).toLocaleString()}` : 'Permission is requested only after you press Connect.')}
+                  </Text>
                 </View>
+                {healthConnection.authorization !== 'unavailable' && !healthConnected && (
+                  <Pressable accessibilityLabel="Connect health data" onPress={handleHealthConnect} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
+                    {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Connect</Text>}
+                  </Pressable>
+                )}
+                {healthConnected && (
+                  <>
+                    <Pressable accessibilityLabel="Sync health data now" onPress={handleHealthSync} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
+                      {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Sync now</Text>}
+                    </Pressable>
+                    <Pressable accessibilityLabel="Disconnect health data" onPress={disconnectHealth} style={[styles.dialogButton, { backgroundColor: colors.muted, marginTop: 10 }]}>
+                      <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Disconnect</Text>
+                    </Pressable>
+                  </>
+                )}
               </>
             )}
 

@@ -10,6 +10,8 @@ import { verifyProfilePhotoExists, deleteProfilePhoto } from '@/lib/profilePhoto
 import { buildExportPayload, readRawStorageData } from '@/lib/exportPayload';
 import { makeClearedExportSnapshot, resolveExportData } from '@/lib/exportGap';
 import { normalizeHealthConnection } from '@/lib/healthConnection';
+import { healthService } from '@/lib/health/healthService';
+import { EMPTY_HEALTH_CONNECTION, type HealthConnection, type HealthSnapshot } from '@/lib/health/types';
 import { useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
@@ -160,6 +162,7 @@ type CaloraState = {
   savedRecipeIds: string[];
   themePreference: ThemePreference;
   healthConnected: boolean;
+  healthConnection?: HealthConnection;
   consentAccepted: boolean;
   outbox: OutboxMutation[];
   plannerWeekStart: string;
@@ -204,6 +207,7 @@ type CaloraContextValue = {
   syncState: SyncState;
   pendingMutations: OutboxMutation[];
   healthConnected: boolean;
+  healthConnection: HealthConnection;
   hydrationReminders: HydrationReminderPrefs;
   mealReminders: MealReminderPrefs;
   goalReminder: GoalReminderPrefs;
@@ -265,6 +269,9 @@ type CaloraContextValue = {
   completeOnboarding: (profile: Profile, consentAccepted: boolean) => void;
   updateProfile: (patch: Partial<Profile>) => void;
   setHealthConnected: (connected: boolean) => void;
+  connectHealth: () => Promise<HealthConnection>;
+  syncHealth: () => Promise<void>;
+  disconnectHealth: () => void;
   clearOutbox: () => void;
   exportData: () => Promise<string>;
   exportRawStorageData: () => Promise<string | null>;
@@ -387,6 +394,16 @@ function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function mergeHealthWeights(current: WeightEntry[], snapshot: HealthSnapshot): WeightEntry[] {
+  return snapshot.weights.reduce<WeightEntry[]>((next, healthWeight) => {
+    const date = healthWeight.recordedAt.slice(0, 10);
+    // Manual entries always win for a day; repeated syncs reuse the provider record id.
+    if (next.some((entry) => entry.date === date && entry.source === 'manual')) return next;
+    if (next.some((entry) => entry.id === `health-${healthWeight.id}`)) return next;
+    return [...next, { id: `health-${healthWeight.id}`, date, kg: healthWeight.kg, source: 'health' }];
+  }, current);
+}
+
 export function CaloraProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
   const [onboardingComplete, setOnboardingComplete] = useState(false);
@@ -403,11 +420,11 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   const [localRecipes, setLocalRecipes] = useState<CaloraRecipe[]>([]);
   const [savedRecipeIds, setSavedRecipeIds] = useState<string[]>([]);
   const [themePreference, setThemePreference] = useState<ThemePreference>('system');
-  const [healthConnected, setHealthConnectedState] = useState(false);
-  // Health provider support is intentionally not wired in this build. Retain
-  // the public setter for compatibility, but never allow local state to claim
-  // a connection without a provider-authoritative authorization result.
-  const setHealthConnected = () => setHealthConnectedState(false);
+  const [healthConnection, setHealthConnection] = useState<HealthConnection>(EMPTY_HEALTH_CONNECTION);
+  const healthConnected = healthConnection.authorization === 'authorized' || healthConnection.authorization === 'partial';
+  const setHealthConnected = (connected: boolean) => {
+    if (!connected) setHealthConnection(EMPTY_HEALTH_CONNECTION);
+  };
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [outbox, setOutbox] = useState<OutboxMutation[]>([]);
   const [plannerWeekStart, setPlannerWeekStart] = useState(getPlannerWeekStart());
@@ -482,7 +499,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     if (saved.localRecipes) setLocalRecipes(saved.localRecipes);
     if (saved.savedRecipeIds) setSavedRecipeIds(saved.savedRecipeIds);
     if (saved.themePreference) setThemePreference(saved.themePreference);
-    if (saved.healthConnected !== undefined) setHealthConnectedState(normalizeHealthConnection(saved.healthConnected));
+    if (saved.healthConnection) setHealthConnection(normalizeHealthConnection(saved.healthConnection));
+    else if (saved.healthConnected !== undefined) setHealthConnection(normalizeHealthConnection(saved.healthConnected));
     if (saved.consentAccepted !== undefined) setConsentAccepted(saved.consentAccepted);
     if (saved.outbox) setOutbox(saved.outbox);
     if (saved.plannerWeekStart) setPlannerWeekStart(saved.plannerWeekStart);
@@ -539,6 +557,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       savedRecipeIds,
       themePreference,
       healthConnected,
+      healthConnection,
       consentAccepted,
       outbox,
       plannerWeekStart,
@@ -560,7 +579,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       profilePhotoUri: profilePhotoUri ?? undefined,
     };
      enqueueAutosave(pm.current, state);
-  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -617,6 +636,34 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     foodMemories: rememberedFoodMemories,
     repeatPatterns,
     healthConnected,
+    healthConnection,
+    connectHealth: async () => {
+      const next = await healthService.requestConnection();
+      setHealthConnection(next);
+      if (next.authorization === 'authorized' || next.authorization === 'partial') {
+        try {
+          const snapshot = await healthService.sync();
+          setHealthConnection({ ...next, snapshot, lastSyncedAt: snapshot.syncedAt, syncError: undefined });
+          setWeights((current) => mergeHealthWeights(current, snapshot));
+        } catch (error) {
+          setHealthConnection({ ...next, syncError: error instanceof Error ? error.message : 'Health data could not be read.' });
+        }
+      }
+      return next;
+    },
+    syncHealth: async () => {
+      const current = await healthService.getConnection();
+      setHealthConnection(current);
+      if (current.authorization !== 'authorized' && current.authorization !== 'partial') return;
+      try {
+        const snapshot = await healthService.sync();
+        setHealthConnection({ ...current, snapshot, lastSyncedAt: snapshot.syncedAt, syncError: undefined });
+        setWeights((weights) => mergeHealthWeights(weights, snapshot));
+      } catch (error) {
+        setHealthConnection({ ...current, syncError: error instanceof Error ? error.message : 'Health data could not be read.' });
+      }
+    },
+    disconnectHealth: () => setHealthConnection(EMPTY_HEALTH_CONNECTION),
     addLog: (log) => {
       const id = makeId('log');
       const capturedAt = new Date().toISOString();

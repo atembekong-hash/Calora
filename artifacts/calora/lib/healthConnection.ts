@@ -1,10 +1,15 @@
-/**
- * HealthKit and Health Connect are not available in the current Calora build.
- * Keep legacy local state from implying that health data is being synchronized
- * until an authorized provider integration is implemented.
- */
-export const HEALTH_INTEGRATION_AVAILABLE = false;
+import { EMPTY_HEALTH_CONNECTION, type HealthConnection } from './health/types';
 
-export function normalizeHealthConnection(_persistedValue?: boolean): false {
-  return false;
+export const HEALTH_INTEGRATION_AVAILABLE = true;
+
+export function normalizeHealthConnection(value?: boolean | Partial<HealthConnection>): HealthConnection {
+  if (!value || typeof value === 'boolean') return EMPTY_HEALTH_CONNECTION;
+  return {
+    provider: value.provider ?? 'unsupported',
+    authorization: value.authorization ?? 'notConnected',
+    granted: value.granted ?? [],
+    lastSyncedAt: value.lastSyncedAt,
+    syncError: value.syncError,
+    snapshot: value.snapshot,
+  };
 }
