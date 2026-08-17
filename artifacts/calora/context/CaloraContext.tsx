@@ -538,6 +538,26 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
 
+  // ── Health availability probe ──────────────────────────────────────────────
+  // On mount (after hydration), probe the native health service to see if it is
+  // actually available on this device. This updates the initial 'unavailable'
+  // state to 'notConnected' if the provider (Health Connect / HealthKit) is
+  // present, enabling the connection UI.
+  useEffect(() => {
+    if (!hydrated) return;
+    // Only probe if we don't have a definitive authorized/denied status yet.
+    // 'unavailable' is the default for fresh installs.
+    if (healthConnection.authorization === 'unavailable') {
+      healthService.getConnection().then((conn) => {
+        setHealthConnection(conn);
+      }).catch(() => {
+        // Fallback to unavailable on error
+        setHealthConnection(EMPTY_HEALTH_CONNECTION);
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+
   useEffect(() => {
     if (!shouldAutosave({ hydrated, error: hydrationError })) return;
     // React state has been committed — the cleared snapshot ref (set by clearAllData
