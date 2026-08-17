@@ -617,17 +617,20 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
 
 function CalorieGauge({
   consumed,
+  burned = 0,
   target,
   colors,
 }: {
   consumed: number;
+  burned?: number;
   target: number;
   colors: ReturnType<typeof useCalora>['colors'];
 }) {
   const { width: windowWidth } = useWindowDimensions();
-  const progress = target > 0 ? Math.min(Math.max(consumed / target, 0), 1) : 0;
-  const remaining = Math.max(target - consumed, 0);
-  const overGoal  = consumed > target;
+  const adjustedTarget = target + burned;
+  const progress = adjustedTarget > 0 ? Math.min(Math.max(consumed / adjustedTarget, 0), 1) : 0;
+  const remaining = Math.max(adjustedTarget - consumed, 0);
+  const overGoal  = consumed > adjustedTarget;
 
   // Responsive sizing:
   //   scrollContent has 20px H padding each side → usable = windowWidth - 40
@@ -713,7 +716,9 @@ function CalorieGauge({
         </View>
         <View style={[gaugeStyles.statDivider, { backgroundColor: colors.border }]} />
         <View style={gaugeStyles.statItem}>
-          <Text style={[gaugeStyles.statNumber, { color: colors.foreground }]}>0</Text>
+          <Text style={[gaugeStyles.statNumber, { color: colors.foreground }]}>
+            {burned.toLocaleString()}
+          </Text>
           <Text style={[gaugeStyles.statLabel, { color: colors.mutedForeground }]}>Burned</Text>
         </View>
       </View>
@@ -757,7 +762,7 @@ function makeGaugeStyles(f: number) {
 const gaugeStyles = makeGaugeStyles(1.0);
 
 export default function HomeScreen() {
-  const { logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood, livingState, fontScale, profilePhotoUri } = useCalora();
+  const { logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood, livingState, fontScale, profilePhotoUri, healthConnection } = useCalora();
   const insets = useSafeAreaInsets();
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
@@ -777,8 +782,9 @@ export default function HomeScreen() {
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 }), [selectedLogs]);
   const mealsLogged = new Set(selectedLogs.map((log) => log.meal)).size;
   const mealNames = Array.from(new Set(selectedLogs.map((log) => log.meal)));
-  const remaining = Math.max(target - selectedTotals.calories, 0);
-  const progress = Math.min(selectedTotals.calories / target, 1);
+  const activeEnergy = (isToday(selectedDate) && healthConnection.snapshot?.activeEnergyKcal) || 0;
+  const remaining = Math.max(target - selectedTotals.calories + activeEnergy, 0);
+  const progress = Math.min(selectedTotals.calories / (target + activeEnergy), 1);
 
   const openAdd = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -906,7 +912,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Dominant calorie gauge */}
-          <CalorieGauge consumed={selectedTotals.calories} target={target} colors={colors} />
+          <CalorieGauge consumed={selectedTotals.calories} burned={activeEnergy} target={target} colors={colors} />
 
           {/* Planning insight */}
           <Text style={[styles.heroInsight, { color: colors.mutedForeground }]}>{livingState.headline}</Text>

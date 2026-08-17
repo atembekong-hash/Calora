@@ -1109,7 +1109,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale } = useCalora();
+  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected } = useCalora();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showWeight, setShowWeight] = useState(false);
@@ -1544,6 +1544,20 @@ export default function InsightsScreen() {
                 <Text style={[styles.signalMetricHint, { color: colors.mutedForeground }]}>{moodToday ? 'Logged today' : 'Optional check-in'}</Text>
               </View>
             </View>
+            {healthConnected && healthConnection.snapshot && (
+              <View style={[styles.signalRow, { marginTop: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16 }]}>
+                <View style={styles.signalMetric}>
+                  <View style={styles.signalMetricTop}><Feather name="zap" size={14} color={colors.primary} /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Steps</Text></View>
+                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthConnection.snapshot.steps?.toLocaleString() ?? 0} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>today</Text></Text>
+                  <AnimatedTrackFill percentage={Math.min(((healthConnection.snapshot.steps ?? 0) / 10000) * 100, 100)} color={colors.primary} trackColor={colors.muted} />
+                </View>
+                <View style={styles.signalMetric}>
+                  <View style={styles.signalMetricTop}><Feather name="fire" size={14} color={colors.warning} /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Burned</Text></View>
+                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthConnection.snapshot.activeEnergyKcal?.toLocaleString() ?? 0} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>kcal</Text></Text>
+                  <Text style={[styles.signalMetricHint, { color: colors.mutedForeground }]}>Synced from {healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'}</Text>
+                </View>
+              </View>
+            )}
           </View>
         </AnimatedReveal>
 
@@ -1660,8 +1674,12 @@ export default function InsightsScreen() {
               {remembered.activityLogs[todayKey] || activityMinutesLogs[todayKey] || moodToday ? 'Saved on this device. You can change it anytime.' : 'Nothing is assumed when you leave this blank.'}
             </Text>
             <View style={[styles.healthSyncNote, { backgroundColor: colors.muted }]}>
-              <Feather name="link-2" size={11} color={colors.mutedForeground} />
-              <Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>Health sync unavailable · connect a health integration to import workouts automatically.</Text>
+              <Feather name={healthConnected ? 'check-circle' : 'link-2'} size={11} color={healthConnected ? colors.success : colors.mutedForeground} />
+              <Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>
+                {healthConnected 
+                  ? `Connected to ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} · syncing automatically.`
+                  : 'Health sync unavailable · connect a health integration to import workouts automatically.'}
+              </Text>
             </View>
           </View>
         </AnimatedReveal>
@@ -1756,8 +1774,12 @@ export default function InsightsScreen() {
             </View>
           ) : null}
           <View style={[styles.healthSyncNote, { backgroundColor: colors.muted, marginTop: 12 }]}>
-            <Feather name="link-2" size={11} color={colors.mutedForeground} />
-            <Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>Health sync unavailable · connect a health integration for automatic weigh-in import.</Text>
+            <Feather name={healthConnected ? 'check-circle' : 'link-2'} size={11} color={healthConnected ? colors.success : colors.mutedForeground} />
+            <Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>
+              {healthConnected
+                ? `Connected to ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} · syncing automatically.`
+                : 'Health sync unavailable · connect a health integration for automatic weigh-in import.'}
+            </Text>
           </View>
         </View>
         </AnimatedReveal>

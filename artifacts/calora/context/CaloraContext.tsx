@@ -550,10 +550,17 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     if (healthConnection.authorization === 'unavailable') {
       healthService.getConnection().then((conn) => {
         setHealthConnection(conn);
+        // If already authorized, trigger an initial sync to refresh data.
+        if (conn.authorization === 'authorized' || conn.authorization === 'partial') {
+          syncHealth();
+        }
       }).catch(() => {
         // Fallback to unavailable on error
         setHealthConnection(EMPTY_HEALTH_CONNECTION);
       });
+    } else if (healthConnected) {
+      // Already connected from a previous session; refresh data on mount.
+      syncHealth();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);

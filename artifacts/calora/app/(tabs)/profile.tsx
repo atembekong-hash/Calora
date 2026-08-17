@@ -290,8 +290,14 @@ export default function ProfileScreen() {
   const handleHealthSync = async () => {
     if (healthBusy) return;
     setHealthBusy(true);
-    try { await syncHealth(); }
-    finally { setHealthBusy(false); }
+    try {
+      await syncHealth();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      Alert.alert('Sync failed', err instanceof Error ? err.message : 'Could not read health data.');
+    } finally {
+      setHealthBusy(false);
+    }
   };
 
   /** Profile edit */
