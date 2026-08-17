@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.etiendem.caloraapp",
-      "versionCode": 19,
+      "versionCode": 22,
       "minSdkVersion": 26,
       "permissions": [
         "android.permission.health.READ_STEPS",
