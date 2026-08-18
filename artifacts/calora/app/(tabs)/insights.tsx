@@ -20,6 +20,8 @@ import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/wee
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { celebrationGate } from '@/lib/goalCelebration';
 
+type ProgressView = 'overview' | 'trends' | 'weight';
+
 const moodColors: Record<Mood, string> = {
   energized: '#e5ad55',
   good: '#5dba7d',
@@ -1340,6 +1342,7 @@ export default function InsightsScreen() {
   // so that mood, activity, and water check-ins always save to the correct day even when the
   // screen stays open past midnight.
   const [todayKey, setTodayKey] = useState(() => dateKey());
+  const [progressView, setProgressView] = useState<ProgressView>('overview');
   useEffect(() => {
     const id = setInterval(() => {
       const current = dateKey();
@@ -1391,7 +1394,7 @@ export default function InsightsScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
-        title="Insights"
+        title="Progress"
         action={
           <ScalePressable
             accessibilityLabel={`Open ${BRAND.name} Coach`}
@@ -1429,6 +1432,32 @@ export default function InsightsScreen() {
           </View>
         </View>
 
+        <View style={[styles.progressTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+          {([
+            { key: 'overview' as const, label: 'Overview' },
+            { key: 'trends' as const, label: 'Trends' },
+            { key: 'weight' as const, label: 'Weight' },
+          ]).map((tab) => {
+            const selected = progressView === tab.key;
+            return (
+              <Pressable
+                key={tab.key}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`${tab.label} progress tab`}
+                onPress={() => setProgressView(tab.key)}
+                style={[styles.progressTab, selected && { backgroundColor: colors.card }]}
+              >
+                <Text style={[styles.progressTabText, { color: selected ? colors.foreground : colors.mutedForeground }]}>{tab.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={[styles.progressTabSubtitle, { color: colors.mutedForeground }]}>
+          {{ overview: 'Your weekly rhythm and today’s optional context.', trends: 'Calorie, nutrient, and weekly patterns in one place.', weight: 'Your weigh-ins, goal, and history tools.' }[progressView]}
+        </Text>
+
+        <View style={progressView === 'overview' ? undefined : styles.hiddenSection}>
         <MotivationalQuote colors={colors} style={{ marginBottom: 16 }} />
 
         <AnimatedReveal delay={150} style={styles.statRow}>
@@ -1472,7 +1501,9 @@ export default function InsightsScreen() {
             </View>
           </View>
         </AnimatedReveal>
+        </View>
 
+        <View style={progressView === 'trends' ? undefined : styles.hiddenSection}>
         <View style={styles.sectionHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This week</Text>
@@ -1522,7 +1553,9 @@ export default function InsightsScreen() {
           <Text style={[styles.nutrientNote, { color: colors.mutedForeground }]}>Micronutrients appear as verified foods are added; photo and manual entries remain estimates until reviewed.</Text>
         </View>
         </AnimatedReveal>
+        </View>
 
+        <View style={progressView === 'overview' ? undefined : styles.hiddenSection}>
         <AnimatedReveal delay={480}>
           <View style={[styles.signalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.signalCardHeader}>
@@ -1552,7 +1585,7 @@ export default function InsightsScreen() {
                   <AnimatedTrackFill percentage={Math.min(((healthConnection.snapshot.steps ?? 0) / 10000) * 100, 100)} color={colors.primary} trackColor={colors.muted} />
                 </View>
                 <View style={styles.signalMetric}>
-                  <View style={styles.signalMetricTop}><Feather name="fire" size={14} color={colors.warning} /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Burned</Text></View>
+                  <View style={styles.signalMetricTop}><Feather name="zap" size={14} color={colors.warning} /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Burned</Text></View>
                   <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthConnection.snapshot.activeEnergyKcal?.toLocaleString() ?? 0} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>kcal</Text></Text>
                   <Text style={[styles.signalMetricHint, { color: colors.mutedForeground }]}>Synced from {healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'}</Text>
                 </View>
@@ -1683,7 +1716,9 @@ export default function InsightsScreen() {
             </View>
           </View>
         </AnimatedReveal>
+        </View>
 
+        <View style={progressView === 'weight' ? undefined : styles.hiddenSection}>
         <View style={styles.weightHeader}>
           <View style={styles.weightTitleGroup}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your trend matters more than a single day</Text></View>
           <View style={styles.weightHeaderButtons}>
@@ -1783,7 +1818,9 @@ export default function InsightsScreen() {
           </View>
         </View>
         </AnimatedReveal>
+        </View>
 
+        <View style={progressView === 'trends' ? undefined : styles.hiddenSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Built on trust</Text>
         <View style={[styles.trustRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.trustIcon, { backgroundColor: colors.accent }]}><Feather name="database" size={18} color={colors.accentForeground} /></View>
@@ -1800,6 +1837,7 @@ export default function InsightsScreen() {
             <Text style={[styles.trustBody, { color: colors.mutedForeground }]}>Every meal can start with one tap, then you stay in control of the estimate.</Text>
           </View>
           <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+        </View>
         </View>
       </Animated.ScrollView>
       <Modal visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)}>
@@ -1978,6 +2016,11 @@ export default function InsightsScreen() {
 function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
+  hiddenSection: { display: 'none' },
+  progressTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 15, padding: 4, gap: 4, marginBottom: 10 },
+  progressTab: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11, paddingHorizontal: 5 },
+  progressTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+  progressTabSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginBottom: 20 },
   heroHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
   heroContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
   heroBadge: { position: 'absolute', top: 17, right: 17, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
