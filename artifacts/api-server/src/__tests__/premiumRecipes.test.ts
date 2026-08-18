@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 
@@ -7,8 +7,15 @@ afterEach(() => {
   delete process.env.PREMIUM_RECIPE_PROVIDER_NAME;
   delete process.env.PREMIUM_RECIPE_PROVIDER_API_KEY;
   delete process.env.PREMIUM_RECIPE_ACCESS_MODE;
+  delete process.env.FATSECRET_CLIENT_ID;
+  delete process.env.FATSECRET_CLIENT_SECRET;
   vi.unstubAllGlobals();
   vi.resetModules();
+});
+
+beforeEach(() => {
+  delete process.env.FATSECRET_CLIENT_ID;
+  delete process.env.FATSECRET_CLIENT_SECRET;
 });
 
 async function appWithProvider(url?: string) {
@@ -57,5 +64,20 @@ describe("Premium recipe routes", () => {
     const res = await request(app).get("/v1/premium-recipes");
     expect(res.status).toBe(502);
     expect(res.body).toMatchObject({ status: "error", recipes: [] });
+  });
+
+  it("uses FatSecret OAuth and normalizes a recipe search result", async () => {
+    process.env.FATSECRET_CLIENT_ID = "test-id";
+    process.env.FATSECRET_CLIENT_SECRET = "test-secret";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "token", expires_in: 3600 }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ recipes: { total_results: "1", recipe: [{ recipe_id: "99", recipe_name: "FatSecret bowl", recipe_image: "https://image.example/99" }] } }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider();
+    const res = await request(app).get("/v1/premium-recipes?query=bowl");
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ provider: "FatSecret", status: "available" });
+    expect(res.body.recipes[0]).toMatchObject({ id: "premium:FatSecret:99", sourceProvider: "FatSecret", nutritionConfidence: "verified" });
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/recipes/search/v3");
   });
 });
