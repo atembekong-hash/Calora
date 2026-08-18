@@ -1,0 +1,1135 @@
+Mission
+
+Expand the existing Calora Recipes tab into a three-part recipe system while preserving the current working implementation.
+
+The new Recipes architecture must contain:
+
+Discover | Premium | Create
+
+The current open-source recipe experience becomes Discover.
+
+A new Premium section will use a higher-quality paid recipe API.
+
+A new Create section will allow users to generate personalized recipes with AI using Calora data such as shopping-list items, available ingredients, meal-plan context, recent foods, nutrition targets, manually entered ingredients, and other available signals.
+
+This is an expansion of the existing Recipes system. It is not a request to rebuild the tab from scratch.
+
+Proceed cautiously.
+
+---
+
+1. Mandatory first step: inspect before editing
+
+Before making changes:
+
+- Inspect the complete current Recipes implementation.
+- Identify all relevant screens, components, hooks, services, API clients, state management, caching, navigation, database tables, schemas, nutrition logic, bookmark logic, search logic, filters, recipe-detail screens, shopping-list integrations, meal-plan integrations, logging integrations, and shared UI components.
+- Identify the current open-source API integration and how its data is transformed.
+- Identify anything already implemented for recipe creation, saving, meal logging, shopping lists, meal planning, scanning, nutrition calculations, user preferences, dietary restrictions, allergies, recent foods, and user goals.
+- Map dependencies before changing them.
+- Reuse existing working systems wherever reasonable.
+- Do not replace working architecture merely because another implementation would be easier.
+
+Produce an internal implementation map first.
+
+Do not begin broad modification until the current system is understood.
+
+---
+
+2. Preserve existing behavior
+
+The current open-source Recipes experience is working and must remain functional.
+
+Preserve:
+
+- Existing recipe catalogue.
+- Existing recipe images.
+- Existing search.
+- Existing category filters.
+- Existing bookmark/save behavior.
+- Existing recipe-detail navigation.
+- Existing source attribution.
+- Existing nutrition-review warnings.
+- Existing scrolling behavior.
+- Existing dark/light theme support.
+- Existing bottom navigation.
+- Existing plus button unless explicitly modified below.
+- Existing performance and caching behavior unless improvement is required.
+
+Do not introduce regressions.
+
+The visual language should remain consistent with the current Calora design.
+
+---
+
+3. New top-level Recipes architecture
+
+Inside the existing Recipes tab, add a persistent internal segmented navigation directly below the page header:
+
+Discover | Premium | Create
+
+These are internal Recipes sections.
+
+Do not add new bottom-navigation tabs.
+
+Expected behavior:
+
+- "Discover" opens the current open-source experience.
+- "Premium" opens the premium recipe catalogue.
+- "Create" opens the personalized AI recipe experience.
+- Switching sections should feel immediate.
+- Preserve section state where practical, including scroll position, selected filters, and search state.
+- Navigation must remain responsive and accessible.
+
+Use the existing Calora spacing, typography, corner radii, colors, touch targets, and dark/light theme system.
+
+Do not make the control visually heavy.
+
+---
+
+4. Discover section
+
+The existing current Recipes experience becomes Discover.
+
+Preserve its current functionality.
+
+Current source-labelled recipes should continue to make their origin clear.
+
+Examples:
+
+- Open source · TheMealDB
+- Nutrition review needed
+
+Do not silently imply that open-source recipe nutrition has been professionally verified.
+
+The current large cookbook hero may remain for now, but structure the page so it can later become dismissible, collapsible, editorial, or first-visit-only without requiring a major refactor.
+
+Do not spend this task redesigning Discover unless necessary for the new architecture.
+
+---
+
+5. Premium section
+
+Create a dedicated premium recipe catalogue.
+
+Do not hard-code the architecture to one provider.
+
+Create a provider/service abstraction so a premium recipe API can be replaced later without rewriting the UI.
+
+The Premium section should support richer structured recipe data when the provider supplies it.
+
+Target fields include:
+
+- Recipe title
+- Description
+- Image
+- Servings
+- Prep time
+- Cook time
+- Total time
+- Cuisine
+- Meal type
+- Difficulty
+- Ingredients with quantities and units
+- Instructions
+- Calories
+- Protein
+- Carbohydrates
+- Fat
+- Fiber
+- Micronutrients when available
+- Dietary classifications
+- Allergens
+- Equipment
+- Provider/source attribution
+- Provider recipe ID
+
+Do not fabricate unavailable fields.
+
+---
+
+6. Premium UI
+
+Premium should use the same visual system as Discover, but cards may expose higher-value structured information.
+
+A premium recipe card may show:
+
+Mediterranean Chicken Bowl
+
+610 kcal
+46 g protein
+25 min
+
+"High protein" "Mediterranean"
+
+Keep cards clean.
+
+Do not overload recipe cards with every data field.
+
+Add a filter control that can expose applicable structured filters such as:
+
+- Calories
+- Protein
+- Meal type
+- Cuisine
+- Diet
+- Preparation time
+- Allergens
+- Difficulty
+- Ingredients
+- Nutrition goals
+
+Keep advanced filters behind a dedicated filter surface instead of filling the main screen with controls.
+
+Search should support both ordinary recipe search and structured filtering when supported.
+
+---
+
+7. Do not confuse “premium source” with subscription status
+
+Treat recipe-source quality and Calora subscription entitlement as separate concerns.
+
+The architecture must not assume that every recipe from the paid API is necessarily locked behind a Calora subscription.
+
+Create a clean entitlement point so access rules can later be configured without rewriting Premium.
+
+Do not introduce a paywall unless the existing product rules already require it.
+
+---
+
+8. Create section
+
+Build a dedicated personalized recipe-generation experience.
+
+The opening Create screen should stay simple.
+
+Header:
+
+Create with Calora
+
+Supporting message:
+
+Tell Calora what you have, what you want, or let it work it out for you.
+
+Primary starting modes:
+
+1. Use what I have
+2. Match my goals
+3. Tell Calora
+4. Surprise me
+
+These modes should feed one common recipe-generation engine.
+
+Do not create four unrelated implementations.
+
+---
+
+9. Use what I have
+
+Allow the user to build recipe suggestions from available Calora data.
+
+Potential sources:
+
+- Shopping List
+- Manually selected ingredients
+- Manually typed ingredients
+- Meal Plan
+- Recent foods/logged foods
+- Ingredients inferred from other available Calora data
+- Ingredient photo scanning if the existing scan architecture can safely support it
+
+Users should be able to combine sources where practical.
+
+Example:
+
+Shopping List ✓
+Recent Foods ✓
+Manual ingredient: chicken thighs
+
+Then:
+
+Find recipes
+
+Do not require the user to manually re-enter data that Calora already knows.
+
+---
+
+10. Match my goals
+
+Use existing nutrition context where available.
+
+Relevant data may include:
+
+- Daily calorie target
+- Calories consumed
+- Calories remaining
+- Protein target
+- Protein remaining
+- Carbohydrate target
+- Carbohydrates remaining
+- Fat target
+- Fat remaining
+- Meal type
+- Dietary preference
+- Allergy/restriction settings
+- Current meal plan
+- Serving preference
+
+Example:
+
+Dinner target
+
+550–700 kcal
+40 g+ protein
+Under 30 minutes
+
+Then:
+
+Find meals
+
+The user must be able to modify automatically inferred constraints.
+
+Do not silently lock them.
+
+---
+
+11. Tell Calora
+
+Provide a natural-language recipe request field.
+
+Example placeholder:
+
+Something spicy with chicken, rice and vegetables. High protein. Dinner for two. Under 30 minutes.
+
+Parse the request into structured constraints when possible.
+
+Before generating full recipes, display interpreted constraints as editable chips or structured values.
+
+Example:
+
+"Chicken"
+"Rice"
+"High protein"
+"2 servings"
+"≤30 min"
+
+Users must be able to correct these before proceeding.
+
+---
+
+12. Surprise me
+
+Allow Calora to propose meals using available context.
+
+Potential signals include:
+
+- Remaining nutrition
+- Diet restrictions
+- Allergies
+- Saved preferences
+- Meal time
+- Shopping-list ingredients
+- Recent foods
+- Meal-plan context
+- Previously saved recipes
+- Recent recipe choices
+
+Avoid monotonous recommendations.
+
+Do not repeatedly recommend almost identical meals merely because they score highly.
+
+Where sufficient history exists, add simple diversity logic.
+
+---
+
+13. Two-stage AI generation
+
+Do not generate a full detailed recipe immediately after every request.
+
+Use a two-stage workflow.
+
+Stage 1: Generate recipe concepts
+
+Return approximately three concise options.
+
+Each option should contain enough information to choose intelligently.
+
+Example:
+
+Lemon chicken couscous
+28 min · 590 kcal · 48 g protein
+Uses 8 of 9 selected ingredients
+
+Chicken spinach skillet
+21 min · 525 kcal · 51 g protein
+Uses 7 selected ingredients
+
+Spiced chicken rice
+32 min · 635 kcal · 44 g protein
+
+Stage 2: Generate full recipe
+
+Only after the user selects an option should Calora generate or finalize the complete recipe.
+
+This architecture is important for:
+
+- Lower AI cost
+- Lower latency
+- Less wasted generation
+- Better user choice
+- Easier retries
+
+Do not bypass this without a strong technical reason.
+
+---
+
+14. Canonical recipe model
+
+This is a critical architectural requirement.
+
+Do not create separate incompatible recipe models for Discover, Premium, and Create.
+
+Normalize all recipe sources into one canonical internal Calora recipe representation.
+
+A conceptual model should support fields such as:
+
+Recipe {
+  id
+  sourceType
+  sourceProvider
+  sourceId
+
+  title
+  description
+  image
+
+  cuisine
+  mealTypes
+  dietTags
+
+  servings
+  prepTime
+  cookTime
+  totalTime
+
+  ingredients[]
+  instructions[]
+
+  nutrition
+  allergens[]
+  equipment[]
+  difficulty
+
+  nutritionConfidence
+  nutritionSource
+
+  isSaved
+  createdByUser
+
+  createdAt
+  updatedAt
+}
+
+Adapt this to the current project architecture and database conventions.
+
+Do not blindly copy this exact shape if an existing recipe model already exists.
+
+Extend and normalize the existing model where safer.
+
+Expected "sourceType" values should support at least:
+
+- "open"
+- "premium"
+- "calora_ai"
+
+Design so future values can be added, such as:
+
+- "user_created"
+- "imported"
+
+---
+
+15. Recipe provenance
+
+Every recipe must retain clear provenance internally.
+
+Record:
+
+- Source type
+- Provider
+- Provider recipe ID when available
+- Whether nutrition came from provider data, Calora calculation, or another verified nutrition source
+- Whether nutrition remains unverified or approximate
+
+Do not erase source provenance after normalization.
+
+The UI should expose source information when relevant.
+
+---
+
+16. AI must not invent authoritative nutrition
+
+This is mandatory.
+
+AI can generate:
+
+- Recipe concepts
+- Ingredient combinations
+- Ingredient quantities
+- Instructions
+- Descriptions
+- Substitutions
+- Cooking ideas
+
+Do not treat AI-generated calorie or macro numbers as authoritative.
+
+After AI produces the structured ingredient list and quantities, pass those ingredients through the existing Calora nutrition system or an appropriate structured nutrition-data service.
+
+Example:
+
+150 g chicken breast
+100 g cooked rice
+80 g spinach
+10 g olive oil
+
+Then calculate:
+
+- Calories
+- Protein
+- Carbohydrates
+- Fat
+- Fiber
+- Available micronutrients
+
+Store nutrition provenance and confidence.
+
+If precise nutrition cannot be calculated, communicate that clearly.
+
+Never disguise estimates as verified values.
+
+---
+
+17. Allergens and dietary restrictions
+
+Use structured ingredient data to validate known allergens and dietary restrictions where possible.
+
+AI may assist in interpreting the recipe, but do not rely solely on AI-generated allergen claims.
+
+If confidence is insufficient, communicate uncertainty.
+
+Existing user allergy and dietary settings should be respected throughout Create.
+
+Do not suggest clearly incompatible recipes when reliable restriction data exists.
+
+---
+
+18. Full generated recipe screen
+
+Once a user chooses an AI concept, display a full native Calora recipe detail screen.
+
+Expected hierarchy:
+
+- Recipe image if available
+- Recipe title
+- Short description
+- Calories
+- Protein
+- Total time
+- Servings
+
+Then:
+
+Ingredients
+
+Ingredient quantities must respond to serving changes.
+
+Nutrition
+
+Show available:
+
+- Calories
+- Protein
+- Carbohydrates
+- Fat
+- Fiber
+- Relevant micronutrients
+
+Instructions
+
+Instructions should be substantive and step-by-step.
+
+Do not generate tiny generic method sections.
+
+Preserve the project's existing recipe quality rules.
+
+Actions
+
+Include appropriate actions such as:
+
+- Add to Today / Log Meal
+- Add to Plan
+- Add missing ingredients to Shopping List
+- Save Recipe
+- Edit / Adjust Recipe
+
+Reuse existing systems rather than creating duplicate logic.
+
+---
+
+19. AI recipe editing
+
+Users must be able to adjust generated recipes.
+
+Support common modifications such as:
+
+- Make it higher protein
+- Reduce calories
+- Make it vegetarian
+- Replace an ingredient
+- Remove dairy
+- Make it cheaper
+- Make it faster
+- Change servings
+- Use only available ingredients
+
+When changes alter ingredients or amounts:
+
+- Recalculate nutrition.
+- Re-evaluate allergens and dietary compatibility.
+- Preserve unchanged recipe details where reasonable.
+
+Do not merely change the displayed calorie number with AI.
+
+---
+
+20. Shopping List integration
+
+For every recipe source, compare required ingredients with available shopping-list data when feasible.
+
+Example:
+
+You already have 7 of 10 ingredients
+
+Missing:
+
+- Greek yogurt
+- Parsley
+- Lemon
+
+Provide:
+
+Add 3 to Shopping List
+
+Avoid duplicate shopping-list items.
+
+Respect quantities and units where the current shopping-list model supports them.
+
+This integration should work for:
+
+- Discover
+- Premium
+- AI-created recipes
+
+where sufficient structured ingredient data exists.
+
+---
+
+21. Meal Plan integration
+
+Every compatible recipe should support:
+
+Add to Plan
+
+Allow selection of:
+
+- Today
+- Tomorrow
+- Specific date
+
+and meal slot such as:
+
+- Breakfast
+- Lunch
+- Dinner
+- Snack
+
+Reuse the existing meal-plan architecture.
+
+When added to the plan:
+
+- Preserve recipe reference.
+- Preserve serving information.
+- Feed planned nutrition totals if the existing Plan supports this.
+- Changes to serving quantity should update planned nutrition appropriately.
+
+Do not maintain separate disconnected copies unless required by the existing data architecture.
+
+---
+
+22. Food logging integration
+
+Provide:
+
+Log Meal
+
+The flow should support:
+
+- Serving quantity
+- Meal type
+- Date
+
+Reuse the existing food-log pipeline.
+
+Nutrition from the recipe should map correctly into the user's daily totals.
+
+The flow should be fast and require minimal confirmation.
+
+---
+
+23. Saved recipes
+
+Create or extend a unified Saved Recipes experience.
+
+Saved recipes should be able to contain recipes from:
+
+- Discover
+- Premium
+- Calora AI
+- Future user-created sources
+
+Preserve recipe provenance.
+
+The existing bookmark icon should continue to work and can route into this unified system where appropriate.
+
+Avoid duplicate saved entries.
+
+---
+
+24. Existing plus button
+
+The current "+" button in Recipes should evolve into recipe creation entry.
+
+On tap, open a small action surface such as:
+
+- Create with AI
+- Enter recipe manually
+- Import recipe
+
+For this implementation:
+
+Create with AI should be fully connected to the new Create workflow.
+
+If manual entry or recipe import are not already supported, structure their entry points safely but do not build large unfinished systems merely to satisfy the menu.
+
+Do not introduce dead buttons.
+
+If a feature is not ready, either omit it or clearly gate it based on current project conventions.
+
+---
+
+25. Performance
+
+The new system must remain responsive.
+
+Implement sensible:
+
+- API request cancellation
+- Loading states
+- Empty states
+- Error states
+- Retry behavior
+- Caching
+- Image loading
+- Pagination/infinite loading
+- Debounced search
+- Request deduplication
+- AI generation timeout handling
+
+Do not freeze the UI during AI generation.
+
+Do not re-fetch complete catalogues unnecessarily when switching internal sections.
+
+---
+
+26. AI generation states
+
+Create clear states for AI recipe generation.
+
+At minimum:
+
+- Idle
+- Preparing request
+- Generating concepts
+- Concepts available
+- Generating full recipe
+- Calculating nutrition
+- Recipe ready
+- Generation failed
+- Nutrition calculation failed
+
+Do not show fake progress percentages.
+
+Use truthful status text.
+
+Allow retry after recoverable errors.
+
+Preserve the user's request after an error.
+
+---
+
+27. Offline and degraded states
+
+If the device is offline:
+
+- Existing cached/saved recipes should remain usable where possible.
+- Clearly communicate that new API searches or AI generation require connectivity.
+- Do not crash.
+- Do not show an empty blank screen.
+
+If the premium provider fails:
+
+- Discover should continue working.
+- Create should continue working if its required services remain available.
+
+Providers should fail independently.
+
+---
+
+28. Security and privacy
+
+Do not expose private API keys in the client bundle.
+
+Premium recipe API secrets and AI provider credentials must remain server-side or within the project's existing secure backend architecture.
+
+Do not send unnecessary user data to external recipe providers.
+
+When AI generation uses personal context, send only the minimum fields required for the current request.
+
+Respect existing authentication and user-data boundaries.
+
+Do not weaken row-level security or authorization rules.
+
+---
+
+29. Analytics readiness
+
+If the project already has analytics infrastructure, add events using its existing conventions.
+
+Useful events may include:
+
+- recipes_section_opened
+- recipe_search
+- recipe_filter_applied
+- premium_recipe_opened
+- create_recipe_started
+- create_source_selected
+- ai_recipe_concepts_generated
+- ai_recipe_selected
+- ai_recipe_generated
+- ai_recipe_modified
+- recipe_saved
+- recipe_added_to_plan
+- recipe_logged
+- ingredients_added_to_shopping_list
+
+Do not introduce a new analytics vendor solely for this task.
+
+Never log sensitive free-text prompts or personal nutrition information unless the existing privacy architecture explicitly allows it.
+
+---
+
+30. Accessibility
+
+Maintain proper:
+
+- Touch target sizes
+- Contrast
+- Screen-reader labels
+- Focus order
+- Dynamic text handling
+- Loading-state announcements where appropriate
+
+Test both dark and light modes.
+
+Do not allow text to clip at common font-scale settings.
+
+---
+
+31. Responsive/mobile layout requirements
+
+Validate on realistic Android and iOS viewport sizes.
+
+The recipe grid must:
+
+- Stay aligned.
+- Avoid bent or uneven cards.
+- Avoid horizontal overflow.
+- Handle long recipe names.
+- Handle missing images.
+- Handle large font sizes.
+- Preserve consistent spacing.
+
+No content should hide behind the bottom navigation.
+
+All sections must scroll fully.
+
+---
+
+32. Do not make destructive changes
+
+Explicit restrictions:
+
+- Do not rewrite the whole Recipes system.
+- Do not replace stable navigation architecture.
+- Do not remove existing working APIs without reason.
+- Do not delete working database fields or tables.
+- Do not rename major existing identifiers casually.
+- Do not break currently saved recipes.
+- Do not break existing user data.
+- Do not trigger a production build.
+- Do not trigger an Expo/EAS build unless explicitly instructed separately.
+- Do not perform unrelated refactors.
+- Do not redesign other tabs.
+- Do not modify authentication unless required for this feature and verified safe.
+
+Keep scope disciplined.
+
+---
+
+33. Implementation order
+
+Execute in controlled stages.
+
+Phase 1: Discovery and architecture
+
+- Inspect existing implementation.
+- Produce dependency map.
+- Identify reusable components and data models.
+- Determine migration needs.
+- Determine premium provider integration boundary.
+- Determine AI generation backend boundary.
+
+Validate before editing.
+
+Phase 2: Internal Recipes navigation
+
+Implement:
+
+Discover | Premium | Create
+
+Move current experience under Discover without regression.
+
+Test.
+
+Phase 3: Canonical data layer
+
+Normalize current recipe data into the common recipe model.
+
+Preserve backward compatibility.
+
+Add migrations only if required.
+
+Test current Discover thoroughly.
+
+Phase 4: Premium provider
+
+Implement premium-provider service abstraction.
+
+Connect actual provider configuration if credentials already exist.
+
+If credentials are absent, build the provider boundary and clearly report what credential/configuration is required rather than inventing values.
+
+Build Premium UI, search, loading, errors, and filters.
+
+Test.
+
+Phase 5: Create foundation
+
+Implement:
+
+- Use what I have
+- Match my goals
+- Tell Calora
+- Surprise me
+
+Connect available existing Calora data.
+
+Test.
+
+Phase 6: Two-stage AI generation
+
+Implement:
+
+Request → concepts → user selection → complete recipe.
+
+Test generation failures and retry.
+
+Phase 7: Structured nutrition calculation
+
+Connect generated ingredient quantities to the existing nutrition system.
+
+Validate calculations.
+
+Store nutrition provenance.
+
+Phase 8: Cross-feature integrations
+
+Connect:
+
+- Saved Recipes
+- Shopping List
+- Meal Plan
+- Food logging
+
+Test each independently.
+
+Phase 9: Recipe editing
+
+Implement modifications and nutrition recalculation.
+
+Test all major modification paths.
+
+Phase 10: Full validation
+
+Run real-user flow validation across all three sections.
+
+---
+
+34. Required validation matrix
+
+Test at minimum:
+
+Discover
+
+- Open Recipes.
+- Discover loads.
+- Search works.
+- Category filtering works.
+- Scroll works.
+- Recipe opens.
+- Save works.
+- Existing recipes remain intact.
+- External source attribution remains visible.
+
+Premium
+
+- Premium opens.
+- Loading state works.
+- Search works.
+- Filters work.
+- Pagination works.
+- Recipe opens.
+- Structured nutrition renders correctly.
+- Provider failure is handled.
+- Missing data does not break cards.
+
+Create
+
+- Open Create.
+- Use Shopping List.
+- Add manual ingredient.
+- Use nutrition goals.
+- Enter natural-language request.
+- Generate concepts.
+- Choose concept.
+- Generate complete recipe.
+- Calculate nutrition.
+- Change servings.
+- Modify recipe.
+- Save recipe.
+- Add missing ingredients.
+- Add to Plan.
+- Log Meal.
+- Retry after simulated generation failure.
+
+Navigation
+
+- Switch Discover → Premium → Create repeatedly.
+- Ensure no blank screens.
+- Ensure no duplicate requests.
+- Ensure state preservation behaves correctly.
+- Ensure bottom navigation remains functional.
+
+Theme
+
+Test all new screens in:
+
+- Dark mode
+- Light mode
+
+Device layout
+
+Test multiple phone widths and heights.
+
+Check:
+
+- Text overflow
+- Card alignment
+- Bottom-nav overlap
+- Keyboard behavior
+- Long recipe titles
+- Long ingredient lists
+- Long instructions
+- Large system font size
+
+---
+
+35. Acceptance criteria
+
+The task is complete only when:
+
+1. Recipes contains functional Discover, Premium, and Create sections.
+2. Existing Discover functionality has not regressed.
+3. All recipe sources normalize into one common internal recipe system.
+4. Recipe provenance is preserved.
+5. Premium data uses an isolated provider abstraction.
+6. AI Create supports personalized Calora context.
+7. AI generation uses the concept-first workflow.
+8. AI-generated recipes have structured ingredients and instructions.
+9. Nutrition is calculated through structured nutrition data rather than blindly trusted AI estimates.
+10. Recipes can interact correctly with Saved Recipes.
+11. Recipes can interact correctly with Shopping List.
+12. Recipes can interact correctly with Meal Plan.
+13. Recipes can be logged into nutrition tracking.
+14. Recipe edits trigger appropriate nutrition recalculation.
+15. All loading, empty, offline, and failure states are handled.
+16. No API secrets are exposed client-side.
+17. Dark and light themes work.
+18. Layout is stable on Android and iOS phone sizes.
+19. No current working feature is broken.
+20. No production build is triggered.
+
+---
+
+36. Final report
+
+When implementation is complete, provide a concise technical report containing:
+
+- What was changed.
+- Files/components modified.
+- New files/components created.
+- Data-model changes.
+- Database migrations, if any.
+- Premium API integration details.
+- AI generation architecture.
+- Nutrition calculation flow.
+- Shopping-list integration.
+- Meal-plan integration.
+- Food-log integration.
+- Saved-recipe integration.
+- Security decisions.
+- Tests performed.
+- Bugs discovered.
+- Bugs fixed.
+- Any unresolved limitation.
+- Any credentials or external configuration still required.
+
+Do not claim success based only on compilation.
+
+Verify the actual user flows.
+
+If a major architectural conflict is discovered while inspecting the existing application, stop that affected phase, explain the conflict, and choose the safest compatible implementation rather than forcing this specification literally.
+
+The priority order is:
+
+Preserve existing functionality → correct architecture → nutrition/data integrity → user experience → visual polish.
