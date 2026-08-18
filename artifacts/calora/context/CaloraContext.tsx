@@ -116,6 +116,7 @@ export type CaloraRecipe = {
   ingredients: string[];
   tags: string[];
   prepMinutes?: number | null;
+  servings?: number | null;
   calories?: number | null;
   proteinG?: number | null;
   carbsG?: number | null;
@@ -272,7 +273,7 @@ type CaloraContextValue = {
   setActivity: (date: string, activity: DailyActivity) => void;
   setActivityMinutes: (date: string, minutes: number) => void;
   saveMeal: (meal: Omit<SavedMeal, 'id'>) => void;
-  saveRecipe: (recipe: Omit<CaloraRecipe, 'id'>) => void;
+  saveRecipe: (recipe: Omit<CaloraRecipe, 'id'>) => CaloraRecipe;
   toggleSavedRecipe: (recipeId: string) => void;
   setThemePreference: (preference: ThemePreference) => void;
   completeOnboarding: (profile: Profile, consentAccepted: boolean) => void;
@@ -909,8 +910,10 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       queueMutation('savedMeal', 'upsert');
     },
     saveRecipe: (recipe) => {
-      setLocalRecipes((current) => [...current, { ...recipe, id: makeId('recipe'), isLocal: true }]);
+      const saved = { ...recipe, id: makeId('recipe'), isLocal: true };
+      setLocalRecipes((current) => [...current, saved]);
       queueMutation('savedMeal', 'upsert');
+      return saved;
     },
     toggleSavedRecipe: (recipeId) => {
       setSavedRecipeIds((current) => current.includes(recipeId) ? current.filter((id) => id !== recipeId) : [...current, recipeId]);
