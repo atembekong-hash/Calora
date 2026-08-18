@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Lbfi93j4zPFgikn1LZRfN"
+uri = "file://screenshots/calora-today-editorial-calm.jpg"
+type = "image"
+title = "Calora Today — proposed visual direction"
+description = "A non-live mobile mockup for approval. It prioritizes daily balance, one clear food-logging action, and the diary before secondary wellness or discovery content."
