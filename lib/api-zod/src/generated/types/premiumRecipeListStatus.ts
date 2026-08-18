@@ -12,5 +12,6 @@ export type PremiumRecipeListStatus = typeof PremiumRecipeListStatus[keyof typeo
 export const PremiumRecipeListStatus = {
   available: 'available',
   unavailable: 'unavailable',
+  restricted: 'restricted',
   error: 'error',
 } as const;

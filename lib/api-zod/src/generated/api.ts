@@ -545,7 +545,7 @@ export const ListPremiumRecipesQueryParams = zod.object({
 })
 
 export const ListPremiumRecipesResponse = zod.object({
-  "status": zod.enum(['available', 'unavailable', 'error']),
+  "status": zod.enum(['available', 'unavailable', 'restricted', 'error']),
   "provider": zod.string(),
   "message": zod.string().nullish(),
   "recipes": zod.array(zod.object({
@@ -571,7 +571,18 @@ export const ListPremiumRecipesResponse = zod.object({
   "sourceProvider": zod.string(),
   "sourceId": zod.string(),
   "nutritionConfidence": zod.enum(['verified', 'estimated', 'unavailable']),
-  "nutritionSource": zod.string()
+  "nutritionSource": zod.string(),
+  "cookMinutes": zod.number().int().nullish(),
+  "totalMinutes": zod.number().int().nullish(),
+  "servings": zod.number().nullish(),
+  "cuisine": zod.string().nullish(),
+  "mealType": zod.string().nullish(),
+  "difficulty": zod.string().nullish(),
+  "dietary": zod.array(zod.string()).optional(),
+  "allergens": zod.array(zod.string()).optional(),
+  "equipment": zod.array(zod.string()).optional(),
+  "fiberG": zod.number().nullish(),
+  "sodiumMg": zod.number().nullish()
 }))),
   "nextOffset": zod.number().int().nullish()
 })
@@ -610,7 +621,18 @@ export const GetPremiumRecipeResponse = zod.object({
   "sourceProvider": zod.string(),
   "sourceId": zod.string(),
   "nutritionConfidence": zod.enum(['verified', 'estimated', 'unavailable']),
-  "nutritionSource": zod.string()
+  "nutritionSource": zod.string(),
+  "cookMinutes": zod.number().int().nullish(),
+  "totalMinutes": zod.number().int().nullish(),
+  "servings": zod.number().nullish(),
+  "cuisine": zod.string().nullish(),
+  "mealType": zod.string().nullish(),
+  "difficulty": zod.string().nullish(),
+  "dietary": zod.array(zod.string()).optional(),
+  "allergens": zod.array(zod.string()).optional(),
+  "equipment": zod.array(zod.string()).optional(),
+  "fiberG": zod.number().nullish(),
+  "sodiumMg": zod.number().nullish()
 }))
 
 

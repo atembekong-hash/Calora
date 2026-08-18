@@ -9,6 +9,17 @@ export type PremiumRecipe = {
   ingredients: string[];
   tags: string[];
   prepMinutes: number | null;
+  cookMinutes: number | null;
+  totalMinutes: number | null;
+  servings: number | null;
+  cuisine: string | null;
+  mealType: string | null;
+  difficulty: string | null;
+  dietary: string[];
+  allergens: string[];
+  equipment: string[];
+  fiberG: number | null;
+  sodiumMg: number | null;
   calories: number | null;
   proteinG: number | null;
   carbsG: number | null;
@@ -28,8 +39,10 @@ const configuredUrl = process.env.PREMIUM_RECIPE_PROVIDER_URL?.replace(/\/$/, ""
 const providerName = process.env.PREMIUM_RECIPE_PROVIDER_NAME?.trim() || "Premium provider";
 const providerKey = process.env.PREMIUM_RECIPE_PROVIDER_API_KEY;
 const PROVIDER_TIMEOUT_MS = Number(process.env.PREMIUM_RECIPE_PROVIDER_TIMEOUT_MS ?? 8_000);
+const accessMode = process.env.PREMIUM_RECIPE_ACCESS_MODE?.trim() || "allow";
 
 export function premiumProviderStatus() {
+  if (accessMode === "deny") return { status: "restricted" as const, provider: providerName, message: "Premium recipes are not available for this account." };
   return configuredUrl
     ? { status: "available" as const, provider: providerName, message: null }
     : { status: "unavailable" as const, provider: providerName, message: "A Premium recipe provider is not connected yet." };
@@ -67,6 +80,17 @@ export function normalizePremiumRecipe(input: unknown): PremiumRecipe | null {
     ingredients: strings(raw.ingredients),
     tags: strings(raw.tags),
     prepMinutes: number(raw.prepMinutes),
+    cookMinutes: number(raw.cookMinutes),
+    totalMinutes: number(raw.totalMinutes),
+    servings: number(raw.servings),
+    cuisine: string(raw.cuisine),
+    mealType: string(raw.mealType),
+    difficulty: string(raw.difficulty),
+    dietary: strings(raw.dietary),
+    allergens: strings(raw.allergens),
+    equipment: strings(raw.equipment),
+    fiberG: number(raw.fiberG),
+    sodiumMg: number(raw.sodiumMg),
     calories: number(raw.calories),
     proteinG: number(raw.proteinG),
     carbsG: number(raw.carbsG),
@@ -98,7 +122,7 @@ async function providerFetch(path: string, params: Record<string, string | numbe
 
 export async function listPremiumRecipes(input: { query?: string; category?: string; limit: number; offset: number }) {
   const status = premiumProviderStatus();
-  if (status.status === "unavailable") return { ...status, recipes: [], nextOffset: null };
+  if (status.status !== "available") return { ...status, recipes: [], nextOffset: null };
   const payload = await providerFetch("/recipes", input);
   const recipes = (payload?.recipes ?? []).map(normalizePremiumRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe));
   return { ...status, recipes, nextOffset: payload?.nextOffset ?? (recipes.length === input.limit ? input.offset + recipes.length : null) };
@@ -106,7 +130,7 @@ export async function listPremiumRecipes(input: { query?: string; category?: str
 
 export async function getPremiumRecipe(sourceId: string) {
   const status = premiumProviderStatus();
-  if (status.status === "unavailable") return null;
+  if (status.status !== "available") return null;
   const payload = await providerFetch(`/recipes/${encodeURIComponent(sourceId)}`);
   return normalizePremiumRecipe(payload?.recipe ?? payload);
 }

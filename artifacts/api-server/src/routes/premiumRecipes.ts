@@ -29,7 +29,8 @@ router.get("/v1/premium-recipes/:sourceId", async (req, res): Promise<void> => {
   try {
     const recipe = await getPremiumRecipe(sourceId);
     if (!recipe) {
-      res.status(404).json({ message: "Premium recipe is unavailable" });
+      const status = premiumProviderStatus();
+      res.status(status.status === "restricted" ? 403 : 404).json({ message: status.message ?? "Premium recipe is unavailable", status: status.status });
       return;
     }
     res.json(recipe);

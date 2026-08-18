@@ -9,10 +9,21 @@ import type { PremiumRecipeNutritionConfidence } from './premiumRecipeNutritionC
 import type { PremiumRecipeSourceType } from './premiumRecipeSourceType';
 import type { Recipe } from './recipe';
 
-export type PremiumRecipe = Recipe & {
+export type PremiumRecipe = Recipe & ({
   sourceType: PremiumRecipeSourceType;
   sourceProvider: string;
   sourceId: string;
   nutritionConfidence: PremiumRecipeNutritionConfidence;
   nutritionSource: string;
-};
+  cookMinutes?: number | null;
+  totalMinutes?: number | null;
+  servings?: number | null;
+  cuisine?: string | null;
+  mealType?: string | null;
+  difficulty?: string | null;
+  dietary?: string[];
+  allergens?: string[];
+  equipment?: string[];
+  fiberG?: number | null;
+  sodiumMg?: number | null;
+});

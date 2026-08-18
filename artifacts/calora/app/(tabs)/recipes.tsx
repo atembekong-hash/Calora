@@ -251,7 +251,9 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   const nutritionPending = !local && !premium && Boolean((detailQuery.data as (Recipe & { nutritionPending?: boolean }) | undefined)?.nutritionPending);
   // True when the server explicitly flagged that AI estimation failed for this recipe.
   const nutritionUnavailable = !local && Boolean((detailQuery.data as (Recipe & { nutritionUnavailable?: boolean }) | undefined)?.nutritionUnavailable);
-  const isFetchingDetail = detailQuery.isLoading || detailQuery.isFetching;
+  const premiumNutritionUnavailable = premium && recipeProvenance(detail).nutritionConfidence === 'unavailable';
+  const isFetchingDetail = premium ? (premiumDetailQuery.isLoading || premiumDetailQuery.isFetching) : (detailQuery.isLoading || detailQuery.isFetching);
+  const premiumFields = premium ? detail as PremiumRecipe : null;
 
   // Nutrition scaled to current servingCount for display
   const approxPrefix = recipeProvenance(detail).nutritionConfidence === 'estimated' ? '~' : '';
@@ -413,11 +415,11 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                 <View style={[styles.nutritionStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {(isFetchingDetail && !detail.calories) || nutritionPending ? (
                     <View style={styles.nutritionLoading}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>{nutritionPending ? 'Estimating nutrition…' : 'Estimating nutrition…'}</Text></View>
-                  ) : nutritionUnavailable ? (
+                  ) : nutritionUnavailable || premiumNutritionUnavailable ? (
                     <View style={styles.nutritionLoading}>
                       <Feather name="alert-circle" size={14} color={colors.mutedForeground} />
                       <Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>Nutrition unavailable</Text>
-                      <Pressable accessibilityLabel="Retry nutrition estimate" onPress={() => detailQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable>
+                      {!premium && <Pressable accessibilityLabel="Retry nutrition estimate" onPress={() => detailQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable>}
                     </View>
                   ) : (
                     <>
@@ -440,18 +442,26 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                 </View>
 
                 {/* Feature 2: Recipe info chips (prep time, cuisine, category) */}
-                {(detail.prepMinutes || detail.category || detail.area) ? (
+                {(detail.prepMinutes || detail.category || detail.area || premiumFields?.cookMinutes || premiumFields?.totalMinutes || premiumFields?.servings || premiumFields?.difficulty || premiumFields?.cuisine || premiumFields?.mealType) ? (
                   <View style={styles.infoChips}>
                     {detail.prepMinutes ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="clock" size={11} color={colors.mutedForeground} /><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{detail.prepMinutes} min prep</Text></View> : null}
+                    {premiumFields?.cookMinutes ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="clock" size={11} color={colors.mutedForeground} /><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.cookMinutes} min cook</Text></View> : null}
+                    {premiumFields?.totalMinutes ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.totalMinutes} min total</Text></View> : null}
+                    {premiumFields?.servings ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.servings} servings</Text></View> : null}
+                    {premiumFields?.difficulty ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.difficulty}</Text></View> : null}
+                    {premiumFields?.cuisine ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.cuisine}</Text></View> : null}
+                    {premiumFields?.mealType ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{premiumFields.mealType}</Text></View> : null}
                     {detail.area ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="map-pin" size={11} color={colors.mutedForeground} /><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{detail.area}</Text></View> : null}
                     {detail.category ? <View style={[styles.infoChip, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{detail.category}</Text></View> : null}
                   </View>
                 ) : null}
 
                 {/* Notices */}
-                {!local && canLog && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="cpu" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>AI-estimated per serving · values may vary</Text></View>}
+                {!local && canLog && recipeProvenance(detail).nutritionConfidence === 'estimated' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="cpu" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Estimated per serving · values may vary</Text></View>}
+                {premium && recipeProvenance(detail).nutritionConfidence === 'verified' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="check-circle" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Nutrition supplied by {recipeProvenance(detail).nutritionSource}</Text></View>}
                 {nutritionUnavailable && !isFetchingDetail && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Nutrition estimate failed · tap Retry above or check back later</Text></View>}
                 {!canLog && !nutritionUnavailable && !local && !detailQuery.isLoading && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>This open-source recipe does not include verified nutrition yet. You can save it, then add your own nutrition before logging.</Text></View>}
+                {premiumFields && ((premiumFields.dietary?.length ?? 0) || (premiumFields.allergens?.length ?? 0) || (premiumFields.equipment?.length ?? 0) || premiumFields.fiberG || premiumFields.sodiumMg) ? <View style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{premiumFields.dietary?.length ? `Dietary: ${premiumFields.dietary.join(', ')}. ` : ''}{premiumFields.allergens?.length ? `Allergens: ${premiumFields.allergens.join(', ')}. ` : ''}{premiumFields.equipment?.length ? `Equipment: ${premiumFields.equipment.join(', ')}. ` : ''}{premiumFields.fiberG ? `Fiber ${premiumFields.fiberG}g. ` : ''}{premiumFields.sodiumMg ? `Sodium ${premiumFields.sodiumMg}mg.` : ''}</Text></View> : null}
 
                 {/* Feature 4: Ingredients with shopping list action */}
                 {detail.ingredients?.length ? (

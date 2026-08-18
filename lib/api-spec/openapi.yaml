@@ -769,7 +769,7 @@ components:
       type: object
       required: [status, provider, recipes]
       properties:
-        status: { type: string, enum: [available, unavailable, error] }
+        status: { type: string, enum: [available, unavailable, restricted, error] }
         provider: { type: string }
         message: { type: [string, "null"] }
         recipes: { type: array, items: { $ref: "#/components/schemas/PremiumRecipe" } }
@@ -785,6 +785,17 @@ components:
             sourceId: { type: string }
             nutritionConfidence: { type: string, enum: [verified, estimated, unavailable] }
             nutritionSource: { type: string }
+            cookMinutes: { type: integer, nullable: true }
+            totalMinutes: { type: integer, nullable: true }
+            servings: { type: number, nullable: true }
+            cuisine: { type: string, nullable: true }
+            mealType: { type: string, nullable: true }
+            difficulty: { type: string, nullable: true }
+            dietary: { type: array, items: { type: string } }
+            allergens: { type: array, items: { type: string } }
+            equipment: { type: array, items: { type: string } }
+            fiberG: { type: number, nullable: true }
+            sodiumMg: { type: number, nullable: true }
     CaptureAnalyzeInput:
       type: object
       required: [mode]

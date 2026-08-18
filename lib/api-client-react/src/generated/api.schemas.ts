@@ -319,6 +319,7 @@ export type PremiumRecipeListStatus = typeof PremiumRecipeListStatus[keyof typeo
 export const PremiumRecipeListStatus = {
   available: 'available',
   unavailable: 'unavailable',
+  restricted: 'restricted',
   error: 'error',
 } as const;
 
@@ -338,13 +339,24 @@ export const PremiumRecipeNutritionConfidence = {
   unavailable: 'unavailable',
 } as const;
 
-export type PremiumRecipe = Recipe & {
+export type PremiumRecipe = Recipe & ({
   sourceType: PremiumRecipeSourceType;
   sourceProvider: string;
   sourceId: string;
   nutritionConfidence: PremiumRecipeNutritionConfidence;
   nutritionSource: string;
-};
+  cookMinutes?: number | null;
+  totalMinutes?: number | null;
+  servings?: number | null;
+  cuisine?: string | null;
+  mealType?: string | null;
+  difficulty?: string | null;
+  dietary?: string[];
+  allergens?: string[];
+  equipment?: string[];
+  fiberG?: number | null;
+  sodiumMg?: number | null;
+});
 
 export interface PremiumRecipeList {
   status: PremiumRecipeListStatus;
