@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
-import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { shouldAutosave, type HydrationErrorKind } from '@/lib/hydrationGuard';
 import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '@/lib/storageSchema';
 import { useHydrationEffect } from '@/lib/useHydrationEffect';
@@ -538,6 +538,20 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
 
+  // ── Health sync ───────────────────────────────────────────────────────────
+  const syncHealth = useCallback(async () => {
+    const current = await healthService.getConnection();
+    setHealthConnection(current);
+    if (current.authorization !== 'authorized' && current.authorization !== 'partial') return;
+    try {
+      const snapshot = await healthService.sync();
+      setHealthConnection({ ...current, snapshot, lastSyncedAt: snapshot.syncedAt, syncError: undefined });
+      setWeights((ws) => mergeHealthWeights(ws, snapshot));
+    } catch (error) {
+      setHealthConnection({ ...current, syncError: error instanceof Error ? error.message : 'Health data could not be read.' });
+    }
+  }, []);
+
   // ── Health availability probe ──────────────────────────────────────────────
   // On mount (after hydration), probe the native health service to see if it is
   // actually available on this device. This updates the initial 'unavailable'
@@ -678,18 +692,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       }
       return next;
     },
-    syncHealth: async () => {
-      const current = await healthService.getConnection();
-      setHealthConnection(current);
-      if (current.authorization !== 'authorized' && current.authorization !== 'partial') return;
-      try {
-        const snapshot = await healthService.sync();
-        setHealthConnection({ ...current, snapshot, lastSyncedAt: snapshot.syncedAt, syncError: undefined });
-        setWeights((weights) => mergeHealthWeights(weights, snapshot));
-      } catch (error) {
-        setHealthConnection({ ...current, syncError: error instanceof Error ? error.message : 'Health data could not be read.' });
-      }
-    },
+    syncHealth,
     disconnectHealth: () => setHealthConnection(EMPTY_HEALTH_CONNECTION),
     addLog: (log) => {
       const id = makeId('log');
