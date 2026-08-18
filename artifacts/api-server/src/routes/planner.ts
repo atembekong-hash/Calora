@@ -3,6 +3,13 @@ import { randomUUID } from "node:crypto";
 import { GeneratePlannerBody } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
+import { verifyBearerToken } from "../lib/supabase-auth.js";
+import { checkRateLimit } from "../lib/rate-limit.js";
+
+// Meal-plan generation is an expensive AI call. Cap per-account volume so a
+// signed-in caller cannot drive unbounded provider cost.
+const PLANNER_RATE_LIMIT = 20;
+const PLANNER_RATE_WINDOW_SECS = 60 * 60; // 1 hour
 
 const router: IRouter = Router();
 const VISION_MODEL = "gpt-5.6-terra";
@@ -454,6 +461,21 @@ function parseSelection(content: string) {
 }
 
 router.post("/v1/planner/generate", async (req, res) => {
+  // Meal-plan generation calls an expensive AI provider. Require a verified
+  // account so anonymous callers cannot drive cost/DoS abuse.
+  const user = await verifyBearerToken(req);
+  if (!user) {
+    res.status(401).json({ message: "Please sign in to generate a meal plan." });
+    return;
+  }
+
+  const rate = await checkRateLimit(`planner:user:${user.id}`, PLANNER_RATE_LIMIT, PLANNER_RATE_WINDOW_SECS);
+  if (!rate.allowed) {
+    res.setHeader("Retry-After", String(rate.retryAfterSecs));
+    res.status(429).json({ message: "Too many meal-plan requests. Please wait before trying again.", retryAfterSecs: rate.retryAfterSecs });
+    return;
+  }
+
   const parsed = GeneratePlannerBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid planner input" });

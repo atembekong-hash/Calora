@@ -1,11 +1,51 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { db, recipeNutritionTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
+import { checkRateLimit } from "../lib/rate-limit.js";
 
 const router: IRouter = Router();
+
+// Public recipe browsing triggers bounded OpenAI nutrition estimation on cache
+// miss. Cap per-IP volume so an anonymous bot cannot fan out cache-miss OpenAI
+// calls for cost/DoS abuse. Generous enough not to affect real browsing.
+const RECIPES_RATE_LIMIT = 120;
+const RECIPES_RATE_WINDOW_SECS = 60 * 60; // 1 hour
+
+// Arbitrary-prompt recipe generation is an expensive AI call. Cap per-account
+// volume so a signed-in caller cannot drive unbounded provider cost.
+const RECIPE_GEN_RATE_LIMIT = 30;
+const RECIPE_GEN_RATE_WINDOW_SECS = 60 * 60; // 1 hour
+
+async function enforceRecipeGenLimit(scope: string, userId: string, res: Response): Promise<boolean> {
+  const rate = await checkRateLimit(`${scope}:user:${userId}`, RECIPE_GEN_RATE_LIMIT, RECIPE_GEN_RATE_WINDOW_SECS);
+  if (!rate.allowed) {
+    res.setHeader("Retry-After", String(rate.retryAfterSecs));
+    res.status(429).json({ message: "Too many recipe requests. Please wait before trying again.", retryAfterSecs: rate.retryAfterSecs });
+    return false;
+  }
+  return true;
+}
+
+async function enforceRecipeIpLimit(req: Request, res: Response): Promise<boolean> {
+  const key = `recipes:ip:${req.ip ?? req.socket?.remoteAddress ?? "unknown"}`;
+  // failClosed: this route is anonymous, so a DB outage must deny rather than
+  // let unmetered public traffic trigger paid provider calls.
+  const rate = await checkRateLimit(key, RECIPES_RATE_LIMIT, RECIPES_RATE_WINDOW_SECS, { failClosed: true });
+  if (!rate.allowed) {
+    if (rate.degraded) {
+      res.setHeader("Retry-After", String(rate.retryAfterSecs));
+      res.status(503).json({ message: "Recipes are temporarily unavailable. Please try again shortly.", retryAfterSecs: rate.retryAfterSecs });
+    } else {
+      res.setHeader("Retry-After", String(rate.retryAfterSecs));
+      res.status(429).json({ message: "Too many recipe requests. Please wait before trying again.", retryAfterSecs: rate.retryAfterSecs });
+    }
+    return false;
+  }
+  return true;
+}
 const API_ROOT = "https://www.themealdb.com/api/json/v1/1";
 const SOURCE = "TheMealDB";
 const SOURCE_URL = "https://www.themealdb.com/";
@@ -44,6 +84,7 @@ router.post("/v1/recipes/concepts", async (req, res) => {
     res.status(401).json({ message: "Please sign in to generate recipe ideas." });
     return;
   }
+  if (!(await enforceRecipeGenLimit("recipes-concepts", user.id, res))) return;
   const body = requestBody(req.body) as ConceptRequest;
   const ingredients = Array.isArray(body.ingredients) ? body.ingredients.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, 80)).filter(Boolean).slice(0, 18) : [];
   const mealType = conceptText(body.mealType, 40);
@@ -87,6 +128,7 @@ router.post("/v1/recipes/concepts", async (req, res) => {
 router.post("/v1/recipes/generated", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to finish a recipe." });
+  if (!(await enforceRecipeGenLimit("recipes-generated", user.id, res))) return;
   const body = requestBody(req.body);
   const title = conceptText(body.title, 100);
   const summary = conceptText(body.summary, 220);
@@ -150,6 +192,40 @@ const nutritionCache = new Map<string, CachedEntry>();
 // Single-flight guard: prevents two concurrent background refreshes for the
 // same meal from both hitting OpenAI simultaneously.
 const nutritionRefreshInFlight = new Set<string>();
+
+// Single-flight guard for the SYNCHRONOUS cache-miss path: coalesces concurrent
+// requests for the same uncached meal into ONE OpenAI call, so an anonymous
+// caller cannot amplify cost by fanning out concurrent misses for one id.
+const nutritionMissInFlight = new Map<string, Promise<NutritionEstimate | null>>();
+
+/**
+ * Resolve a cache-miss nutrition estimate, coalescing concurrent callers for
+ * the same meal id. The winning call performs the OpenAI request and writes
+ * L1 + L2; concurrent callers await the same promise instead of issuing their
+ * own OpenAI call.
+ */
+async function estimateNutritionCoalesced(
+  mealId: string,
+  name: string,
+  ingredients: string[],
+): Promise<NutritionEstimate | null> {
+  const existing = nutritionMissInFlight.get(mealId);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    const fresh = await estimateNutrition(name, ingredients);
+    if (fresh) {
+      nutritionCache.set(mealId, { estimate: fresh, cachedAt: Date.now() });
+      void saveNutritionToDb(mealId, fresh);
+    }
+    return fresh;
+  })().finally(() => {
+    nutritionMissInFlight.delete(mealId);
+  });
+
+  nutritionMissInFlight.set(mealId, promise);
+  return promise;
+}
 
 /** Look up a persisted estimate from the database (L2 cache), with staleness info.
  *  Returns the original `createdAtMs` epoch so callers can propagate it into
@@ -301,14 +377,9 @@ async function resolveNutrition(
     return dbResult.estimate;
   }
 
-  // Cache miss — call OpenAI
+  // Cache miss — call OpenAI (coalesced so concurrent misses share one call)
   if (ingredients.length === 0) return null;
-  const fresh = await estimateNutrition(name, ingredients);
-  if (fresh) {
-    nutritionCache.set(mealId, { estimate: fresh, cachedAt: Date.now() });
-    void saveNutritionToDb(mealId, fresh);
-  }
-  return fresh;
+  return estimateNutritionCoalesced(mealId, name, ingredients);
 }
 
 // ─── Background nutrition warm-up ────────────────────────────────────────────
@@ -510,6 +581,7 @@ async function getForYouMeals(): Promise<Meal[]> {
 }
 
 router.get("/v1/recipes", async (req, res) => {
+  if (!(await enforceRecipeIpLimit(req, res))) return;
   try {
     const query = typeof req.query.query === "string" ? req.query.query.trim() : "";
     const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
@@ -552,6 +624,7 @@ router.get("/v1/recipes", async (req, res) => {
 });
 
 router.get("/v1/recipes/:recipeId", async (req, res) => {
+  if (!(await enforceRecipeIpLimit(req, res))) return;
   try {
     const data = await fetchJson(`${API_ROOT}/lookup.php?i=${encodeURIComponent(req.params.recipeId)}`);
     const meal = data.meals?.[0];
@@ -591,10 +664,8 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
     // is written to both L1 and L2 so subsequent requests (and server restarts)
     // are served from cache without a further OpenAI call.
     if (base.ingredients.length > 0) {
-      const fresh = await estimateNutrition(base.name, base.ingredients);
+      const fresh = await estimateNutritionCoalesced(base.id, base.name, base.ingredients);
       if (fresh) {
-        nutritionCache.set(base.id, { estimate: fresh, cachedAt: Date.now() });
-        void saveNutritionToDb(base.id, fresh);
         res.json({ ...base, ...fresh });
         return;
       }

@@ -2,6 +2,13 @@ import { Router, type IRouter } from "express";
 import { RespondCoachBody, RespondCoachResponse } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
+import { verifyBearerToken } from "../lib/supabase-auth.js";
+import { checkRateLimit } from "../lib/rate-limit.js";
+
+// Coach replies are expensive AI calls. Cap per-account volume so a signed-in
+// caller cannot drive unbounded provider cost.
+const COACH_RATE_LIMIT = 40;
+const COACH_RATE_WINDOW_SECS = 60 * 60; // 1 hour
 
 const router: IRouter = Router();
 const COACH_MODEL = "gpt-5.6-terra";
@@ -74,6 +81,21 @@ function sanitizeResponse(value: unknown) {
 }
 
 router.post("/v1/coach/respond", async (req, res) => {
+  // Coach calls an expensive AI provider. Require a verified account so the
+  // endpoint cannot be driven by anonymous callers for cost/DoS abuse.
+  const user = await verifyBearerToken(req);
+  if (!user) {
+    res.status(401).json({ message: "Please sign in to chat with Coach." });
+    return;
+  }
+
+  const rate = await checkRateLimit(`coach:user:${user.id}`, COACH_RATE_LIMIT, COACH_RATE_WINDOW_SECS);
+  if (!rate.allowed) {
+    res.setHeader("Retry-After", String(rate.retryAfterSecs));
+    res.status(429).json({ message: "Too many Coach requests. Please wait before trying again.", retryAfterSecs: rate.retryAfterSecs });
+    return;
+  }
+
   const parsed = RespondCoachBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid coach input" });

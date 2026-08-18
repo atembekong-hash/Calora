@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 
-const { mockOpenAiCreate, verifyBearerToken } = vi.hoisted(() => ({
+const { mockOpenAiCreate, verifyBearerToken, checkRateLimit } = vi.hoisted(() => ({
   mockOpenAiCreate: vi.fn(),
   verifyBearerToken: vi.fn(),
+  checkRateLimit: vi.fn(),
 }));
 
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
@@ -19,6 +20,10 @@ vi.mock("drizzle-orm", () => ({ eq: vi.fn(() => ({})) }));
 
 vi.mock("../lib/supabase-auth.js", () => ({
   verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args),
+}));
+
+vi.mock("../lib/rate-limit.js", () => ({
+  checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
 }));
 
 import express from "express";
@@ -43,6 +48,25 @@ describe("AI recipe creation endpoints", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     verifyBearerToken.mockResolvedValue(USER);
+    checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+  });
+
+  it("returns 429 and never calls the model when the per-account quota is exceeded", async () => {
+    checkRateLimit.mockResolvedValue({ allowed: false, retryAfterSecs: 600 });
+
+    const [concepts, recipe] = await Promise.all([
+      request(app).post("/v1/recipes/concepts").send({ request: "A pasta dinner" }),
+      request(app).post("/v1/recipes/generated").send({ title: "Pasta dinner" }),
+    ]);
+
+    expect(concepts.status).toBe(429);
+    expect(concepts.headers["retry-after"]).toBe("600");
+    expect(recipe.status).toBe(429);
+    expect(mockOpenAiCreate).not.toHaveBeenCalled();
+    // Quotas are namespaced per endpoint and keyed by the verified user id.
+    const keys = checkRateLimit.mock.calls.map((call) => call[0]);
+    expect(keys).toContain(`recipes-concepts:user:${USER.id}`);
+    expect(keys).toContain(`recipes-generated:user:${USER.id}`);
   });
 
   it("requires a signed-in user to generate concepts or a complete recipe", async () => {

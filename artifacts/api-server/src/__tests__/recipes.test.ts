@@ -71,6 +71,13 @@ vi.mock("@workspace/db", () => ({
 // drizzle-orm eq() is only used to build a query clause; the mock DB ignores it.
 vi.mock("drizzle-orm", () => ({ eq: vi.fn(() => ({})) }));
 
+// The public recipe routes enforce a per-IP rate limit before any work. These
+// tests are about nutrition caching, so the limiter always allows; the limiter
+// behaviors themselves are covered in recipes-rate-limit.test.ts.
+vi.mock("../lib/rate-limit.js", () => ({
+  checkRateLimit: vi.fn(async () => ({ allowed: true, retryAfterSecs: 0 })),
+}));
+
 // ---------------------------------------------------------------------------
 // Imports that depend on the mocked modules (must come after vi.mock calls).
 // ---------------------------------------------------------------------------

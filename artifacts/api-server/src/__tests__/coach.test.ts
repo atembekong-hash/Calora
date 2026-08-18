@@ -12,6 +12,16 @@ vi.mock("@workspace/integrations-openai-ai-server", () => ({
   },
 }));
 
+const verifyBearerToken = vi.fn();
+vi.mock("../lib/supabase-auth.js", () => ({
+  verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args),
+}));
+
+const checkRateLimit = vi.fn();
+vi.mock("../lib/rate-limit.js", () => ({
+  checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
+}));
+
 import { openai } from "@workspace/integrations-openai-ai-server";
 import coachRouter from "../routes/coach.js";
 
@@ -69,6 +79,28 @@ describe("POST /v1/coach/respond", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    verifyBearerToken.mockResolvedValue({ id: "user-a", email: "a@example.com" });
+    checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+  });
+
+  it("returns 429 when the per-account rate limit is exceeded", async () => {
+    checkRateLimit.mockResolvedValueOnce({ allowed: false, retryAfterSecs: 120 });
+    const response = await request(app)
+      .post("/v1/coach/respond")
+      .send(validBody());
+
+    expect(response.status).toBe(429);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects unauthenticated callers without touching the model", async () => {
+    verifyBearerToken.mockResolvedValueOnce(null);
+    const response = await request(app)
+      .post("/v1/coach/respond")
+      .send(validBody());
+
+    expect(response.status).toBe(401);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 
   it("redirects sensitive restriction and purging requests without calling the model", async () => {

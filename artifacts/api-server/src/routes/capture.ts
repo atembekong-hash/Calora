@@ -6,6 +6,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
+import { checkRateLimit } from "../lib/rate-limit.js";
 
 // ---------------------------------------------------------------------------
 // DB-backed rate limiter for POST /v1/capture/analyze
@@ -30,50 +31,10 @@ import { ensureUserRow } from "../lib/user-rows.js";
 const CAPTURE_RATE_WINDOW_SECS = 60 * 60; // 1 hour
 const CAPTURE_RATE_LIMIT = 30; // max requests per window
 
-/**
- * Atomically check and increment the persistent rate-limit bucket.
- *
- * The upsert resets the window when reset_at is in the past, otherwise
- * increments the counter. The returned count reflects the state *after*
- * the increment, so callers compare count > LIMIT to detect a violation.
- *
- * Falls back to allowing the request on any DB error so a transient
- * database outage does not block legitimate users.
- */
-async function checkRateLimit(key: string): Promise<{ allowed: boolean; retryAfterSecs: number }> {
-  try {
-    const result = await pool.query<{ count: number; reset_at: Date }>(
-      `INSERT INTO calora_capture_rate_limits (key, count, reset_at)
-       VALUES ($1, 1, NOW() + ($2 || ' seconds')::INTERVAL)
-       ON CONFLICT (key) DO UPDATE SET
-         count    = CASE
-                      WHEN calora_capture_rate_limits.reset_at <= NOW() THEN 1
-                      ELSE calora_capture_rate_limits.count + 1
-                    END,
-         reset_at = CASE
-                      WHEN calora_capture_rate_limits.reset_at <= NOW()
-                        THEN NOW() + ($2 || ' seconds')::INTERVAL
-                      ELSE calora_capture_rate_limits.reset_at
-                    END
-       RETURNING count, reset_at`,
-      [key, String(CAPTURE_RATE_WINDOW_SECS)],
-    );
-
-    const row = result.rows[0];
-    if (!row) return { allowed: true, retryAfterSecs: 0 };
-
-    if (row.count > CAPTURE_RATE_LIMIT) {
-      const retryAfterSecs = Math.max(1, Math.ceil((row.reset_at.getTime() - Date.now()) / 1000));
-      return { allowed: false, retryAfterSecs };
-    }
-
-    return { allowed: true, retryAfterSecs: 0 };
-  } catch (err) {
-    // Fail open — a DB outage should not block legitimate capture requests.
-    console.error("[capture] rate-limit DB check failed, allowing request:", err);
-    return { allowed: true, retryAfterSecs: 0 };
-  }
-}
+// Quota enforcement uses the shared persistent limiter (../lib/rate-limit.ts).
+// Failure policy: verified users fail OPEN (availability); anonymous/IP-keyed
+// callers fail CLOSED so a limiter-store outage can never grant unmetered
+// anonymous access to paid provider calls.
 
 /**
  * Clears all persisted rate-limit buckets. Exported for use in tests only.
@@ -487,13 +448,25 @@ router.post("/v1/capture/analyze", async (req, res) => {
     // Supabase not configured or unreachable — treat as anonymous.
   }
 
-  const { allowed, retryAfterSecs } = await checkRateLimit(rateLimitKey(verifiedUser, req));
-  if (!allowed) {
-    res.setHeader("Retry-After", String(retryAfterSecs));
-    res.status(429).json({
-      message: "Too many capture requests. Please wait before trying again.",
-      retryAfterSecs,
-    });
+  const rate = await checkRateLimit(
+    rateLimitKey(verifiedUser, req),
+    CAPTURE_RATE_LIMIT,
+    CAPTURE_RATE_WINDOW_SECS,
+    { failClosed: !verifiedUser },
+  );
+  if (!rate.allowed) {
+    res.setHeader("Retry-After", String(rate.retryAfterSecs));
+    if (rate.degraded) {
+      res.status(503).json({
+        message: "Capture is temporarily unavailable. Please try again shortly.",
+        retryAfterSecs: rate.retryAfterSecs,
+      });
+    } else {
+      res.status(429).json({
+        message: "Too many capture requests. Please wait before trying again.",
+        retryAfterSecs: rate.retryAfterSecs,
+      });
+    }
     return;
   }
 

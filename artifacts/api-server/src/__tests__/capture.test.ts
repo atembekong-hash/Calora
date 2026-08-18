@@ -104,6 +104,7 @@ vi.mock('../lib/supabase-auth.js', () => ({
 // Imports that depend on the mocked modules
 // ---------------------------------------------------------------------------
 import { openai } from '@workspace/integrations-openai-ai-server';
+import { pool } from '@workspace/db';
 import { verifyBearerToken } from '../lib/supabase-auth.js';
 import express from 'express';
 import captureRouter, { resetCaptureRateLimiter } from '../routes/capture.js';
@@ -735,6 +736,35 @@ describe('POST /v1/capture/analyze', () => {
     //
     // verifyBearerToken is mocked to return null (anonymous) by default.
     // Tests that want a verified user identity override it directly.
+
+    it('fails CLOSED (503, no provider call) for anonymous requests when the limiter store is unavailable', async () => {
+      vi.mocked(verifyBearerToken).mockResolvedValue(null);
+      vi.mocked(pool.query).mockRejectedValueOnce(new Error('DB connection lost'));
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'voice', audio: 'dGVzdA==' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(503);
+      expect(res.headers['retry-after']).toBeDefined();
+      expect(openai.chat.completions.create).not.toHaveBeenCalled();
+      expect(openai.audio.transcriptions.create).not.toHaveBeenCalled();
+    });
+
+    it('fails OPEN for verified users when the limiter store is unavailable', async () => {
+      vi.mocked(verifyBearerToken).mockResolvedValue({ id: 'user-fail-open', email: null });
+      vi.mocked(pool.query).mockRejectedValueOnce(new Error('DB connection lost'));
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'voice' })
+        .set('Content-Type', 'application/json');
+
+      // Not blocked by the limiter — proceeds to normal request validation.
+      expect(res.status).not.toBe(503);
+      expect(res.status).not.toBe(429);
+    });
 
     it('returns 429 after exceeding the per-IP request limit', async () => {
       // Exhaust the bucket (CAPTURE_RATE_LIMIT = 30).
