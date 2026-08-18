@@ -12,7 +12,7 @@ import { formatCalories, formatGrams, formatWhole } from '@/lib/formatters';
 import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
 import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
-import { PLAN_TYPES, findPlanType, type PlanType, type PlanTypeId } from '@/lib/planType';
+import { PLAN_TYPES, findPlanType, planTypeForGeneration, type PlanType, type PlanTypeId } from '@/lib/planType';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -573,7 +573,7 @@ export default function PlannerScreen() {
     setUndoSwapMeal(null);
   };
 
-  const generate = async () => {
+  const generate = async (confirmedProgram?: PlanTypeId) => {
     setGenerating(true);
     setGenerationMessage(null);
     // Cancel any pending undo timer before replacing the whole week so stale
@@ -602,7 +602,7 @@ export default function PlannerScreen() {
             diet: plannerProfile.diet,
             calorieTarget: plannerProfile.calorieTarget,
           },
-          planType: plannerPreferences?.primary,
+          planType: planTypeForGeneration(confirmedProgram, plannerPreferences),
         },
       });
       const timeout = new Promise<never>((_, reject) => {
@@ -1148,7 +1148,7 @@ export default function PlannerScreen() {
               {programRebuildConfirm && <>
                 <SheetHeader eyebrow="CONFIRM REFRESH" title={`Refresh with ${programRebuildConfirm.label}?`} onClose={() => setProgramRebuildConfirm(null)} colors={colors} />
                 <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Calora will use this Program for an explicit refresh and keep the meals you have already planned in place wherever possible.</Text>
-                <ScalePressable accessibilityLabel="Confirm refresh this week" onPress={() => { const program = programRebuildConfirm; setPlannerPreferences({ primary: program.id }); setProgramRebuildConfirm(null); setPlanTypeVisible(false); void generate(); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 0 }]}><Feather name="refresh-cw" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Refresh this week</Text></ScalePressable>
+                <ScalePressable accessibilityLabel="Confirm refresh this week" onPress={() => { const program = programRebuildConfirm; setPlannerPreferences({ primary: program.id }); setProgramRebuildConfirm(null); setPlanTypeVisible(false); void generate(program.id); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 0 }]}><Feather name="refresh-cw" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Refresh this week</Text></ScalePressable>
                 <Pressable accessibilityLabel="Cancel week refresh" onPress={() => setProgramRebuildConfirm(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Keep my current week</Text></Pressable>
               </>}
             </View>

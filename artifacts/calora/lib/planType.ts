@@ -152,3 +152,11 @@ export const PLAN_TYPES: PlanType[] = [
 export function findPlanType(id: PlanTypeId | string): PlanType | undefined {
   return PLAN_TYPES.find((pt) => pt.id === id);
 }
+
+/** A confirmed Program switch takes priority over the preference from the current render. */
+export function planTypeForGeneration(
+  confirmedProgram: PlanTypeId | undefined,
+  preferences: PlannerPreferences | null | undefined,
+): PlanTypeId | undefined {
+  return confirmedProgram ?? preferences?.primary;
+}

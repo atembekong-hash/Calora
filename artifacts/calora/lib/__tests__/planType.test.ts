@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PLAN_TYPES,
   findPlanType,
+  planTypeForGeneration,
   type PlannerPreferences,
   type PlanTypeId,
 } from '../planType';
@@ -154,6 +155,16 @@ describe('PlannerPreferences data model: forward-compatible primary + optional s
       const prefs: PlannerPreferences = { primary: id };
       expect(prefs.primary).toBe(id);
     }
+  });
+});
+
+describe('planTypeForGeneration', () => {
+  it('uses a just-confirmed Program for refresh instead of the previous render preference', () => {
+    expect(planTypeForGeneration('high-protein-power', { primary: 'balanced-nutrition' })).toBe('high-protein-power');
+  });
+
+  it('uses the saved Program for ordinary generation', () => {
+    expect(planTypeForGeneration(undefined, { primary: 'balanced-nutrition' })).toBe('balanced-nutrition');
   });
 });
 
