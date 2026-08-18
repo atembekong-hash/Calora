@@ -1,0 +1,134 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import request from "supertest";
+
+const { mockOpenAiCreate, verifyBearerToken } = vi.hoisted(() => ({
+  mockOpenAiCreate: vi.fn(),
+  verifyBearerToken: vi.fn(),
+}));
+
+vi.mock("@workspace/integrations-openai-ai-server", () => ({
+  openai: { chat: { completions: { create: mockOpenAiCreate } } },
+}));
+
+vi.mock("@workspace/db", () => ({
+  db: { select: vi.fn(), insert: vi.fn() },
+  recipeNutritionTable: { mealId: "meal_id" },
+}));
+
+vi.mock("drizzle-orm", () => ({ eq: vi.fn(() => ({})) }));
+
+vi.mock("../lib/supabase-auth.js", () => ({
+  verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args),
+}));
+
+import express from "express";
+import recipesRouter from "../routes/recipes.js";
+
+const USER = { id: "create-recipe-user", email: "creator@example.com" };
+
+function buildApp() {
+  const app = express();
+  app.use(express.json());
+  app.use(recipesRouter);
+  return app;
+}
+
+function completion(payload: unknown) {
+  return { choices: [{ message: { content: JSON.stringify(payload) } }] };
+}
+
+describe("AI recipe creation endpoints", () => {
+  const app = buildApp();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    verifyBearerToken.mockResolvedValue(USER);
+  });
+
+  it("requires a signed-in user to generate concepts or a complete recipe", async () => {
+    verifyBearerToken.mockResolvedValue(null);
+
+    const [concepts, recipe] = await Promise.all([
+      request(app).post("/v1/recipes/concepts").send({ request: "A pasta dinner" }),
+      request(app).post("/v1/recipes/generated").send({ title: "Pasta dinner" }),
+    ]);
+
+    expect(concepts.status).toBe(401);
+    expect(recipe.status).toBe(401);
+    expect(mockOpenAiCreate).not.toHaveBeenCalled();
+  });
+
+  it("validates concept requests before calling the model", async () => {
+    const [missingPrompt, malformedBody] = await Promise.all([
+      request(app).post("/v1/recipes/concepts").send({ ingredients: [], request: "" }),
+      request(app).post("/v1/recipes/concepts").send(null as unknown as object),
+    ]);
+
+    expect(missingPrompt.status).toBe(400);
+    expect(malformedBody.status).toBe(400);
+    expect(mockOpenAiCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns bounded, structured concepts and normalizes invalid numeric input", async () => {
+    mockOpenAiCreate.mockResolvedValueOnce(completion({
+      concepts: [
+        { title: "Lemony lentil bowl", summary: "A bright one-pan dinner.", whyItFits: "Uses your lentils.", keyIngredients: ["lentils", "lemon"], estimatedMinutes: 27.6 },
+        { title: "Spinach pasta", summary: "A simple pasta.", whyItFits: "Quick comfort food.", keyIngredients: ["spinach"], estimatedMinutes: 18 },
+        { title: "Herb grain salad", summary: "A fresh grain bowl.", whyItFits: "Flexible and light.", keyIngredients: ["herbs"], estimatedMinutes: 22 },
+      ],
+    }));
+
+    const response = await request(app).post("/v1/recipes/concepts").send({
+      ingredients: ["lentils", "spinach"],
+      servings: Number.NaN,
+      maxMinutes: Number.POSITIVE_INFINITY,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.concepts).toHaveLength(3);
+    expect(response.body.concepts[0]).toMatchObject({ title: "Lemony lentil bowl", estimatedMinutes: 28 });
+    expect(mockOpenAiCreate).toHaveBeenCalledTimes(1);
+    const requestPayload = JSON.parse(mockOpenAiCreate.mock.calls[0][0].messages[1].content);
+    expect(requestPayload).toMatchObject({ servings: 2, maxMinutes: 30 });
+  });
+
+  it("returns a complete local-ready generated recipe with estimated nutrition", async () => {
+    mockOpenAiCreate.mockResolvedValueOnce(completion({
+      name: "Lemony lentil bowl",
+      description: "A quick, hearty dinner.",
+      ingredients: ["1 cup lentils", "1 lemon", "2 cups spinach"],
+      instructions: ["Cook the lentils.", "Wilt the spinach.", "Finish with lemon."],
+      prepMinutes: 25,
+      servings: 3,
+      nutrition: { calories: 480, proteinG: 24, carbsG: 62, fatG: 14 },
+      allergens: ["legumes"],
+    }));
+
+    const response = await request(app).post("/v1/recipes/generated").send({
+      title: "Lemony lentil bowl",
+      summary: "A quick dinner.",
+      servings: 3,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      name: "Lemony lentil bowl",
+      servings: 3,
+      prepMinutes: 25,
+      nutrition: { calories: 480, proteinG: 24, carbsG: 62, fatG: 14 },
+    });
+    expect(response.body.nutritionNote).toMatch(/AI-estimated/i);
+  });
+
+  it("rejects incomplete model output without leaking an invalid recipe", async () => {
+    mockOpenAiCreate.mockResolvedValueOnce(completion({
+      ingredients: ["lentils"],
+      instructions: ["Cook."],
+    }));
+
+    const response = await request(app).post("/v1/recipes/generated").send({ title: "Lentil bowl" });
+
+    expect(response.status).toBe(502);
+    expect(response.body.message).toMatch(/couldn’t finish/i);
+  });
+});

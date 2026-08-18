@@ -28,19 +28,29 @@ function conceptText(value: unknown, max: number) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+function requestBody(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function boundedInteger(value: unknown, fallback: number, min: number, max: number) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(Math.max(Math.round(value), min), max)
+    : fallback;
+}
+
 router.post("/v1/recipes/concepts", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) {
     res.status(401).json({ message: "Please sign in to generate recipe ideas." });
     return;
   }
-  const body = req.body as ConceptRequest;
+  const body = requestBody(req.body) as ConceptRequest;
   const ingredients = Array.isArray(body.ingredients) ? body.ingredients.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, 80)).filter(Boolean).slice(0, 18) : [];
   const mealType = conceptText(body.mealType, 40);
   const preferences = Array.isArray(body.preferences) ? body.preferences.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, 60)).filter(Boolean).slice(0, 8) : [];
   const request = conceptText(body.request, 500);
-  const servings = typeof body.servings === "number" && Number.isFinite(body.servings) ? Math.min(Math.max(Math.round(body.servings), 1), 12) : 2;
-  const maxMinutes = typeof body.maxMinutes === "number" && Number.isFinite(body.maxMinutes) ? Math.min(Math.max(Math.round(body.maxMinutes), 5), 180) : 30;
+  const servings = boundedInteger(body.servings, 2, 1, 12);
+  const maxMinutes = boundedInteger(body.maxMinutes, 30, 5, 180);
   if (!ingredients.length && !request) {
     res.status(400).json({ message: "Add an ingredient or tell Calora what you’d like to make." });
     return;
@@ -77,9 +87,10 @@ router.post("/v1/recipes/concepts", async (req, res) => {
 router.post("/v1/recipes/generated", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to finish a recipe." });
-  const title = conceptText(req.body?.title, 100);
-  const summary = conceptText(req.body?.summary, 220);
-  const servings = typeof req.body?.servings === "number" ? Math.min(Math.max(Math.round(req.body.servings), 1), 12) : 2;
+  const body = requestBody(req.body);
+  const title = conceptText(body.title, 100);
+  const summary = conceptText(body.summary, 220);
+  const servings = boundedInteger(body.servings, 2, 1, 12);
   if (!title) return res.status(400).json({ message: "Choose a recipe idea first." });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CONCEPT_TIMEOUT_MS);
@@ -101,8 +112,8 @@ router.post("/v1/recipes/generated", async (req, res) => {
     const number = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
     return res.json({
       name: conceptText(parsed.name, 100) || title, description: conceptText(parsed.description, 300) || summary,
-      ingredients, instructions, servings: typeof parsed.servings === "number" ? Math.min(Math.max(Math.round(parsed.servings), 1), 12) : servings,
-      prepMinutes: typeof parsed.prepMinutes === "number" ? Math.min(Math.max(Math.round(parsed.prepMinutes), 1), 180) : null,
+      ingredients, instructions, servings: boundedInteger(parsed.servings, servings, 1, 12),
+      prepMinutes: typeof parsed.prepMinutes === "number" && Number.isFinite(parsed.prepMinutes) ? Math.min(Math.max(Math.round(parsed.prepMinutes), 1), 180) : null,
       nutrition: { calories: number(nutrition.calories), proteinG: number(nutrition.proteinG), carbsG: number(nutrition.carbsG), fatG: number(nutrition.fatG) },
       allergens: Array.isArray(parsed.allergens) ? parsed.allergens.filter((v): v is string => typeof v === "string").map((v) => conceptText(v, 50)).filter(Boolean).slice(0, 8) : [],
       nutritionNote: "AI-estimated nutrition only; confirm ingredients and portions for your needs.",
