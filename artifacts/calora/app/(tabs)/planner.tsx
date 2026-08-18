@@ -192,6 +192,7 @@ export default function PlannerScreen() {
   const [programRebuildConfirm, setProgramRebuildConfirm] = useState<PlanType | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
+  const [weekOverviewVisible, setWeekOverviewVisible] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [undoMeal, setUndoMeal] = useState<PlannerMeal | null>(null);
   const [undoMoveMeal, setUndoMoveMeal] = useState<{ mealId: string; originalDay: string; mealName: string; displacedMeal?: PlannerMeal } | null>(null);
@@ -319,12 +320,14 @@ export default function PlannerScreen() {
     const currentDayIndex = weekDays.indexOf(selectedDay);
     setViewWeekStart(nextWeek);
     setSelectedDay(plannerDate(nextWeek, currentDayIndex >= 0 ? currentDayIndex : 0));
+    setWeekOverviewVisible(false);
   };
 
   const goToToday = () => {
     const currentWeek = getPlannerWeekStart();
     setViewWeekStart(currentWeek);
     setSelectedDay(today);
+    setWeekOverviewVisible(false);
   };
 
   const openDayInToday = (day: string) => {
@@ -635,6 +638,7 @@ export default function PlannerScreen() {
       setViewWeekStart(result.weekStart);
       setSelectedDay(result.weekStart);
       setGenerationMessage(result.message);
+      if (!confirmedProgram) setWeekOverviewVisible(true);
       acknowledge('Your refreshed week is saved on this device.');
     } catch {
       const fallback = createStarterPlannerMeals(viewWeekStart);
@@ -664,6 +668,7 @@ export default function PlannerScreen() {
       setViewWeekStart(viewWeekStart);
       setSelectedDay(viewWeekStart);
       setGenerationMessage('Starter week ready offline. Customize anything that does not fit your day.');
+      if (!confirmedProgram) setWeekOverviewVisible(true);
       acknowledge('Your offline starter week is saved on this device.');
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
@@ -721,7 +726,55 @@ export default function PlannerScreen() {
           <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal or leave this open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}</Animated.View>
         </>}
 
-        {workspace === 'week' && <>
+        {workspace === 'week' && weekOverviewVisible ? <>
+          <View style={styles.weekOverviewHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.programEyebrow, { color: colors.primary }]}>YOUR WEEK IS READY</Text>
+              <Text style={[styles.weekOverviewTitle, { color: colors.foreground }]}>Meals for {formatRange(viewWeekStart)}</Text>
+              <Text style={[styles.weekOverviewSubtitle, { color: colors.mutedForeground }]}>Review the plan, then open any meal to make it your own.</Text>
+            </View>
+            <ScalePressable accessibilityLabel="Close weekly meal overview" onPress={() => setWeekOverviewVisible(false)} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+              <Feather name="x" size={18} color={colors.foreground} />
+            </ScalePressable>
+          </View>
+          <View style={styles.weekOverviewList}>
+            {weekDays.map((day) => {
+              const mealsForDay = plannedWeek
+                .filter((meal) => meal.day === day)
+                .sort((a, b) => plannerMealTypes.indexOf(a.meal) - plannerMealTypes.indexOf(b.meal));
+              return (
+                <View key={day} style={[styles.weekOverviewDay, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={styles.weekOverviewDayHeading}>
+                    <Text style={[styles.weekOverviewDayName, { color: colors.foreground }]}>{dayFormatter.format(parseDate(day))}</Text>
+                    <Text style={[styles.weekOverviewDayDate, { color: colors.mutedForeground }]}>{dateFormatter.format(parseDate(day))}</Text>
+                    <Text style={[styles.weekOverviewDayTotal, { color: colors.mutedForeground }]}>{formatCalories(mealsForDay.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
+                  </View>
+                  {mealsForDay.map((meal) => {
+                    const isLogged = logs.some((log) => log.plannerMealId === meal.id);
+                    return (
+                      <View key={meal.id} style={[styles.weekOverviewMeal, { borderTopColor: colors.border }]}>
+                        <Pressable accessibilityLabel={`Open planned ${meal.meal}: ${meal.name}`} onPress={() => setDetail(meal)} style={styles.weekOverviewMealMain}>
+                          <Text style={[styles.weekOverviewMealType, { color: colors.primary }]}>{meal.meal}</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text numberOfLines={1} style={[styles.weekOverviewMealName, { color: colors.foreground }]}>{meal.name}</Text>
+                            <Text style={[styles.weekOverviewMealMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ? `${meal.prepMinutes} min` : meal.serving}{isLogged ? ' · Logged' : ''}</Text>
+                          </View>
+                        </Pressable>
+                        <ScalePressable accessibilityLabel={`More actions for ${meal.name}`} onPress={() => { setActionMeal(meal); setActionMode(null); }} scale={0.96} haptic="none" style={styles.weekOverviewMore}>
+                          <Feather name="more-horizontal" size={18} color={colors.mutedForeground} />
+                        </ScalePressable>
+                      </View>
+                    );
+                  })}
+                  {mealsForDay.length === 0 && <Text style={[styles.weekOverviewEmpty, { color: colors.mutedForeground }]}>No meals planned for this day.</Text>}
+                </View>
+              );
+            })}
+          </View>
+          <ScalePressable accessibilityLabel="Done reviewing weekly meals" onPress={() => setWeekOverviewVisible(false)} scale={0.97} haptic="light" style={[styles.weekOverviewDone, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.weekOverviewDoneText, { color: colors.primaryForeground }]}>Done reviewing</Text>
+          </ScalePressable>
+        </> : workspace === 'week' && <>
         <View style={styles.weekHeader}>
           <ScalePressable accessibilityLabel="Previous week" onPress={() => shiftWeek(-1)} scale={0.96} haptic="none" style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={18} color={colors.foreground} /></ScalePressable>
           <View style={styles.weekRangeCopy}>
@@ -1162,6 +1215,24 @@ function makeStyles(f: number) {
   shoppingCount: { position: 'absolute', right: -4, top: -5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   shoppingCountText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
   weekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+   weekOverviewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16, paddingTop: 2 },
+   weekOverviewTitle: { fontFamily: 'Inter_700Bold', fontSize: 22 * f, letterSpacing: -0.5, lineHeight: 28 * f },
+   weekOverviewSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 10.5 * f, lineHeight: 16 * f, marginTop: 5 },
+   weekOverviewList: { gap: 10 },
+   weekOverviewDay: { borderWidth: 1, borderRadius: 16, overflow: 'hidden' },
+   weekOverviewDayHeading: { minHeight: 45, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 7 },
+   weekOverviewDayName: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
+   weekOverviewDayDate: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
+   weekOverviewDayTotal: { marginLeft: 'auto', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
+   weekOverviewMeal: { minHeight: 58, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', alignItems: 'center', paddingLeft: 13 },
+   weekOverviewMealMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9 },
+   weekOverviewMealType: { width: 56, fontFamily: 'Inter_700Bold', fontSize: 8.5 * f, letterSpacing: 0.2 },
+   weekOverviewMealName: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+   weekOverviewMealMeta: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 3 },
+   weekOverviewMore: { width: 42, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+   weekOverviewEmpty: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, paddingHorizontal: 13, paddingBottom: 13 },
+   weekOverviewDone: { minHeight: 45, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+   weekOverviewDoneText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   weekArrow: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   weekHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   weekRange: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, letterSpacing: -0.2 },
