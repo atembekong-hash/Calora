@@ -539,6 +539,13 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
   }, [hydrated]);
 
   // ── Health sync ───────────────────────────────────────────────────────────
+  // Dependency array is intentionally empty because every value closed over is
+  // guaranteed stable for the lifetime of the provider:
+  //   • healthService  — module-level singleton import
+  //   • setHealthConnection, setWeights — React useState setters (stable by spec)
+  //   • mergeHealthWeights — module-level pure function
+  // If health-service internals change to require component-scoped values, those
+  // values must be either memoized or added to this dep array.
   const syncHealth = useCallback(async () => {
     const current = await healthService.getConnection();
     setHealthConnection(current);
