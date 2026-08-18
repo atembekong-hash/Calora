@@ -106,7 +106,6 @@ function PlannerFocusCard({
   target,
   colors,
   onPrimary,
-  onBuild,
   allLogged,
 }: {
   meal: PlannerMeal | undefined;
@@ -114,7 +113,6 @@ function PlannerFocusCard({
   target: number;
   colors: ReturnType<typeof useCalora>['colors'];
   onPrimary: () => void;
-  onBuild: () => void;
   allLogged: boolean;
 }) {
   const plannedCalories = selectedMeals.reduce((sum, item) => sum + item.calories, 0);
@@ -142,10 +140,6 @@ function PlannerFocusCard({
           <Feather name={allLogged || meal ? 'check-circle' : 'plus'} size={15} color={colors.primaryForeground} />
           <Text style={[styles.focusPrimaryText, { color: colors.primaryForeground }]}>{allLogged ? 'View today' : meal ? 'Log next meal' : 'Add a meal'}</Text>
         </ScalePressable>
-        <Pressable accessibilityLabel="Build or refresh this week" onPress={onBuild} style={styles.focusSecondary}>
-          <Feather name="zap" size={15} color={colors.heroMuted} />
-          <Text style={[styles.focusSecondaryText, { color: colors.heroMuted }]}>Build week</Text>
-        </Pressable>
       </View>
     </View>
   );
@@ -389,7 +383,18 @@ export default function PlannerScreen() {
     updatePlannerMeals(next);
     setReplaceMeal(null);
     setActionMeal(null);
-    acknowledge(`${nextMeal.name} is on your ${dayFormatter.format(parseDate(target.day))} plan.`);
+    const replacement = next.find((meal) => meal.id === target.id);
+    if (replacement) {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      setUndoMeal(null);
+      setUndoMoveMeal(null);
+      setUndoSwapMeal({ newMeal: replacement, originalMeal: target });
+      undoTimerRef.current = setTimeout(() => {
+        setUndoSwapMeal(null);
+        undoTimerRef.current = null;
+      }, 6000);
+    }
+    acknowledge(`${nextMeal.name} replaced your ${target.meal.toLowerCase()}. Tap Undo to restore.`, 6000);
   };
 
   const addMealToPlan = (template: PlannerMeal, day: string, mealType: PlannerMeal['meal']) => {
@@ -679,7 +684,7 @@ export default function PlannerScreen() {
         </View>
 
         {workspace === 'today' && <>
-          <PlannerFocusCard meal={nextMeal} allLogged={allSelectedMealsLogged} selectedMeals={selectedMeals} target={profile?.calorieTarget ?? 2000} colors={colors} onPrimary={openPrimaryPlanAction} onBuild={() => setWorkspace('week')} />
+          <PlannerFocusCard meal={nextMeal} allLogged={allSelectedMealsLogged} selectedMeals={selectedMeals} target={profile?.calorieTarget ?? 2000} colors={colors} onPrimary={openPrimaryPlanAction} />
           <Pressable accessibilityLabel="Choose another day from your week" onPress={() => setWorkspace('week')} style={[styles.todayDateLink, { borderColor: colors.border, backgroundColor: colors.card }]}>
             <View><Text style={[styles.todayDateLabel, { color: colors.foreground }]}>{selectedMealLabel}</Text><Text style={[styles.todayDateMeta, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Your day is planned' : `${4 - selectedMeals.length} open ${4 - selectedMeals.length === 1 ? 'slot' : 'slots'}`}</Text></View><Feather name="calendar" size={17} color={colors.primary} />
           </Pressable>

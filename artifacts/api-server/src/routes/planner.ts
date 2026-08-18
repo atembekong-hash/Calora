@@ -530,7 +530,28 @@ router.post("/v1/planner/generate", async (req, res) => {
     }).flat();
     res.json({ weekStart, provider: `${BRAND_NAME} AI planner`, message: "Your week is balanced around your goals and preferences.", meals });
   } catch (error) {
-    res.status(502).json({ message: error instanceof Error ? error.message : "Planner provider unavailable" });
+    // A generated plan is a convenience, not a reason to leave the planning
+    // workspace in an error state. Keep the response contract intact when the
+    // upstream model is slow or unavailable so local-first clients can proceed
+    // with an editable starter week instead of receiving a transport failure.
+    const fallback = {
+      breakfast: available.find((meal) => meal.meal === "Breakfast") ?? catalog[0],
+      lunch: available.find((meal) => meal.meal === "Lunch") ?? catalog[3],
+      dinner: available.find((meal) => meal.meal === "Dinner") ?? catalog[7],
+      snack: available.find((meal) => meal.meal === "Snack") ?? catalog[10],
+    };
+    const meals = Array.from({ length: 7 }, (_, dayIndex) => [
+      makeMeal(fallback.breakfast, dateFromWeekStart(weekStart, dayIndex), 0),
+      makeMeal(fallback.lunch, dateFromWeekStart(weekStart, dayIndex), 1),
+      makeMeal(fallback.dinner, dateFromWeekStart(weekStart, dayIndex), 2),
+      makeMeal(fallback.snack, dateFromWeekStart(weekStart, dayIndex), 3),
+    ]).flat();
+    res.json({
+      weekStart,
+      provider: `${BRAND_NAME} starter planner`,
+      message: "Starter week ready. Customize anything that does not fit your day.",
+      meals,
+    });
   }
 });
 
