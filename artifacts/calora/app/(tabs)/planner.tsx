@@ -10,9 +10,9 @@ import { useCalora } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
 import { formatCalories, formatGrams, formatWhole } from '@/lib/formatters';
 import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
-import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
+import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
-import { PLAN_TYPES, findPlanType, planTypeForGeneration, type PlanType, type PlanTypeId } from '@/lib/planType';
+import { PLAN_TYPES, clearProgramApplication, findPlanType, isStarterFallbackProvider, planTypeForGeneration, programAppliedToWeek, recordGenerationOutcome, resolveGenerationRecording, selectPrimaryProgram, type PlanType, type PlanTypeId } from '@/lib/planType';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -188,7 +188,7 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
 }
 
 export default function PlannerScreen() {
-  const { colors, profile, logs, plannerWeekStart, plannerMeals, plannerPreferences, setPlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck, fontScale } = useCalora();
+  const { colors, profile, logs, updateLog, plannerWeekStart, plannerMeals, plannerPreferences, setPlannerPreferences, updatePlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck, fontScale } = useCalora();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const generatePlanner = useGeneratePlanner();
@@ -312,6 +312,9 @@ export default function PlannerScreen() {
   );
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => plannerDate(viewWeekStart, index)), [viewWeekStart]);
+  // Program already applied to the week the user is looking at — distinct from the
+  // Program merely selected for a future build (plannerPreferences.primary).
+  const appliedProgramForViewedWeek = useMemo(() => programAppliedToWeek(plannerPreferences, viewWeekStart), [plannerPreferences, viewWeekStart]);
   const selectedMeals = plannerMeals.filter((meal) => meal.day === selectedDay);
   const plannedWeek = plannerMeals.filter((meal) => weekDays.includes(meal.day));
   const visibleShoppingItems = useMemo(
@@ -423,8 +426,13 @@ export default function PlannerScreen() {
 
   const saveEditedMeal = () => {
     if (!editMeal || !editName.trim()) return;
+    // An edited program-generated meal becomes user-authored (edited- id) so an
+    // explicit Program rebuild preserves it. Diary logs referencing the old id
+    // are re-pointed so the "Logged" link survives the re-id.
+    const nextId = isProgramGeneratedMeal(editMeal) ? `edited-${Date.now()}-${editMeal.id}` : editMeal.id;
     const next = plannerMeals.map((meal) => meal.id === editMeal.id ? {
       ...meal,
+      id: nextId,
       name: editName.trim(),
       serving: editServing.trim() || '1 serving',
       calories: Math.max(0, Number(editCalories) || 0),
@@ -432,6 +440,9 @@ export default function PlannerScreen() {
       carbsG: Math.max(0, Number(editCarbs) || 0),
       fatG: Math.max(0, Number(editFat) || 0),
     } : meal);
+    if (nextId !== editMeal.id) {
+      logs.filter((log) => log.plannerMealId === editMeal.id).forEach((log) => updateLog(log.id, { plannerMealId: nextId }));
+    }
     updatePlannerMeals(next);
     setEditMeal(null);
     acknowledge(`${editName.trim()} updated and saved locally.`);
@@ -596,6 +607,16 @@ export default function PlannerScreen() {
       diet: 'Everything' as const,
       calorieTarget: 2000,
     };
+    const programId = planTypeForGeneration(confirmedProgram, plannerPreferences);
+    // A confirmed rebuild switches the primary Program via a functional update
+    // that preserves secondary modifiers and the per-week history. Every
+    // preference write in this generation is a latest-state update, so a
+    // Program the user selects while the request is in flight is never
+    // clobbered by a stale snapshot; programId is captured only for the API
+    // request and the historical record.
+    if (confirmedProgram) updatePlannerPreferences((prev) => selectPrimaryProgram(prev, confirmedProgram));
+    // Meals already logged to the diary must survive any rebuild.
+    const loggedMealIds = new Set(logs.map((log) => log.plannerMealId).filter((id): id is string => Boolean(id)));
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       const request = generatePlanner.mutateAsync({
@@ -607,25 +628,76 @@ export default function PlannerScreen() {
             diet: plannerProfile.diet,
             calorieTarget: plannerProfile.calorieTarget,
           },
-          planType: planTypeForGeneration(confirmedProgram, plannerPreferences),
+          planType: programId,
         },
       });
       const timeout = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error('Planner request timed out')), 6500);
       });
       const result = await Promise.race([request, timeout]);
-      const existing = plannerMeals.filter((meal) => weekDays.includes(meal.day));
-      const existingSlots = new Set(existing.map((meal) => `${meal.day}-${meal.meal}`));
-      const merged = [...plannerMeals, ...result.meals.filter((meal) => !existingSlots.has(`${meal.day}-${meal.meal}`))];
-      setPlannerMeals(result.weekStart, merged);
+      // Explicit rebuild replaces program-generated meals but preserves user-authored,
+      // edited, and already-logged meals; ordinary builds only fill empty slots.
+      const merged = mergeGeneratedWeek(plannerMeals, result.meals, weekDays, {
+        mode: confirmedProgram ? 'rebuild' : 'fill',
+        protectedIds: loggedMealIds,
+      });
+      setPlannerMeals(result.weekStart, merged.meals);
+      // The API returns starter meals as a 200 when its AI provider fails —
+      // those meals were not shaped by the requested Program, so they must
+      // not be recorded as a Program application.
+      const recording = resolveGenerationRecording({
+        programId,
+        mode: confirmedProgram ? 'rebuild' : 'fill',
+        changed: merged.insertedCount > 0 || merged.replacedCount > 0,
+        fallback: isStarterFallbackProvider(result.provider),
+      });
+      if (recording === 'record' && programId) {
+        // Rebuilds upsert the week's record; ordinary fills only establish
+        // provenance for a week with no record — they never rewrite the
+        // Program that originally shaped the week. Functional update: the
+        // record merges into the LATEST preferences, so a Program the user
+        // selected while this request was in flight is never clobbered —
+        // programId is kept only for the historical record.
+        updatePlannerPreferences((prev) => recordGenerationOutcome(prev, {
+          weekStart: result.weekStart,
+          programId,
+          appliedAt: new Date().toISOString(),
+          source: confirmedProgram ? 'refresh' : 'build',
+        }, confirmedProgram ? 'rebuild' : 'fill'));
+      } else if (recording === 'clear') {
+        // A fallback rebuild materially replaced the week's meals: any prior
+        // record is stale and the requested Program never shaped the week.
+        updatePlannerPreferences((prev) => clearProgramApplication(prev, result.weekStart));
+      }
       setViewWeekStart(result.weekStart);
       setSelectedDay(result.weekStart);
       setGenerationMessage(result.message);
       acknowledge('Your refreshed week is saved on this device.');
     } catch {
       const fallback = createStarterPlannerMeals(viewWeekStart);
-      const existingSlots = new Set(plannerMeals.filter((meal) => weekDays.includes(meal.day)).map((meal) => `${meal.day}-${meal.meal}`));
-      setPlannerMeals(viewWeekStart, [...plannerMeals, ...fallback.filter((meal) => !existingSlots.has(`${meal.day}-${meal.meal}`))]);
+      // An explicit rebuild keeps rebuild semantics even offline — starter meals
+      // replace program-generated ones — so the recorded application stays accurate.
+      const fallbackMerge = mergeGeneratedWeek(plannerMeals, fallback, weekDays, {
+        mode: confirmedProgram ? 'rebuild' : 'fill',
+        protectedIds: loggedMealIds,
+      });
+      setPlannerMeals(viewWeekStart, fallbackMerge.meals);
+      const fallbackRecording = resolveGenerationRecording({
+        programId,
+        mode: confirmedProgram ? 'rebuild' : 'fill',
+        changed: fallbackMerge.insertedCount > 0 || fallbackMerge.replacedCount > 0,
+        fallback: true,
+      });
+      if (fallbackRecording === 'clear') {
+        // The rebuild replaced program-generated meals with the offline starter
+        // week: neither the old Program nor the new one shaped it, so the
+        // week's record is cleared rather than recorded inaccurately. The
+        // functional update keeps the primary switch and anything the user
+        // selected while the request was pending.
+        updatePlannerPreferences((prev) => clearProgramApplication(prev, viewWeekStart));
+      }
+      // Ordinary fill fallback: existing meals (and any existing record) are
+      // untouched, and starter-filled slots establish no Program provenance.
       setViewWeekStart(viewWeekStart);
       setSelectedDay(viewWeekStart);
       setGenerationMessage('Starter week ready offline. Customize anything that does not fit your day.');
@@ -723,7 +795,7 @@ export default function PlannerScreen() {
         </View>
         <Pressable accessibilityLabel="View or change your program" onPress={() => setPlanTypeVisible(true)} style={[styles.programCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.programIcon, { backgroundColor: colors.accent }]}><Feather name="compass" size={18} color={colors.accentForeground} /></View>
-          <View style={styles.programCopy}><Text style={[styles.programEyebrow, { color: colors.primary }]}>YOUR PROGRAM</Text><Text style={[styles.programTitle, { color: colors.foreground }]}>{plannerPreferences ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary : 'Choose a planning strategy'}</Text><Text style={[styles.programMeta, { color: colors.mutedForeground }]}>{plannerPreferences ? findPlanType(plannerPreferences.primary)?.subtitle : 'It guides your next generated week.'}</Text></View>
+          <View style={styles.programCopy}><Text style={[styles.programEyebrow, { color: colors.primary }]}>{appliedProgramForViewedWeek ? 'PROGRAM · THIS WEEK' : 'YOUR PROGRAM'}</Text><Text style={[styles.programTitle, { color: colors.foreground }]}>{appliedProgramForViewedWeek ? findPlanType(appliedProgramForViewedWeek.programId)?.label ?? appliedProgramForViewedWeek.programId : plannerPreferences ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary : 'Choose a planning strategy'}</Text><Text style={[styles.programMeta, { color: colors.mutedForeground }]}>{appliedProgramForViewedWeek ? (appliedProgramForViewedWeek.programId === plannerPreferences?.primary ? 'Shaped this week.' : `Shaped this week · ${plannerPreferences ? `${findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary} is set for your next build` : 'no Program set for your next build'}.`) : plannerPreferences ? `${findPlanType(plannerPreferences.primary)?.subtitle ?? ''} · guides your next build.` : 'It guides your next generated week.'}</Text></View>
           <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
         </Pressable>
         <View style={[styles.planControlBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -1139,7 +1211,7 @@ export default function PlannerScreen() {
                   <Text style={[styles.programDetailText, { color: colors.foreground }]}>Meal selection, nutrition emphasis, recipe ranking, suggested replacements, and the next generated week.</Text>
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Your calorie target and saved dietary preferences stay in control.</Text>
                 </View>
-                <ScalePressable accessibilityLabel={`Start ${programDetail.label} next week`} onPress={() => { setPlannerPreferences({ primary: programDetail.id }); setProgramDetail(null); setPlanTypeVisible(false); acknowledge(`${programDetail.label} is ready for your next build.`); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10 }]}>
+                <ScalePressable accessibilityLabel={`Start ${programDetail.label} next week`} onPress={() => { setPlannerPreferences(selectPrimaryProgram(plannerPreferences, programDetail.id)); setProgramDetail(null); setPlanTypeVisible(false); acknowledge(`${programDetail.label} is ready for your next build.`); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10 }]}>
                   <Feather name="calendar" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Start next week</Text>
                 </ScalePressable>
                 <Pressable accessibilityLabel={`Rebuild this week with ${programDetail.label}`} onPress={() => { setProgramRebuildConfirm(programDetail); setProgramDetail(null); }} style={styles.programRebuildLink}><Text style={[styles.programRebuildText, { color: colors.primary }]}>Rebuild this week instead</Text></Pressable>
@@ -1152,8 +1224,8 @@ export default function PlannerScreen() {
             <View style={[styles.actionSheet, { backgroundColor: colors.background }]}>
               {programRebuildConfirm && <>
                 <SheetHeader eyebrow="CONFIRM REFRESH" title={`Refresh with ${programRebuildConfirm.label}?`} onClose={() => setProgramRebuildConfirm(null)} colors={colors} />
-                <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Calora will use this Program for an explicit refresh and keep the meals you have already planned in place wherever possible.</Text>
-                <ScalePressable accessibilityLabel="Confirm refresh this week" onPress={() => { const program = programRebuildConfirm; setPlannerPreferences({ primary: program.id }); setProgramRebuildConfirm(null); setPlanTypeVisible(false); void generate(program.id); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 0 }]}><Feather name="refresh-cw" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Refresh this week</Text></ScalePressable>
+                <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Calora will rebuild this week's generated meals with this Program. Meals you added, edited, or already logged stay exactly where they are.</Text>
+                <ScalePressable accessibilityLabel="Confirm refresh this week" onPress={() => { const program = programRebuildConfirm; setProgramRebuildConfirm(null); setPlanTypeVisible(false); void generate(program.id); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 0 }]}><Feather name="refresh-cw" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Refresh this week</Text></ScalePressable>
                 <Pressable accessibilityLabel="Cancel week refresh" onPress={() => setProgramRebuildConfirm(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Keep my current week</Text></Pressable>
               </>}
             </View>

@@ -468,6 +468,61 @@ export function applyIdentityReplace(
   );
 }
 
+/**
+ * True when a meal was produced by a Program generation or the starter seed —
+ * i.e. NOT something the user authored or edited themselves.
+ * Generated meals carry a `planner-` id (API) and starter meals `starter-`;
+ * user-created meals carry `custom-` / `planned-` (catalog add) / recipe ids.
+ */
+export function isProgramGeneratedMeal(meal: PlannerMeal): boolean {
+  return meal.id.startsWith('planner-') || meal.id.startsWith('starter-');
+}
+
+/**
+ * Merge a freshly generated week into the current planner meals.
+ *
+ * - 'fill'    — conservative build: every existing meal in the week keeps its
+ *               slot; generated meals only fill slots that were empty.
+ * - 'rebuild' — explicit Program refresh: program-generated meals in the week
+ *               are replaced, but user-authored meals (custom, manually added,
+ *               recipe picks), edited meals, and any meal whose id is in
+ *               `protectedIds` (e.g. already logged to the diary) keep their
+ *               slots. Meals outside the week are never touched.
+ *
+ * The result reports how many meals were actually inserted and replaced so
+ * callers can record Program provenance ONLY when the generation materially
+ * changed the week — a no-op merge must not claim the Program shaped it.
+ */
+export interface MergeGeneratedWeekResult {
+  meals: PlannerMeal[];
+  /** Generated meals that actually landed in the week. */
+  insertedCount: number;
+  /** Existing in-week meals that were removed (rebuild mode only). */
+  replacedCount: number;
+}
+
+export function mergeGeneratedWeek(
+  current: PlannerMeal[],
+  generated: PlannerMeal[],
+  weekDays: string[],
+  options: { mode: 'fill' | 'rebuild'; protectedIds?: ReadonlySet<string> },
+): MergeGeneratedWeekResult {
+  const weekSet = new Set(weekDays);
+  const protectedIds = options.protectedIds ?? new Set<string>();
+  const isPreserved = (meal: PlannerMeal) =>
+    options.mode === 'fill' || !isProgramGeneratedMeal(meal) || protectedIds.has(meal.id);
+  const kept = current.filter((meal) => !weekSet.has(meal.day) || isPreserved(meal));
+  const keptSlots = new Set(kept.filter((meal) => weekSet.has(meal.day)).map((meal) => `${meal.day}-${meal.meal}`));
+  const additions = generated.filter(
+    (meal) => weekSet.has(meal.day) && !keptSlots.has(`${meal.day}-${meal.meal}`),
+  );
+  return {
+    meals: [...kept, ...additions],
+    insertedCount: additions.length,
+    replacedCount: current.length - kept.length,
+  };
+}
+
 export function buildShoppingItems(meals: PlannerMeal[], checkedByName = new Map<string, boolean>()): ShoppingItem[] {
   const quantities = new Map<string, { name: string; quantity: number; sourceMealIds: string[]; sourceDays: Set<string> }>();
   meals.forEach((meal) => meal.ingredients.forEach((ingredient) => {

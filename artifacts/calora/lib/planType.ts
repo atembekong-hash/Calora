@@ -47,6 +47,32 @@ export interface PlanType {
 export interface PlannerPreferences {
   primary: PlanTypeId;
   secondary?: PlanTypeId[];
+  /**
+   * Historical record of which Program produced each generated week.
+   * Optional for backward compatibility — legacy preferences without this
+   * field remain valid and are never rewritten on hydration.
+   */
+  appliedPrograms?: ProgramApplication[];
+}
+
+/**
+ * An explicit, per-week record of a Program that shaped a generated week.
+ * One record is kept per weekStart (the latest application wins), so changing
+ * the Program for a future build never makes a past week ambiguous.
+ */
+export interface ProgramApplication {
+  /** Monday-anchored week key (YYYY-MM-DD) the Program was applied to. */
+  weekStart: string;
+  programId: PlanTypeId;
+  /** ISO timestamp of when the week was generated. */
+  appliedAt: string;
+  /**
+   * How the week came to be:
+   * - 'build'            — ordinary "Build week" generation
+   * - 'refresh'          — explicit "Rebuild this week" confirmation
+   * - 'offline-fallback' — the local starter week filled in after a failed request
+   */
+  source: 'build' | 'refresh' | 'offline-fallback';
 }
 
 export const PLAN_TYPES: PlanType[] = [
@@ -159,4 +185,149 @@ export function planTypeForGeneration(
   preferences: PlannerPreferences | null | undefined,
 ): PlanTypeId | undefined {
   return confirmedProgram ?? preferences?.primary;
+}
+
+const APPLICATION_SOURCES: ProgramApplication['source'][] = ['build', 'refresh', 'offline-fallback'];
+
+/**
+ * Change the Program selected for future builds WITHOUT losing any other
+ * preference state — secondary modifiers and the per-week application history
+ * are always carried forward. Every UI path that switches the primary Program
+ * must go through this helper instead of constructing a primary-only object.
+ */
+export function selectPrimaryProgram(
+  preferences: PlannerPreferences | null,
+  programId: PlanTypeId,
+): PlannerPreferences {
+  return preferences ? { ...preferences, primary: programId } : { primary: programId };
+}
+
+/**
+ * Upsert a Program application record for a week, preserving all other
+ * preference fields (primary, secondary, other weeks' records) untouched.
+ * The latest application for a weekStart replaces any earlier one; records
+ * stay sorted by weekStart for stable persistence.
+ */
+export function recordProgramApplication(
+  preferences: PlannerPreferences | null,
+  application: ProgramApplication,
+): PlannerPreferences {
+  const base: PlannerPreferences = preferences ?? { primary: application.programId };
+  const others = (base.appliedPrograms ?? []).filter((record) => record.weekStart !== application.weekStart);
+  return {
+    ...base,
+    appliedPrograms: [...others, application].sort((a, b) => a.weekStart.localeCompare(b.weekStart)),
+  };
+}
+
+/**
+ * Record the outcome of a successful generation honestly:
+ * - 'rebuild' (explicit confirmed refresh) actually replaces program-generated
+ *   meals, so it upserts the week's record.
+ * - 'fill' (ordinary Build week) never touches existing meals, so it may only
+ *   ESTABLISH provenance for a week that has no record yet — it must never
+ *   overwrite the record of the Program that originally shaped the week.
+ */
+export function recordGenerationOutcome(
+  preferences: PlannerPreferences | null,
+  application: ProgramApplication,
+  mode: 'fill' | 'rebuild',
+): PlannerPreferences {
+  if (mode === 'fill' && programAppliedToWeek(preferences, application.weekStart)) {
+    return preferences ?? { primary: application.programId };
+  }
+  return recordProgramApplication(preferences, application);
+}
+
+/**
+ * Remove a week's Program record — used when an explicit rebuild falls back to
+ * the offline starter week: the old Program no longer shaped the week and the
+ * new one never got to, so claiming either would be inaccurate.
+ */
+export function clearProgramApplication(
+  preferences: PlannerPreferences | null,
+  weekStart: string,
+): PlannerPreferences | null {
+  if (!preferences?.appliedPrograms?.some((record) => record.weekStart === weekStart)) return preferences;
+  const remaining = preferences.appliedPrograms.filter((record) => record.weekStart !== weekStart);
+  const next: PlannerPreferences = { ...preferences };
+  if (remaining.length > 0) next.appliedPrograms = remaining;
+  else delete next.appliedPrograms;
+  return next;
+}
+
+/** The planner API returns starter meals as a 200 with a starter-planner provider when its AI provider fails. */
+export function isStarterFallbackProvider(provider: string | undefined): boolean {
+  return /starter/i.test(provider ?? '');
+}
+
+/**
+ * Single decision point for what a generation outcome does to the week's
+ * Program record:
+ * - 'record' — a real Program-guided generation materially changed the week
+ * - 'clear'  — a fallback (server starter response or offline starter week)
+ *              materially rebuilt the week, so any prior claim is now stale
+ *              and the requested Program never actually shaped it
+ * - 'none'   — nothing changed, or a fill fallback that only padded empty
+ *              slots: existing provenance (or its absence) stays accurate
+ */
+export function resolveGenerationRecording(options: {
+  programId: PlanTypeId | undefined;
+  mode: 'fill' | 'rebuild';
+  changed: boolean;
+  fallback: boolean;
+}): 'record' | 'clear' | 'none' {
+  if (!options.changed || !options.programId) return 'none';
+  if (options.fallback) return options.mode === 'rebuild' ? 'clear' : 'none';
+  return 'record';
+}
+
+/** The Program application recorded for a week, if that week was ever generated. */
+export function programAppliedToWeek(
+  preferences: PlannerPreferences | null | undefined,
+  weekStart: string,
+): ProgramApplication | undefined {
+  return preferences?.appliedPrograms?.find((record) => record.weekStart === weekStart);
+}
+
+/**
+ * Normalize persisted planner preferences from storage.
+ *
+ * Backward compatible: legacy `{ primary }` and `{ primary, secondary }`
+ * shapes pass through unchanged (no rewriting of profile constraints).
+ * Unknown primary ids invalidate the whole preference (null → user re-picks).
+ * Malformed appliedPrograms entries are dropped individually; valid ones are kept.
+ */
+export function normalizePlannerPreferences(raw: unknown): PlannerPreferences | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const candidate = raw as Partial<PlannerPreferences> & { [key: string]: unknown };
+  if (typeof candidate.primary !== 'string' || !findPlanType(candidate.primary)) return null;
+  const normalized: PlannerPreferences = { primary: candidate.primary as PlanTypeId };
+  if (Array.isArray(candidate.secondary)) {
+    const secondary = candidate.secondary.filter(
+      (id): id is PlanTypeId => typeof id === 'string' && Boolean(findPlanType(id)),
+    );
+    if (secondary.length > 0) normalized.secondary = secondary;
+  }
+  if (Array.isArray(candidate.appliedPrograms)) {
+    const seen = new Set<string>();
+    const applications = candidate.appliedPrograms.filter((entry): entry is ProgramApplication => {
+      if (!entry || typeof entry !== 'object') return false;
+      const record = entry as Partial<ProgramApplication>;
+      const valid =
+        typeof record.weekStart === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(record.weekStart) &&
+        typeof record.programId === 'string' &&
+        Boolean(findPlanType(record.programId)) &&
+        typeof record.appliedAt === 'string' &&
+        APPLICATION_SOURCES.includes(record.source as ProgramApplication['source']);
+      if (!valid || seen.has(record.weekStart as string)) return false;
+      seen.add(record.weekStart as string);
+      return true;
+    });
+    if (applications.length > 0) {
+      normalized.appliedPrograms = applications.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+    }
+  }
+  return normalized;
 }

@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
   PLAN_TYPES,
+  clearProgramApplication,
   findPlanType,
+  isStarterFallbackProvider,
+  recordGenerationOutcome,
+  resolveGenerationRecording,
+  normalizePlannerPreferences,
   planTypeForGeneration,
+  programAppliedToWeek,
+  recordProgramApplication,
+  selectPrimaryProgram,
   type PlannerPreferences,
   type PlanTypeId,
+  type ProgramApplication,
 } from '../planType';
 
 // ---------------------------------------------------------------------------
@@ -165,6 +174,305 @@ describe('planTypeForGeneration', () => {
 
   it('uses the saved Program for ordinary generation', () => {
     expect(planTypeForGeneration(undefined, { primary: 'balanced-nutrition' })).toBe('balanced-nutrition');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Program application records — per-week history of what shaped each week
+// ---------------------------------------------------------------------------
+
+const application = (weekStart: string, programId: PlanTypeId, source: ProgramApplication['source'] = 'build'): ProgramApplication => ({
+  weekStart,
+  programId,
+  appliedAt: '2026-08-18T10:00:00.000Z',
+  source,
+});
+
+describe('recordProgramApplication: persists which Program shaped a generated week', () => {
+  it('adds a record while preserving primary and secondary untouched', () => {
+    const prefs: PlannerPreferences = { primary: 'high-protein-power', secondary: ['budget-friendly'] };
+    const next = recordProgramApplication(prefs, application('2026-08-17', 'high-protein-power'));
+    expect(next.primary).toBe('high-protein-power');
+    expect(next.secondary).toEqual(['budget-friendly']);
+    expect(next.appliedPrograms).toEqual([application('2026-08-17', 'high-protein-power')]);
+    // Input is not mutated
+    expect(prefs.appliedPrograms).toBeUndefined();
+  });
+
+  it('keeps one record per week — a rebuild replaces the earlier application for that week', () => {
+    let prefs = recordProgramApplication({ primary: 'balanced-nutrition' }, application('2026-08-17', 'balanced-nutrition'));
+    prefs = recordProgramApplication(prefs, application('2026-08-17', 'keto-kickstart', 'refresh'));
+    expect(prefs.appliedPrograms).toHaveLength(1);
+    expect(prefs.appliedPrograms?.[0].programId).toBe('keto-kickstart');
+    expect(prefs.appliedPrograms?.[0].source).toBe('refresh');
+  });
+
+  it('keeps past weeks unambiguous when a different Program is applied to a later week', () => {
+    let prefs = recordProgramApplication({ primary: 'balanced-nutrition' }, application('2026-08-10', 'balanced-nutrition'));
+    prefs = recordProgramApplication({ ...prefs, primary: 'plant-based-week' }, application('2026-08-17', 'plant-based-week'));
+    expect(programAppliedToWeek(prefs, '2026-08-10')?.programId).toBe('balanced-nutrition');
+    expect(programAppliedToWeek(prefs, '2026-08-17')?.programId).toBe('plant-based-week');
+  });
+
+  it('sorts records by weekStart regardless of insertion order', () => {
+    let prefs = recordProgramApplication({ primary: 'balanced-nutrition' }, application('2026-08-24', 'balanced-nutrition'));
+    prefs = recordProgramApplication(prefs, application('2026-08-10', 'keto-kickstart'));
+    expect(prefs.appliedPrograms?.map((r) => r.weekStart)).toEqual(['2026-08-10', '2026-08-24']);
+  });
+
+  it('bootstraps preferences from null without inventing extra state', () => {
+    const next = recordProgramApplication(null, application('2026-08-17', 'quick-and-easy'));
+    expect(next.primary).toBe('quick-and-easy');
+    expect(next.appliedPrograms).toHaveLength(1);
+  });
+});
+
+describe('recordGenerationOutcome: fill builds never rewrite established provenance', () => {
+  it('A-generated week → select B for future → ordinary Build week keeps the A record', () => {
+    // Week generated under Program A
+    let prefs = recordGenerationOutcome(
+      { primary: 'balanced-nutrition' },
+      application('2026-08-10', 'balanced-nutrition'),
+      'fill',
+    );
+    // User selects B for future builds, then taps ordinary Build week on the A week
+    prefs = selectPrimaryProgram(prefs, 'keto-kickstart');
+    prefs = recordGenerationOutcome(prefs, application('2026-08-10', 'keto-kickstart'), 'fill');
+    expect(programAppliedToWeek(prefs, '2026-08-10')?.programId).toBe('balanced-nutrition');
+    expect(prefs.primary).toBe('keto-kickstart');
+  });
+
+  it('an explicit confirmed rebuild replaces the week record', () => {
+    let prefs = recordGenerationOutcome(
+      { primary: 'balanced-nutrition' },
+      application('2026-08-10', 'balanced-nutrition'),
+      'fill',
+    );
+    prefs = recordGenerationOutcome(
+      selectPrimaryProgram(prefs, 'keto-kickstart'),
+      application('2026-08-10', 'keto-kickstart', 'refresh'),
+      'rebuild',
+    );
+    expect(programAppliedToWeek(prefs, '2026-08-10')?.programId).toBe('keto-kickstart');
+    expect(programAppliedToWeek(prefs, '2026-08-10')?.source).toBe('refresh');
+  });
+
+  it('a fill build establishes provenance for a week with no record yet', () => {
+    const prefs = recordGenerationOutcome({ primary: 'quick-and-easy' }, application('2026-08-17', 'quick-and-easy'), 'fill');
+    expect(programAppliedToWeek(prefs, '2026-08-17')?.programId).toBe('quick-and-easy');
+  });
+});
+
+describe('in-flight Program switch: completion merges into latest preferences, never a stale snapshot', () => {
+  // Simulates the planner screen's functional-update flow: preference state is a
+  // ref and every write is an updater applied to the LATEST state, mirroring
+  // updatePlannerPreferences in the app context.
+  const makeStore = (initial: PlannerPreferences | null) => {
+    let state = initial;
+    return {
+      get: () => state,
+      update: (updater: (prev: PlannerPreferences | null) => PlannerPreferences | null) => { state = updater(state); },
+    };
+  };
+
+  it('ordinary build under A + user selects B while pending → primary stays B, record shows A', () => {
+    const store = makeStore({ primary: 'balanced-nutrition' });
+    // generate() starts: captures programId A ('balanced-nutrition'), request in flight
+    const programId: PlanTypeId = 'balanced-nutrition';
+    // User selects B for the next build while the request is pending
+    store.update((prev) => selectPrimaryProgram(prev, 'keto-kickstart'));
+    // Request completes and records provenance via a latest-state update
+    store.update((prev) => recordGenerationOutcome(prev, application('2026-08-17', programId), 'fill'));
+    expect(store.get()?.primary).toBe('keto-kickstart');
+    expect(programAppliedToWeek(store.get(), '2026-08-17')?.programId).toBe('balanced-nutrition');
+  });
+
+  it('confirmed rebuild with A + user selects B while pending → B survives, A is recorded for the week', () => {
+    const store = makeStore({ primary: 'quick-and-easy' });
+    // Confirmed rebuild starts: primary switched to A via functional update
+    store.update((prev) => selectPrimaryProgram(prev, 'balanced-nutrition'));
+    const programId: PlanTypeId = 'balanced-nutrition';
+    // User selects B while the rebuild request is pending
+    store.update((prev) => selectPrimaryProgram(prev, 'keto-kickstart'));
+    // Rebuild completes
+    store.update((prev) => recordGenerationOutcome(prev, application('2026-08-17', programId, 'refresh'), 'rebuild'));
+    expect(store.get()?.primary).toBe('keto-kickstart');
+    expect(programAppliedToWeek(store.get(), '2026-08-17')?.programId).toBe('balanced-nutrition');
+  });
+
+  it('fallback rebuild clear while a switch is pending keeps the newly selected primary', () => {
+    let store = makeStore(recordProgramApplication({ primary: 'balanced-nutrition' }, application('2026-08-17', 'balanced-nutrition')));
+    store.update((prev) => selectPrimaryProgram(prev, 'keto-kickstart'));
+    store.update((prev) => clearProgramApplication(prev, '2026-08-17'));
+    expect(store.get()?.primary).toBe('keto-kickstart');
+    expect(programAppliedToWeek(store.get(), '2026-08-17')).toBeUndefined();
+  });
+});
+
+describe('isStarterFallbackProvider: a 200 starter response is still a fallback', () => {
+  it('recognizes the starter planner provider regardless of brand prefix or case', () => {
+    expect(isStarterFallbackProvider('Calora starter planner')).toBe(true);
+    expect(isStarterFallbackProvider('STARTER PLANNER')).toBe(true);
+  });
+
+  it('treats real AI providers and missing providers as non-fallback', () => {
+    expect(isStarterFallbackProvider('Calora AI planner')).toBe(false);
+    expect(isStarterFallbackProvider(undefined)).toBe(false);
+  });
+});
+
+describe('resolveGenerationRecording: provenance follows what actually happened', () => {
+  it('records a real Program-guided generation that changed the week', () => {
+    expect(resolveGenerationRecording({ programId: 'keto-kickstart', mode: 'fill', changed: true, fallback: false })).toBe('record');
+    expect(resolveGenerationRecording({ programId: 'keto-kickstart', mode: 'rebuild', changed: true, fallback: false })).toBe('record');
+  });
+
+  it('never records when nothing changed or no Program was requested', () => {
+    expect(resolveGenerationRecording({ programId: 'keto-kickstart', mode: 'rebuild', changed: false, fallback: false })).toBe('none');
+    expect(resolveGenerationRecording({ programId: undefined, mode: 'fill', changed: true, fallback: false })).toBe('none');
+  });
+
+  it('a server starter-fallback rebuild that changed the week clears the stale record instead of claiming the Program', () => {
+    expect(resolveGenerationRecording({ programId: 'keto-kickstart', mode: 'rebuild', changed: true, fallback: true })).toBe('clear');
+  });
+
+  it('a fallback fill that only padded empty slots records nothing', () => {
+    expect(resolveGenerationRecording({ programId: 'keto-kickstart', mode: 'fill', changed: true, fallback: true })).toBe('none');
+  });
+
+  it('a fallback that changed nothing leaves existing provenance intact', () => {
+    expect(resolveGenerationRecording({ programId: 'keto-kickstart', mode: 'rebuild', changed: false, fallback: true })).toBe('none');
+  });
+});
+
+describe('clearProgramApplication: a failed rebuild leaves no inaccurate claim', () => {
+  it('removes only the affected week and keeps other history plus the primary switch', () => {
+    let prefs = recordProgramApplication({ primary: 'balanced-nutrition' }, application('2026-08-10', 'balanced-nutrition'));
+    prefs = recordProgramApplication(prefs, application('2026-08-17', 'balanced-nutrition'));
+    const cleared = clearProgramApplication(selectPrimaryProgram(prefs, 'keto-kickstart'), '2026-08-17');
+    expect(cleared?.primary).toBe('keto-kickstart');
+    expect(programAppliedToWeek(cleared, '2026-08-17')).toBeUndefined();
+    expect(programAppliedToWeek(cleared, '2026-08-10')?.programId).toBe('balanced-nutrition');
+  });
+
+  it('drops the appliedPrograms field entirely when the last record is cleared', () => {
+    const prefs = recordProgramApplication({ primary: 'balanced-nutrition' }, application('2026-08-17', 'balanced-nutrition'));
+    expect(clearProgramApplication(prefs, '2026-08-17')).toEqual({ primary: 'balanced-nutrition' });
+  });
+
+  it('is a no-op for preferences without a record for that week (including null)', () => {
+    expect(clearProgramApplication(null, '2026-08-17')).toBeNull();
+    const prefs: PlannerPreferences = { primary: 'balanced-nutrition' };
+    expect(clearProgramApplication(prefs, '2026-08-17')).toBe(prefs);
+  });
+});
+
+describe('selectPrimaryProgram: switching the next-build Program never loses history', () => {
+  it('carries the per-week application history forward when the primary changes', () => {
+    const prefs = recordProgramApplication({ primary: 'balanced-nutrition' }, application('2026-08-10', 'balanced-nutrition'));
+    const switched = selectPrimaryProgram(prefs, 'keto-kickstart');
+    expect(switched.primary).toBe('keto-kickstart');
+    expect(programAppliedToWeek(switched, '2026-08-10')?.programId).toBe('balanced-nutrition');
+  });
+
+  it('preserves secondary modifiers across a primary switch', () => {
+    const prefs: PlannerPreferences = { primary: 'high-protein-power', secondary: ['budget-friendly'] };
+    expect(selectPrimaryProgram(prefs, 'quick-and-easy')).toEqual({ primary: 'quick-and-easy', secondary: ['budget-friendly'] });
+  });
+
+  it('bootstraps from null for a first-time selection', () => {
+    expect(selectPrimaryProgram(null, 'plant-based-week')).toEqual({ primary: 'plant-based-week' });
+  });
+
+  it('Start-next-week then rebuild flow: one coherent object keeps both the new primary and the fresh record', () => {
+    // Simulates the confirmed-rebuild path: base = selectPrimaryProgram(...), then
+    // recordProgramApplication(base, ...) — a single write with no stale state.
+    let prefs = recordProgramApplication({ primary: 'balanced-nutrition' }, application('2026-08-10', 'balanced-nutrition'));
+    const base = selectPrimaryProgram(prefs, 'keto-kickstart');
+    prefs = recordProgramApplication(base, application('2026-08-17', 'keto-kickstart', 'refresh'));
+    expect(prefs.primary).toBe('keto-kickstart');
+    expect(programAppliedToWeek(prefs, '2026-08-10')?.programId).toBe('balanced-nutrition');
+    expect(programAppliedToWeek(prefs, '2026-08-17')?.programId).toBe('keto-kickstart');
+  });
+
+  it('a failed refresh recorded as offline-fallback still names the confirmed Program', () => {
+    const base = selectPrimaryProgram({ primary: 'balanced-nutrition' }, 'keto-kickstart');
+    const prefs = recordProgramApplication(base, application('2026-08-17', 'keto-kickstart', 'offline-fallback'));
+    expect(prefs.primary).toBe('keto-kickstart');
+    expect(programAppliedToWeek(prefs, '2026-08-17')?.source).toBe('offline-fallback');
+  });
+});
+
+describe('programAppliedToWeek: distinguishes applied weeks from a future-week selection', () => {
+  it('returns undefined for a week that was never generated — even when a Program is selected', () => {
+    const prefs: PlannerPreferences = { primary: 'keto-kickstart' };
+    expect(programAppliedToWeek(prefs, '2026-08-17')).toBeUndefined();
+  });
+
+  it('returns undefined for null preferences', () => {
+    expect(programAppliedToWeek(null, '2026-08-17')).toBeUndefined();
+  });
+
+  it('a changed future selection does not rewrite what shaped a past week', () => {
+    const prefs = recordProgramApplication({ primary: 'balanced-nutrition' }, application('2026-08-10', 'balanced-nutrition'));
+    const switched: PlannerPreferences = { ...prefs, primary: 'keto-kickstart' };
+    expect(programAppliedToWeek(switched, '2026-08-10')?.programId).toBe('balanced-nutrition');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizePlannerPreferences — hydration/migration compatibility
+// ---------------------------------------------------------------------------
+
+describe('normalizePlannerPreferences: legacy shapes hydrate without being rewritten', () => {
+  it('passes a legacy primary-only preference through unchanged', () => {
+    expect(normalizePlannerPreferences({ primary: 'balanced-nutrition' })).toEqual({ primary: 'balanced-nutrition' });
+  });
+
+  it('keeps legacy secondary modifiers', () => {
+    expect(normalizePlannerPreferences({ primary: 'high-protein-power', secondary: ['budget-friendly'] }))
+      .toEqual({ primary: 'high-protein-power', secondary: ['budget-friendly'] });
+  });
+
+  it('returns null for null, undefined, and non-object values', () => {
+    expect(normalizePlannerPreferences(null)).toBeNull();
+    expect(normalizePlannerPreferences(undefined)).toBeNull();
+    expect(normalizePlannerPreferences('balanced-nutrition')).toBeNull();
+  });
+
+  it('returns null for an unknown primary so the user re-picks safely', () => {
+    expect(normalizePlannerPreferences({ primary: 'metabolic-reset' })).toBeNull();
+  });
+
+  it('keeps valid appliedPrograms records and drops malformed entries individually', () => {
+    const raw = {
+      primary: 'balanced-nutrition',
+      appliedPrograms: [
+        application('2026-08-10', 'balanced-nutrition'),
+        { weekStart: 'not-a-date', programId: 'balanced-nutrition', appliedAt: 'x', source: 'build' },
+        { weekStart: '2026-08-17', programId: 'unknown-program', appliedAt: 'x', source: 'build' },
+        { weekStart: '2026-08-24', programId: 'keto-kickstart', appliedAt: '2026-08-24T09:00:00.000Z', source: 'bogus' },
+        application('2026-08-31', 'quick-and-easy', 'offline-fallback'),
+      ],
+    };
+    const normalized = normalizePlannerPreferences(raw);
+    expect(normalized?.appliedPrograms?.map((r) => r.weekStart)).toEqual(['2026-08-10', '2026-08-31']);
+  });
+
+  it('deduplicates records that claim the same week, keeping the first valid one', () => {
+    const raw = {
+      primary: 'balanced-nutrition',
+      appliedPrograms: [
+        application('2026-08-10', 'balanced-nutrition'),
+        application('2026-08-10', 'keto-kickstart'),
+      ],
+    };
+    expect(normalizePlannerPreferences(raw)?.appliedPrograms).toEqual([application('2026-08-10', 'balanced-nutrition')]);
+  });
+
+  it('omits appliedPrograms entirely when every persisted record is malformed', () => {
+    const raw = { primary: 'balanced-nutrition', appliedPrograms: [{ nonsense: true }] };
+    expect(normalizePlannerPreferences(raw)).toEqual({ primary: 'balanced-nutrition' });
   });
 });
 

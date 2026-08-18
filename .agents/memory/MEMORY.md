@@ -20,4 +20,5 @@
 - [CaloraApp metadata lock-in](caloraapp-metadata-lockin.md) — canonical identity (brand.ts), preserved internal identifiers, and post-rename conventions.
 - [Referral rewards design](referral-rewards.md) — server-authoritative, claim-first idempotent RevenueCat promo grants that always extend end dates; cap counted under a row lock.
 - [EAS release versioning](eas-release-versioning.md) — production auto-increment can override explicit native versions and must be reconciled before queuing release builds.
+- [Program provenance](program-provenance.md) — record which Program shaped a week only when generation materially changed it; server 200 starter responses are fallbacks, never Program-shaped.
 - [Rapid interaction QA](rapid-interaction-qa.md) — short tap guards need a true same-action gesture test, not two delayed automation commands.

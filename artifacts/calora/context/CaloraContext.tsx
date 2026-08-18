@@ -59,6 +59,7 @@ import {
   type LivingMemory,
 } from '@/lib/livingMemory';
 import type { PlannerAck } from '@/lib/plannerAck';
+import { normalizePlannerPreferences } from '@/lib/planType';
 export type { PlannerPreferences, PlanTypeId } from '@/lib/planType';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
@@ -294,6 +295,14 @@ type CaloraContextValue = {
   plannerMeals: PlannerMeal[];
   plannerPreferences: import('@/lib/planType').PlannerPreferences | null;
   setPlannerPreferences: (prefs: import('@/lib/planType').PlannerPreferences | null) => void;
+  /**
+   * Latest-state functional update — required for async completions (e.g. a
+   * finished generation recording provenance) so they merge into whatever the
+   * user has selected since, instead of overwriting it with a stale snapshot.
+   */
+  updatePlannerPreferences: (
+    updater: (prev: import('@/lib/planType').PlannerPreferences | null) => import('@/lib/planType').PlannerPreferences | null,
+  ) => void;
   shoppingItems: ShoppingItem[];
   foodDrafts: FoodMemoryDraft[];
   foodMemories: AcceptedFoodMemory[];
@@ -512,7 +521,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      if (saved.coachConsentAccepted !== undefined) setCoachConsentAccepted(saved.coachConsentAccepted);
      if (saved.coachMessages) setCoachMessages(saved.coachMessages);
      if (saved.goalCelebrationSeenTargetKg !== undefined) setGoalCelebrationSeenTargetKg(saved.goalCelebrationSeenTargetKg ?? null);
-     if (saved.plannerPreferences !== undefined) setPlannerPreferencesState(saved.plannerPreferences ?? null);
+     if (saved.plannerPreferences !== undefined) setPlannerPreferencesState(normalizePlannerPreferences(saved.plannerPreferences));
      if (saved.fontSizeScale) setFontSizeScaleState(saved.fontSizeScale as 'small' | 'default' | 'large' | 'xlarge');
      if (saved.profilePhotoUri) setProfilePhotoUriState(saved.profilePhotoUri);
   });
@@ -678,6 +687,9 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     plannerPreferences,
     setPlannerPreferences: (prefs) => {
       setPlannerPreferencesState(prefs);
+    },
+    updatePlannerPreferences: (updater) => {
+      setPlannerPreferencesState((prev) => updater(prev));
     },
     shoppingItems,
     foodDrafts,
