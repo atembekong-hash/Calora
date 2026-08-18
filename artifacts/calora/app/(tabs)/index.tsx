@@ -805,6 +805,13 @@ export default function HomeScreen() {
     if (effect.kind === 'open_add_food') {
       openAdd();
     } else if (effect.kind === 'add_water') {
+      // State updates do not take effect until the next render. Consult the
+      // shared deadline too, so two rapid presses cannot both add water before
+      // the button receives its disabled prop.
+      if (isWaterConfirmed()) {
+        setWaterConfirmed(true);
+        return;
+      }
       addWater(selectedDate, effect.ounces);
       setSaveNotice('Water check-in added for this day.');
       recordWaterConfirmation();
@@ -1019,7 +1026,14 @@ export default function HomeScreen() {
           mood={moodLogs[selectedDate]}
           waterConfirmed={waterConfirmed}
           onAddWater={() => {
-            if (waterConfirmed) return;
+            // isWaterConfirmed is the synchronous authority for the 1.5-second
+            // window. The React state remains responsible for the visual
+            // confirmation, but cannot alone protect against a double tap in
+            // the same render frame.
+            if (isWaterConfirmed()) {
+              setWaterConfirmed(true);
+              return;
+            }
             addWater(selectedDate, 8);
             setSaveNotice('Water check-in added for this day.');
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

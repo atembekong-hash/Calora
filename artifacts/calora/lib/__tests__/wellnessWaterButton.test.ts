@@ -22,9 +22,9 @@
  *     • Confirmed effect: setTimeout(clearWaterConfirmation, getWaterConfirmationRemaining())
  *                         return () => clearTimeout(id)
  *     • handleLivingAction (add_water path):
- *         recordWaterConfirmation(); setWaterConfirmed(true)
+ *         if (isWaterConfirmed()) return; recordWaterConfirmation(); setWaterConfirmed(true)
  *     • onAddWater prop passed to WellnessCards:
- *         if (waterConfirmed) return;
+ *         if (isWaterConfirmed()) return;
  *         addWater(); recordWaterConfirmation(); setWaterConfirmed(true)
  *
  *   WellnessCards:
@@ -83,37 +83,35 @@ describe('wellness water button — confirmation UI state', () => {
 // ---------------------------------------------------------------------------
 
 describe('wellness water button — duplicate-tap suppression', () => {
-  it('a second tap during the window does not fire onAddWater again', () => {
-    // Models HomeScreen's onAddWater guard: if (waterConfirmed) return;
+  it('a synchronous second tap during the window does not fire onAddWater again', () => {
+    // Models HomeScreen's authoritative module guard. React's setState has not
+    // necessarily re-rendered between these two presses.
     const onAddWater = vi.fn();
 
-    function simulateWellnessTap(waterConfirmed: boolean): boolean {
-      if (waterConfirmed) return waterConfirmed; // guard
+    function simulateWellnessTap(): void {
+      if (isWaterConfirmed()) return;
       onAddWater();
       recordWaterConfirmation();
-      return true; // new waterConfirmed value
     }
 
-    let confirmed = simulateWellnessTap(false); // first tap
-    confirmed = simulateWellnessTap(confirmed); // second tap — blocked
+    simulateWellnessTap(); // first tap
+    simulateWellnessTap(); // second tap before React state can commit — blocked
 
     expect(onAddWater).toHaveBeenCalledTimes(1);
-    expect(confirmed).toBe(true);
   });
 
   it('a tap 1 ms before expiry is still blocked', () => {
     const onAddWater = vi.fn();
 
-    function simulateWellnessTap(waterConfirmed: boolean): boolean {
-      if (waterConfirmed) return waterConfirmed;
+    function simulateWellnessTap(): void {
+      if (isWaterConfirmed()) return;
       onAddWater();
       recordWaterConfirmation();
-      return true;
     }
 
-    let confirmed = simulateWellnessTap(false);
+    simulateWellnessTap();
     vi.advanceTimersByTime(CONFIRMATION_WINDOW_MS - 1);
-    confirmed = simulateWellnessTap(confirmed);
+    simulateWellnessTap();
 
     expect(onAddWater).toHaveBeenCalledTimes(1);
   });
@@ -121,18 +119,16 @@ describe('wellness water button — duplicate-tap suppression', () => {
   it('a new tap is accepted once the window has elapsed and been cleared', () => {
     const onAddWater = vi.fn();
 
-    function simulateWellnessTap(waterConfirmed: boolean): boolean {
-      if (waterConfirmed) return waterConfirmed;
+    function simulateWellnessTap(): void {
+      if (isWaterConfirmed()) return;
       onAddWater();
       recordWaterConfirmation();
-      return true;
     }
 
-    let confirmed = simulateWellnessTap(false);
+    simulateWellnessTap();
     vi.advanceTimersByTime(CONFIRMATION_WINDOW_MS);
     clearWaterConfirmation(); // the HomeScreen confirmed-effect timer fires this
-    confirmed = false;        // component state resets to false
-    simulateWellnessTap(confirmed);
+    simulateWellnessTap();
 
     expect(onAddWater).toHaveBeenCalledTimes(2);
   });
@@ -151,23 +147,19 @@ describe('cross-button coordination — shared waterConfirmation deadline', () =
   function makeButtons() {
     const livingWater = vi.fn();
     const wellnessWater = vi.fn();
-    let waterConfirmed = false;
-
     function tapLiving() {
-      if (waterConfirmed) return; // disabled={waterConfirmed} on living-state button
+      if (isWaterConfirmed()) return;
       livingWater();
       recordWaterConfirmation();
-      waterConfirmed = true;
     }
 
     function tapWellness() {
-      if (waterConfirmed) return; // guard in onAddWater callback
+      if (isWaterConfirmed()) return;
       wellnessWater();
       recordWaterConfirmation();
-      waterConfirmed = true;
     }
 
-    return { tapLiving, tapWellness, livingWater, wellnessWater, getConfirmed: () => waterConfirmed };
+    return { tapLiving, tapWellness, livingWater, wellnessWater };
   }
 
   it('tapping living-state button blocks the wellness button during the window', () => {
@@ -191,7 +183,7 @@ describe('cross-button coordination — shared waterConfirmation deadline', () =
   });
 
   it('either button can fire after the window expires', () => {
-    const { tapLiving, tapWellness, livingWater, wellnessWater, getConfirmed } = makeButtons();
+    const { tapLiving, tapWellness, livingWater, wellnessWater } = makeButtons();
 
     tapLiving();
     vi.advanceTimersByTime(CONFIRMATION_WINDOW_MS);
