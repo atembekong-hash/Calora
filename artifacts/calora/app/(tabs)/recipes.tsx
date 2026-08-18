@@ -21,6 +21,7 @@ import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { dateKey } from '@/lib/dates';
+import { recipeNutritionLabel, recipeProvenance, recipeSourceLabel } from '@/lib/recipeModel';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -54,7 +55,7 @@ function RecipeMeta({ recipe, colors }: { recipe: Recipe | CaloraRecipe; colors:
   // the user knows it is approximate. Local recipes have user-entered values.
   const nutrition = recipe.calories
     ? `${local ? '' : '~'}${formatCalories(recipe.calories)}`
-    : 'Nutrition review needed';
+    : recipeNutritionLabel(recipe);
   return (
     <View style={styles.recipeMeta}>
       <Text style={[styles.recipeKcal, { color: recipe.calories ? colors.foreground : colors.warning }]}>{nutrition}</Text>
@@ -66,6 +67,7 @@ function RecipeMeta({ recipe, colors }: { recipe: Recipe | CaloraRecipe; colors:
 
 function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160, remainingCalories }: { recipe: Recipe | CaloraRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void; imageHeight?: number; remainingCalories?: number }) {
   const local = isLocalRecipe(recipe);
+  const provenance = recipeProvenance(recipe);
   const fitsGoal = remainingCalories !== undefined && remainingCalories > 0 && recipe.calories != null && recipe.calories > 0 && recipe.calories <= remainingCalories;
   return (
     <View style={[styles.recipeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -78,12 +80,12 @@ function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160,
         >
           <RecipeImage recipe={recipe} height={imageHeight} />
           {fitsGoal && <View style={[styles.fitsBadge, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={8} color={colors.primaryForeground} /><Text style={[styles.fitsBadgeText, { color: colors.primaryForeground }]}>FITS YOUR GOAL</Text></View>}
-          {local && <View style={[styles.localBadge, { backgroundColor: colors.primary }]}><Text style={[styles.localBadgeText, { color: colors.primaryForeground }]}>MY RECIPE</Text></View>}
+           {local && <View style={[styles.localBadge, { backgroundColor: colors.primary }]}><Text style={[styles.localBadgeText, { color: colors.primaryForeground }]}>{provenance.sourceType === 'calora_ai' ? 'CALORA AI' : 'MY RECIPE'}</Text></View>}
           <View style={styles.cardContent}>
             <Text numberOfLines={2} style={[styles.recipeName, { color: colors.foreground }]}>{recipe.name}</Text>
             <RecipeMeta recipe={recipe} colors={colors} />
             <View style={styles.cardFooter}>
-              <Text style={[styles.sourceText, { color: colors.mutedForeground }]}>{local ? `Created in ${BRAND.name}` : `Open source · ${recipe.source}`}</Text>
+               <Text style={[styles.sourceText, { color: colors.mutedForeground }]}>{recipeSourceLabel(recipe)}</Text>
               <Feather name="arrow-up-right" size={13} color={colors.mutedForeground} />
             </View>
           </View>
@@ -92,6 +94,38 @@ function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160,
           <Feather name="bookmark" size={16} color={saved ? colors.primaryForeground : colors.foreground} />
         </Pressable>
       </View>
+    </View>
+  );
+}
+
+type RecipeSection = 'discover' | 'premium' | 'create';
+
+function UpcomingRecipeSection({
+  section,
+  colors,
+  onDiscover,
+}: {
+  section: Exclude<RecipeSection, 'discover'>;
+  colors: ReturnType<typeof useCalora>['colors'];
+  onDiscover: () => void;
+}) {
+  const premium = section === 'premium';
+  const title = premium ? 'Premium recipes are on their way.' : 'Create with Calora is taking shape.';
+  const body = premium
+    ? 'This space will bring richer recipe sources into the same trusted Calora flow—without changing what you already use in Discover.'
+    : 'Soon you’ll be able to turn your ingredients, goals, and meal plan into a few thoughtful recipe ideas.';
+  return (
+    <View style={[styles.upcomingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.upcomingIcon, { backgroundColor: colors.accent }]}>
+        <Feather name={premium ? 'award' : 'star'} size={20} color={colors.accentForeground} />
+      </View>
+      <Text style={[styles.upcomingEyebrow, { color: colors.primary }]}>{premium ? 'A RICHER RECIPE SOURCE' : 'PERSONALIZED COOKING'}</Text>
+      <Text style={[styles.upcomingTitle, { color: colors.foreground }]}>{title}</Text>
+      <Text style={[styles.upcomingBody, { color: colors.mutedForeground }]}>{body}</Text>
+      <ScalePressable accessibilityLabel="Browse Discover recipes" onPress={onDiscover} scale={0.97} haptic="none" style={[styles.upcomingAction, { backgroundColor: colors.muted }]}>
+        <Feather name="compass" size={14} color={colors.foreground} />
+        <Text style={[styles.upcomingActionText, { color: colors.foreground }]}>Browse Discover</Text>
+      </ScalePressable>
     </View>
   );
 }
@@ -665,6 +699,7 @@ export default function RecipesScreen() {
   };
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('For you');
+  const [activeSection, setActiveSection] = useState<RecipeSection>('discover');
   const [selected, setSelected] = useState<Recipe | CaloraRecipe | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -674,6 +709,8 @@ export default function RecipesScreen() {
   const [remoteRecipes, setRemoteRecipes] = useState<Recipe[]>([]);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
   const loadingMoreRef = useRef(false);
+  const recipesScrollRef = useRef<ScrollView | null>(null);
+  const discoverScrollYRef = useRef(0);
   const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
   const remainingCalories = Math.max((profile?.calorieTarget ?? 2000) - logs.filter((log) => log.date === dateKey()).reduce((sum, log) => sum + log.calories, 0), 0);
   const localMatches = useMemo(() => localRecipes.filter((recipe) => {
@@ -715,18 +752,34 @@ export default function RecipesScreen() {
   const visibleRemote = category === 'My recipes' ? [] : category === 'Quick' ? remoteRecipes.filter((r) => r.prepMinutes != null && r.prepMinutes <= 30) : remoteRecipes;
   const savedRecipes = [...localRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
   const loadMoreRecipes = () => {
-    if (category === 'My recipes' || !hasMoreRemote || recipesQuery.isFetching || loadingMoreRef.current) return;
+    if (activeSection !== 'discover' || category === 'My recipes' || !hasMoreRemote || recipesQuery.isFetching || loadingMoreRef.current) return;
     loadingMoreRef.current = true;
     setRemoteOffset((current) => current + RECIPE_PAGE_SIZE);
   };
   const handleRecipeScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    if (activeSection !== 'discover') return;
+    discoverScrollYRef.current = contentOffset.y;
     if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 200) loadMoreRecipes();
+  };
+  const changeSection = (section: RecipeSection) => {
+    if (section === activeSection) return;
+    setActiveSection(section);
+    requestAnimationFrame(() => recipesScrollRef.current?.scrollTo({ y: section === 'discover' ? discoverScrollYRef.current : 0, animated: false }));
   };
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader title="Recipes" action={<Pressable accessibilityLabel="Create your own recipe" onPress={() => setShowCreate(true)}><Feather name="plus" size={21} color={colors.primary} /></Pressable>} />
-      <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false} onScroll={handleRecipeScroll} onMomentumScrollEnd={handleRecipeScroll} scrollEventThrottle={16} decelerationRate="normal">
+      <View accessibilityRole="tablist" style={[styles.sectionTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+        {(['discover', 'premium', 'create'] as const).map((section) => {
+          const selectedSection = activeSection === section;
+          return <ScalePressable key={section} accessibilityRole="tab" accessibilityState={{ selected: selectedSection }} accessibilityLabel={`${section[0].toUpperCase()}${section.slice(1)} recipes`} onPress={() => changeSection(section)} scale={0.98} haptic="none" style={[styles.sectionTab, selectedSection && { backgroundColor: colors.card }]}>
+            <Text style={[styles.sectionTabText, { color: selectedSection ? colors.foreground : colors.mutedForeground }]}>{section[0].toUpperCase()}{section.slice(1)}</Text>
+          </ScalePressable>;
+        })}
+      </View>
+      <ScrollView ref={recipesScrollRef} contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false} onScroll={handleRecipeScroll} onMomentumScrollEnd={handleRecipeScroll} scrollEventThrottle={16} decelerationRate="normal">
+        {activeSection === 'discover' ? <>
         <View style={styles.recipeHeader}>
           <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
           <LinearGradient
@@ -754,6 +807,7 @@ export default function RecipesScreen() {
         <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length + localMatches.length} quick meals from loaded recipes` : `${visibleRemote.length + localMatches.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
         {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes from open sources…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>The cookbook is offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your saved and personal recipes remain available. Try again when a connection is available.</Text></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Recipes you create will live here, separate from open-source content.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create your first recipe</Text></Pressable></View>}<Animated.View entering={FadeInDown.springify().damping(20).delay(80)} style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</Animated.View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Connection lost — showing loaded recipes only.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Bringing in more recipes…</Text></View>}</>}
         <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is provided by TheMealDB. Recipes remain attributed to their source; {BRAND.name}'s nutrition confidence is shown separately.</Text>
+        </> : <UpcomingRecipeSection section={activeSection} colors={colors} onDiscover={() => changeSection('discover')} />}
       </ScrollView>
       <RecipeDetailModal
         recipe={selected}
@@ -796,6 +850,16 @@ export default function RecipesScreen() {
 function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
+   sectionTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 14, marginHorizontal: 20, marginTop: 7, padding: 3, gap: 2 },
+   sectionTab: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+   sectionTabText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
+   upcomingCard: { borderWidth: 1, borderRadius: 22, padding: 21, alignItems: 'center', marginTop: 13 },
+   upcomingIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
+   upcomingEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1, textAlign: 'center' },
+   upcomingTitle: { fontFamily: 'Inter_700Bold', fontSize: 21 * f, letterSpacing: -0.4, textAlign: 'center', marginTop: 7 },
+   upcomingBody: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18 * f, textAlign: 'center', marginTop: 9, maxWidth: 290 },
+   upcomingAction: { minHeight: 42, borderRadius: 13, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 19 },
+   upcomingActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   recipeHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
    recipeHeaderContent: { minHeight: 190, padding: 19, justifyContent: 'center', alignItems: 'center' },
    recipeHeaderTop: { position: 'absolute', top: 16, left: 19, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },

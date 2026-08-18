@@ -123,6 +123,14 @@ export type CaloraRecipe = {
   source: string;
   sourceUrl: string;
   isLocal?: boolean;
+  /** Optional source metadata; older locally persisted recipes safely omit these. */
+  sourceType?: import('@/lib/recipeModel').RecipeSourceType;
+  sourceProvider?: string;
+  sourceId?: string;
+  nutritionConfidence?: import('@/lib/recipeModel').NutritionConfidence;
+  nutritionSource?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean; sourceMealIds?: string[]; days?: string[]; recipeSource?: boolean };
 
