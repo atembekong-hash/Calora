@@ -54,6 +54,31 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 - GitHub `main` is the authoritative Calora source. Before every requested change, fetch `origin/main` and stop on divergence; after validated work, commit intended changes, push safely, fetch again, and confirm local/remote SHA parity before reporting completion. Never force-push, rewrite published history, or commit secrets.
 
+## QA: Recipe-generation end-to-end verification
+
+The `POST /v1/recipes/concepts` and `/v1/recipes/generated` endpoints require a valid Supabase Bearer token (401 otherwise). Two ways to exercise the full flow:
+
+### Automated integration test (recommended)
+Add `SUPABASE_SERVICE_ROLE_KEY` as a Replit secret (Supabase dashboard → Project Settings → API → service_role key), then run:
+```
+pnpm --filter @workspace/api-server test recipe-generation.integration
+```
+The suite creates an ephemeral confirmed user, hits both endpoints with a real JWT, asserts 200 + correct shape + no third-party attribution, then deletes the user. It is skipped when the secret is absent.
+
+### Manual browser flow (one-time setup)
+1. Add `SUPABASE_SERVICE_ROLE_KEY` as a Replit secret (see above).
+2. Run the provision script to create a permanent `qa@calora.dev` account:
+   ```
+   pnpm --filter @workspace/scripts run provision-qa-account
+   ```
+3. Open the Calora mobile preview → Profile → Sign In → `qa@calora.dev` / `CALORA_SIGNUP_TEST_PASSWORD`.
+4. Navigate to Recipes → Create, enter a concept, submit.
+5. Verify three idea cards appear with no 401 error.
+6. Tap a card → verify the full recipe saves to My Recipes with no third-party attribution row.
+
+### Why Supabase signup was broken for new accounts
+Anonymous sign-ins are disabled and email confirmation delivery fails in the Replit preview environment (no SMTP relay configured). The admin API (`email_confirm: true`) bypasses delivery entirely — this is the canonical path for QA account creation.
+
 ## Gotchas
 
 _Populate as you build — sharp edges, "always run X before Y" rules._
