@@ -1,0 +1,490 @@
+You are still in planning and design mode only. Do not implement, modify code, migrate data, change navigation, or alter any production behavior yet.
+
+Revise the current Plan-tab redesign task and produce a new final design and implementation specification.
+
+The backbone of this redesign is the Lifesum Programs architecture. Use the principle behind Lifesum's system, but do not copy its UI. Calora should evolve the concept into a cleaner, more flexible and more adaptive planning system.
+
+The key product hierarchy should be:
+
+Program / planning strategy → Week → Day → Meals → Shopping → Logging
+
+Calora already has a functioning Planner with weekly navigation, meal cards, Build Week, plan style, meal replacement, move/copy/remove actions, portion adjustment, logging, weekly nutrition, meal details and a generated shopping list. Preserve working behavior wherever possible. This is a controlled information-architecture redesign, not a rewrite.
+
+1. Core navigation structure
+
+The Plan tab should become one parent workspace with three persistent internal sections:
+
+Today | Week | Shopping
+
+Use a calm segmented workspace selector near the top of the Plan screen.
+
+Do not create new bottom-navigation tabs.
+
+Do not duplicate Shopping as both a workspace and a header shortcut.
+
+Do not add Recipes as an internal Plan section because Recipes already has its own main app tab.
+
+2. Lifesum-inspired Program layer
+
+The strongest idea from Lifesum is that meal planning should sit underneath a broader nutritional strategy.
+
+Calora should therefore evolve the existing Plan Style concept into a real Program / Planning Strategy system.
+
+A Program answers:
+
+“What kind of nutritional approach should guide my plan?”
+
+Examples may include:
+
+- Balanced Nutrition
+- High Protein
+- Mediterranean
+- Lower Carb
+- Vegetarian
+- Vegan
+- Quick & Easy
+- Budget Friendly
+- Custom
+
+Do not treat these as simple filters.
+
+The selected Program should influence:
+
+- meal selection
+- calorie distribution
+- macro emphasis
+- recipe ranking
+- weekly generation
+- suggested replacements
+- planning recommendations
+
+Preserve the user's own calorie goal, allergies, exclusions, dislikes and other account-level dietary constraints.
+
+3. Separate persistent preferences from Program strategy
+
+This distinction is critical.
+
+Persistent user preferences may include:
+
+- allergies
+- dietary exclusions
+- disliked ingredients
+- preferred meal count
+- calorie target
+- cooking limitations
+- saved nutrition settings
+
+Program strategy is separate.
+
+For example:
+
+A user may permanently be vegetarian while choosing:
+
+High Protein + Quick & Easy
+
+for the current planning period.
+
+Do not let Program selection overwrite persistent profile preferences.
+
+4. Program discovery and management
+
+Design a dedicated Program experience reachable from the Week workspace.
+
+The Week screen should show a compact Your Program card replacing or evolving the current Plan Style card.
+
+Example:
+
+YOUR PROGRAM
+
+Balanced Nutrition
+Flexible everyday eating
+
+"View program →"
+
+Tapping this opens a Program discovery screen.
+
+The Program screen should contain:
+
+- Current Program
+- Recommended for you
+- Program categories
+- Program cards
+- Program detail pages
+- Change Program flow
+
+Program cards should be visually rich and easy to understand.
+
+Each Program detail page should explain:
+
+- what the Program is
+- who it is suitable for
+- its nutritional emphasis
+- its expected flexibility
+- target macro orientation
+- meal-planning behavior
+- what features it affects
+- whether it changes weekly generation
+
+Do not use medical-treatment Programs unless there is a separate medically reviewed system. Avoid implying treatment of medical conditions.
+
+5. Program switching behavior
+
+Switching Programs must not silently destroy an existing week.
+
+When a user selects a new Program, offer:
+
+Start next week
+
+or
+
+Rebuild this week
+
+Default to Start next week.
+
+If the user chooses Rebuild this week, show an explicit confirmation before replacing planned meals.
+
+Preserve user-edited or manually added meals where possible.
+
+6. TODAY workspace
+
+Purpose:
+
+“What am I eating today?”
+
+Keep it simple.
+
+Show:
+
+- selected date
+- today's planned meals
+- next planned meal
+- planned calories
+- concise macro context
+- meal status
+- empty meal slots
+- fast meal actions
+
+Do not turn Today into another full nutrition dashboard.
+
+Do not place weekly analytics here.
+
+Do not duplicate Home/Dashboard functionality.
+
+Meal states should clearly distinguish:
+
+- planned
+- logged
+- skipped
+- empty
+
+Use a clear visual state for logged meals.
+
+7. WEEK workspace
+
+Purpose:
+
+“How is my week structured?”
+
+This is the core planning workspace.
+
+Include:
+
+- week navigation
+- Mon–Sun strip
+- selected-day indication
+- Program card
+- weekly coverage
+- Build Week / Refresh Week
+- concise weekly nutrition context
+- meal planning across days
+- partial-week planning support
+- contextual empty states
+
+The Week workspace should feel spacious and calm.
+
+Do not simply move the current long vertical layout into this section unchanged.
+
+Rework hierarchy so users can understand the week without scanning excessive repeated cards.
+
+8. Build Week flow
+
+Build Week should become contextual and Program-aware.
+
+Before generation, allow lightweight choices such as:
+
+- Program
+- number of planned days
+- meals to generate
+- cooking time
+- budget orientation
+- saved dietary preferences
+
+Use existing saved settings by default.
+
+Examples of contextual actions:
+
+Build a balanced week from your saved preferences
+
+Plan 5 dinners around your calorie target
+
+Generate quick high-protein lunches
+
+Do not force the user through unnecessary setup screens.
+
+9. Existing meal actions
+
+Preserve existing working meal functionality.
+
+Contextual meal actions should include:
+
+- Log to diary
+- Move
+- Copy
+- Replace
+- Adjust portions
+- View shopping ingredients
+- Remove
+
+Keep the most frequent action visible.
+
+Secondary actions can remain in the overflow menu.
+
+Use Undo for reversible changes where practical.
+
+Do not bury simple actions inside heavy modal flows.
+
+10. Meal cards
+
+Each planned meal should show the minimum information needed to make a decision:
+
+- image
+- meal name
+- meal type
+- calories
+- protein
+- preparation time where available
+- status
+
+Avoid excessive macro detail if it creates clutter.
+
+The existing meal-detail sheet and portion-review flow should be preserved unless there is a clear reason to improve them.
+
+11. SHOPPING workspace
+
+Shopping becomes a first-class workspace.
+
+Use the existing generated ingredient data.
+
+Include:
+
+- all planned ingredients
+- day filters
+- purchased-state checkboxes
+- aggregated quantities
+- associated meals
+- remaining-item count
+
+Where possible, show concise context such as:
+
+12 items remaining
+
+Ingredients from 5 planned meals
+
+Changes in the weekly plan should update the shopping list appropriately.
+
+Do not also keep a duplicate header shopping button.
+
+12. Empty states
+
+Design intentional empty states.
+
+For an empty day:
+
+Nothing planned yet
+
+Actions:
+
+- Add meal
+- Use saved recipe
+- Let Calora suggest one
+
+For an empty week:
+
+- Build my week
+- Add meals manually
+
+For an empty shopping list:
+
+Explain that items appear after meals are planned.
+
+Do not leave large unexplained blank areas.
+
+13. Weekly insight
+
+Use a small, restrained insight area.
+
+Possible signals:
+
+- 5 of 7 dinners planned
+- average planned calories
+- protein target coverage
+- 2 evenings still unplanned
+- shopping coverage
+
+Do not create another dense analytics dashboard.
+
+14. Adaptive behavior
+
+Design the Program system so it can later become adaptive.
+
+Calora should eventually be able to learn from behavior such as:
+
+- frequently skipped meal slots
+- repeated replacements
+- preferred cooking times
+- favorite recipes
+- meals the user actually logs
+- protein shortfalls
+- days the user leaves unplanned
+
+Future weeks should be able to adjust based on this behavior.
+
+Do not build speculative AI complexity unless the existing architecture supports it safely, but make sure the new data model and UX do not block this direction.
+
+15. Preserve existing functionality
+
+Before proposing any implementation, map the current Planner behavior and explicitly state what will be:
+
+Preserved
+Moved
+Modified
+Removed
+Added
+
+Pay particular attention to:
+
+- Build Week
+- Plan Style
+- week navigation
+- selected day
+- meal cards
+- meal overflow menu
+- meal detail
+- portion review
+- logging
+- Move
+- Copy
+- Replace
+- Remove
+- Adjust portions
+- shopping generation
+- shopping filters
+- weekly nutrition
+
+Do not remove working functionality merely to simplify the screen.
+
+16. Duplication audit
+
+Identify every duplicated action or information block in the current Plan experience.
+
+Recommend one canonical location for each.
+
+Examples:
+
+- Build Week
+- Shopping
+- weekly nutrition
+- daily nutrition
+- meal editing
+- Program selection
+
+The final architecture should have one obvious home for each job.
+
+17. Design principles
+
+The Plan tab must feel:
+
+- spacious
+- quiet
+- modern
+- clear
+- fast
+- mobile-first
+- easy to scan
+- easy to edit
+
+Avoid dense card stacks.
+
+Avoid unnecessary headings.
+
+Avoid too many controls in one row.
+
+Avoid repeated summaries.
+
+Do not sacrifice useful context purely to achieve minimalism.
+
+18. Accessibility and responsiveness
+
+The specification must cover:
+
+- small Android phones
+- large phones
+- iPhones
+- large text
+- dynamic type
+- touch targets
+- screen readers
+- light mode
+- dark mode
+- overflow safety
+- full scrolling
+- safe areas
+- keyboard behavior where relevant
+
+19. Regression protection
+
+The eventual implementation must preserve existing Planner safety and data integrity.
+
+The plan must include validation for:
+
+- meal movement
+- meal copying
+- replacements
+- portions
+- logging
+- week navigation
+- Program switching
+- week regeneration
+- shopping list updates
+- undo
+- empty states
+- local persistence
+- backend synchronization where relevant
+
+20. Required deliverable now
+
+Do not implement.
+
+Produce a revised design specification containing:
+
+1. Final information architecture
+2. Today workspace layout
+3. Week workspace layout
+4. Shopping workspace layout
+5. Program discovery architecture
+6. Program detail architecture
+7. Program switching flow
+8. Build Week flow
+9. Meal interaction model
+10. Empty states
+11. Data/state implications
+12. Preserve / Move / Modify / Remove / Add matrix
+13. Duplication audit
+14. Accessibility requirements
+15. Regression test plan
+16. Recommended implementation phases
+17. Risks and dependencies
+
+Treat the Lifesum Program concept as the architectural backbone, while designing a distinctly Calora experience that is more adaptive, flexible and integrated with the existing weekly planner.
+
+Do not begin implementation until I explicitly approve the revised specification.
