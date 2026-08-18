@@ -334,6 +334,10 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   const premiumNutritionUnavailable = premium && recipeProvenance(detail).nutritionConfidence === 'unavailable';
   const isFetchingDetail = premium ? (premiumDetailQuery.isLoading || premiumDetailQuery.isFetching) : (detailQuery.isLoading || detailQuery.isFetching);
   const premiumFields = premium ? detail as PremiumRecipe : null;
+  const provenance = recipeProvenance(detail);
+  const hasThirdPartySource = provenance.sourceType === 'open' || provenance.sourceType === 'premium' || provenance.sourceType === 'imported';
+  const sourceName = detail.source.trim() || provenance.sourceProvider;
+  const sourceUrl = /^https?:\/\//i.test(detail.sourceUrl ?? '') ? detail.sourceUrl : null;
 
   // Nutrition scaled to current servingCount for display
   const approxPrefix = recipeProvenance(detail).nutritionConfidence === 'estimated' ? '~' : '';
@@ -587,7 +591,10 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                   </>
                 ) : null}
 
-                <Text style={[styles.attribution, { color: colors.mutedForeground }]}>Recipe source: {detail.source}. {BRAND.name} does not claim third-party recipe content as its own.</Text>
+                {hasThirdPartySource && sourceName ? <View style={styles.sourceAttributionRow}>
+                  <Text style={[styles.sourceAttributionText, { color: colors.mutedForeground }]}>Source: {sourceName}</Text>
+                  {sourceUrl ? <><Text style={[styles.sourceAttributionText, { color: colors.mutedForeground }]}>·</Text><Pressable accessibilityRole="link" accessibilityLabel={`View original recipe on ${sourceName}`} onPress={() => Linking.openURL(sourceUrl)} style={styles.sourceAttributionLink}><Text style={[styles.sourceAttributionLinkText, { color: colors.primary }]}>View original</Text><Feather name="external-link" size={12} color={colors.primary} /></Pressable></> : null}
+                </View> : null}
                 <ScalePressable accessibilityLabel="Add recipe to plan" onPress={openPlanPicker} scale={0.98} haptic="none" style={[styles.secondaryAction, { borderColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primary} /><Text style={[styles.secondaryActionText, { color: colors.primary }]}>Add to weekly plan</Text></ScalePressable>
 
                 {/* Feature 6: diary — remote uses smart sheet; local uses full review */}
@@ -600,7 +607,6 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                   <Feather name={canLog ? 'plus-circle' : 'bookmark'} size={16} color={colors.primaryForeground} />
                   <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today\'s diary' : 'diary'}` : 'Save for later'}</Text>
                 </ScalePressable>
-                <Pressable accessibilityLabel="Open recipe source" onPress={() => Linking.openURL(detail.sourceUrl)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.primary }]}>View source attribution</Text><Feather name="external-link" size={13} color={colors.primary} /></Pressable>
               </View>
             </ScrollView>
           )}
@@ -1091,7 +1097,10 @@ function makeStyles(f: number) {
   ingredientDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
   ingredientText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17 },
   instructions: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 19 },
-  attribution: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, lineHeight: 14, marginTop: 22 },
+  sourceAttributionRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5, marginTop: 22, marginBottom: 2 },
+  sourceAttributionText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 },
+  sourceAttributionLink: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, marginVertical: -4 },
+  sourceAttributionLinkText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, lineHeight: 16 },
   primaryAction: { minHeight: 48, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 16, marginTop: 17 },
   primaryActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   sourceAction: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, paddingVertical: 13 },

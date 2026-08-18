@@ -71,13 +71,13 @@ describe("Premium recipe routes", () => {
     process.env.FATSECRET_CLIENT_SECRET = "test-secret";
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "token", expires_in: 3600 }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ recipes: { total_results: "1", recipe: [{ recipe_id: "99", recipe_name: "FatSecret bowl", recipe_image: "https://image.example/99" }] } }) });
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ recipes: { total_results: "1", recipe: [{ recipe_id: "99", recipe_name: "FatSecret bowl", recipe_image: "https://image.example/99", recipe_url: "https://foods.fatsecret.com/recipes/99-fatsecret-bowl/Default.aspx" }] } }) });
     vi.stubGlobal("fetch", fetchMock);
     const app = await appWithProvider();
     const res = await request(app).get("/v1/premium-recipes?query=bowl");
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ provider: "FatSecret", status: "available" });
-    expect(res.body.recipes[0]).toMatchObject({ id: "premium:FatSecret:99", sourceProvider: "FatSecret", nutritionConfidence: "verified" });
+    expect(res.body.recipes[0]).toMatchObject({ id: "premium:FatSecret:99", sourceProvider: "FatSecret", sourceUrl: "https://foods.fatsecret.com/recipes/99-fatsecret-bowl/Default.aspx", nutritionConfidence: "verified" });
     expect(String(fetchMock.mock.calls[1][0])).toContain("/recipes/search/v3");
   });
 });
