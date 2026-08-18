@@ -523,6 +523,98 @@ export const GetRecipeResponse = zod.object({
 
 
 /**
+ * @summary Browse a configured Premium recipe provider
+ */
+export const listPremiumRecipesQueryQueryMax = 120;
+
+export const listPremiumRecipesQueryCategoryMax = 80;
+
+export const listPremiumRecipesQueryLimitDefault = 18;
+export const listPremiumRecipesQueryLimitMax = 30;
+
+export const listPremiumRecipesQueryOffsetDefault = 0;
+export const listPremiumRecipesQueryOffsetMin = 0;
+
+
+
+export const ListPremiumRecipesQueryParams = zod.object({
+  "query": zod.coerce.string().max(listPremiumRecipesQueryQueryMax).optional(),
+  "category": zod.coerce.string().max(listPremiumRecipesQueryCategoryMax).optional(),
+  "limit": zod.coerce.number().int().min(1).max(listPremiumRecipesQueryLimitMax).default(listPremiumRecipesQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(listPremiumRecipesQueryOffsetMin).default(listPremiumRecipesQueryOffsetDefault)
+})
+
+export const ListPremiumRecipesResponse = zod.object({
+  "status": zod.enum(['available', 'unavailable', 'error']),
+  "provider": zod.string(),
+  "message": zod.string().nullish(),
+  "recipes": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "image": zod.string().url().nullish(),
+  "category": zod.string().nullish(),
+  "area": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "instructions": zod.string().nullish(),
+  "ingredients": zod.array(zod.string()).optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "prepMinutes": zod.number().int().nullish(),
+  "calories": zod.number().nullish(),
+  "proteinG": zod.number().nullish(),
+  "carbsG": zod.number().nullish(),
+  "fatG": zod.number().nullish(),
+  "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
+  "source": zod.string(),
+  "sourceUrl": zod.string().url()
+}).and(zod.object({
+  "sourceType": zod.enum(['premium']),
+  "sourceProvider": zod.string(),
+  "sourceId": zod.string(),
+  "nutritionConfidence": zod.enum(['verified', 'estimated', 'unavailable']),
+  "nutritionSource": zod.string()
+}))),
+  "nextOffset": zod.number().int().nullish()
+})
+
+
+/**
+ * @summary Get a Premium recipe detail
+ */
+
+
+
+export const GetPremiumRecipeParams = zod.object({
+  "sourceId": zod.coerce.string().min(1)
+})
+
+export const GetPremiumRecipeResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "image": zod.string().url().nullish(),
+  "category": zod.string().nullish(),
+  "area": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "instructions": zod.string().nullish(),
+  "ingredients": zod.array(zod.string()).optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "prepMinutes": zod.number().int().nullish(),
+  "calories": zod.number().nullish(),
+  "proteinG": zod.number().nullish(),
+  "carbsG": zod.number().nullish(),
+  "fatG": zod.number().nullish(),
+  "nutritionUnavailable": zod.boolean().optional().describe('True when the server attempted AI nutrition estimation but it failed (timeout, nonsensical result, or API error). The client should surface a clear \"Nutrition unavailable\" label and offer a retry rather than silently showing blanks.\n'),
+  "source": zod.string(),
+  "sourceUrl": zod.string().url()
+}).and(zod.object({
+  "sourceType": zod.enum(['premium']),
+  "sourceProvider": zod.string(),
+  "sourceId": zod.string(),
+  "nutritionConfidence": zod.enum(['verified', 'estimated', 'unavailable']),
+  "nutritionSource": zod.string()
+}))
+
+
+/**
  * Accepts either a barcode or a base64-encoded camera image. Barcode
  * requests are enriched from public nutrition sources and food photos
  * are analyzed by managed vision. Results remain review-only until the
@@ -1078,3 +1170,5 @@ export const ActivateReferralResponse = zod.object({
   "referrerRewarded": zod.boolean(),
   "message": zod.string().optional()
 })
+
+

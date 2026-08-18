@@ -34,10 +34,13 @@ import type {
   HealthStatus,
   ListDiaryEntries200,
   ListDiaryEntriesParams,
+  ListPremiumRecipesParams,
   ListRecipesParams,
   ListWeightsParams,
   PlannerGenerateInput,
   PlannerGenerateResponse,
+  PremiumRecipe,
+  PremiumRecipeList,
   Profile,
   ProfileInput,
   Recipe,
@@ -1076,6 +1079,167 @@ export function useGetRecipe<TData = Awaited<ReturnType<typeof getRecipe>>, TErr
 
 
 
+export const getListPremiumRecipesUrl = (params?: ListPremiumRecipesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/premium-recipes?${stringifiedParams}` : `/api/v1/premium-recipes`
+}
+
+/**
+ * @summary Browse a configured Premium recipe provider
+ */
+export const listPremiumRecipes = async (params?: ListPremiumRecipesParams, options?: Parameters<typeof customFetch>[1]): Promise<PremiumRecipeList> => {
+
+  return customFetch<PremiumRecipeList>(getListPremiumRecipesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPremiumRecipesQueryKey = (params?: ListPremiumRecipesParams,) => {
+    return [
+    `/api/v1/premium-recipes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPremiumRecipesQueryOptions = <TData = Awaited<ReturnType<typeof listPremiumRecipes>>, TError = ErrorType<unknown>>(params?: ListPremiumRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPremiumRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPremiumRecipesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPremiumRecipes>>> = ({ signal }) => listPremiumRecipes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPremiumRecipes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPremiumRecipesQueryResult = NonNullable<Awaited<ReturnType<typeof listPremiumRecipes>>>
+export type ListPremiumRecipesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Browse a configured Premium recipe provider
+ */
+
+export function useListPremiumRecipes<TData = Awaited<ReturnType<typeof listPremiumRecipes>>, TError = ErrorType<unknown>>(
+ params?: ListPremiumRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPremiumRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPremiumRecipesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPremiumRecipeUrl = (sourceId: string,) => {
+
+
+
+
+  return `/api/v1/premium-recipes/${sourceId}`
+}
+
+/**
+ * @summary Get a Premium recipe detail
+ */
+export const getPremiumRecipe = async (sourceId: string, options?: Parameters<typeof customFetch>[1]): Promise<PremiumRecipe> => {
+
+  return customFetch<PremiumRecipe>(getGetPremiumRecipeUrl(sourceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPremiumRecipeQueryKey = (sourceId: string,) => {
+    return [
+    `/api/v1/premium-recipes/${sourceId}`
+    ] as const;
+    }
+
+
+export const getGetPremiumRecipeQueryOptions = <TData = Awaited<ReturnType<typeof getPremiumRecipe>>, TError = ErrorType<unknown>>(sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPremiumRecipe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPremiumRecipeQueryKey(sourceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPremiumRecipe>>> = ({ signal }) => getPremiumRecipe(sourceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sourceId !== null && sourceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPremiumRecipe>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPremiumRecipeQueryResult = NonNullable<Awaited<ReturnType<typeof getPremiumRecipe>>>
+export type GetPremiumRecipeQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a Premium recipe detail
+ */
+
+export function useGetPremiumRecipe<TData = Awaited<ReturnType<typeof getPremiumRecipe>>, TError = ErrorType<unknown>>(
+ sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPremiumRecipe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPremiumRecipeQueryOptions(sourceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getAnalyzeCaptureUrl = () => {
 
 
@@ -1818,3 +1982,4 @@ export const useActivateReferral = <TError = ErrorType<void>,
       > => {
       return useMutation(getActivateReferralMutationOptions(options));
     }
+

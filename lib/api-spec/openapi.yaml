@@ -298,6 +298,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Recipe"
+  /v1/premium-recipes:
+    get:
+      operationId: listPremiumRecipes
+      tags: [recipes]
+      summary: Browse a configured Premium recipe provider
+      parameters:
+        - { name: query, in: query, required: false, schema: { type: string, maxLength: 120 } }
+        - { name: category, in: query, required: false, schema: { type: string, maxLength: 80 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 30, default: 18 } }
+        - { name: offset, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        "200":
+          description: Premium provider catalogue or its truthful availability state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PremiumRecipeList" }
+  /v1/premium-recipes/{sourceId}:
+    get:
+      operationId: getPremiumRecipe
+      tags: [recipes]
+      summary: Get a Premium recipe detail
+      parameters:
+        - { name: sourceId, in: path, required: true, schema: { type: string, minLength: 1 } }
+      responses:
+        "200":
+          description: Premium recipe detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PremiumRecipe" }
   /v1/capture/analyze:
     post:
       operationId: analyzeCapture
@@ -736,6 +765,26 @@ components:
             retry rather than silently showing blanks.
         source: { type: string }
         sourceUrl: { type: string, format: uri }
+    PremiumRecipeList:
+      type: object
+      required: [status, provider, recipes]
+      properties:
+        status: { type: string, enum: [available, unavailable, error] }
+        provider: { type: string }
+        message: { type: [string, "null"] }
+        recipes: { type: array, items: { $ref: "#/components/schemas/PremiumRecipe" } }
+        nextOffset: { type: [integer, "null"] }
+    PremiumRecipe:
+      allOf:
+        - $ref: "#/components/schemas/Recipe"
+        - type: object
+          required: [sourceType, sourceProvider, sourceId, nutritionConfidence, nutritionSource]
+          properties:
+            sourceType: { type: string, enum: [premium] }
+            sourceProvider: { type: string }
+            sourceId: { type: string }
+            nutritionConfidence: { type: string, enum: [verified, estimated, unavailable] }
+            nutritionSource: { type: string }
     CaptureAnalyzeInput:
       type: object
       required: [mode]

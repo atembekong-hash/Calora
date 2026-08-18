@@ -313,6 +313,49 @@ export interface RecipeList {
   warmupPending?: boolean;
 }
 
+export type PremiumRecipeListStatus = typeof PremiumRecipeListStatus[keyof typeof PremiumRecipeListStatus];
+
+
+export const PremiumRecipeListStatus = {
+  available: 'available',
+  unavailable: 'unavailable',
+  error: 'error',
+} as const;
+
+export type PremiumRecipeSourceType = typeof PremiumRecipeSourceType[keyof typeof PremiumRecipeSourceType];
+
+
+export const PremiumRecipeSourceType = {
+  premium: 'premium',
+} as const;
+
+export type PremiumRecipeNutritionConfidence = typeof PremiumRecipeNutritionConfidence[keyof typeof PremiumRecipeNutritionConfidence];
+
+
+export const PremiumRecipeNutritionConfidence = {
+  verified: 'verified',
+  estimated: 'estimated',
+  unavailable: 'unavailable',
+} as const;
+
+export type PremiumRecipe = Recipe & {
+  sourceType: PremiumRecipeSourceType;
+  sourceProvider: string;
+  sourceId: string;
+  nutritionConfidence: PremiumRecipeNutritionConfidence;
+  nutritionSource: string;
+};
+
+export interface PremiumRecipeList {
+  status: PremiumRecipeListStatus;
+  provider: string;
+  /** @nullable */
+  message?: string | null;
+  recipes: PremiumRecipe[];
+  /** @nullable */
+  nextOffset?: number | null;
+}
+
 export type CaptureAnalyzeInputMode = typeof CaptureAnalyzeInputMode[keyof typeof CaptureAnalyzeInputMode];
 
 
@@ -1012,6 +1055,26 @@ to?: string;
 };
 
 export type ListRecipesParams = {
+/**
+ * @maxLength 120
+ */
+query?: string;
+/**
+ * @maxLength 80
+ */
+category?: string;
+/**
+ * @minimum 1
+ * @maximum 30
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
+};
+
+export type ListPremiumRecipesParams = {
 /**
  * @maxLength 120
  */
