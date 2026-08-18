@@ -52,6 +52,8 @@ const mealConfig: { key: 'breakfast' | 'lunch' | 'dinner'; label: string; icon: 
   { key: 'dinner', label: 'Dinner', icon: 'moon', iconBg: '#f2eafd', iconColor: '#9875c7' },
 ];
 
+type ProfileArea = 'personalize' | 'reminders' | 'membership' | 'tools' | 'privacy';
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
@@ -128,6 +130,7 @@ export default function ProfileScreen() {
   // Info sheets (food data / no ads / help)
   const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help' | 'health'>(null);
   const [healthBusy, setHealthBusy] = useState(false);
+  const [profileArea, setProfileArea] = useState<ProfileArea | null>(null);
 
   // ─── OS reminder status sync ───────────────────────────────────────────────
   useEffect(() => {
@@ -423,6 +426,40 @@ export default function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
+        {!profileArea ? (
+          <Animated.View entering={FadeInDown.springify().damping(20).delay(90)}>
+            <Text style={[styles.hubIntro, { color: colors.mutedForeground }]}>A few focused places for the settings and tools that support your day.</Text>
+            {([
+              { key: 'personalize' as const, icon: 'sliders' as const, title: 'Personalize', body: `${themePreference === 'system' ? 'System appearance' : `${themePreference[0].toUpperCase()}${themePreference.slice(1)} appearance`} · ${units === 'metric' ? 'Metric' : 'Imperial'} units` },
+              { key: 'reminders' as const, icon: 'bell' as const, title: 'Reminders', body: hydrationReminders.enabled || mealReminders.breakfast || mealReminders.lunch || mealReminders.dinner || goalReminder.enabled ? 'Your on-device reminders are active' : 'Water, meal, and goal check-ins' },
+              { key: 'membership' as const, icon: 'star' as const, title: 'Membership', body: isSubscribed ? `${BRAND.premiumName} is active` : 'Plans, purchases, and invites' },
+              { key: 'tools' as const, icon: 'bookmark' as const, title: 'Your tools', body: `${savedMeals.length} saved meal${savedMeals.length === 1 ? '' : 's'} · living memory` },
+              { key: 'privacy' as const, icon: 'shield' as const, title: 'Privacy, account & help', body: healthConnected ? 'Health connected · local data controls' : 'Account, health, data, and support' },
+            ]).map((area) => (
+              <Pressable key={area.key} accessibilityLabel={`Open ${area.title}`} onPress={() => setProfileArea(area.key)} style={({ pressed }) => [styles.hubRow, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.82 : 1 }]}>
+                <View style={[styles.hubIcon, { backgroundColor: colors.accent }]}><Feather name={area.icon} size={17} color={colors.accentForeground} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.settingTitle, { color: colors.foreground }]}>{area.title}</Text>
+                  <Text style={[styles.settingBody, { color: colors.mutedForeground }]} numberOfLines={1}>{area.body}</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+              </Pressable>
+            ))}
+          </Animated.View>
+        ) : (
+          <>
+            <Pressable accessibilityLabel="Back to profile settings" onPress={() => setProfileArea(null)} style={[styles.areaBack, { backgroundColor: colors.muted }]}>
+              <Feather name="arrow-left" size={16} color={colors.foreground} />
+              <Text style={[styles.areaBackText, { color: colors.foreground }]}>Profile & settings</Text>
+            </Pressable>
+            <Text style={[styles.areaTitle, { color: colors.foreground }]}>
+              {{ personalize: 'Personalize', reminders: 'Reminders', membership: 'Membership', tools: 'Your tools', privacy: 'Privacy, account & help' }[profileArea]}
+            </Text>
+            <Text style={[styles.areaSubtitle, { color: colors.mutedForeground }]}>
+              {{ personalize: 'Make Calora feel like yours.', reminders: 'Private nudges, scheduled only on this device.', membership: 'Plans and rewards in one place.', tools: 'Reusable meals and the signals you control.', privacy: 'Your account, your data, and clear ways to get help.' }[profileArea]}
+            </Text>
+
+        <View style={profileArea === 'personalize' ? undefined : styles.hiddenSection}>
         {/* ── Appearance ── */}
         <Animated.View entering={FadeInDown.springify().damping(20).delay(80)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
@@ -482,6 +519,9 @@ export default function ProfileScreen() {
         </View>
         </Animated.View>
 
+        </View>
+
+        <View style={profileArea === 'reminders' ? undefined : styles.hiddenSection}>
         {/* ── Reminders ── */}
         <Animated.View entering={FadeInDown.springify().damping(20).delay(200)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 4, marginBottom: 4 }]}>Reminders</Text>
@@ -648,6 +688,9 @@ export default function ProfileScreen() {
         </View>
         </Animated.View>
 
+        </View>
+
+        <View style={profileArea === 'membership' ? undefined : styles.hiddenSection}>
         {/* ── CaloraApp Pro ── */}
         <View style={styles.planHeader}>
           <View>
@@ -714,6 +757,9 @@ export default function ProfileScreen() {
         {/* ── Invite friends ── */}
         <ReferralCard fontScale={fontScale} />
 
+        </View>
+
+        <View style={profileArea === 'tools' ? undefined : styles.hiddenSection}>
         {/* ── Saved meals ── */}
         <View style={styles.savedHeader}>
           <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved meals</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Keep repeatable meals one tap away.</Text></View>
@@ -771,6 +817,9 @@ export default function ProfileScreen() {
           <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
         </Pressable>
 
+        </View>
+
+        <View style={profileArea === 'privacy' ? undefined : styles.hiddenSection}>
         {/* ── Account ── */}
         <AccountSection fontScale={fontScale} clearAllData={clearAllData} />
 
@@ -835,6 +884,9 @@ export default function ProfileScreen() {
           </SettingRowPressable>
         ))}
         <Text style={[styles.version, { color: colors.mutedForeground }]}>{BRAND.copyright} · {BRAND.name} 1.0 · Made for steadier days</Text>
+        </View>
+          </>
+        )}
       </ScrollView>
 
       {/* ── Billing modal ── */}
@@ -1142,6 +1194,14 @@ export default function ProfileScreen() {
 function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
+  hiddenSection: { display: 'none' },
+  hubIntro: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18 * f, marginBottom: 14 },
+  hubRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderRadius: 18, padding: 13, marginBottom: 9 },
+  hubIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  areaBack: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16 },
+  areaBackText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
+  areaTitle: { fontFamily: 'Inter_700Bold', fontSize: 24 * f, letterSpacing: -0.6 },
+  areaSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18 * f, marginTop: 5, marginBottom: 18 },
 
   // Profile card
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 23, padding: 16, marginBottom: 26 },
