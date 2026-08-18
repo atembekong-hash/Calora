@@ -7,7 +7,6 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 import { ScalePressable } from '@/components/ScalePressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
-import { BRAND } from '@/lib/brand';
 import { formatCalories, formatGrams, formatWhole } from '@/lib/formatters';
 import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
 import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
@@ -44,8 +43,6 @@ function MealCard({
   onPress,
   onLog,
   onActions,
-  editMode,
-  onEdit,
   isLogged,
 }: {
   meal: PlannerMeal;
@@ -53,8 +50,6 @@ function MealCard({
   onPress: () => void;
   onLog: () => void;
   onActions: () => void;
-  editMode: boolean;
-  onEdit: () => void;
   isLogged: boolean;
 }) {
   return (
@@ -93,7 +88,6 @@ function MealCard({
             <Feather name={isLogged ? 'check' : 'plus'} size={13} color={isLogged ? colors.foreground : colors.primaryForeground} />
             <Text style={[styles.logMealButtonText, { color: isLogged ? colors.foreground : colors.primaryForeground }]}>{isLogged ? 'Logged' : 'Log'}</Text>
           </ScalePressable>
-            {editMode && <Pressable accessibilityLabel={`Edit ${meal.name}`} onPress={onEdit} style={[styles.editMealButton, { borderColor: colors.primary }]}><Feather name="edit-2" size={12} color={colors.primary} /><Text style={[styles.editMealButtonText, { color: colors.primary }]}>Edit</Text></Pressable>}
         </View>
       </View>
     </View>
@@ -126,15 +120,13 @@ function PlannerFocusCard({
       : `${remainingSlots} meal ${remainingSlots === 1 ? 'slot' : 'slots'} still open`;
   return (
     <View style={[styles.focusCard, { backgroundColor: colors.hero }]}>
-      <View style={styles.focusTop}>
+        <View style={styles.focusTop}>
         <View style={styles.focusCopy}>
           <Text style={[styles.focusEyebrow, { color: colors.heroMuted }]}>{copy.toUpperCase()}</Text>
           <Text numberOfLines={2} style={[styles.focusTitle, { color: colors.onHero }]}>{allLogged ? 'Your planned meals are logged.' : meal?.name ?? 'Make space for meals that fit today.'}</Text>
           <Text style={[styles.focusMeta, { color: colors.heroMuted }]}>{formatWhole(plannedCalories)} of {formatWhole(target)} kcal planned · {selectedMeals.length}/4 meals</Text>
         </View>
-        <View style={[styles.focusRing, { borderColor: colors.primary }]}><Text style={[styles.focusRingText, { color: colors.onHero }]}>{selectedMeals.length}/4</Text></View>
       </View>
-      <View style={[styles.focusTrack, { backgroundColor: colors.border }]}><View style={[styles.focusFill, { backgroundColor: colors.primary, width: `${Math.min(selectedMeals.length / 4, 1) * 100}%` }]} /></View>
       <View style={styles.focusActions}>
         <ScalePressable accessibilityLabel={allLogged ? 'View today in your diary' : meal ? `Log ${meal.name} to diary` : 'Add a meal to today'} onPress={onPrimary} scale={0.97} haptic="light" style={[styles.focusPrimary, { backgroundColor: colors.primary }]}>
           <Feather name={allLogged || meal ? 'check-circle' : 'plus'} size={15} color={colors.primaryForeground} />
@@ -145,33 +137,6 @@ function PlannerFocusCard({
   );
 }
 
-function SummaryBar({ meals, target, colors }: { meals: PlannerMeal[]; target: number; colors: ReturnType<typeof useCalora>['colors'] }) {
-  const totals = meals.reduce((sum, meal) => ({
-    calories: sum.calories + meal.calories,
-    protein: sum.protein + meal.proteinG,
-    carbs: sum.carbs + meal.carbsG,
-    fat: sum.fat + meal.fatG,
-  }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
-  const dailyCalories = meals.length ? totals.calories / 7 : 0;
-  const goalProgress = Math.min(dailyCalories / target, 1);
-  return (
-    <View style={[styles.summaryCard, { backgroundColor: colors.hero }]}>
-      <View style={styles.summaryTop}>
-        <View>
-          <Text style={[styles.summaryEyebrow, { color: colors.heroMuted }]}>WEEKLY NUTRITION</Text>
-           <Text style={[styles.summaryTitle, { color: colors.onHero }]}>{formatWhole(dailyCalories)} kcal <Text style={[styles.summaryTarget, { color: colors.heroMuted }]}>/ {formatWhole(target)} daily</Text></Text>
-        </View>
-        <View style={[styles.goalRing, { borderColor: colors.primary }]}><Text style={[styles.goalRingText, { color: colors.onHero }]}>{Math.round(goalProgress * 100)}%</Text></View>
-      </View>
-      <View style={[styles.goalTrack, { backgroundColor: 'rgba(157,215,189,0.18)' }]}><View style={[styles.goalFill, { width: `${goalProgress * 100}%`, backgroundColor: colors.primary }]} /></View>
-      <View style={styles.summaryMacros}>
-        <View><Text style={[styles.summaryMacroValue, { color: colors.onHero }]}>{formatGrams(totals.protein / 7)}</Text><Text style={[styles.summaryMacroLabel, { color: colors.heroMuted }]}>protein / day</Text></View>
-        <View><Text style={[styles.summaryMacroValue, { color: colors.onHero }]}>{formatGrams(totals.carbs / 7)}</Text><Text style={[styles.summaryMacroLabel, { color: colors.heroMuted }]}>carbs / day</Text></View>
-        <View><Text style={[styles.summaryMacroValue, { color: colors.onHero }]}>{formatGrams(totals.fat / 7)}</Text><Text style={[styles.summaryMacroLabel, { color: colors.heroMuted }]}>fat / day</Text></View>
-      </View>
-    </View>
-  );
-}
 
 function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; title: string; onClose: () => void; colors: ReturnType<typeof useCalora>['colors'] }) {
   return (
@@ -201,13 +166,11 @@ export default function PlannerScreen() {
   });
   const [detail, setDetail] = useState<PlannerMeal | null>(null);
   const [plannerReviewDraftId, setPlannerReviewDraftId] = useState<string | null>(null);
-  const [shoppingVisible, setShoppingVisible] = useState(false);
   const [shoppingDayFilter, setShoppingDayFilter] = useState<string | null>(null);
   const [actionMeal, setActionMeal] = useState<PlannerMeal | null>(null);
   const [actionMode, setActionMode] = useState<'move' | 'copy' | null>(null);
   const [addingMealType, setAddingMealType] = useState<PlannerMeal['meal'] | null>(null);
   const [replaceMeal, setReplaceMeal] = useState<PlannerMeal | null>(null);
-  const [editMode, setEditMode] = useState(false);
   const [editMeal, setEditMeal] = useState<PlannerMeal | null>(null);
   const [editName, setEditName] = useState('');
   const [editServing, setEditServing] = useState('');
@@ -738,20 +701,11 @@ export default function PlannerScreen() {
         title="Plan"
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: 14, paddingBottom: insets.bottom + 106 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.plannerIntro}>
-          <View>
-            <Text style={[styles.plannerEyebrow, { color: colors.primary }]}>YOUR PLAN</Text>
-            <Text style={[styles.plannerTitle, { color: colors.foreground }]}>{workspace === 'today' ? 'Make today feel easy.' : workspace === 'week' ? 'Shape the week ahead.' : 'Shop with less guesswork.'}</Text>
-          </View>
-          <Pressable accessibilityLabel={`Open what ${BRAND.name} remembers`} onPress={() => router.push('/memory')} hitSlop={8} style={[styles.memoryShortcut, { backgroundColor: colors.muted }]}>
-            <Feather name="compass" size={17} color={colors.foreground} />
-          </Pressable>
-        </View>
-        <View accessibilityRole="tablist" style={[styles.workspaceSwitch, { backgroundColor: colors.muted }]}>
+        <View accessibilityRole="tablist" style={[styles.workspaceSwitch, { borderBottomColor: colors.border }]}>
           {(['today', 'week', 'shopping'] as const).map((item) => {
             const active = workspace === item;
             const label = item === 'today' ? 'Today' : item === 'week' ? 'Week' : 'Shopping';
-            return <Pressable key={item} accessibilityRole="tab" accessibilityLabel={`Show ${label} workspace`} accessibilityState={{ selected: active }} onPress={() => setWorkspace(item)} style={[styles.workspaceTab, active && { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.workspaceTabText, { color: active ? colors.foreground : colors.mutedForeground }]}>{label}{item === 'shopping' && uncheckedShopping > 0 ? ` · ${uncheckedShopping}` : ''}</Text></Pressable>;
+            return <Pressable key={item} accessibilityRole="tab" accessibilityLabel={`Show ${label} workspace`} accessibilityState={{ selected: active }} onPress={() => setWorkspace(item)} style={[styles.workspaceTab, active && { borderBottomColor: colors.primary }]}><Text style={[styles.workspaceTabText, { color: active ? colors.foreground : colors.mutedForeground }]}>{label}{item === 'shopping' && uncheckedShopping > 0 ? ` · ${uncheckedShopping}` : ''}</Text></Pressable>;
           })}
         </View>
 
@@ -764,7 +718,7 @@ export default function PlannerScreen() {
             <View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>Today’s meals</Text><Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>Plan what fits, then log what happened.</Text></View>
             <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
           </Animated.View>
-          <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal or leave this open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}</Animated.View>
+          <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal or leave this open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}</Animated.View>
         </>}
 
         {workspace === 'week' && <>
@@ -774,7 +728,7 @@ export default function PlannerScreen() {
             <Text style={[styles.weekRange, { color: colors.foreground }]}>{formatRange(viewWeekStart)}</Text>
             {viewWeekStart !== getPlannerWeekStart() && <Pressable accessibilityLabel="Return to this week" onPress={goToToday}><Text style={[styles.todayLink, { color: colors.primary }]}>Today</Text></Pressable>}
           </View>
-           <View style={styles.weekHeaderActions}><ScalePressable accessibilityLabel="Next week" onPress={() => shiftWeek(1)} scale={0.96} haptic="none" style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={18} color={colors.foreground} /></ScalePressable><ScalePressable accessibilityLabel={editMode ? 'Done editing plan' : 'Edit plan'} onPress={() => setEditMode((value) => !value)} scale={0.96} haptic="none" style={[styles.editModeButton, { backgroundColor: editMode ? colors.primary : colors.muted }]}><Feather name={editMode ? 'check' : 'edit-2'} size={14} color={editMode ? colors.primaryForeground : colors.foreground} /><Text style={[styles.editModeText, { color: editMode ? colors.primaryForeground : colors.foreground }]}>{editMode ? 'Done' : 'Edit'}</Text></ScalePressable></View>
+           <View style={styles.weekHeaderActions}><ScalePressable accessibilityLabel="Next week" onPress={() => shiftWeek(1)} scale={0.96} haptic="none" style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={18} color={colors.foreground} /></ScalePressable></View>
         </View>
         <View style={[styles.dayRail, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {weekDays.map((day) => {
@@ -798,53 +752,27 @@ export default function PlannerScreen() {
           <View style={styles.programCopy}><Text style={[styles.programEyebrow, { color: colors.primary }]}>{appliedProgramForViewedWeek ? 'PROGRAM · THIS WEEK' : 'YOUR PROGRAM'}</Text><Text style={[styles.programTitle, { color: colors.foreground }]}>{appliedProgramForViewedWeek ? findPlanType(appliedProgramForViewedWeek.programId)?.label ?? appliedProgramForViewedWeek.programId : plannerPreferences ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary : 'Choose a planning strategy'}</Text><Text style={[styles.programMeta, { color: colors.mutedForeground }]}>{appliedProgramForViewedWeek ? (appliedProgramForViewedWeek.programId === plannerPreferences?.primary ? 'Shaped this week.' : `Shaped this week · ${plannerPreferences ? `${findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary} is set for your next build` : 'no Program set for your next build'}.`) : plannerPreferences ? `${findPlanType(plannerPreferences.primary)?.subtitle ?? ''} · guides your next build.` : 'It guides your next generated week.'}</Text></View>
           <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
         </Pressable>
-        <View style={[styles.planControlBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <ScalePressable
-            accessibilityLabel={plannerPreferences ? 'Change plan type' : 'Choose a plan type'}
-            onPress={() => setPlanTypeVisible(true)}
-            scale={0.97}
-            haptic="none"
-            style={styles.planControlLeft}
-          >
+        <View style={[styles.weekDecisionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.weekDecisionCopy}>
             <Text style={[styles.planControlLabel, { color: colors.mutedForeground }]}>WEEK COVERAGE</Text>
-            {plannerPreferences ? (
-              <Text style={[styles.planControlValue, { color: colors.foreground }]} numberOfLines={1}>
-                {plannedWeek.length} of 28 meal slots planned
-              </Text>
-            ) : (
-              <Text style={[styles.planControlPrompt, { color: colors.primary }]}>Start with a Program</Text>
-            )}
-          </ScalePressable>
-          <View style={[styles.planControlDivider, { backgroundColor: colors.border }]} />
-          <ScalePressable
-            accessibilityLabel={plannerPreferences ? 'Generate my week' : 'Choose a plan type first'}
-            onPress={() => { if (!plannerPreferences) { setPlanTypeVisible(true); } else { void generate(); } }}
-            disabled={generating}
-            scale={0.96}
-            haptic="light"
-            style={[styles.planControlRight, { opacity: generating ? 0.72 : 1 }]}
-          >
-            {generating
-              ? <ActivityIndicator size="small" color={colors.primary} />
-              : <Feather name="zap" size={14} color={plannerPreferences ? colors.primary : colors.mutedForeground} />}
-            <Text style={[styles.planControlAction, { color: plannerPreferences ? colors.primary : colors.mutedForeground }]}>
-              {generating ? 'Building…' : 'Build week'}
-            </Text>
+            <Text style={[styles.planControlValue, { color: colors.foreground }]}>{plannedWeek.length} of 28 meals planned</Text>
+            <Text style={[styles.weekDecisionMeta, { color: colors.mutedForeground }]}>{28 - plannedWeek.length > 0 ? `${28 - plannedWeek.length} open decisions remain` : 'Every meal slot has a plan'}</Text>
+          </View>
+          <ScalePressable accessibilityLabel={plannerPreferences ? 'Build or fill my week' : 'Choose a Program first'} onPress={() => { if (!plannerPreferences) setPlanTypeVisible(true); else void generate(); }} disabled={generating} scale={0.96} haptic="light" style={[styles.weekBuildButton, { backgroundColor: colors.primary, opacity: generating ? 0.72 : 1 }]}>
+            {generating ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="zap" size={14} color={colors.primaryForeground} />}
+            <Text style={[styles.weekBuildText, { color: colors.primaryForeground }]}>{generating ? 'Building…' : plannedWeek.length ? 'Fill week' : 'Build week'}</Text>
           </ScalePressable>
         </View>
         {generationMessage && <View accessibilityLiveRegion="polite" style={[styles.generationStatus, { backgroundColor: colors.accent }]}><Feather name="check-circle" size={16} color={colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
-          <Animated.View entering={FadeInDown.springify().damping(20).delay(60)} style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
-            <View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text><Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Your day is planned' : `${4 - selectedMeals.length} open ${4 - selectedMeals.length === 1 ? 'slot' : 'slots'} — stay flexible`}</Text></View>
-            <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
-          </Animated.View>
-           <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}
-        </Animated.View>
-          <View style={{ marginTop: 20 }}><SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} /></View>
+        <Pressable accessibilityLabel={`Open ${selectedMealLabel} in Today`} onPress={() => setWorkspace('today')} style={[styles.weekOpenDay, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text><Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Ready for Today' : `${4 - selectedMeals.length} open ${4 - selectedMeals.length === 1 ? 'decision' : 'decisions'} to resolve`}</Text></View>
+          <Feather name="arrow-up-right" size={17} color={colors.primary} />
+        </Pressable>
         </>}
 
         {workspace === 'shopping' && <>
           <View style={[styles.shoppingWorkspaceHeader, { backgroundColor: colors.card, borderColor: colors.border }]}><View><Text style={[styles.programEyebrow, { color: colors.primary }]}>THIS WEEK</Text><Text style={[styles.shoppingWorkspaceTitle, { color: colors.foreground }]}>{uncheckedShopping ? `${uncheckedShopping} items left` : 'Everything is checked off'}</Text><Text style={[styles.shoppingWorkspaceMeta, { color: colors.mutedForeground }]}>{visibleShoppingItems.length} ingredients from {plannedWeek.length} planned meals</Text></View><View style={[styles.shoppingWorkspaceIcon, { backgroundColor: colors.accent }]}><Feather name="shopping-bag" size={20} color={colors.accentForeground} /></View></View>
-          {shoppingDays.length > 1 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shopFilterContent}>{[null, ...shoppingDays].map((day) => { const active = shoppingDayFilter === day; const label = day ? dayFormatter.format(parseDate(day)) : 'All'; return <Pressable key={day ?? 'all'} accessibilityRole="tab" accessibilityState={{ selected: active }} accessibilityLabel={`Show ${label} shopping items`} onPress={() => setShoppingDayFilter(day)} style={[styles.shopDayPill, { borderColor: active ? colors.primary : colors.input, backgroundColor: active ? colors.primary : colors.muted }]}><Text style={[styles.shopDayPillText, { color: active ? colors.primaryForeground : colors.foreground }]}>{label}</Text></Pressable>; })}</ScrollView>}
+          {shoppingDays.length > 1 && <Pressable accessibilityLabel="Cycle shopping day filter" onPress={() => { const currentIndex = shoppingDayFilter ? shoppingDays.indexOf(shoppingDayFilter) : -1; setShoppingDayFilter(currentIndex >= shoppingDays.length - 1 ? null : shoppingDays[currentIndex + 1]); }} style={[styles.shoppingFilterButton, { backgroundColor: colors.muted, borderColor: colors.border }]}><Feather name="filter" size={14} color={colors.primary} /><Text style={[styles.shoppingFilterText, { color: colors.foreground }]}>{shoppingDayFilter ? dayFormatter.format(parseDate(shoppingDayFilter)) : 'All week'}</Text><Feather name="chevron-down" size={14} color={colors.mutedForeground} /></Pressable>}
           <View style={[styles.shoppingListCard, { backgroundColor: colors.card, borderColor: colors.border }]}>{filteredShoppingItems.map((item) => <Pressable key={item.id} accessibilityLabel={`${item.checked ? 'Uncheck' : 'Check'} ${item.name}`} onPress={() => toggleShoppingItemByName(item.name)} style={[styles.shoppingRow, { borderBottomColor: colors.border }]}><View style={[styles.checkbox, { borderColor: item.checked ? colors.success : colors.input, backgroundColor: item.checked ? colors.success : 'transparent' }]}>{item.checked && <Feather name="check" size={13} color={colors.primaryForeground} />}</View><View style={{ flex: 1 }}><Text style={[styles.shoppingName, { color: item.checked ? colors.mutedForeground : colors.foreground, textDecorationLine: item.checked ? 'line-through' : 'none' }]}>{item.name}</Text>{!!formatShoppingDays(item.days) && <Text style={[styles.shoppingDays, { color: item.checked ? colors.mutedForeground : colors.primary }]}>{formatShoppingDays(item.days)}</Text>}</View><Text style={[styles.shoppingQuantity, { color: colors.mutedForeground }]}>{item.quantity}×</Text></Pressable>)}{filteredShoppingItems.length === 0 && <View style={styles.shoppingEmpty}><Feather name="shopping-bag" size={20} color={colors.mutedForeground} /><Text style={[styles.shoppingWorkspaceTitle, { color: colors.foreground }]}>Nothing to pick up yet</Text><Text style={[styles.shoppingWorkspaceMeta, { color: colors.mutedForeground }]}>Ingredients appear after you plan meals.</Text><Pressable onPress={() => setWorkspace('week')} style={[styles.emptyShoppingButton, { backgroundColor: colors.accent }]}><Text style={[styles.emptyShoppingButtonText, { color: colors.accentForeground }]}>Go to week</Text></Pressable></View>}</View>
         </>}
       </ScrollView>
@@ -946,70 +874,6 @@ export default function PlannerScreen() {
           </View>
         </View>
       </Modal>
-       <Modal visible={shoppingVisible} transparent animationType="slide" onRequestClose={() => { setShoppingVisible(false); setShoppingDayFilter(null); }}>
-         <View style={styles.modalBackdrop}>
-           <View style={[styles.shoppingSheet, { backgroundColor: colors.background }]}>
-             <View style={styles.sheetHandle} />
-             <View style={styles.shoppingHeader}>
-               <View>
-                 <Text style={[styles.detailEyebrow, { color: colors.primary }]}>THIS WEEK</Text>
-                 <Text style={[styles.detailTitle, { color: colors.foreground }]}>Shopping list</Text>
-               </View>
-               <ScalePressable accessibilityLabel="Close shopping list" onPress={() => { setShoppingVisible(false); setShoppingDayFilter(null); }} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
-                 <Feather name="x" size={18} color={colors.foreground} />
-               </ScalePressable>
-             </View>
-             <Text style={[styles.shoppingSubtitle, { color: colors.mutedForeground }]}>Ingredients from the week you are viewing.</Text>
-             {shoppingDays.length > 1 && (
-               <View style={styles.shopFilterSection}>
-                 <ScrollView
-                   horizontal
-                   showsHorizontalScrollIndicator={false}
-                   contentContainerStyle={styles.shopFilterContent}
-                 >
-                   <Pressable
-                     accessibilityLabel="Show all days"
-                     onPress={() => setShoppingDayFilter(null)}
-                     style={[styles.shopDayPill, { borderColor: shoppingDayFilter === null ? colors.primary : colors.input, backgroundColor: shoppingDayFilter === null ? colors.primary : colors.muted }]}
-                   >
-                     <Text style={[styles.shopDayPillText, { color: shoppingDayFilter === null ? colors.primaryForeground : colors.foreground }]}>All</Text>
-                   </Pressable>
-                   {shoppingDays.map((day) => {
-                     const active = shoppingDayFilter === day;
-                     return (
-                       <Pressable
-                         key={day}
-                         accessibilityLabel={`Filter by ${dayFormatter.format(parseDate(day))}`}
-                         onPress={() => setShoppingDayFilter(active ? null : day)}
-                         style={[styles.shopDayPill, { borderColor: active ? colors.primary : colors.input, backgroundColor: active ? colors.primary : colors.muted }]}
-                       >
-                         <Text style={[styles.shopDayPillText, { color: active ? colors.primaryForeground : colors.foreground }]}>{dayFormatter.format(parseDate(day))}</Text>
-                       </Pressable>
-                     );
-                   })}
-                 </ScrollView>
-               </View>
-             )}
-             <ScrollView showsVerticalScrollIndicator={false} style={styles.shopIngredientScroll} contentContainerStyle={{ paddingBottom: 25 }}>
-               {filteredShoppingItems.map((item) => (
-                 <Pressable key={item.id} accessibilityLabel={`${item.checked ? 'Uncheck' : 'Check'} ${item.name}`} onPress={() => toggleShoppingItemByName(item.name)} style={[styles.shoppingRow, { borderBottomColor: colors.border }]}>
-                   <View style={[styles.checkbox, { borderColor: item.checked ? colors.success : colors.input, backgroundColor: item.checked ? colors.success : 'transparent' }]}>
-                     {item.checked && <Feather name="check" size={13} color={colors.primaryForeground} />}
-                   </View>
-                   <View style={{ flex: 1 }}>
-                     <Text style={[styles.shoppingName, { color: item.checked ? colors.mutedForeground : colors.foreground, textDecorationLine: item.checked ? 'line-through' : 'none' }]}>{item.name}</Text>
-                     {!!formatShoppingDays(item.days) && <Text style={[styles.shoppingDays, { color: item.checked ? colors.mutedForeground : colors.primary, opacity: item.checked ? 0.55 : 0.75 }]}>{formatShoppingDays(item.days)}</Text>}
-                   </View>
-                   <Text style={[styles.shoppingQuantity, { color: colors.mutedForeground }]}>{item.quantity}×</Text>
-                 </Pressable>
-               ))}
-               {filteredShoppingItems.length === 0 && (
-                 <Text style={[styles.shoppingSubtitle, { color: colors.mutedForeground, textAlign: 'center', marginTop: 24 }]}>No ingredients for this day.</Text>
-               )}
-             </ScrollView>
-           </View>
-         </View>
-       </Modal>
        <Modal visible={actionMeal !== null} transparent animationType="slide" onRequestClose={() => { setActionMeal(null); setActionMode(null); }}>
          <View style={styles.modalBackdrop}>
            <View style={[styles.actionSheet, { backgroundColor: colors.background }]}>
@@ -1018,7 +882,7 @@ export default function PlannerScreen() {
                <>
                  <SheetHeader eyebrow={`${actionMeal.meal.toUpperCase()} · ${dateFormatter.format(parseDate(actionMeal.day))}`} title={actionMeal.name} onClose={() => setActionMeal(null)} colors={colors} />
                  <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Make a change without losing your place in the week.</Text>
-                 <View style={styles.actionGrid}>
+                  <View style={styles.actionGrid}>
                    <ScalePressable accessibilityLabel={actionMealLogged ? `${actionMeal.name} is already logged` : `Log ${actionMeal.name}`} disabled={actionMealLogged} onPress={() => { setActionMeal(null); addToDiary(actionMeal); }} scale={0.96} haptic="light" style={[styles.actionTile, { backgroundColor: actionMealLogged ? colors.muted : colors.primary, opacity: actionMealLogged ? 0.7 : 1 }]}>
                      <Feather name="check-circle" size={18} color={actionMealLogged ? colors.foreground : colors.primaryForeground} />
                      <Text style={[styles.actionTileTitle, { color: actionMealLogged ? colors.foreground : colors.primaryForeground }]}>{actionMealLogged ? 'Logged' : 'Log to diary'}</Text>
@@ -1266,12 +1130,8 @@ function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
   content: { paddingHorizontal: 20 },
-   plannerIntro: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 13, paddingTop: 2 },
-   plannerEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.3, marginBottom: 4 },
-   plannerTitle: { fontFamily: 'Inter_700Bold', fontSize: 24 * f, letterSpacing: -0.7 },
-   memoryShortcut: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-   workspaceSwitch: { minHeight: 44, borderRadius: 14, padding: 3, flexDirection: 'row', marginBottom: 16 },
-   workspaceTab: { flex: 1, minHeight: 38, borderRadius: 11, borderWidth: 1, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+    workspaceSwitch: { minHeight: 43, flexDirection: 'row', marginBottom: 19, borderBottomWidth: 1 },
+    workspaceTab: { flex: 1, minHeight: 43, borderBottomWidth: 2, borderBottomColor: 'transparent', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
    workspaceTabText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
    todayDateLink: { minHeight: 58, borderRadius: 16, borderWidth: 1, paddingHorizontal: 13, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
    todayDateLabel: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
@@ -1282,10 +1142,6 @@ function makeStyles(f: number) {
    focusEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8.5 * f, letterSpacing: 1.15, marginBottom: 5 },
    focusTitle: { fontFamily: 'Inter_700Bold', fontSize: 20 * f, letterSpacing: -0.45, lineHeight: 25 * f },
    focusMeta: { fontFamily: 'Inter_400Regular', fontSize: 10.5 * f, lineHeight: 15 * f, marginTop: 6 },
-   focusRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
-   focusRingText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-   focusTrack: { height: 5, borderRadius: 3, marginTop: 15, overflow: 'hidden' },
-   focusFill: { height: '100%', borderRadius: 3 },
    focusActions: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 15 },
    focusPrimary: { minHeight: 40, borderRadius: 12, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 6 },
    focusPrimaryText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
@@ -1301,14 +1157,14 @@ function makeStyles(f: number) {
   title: { fontFamily: 'Inter_700Bold', fontSize: 28 * f, letterSpacing: -0.8 },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18, marginTop: 6 },
   shoppingButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+   shoppingFilterButton: { alignSelf: 'flex-start', minHeight: 36, borderWidth: 1, borderRadius: 11, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+   shoppingFilterText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
   shoppingCount: { position: 'absolute', right: -4, top: -5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   shoppingCountText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
   weekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   weekArrow: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   weekHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   weekRange: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, letterSpacing: -0.2 },
-  editModeButton: { minHeight: 28, borderRadius: 9, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  editModeText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
    dayRail: { flexDirection: 'row', borderWidth: 1, borderRadius: 18, padding: 5, marginBottom: 16 },
    dayCol: { flex: 1, alignItems: 'center', minHeight: 66, borderRadius: 13, paddingTop: 7, paddingBottom: 5 },
   dayName: { fontFamily: 'Inter_600SemiBold', fontSize: 9.5 * f, letterSpacing: 0.2 },
@@ -1316,26 +1172,14 @@ function makeStyles(f: number) {
    dayCoverage: { flexDirection: 'row', gap: 2, marginTop: 5 },
    coverageDot: { width: 4, height: 4, borderRadius: 2 },
    todayTag: { fontFamily: 'Inter_700Bold', fontSize: 7 * f, marginTop: 2 },
-  summaryCard: { borderRadius: 21, padding: 16, marginBottom: 12 },
-  summaryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  summaryEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1 },
-  summaryTitle: { fontFamily: 'Inter_700Bold', fontSize: 20 * f, marginTop: 4 },
-  summaryTarget: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
-  goalRing: { width: 46, height: 46, borderRadius: 23, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
-  goalRingText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  goalTrack: { height: 6, borderRadius: 3, marginTop: 14, overflow: 'hidden' },
-  goalFill: { height: '100%', borderRadius: 3 },
-  summaryMacros: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 },
-  summaryMacroValue: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
-  summaryMacroLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 2 },
-  planControlBar: { flexDirection: 'row', borderRadius: 14, borderWidth: 1, marginBottom: 16, overflow: 'hidden' },
-  planControlLeft: { flex: 1, paddingHorizontal: 14, paddingVertical: 13 },
+   weekDecisionCard: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 16 },
+   weekDecisionCopy: { marginBottom: 12 },
   planControlLabel: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1.1, marginBottom: 4 },
   planControlValue: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
-  planControlPrompt: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f },
-  planControlDivider: { width: 1, marginVertical: 11 },
-  planControlRight: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 15, paddingVertical: 13 },
-  planControlAction: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
+   weekDecisionMeta: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 4 },
+   weekBuildButton: { minHeight: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+   weekBuildText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+   weekOpenDay: { minHeight: 68, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
    programCard: { minHeight: 78, borderRadius: 18, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 10 },
    programIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
    programCopy: { flex: 1 },
@@ -1371,8 +1215,6 @@ function makeStyles(f: number) {
   macroText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
   logMealButton: { marginLeft: 'auto', minHeight: 26, borderRadius: 9, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 3 },
   logMealButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-  editMealButton: { minHeight: 26, borderRadius: 9, paddingHorizontal: 7, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 3 },
-  editMealButtonText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
   emptyMeal: { minHeight: 54, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   emptyMealImage: { width: 48, height: 46, borderRadius: 10, opacity: 0.8 },
   emptySlotIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
@@ -1395,10 +1237,10 @@ function makeStyles(f: number) {
   actionSheet: { maxHeight: '86%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 6 },
   sheetSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16, marginBottom: 15 },
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  actionTile: { width: '48%', minHeight: 104, borderRadius: 16, borderWidth: 1, padding: 13 },
-  actionTileTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, marginTop: 13 },
-  actionTileBody: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, lineHeight: 13, marginTop: 4 },
+   actionGrid: { gap: 8 },
+   actionTile: { width: '100%', minHeight: 58, borderRadius: 14, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
+   actionTileTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
+   actionTileBody: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 9 * f, lineHeight: 13 },
   removeAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 9 },
   removeActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   dayChoiceList: { gap: 8, paddingBottom: 12 },
