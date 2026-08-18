@@ -85,7 +85,7 @@ export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
               {selectedDate === todayKey() ? "PLANNED FOR TODAY" : "PLANNED FOR THIS DAY"}
             </Text>
             <Text style={[styles.title, { color: colors.foreground }]}>
-              {todayMeals.length === 1 ? '1 meal in your plan' : `${todayMeals.length} meals in your plan`}
+              {todayMeals.length === 1 ? '1 meal planned — not logged' : `${todayMeals.length} meals planned — not logged`}
             </Text>
           </View>
         </View>
@@ -152,7 +152,7 @@ export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
         <Feather name="check-circle" size={12} color={colors.success} />
         <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-          Week of {formatWeekStart(plannerWeekStart)} · tap any meal to view the full plan
+          Week of {formatWeekStart(plannerWeekStart)} · planned meals are not counted until you log them
         </Text>
       </View>
     </View>

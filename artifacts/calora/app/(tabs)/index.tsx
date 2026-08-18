@@ -26,10 +26,9 @@ import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
-import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { PlannerPeek } from '@/components/PlannerPeek';
 import { trustScore } from '@/lib/weeklySignals';
-import { formatGrams, formatWhole } from '@/lib/formatters';
+import { formatGrams, formatQuantity, formatWhole } from '@/lib/formatters';
 import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
 import {
   clearWaterConfirmation,
@@ -75,19 +74,19 @@ const formatDateLabel = (key: string) => new Intl.DateTimeFormat('en-US', { week
 const isToday = (key: string) => key === dateKey(new Date());
 const formatShortDate = (key: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(dateFromKey(key));
 
-function IconButton({ icon, label, onPress, colors }: { icon: keyof typeof Feather.glyphMap; label: string; onPress: () => void; colors: ReturnType<typeof useCalora>['colors'] }) {
+function IconButton({ icon, label, onPress, colors, primary = false }: { icon: keyof typeof Feather.glyphMap; label: string; onPress: () => void; colors: ReturnType<typeof useCalora>['colors']; primary?: boolean }) {
   return (
     <ScalePressable
       accessibilityLabel={label}
       testID={`quick-${label.toLowerCase().replaceAll(' ', '-')}`}
       onPress={onPress}
       haptic="none"
-      style={[styles.quickAction, { backgroundColor: colors.card, borderColor: colors.border }]}
+      style={[styles.quickAction, primary && styles.quickActionPrimary, { backgroundColor: primary ? colors.primary : colors.card, borderColor: primary ? colors.primary : colors.border }]}
     >
-      <View style={[styles.quickIcon, { backgroundColor: colors.accent }]}>
-        <Feather name={icon} size={20} color={colors.accentForeground} />
+      <View style={[styles.quickIcon, { backgroundColor: primary ? colors.primaryForeground : colors.accent }]}>
+        <Feather name={icon} size={20} color={primary ? colors.primary : colors.accentForeground} />
       </View>
-      <Text style={[styles.quickLabel, { color: colors.foreground }]}>{label}</Text>
+      <Text style={[styles.quickLabel, { color: primary ? colors.primaryForeground : colors.foreground }]}>{label}</Text>
     </ScalePressable>
   );
 }
@@ -129,18 +128,25 @@ const livingCategoryLabel: Record<ReturnType<typeof useCalora>['livingState']['c
 function LivingRhythmCard({
   colors,
   livingState,
+  waterOunces,
+  mealsLogged,
+  selectedDate,
 }: {
   colors: ReturnType<typeof useCalora>['colors'];
   livingState: ReturnType<typeof useCalora>['livingState'];
+  waterOunces: number;
+  mealsLogged: number;
+  selectedDate: string;
 }) {
   const copy = routineStageCopy[livingState.routineStage];
-  const waterProgress = Math.min(livingState.signal.waterToday / 64, 1);
+  const waterProgress = Math.min(waterOunces / 64, 1);
   const weekProgress = Math.min(livingState.signal.loggedDaysLast7 / 7, 1);
+  const dateLabel = isToday(selectedDate) ? 'today' : formatShortDate(selectedDate);
 
   return (
     <View
       testID="living-rhythm-card"
-      accessibilityLabel={`${copy.title}. ${livingState.signal.mealsToday} meals today, ${livingState.signal.waterToday} fluid ounces of water today, ${livingState.signal.loggedDaysLast7} days tracked this week.`}
+      accessibilityLabel={`${copy.title}. ${mealsLogged} meals for ${dateLabel}, ${waterOunces} fluid ounces of water for ${dateLabel}, ${livingState.signal.loggedDaysLast7} days tracked this week.`}
       style={[styles.livingRhythmCard, { backgroundColor: colors.card, borderColor: colors.border }]}
     >
       <View style={styles.livingRhythmHeader}>
@@ -148,7 +154,7 @@ function LivingRhythmCard({
           <Feather name="activity" size={16} color={colors.accentForeground} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.livingRhythmEyebrow, { color: colors.mutedForeground }]}>TODAY'S RHYTHM</Text>
+          <Text style={[styles.livingRhythmEyebrow, { color: colors.mutedForeground }]}>{isToday(selectedDate) ? "TODAY'S RHYTHM" : 'DAILY RHYTHM'}</Text>
           <Text style={[styles.livingRhythmTitle, { color: colors.foreground }]}>{copy.title}</Text>
         </View>
         <View style={[styles.livingRhythmStage, { backgroundColor: colors.muted }]}>
@@ -158,13 +164,13 @@ function LivingRhythmCard({
       <Text style={[styles.livingRhythmBody, { color: colors.mutedForeground }]}>{copy.body}</Text>
       <View style={styles.livingRhythmSignals}>
         <View style={styles.livingRhythmSignal}>
-          <Text style={[styles.livingRhythmValue, { color: colors.foreground }]}>{livingState.signal.mealsToday}</Text>
-          <Text style={[styles.livingRhythmLabel, { color: colors.mutedForeground }]}>meals today</Text>
+          <Text style={[styles.livingRhythmValue, { color: colors.foreground }]}>{mealsLogged}</Text>
+          <Text style={[styles.livingRhythmLabel, { color: colors.mutedForeground }]}>meal slots</Text>
         </View>
         <View style={[styles.livingRhythmDivider, { backgroundColor: colors.border }]} />
         <View style={styles.livingRhythmSignal}>
-          <Text style={[styles.livingRhythmValue, { color: colors.foreground }]}>{livingState.signal.waterToday}</Text>
-          <Text style={[styles.livingRhythmLabel, { color: colors.mutedForeground }]}>fl oz today</Text>
+          <Text style={[styles.livingRhythmValue, { color: colors.foreground }]}>{waterOunces}</Text>
+          <Text style={[styles.livingRhythmLabel, { color: colors.mutedForeground }]}>fl oz water</Text>
         </View>
         <View style={[styles.livingRhythmDivider, { backgroundColor: colors.border }]} />
         <View style={styles.livingRhythmSignal}>
@@ -383,7 +389,7 @@ function AnimatedMacroBar({ label, value, target, color, colors }: { label: stri
     <View style={styles.macroBlock}>
       <View style={styles.macroHeader}>
         <Text style={[styles.macroLabel, { color: colors.mutedForeground }]}>{label}</Text>
-        <Text style={[styles.macroValue, { color: colors.foreground }]}>{value}g <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>/ {target}g</Text></Text>
+        <Text style={[styles.macroValue, { color: colors.foreground }]}>{formatQuantity(value, 1)}g <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>/ {formatQuantity(target, 1)}g</Text></Text>
       </View>
       <View style={[styles.macroTrack, { backgroundColor: colors.muted }]} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
         <Animated.View style={[styles.macroFill, { backgroundColor: color }, animStyle]} />
@@ -785,6 +791,8 @@ export default function HomeScreen() {
   const activeEnergy = (isToday(selectedDate) && healthConnection.snapshot?.activeEnergyKcal) || 0;
   const remaining = Math.max(target - selectedTotals.calories + activeEnergy, 0);
   const progress = Math.min(selectedTotals.calories / (target + activeEnergy), 1);
+  const isProgressAction = livingState.action.kind === 'view_progress';
+  const selectedWater = waterLogs[selectedDate] ?? 0;
 
   const openAdd = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -893,11 +901,9 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <MotivationalQuote colors={colors} style={{ marginBottom: 14 }} />
-
         <View style={[styles.dateNav, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 11 }]}>
           <Pressable accessibilityLabel="Previous diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() - 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={17} color={colors.foreground} /></Pressable>
-          <View style={{ alignItems: 'center' }}><Text style={[styles.dateNavLabel, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today' : formatShortDate(selectedDate)}</Text><Text style={[styles.dateNavSub, { color: colors.mutedForeground }]}>{selectedDate}</Text></View>
+          <View style={{ alignItems: 'center' }}><Text style={[styles.dateNavLabel, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today' : formatShortDate(selectedDate)}</Text><Text style={[styles.dateNavSub, { color: colors.mutedForeground }]}>Viewing {selectedDate}</Text></View>
           <Pressable accessibilityLabel="Next diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() + 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={17} color={colors.foreground} /></Pressable>
         </View>
 
@@ -914,6 +920,21 @@ export default function HomeScreen() {
           {/* Dominant calorie gauge */}
           <CalorieGauge consumed={selectedTotals.calories} burned={activeEnergy} target={target} colors={colors} />
 
+          <View style={[styles.fuelSnapshot, { borderTopColor: colors.border }]}>
+            <View style={styles.fuelSnapshotItem}>
+              <Text style={[styles.fuelSnapshotValue, { color: colors.foreground }]}>{formatQuantity(selectedTotals.protein, 1)}g</Text>
+              <Text style={[styles.fuelSnapshotLabel, { color: colors.mutedForeground }]}>protein</Text>
+            </View>
+            <View style={styles.fuelSnapshotItem}>
+              <Text style={[styles.fuelSnapshotValue, { color: colors.foreground }]}>{formatQuantity(selectedTotals.carbs, 1)}g</Text>
+              <Text style={[styles.fuelSnapshotLabel, { color: colors.mutedForeground }]}>carbs</Text>
+            </View>
+            <View style={styles.fuelSnapshotItem}>
+              <Text style={[styles.fuelSnapshotValue, { color: colors.foreground }]}>{selectedWater}</Text>
+              <Text style={[styles.fuelSnapshotLabel, { color: colors.mutedForeground }]}>fl oz water</Text>
+            </View>
+          </View>
+
           {/* Planning insight */}
           <Text style={[styles.heroInsight, { color: colors.mutedForeground }]}>{livingState.headline}</Text>
 
@@ -926,67 +947,26 @@ export default function HomeScreen() {
             onPress={handleLivingAction}
             scale={0.96}
             haptic="none"
-            style={[styles.livingAction, { backgroundColor: colors.primary, opacity: waterConfirmed ? 0.72 : 1 }]}
+            style={[styles.livingAction, isProgressAction && styles.livingActionSecondary, { backgroundColor: isProgressAction ? colors.muted : colors.primary, borderColor: isProgressAction ? colors.border : colors.primary, opacity: waterConfirmed ? 0.72 : 1 }]}
           >
-            <Feather name={waterConfirmed ? 'check' : livingActionIcon} size={16} color={colors.primaryForeground} />
-            <Text style={[styles.livingActionText, { color: colors.primaryForeground }]}>
+            <Feather name={waterConfirmed ? 'check' : livingActionIcon} size={16} color={isProgressAction ? colors.foreground : colors.primaryForeground} />
+            <Text style={[styles.livingActionText, { color: isProgressAction ? colors.foreground : colors.primaryForeground }]}>
               {waterConfirmed ? 'Added ✓' : livingState.action.label}
             </Text>
-            {!waterConfirmed && <Feather name="arrow-up-right" size={15} color={colors.primaryForeground} />}
+            {!waterConfirmed && <Feather name="arrow-up-right" size={15} color={isProgressAction ? colors.foreground : colors.primaryForeground} />}
           </ScalePressable>
         </View>
 
-        <LivingRhythmCard colors={colors} livingState={livingState} />
-
-        <View style={styles.quickActions}>
-          <IconButton icon="camera" label="Photo log" onPress={openAdd} colors={colors} />
-          <IconButton icon="search" label="Search foods" onPress={openAdd} colors={colors} />
-          <IconButton icon="edit-3" label="Quick add" onPress={openAdd} colors={colors} />
-        </View>
-
-        <PlannerPeek selectedDate={selectedDate} />
-
-        <RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} />
-
-        <WellnessCards
-          colors={colors}
-          waterOunces={waterLogs[selectedDate] ?? 0}
-          mealsLogged={mealsLogged}
-          mealNames={mealNames}
-          mood={moodLogs[selectedDate]}
-          waterConfirmed={waterConfirmed}
-          onAddWater={() => {
-            if (waterConfirmed) return;
-            addWater(selectedDate, 8);
-            setSaveNotice('Water check-in added for this day.');
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            recordWaterConfirmation();
-            setWaterConfirmed(true);
-          }}
-          onAddMeal={openAdd}
-          onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
-        />
-
-        <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your balance</Text>
-              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>A simple view of what’s left</Text>
-            </View>
-            <ScalePressable
-              accessibilityLabel="Edit nutrition goals"
-              accessibilityRole="button"
-              onPress={() => router.navigate('/(tabs)/profile')}
-              scale={0.9}
-              haptic="none"
-              style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}
-            >
-              <Feather name="sliders" size={17} color={colors.mutedForeground} />
-            </ScalePressable>
+        <View style={styles.quickLogSection}>
+          <View style={styles.quickLogHeading}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Log food</Text>
+            <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Choose the quickest way to add to {isToday(selectedDate) ? 'today' : formatShortDate(selectedDate)}.</Text>
           </View>
-          <AnimatedMacroBar label="Protein" value={selectedTotals.protein} target={Math.round(target * 0.26 / 4)} color={colors.protein} colors={colors} />
-          <AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={Math.round(target * 0.44 / 4)} color={colors.carbs} colors={colors} />
-          <AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={Math.round(target * 0.3 / 9)} color={colors.fat} colors={colors} />
+          <View style={styles.quickActions}>
+            <IconButton icon="camera" label="Photo log" onPress={openAdd} colors={colors} primary />
+            <IconButton icon="search" label="Search foods" onPress={openAdd} colors={colors} />
+            <IconButton icon="edit-3" label="Quick add" onPress={openAdd} colors={colors} />
+          </View>
         </View>
 
         <View style={styles.mealHeader}>
@@ -998,11 +978,6 @@ export default function HomeScreen() {
             <Feather name="plus" size={16} color={colors.primaryForeground} />
             <Text style={[styles.addMealText, { color: colors.primaryForeground }]}>Add</Text>
           </ScalePressable>
-        </View>
-        <View style={[styles.dateNav, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Pressable accessibilityLabel="Previous diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() - 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={17} color={colors.foreground} /></Pressable>
-          <View style={{ alignItems: 'center' }}><Text style={[styles.dateNavLabel, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today' : formatShortDate(selectedDate)}</Text><Text style={[styles.dateNavSub, { color: colors.mutedForeground }]}>{selectedDate}</Text></View>
-          <Pressable accessibilityLabel="Next diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() + 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={17} color={colors.foreground} /></Pressable>
         </View>
         <View style={[styles.logCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {!selectedLogs.length && <View style={styles.emptyDiary}><View style={styles.emptyDiaryVisual}><Image source={require('../../assets/images/calora-home-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} /><LinearGradient colors={['rgba(18,34,24,0.1)', 'rgba(18,34,24,0.68)']} style={StyleSheet.absoluteFillObject} /><View style={styles.emptyDiaryVisualLabel}><Feather name="sunrise" size={12} color="#d4eadc" /><Text style={styles.emptyDiaryVisualText}>MAKE SPACE FOR A MEAL</Text></View></View><Feather name="calendar" size={22} color={colors.mutedForeground} /><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>Nothing logged yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal for this day and it will stay here offline.</Text></View>}
@@ -1025,6 +1000,62 @@ export default function HomeScreen() {
           <Feather name="check-circle" size={15} color={colors.success} />
           <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved on this device · waiting for a connection' : syncState === 'local' ? 'Saved on this device · ready to sync' : syncState === 'offline' ? 'Loading your local diary…' : 'Core foods are sourced from verified nutrition data.'}</Text>
         </View>
+
+        <PlannerPeek selectedDate={selectedDate} />
+
+        <LivingRhythmCard
+          colors={colors}
+          livingState={livingState}
+          waterOunces={selectedWater}
+          mealsLogged={mealsLogged}
+          selectedDate={selectedDate}
+        />
+
+        <WellnessCards
+          colors={colors}
+          waterOunces={selectedWater}
+          mealsLogged={mealsLogged}
+          mealNames={mealNames}
+          mood={moodLogs[selectedDate]}
+          waterConfirmed={waterConfirmed}
+          onAddWater={() => {
+            if (waterConfirmed) return;
+            addWater(selectedDate, 8);
+            setSaveNotice('Water check-in added for this day.');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            recordWaterConfirmation();
+            setWaterConfirmed(true);
+          }}
+          onAddMeal={openAdd}
+          onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
+        />
+
+        <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Macro balance</Text>
+              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your detailed nutrition view for this day.</Text>
+            </View>
+            <ScalePressable
+              accessibilityLabel="Edit nutrition goals"
+              accessibilityRole="button"
+              onPress={() => router.navigate('/(tabs)/profile')}
+              scale={0.9}
+              haptic="none"
+              style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="sliders" size={17} color={colors.mutedForeground} />
+            </ScalePressable>
+          </View>
+          <AnimatedMacroBar label="Protein" value={selectedTotals.protein} target={Math.round(target * 0.26 / 4)} color={colors.protein} colors={colors} />
+          <AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={Math.round(target * 0.44 / 4)} color={colors.carbs} colors={colors} />
+          <AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={Math.round(target * 0.3 / 9)} color={colors.fat} colors={colors} />
+        </View>
+
+        <View style={styles.recipeSection}>
+          <Text style={[styles.recipeSectionEyebrow, { color: colors.mutedForeground }]}>FOR LATER</Text>
+          <RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} />
+        </View>
       </ScrollView>
       <AddFoodModal visible={showAdd} entryDate={selectedDate} onClose={() => setShowAdd(false)} />
       <EditLogModal log={editingLog} onClose={() => setEditingLog(null)} />
@@ -1036,8 +1067,8 @@ export default function HomeScreen() {
 function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
-  homeHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 16, backgroundColor: '#1b3022' },
-  homeHeaderContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
+   homeHeader: { minHeight: 154, borderRadius: 25, overflow: 'hidden', marginBottom: 16, backgroundColor: '#1b3022' },
+   homeHeaderContent: { minHeight: 154, padding: 19, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 16, left: 19, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   homeHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   homeHeaderBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
@@ -1049,7 +1080,7 @@ function makeStyles(f: number) {
   homeHeaderCoachIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   homeHeaderCoachText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.1 },
   homeHeaderDate: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 8 * f, letterSpacing: 0.7, textAlign: 'right', maxWidth: 146 },
-  homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 26 * f, letterSpacing: -0.7 },
+   homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 23 * f, letterSpacing: -0.7 },
   homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, marginTop: 7 },
   scrollContent: { paddingHorizontal: 20 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
@@ -1063,7 +1094,12 @@ function makeStyles(f: number) {
   trustBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 12 },
   trustText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   heroInsight: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16, marginTop: 14, opacity: 0.82 },
-  livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 42, borderRadius: 14, paddingHorizontal: 14, marginTop: 20 },
+   fuelSnapshot: { flexDirection: 'row', borderTopWidth: 1, paddingTop: 13, marginTop: 5 },
+   fuelSnapshotItem: { flex: 1, alignItems: 'center' },
+   fuelSnapshotValue: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, letterSpacing: -0.25 },
+   fuelSnapshotLabel: { fontFamily: 'Inter_500Medium', fontSize: 9 * f, textTransform: 'uppercase', letterSpacing: 0.45, marginTop: 3, textAlign: 'center' },
+   livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 42, borderRadius: 14, paddingHorizontal: 14, marginTop: 16 },
+   livingActionSecondary: { borderWidth: 1 },
   livingActionText: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
   livingRhythmCard: { borderWidth: 1, borderRadius: 22, padding: 16, marginBottom: 20 },
   livingRhythmHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -1084,11 +1120,16 @@ function makeStyles(f: number) {
   livingRhythmTrackLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, textTransform: 'uppercase', letterSpacing: 0.7 },
   livingRhythmTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
   livingRhythmFill: { height: 6, borderRadius: 3 },
-  quickActions: { flexDirection: 'row', gap: 10, marginBottom: 22 },
+   quickLogSection: { marginBottom: 22 },
+   quickLogHeading: { marginBottom: 12 },
+   quickActions: { flexDirection: 'row', gap: 10 },
   quickAction: { flex: 1, minHeight: 88, borderWidth: 1, borderRadius: 18, padding: 12, justifyContent: 'space-between' },
+   quickActionPrimary: { shadowColor: '#1b3022', shadowOpacity: 0.12, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   quickIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   quickLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   recipeWidget: { borderWidth: 1, borderRadius: 22, padding: 14, marginBottom: 24 },
+   recipeSection: { marginTop: 2 },
+   recipeSectionEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginBottom: 9 },
   recipeWidgetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
   recipeWidgetHeaderActions: { alignItems: 'flex-end', gap: 7 },
   recipeWidgetNav: { flexDirection: 'row', gap: 5 },

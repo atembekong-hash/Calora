@@ -2,7 +2,7 @@
  * Home screen — living-state action button smoke tests.
  *
  * These tests verify that:
- *   1. The action button is always rendered (unconditional in the hero card).
+ *   1. The action button is always rendered (unconditional in the fuel card).
  *   2. First-launch state drives a `log_meal` action → opens the Add Food modal.
  *   3. A reflection-ready evening state drives a `view_progress` action → navigates
  *      to the insights route.
@@ -61,7 +61,7 @@ describe('living-state-action button — static render guarantee', () => {
   it('is not behind any conditional guard in the HomeScreen source', async () => {
     /**
      * The button at testID="living-state-action" sits directly inside the
-     * hero card View without any surrounding conditional expression.
+ * fuel card View without any surrounding conditional expression.
      * We verify this by reading the source and confirming the testID appears
      * exactly once, outside of any `{condition &&` or ternary guard.
      *
@@ -262,5 +262,37 @@ describe('resolveLivingActionEffect — full dispatch matrix', () => {
       kind: 'navigate',
       route: '/(tabs)/planner',
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 5. Today dashboard hierarchy and precision
+// ---------------------------------------------------------------------------
+
+describe('Today dashboard — date context and display contracts', () => {
+  it('keeps exactly one selected-day navigator and places the diary before plan and recipes', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source.split('accessibilityLabel="Previous diary day"').length - 1).toBe(1);
+    expect(source.indexOf("Today’s log")).toBeLessThan(source.indexOf('<PlannerPeek'));
+    expect(source.indexOf('<PlannerPeek')).toBeLessThan(source.indexOf('<RecipeSwipeWidget'));
+  });
+
+  it('rounds displayed calories while retaining one decimal place for macro display', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('formatWhole(log.calories)');
+    expect(source).toContain('formatQuantity(value, 1)');
+    expect(source).toContain('formatQuantity(selectedTotals.protein, 1)');
   });
 });
