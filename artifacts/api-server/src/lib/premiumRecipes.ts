@@ -74,6 +74,20 @@ function fatSecretNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function fatSecretIngredient(row: unknown): string | null {
+  if (!row || typeof row !== "object") return null;
+  const item = row as Record<string, unknown>;
+  // Recipe v2 exposes food_name plus optional quantity/measurement rather than
+  // the legacy ingredient_description used by the older server.api response.
+  const description = string(item.ingredient_description);
+  if (description) return description;
+  const food = string(item.food_name) ?? string(item.ingredient_name);
+  if (!food) return null;
+  const amount = string(item.number_of_units);
+  const measurement = string(item.measurement_description);
+  return [amount, measurement, food].filter(Boolean).join(" ");
+}
+
 function fatSecretRecipe(input: unknown): PremiumRecipe | null {
   if (!input || typeof input !== "object") return null;
   const raw = input as Record<string, unknown>;
@@ -81,15 +95,21 @@ function fatSecretRecipe(input: unknown): PremiumRecipe | null {
   const name = string(raw.recipe_name);
   if (!recipeId || !name) return null;
   const nutrition = raw.recipe_nutrition && typeof raw.recipe_nutrition === "object" ? raw.recipe_nutrition as Record<string, unknown> : {};
-  const ingredientRows = raw.recipe_ingredients && typeof raw.recipe_ingredients === "object" ? (raw.recipe_ingredients as { ingredient?: unknown }).ingredient : [];
-  const instructionRows = raw.recipe_directions && typeof raw.recipe_directions === "object" ? (raw.recipe_directions as { direction?: unknown }).direction : [];
+  const ingredientSource = (raw.ingredients ?? raw.recipe_ingredients);
+  const directionSource = (raw.directions ?? raw.recipe_directions);
+  const ingredientRows = ingredientSource && typeof ingredientSource === "object"
+    ? (ingredientSource as { ingredient?: unknown }).ingredient
+    : [];
+  const instructionRows = directionSource && typeof directionSource === "object"
+    ? (directionSource as { direction?: unknown }).direction
+    : [];
   const ingredientList = Array.isArray(ingredientRows) ? ingredientRows : ingredientRows ? [ingredientRows] : [];
   const directionList = Array.isArray(instructionRows) ? instructionRows : instructionRows ? [instructionRows] : [];
   const nutrients = nutrition as Record<string, unknown>;
   return {
     id: `premium:FatSecret:${recipeId}`, name, image: string(raw.recipe_image), category: null, area: null,
     description: string(raw.recipe_description), instructions: directionList.map((row) => row && typeof row === "object" ? string((row as Record<string, unknown>).direction_description) : null).filter((v): v is string => Boolean(v)).join("\n") || null,
-    ingredients: ingredientList.map((row) => row && typeof row === "object" ? string((row as Record<string, unknown>).ingredient_description) : null).filter((v): v is string => Boolean(v)),
+    ingredients: ingredientList.map(fatSecretIngredient).filter((v): v is string => Boolean(v)),
     tags: [], prepMinutes: fatSecretNumber(raw.preparation_time_min), cookMinutes: fatSecretNumber(raw.cooking_time_min), totalMinutes: null, servings: fatSecretNumber(raw.number_of_servings),
     cuisine: null, mealType: null, difficulty: null, dietary: [], allergens: [], equipment: [], fiberG: fatSecretNumber(nutrients.fiber), sodiumMg: fatSecretNumber(nutrients.sodium),
     calories: fatSecretNumber(nutrients.calories), proteinG: fatSecretNumber(nutrients.protein), carbsG: fatSecretNumber(nutrients.carbohydrate), fatG: fatSecretNumber(nutrients.fat),
