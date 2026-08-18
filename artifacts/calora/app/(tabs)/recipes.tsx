@@ -22,6 +22,8 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance, recipeSourceLabel } from '@/lib/recipeModel';
+import { getApiBaseUrl } from '@/lib/api-config';
+import { supabase } from '@/lib/supabase';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -128,6 +130,52 @@ function UpcomingRecipeSection({
       </ScalePressable>
     </View>
   );
+}
+
+type RecipeConcept = { title: string; summary: string; whyItFits: string; keyIngredients: string[]; estimatedMinutes: number | null };
+function CreateConcepts({ colors }: { colors: ReturnType<typeof useCalora>['colors'] }) {
+  const { shoppingItems, plannerMeals, logs, profile } = useCalora();
+  const [mode, setMode] = useState<'pantry' | 'goals' | 'tell' | 'surprise'>('pantry');
+  const [request, setRequest] = useState('');
+  const [ingredients, setIngredients] = useState('');
+  const [mealType, setMealType] = useState('Dinner');
+  const [servings, setServings] = useState('2');
+  const [minutes, setMinutes] = useState('30');
+  const [concepts, setConcepts] = useState<RecipeConcept[]>([]);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [error, setError] = useState('');
+  const abortRef = useRef<AbortController | null>(null);
+  const start = (next: typeof mode) => {
+    setMode(next);
+    if (next === 'pantry') setIngredients(shoppingItems.filter((item) => !item.checked).slice(0, 8).map((item) => item.name).join(', '));
+    if (next === 'goals') setRequest(`${profile?.diet ?? 'Balanced'} ${mealType.toLowerCase()} that supports my ${profile?.goal ?? 'wellness'} goal`);
+    if (next === 'surprise') setRequest(`A fresh ${mealType.toLowerCase()} idea inspired by my plan: ${plannerMeals.slice(0, 2).map((meal) => meal.name).join(', ')}`);
+  };
+  const generate = async () => {
+    abortRef.current?.abort(); const controller = new AbortController(); abortRef.current = controller;
+    setStatus('loading'); setError('');
+    try {
+      const contextIngredients = mode === 'pantry' ? ingredients : ingredients || logs.slice(0, 3).map((log) => log.name).join(', ');
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const response = await fetch(`${getApiBaseUrl()}/api/v1/recipes/concepts`, { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, signal: controller.signal, body: JSON.stringify({ ingredients: contextIngredients.split(',').map((item) => item.trim()).filter(Boolean), mealType, servings: Number(servings), maxMinutes: Number(minutes), preferences: profile ? [profile.diet, `${profile.goal} goal`] : [], request }) });
+      const data = await response.json() as { concepts?: RecipeConcept[]; message?: string };
+      if (!response.ok) throw new Error(data.message ?? 'Ideas are unavailable.');
+      setConcepts(data.concepts ?? []); setStatus('idle');
+    } catch (cause) {
+      if ((cause as Error).name === 'AbortError') {
+        setStatus('idle');
+        abortRef.current = null;
+      } else {
+        setStatus('error');
+        setError((cause as Error).message);
+      }
+    }
+  };
+  const constraints = [{ label: 'Meal', value: mealType, setter: setMealType }, { label: 'Serves', value: servings, setter: setServings }, { label: 'Minutes', value: minutes, setter: setMinutes }];
+  // Feather’s bundled type list lags the installed icon font; this is a display-only icon.
+  // @ts-expect-error icon font includes this runtime glyph
+  return <View><Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>Start with what matters today. Calora returns ideas—not full recipes—so you stay in control.</Text><View style={styles.createModeGrid}>{([['pantry', 'Use what I have', 'shopping-bag'], ['goals', 'Match my goals', 'target'], ['tell', 'Tell Calora', 'message-circle'], ['surprise', 'Surprise me', 'shuffle']] as const).map(([key, label, icon]) => <Pressable key={key} onPress={() => start(key)} style={[styles.createModeCard, { backgroundColor: mode === key ? colors.accent : colors.card, borderColor: colors.border }]}><Feather name={icon} size={17} color={colors.primary} /><Text style={[styles.createModeText, { color: colors.foreground }]}>{label}</Text></Pressable>)}</View><View style={[styles.createSheet, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Ingredients or request</Text><TextInput value={mode === 'tell' ? request : ingredients} onChangeText={mode === 'tell' ? setRequest : setIngredients} placeholder={mode === 'tell' ? 'e.g. cozy vegetarian dinner with lentils' : 'e.g. lentils, spinach, lemon'} placeholderTextColor={colors.mutedForeground} multiline style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} /><View style={styles.createConstraintRow}>{constraints.map((item) => <View key={item.label} style={{ flex: 1 }}><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{item.label}</Text><TextInput value={item.value} onChangeText={item.setter} style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} /></View>)}</View><ScalePressable onPress={generate} disabled={status === 'loading'} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name={status === 'loading' ? 'loader' : 'sparkles'} size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{status === 'loading' ? 'Generating concepts…' : 'Generate 3 ideas'}</Text></ScalePressable>{status === 'loading' && <Pressable onPress={() => abortRef.current?.abort()}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>}{status === 'error' && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{error}</Text><Pressable onPress={generate}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}</View>{concepts.map((concept, index) => <View key={`${concept.title}-${index}`} style={[styles.recipeCard, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={styles.cardContent}><Text style={[styles.detailEyebrow, { color: colors.primary }]}>CONCEPT {index + 1}</Text><Text style={[styles.recipeName, { color: colors.foreground }]}>{concept.title}</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{concept.summary}</Text><Text style={[styles.sourceText, { color: colors.mutedForeground }]}>{concept.whyItFits}{concept.estimatedMinutes ? ` · ~${concept.estimatedMinutes} min` : ''}</Text></View></View>)}</View>;
 }
 
 function PremiumCatalogue({ colors, onOpen, onSave }: { colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void }) {
@@ -804,7 +852,7 @@ export default function RecipesScreen() {
   };
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <AppHeader title="Recipes" action={<Pressable accessibilityLabel="Create your own recipe" onPress={() => setShowCreate(true)}><Feather name="plus" size={21} color={colors.primary} /></Pressable>} />
+      <AppHeader title="Recipes" action={<Pressable accessibilityLabel="Create personalized recipe ideas" onPress={() => changeSection('create')}><Feather name="plus" size={21} color={colors.primary} /></Pressable>} />
       <View accessibilityRole="tablist" style={[styles.sectionTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}>
         {(['discover', 'premium', 'create'] as const).map((section) => {
           const selectedSection = activeSection === section;
@@ -842,7 +890,7 @@ export default function RecipesScreen() {
         <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length + localMatches.length} quick meals from loaded recipes` : `${visibleRemote.length + localMatches.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
         {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes from open sources…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>The cookbook is offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your saved and personal recipes remain available. Try again when a connection is available.</Text></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Recipes you create will live here, separate from open-source content.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create your first recipe</Text></Pressable></View>}<Animated.View entering={FadeInDown.springify().damping(20).delay(80)} style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</Animated.View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Connection lost — showing loaded recipes only.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Bringing in more recipes…</Text></View>}</>}
         <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is provided by TheMealDB. Recipes remain attributed to their source; {BRAND.name}'s nutrition confidence is shown separately.</Text>
-        </> : activeSection === 'premium' ? <PremiumCatalogue colors={colors} onOpen={(recipe) => setSelected(recipe)} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} /> : <UpcomingRecipeSection section="create" colors={colors} onDiscover={() => changeSection('discover')} />}
+        </> : activeSection === 'premium' ? <PremiumCatalogue colors={colors} onOpen={(recipe) => setSelected(recipe)} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} /> : <CreateConcepts colors={colors} />}
       </ScrollView>
       <RecipeDetailModal
         recipe={selected}
@@ -1016,6 +1064,10 @@ function makeStyles(f: number) {
   formErrorText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 14 },
   numberGrid: { flexDirection: 'row', gap: 7, marginTop: 11 },
   inputLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginBottom: 5 },
+  createModeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginBottom: 12 },
+  createModeCard: { width: '48%', minHeight: 80, borderRadius: 15, borderWidth: 1, padding: 13, justifyContent: 'space-between' },
+  createModeText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, marginTop: 9 },
+  createConstraintRow: { flexDirection: 'row', gap: 8, marginTop: 11 },
   createInput: { height: 45, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
   ingredientsInput: { height: 100, borderWidth: 1, borderRadius: 12, padding: 11, textAlignVertical: 'top', fontFamily: 'Inter_400Regular', fontSize: 12 * f, marginTop: 11 },
   fitsBadge: { position: 'absolute', left: 10, top: 10, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 3 },
