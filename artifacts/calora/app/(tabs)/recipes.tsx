@@ -22,8 +22,7 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance, recipeSourceLabel } from '@/lib/recipeModel';
-import { getApiBaseUrl } from '@/lib/api-config';
-import { supabase } from '@/lib/supabase';
+import { requestGeneratedRecipe, requestRecipeConcepts } from '@/lib/recipeGeneration';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -159,11 +158,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
     setStatus('loading'); setError(''); setConcepts([]);
     try {
       const contextIngredients = mode === 'pantry' ? ingredients : ingredients || logs.slice(0, 3).map((log) => log.name).join(', ');
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      const response = await fetch(`${getApiBaseUrl()}/api/v1/recipes/concepts`, { method: 'POST', headers: { 'content-type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, signal: controller.signal, body: JSON.stringify({ ingredients: contextIngredients.split(',').map((item) => item.trim()).filter(Boolean), mealType, servings: Number(servings), maxMinutes: Number(minutes), preferences: profile ? [profile.diet, `${profile.goal} goal`] : [], request }) });
-      const data = await response.json() as { concepts?: RecipeConcept[]; message?: string };
-      if (!response.ok) throw new Error(data.message ?? 'Ideas are unavailable.');
+      const data = await requestRecipeConcepts<{ concepts?: RecipeConcept[] }>({ ingredients: contextIngredients.split(',').map((item) => item.trim()).filter(Boolean), mealType, servings: Number(servings), maxMinutes: Number(minutes), preferences: profile ? [profile.diet, `${profile.goal} goal`] : [], request }, controller.signal);
       setConcepts(data.concepts ?? []); setStatus('idle');
     } catch (cause) {
       if ((cause as Error).name === 'AbortError') {
@@ -181,10 +176,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
     finishingRef.current = true;
     setFinishingTitle(concept.title); setError('');
     try {
-      const { data } = await supabase.auth.getSession();
-      const response = await fetch(`${getApiBaseUrl()}/api/v1/recipes/generated`, { method: 'POST', headers: { 'content-type': 'application/json', ...(data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {}) }, body: JSON.stringify({ title: concept.title, summary: concept.summary, servings: Number(servings) }) });
-      const generated = await response.json();
-      if (!response.ok) throw new Error(generated.message ?? 'Recipe generation is unavailable.');
+      const generated = await requestGeneratedRecipe<{ name: string; description: string; ingredients: string[]; instructions: string[]; prepMinutes: number | null; servings: number; allergens?: string[]; nutrition?: { calories?: number; proteinG?: number; carbsG?: number; fatG?: number } }>({ title: concept.title, summary: concept.summary, servings: Number(servings) });
       onOpenRecipe(saveRecipe({ name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, calories: generated.nutrition?.calories, proteinG: generated.nutrition?.proteinG, carbsG: generated.nutrition?.carbsG, fatG: generated.nutrition?.fatG, source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', createdAt: new Date().toISOString() }));
     } catch (cause) { setError((cause as Error).message); } finally { finishingRef.current = false; setFinishingTitle(null); }
   };
