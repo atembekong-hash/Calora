@@ -94,7 +94,13 @@ function fatSecretRecipe(input: unknown): PremiumRecipe | null {
   const recipeId = string(raw.recipe_id);
   const name = string(raw.recipe_name);
   if (!recipeId || !name) return null;
-  const nutrition = raw.recipe_nutrition && typeof raw.recipe_nutrition === "object" ? raw.recipe_nutrition as Record<string, unknown> : {};
+  const servingSizes = raw.serving_sizes && typeof raw.serving_sizes === "object"
+    ? (raw.serving_sizes as { serving?: unknown }).serving
+    : null;
+  const firstServing = Array.isArray(servingSizes) ? servingSizes[0] : servingSizes;
+  const nutrition = raw.recipe_nutrition && typeof raw.recipe_nutrition === "object"
+    ? raw.recipe_nutrition as Record<string, unknown>
+    : firstServing && typeof firstServing === "object" ? firstServing as Record<string, unknown> : {};
   const ingredientSource = (raw.ingredients ?? raw.recipe_ingredients);
   const directionSource = (raw.directions ?? raw.recipe_directions);
   const ingredientRows = ingredientSource && typeof ingredientSource === "object"
