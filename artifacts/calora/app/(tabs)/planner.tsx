@@ -12,7 +12,7 @@ import { formatCalories, formatGrams, formatWhole } from '@/lib/formatters';
 import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
 import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
-import { PLAN_TYPES, findPlanType, type PlanTypeId } from '@/lib/planType';
+import { PLAN_TYPES, findPlanType, type PlanType, type PlanTypeId } from '@/lib/planType';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -231,6 +231,8 @@ export default function PlannerScreen() {
   const [customFat, setCustomFat] = useState('');
   const [customIngredients, setCustomIngredients] = useState('');
   const [planTypeVisible, setPlanTypeVisible] = useState(false);
+  const [programDetail, setProgramDetail] = useState<PlanType | null>(null);
+  const [programRebuildConfirm, setProgramRebuildConfirm] = useState<PlanType | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -1094,11 +1096,7 @@ export default function PlannerScreen() {
                     <Pressable
                       key={pt.id}
                        accessibilityLabel={`Choose ${pt.label} Program`}
-                      onPress={() => {
-                        setPlannerPreferences({ primary: pt.id as PlanTypeId });
-                        setPlanTypeVisible(false);
-                        acknowledge(`${pt.label} will guide your next build.`);
-                      }}
+                       onPress={() => setProgramDetail(pt)}
                       style={[styles.planTypeOptionRow, {
                         backgroundColor: isSelected ? colors.accent : colors.card,
                         borderColor: isSelected ? colors.primary : colors.border,
@@ -1121,6 +1119,38 @@ export default function PlannerScreen() {
                   );
                 })}
               </ScrollView>
+            </View>
+          </View>
+        </Modal>
+        <Modal visible={programDetail !== null} transparent animationType="slide" onRequestClose={() => setProgramDetail(null)}>
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
+              <View style={styles.sheetHandle} />
+              {programDetail && <>
+                <SheetHeader eyebrow="PROGRAM DETAILS" title={programDetail.label} onClose={() => setProgramDetail(null)} colors={colors} />
+                <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>{programDetail.description}</Text>
+                <View style={[styles.programDetailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.programDetailLabel, { color: colors.primary }]}>HOW IT SHAPES YOUR PLAN</Text>
+                  <Text style={[styles.programDetailText, { color: colors.foreground }]}>Meal selection, nutrition emphasis, recipe ranking, suggested replacements, and the next generated week.</Text>
+                  <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Your calorie target and saved dietary preferences stay in control.</Text>
+                </View>
+                <ScalePressable accessibilityLabel={`Start ${programDetail.label} next week`} onPress={() => { setPlannerPreferences({ primary: programDetail.id }); setProgramDetail(null); setPlanTypeVisible(false); acknowledge(`${programDetail.label} is ready for your next build.`); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10 }]}>
+                  <Feather name="calendar" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Start next week</Text>
+                </ScalePressable>
+                <Pressable accessibilityLabel={`Rebuild this week with ${programDetail.label}`} onPress={() => { setProgramRebuildConfirm(programDetail); setProgramDetail(null); }} style={styles.programRebuildLink}><Text style={[styles.programRebuildText, { color: colors.primary }]}>Rebuild this week instead</Text></Pressable>
+              </>}
+            </View>
+          </View>
+        </Modal>
+        <Modal visible={programRebuildConfirm !== null} transparent animationType="fade" onRequestClose={() => setProgramRebuildConfirm(null)}>
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.actionSheet, { backgroundColor: colors.background }]}>
+              {programRebuildConfirm && <>
+                <SheetHeader eyebrow="CONFIRM REFRESH" title={`Refresh with ${programRebuildConfirm.label}?`} onClose={() => setProgramRebuildConfirm(null)} colors={colors} />
+                <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Calora will use this Program for an explicit refresh and keep the meals you have already planned in place wherever possible.</Text>
+                <ScalePressable accessibilityLabel="Confirm refresh this week" onPress={() => { const program = programRebuildConfirm; setPlannerPreferences({ primary: program.id }); setProgramRebuildConfirm(null); setPlanTypeVisible(false); void generate(); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 0 }]}><Feather name="refresh-cw" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Refresh this week</Text></ScalePressable>
+                <Pressable accessibilityLabel="Cancel week refresh" onPress={() => setProgramRebuildConfirm(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Keep my current week</Text></Pressable>
+              </>}
             </View>
           </View>
         </Modal>
@@ -1235,6 +1265,11 @@ function makeStyles(f: number) {
    programEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1.1, marginBottom: 4 },
    programTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
    programMeta: { fontFamily: 'Inter_400Regular', fontSize: 9.5 * f, marginTop: 3 },
+   programDetailCard: { borderRadius: 15, borderWidth: 1, padding: 13, marginTop: 16, gap: 7 },
+   programDetailLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 0.9 },
+   programDetailText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f },
+   programRebuildLink: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5 },
+   programRebuildText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   generationStatus: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   generationStatusText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 },
   dayDivider: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },
