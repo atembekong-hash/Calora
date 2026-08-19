@@ -149,6 +149,27 @@ describe('buildAcceptResult — review approval', () => {
     expect(log.meal).toBe('Breakfast');
   });
 
+  it('carries durable image metadata into the accepted diary log', () => {
+    const draft = makeDraft({
+      imageUrl: 'https://images.openfoodfacts.org/eggs.jpg',
+      imageSource: 'provider',
+    });
+    const { log } = buildAcceptResult(draft, nextId('log'), LATER);
+    expect(log.imageUrl).toBe('https://images.openfoodfacts.org/eggs.jpg');
+    expect(log.imageSource).toBe('provider');
+  });
+
+  it('drops temporary image data before producing a persisted diary log', () => {
+    const draft = makeDraft({
+      imageUrl: 'data:image/jpeg;base64,temporary',
+      imageSource: 'provider',
+    });
+    const { log, memory } = buildAcceptResult(draft, nextId('log'), LATER);
+    expect(log.imageUrl).toBeUndefined();
+    expect(log.imageSource).toBeUndefined();
+    expect(memory.imageUrl).toBeUndefined();
+  });
+
   it('calories/macros on the log match the draft nutrition', () => {
     const component = makeComponent({ calories: 300, proteinG: 25, carbsG: 20, fatG: 8, eatenFraction: 1, included: true });
     const draft = makeDraft({ components: [component] });

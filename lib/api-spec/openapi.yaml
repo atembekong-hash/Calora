@@ -680,6 +680,23 @@ components:
         confidence: { type: integer, minimum: 0, maximum: 100 }
         clientUpdatedAt: { type: string, format: date-time }
         notes: { type: string, nullable: true }
+        imageUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          nullable: true
+          description: |
+            Optional http(s) URL of a representative image for this entry
+            (e.g. an Open Food Facts product photo). Omitted or null when no
+            image is associated. The server only stores absolute http/https
+            URLs; other values are rejected or dropped.
+        imageSource:
+          type: string
+          maxLength: 80
+          nullable: true
+          description: |
+            Optional short label describing where the image came from
+            (e.g. "Open Food Facts", "user_photo"). Null when no image is set.
     DiaryEntry:
       allOf:
         - $ref: "#/components/schemas/DiaryEntryInput"
@@ -930,6 +947,20 @@ components:
         provenance: { type: string }
         sourceLabel: { type: string }
         editable: { type: boolean }
+        imageUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          nullable: true
+          description: |
+            Optional http(s) URL of a representative product image for this
+            candidate (e.g. an Open Food Facts product photo). Null when the
+            provider returned no usable image.
+        imageSource:
+          type: string
+          maxLength: 80
+          nullable: true
+          description: Optional short label describing the image's origin.
     CaptureConfidence:
       type: object
       required: [identity, portion, nutritionSource, preparation]
@@ -1270,6 +1301,20 @@ components:
         confidence: { type: integer, minimum: 0, maximum: 100 }
         notes: { type: string, maxLength: 2000 }
         clientUpdatedAt: { type: string, format: date-time }
+        imageUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          nullable: true
+          description: |
+            Optional http(s) URL of a representative image for this entry.
+            Only absolute http/https URLs are persisted; other values are
+            dropped so a fabricated payload cannot inject arbitrary content.
+        imageSource:
+          type: string
+          maxLength: 80
+          nullable: true
+          description: Optional short label describing the image's origin.
     DiaryFirstLogResult:
       type: object
       required: [synced, alreadyExisted]

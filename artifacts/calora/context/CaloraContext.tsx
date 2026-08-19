@@ -60,6 +60,11 @@ import {
 } from '@/lib/livingMemory';
 import type { PlannerAck } from '@/lib/plannerAck';
 import { normalizePlannerPreferences } from '@/lib/planType';
+import {
+  normalizeFoodImageMetadata,
+  normalizeFoodImageUrl,
+  type FoodImageSource,
+} from '@/lib/foodImageMetadata';
 export type { PlannerPreferences, PlanTypeId } from '@/lib/planType';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
@@ -94,6 +99,8 @@ export type FoodLog = {
   memoryId?: string;
   plannerMealId?: string;
   sourceRecipeId?: string;
+  imageUrl?: string;
+  imageSource?: FoodImageSource;
   nutritionSnapshot?: { calories: number; proteinG: number; carbsG: number; fatG: number; capturedAt: string };
 };
 
@@ -195,6 +202,24 @@ type CaloraState = {
   fontSizeScale?: 'small' | 'default' | 'large' | 'xlarge';
   profilePhotoUri?: string;
 };
+
+function normalizeLogImageMetadata(log: FoodLog): FoodLog {
+  return {
+    ...log,
+    ...normalizeFoodImageMetadata(log.imageUrl, log.imageSource),
+  };
+}
+
+function normalizeMemoryImageMetadata<T extends FoodMemoryDraft>(memory: T): T {
+  return {
+    ...memory,
+    ...normalizeFoodImageMetadata(memory.imageUrl, memory.imageSource),
+    components: memory.components.map((component) => ({
+      ...component,
+      imageUrl: normalizeFoodImageUrl(component.imageUrl),
+    })),
+  };
+}
 
 type CaloraContextValue = {
   logs: FoodLog[];
@@ -318,7 +343,7 @@ type CaloraContextValue = {
   repeatPatterns: RepeatPattern[];
   createFoodMemoryDraft: (analysis: CaptureAnalysis, date?: string, meal?: MealType) => FoodMemoryDraft;
   createFoodMemorySourceDraft: (input: Parameters<typeof sourceComponentsToDraft>[0]) => FoodMemoryDraft;
-  createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean }, date?: string, meal?: MealType) => FoodMemoryDraft;
+  createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null }, date?: string, meal?: MealType) => FoodMemoryDraft;
   createPlannerDraft: (meal: PlannerMeal) => FoodMemoryDraft;
   updateFoodMemoryDraft: (draftId: string, components: FoodMemoryComponent[]) => void;
   acceptFoodMemory: (draftId: string, draftOverride?: FoodMemoryDraft) => FoodLog | null;
@@ -494,11 +519,15 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     if (!saved) return;
     if (saved.onboardingComplete !== undefined) setOnboardingComplete(saved.onboardingComplete);
     if (saved.profile) setProfile(saved.profile);
-     const normalizedLogs = saved.logs?.map((log) => ({ ...log, date: log.date ?? today, serving: log.serving ?? '1 serving' })) ?? starterLogs;
+     const normalizedLogs = saved.logs?.map((log) => normalizeLogImageMetadata({
+       ...log,
+       date: log.date ?? today,
+       serving: log.serving ?? '1 serving',
+     })) ?? starterLogs;
      if (saved.logs) setLogs(normalizedLogs);
      const migratedMemories = migrateFoodMemories(saved, normalizedLogs);
-     setFoodDrafts(migratedMemories.foodDrafts);
-     setFoodMemories(migratedMemories.foodMemories);
+     setFoodDrafts(migratedMemories.foodDrafts.map(normalizeMemoryImageMetadata));
+     setFoodMemories(migratedMemories.foodMemories.map(normalizeMemoryImageMetadata));
      setRepeatPatterns(migratedMemories.repeatPatterns);
      setMemoryCorrections(migratedMemories.memoryCorrections);
       setLivingMemory(mergeLivingMemory(saved.livingMemory, buildLivingMemory({
@@ -725,17 +754,18 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     addLog: (log) => {
       const id = makeId('log');
       const capturedAt = new Date().toISOString();
-      const nextLog = {
+      const nutritionSnapshot = {
+        calories: log.calories,
+        proteinG: log.protein,
+        carbsG: log.carbs,
+        fatG: log.fat,
+        capturedAt,
+      };
+      const nextLog = normalizeLogImageMetadata({
         ...log,
         id,
-        nutritionSnapshot: {
-          calories: log.calories,
-          proteinG: log.protein,
-          carbsG: log.carbs,
-          fatG: log.fat,
-          capturedAt,
-        },
-      };
+        nutritionSnapshot,
+      });
       const component: FoodMemoryComponent = {
         id: `${id}-component`,
         name: log.name,
@@ -752,6 +782,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         confidenceDimensions: { identity: log.confidence, portion: log.confidence, nutritionSource: log.confidence, preparation: log.confidence },
         assumptions: [],
         reviewQuestions: [],
+        imageUrl: nextLog.imageUrl,
       };
       const acceptedMemory: AcceptedFoodMemory = {
         id: `memory-${id}`,
@@ -762,8 +793,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         date: log.date,
         meal: log.meal,
         components: [component],
-        nutrition: nextLog.nutritionSnapshot,
-        originalNutrition: nextLog.nutritionSnapshot,
+        nutrition: nutritionSnapshot,
+        originalNutrition: nutritionSnapshot,
         provenance: component.provenance,
         sourceLabel: log.source,
         confidence: log.confidence,
@@ -771,6 +802,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
         assumptions: [],
         reviewQuestions: [],
         imageRetention: 'not_collected',
+       imageUrl: nextLog.imageUrl,
+       imageSource: nextLog.imageSource,
         createdAt: capturedAt,
         updatedAt: capturedAt,
         acceptedAt: capturedAt,
@@ -784,7 +817,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     updateLog: (id, patch) => {
       const existing = logs.find((log) => log.id === id);
-      const updated = existing ? { ...existing, ...patch } : null;
+       const updated = existing ? normalizeLogImageMetadata({ ...existing, ...patch }) : null;
       if (updated) {
         setLivingMemory((memory) => upsertMealObservation(
           removeMealObservation(memory, id),
@@ -793,7 +826,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
           updated.meal,
         ));
       }
-      setLogs((current) => current.map((log) => log.id === id ? { ...log, ...patch } : log));
+      setLogs((current) => current.map((log) => log.id === id ? normalizeLogImageMetadata({ ...log, ...patch }) : log));
       queueMutation('diaryEntry', 'upsert');
     },
     removeLog: (id) => {
@@ -829,8 +862,9 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
       // draftOverride lets callers that just created the draft (in the same
       // render cycle) pass it directly, avoiding the stale-closure issue that
       // would otherwise cause setFoodDrafts' queued update to be invisible here.
-      const draft = draftOverride ?? foodDrafts.find((item) => item.id === draftId && item.status === 'draft');
-      if (!draft) return null;
+      const rawDraft = draftOverride ?? foodDrafts.find((item) => item.id === draftId && item.status === 'draft');
+      if (!rawDraft) return null;
+      const draft = normalizeMemoryImageMetadata(rawDraft);
       if (draft.plannerMealId) {
         const existingPlannerLog = logs.find((log) => log.plannerMealId === draft.plannerMealId);
         if (existingPlannerLog) {

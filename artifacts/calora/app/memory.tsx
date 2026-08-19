@@ -10,6 +10,7 @@ import type { LivingMemoryKind } from '@/lib/livingMemory';
 import { buildDiaryRows, buildWellnessRows, buildPlannerRows } from '@/lib/memorySections';
 import { isStaleDate, relativeTime as computeRelativeTime } from '@/lib/memoryDateHelpers';
 import { AppHeader } from '@/components/AppChrome';
+import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 const moodLabels: Record<Mood, string> = {
@@ -39,6 +40,7 @@ function MemoryRow({
   colors,
   onForget,
   onEdit,
+  foodLog,
 }: {
   icon: keyof typeof Feather.glyphMap;
   title: string;
@@ -47,14 +49,19 @@ function MemoryRow({
   colors: ReturnType<typeof useCalora>['colors'];
   onForget: () => void;
   onEdit?: () => void;
+  foodLog?: FoodLog;
 }) {
   const stale = lastActiveDate ? isStaleDate(lastActiveDate) : false;
   const timeLabel = lastActiveDate ? computeRelativeTime(lastActiveDate) : '';
   return (
     <View style={[styles.memoryRow, { backgroundColor: colors.card, borderColor: stale ? colors.border : colors.border }]}>
-      <View style={[styles.rowIcon, { backgroundColor: stale ? colors.muted : colors.accent }]}>
-        <Feather name={icon} size={15} color={stale ? colors.mutedForeground : colors.accentForeground} />
-      </View>
+      {foodLog ? (
+        <FoodLogThumbnail log={foodLog} size={42} borderRadius={12} />
+      ) : (
+        <View style={[styles.rowIcon, { backgroundColor: stale ? colors.muted : colors.accent }]}>
+          <Feather name={icon} size={15} color={stale ? colors.mutedForeground : colors.accentForeground} />
+        </View>
+      )}
       <View style={styles.rowCopy}>
         <View style={styles.rowTitleRow}>
           <Text style={[styles.rowTitle, { color: colors.foreground, flex: 1 }]}>{title}</Text>
@@ -314,6 +321,7 @@ export default function LivingMemoryScreen() {
                       detail={`${row.meal}${log ? ` · ${log.serving}` : ''}`}
                       lastActiveDate={row.date}
                       colors={colors}
+                      foodLog={log}
                       onEdit={log ? () => startEdit(log) : undefined}
                       onForget={() => forget('meal', row.id, label)}
                     />

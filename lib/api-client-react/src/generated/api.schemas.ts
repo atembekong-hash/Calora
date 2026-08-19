@@ -145,6 +145,20 @@ export interface DiaryEntryInput {
   confidence: number;
   clientUpdatedAt: string;
   notes?: string | null;
+  /**
+     * Optional http(s) URL of a representative image for this entry
+     * (e.g. an Open Food Facts product photo). Omitted or null when no
+     * image is associated. The server only stores absolute http/https
+     * URLs; other values are rejected or dropped.
+     * @maxLength 2048
+     */
+  imageUrl?: string | null;
+  /**
+     * Optional short label describing where the image came from
+     * (e.g. "Open Food Facts", "user_photo"). Null when no image is set.
+     * @maxLength 80
+     */
+  imageSource?: string | null;
 }
 
 export type DiaryEntry = DiaryEntryInput & {
@@ -565,6 +579,18 @@ export interface CaptureCandidate {
   provenance: string;
   sourceLabel: string;
   editable: boolean;
+  /**
+     * Optional http(s) URL of a representative product image for this
+     * candidate (e.g. an Open Food Facts product photo). Null when the
+     * provider returned no usable image.
+     * @maxLength 2048
+     */
+  imageUrl?: string | null;
+  /**
+     * Optional short label describing the image's origin.
+     * @maxLength 80
+     */
+  imageSource?: string | null;
 }
 
 export interface CaptureConfidence {
@@ -1131,6 +1157,18 @@ export interface DiaryFirstLogInput {
   /** @maxLength 2000 */
   notes?: string;
   clientUpdatedAt: string;
+  /**
+     * Optional http(s) URL of a representative image for this entry.
+     * Only absolute http/https URLs are persisted; other values are
+     * dropped so a fabricated payload cannot inject arbitrary content.
+     * @maxLength 2048
+     */
+  imageUrl?: string | null;
+  /**
+     * Optional short label describing the image's origin.
+     * @maxLength 80
+     */
+  imageSource?: string | null;
 }
 
 export interface DiaryFirstLogResult {

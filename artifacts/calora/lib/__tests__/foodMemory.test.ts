@@ -490,6 +490,15 @@ describe('updateDraftComponents', () => {
     const updated = updateDraftComponents(baseDraft, baseDraft.components, LATER);
     expect(updated.updatedAt).toBe(LATER);
   });
+
+  it('does not retain temporary component image data in an edited draft', () => {
+    const updated = updateDraftComponents(baseDraft, [
+      makeComponent({ imageUrl: 'blob:https://camera.example/temporary' }),
+    ], NOW);
+    expect(updated.components[0].imageUrl).toBeUndefined();
+    expect(updated.imageUrl).toBeUndefined();
+    expect(updated.imageSource).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -675,6 +684,26 @@ describe('recipeToDraft', () => {
     expect(draft.nutrition.calories).toBe(0);
     expect(draft.nutrition.proteinG).toBe(0);
   });
+
+  it('preserves a durable recipe image for the accepted diary flow', () => {
+    const draft = recipeToDraft(
+      {
+        id: 'r8',
+        name: 'Roasted vegetable bowl',
+        calories: 410,
+        proteinG: 16,
+        carbsG: 55,
+        fatG: 14,
+        source: 'Calora Premium',
+        image: 'https://www.themealdb.com/images/media/meals/recipe.jpg',
+      },
+      '2026-08-06',
+      'Dinner',
+      NOW,
+    );
+    expect(draft.imageUrl).toBe('https://www.themealdb.com/images/media/meals/recipe.jpg');
+    expect(draft.imageSource).toBe('recipe');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -713,6 +742,25 @@ describe('sourceComponentsToDraft', () => {
       now: NOW,
     });
     expect(draft.imageRetention).toBe('not_collected');
+  });
+
+  it('does not retain temporary or untrusted component images', () => {
+    const draft = sourceComponentsToDraft({
+      inputType: 'text',
+      title: 'Captured snack',
+      date: '2026-08-06',
+      meal: 'Snack',
+      components: [
+        makeComponent({ id: 'camera', imageUrl: 'file:///tmp/camera.jpg' }),
+        makeComponent({ id: 'untrusted', imageUrl: 'https://untrusted.example/snack.jpg' }),
+      ],
+      sourceLabel: 'Capture',
+      provenance: 'photo_estimate',
+      now: NOW,
+    });
+    expect(draft.components.every((component) => component.imageUrl === undefined)).toBe(true);
+    expect(draft.imageUrl).toBeUndefined();
+    expect(draft.imageSource).toBeUndefined();
   });
 });
 

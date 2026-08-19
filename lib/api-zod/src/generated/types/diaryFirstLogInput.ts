@@ -62,4 +62,16 @@ export interface DiaryFirstLogInput {
   /** @maxLength 2000 */
   notes?: string;
   clientUpdatedAt: Date;
+  /**
+     * Optional http(s) URL of a representative image for this entry.
+     * Only absolute http/https URLs are persisted; other values are
+     * dropped so a fabricated payload cannot inject arbitrary content.
+     * @maxLength 2048
+     */
+  imageUrl?: string | null;
+  /**
+     * Optional short label describing the image's origin.
+     * @maxLength 80
+     */
+  imageSource?: string | null;
 }

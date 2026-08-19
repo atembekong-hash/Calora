@@ -25,6 +25,7 @@ import { CreateDiaryEntryBody, SyncFirstDiaryEntryBody } from "@workspace/api-zo
 import { db, aiCaptureCandidatesTable, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
+import { normalizeImageMetadata } from "../lib/image-metadata.js";
 
 const router: IRouter = Router();
 
@@ -147,6 +148,8 @@ function serialize(row: typeof diaryEntriesTable.$inferSelect) {
     provenance: row.provenance,
     confidence: row.confidence,
     notes: row.notes,
+    imageUrl: row.imageUrl,
+    imageSource: row.imageSource,
     clientUpdatedAt: row.clientUpdatedAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -169,6 +172,10 @@ router.post("/v1/diary", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid diary entry" });
   const entry = parsed.data;
   const userId = await ensureUserRow(auth.id, auth.email);
+  // Image metadata is optional and provider/user supplied — re-validate it
+  // here (never trust the Zod url() alone) so only trusted absolute HTTPS URLs
+  // are persisted and a source label without a URL is dropped.
+  const image = normalizeImageMetadata(entry.imageUrl, entry.imageSource);
   const values: typeof diaryEntriesTable.$inferInsert = {
     userId,
     entryDate: entry.entryDate.toISOString().slice(0, 10),
@@ -182,6 +189,8 @@ router.post("/v1/diary", async (req, res) => {
     provenance: entry.provenance,
     confidence: entry.confidence,
     notes: entry.notes ?? null,
+    imageUrl: image.imageUrl,
+    imageSource: image.imageSource,
     clientUpdatedAt: entry.clientUpdatedAt,
   };
   const [created] = await db.insert(diaryEntriesTable).values(values).returning();
@@ -280,6 +289,7 @@ router.post("/v1/diary/first-log", async (req, res) => {
         .returning({ id: aiCaptureSessionsTable.id });
       if (rows.length === 0) return false;
 
+      const image = normalizeImageMetadata(entry.imageUrl, entry.imageSource);
       const values: typeof diaryEntriesTable.$inferInsert = {
         userId,
         entryDate: entry.entryDate.toISOString().slice(0, 10),
@@ -293,6 +303,8 @@ router.post("/v1/diary/first-log", async (req, res) => {
         provenance: entry.provenance,
         confidence: entry.confidence,
         notes: entry.notes,
+        imageUrl: image.imageUrl,
+        imageSource: image.imageSource,
         clientUpdatedAt: entry.clientUpdatedAt,
       };
       await tx.insert(diaryEntriesTable).values(values);

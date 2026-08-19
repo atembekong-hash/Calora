@@ -55,11 +55,12 @@ export function useDiarySync() {
   }, []);
 
   // A stable key that changes when any log is added, removed, or edited.
-  // Using id:date:meal:name:calories covers additions and common edits
+  // Include image metadata so a provider image arriving after initial logging
+  // is persisted even when nutrition and meal details have not changed.
   // without depending on the full array reference.
   const logsKey = logs
     .filter((l) => !isStarterLog(l))
-    .map((l) => `${l.id}:${l.date}:${l.meal}:${l.name}:${Math.round(l.calories)}`)
+    .map((l) => `${l.id}:${l.date}:${l.meal}:${l.name}:${Math.round(l.calories)}:${l.imageUrl ?? ''}:${l.imageSource ?? ''}`)
     .join('|');
 
   // Always reflects the latest logsKey so the in-flight run can detect drift

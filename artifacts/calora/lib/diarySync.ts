@@ -336,6 +336,8 @@ function signature(log: FoodLog): string {
     log.source,
     log.confidence,
     log.notes ?? '',
+    log.imageUrl ?? '',
+    log.imageSource ?? '',
   ].join('|');
 }
 
@@ -359,6 +361,8 @@ function toUpsertMutation(log: FoodLog) {
       provenance: log.source,
       confidence: Math.max(0, Math.min(100, Math.round(log.confidence))),
       notes: log.notes ?? null,
+      imageUrl: log.imageUrl ?? null,
+      imageSource: log.imageSource ?? null,
     },
   };
 }

@@ -31,4 +31,18 @@ export interface DiaryEntryInput {
   confidence: number;
   clientUpdatedAt: Date;
   notes?: string | null;
+  /**
+     * Optional http(s) URL of a representative image for this entry
+     * (e.g. an Open Food Facts product photo). Omitted or null when no
+     * image is associated. The server only stores absolute http/https
+     * URLs; other values are rejected or dropped.
+     * @maxLength 2048
+     */
+  imageUrl?: string | null;
+  /**
+     * Optional short label describing where the image came from
+     * (e.g. "Open Food Facts", "user_photo"). Null when no image is set.
+     * @maxLength 80
+     */
+  imageSource?: string | null;
 }

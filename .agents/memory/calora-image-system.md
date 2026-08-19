@@ -9,6 +9,12 @@ Calora imagery should be purposeful: editorial photography belongs on headers an
 
 **How to apply:** Prefer bundled local assets and branded fallbacks when remote food images are absent. Keep overlays dark enough for readable text, preserve stable image aspect ratios, and leave Smart Scan camera UI visually focused unless explicitly redesigned.
 
+Diary thumbnails must always render a bundled category fallback unless a durable HTTPS URL from an allowlisted food-image provider is available. Normalize image metadata before every local or server persistence boundary; never retain camera, file, blob, data, or arbitrary-host URLs.
+
+**Why:** Guaranteed local fallbacks keep every diary row visual offline and after remote failures, while write-time normalization prevents temporary captures or untrusted URLs from leaking into persisted nutrition records.
+
+**How to apply:** When adding an image provider, update the client and server host allowlists and their rejection tests together. Store only the URL and provenance class; never store image bytes in diary data.
+
 Dashboard inspiration cards should support native horizontal swiping plus visible previous/next controls for web reliability; detail actions should hand off through a one-time route parameter and open the existing recipe detail sheet.
 
 **Why:** Nested horizontal gestures are inconsistent in browser previews, while the shared detail flow preserves attribution, nutrition confidence, and review behavior.

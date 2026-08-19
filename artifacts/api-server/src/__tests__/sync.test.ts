@@ -246,6 +246,44 @@ describe('POST /v1/sync', () => {
     expect(executeCalls).toHaveLength(0);
   });
 
+  it('accepts an upsert carrying optional image metadata', async () => {
+    verifyBearerToken.mockResolvedValue(USER);
+
+    const mid = randomUUID();
+    const withImage = validUpsert(
+      {
+        imageUrl: 'https://images.openfoodfacts.org/products/1.jpg',
+        imageSource: 'Open Food Facts',
+      },
+      mid,
+    );
+    const res = await request(app).post('/v1/sync').send(body([withImage]));
+
+    expect(res.status).toBe(200);
+    expect(res.body.accepted).toContain(mid);
+    expect(res.body.conflicts).toHaveLength(0);
+    // diary upsert + sync_mutations insert.
+    expect(executeCalls).toHaveLength(2);
+  });
+
+  it('accepts an upsert with an unsafe image URL, dropping it rather than failing', async () => {
+    verifyBearerToken.mockResolvedValue(USER);
+
+    // A javascript: URL is not a valid image reference. The entry must still
+    // be written (image simply dropped) so a bad image never loses a log.
+    const mid = randomUUID();
+    const badImage = validUpsert(
+      { imageUrl: 'javascript:alert(1)', imageSource: 'evil' },
+      mid,
+    );
+    const res = await request(app).post('/v1/sync').send(body([badImage]));
+
+    expect(res.status).toBe(200);
+    expect(res.body.accepted).toContain(mid);
+    expect(res.body.conflicts).toHaveLength(0);
+    expect(executeCalls).toHaveLength(2);
+  });
+
   it('rejects an upsert with a negative calorie value', async () => {
     verifyBearerToken.mockResolvedValue(USER);
 

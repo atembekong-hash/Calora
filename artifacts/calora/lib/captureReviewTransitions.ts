@@ -12,6 +12,10 @@ import type {
   FoodMemoryDraft,
   RepeatPattern,
 } from './foodMemory';
+import {
+  normalizeFoodImageMetadata,
+  type FoodImageSource,
+} from './foodImageMetadata';
 
 // Re-export the FoodSource type so callers share one definition.
 export type FoodSource =
@@ -43,6 +47,8 @@ export type FoodLog = {
   memoryId?: string;
   plannerMealId?: string;
   sourceRecipeId?: string;
+  imageUrl?: string;
+  imageSource?: FoodImageSource;
   nutritionSnapshot?: {
     calories: number;
     proteinG: number;
@@ -86,6 +92,7 @@ export function buildAcceptResult(
   acceptedAt: string,
 ): { log: FoodLog; memory: AcceptedFoodMemory } {
   const snapshot = { ...draft.nutrition, capturedAt: acceptedAt };
+  const image = normalizeFoodImageMetadata(draft.imageUrl, draft.imageSource);
   const serving =
     draft.components
       .filter((c) => c.included)
@@ -110,11 +117,15 @@ export function buildAcceptResult(
     memoryId: draft.id,
     plannerMealId: draft.plannerMealId,
     sourceRecipeId: draft.sourceRecipeId,
+    imageUrl: image.imageUrl,
+    imageSource: image.imageSource,
     nutritionSnapshot: snapshot,
   };
 
   const memory: AcceptedFoodMemory = {
     ...draft,
+    imageUrl: image.imageUrl,
+    imageSource: image.imageSource,
     status: 'accepted',
     nutrition: snapshot,
     updatedAt: acceptedAt,

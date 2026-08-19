@@ -66,6 +66,8 @@ function makeLog(overrides: Partial<{
   source: FoodSource;
   confidence: number;
   notes: string;
+  imageUrl: string;
+  imageSource: 'provider' | 'recipe' | 'planner';
   nutritionSnapshot: { calories: number; proteinG: number; carbsG: number; fatG: number; capturedAt: string } | undefined;
 }> = {}) {
   return {
@@ -335,6 +337,35 @@ describe('syncDiaryLogs: skips permanently-rejected logs', () => {
       .map((m) => m.payload.clientId);
     expect(sentIds).not.toContain('log-1');
     expect(sentIds).toContain('log-2');
+  });
+});
+
+describe('syncDiaryLogs: image metadata', () => {
+  beforeEach(() => {
+    for (const k of Object.keys(store)) delete store[k];
+    mockSyncOutbox.mockReset();
+  });
+
+  it('syncs image metadata and detects an image-only update', async () => {
+    const { syncDiaryLogs } = await freshDiarySync();
+    mockSyncOutbox.mockImplementation(async (request: { mutations: Array<{ mutationId: string }> }) => ({
+      accepted: request.mutations.map((mutation) => mutation.mutationId),
+      conflicts: [],
+      nextCursor: '',
+    }));
+
+    const original = makeLog({ id: 'log-image' });
+    await syncDiaryLogs([original]);
+    await syncDiaryLogs([{
+      ...original,
+      imageUrl: 'https://images.openfoodfacts.org/chicken.jpg',
+      imageSource: 'provider',
+    }]);
+
+    expect(mockSyncOutbox).toHaveBeenCalledTimes(2);
+    const secondPayload = mockSyncOutbox.mock.calls[1][0].mutations[0].payload;
+    expect(secondPayload.imageUrl).toBe('https://images.openfoodfacts.org/chicken.jpg');
+    expect(secondPayload.imageSource).toBe('provider');
   });
 });
 

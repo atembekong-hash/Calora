@@ -24,6 +24,7 @@ import { sql } from "drizzle-orm";
 import { db, aiCaptureSessionsTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
+import { normalizeImageMetadata } from "../lib/image-metadata.js";
 
 const router: IRouter = Router();
 
@@ -74,6 +75,14 @@ type DiaryUpsertPayload = {
   provenance: string;
   confidence: number;
   notes: string | null;
+  /**
+   * Optional trusted absolute HTTPS image URL for this entry. NULL when absent
+   * or when the supplied value failed URL validation — a fabricated payload
+   * can never inject an untrusted or non-HTTPS value here.
+   */
+  imageUrl: string | null;
+  /** Optional short image-source label; forced NULL when imageUrl is NULL. */
+  imageSource: string | null;
 };
 
 function parseDiaryUpsert(
@@ -146,6 +155,14 @@ function parseDiaryUpsert(
         ? payload.notes.trim().slice(0, 2000) || null
         : null
       : null;
+  // Optional image metadata is validated defensively: only absolute
+  // trusted HTTPS URLs survive, and a source label without a valid URL is
+  // dropped. Invalid values become NULL rather than failing the whole
+  // mutation, preserving backward compatibility for clients that omit them.
+  const { imageUrl, imageSource } = normalizeImageMetadata(
+    payload.imageUrl,
+    payload.imageSource,
+  );
   return {
     ok: true,
     value: {
@@ -162,6 +179,8 @@ function parseDiaryUpsert(
       provenance: payload.provenance as string,
       confidence: payload.confidence as number,
       notes,
+      imageUrl,
+      imageSource,
     },
   };
 }
@@ -331,7 +350,7 @@ router.post("/v1/sync", async (req, res) => {
             INSERT INTO calora_diary_entries
               (user_id, client_id, capture_session_id, entry_date, meal, name, serving,
                calories, protein_g, carbs_g, fat_g, provenance,
-               confidence, notes, client_updated_at)
+               confidence, notes, image_url, image_source, client_updated_at)
             VALUES
               (${userId}::uuid, ${v.clientId}, ${verifiedCaptureSessionId}::uuid,
                ${v.entryDate}::date, ${v.meal},
@@ -339,7 +358,7 @@ router.post("/v1/sync", async (req, res) => {
                ${String(v.calories)}::numeric, ${String(v.proteinG)}::numeric,
                ${String(v.carbsG)}::numeric, ${String(v.fatG)}::numeric,
                ${v.provenance}, ${v.confidence}::integer,
-               ${v.notes}, now())
+               ${v.notes}, ${v.imageUrl}, ${v.imageSource}, now())
             ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL
             DO UPDATE SET
               entry_date          = EXCLUDED.entry_date,
@@ -353,6 +372,8 @@ router.post("/v1/sync", async (req, res) => {
               provenance          = EXCLUDED.provenance,
               confidence          = EXCLUDED.confidence,
               notes               = EXCLUDED.notes,
+              image_url           = EXCLUDED.image_url,
+              image_source        = EXCLUDED.image_source,
               capture_session_id  = COALESCE(EXCLUDED.capture_session_id, calora_diary_entries.capture_session_id),
               client_updated_at   = EXCLUDED.client_updated_at,
               updated_at          = now()

@@ -148,6 +148,10 @@ export const listDiaryEntriesResponseEntriesItemOneFatGMin = 0;
 export const listDiaryEntriesResponseEntriesItemOneConfidenceMin = 0;
 export const listDiaryEntriesResponseEntriesItemOneConfidenceMax = 100;
 
+export const listDiaryEntriesResponseEntriesItemOneImageUrlMax = 2048;
+
+export const listDiaryEntriesResponseEntriesItemOneImageSourceMax = 80;
+
 
 
 export const ListDiaryEntriesResponse = zod.object({
@@ -164,7 +168,9 @@ export const ListDiaryEntriesResponse = zod.object({
   "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(listDiaryEntriesResponseEntriesItemOneConfidenceMin).max(listDiaryEntriesResponseEntriesItemOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "imageUrl": zod.string().url().max(listDiaryEntriesResponseEntriesItemOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
+  "imageSource": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n')
 }).and(zod.object({
   "id": zod.string().uuid(),
   "updatedAt": zod.coerce.date()
@@ -188,6 +194,10 @@ export const createDiaryEntryBodyFatGMin = 0;
 export const createDiaryEntryBodyConfidenceMin = 0;
 export const createDiaryEntryBodyConfidenceMax = 100;
 
+export const createDiaryEntryBodyImageUrlMax = 2048;
+
+export const createDiaryEntryBodyImageSourceMax = 80;
+
 
 
 export const CreateDiaryEntryBody = zod.object({
@@ -202,7 +212,9 @@ export const CreateDiaryEntryBody = zod.object({
   "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(createDiaryEntryBodyConfidenceMin).max(createDiaryEntryBodyConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "imageUrl": zod.string().url().max(createDiaryEntryBodyImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
+  "imageSource": zod.string().max(createDiaryEntryBodyImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n')
 })
 
 
@@ -218,6 +230,10 @@ export const createDiaryEntryResponseOneFatGMin = 0;
 export const createDiaryEntryResponseOneConfidenceMin = 0;
 export const createDiaryEntryResponseOneConfidenceMax = 100;
 
+export const createDiaryEntryResponseOneImageUrlMax = 2048;
+
+export const createDiaryEntryResponseOneImageSourceMax = 80;
+
 
 
 export const CreateDiaryEntryResponse = zod.object({
@@ -232,7 +248,9 @@ export const CreateDiaryEntryResponse = zod.object({
   "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(createDiaryEntryResponseOneConfidenceMin).max(createDiaryEntryResponseOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "imageUrl": zod.string().url().max(createDiaryEntryResponseOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
+  "imageSource": zod.string().max(createDiaryEntryResponseOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n')
 }).and(zod.object({
   "id": zod.string().uuid(),
   "updatedAt": zod.coerce.date()
@@ -280,6 +298,10 @@ export const updateDiaryEntryResponseOneFatGMin = 0;
 export const updateDiaryEntryResponseOneConfidenceMin = 0;
 export const updateDiaryEntryResponseOneConfidenceMax = 100;
 
+export const updateDiaryEntryResponseOneImageUrlMax = 2048;
+
+export const updateDiaryEntryResponseOneImageSourceMax = 80;
+
 
 
 export const UpdateDiaryEntryResponse = zod.object({
@@ -294,7 +316,9 @@ export const UpdateDiaryEntryResponse = zod.object({
   "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
   "confidence": zod.number().int().min(updateDiaryEntryResponseOneConfidenceMin).max(updateDiaryEntryResponseOneConfidenceMax),
   "clientUpdatedAt": zod.coerce.date(),
-  "notes": zod.string().nullish()
+  "notes": zod.string().nullish(),
+  "imageUrl": zod.string().url().max(updateDiaryEntryResponseOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
+  "imageSource": zod.string().max(updateDiaryEntryResponseOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n')
 }).and(zod.object({
   "id": zod.string().uuid(),
   "updatedAt": zod.coerce.date()
@@ -837,6 +861,10 @@ export const analyzeCaptureResponseCandidatesItemFatGMin = 0;
 export const analyzeCaptureResponseCandidatesItemConfidenceMin = 0;
 export const analyzeCaptureResponseCandidatesItemConfidenceMax = 100;
 
+export const analyzeCaptureResponseCandidatesItemImageUrlMax = 2048;
+
+export const analyzeCaptureResponseCandidatesItemImageSourceMax = 80;
+
 export const analyzeCaptureResponseComponentsItemOneCaloriesMin = 0;
 
 export const analyzeCaptureResponseComponentsItemOneProteinGMin = 0;
@@ -847,6 +875,10 @@ export const analyzeCaptureResponseComponentsItemOneFatGMin = 0;
 
 export const analyzeCaptureResponseComponentsItemOneConfidenceMin = 0;
 export const analyzeCaptureResponseComponentsItemOneConfidenceMax = 100;
+
+export const analyzeCaptureResponseComponentsItemOneImageUrlMax = 2048;
+
+export const analyzeCaptureResponseComponentsItemOneImageSourceMax = 80;
 
 export const analyzeCaptureResponseComponentsItemTwoEatenFractionMin = 0;
 export const analyzeCaptureResponseComponentsItemTwoEatenFractionMax = 1;
@@ -888,7 +920,9 @@ export const AnalyzeCaptureResponse = zod.object({
   "confidence": zod.number().int().min(analyzeCaptureResponseCandidatesItemConfidenceMin).max(analyzeCaptureResponseCandidatesItemConfidenceMax),
   "provenance": zod.string(),
   "sourceLabel": zod.string(),
-  "editable": zod.boolean()
+  "editable": zod.boolean(),
+  "imageUrl": zod.string().url().max(analyzeCaptureResponseCandidatesItemImageUrlMax).nullish().describe('Optional http(s) URL of a representative product image for this\ncandidate (e.g. an Open Food Facts product photo). Null when the\nprovider returned no usable image.\n'),
+  "imageSource": zod.string().max(analyzeCaptureResponseCandidatesItemImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.')
 })),
   "components": zod.array(zod.object({
   "id": zod.string(),
@@ -902,7 +936,9 @@ export const AnalyzeCaptureResponse = zod.object({
   "confidence": zod.number().int().min(analyzeCaptureResponseComponentsItemOneConfidenceMin).max(analyzeCaptureResponseComponentsItemOneConfidenceMax),
   "provenance": zod.string(),
   "sourceLabel": zod.string(),
-  "editable": zod.boolean()
+  "editable": zod.boolean(),
+  "imageUrl": zod.string().url().max(analyzeCaptureResponseComponentsItemOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative product image for this\ncandidate (e.g. an Open Food Facts product photo). Null when the\nprovider returned no usable image.\n'),
+  "imageSource": zod.string().max(analyzeCaptureResponseComponentsItemOneImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.')
 }).and(zod.object({
   "componentId": zod.string(),
   "preparation": zod.string().nullish(),
@@ -1315,6 +1351,10 @@ export const syncFirstDiaryEntryBodyConfidenceMax = 100;
 
 export const syncFirstDiaryEntryBodyNotesMax = 2000;
 
+export const syncFirstDiaryEntryBodyImageUrlMax = 2048;
+
+export const syncFirstDiaryEntryBodyImageSourceMax = 80;
+
 
 
 export const SyncFirstDiaryEntryBody = zod.object({
@@ -1330,7 +1370,9 @@ export const SyncFirstDiaryEntryBody = zod.object({
   "provenance": zod.string().min(1).max(syncFirstDiaryEntryBodyProvenanceMax),
   "confidence": zod.number().int().min(syncFirstDiaryEntryBodyConfidenceMin).max(syncFirstDiaryEntryBodyConfidenceMax),
   "notes": zod.string().max(syncFirstDiaryEntryBodyNotesMax).optional(),
-  "clientUpdatedAt": zod.coerce.date()
+  "clientUpdatedAt": zod.coerce.date(),
+  "imageUrl": zod.string().url().max(syncFirstDiaryEntryBodyImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry.\nOnly absolute http\/https URLs are persisted; other values are\ndropped so a fabricated payload cannot inject arbitrary content.\n'),
+  "imageSource": zod.string().max(syncFirstDiaryEntryBodyImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.')
 })
 
 export const SyncFirstDiaryEntryResponse = zod.object({

@@ -27,6 +27,7 @@ import { BRAND } from '@/lib/brand';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { PlannerPeek } from '@/components/PlannerPeek';
+import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 import { trustScore } from '@/lib/weeklySignals';
 import { formatGrams, formatQuantity, formatWhole } from '@/lib/formatters';
 import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
@@ -417,7 +418,7 @@ function AnimatedWaterSlot({ filled, muted }: { filled: boolean; muted: string }
 function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typeof useCalora>['colors']; onEdit: () => void }) {
   return (
     <ScalePressable accessibilityLabel={`Edit ${log.name}`} onPress={onEdit} scale={0.98} haptic="none" style={[styles.mealRow, { borderBottomColor: colors.border }]}>
-      <View style={[styles.mealDot, { backgroundColor: log.meal === 'Breakfast' ? colors.warning : log.meal === 'Lunch' ? colors.success : colors.primary }]} />
+      <FoodLogThumbnail log={log} />
       <View style={styles.mealInfo}>
         <Text style={[styles.mealName, { color: colors.foreground }]} numberOfLines={1}>{log.name}</Text>
         <View style={styles.mealMeta}>
@@ -1208,7 +1209,6 @@ function makeStyles(f: number) {
   logCard: { borderWidth: 1, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 4 },
   mealGroup: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.2, marginTop: 14, marginBottom: 2 },
   mealRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, gap: 10 },
-  mealDot: { width: 8, height: 8, borderRadius: 4 },
   mealInfo: { flex: 1, minWidth: 0 },
   mealName: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f },
   mealMeta: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 5 },

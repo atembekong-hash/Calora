@@ -7,6 +7,7 @@ import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
+import { safeImageUrl, safeImageSource } from "../lib/image-metadata.js";
 
 // ---------------------------------------------------------------------------
 // DB-backed rate limiter for POST /v1/capture/analyze
@@ -126,6 +127,8 @@ type CaptureCandidate = Nutrition & {
   provenance: string;
   sourceLabel: string;
   editable: boolean;
+  imageUrl: string | null;
+  imageSource: string | null;
 };
 
 type ConfidenceDimensions = {
@@ -156,6 +159,8 @@ function normalizeBarcode(value: string) {
 }
 
 function ensureCandidate(candidate: Partial<CaptureCandidate>, index: number): CaptureCandidate {
+  // Validate the image URL once; a source label without a valid URL is dropped.
+  const imageUrl = safeImageUrl(candidate.imageUrl);
   return {
     id: candidate.id || `capture-candidate-${index + 1}`,
     name: candidate.name?.trim() || "Unidentified food",
@@ -169,6 +174,10 @@ function ensureCandidate(candidate: Partial<CaptureCandidate>, index: number): C
     provenance: candidate.provenance || "Photo estimate",
     sourceLabel: candidate.sourceLabel || "Managed vision estimate",
     editable: true,
+    // Image metadata is defensively validated: only trusted absolute HTTPS
+    // URLs survive, and a source label without a valid URL is dropped.
+    imageUrl,
+    imageSource: imageUrl ? safeImageSource(candidate.imageSource) : null,
   };
 }
 
@@ -212,6 +221,14 @@ function offCandidate(product: Record<string, any>, barcode: string): CaptureCan
   const name = String(product.product_name ?? product.product_name_en ?? "").trim();
   if (!name) return null;
   const hasMacros = calories > 0 && (proteinG > 0 || carbsG > 0 || fatG > 0);
+  // Open Food Facts exposes several product image fields; prefer the front
+  // product photo, falling back to the generic image. safeImageUrl() in
+  // ensureCandidate drops anything that is not a trusted absolute HTTPS URL.
+  const offImageUrl =
+    product.image_front_url ??
+    product.image_url ??
+    product.image_front_small_url ??
+    null;
   return ensureCandidate({
     id: `off-${barcode}`,
     name,
@@ -224,12 +241,14 @@ function offCandidate(product: Record<string, any>, barcode: string): CaptureCan
     confidence: hasMacros ? 94 : 78,
     provenance: hasMacros ? "Barcode verified" : "Barcode product match",
     sourceLabel: "Open Food Facts",
+    imageUrl: typeof offImageUrl === "string" ? offImageUrl : null,
+    imageSource: typeof offImageUrl === "string" ? "Open Food Facts" : null,
   }, 0);
 }
 
 async function lookupBarcode(barcode: string) {
   try {
-    const data = await fetchJson(`${OPEN_FOOD_FACTS_ROOT}/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,serving_size,nutriments`);
+    const data = await fetchJson(`${OPEN_FOOD_FACTS_ROOT}/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,serving_size,nutriments,image_url,image_front_url,image_front_small_url`);
     if (data.status === 1 && data.product) {
       const candidate = offCandidate(data.product, barcode);
       if (candidate) return { candidate, provider: "Open Food Facts" };

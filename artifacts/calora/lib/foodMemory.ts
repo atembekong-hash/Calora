@@ -1,4 +1,9 @@
 import type { CaptureAnalysis, CaptureComponent } from '@workspace/api-client-react';
+import {
+  normalizeFoodImageMetadata,
+  normalizeFoodImageUrl,
+  type FoodImageSource,
+} from '@/lib/foodImageMetadata';
 
 export const FOOD_MEMORY_SCHEMA_VERSION = 1;
 
@@ -41,6 +46,7 @@ export type FoodMemoryComponent = {
   assumptions: string[];
   reviewQuestions: string[];
   nutritionRange?: { caloriesLow: number; caloriesHigh: number };
+  imageUrl?: string;
 };
 
 export type FoodMemoryDraft = {
@@ -73,6 +79,8 @@ export type FoodMemoryDraft = {
   correctionIds: string[];
   plannerMealId?: string;
   sourceRecipeId?: string;
+  imageUrl?: string;
+  imageSource?: FoodImageSource;
 };
 
 export type AcceptedFoodMemory = FoodMemoryDraft & {
@@ -169,6 +177,7 @@ function componentFromCapture(component: CaptureComponent, inputType: FoodMemory
     assumptions: component.assumptions ?? [],
     reviewQuestions: component.reviewQuestions ?? [],
     nutritionRange: component.nutritionRange,
+    imageUrl: normalizeFoodImageUrl(component.imageUrl),
   };
 }
 
@@ -206,6 +215,7 @@ export function captureAnalysisToDraft(
     },
   }));
   const components = rawComponents.map((component) => componentFromCapture(component, inputType));
+  const imageUrl = components.map((component) => component.imageUrl).find(Boolean);
   const nutrition = nutritionForComponents(components, now);
   const confidence = confidenceForComponents(components);
   const provenance = components[0]?.provenance ?? 'photo_estimate';
@@ -238,6 +248,8 @@ export function captureAnalysisToDraft(
     createdAt: now,
     updatedAt: now,
     correctionIds: [],
+    imageUrl,
+    imageSource: imageUrl ? 'provider' : undefined,
   };
 }
 
@@ -251,11 +263,20 @@ export function sourceComponentsToDraft(input: {
   provenance: FoodMemoryProvenance;
   assumptions?: string[];
   reviewQuestions?: string[];
+  imageUrl?: string | null;
+  imageSource?: FoodImageSource;
   now?: string;
 }): FoodMemoryDraft {
   const now = input.now ?? new Date().toISOString();
-  const nutrition = nutritionForComponents(input.components, now);
-  const confidence = confidenceForComponents(input.components);
+  const components = input.components.map((component) => ({
+    ...component,
+    imageUrl: normalizeFoodImageUrl(component.imageUrl),
+  }));
+  const nutrition = nutritionForComponents(components, now);
+  const confidence = confidenceForComponents(components);
+  const directImage = normalizeFoodImageMetadata(input.imageUrl, input.imageSource);
+  const imageUrl = directImage.imageUrl
+    ?? components.map((component) => component.imageUrl).find(Boolean);
   return {
     id: `memory-draft-${input.inputType}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     schemaVersion: FOOD_MEMORY_SCHEMA_VERSION,
@@ -264,7 +285,7 @@ export function sourceComponentsToDraft(input: {
     title: input.title,
     date: input.date,
     meal: input.meal,
-    components: input.components,
+    components,
     nutrition,
     originalNutrition: { ...nutrition },
     provenance: input.provenance,
@@ -277,18 +298,29 @@ export function sourceComponentsToDraft(input: {
     createdAt: now,
     updatedAt: now,
     correctionIds: [],
+    imageUrl,
+    imageSource: imageUrl ? (directImage.imageSource ?? 'provider') : undefined,
   };
 }
 
 export function updateDraftComponents(draft: FoodMemoryDraft, components: FoodMemoryComponent[], now = new Date().toISOString()): FoodMemoryDraft {
-  const confidence = confidenceForComponents(components);
+  const normalizedComponents = components.map((component) => ({
+    ...component,
+    imageUrl: normalizeFoodImageUrl(component.imageUrl),
+  }));
+  const confidence = confidenceForComponents(normalizedComponents);
+  const currentImage = normalizeFoodImageMetadata(draft.imageUrl, draft.imageSource);
+  const imageUrl = currentImage.imageUrl
+    ?? normalizedComponents.map((component) => component.imageUrl).find(Boolean);
   return {
     ...draft,
-    components,
-    nutrition: nutritionForComponents(components, now),
+    components: normalizedComponents,
+    nutrition: nutritionForComponents(normalizedComponents, now),
     confidence: confidence.confidence,
     confidenceDimensions: confidence.dimensions,
-    reviewQuestions: components.flatMap((component) => component.reviewQuestions).slice(0, 8),
+    reviewQuestions: normalizedComponents.flatMap((component) => component.reviewQuestions).slice(0, 8),
+    imageUrl,
+    imageSource: imageUrl ? (currentImage.imageSource ?? 'provider') : undefined,
     updatedAt: now,
   };
 }
@@ -299,7 +331,7 @@ export function memorySignature(memory: Pick<FoodMemoryDraft, 'title' | 'compone
 }
 
 export function recipeToDraft(
-  recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean },
+  recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null },
   date: string,
   meal: FoodMemoryDraft['meal'],
   now = new Date().toISOString(),
@@ -307,6 +339,7 @@ export function recipeToDraft(
   const inputType: FoodMemoryInputType = 'recipe';
   const provenance: FoodMemoryProvenance = recipe.isLocal ? 'recipe_personal' : 'recipe_imported';
   const confidence = recipe.isLocal ? 92 : 68;
+  const imageUrl = normalizeFoodImageUrl(recipe.image);
   const component: FoodMemoryComponent = {
     id: `${recipe.id}-component`,
     name: recipe.name,
@@ -347,6 +380,8 @@ export function recipeToDraft(
     updatedAt: now,
     correctionIds: [],
     sourceRecipeId: recipe.id,
+    imageUrl,
+    imageSource: imageUrl ? 'recipe' : undefined,
   };
 }
 export function migrateFoodMemories(saved: Partial<{
@@ -417,12 +452,13 @@ export function migrateFoodMemories(saved: Partial<{
 }
 
 export function plannerMealToDraft(
-  meal: { id: string; name: string; calories: number; proteinG: number; carbsG: number; fatG: number; meal: FoodMemoryDraft['meal']; day: string },
+  meal: { id: string; name: string; calories: number; proteinG: number; carbsG: number; fatG: number; meal: FoodMemoryDraft['meal']; day: string; image?: string | null },
   now = new Date().toISOString(),
 ): FoodMemoryDraft {
   const inputType: FoodMemoryInputType = 'planner';
   const provenance: FoodMemoryProvenance = 'planner_estimate';
   const confidence = 72;
+  const imageUrl = normalizeFoodImageUrl(meal.image);
   const component: FoodMemoryComponent = {
     id: `${meal.id}-component`,
     name: meal.name,
@@ -463,5 +499,7 @@ export function plannerMealToDraft(
     updatedAt: now,
     correctionIds: [],
     plannerMealId: meal.id,
+    imageUrl,
+    imageSource: imageUrl ? 'planner' : undefined,
   };
 }

@@ -27,4 +27,16 @@ export interface CaptureCandidate {
   provenance: string;
   sourceLabel: string;
   editable: boolean;
+  /**
+     * Optional http(s) URL of a representative product image for this
+     * candidate (e.g. an Open Food Facts product photo). Null when the
+     * provider returned no usable image.
+     * @maxLength 2048
+     */
+  imageUrl?: string | null;
+  /**
+     * Optional short label describing the image's origin.
+     * @maxLength 80
+     */
+  imageSource?: string | null;
 }

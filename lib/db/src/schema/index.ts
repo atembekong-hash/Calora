@@ -96,6 +96,18 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
   provenance: text("provenance").notNull(),
   confidence: integer("confidence").notNull(),
   notes: text("notes"),
+  /**
+   * Optional absolute http/https URL of a representative image for this
+   * entry (e.g. an Open Food Facts product photo). NULL when the entry has
+   * no associated image. Only validated absolute http/https URLs are ever
+   * written here — see the sync/diary route validators.
+   */
+  imageUrl: text("image_url"),
+  /**
+   * Optional short label describing where imageUrl came from
+   * (e.g. "Open Food Facts", "user_photo"). NULL when imageUrl is NULL.
+   */
+  imageSource: text("image_source"),
   clientUpdatedAt: timestamp("client_updated_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

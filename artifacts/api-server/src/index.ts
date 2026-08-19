@@ -176,6 +176,15 @@ async function runStartupMigrations(): Promise<void> {
       ADD COLUMN IF NOT EXISTS capture_session_id UUID
         REFERENCES calora_ai_capture_sessions(id) ON DELETE SET NULL
   `);
+  // Optional image metadata for a diary entry. Nullable so pre-existing rows
+  // and entries without an image are unaffected. Only validated HTTPS URLs
+  // from known providers are ever written to image_url (see routes/sync.ts and
+  // routes/diary.ts); image_source is a short provider label.
+  await pool.query(`
+    ALTER TABLE calora_diary_entries
+      ADD COLUMN IF NOT EXISTS image_url TEXT,
+      ADD COLUMN IF NOT EXISTS image_source TEXT
+  `);
   // Mutation ledger for outbox sync idempotency.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS calora_sync_mutations (
