@@ -24,3 +24,4 @@
 - [Authenticated request retry](authed-request-retry.md) — a 401 with a token means refresh once and retry; sign-in prompts only when there is truly no session.
 - [Rapid interaction QA](rapid-interaction-qa.md) — short tap guards need a true same-action gesture test, not two delayed automation commands.
 - [AI endpoint cost guard](ai-endpoint-cost-guard.md) — every paid-AI route must be auth-gated, rate-limited (shared limiter), and coalesce cache misses.
+- [Trusted static asset routing](trusted-static-asset-routing.md) — public URL paths must resolve through a startup-built file allowlist, never directly into filesystem paths.

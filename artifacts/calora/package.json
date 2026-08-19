@@ -8,7 +8,8 @@
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && node --test server/serve.security.cjs",
+    "test:server": "node --test server/serve.security.cjs",
     "test:watch": "vitest"
   },
   "devDependencies": {

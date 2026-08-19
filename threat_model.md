@@ -57,6 +57,7 @@ account deletion, and AI cost.
 - Admin-only credential: `lib/supabase-admin.ts` (service-role key; server-only,
   lazy-init, 503 when unconfigured).
 - Static file serving (path-traversal-sensitive): `artifacts/calora/server/serve.js`.
+  Regression proof: `artifacts/calora/server/serve.security.cjs`.
 - Dev-only: `artifacts/mockup-sandbox`, `scripts/` (QA provisioning) — not
   production runtime.
 
@@ -85,7 +86,10 @@ API responses are scoped to the token-derived user. Request logging (Pino)
 strips query strings. Error responses return generic messages, not stack traces.
 `console.error` is used for server-side diagnostics; raw request bodies and
 tokens must not be logged. **Guarantee:** logs and error responses MUST NOT
-contain tokens, service-role keys, or full request bodies.
+contain tokens, service-role keys, or full request bodies. The API's wildcard
+CORS policy MUST remain non-credentialed while authentication uses explicit
+Bearer headers; it must be reassessed before any cookie-authoritative browser
+session is introduced.
 
 ### Denial of Service / Cost
 
@@ -108,11 +112,31 @@ intentionally fail-open on DB error (availability over strictness) — bounded t
 verified accounts; all anonymous paid-AI paths (public recipes, anonymous
 capture) fail closed (503). Monitor limiter DB errors.
 
+The dependency audit has one remaining vulnerable package, `image-size`, with
+two high infinite-loop advisories covering ICNS and JXL/HEIF parsers. It is
+reachable only through Metro build tooling. No unaffected npm release exists as
+of 2026-08-19, so forcing an unsupported major cannot remove the risk.
+**Guarantee:** production request handling MUST NOT import or invoke Metro/image
+parsing tooling, and the Expo/Metro chain MUST be upgraded when a compatible
+fixed release becomes available.
+
+The `uuid` buffer-bounds advisory also remains on v3 and v7 copies in Expo's
+`@expo/ngrok` and `xcode` build-time chains. Pnpm rates it moderate while the
+Replit dependency scanner rates each installed copy high. The patched release
+is an incompatible major beyond the parent ranges, and the vulnerable buffered
+UUID-generation APIs are not part of deployed request handling. **Guarantee:**
+do not force those majors under Expo; upgrade them through a supported Expo
+toolchain release.
+
 ### Elevation of Privilege
 
 No role/admin surface is exposed to clients. The Supabase service-role key lives
 only in `lib/supabase-admin.ts`, is lazy-initialized, and is used exclusively for
 account deletion after the caller's own token is verified. SQL is parameterized
 throughout. Static file serving normalizes and confines paths under the build
-root. **Guarantee:** the service-role client MUST never be importable by client
-code, and every privileged action MUST first verify the caller's own token.
+root. The production server builds a trusted file index at startup, denies
+symlinks, canonicalizes request paths as lookup keys, and never constructs a
+filesystem path from request data. **Guarantee:** the service-role client MUST
+never be importable by client code, every privileged action MUST first verify
+the caller's own token, and public static requests MUST only resolve to files
+that were verified inside the real build root at startup.

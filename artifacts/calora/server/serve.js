@@ -15,7 +15,6 @@ const path = require('path');
 
 const STATIC_ROOT = path.resolve(__dirname, '..', 'static-build');
 const TEMPLATE_PATH = path.resolve(__dirname, 'templates', 'landing-page.html');
-const basePath = (process.env.BASE_PATH || '/').replace(/\/+$/, '');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -35,9 +34,8 @@ const MIME_TYPES = {
   '.map': 'application/json',
 };
 
-function getAppName() {
+function getAppName(appJsonPath = path.resolve(__dirname, '..', 'app.json')) {
   try {
-    const appJsonPath = path.resolve(__dirname, '..', 'app.json');
     const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf-8'));
     return typeof appJson.expo?.name === 'string'
       ? appJson.expo.name
@@ -63,10 +61,104 @@ function toScriptString(value) {
     .replaceAll('&', '\\u0026');
 }
 
-function serveManifest(platform, res) {
-  const manifestPath = path.join(STATIC_ROOT, platform, 'manifest.json');
+function normalizeBasePath(value) {
+  const normalized = (value || '/').replace(/\/+$/, '');
+  return normalized === '/' ? '' : normalized;
+}
 
-  if (!fs.existsSync(manifestPath)) {
+function isPathInside(rootPath, candidatePath) {
+  const relativePath = path.relative(rootPath, candidatePath);
+  return (
+    relativePath !== '' &&
+    relativePath !== '..' &&
+    !relativePath.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relativePath)
+  );
+}
+
+function resolveStaticRequestPath(urlPath) {
+  let decodedPath;
+  try {
+    decodedPath = decodeURIComponent(urlPath);
+  } catch {
+    return { status: 400 };
+  }
+
+  if (decodedPath.includes('\0')) {
+    return { status: 400 };
+  }
+
+  const segments = decodedPath.replaceAll('\\', '/').split('/');
+  const canonicalSegments = [];
+  for (const segment of segments) {
+    if (!segment || segment === '.') {
+      continue;
+    }
+    if (segment === '..') {
+      return { status: 403 };
+    }
+    canonicalSegments.push(segment);
+  }
+
+  if (canonicalSegments.length === 0) {
+    return { status: 404 };
+  }
+
+  return { status: 200, requestPath: `/${canonicalSegments.join('/')}` };
+}
+
+function buildStaticFileIndex(staticRoot) {
+  const files = new Map();
+  if (!fs.existsSync(staticRoot) || !fs.statSync(staticRoot).isDirectory()) {
+    return files;
+  }
+
+  const realStaticRoot = fs.realpathSync(staticRoot);
+
+  function visitDirectory(directoryPath, requestPrefix = '') {
+    for (const entry of fs.readdirSync(directoryPath, {
+      withFileTypes: true,
+    })) {
+      const requestPath = `/${path.posix.join(requestPrefix, entry.name)}`;
+      const candidatePath = path.join(directoryPath, entry.name);
+
+      if (entry.isSymbolicLink()) {
+        files.set(requestPath, { status: 403 });
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        visitDirectory(candidatePath, path.posix.join(requestPrefix, entry.name));
+        continue;
+      }
+
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      const realFilePath = fs.realpathSync(candidatePath);
+      if (!isPathInside(realStaticRoot, realFilePath)) {
+        files.set(requestPath, { status: 403 });
+        continue;
+      }
+
+      const ext = path.extname(realFilePath).toLowerCase();
+      files.set(requestPath, {
+        status: 200,
+        contentType: MIME_TYPES[ext] || 'application/octet-stream',
+        read: () => fs.readFileSync(realFilePath),
+      });
+    }
+  }
+
+  visitDirectory(staticRoot);
+  return files;
+}
+
+function serveManifest(platform, res, staticFiles) {
+  const manifestEntry = staticFiles.get(`/${platform}/manifest.json`);
+
+  if (!manifestEntry || manifestEntry.status !== 200) {
     res.writeHead(404, { 'content-type': 'application/json' });
     res.end(
       JSON.stringify({ error: `Manifest not found for platform: ${platform}` }),
@@ -74,7 +166,7 @@ function serveManifest(platform, res) {
     return;
   }
 
-  const manifest = fs.readFileSync(manifestPath, 'utf-8');
+  const manifest = manifestEntry.read().toString('utf8');
   res.writeHead(200, {
     'content-type': 'application/json',
     'expo-protocol-version': '1',
@@ -83,12 +175,18 @@ function serveManifest(platform, res) {
   res.end(manifest);
 }
 
-function serveLandingPage(req, res, landingPageTemplate, appName) {
+function serveLandingPage(
+  req,
+  res,
+  landingPageTemplate,
+  appName,
+  configuredBasePath,
+) {
   const forwardedProto = req.headers['x-forwarded-proto'];
   const protocol = forwardedProto || 'https';
   const host = req.headers['x-forwarded-host'] || req.headers['host'];
   const baseUrl = `${protocol}://${host}`;
-  const expsUrl = `exps://${host}${basePath}`;
+  const expsUrl = `exps://${host}${configuredBasePath}`;
 
   const html = landingPageTemplate
     .replace(/BASE_URL_PLACEHOLDER/g, baseUrl)
@@ -100,55 +198,91 @@ function serveLandingPage(req, res, landingPageTemplate, appName) {
   res.end(html);
 }
 
-function serveStaticFile(urlPath, res) {
-  const safePath = path.normalize(urlPath).replace(/^(\.\.(\/|\\|$))+/, '');
-  const filePath = path.join(STATIC_ROOT, safePath);
-
-  if (!filePath.startsWith(STATIC_ROOT)) {
-    res.writeHead(403);
-    res.end('Forbidden');
+function serveStaticFile(urlPath, res, staticFiles) {
+  const resolvedRequest = resolveStaticRequestPath(urlPath);
+  if (resolvedRequest.status !== 200) {
+    res.writeHead(resolvedRequest.status);
+    const statusMessage = {
+      400: 'Bad Request',
+      403: 'Forbidden',
+      404: 'Not Found',
+    }[resolvedRequest.status];
+    res.end(statusMessage || 'Request Rejected');
     return;
   }
 
-  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+  const staticFile = staticFiles.get(resolvedRequest.requestPath);
+  if (!staticFile) {
     res.writeHead(404);
     res.end('Not Found');
     return;
   }
 
-  const ext = path.extname(filePath).toLowerCase();
-  const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-  const content = fs.readFileSync(filePath);
-  res.writeHead(200, { 'content-type': contentType });
+  if (staticFile.status !== 200) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+
+  const content = staticFile.read();
+  res.writeHead(200, { 'content-type': staticFile.contentType });
   res.end(content);
 }
 
-const landingPageTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf-8');
-const appName = getAppName();
+function createServer(options = {}) {
+  const staticRoot = path.resolve(options.staticRoot || STATIC_ROOT);
+  const configuredBasePath = normalizeBasePath(
+    options.basePath ?? process.env.BASE_PATH ?? '/',
+  );
+  const landingPageTemplate =
+    options.landingPageTemplate ?? fs.readFileSync(TEMPLATE_PATH, 'utf-8');
+  const appName = options.appName ?? getAppName(options.appJsonPath);
+  const staticFiles = buildStaticFileIndex(staticRoot);
 
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url || '/', `http://${req.headers.host}`);
-  let pathname = url.pathname;
+  return http.createServer((req, res) => {
+    const url = new URL(req.url || '/', `http://${req.headers.host}`);
+    let pathname = url.pathname;
 
-  if (basePath && pathname.startsWith(basePath)) {
-    pathname = pathname.slice(basePath.length) || '/';
-  }
-
-  if (pathname === '/' || pathname === '/manifest') {
-    const platform = req.headers['expo-platform'];
-    if (platform === 'ios' || platform === 'android') {
-      return serveManifest(platform, res);
+    if (
+      configuredBasePath &&
+      (pathname === configuredBasePath ||
+        pathname.startsWith(`${configuredBasePath}/`))
+    ) {
+      pathname = pathname.slice(configuredBasePath.length) || '/';
     }
 
-    if (pathname === '/') {
-      return serveLandingPage(req, res, landingPageTemplate, appName);
+    if (pathname === '/' || pathname === '/manifest') {
+      const platform = req.headers['expo-platform'];
+      if (platform === 'ios' || platform === 'android') {
+        return serveManifest(platform, res, staticFiles);
+      }
+
+      if (pathname === '/') {
+        return serveLandingPage(
+          req,
+          res,
+          landingPageTemplate,
+          appName,
+          configuredBasePath,
+        );
+      }
     }
-  }
 
-  serveStaticFile(pathname, res);
-});
+    serveStaticFile(pathname, res, staticFiles);
+  });
+}
 
-const port = parseInt(process.env.PORT || '3000', 10);
-server.listen(port, '0.0.0.0', () => {
-  console.log(`Serving static Expo build on port ${port}`);
-});
+if (require.main === module) {
+  const server = createServer();
+  const port = parseInt(process.env.PORT || '3000', 10);
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`Serving static Expo build on port ${port}`);
+  });
+}
+
+module.exports = {
+  buildStaticFileIndex,
+  createServer,
+  isPathInside,
+  resolveStaticRequestPath,
+};
