@@ -39,22 +39,31 @@ async function inspectRevenueCatCatalog() {
     entitlements: entitlementsResult,
     offerings: offeringsResult,
   })) {
-    if (result.error) throw new Error(`Could not list ${name}: ${result.error.message}`);
+    if (result.error) throw new Error(`Could not list ${name}: ${JSON.stringify(result.error)}`);
   }
 
-  const testStoreApp = appsResult.data.items.find((app) => app.id === testStoreAppId);
+  const apps = appsResult.data;
+  const products = productsResult.data;
+  const entitlementList = entitlementsResult.data;
+  const offeringList = offeringsResult.data;
+  if (!apps || !products || !entitlementList || !offeringList) {
+    throw new Error("RevenueCat returned an empty catalog response");
+  }
+
+  const testStoreApp = apps.items.find((app) => app.id === testStoreAppId);
   if (!testStoreApp) throw new Error("Configured Test Store app was not found in the RevenueCat project");
 
-  const testStoreProducts = productsResult.data.items
+  const testStoreProducts = products.items
     .filter((product) => product.app_id === testStoreAppId)
     .map((product) => ({
       id: product.id,
       storeIdentifier: product.store_identifier,
       displayName: product.display_name,
       type: product.type,
+      state: product.state,
     }));
 
-  const entitlements = await Promise.all(entitlementsResult.data.items.map(async (entitlement) => {
+  const entitlements = await Promise.all(entitlementList.items.map(async (entitlement) => {
     const result = await getProductsFromEntitlement({
       client,
       path: { project_id: projectId, entitlement_id: entitlement.id },
@@ -68,7 +77,7 @@ async function inspectRevenueCatCatalog() {
     };
   }));
 
-  const offerings = await Promise.all(offeringsResult.data.items.map(async (offering) => {
+  const offerings = await Promise.all(offeringList.items.map(async (offering) => {
     const packagesResult = await listPackages({
       client,
       path: { project_id: projectId, offering_id: offering.id },
@@ -86,7 +95,7 @@ async function inspectRevenueCatCatalog() {
       return {
         id: pkg.id,
         identifier: pkg.lookup_key,
-        productIds: packageProducts.data.items.map((product) => product.id),
+        productIds: packageProducts.data.items.map((association) => association.product.id),
       };
     }));
 

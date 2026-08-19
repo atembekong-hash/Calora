@@ -34,7 +34,7 @@ Scores are 1–5, where 5 is strongest for the user. They are strategic estimate
 1. **Speed with accountability:** photo, voice, or search should create a reviewable estimate in seconds, with confidence and the evidence behind it.
 2. **A verified core, not a noisy mega-database:** show source, last verified date, serving basis, and conflict flags. Keep user-created foods separate.
 3. **One-screen correction:** let a user change food, portion, cooking state, or oil with one or two taps; never force a full re-log.
-4. **Plain monetization:** no ads in the core loop, show the permanent $4.99 monthly and $35.99 annual ($2.99/month billed annually) pricing, state the 7-day free trial and same-price renewal terms before purchase, and provide a visible cancel/manage link.
+4. **Plain monetization:** no ads in the core loop, show the permanent $4.99 monthly and $35.99 annual ($3.00/month billed annually) pricing, state the 7-day free trial and same-price renewal terms before purchase, and provide a visible cancel/manage link.
 5. **Adaptive but legible goals:** only change targets when there is enough signal, and explain the reason in one sentence.
 6. **Offline-first trust:** logging, recent foods, and daily totals should work without a connection and reconcile later.
 
@@ -78,7 +78,7 @@ Use PostgreSQL for the canonical entities and a search index for normalized look
 - Onboarding, profile-based starting targets, consent acknowledgement, and resume-safe local persistence.
 - Date-aware diary with previous/next navigation, empty states, manual/search/verified/photo-estimate logging, one-screen editing, and deletion.
 - Saved meals and recipe templates, weekly insights, weight trend logging, macro and micronutrient views, and adaptive-target messaging.
-- Light, dark, and system themes; transparent 7-day free trial, $4.99/month, and $35.99/year ($2.99/month billed annually) Pro presentation; export and local delete controls.
+- Light, dark, and system themes; transparent 7-day free trial, $4.99/month, and $35.99/year ($3.00/month billed annually) Pro presentation; export and local delete controls.
 - Persisted offline outbox records with an explicit waiting-for-connection state rather than a false synced state.
 - App icon, splash, Expo iOS/Android configuration, accessible labels for core actions, and verified end-to-end preview coverage.
 

@@ -713,7 +713,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.planChoiceCopy}>
                 <Text style={[styles.planName, { color: colors.foreground }]}>Annual</Text>
-                <Text style={[styles.planHint, { color: colors.mutedForeground }]}>$2.99 / month billed annually</Text>
+                <Text style={[styles.planHint, { color: colors.mutedForeground }]}>$3.00 / month billed annually</Text>
               </View>
               <Text style={[styles.planPrice, { color: colors.foreground }]}>{annualPriceString ?? 'Store price unavailable'}{annualPriceString && <Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / yr</Text>}</Text>
             </Pressable>
@@ -724,7 +724,7 @@ export default function ProfileScreen() {
           </View>
           {!selectedPackage && !isSubscribed && (
             <Text style={[styles.billingNote, { color: colors.mutedForeground }]}>
-              Store pricing is unavailable, so this plan cannot be purchased yet. Expected US pricing: $4.99/month or $35.88/year.
+              Store pricing is unavailable, so this plan cannot be purchased yet. Expected US pricing: $4.99/month or $35.99/year.
             </Text>
           )}
           <View style={styles.featureList}>

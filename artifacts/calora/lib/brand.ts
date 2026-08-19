@@ -67,6 +67,6 @@ export const SUBSCRIPTION = {
   /** US reference pricing. Actual charges are determined by store/RevenueCat configuration. */
   pricing: {
     monthly: { recurring: 4.99, trialDays: 7 },
-    annual: { recurring: 35.99, monthlyEquivalent: 2.99, trialDays: 7 },
+    annual: { recurring: 35.99, monthlyEquivalent: 3, trialDays: 7 },
   },
 } as const;

@@ -90,7 +90,7 @@
 | Plan | Trial | Price | Renewal |
 |---|---|---|---|
 | Monthly | 7-day free trial | $4.99/month | Renews at $4.99/month unless changed or canceled through the store |
-| Annual | 7-day free trial | $35.99/year ($2.99/month billed annually) | Renews at $35.99/year unless changed or canceled through the store |
+| Annual | 7-day free trial | $35.99/year ($3.00/month billed annually) | Renews at $35.99/year unless changed or canceled through the store |
 
 > **IMPORTANT:**
 > - These are the permanent US production prices. There is no introductory, first-year, or later higher renewal tier.
@@ -105,7 +105,7 @@ RevenueCat client integration and repository seed configuration exist. Productio
 
 ## 6. Subscription Disclosure (required on paywall)
 
-> Eligible customers receive a 7-day free trial. After the trial, your selected subscription begins at $4.99/month or $35.99/year ($2.99/month billed annually) and renews at the same plan price unless changed or canceled through the store.
+> Eligible customers receive a 7-day free trial. After the trial, your selected subscription begins at $4.99/month or $35.99/year ($3.00/month billed annually) and renews at the same plan price unless changed or canceled through the store.
 
 ---
 
