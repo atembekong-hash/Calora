@@ -65,6 +65,7 @@ export class FatSecretProviderError extends Error {
     public readonly kind: FatSecretProviderErrorKind,
     public readonly providerCode: string | null,
     public readonly httpStatus: number | null,
+    public readonly providerMessage: string | null = null,
   ) {
     super(`FatSecret provider ${kind}`);
     this.name = "FatSecretProviderError";
@@ -76,9 +77,16 @@ type ProviderPayload = { recipes?: unknown[]; recipe?: unknown; nextOffset?: num
 const configuredUrl = process.env.PREMIUM_RECIPE_PROVIDER_URL?.replace(/\/$/, "");
 const providerName = process.env.PREMIUM_RECIPE_PROVIDER_NAME?.trim() || "Premium provider";
 const providerKey = process.env.PREMIUM_RECIPE_PROVIDER_API_KEY;
+const configuredFatSecretGatewayUrl = process.env.FATSECRET_GATEWAY_URL?.replace(/\/$/, "");
+const fatSecretGatewaySecret = process.env.FATSECRET_GATEWAY_SECRET;
 const fatSecretClientId = process.env.FATSECRET_CLIENT_ID;
 const fatSecretClientSecret = process.env.FATSECRET_CLIENT_SECRET;
 const fatSecretEnabled = Boolean(fatSecretClientId && fatSecretClientSecret);
+const fatSecretGatewayUrl = configuredFatSecretGatewayUrl && (process.env.NODE_ENV !== "production" || configuredFatSecretGatewayUrl.startsWith("https://"))
+  ? configuredFatSecretGatewayUrl
+  : undefined;
+const fatSecretGatewayEnabled = Boolean(fatSecretGatewayUrl && fatSecretGatewaySecret);
+const fatSecretTransportEnabled = configuredFatSecretGatewayUrl ? fatSecretGatewayEnabled : fatSecretEnabled;
 const fatSecretApi = "https://platform.fatsecret.com/rest";
 const fatSecretTokenUrl = "https://oauth.fatsecret.com/connect/token";
 const PROVIDER_TIMEOUT_MS = Number(process.env.PREMIUM_RECIPE_PROVIDER_TIMEOUT_MS ?? 8_000);
@@ -87,13 +95,13 @@ let fatSecretToken: { value: string; expiresAt: number } | null = null;
 
 export function premiumProviderStatus() {
   if (accessMode === "deny") return { status: "restricted" as const, provider: providerName, message: "Premium recipes are not available for this account." };
-  return configuredUrl || fatSecretEnabled
-    ? { status: "available" as const, provider: fatSecretEnabled ? "FatSecret" : providerName, message: null }
+  return configuredUrl || fatSecretTransportEnabled
+    ? { status: "available" as const, provider: fatSecretTransportEnabled ? "FatSecret" : providerName, message: null }
     : { status: "unavailable" as const, provider: providerName, message: "A Premium recipe provider is not connected yet." };
 }
 
 export function restaurantProviderStatus() {
-  return fatSecretEnabled
+  return fatSecretTransportEnabled
     ? { status: "available" as const, provider: "FatSecret", message: null }
     : { status: "unavailable" as const, provider: "FatSecret", message: "Restaurant nutrition search is not connected yet." };
 }
@@ -104,7 +112,7 @@ async function fatSecretAccessToken() {
   const timer = setTimeout(() => controller.abort(), Number.isFinite(PROVIDER_TIMEOUT_MS) ? PROVIDER_TIMEOUT_MS : 8_000);
   try {
     const credentials = Buffer.from(`${fatSecretClientId}:${fatSecretClientSecret}`).toString("base64");
-    const response = await fetch(fatSecretTokenUrl, { method: "POST", headers: { Authorization: `Basic ${credentials}`, "content-type": "application/x-www-form-urlencoded" }, body: "grant_type=client_credentials&scope=basic", signal: controller.signal });
+    const response = await fetch(fatSecretTokenUrl, { method: "POST", headers: { Authorization: `Basic ${credentials}`, "content-type": "application/x-www-form-urlencoded" }, body: "grant_type=client_credentials&scope=basic%20premier", signal: controller.signal });
     if (!response.ok) {
       throw new FatSecretProviderError(
         response.status === 401 || response.status === 403 ? "authentication" : "upstream",
@@ -275,7 +283,8 @@ function fatSecretError(payload: Record<string, unknown>, status: number): FatSe
     ? payload.error as Record<string, unknown>
     : {};
   const code = string(raw.code) ?? (fatSecretNumber(raw.code) !== null ? String(raw.code) : null);
-  const message = string(raw.message)?.toLowerCase() ?? "";
+  const providerMessage = string(raw.message);
+  const message = providerMessage?.toLowerCase() ?? "";
   const kind: FatSecretProviderErrorKind =
     status === 429 || code === "12" || message.includes("limit") || message.includes("quota")
       ? "rate_limited"
@@ -284,10 +293,11 @@ function fatSecretError(payload: Record<string, unknown>, status: number): FatSe
         : status === 403 || ["13", "14", "21"].includes(code ?? "") || message.includes("scope") || message.includes("permission")
           ? "restricted"
           : "upstream";
-  return new FatSecretProviderError(kind, code, status);
+  return new FatSecretProviderError(kind, code, status, providerMessage);
 }
 
 async function fatSecretFetch(path: string, params: Record<string, string | number>) {
+  if (configuredFatSecretGatewayUrl) return fatSecretGatewayFetch(path, params);
   const token = await fatSecretAccessToken();
   const url = new URL(`${fatSecretApi}${path}`);
   Object.entries({ format: "json", ...params }).forEach(([key, value]) => url.searchParams.set(key, String(value)));
@@ -305,6 +315,61 @@ async function fatSecretFetch(path: string, params: Record<string, string | numb
         null,
         response.status,
       );
+    }
+    return payload;
+  } catch (error) {
+    if (error instanceof FatSecretProviderError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new FatSecretProviderError("timeout", null, null);
+    }
+    throw new FatSecretProviderError("upstream", null, null);
+  } finally { clearTimeout(timer); }
+}
+
+function gatewayOperation(path: string, params: Record<string, string | number>) {
+  if (path === "/recipes/search/v3") {
+    return { path: "/fatsecret/recipes/search", body: { query: params.search_expression, limit: params.max_results, offset: Number(params.page_number) * Number(params.max_results) } };
+  }
+  if (path === "/recipe/v2") return { path: "/fatsecret/recipes/detail", body: { sourceId: `premium:FatSecret:${params.recipe_id}` } };
+  if (path === "/foods/search/v5") {
+    return { path: "/fatsecret/foods/search", body: { query: params.search_expression, limit: params.max_results, offset: Number(params.page_number) * Number(params.max_results) } };
+  }
+  if (path === "/food/v4") return { path: "/fatsecret/foods/detail", body: { sourceId: `fatsecret-food:${params.food_id}` } };
+  throw new FatSecretProviderError("upstream", "gateway_operation_unsupported", null);
+}
+
+async function fatSecretGatewayFetch(path: string, params: Record<string, string | number>) {
+  if (!fatSecretGatewayUrl || !fatSecretGatewaySecret) {
+    throw new FatSecretProviderError("upstream", "gateway_not_configured", null);
+  }
+  const operation = gatewayOperation(path, params);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Number.isFinite(PROVIDER_TIMEOUT_MS) ? PROVIDER_TIMEOUT_MS : 8_000);
+  try {
+    const response = await fetch(`${fatSecretGatewayUrl}${operation.path}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-calora-gateway-secret": fatSecretGatewaySecret,
+      },
+      body: JSON.stringify(operation.body),
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
+    if (!payload) throw new FatSecretProviderError("invalid_response", null, response.status);
+    const providerError = fatSecretError(payload, response.status);
+    if (providerError) throw providerError;
+    if (!response.ok) {
+      const gatewayError = payload.error && typeof payload.error === "object" ? payload.error as Record<string, unknown> : {};
+      const code = string(gatewayError.code);
+      const message = string(gatewayError.message);
+      const kind: FatSecretProviderErrorKind =
+        response.status === 429 ? "rate_limited"
+          : response.status === 401 || response.status === 403 ? "authentication"
+            : response.status === 504 || code === "timeout" ? "timeout"
+              : response.status === 400 ? "invalid_response"
+                : "upstream";
+      throw new FatSecretProviderError(kind, code, response.status, message);
     }
     return payload;
   } catch (error) {
@@ -391,7 +456,7 @@ async function providerFetch(path: string, params: Record<string, string | numbe
 export async function listPremiumRecipes(input: { query?: string; category?: string; limit: number; offset: number }) {
   const status = premiumProviderStatus();
   if (status.status !== "available") return { ...status, recipes: [], nextOffset: null };
-  if (fatSecretEnabled) {
+  if (fatSecretTransportEnabled) {
     const payload = await fatSecretFetch("/recipes/search/v3", { search_expression: input.query || input.category || "", max_results: input.limit, page_number: Math.floor(input.offset / input.limit) });
     const search = payload.recipes && typeof payload.recipes === "object" ? payload.recipes as Record<string, unknown> : {};
     const rows = Array.isArray(search.recipe) ? search.recipe : search.recipe ? [search.recipe] : [];
@@ -407,7 +472,7 @@ export async function listPremiumRecipes(input: { query?: string; category?: str
 export async function getPremiumRecipe(sourceId: string) {
   const status = premiumProviderStatus();
   if (status.status !== "available") return null;
-  if (fatSecretEnabled) {
+  if (fatSecretTransportEnabled) {
     const payload = await fatSecretFetch("/recipe/v2", { recipe_id: sourceId.replace(/^premium:FatSecret:/, "") });
     return fatSecretRecipe(payload.recipe);
   }
@@ -423,9 +488,19 @@ export async function listRestaurantFoods(input: { query: string; limit: number;
     search_expression: input.query,
     max_results: input.limit,
     page_number: pageNumber,
+    food_type: "brand",
   });
-  const search = payload.foods && typeof payload.foods === "object" ? payload.foods as Record<string, unknown> : {};
-  const foods = rows(search.food)
+  // v5 wraps matches in foods_search.results.food. Keep support for the
+  // legacy foods.food envelope so a compatible provider response remains safe.
+  const search = payload.foods_search && typeof payload.foods_search === "object"
+    ? payload.foods_search as Record<string, unknown>
+    : payload.foods && typeof payload.foods === "object"
+      ? payload.foods as Record<string, unknown>
+      : {};
+  const resultRows = search.results && typeof search.results === "object"
+    ? (search.results as Record<string, unknown>).food
+    : search.food;
+  const foods = rows(resultRows)
     .map(normalizeFatSecretFood)
     .filter((food): food is RestaurantFood => Boolean(food?.brandName));
   const total = fatSecretNumber(search.total_results) ?? 0;

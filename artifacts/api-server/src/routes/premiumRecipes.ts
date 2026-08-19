@@ -21,7 +21,7 @@ router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
     const status = premiumProviderStatus();
     if (error instanceof FatSecretProviderError) {
       (req.log ?? logger).warn(
-        { kind: error.kind, providerCode: error.providerCode, httpStatus: error.httpStatus },
+        { kind: error.kind, providerCode: error.providerCode, httpStatus: error.httpStatus, providerMessage: error.providerMessage },
         "premium recipe provider unavailable",
       );
       const restricted = error.kind === "restricted" || error.kind === "authentication";
@@ -56,7 +56,7 @@ router.get("/v1/premium-recipes/:sourceId", async (req, res): Promise<void> => {
   } catch (error) {
     if (error instanceof FatSecretProviderError) {
       (req.log ?? logger).warn(
-        { kind: error.kind, providerCode: error.providerCode, httpStatus: error.httpStatus },
+        { kind: error.kind, providerCode: error.providerCode, httpStatus: error.httpStatus, providerMessage: error.providerMessage },
         "premium recipe detail unavailable",
       );
       const restricted = error.kind === "restricted" || error.kind === "authentication";

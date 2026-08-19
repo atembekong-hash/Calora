@@ -23,6 +23,8 @@ beforeEach(() => {
 afterEach(() => {
   delete process.env.FATSECRET_CLIENT_ID;
   delete process.env.FATSECRET_CLIENT_SECRET;
+  delete process.env.FATSECRET_GATEWAY_URL;
+  delete process.env.FATSECRET_GATEWAY_SECRET;
   vi.unstubAllGlobals();
   vi.clearAllMocks();
   vi.resetModules();
@@ -109,5 +111,106 @@ describe("Restaurant food routes", () => {
       3600,
     );
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/foods/search/v5");
+  });
+
+  it("reads the documented v5 foods_search envelope and requests branded foods", async () => {
+    process.env.FATSECRET_CLIENT_ID = "test-id";
+    process.env.FATSECRET_CLIENT_SECRET = "test-secret";
+    verifyBearerTokenMock.mockResolvedValue({ id: "user-123", email: "test@example.com" });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ access_token: "token", expires_in: 3600 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          foods_search: {
+            total_results: "1",
+            results: {
+              food: {
+                food_id: "321",
+                food_name: "Classic Cheeseburger",
+                brand_name: "Example Burger",
+                food_description: "Per 1 burger - Calories: 320kcal | Fat: 15g | Carbs: 31g | Protein: 17g",
+              },
+            },
+          },
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const { default: router } = await import("../routes/restaurantFoods.js");
+    const app = express();
+    app.use(express.json());
+    app.use(router);
+
+    const res = await request(app).get("/v1/restaurant-foods?query=burger&limit=2&offset=0");
+
+    expect(res.status).toBe(200);
+    expect(res.body.foods).toMatchObject([{
+      id: "fatsecret-food:321",
+      sourceId: "321",
+      name: "Classic Cheeseburger",
+      brandName: "Example Burger",
+      nutritionConfidence: "verified",
+    }]);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("food_type=brand");
+  });
+
+  it("routes authenticated restaurant searches through the configured FatSecret gateway", async () => {
+    process.env.FATSECRET_GATEWAY_URL = "https://gateway.example";
+    process.env.FATSECRET_GATEWAY_SECRET = "gateway-shared-secret";
+    verifyBearerTokenMock.mockResolvedValue({ id: "user-123", email: "test@example.com" });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        foods_search: {
+          total_results: "1",
+          results: { food: { food_id: "321", food_name: "Classic Cheeseburger", brand_name: "Example Burger" } },
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { default: router } = await import("../routes/restaurantFoods.js");
+    const app = express();
+    app.use(express.json());
+    app.use(router);
+
+    const res = await request(app).get("/v1/restaurant-foods?query=burger&limit=10&offset=10");
+
+    expect(res.status).toBe(200);
+    expect(res.body.foods[0]).toMatchObject({ id: "fatsecret-food:321", brandName: "Example Burger" });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://gateway.example/fatsecret/foods/search");
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      headers: expect.objectContaining({ "x-calora-gateway-secret": "gateway-shared-secret" }),
+      body: JSON.stringify({ query: "burger", limit: 10, offset: 10 }),
+    });
+  });
+
+  it("routes authenticated restaurant details through the gateway and keeps provider errors safe", async () => {
+    process.env.FATSECRET_GATEWAY_URL = "https://gateway.example";
+    process.env.FATSECRET_GATEWAY_SECRET = "gateway-shared-secret";
+    verifyBearerTokenMock.mockResolvedValue({ id: "user-123", email: "test@example.com" });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ error: { code: 21, message: "FatSecret provider rejected the request." } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { default: router } = await import("../routes/restaurantFoods.js");
+    const app = express();
+    app.use(express.json());
+    app.use(router);
+
+    const res = await request(app).get("/v1/restaurant-foods/fatsecret-food%3A321");
+
+    expect(res.status).toBe(503);
+    expect(JSON.stringify(res.body)).not.toContain("provider rejected");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://gateway.example/fatsecret/foods/detail");
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ sourceId: "fatsecret-food:321" }));
   });
 });

@@ -32,6 +32,7 @@ function safeProviderState(error: unknown) {
       kind: error.kind,
       providerCode: error.providerCode,
       httpStatus: error.httpStatus,
+      providerMessage: error.providerMessage,
     });
     const restricted = error.kind === "restricted" || error.kind === "authentication";
     return {

@@ -25,3 +25,4 @@
 - [Rapid interaction QA](rapid-interaction-qa.md) — short tap guards need a true same-action gesture test, not two delayed automation commands.
 - [AI endpoint cost guard](ai-endpoint-cost-guard.md) — every paid-AI route must be auth-gated, rate-limited (shared limiter), and coalesce cache misses.
 - [Trusted static asset routing](trusted-static-asset-routing.md) — public URL paths must resolve through a startup-built file allowlist, never directly into filesystem paths.
+- [FatSecret static egress](fatsecret-static-egress.md) — FatSecret Premier calls must leave from an allowlisted static IP; enable the gateway only after that route is verified.
