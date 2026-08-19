@@ -4,6 +4,7 @@ import {
   normalizeFoodImageMetadata,
   normalizeFoodImageUrl,
 } from '../foodImageMetadata';
+import { verifiedFoods } from '@/data/foods';
 
 describe('normalizeFoodImageUrl', () => {
   it('keeps durable HTTPS provider images', () => {
@@ -37,5 +38,16 @@ describe('foodImageCategory', () => {
     expect(foodImageCategory({ name: 'Honeycrisp apple', meal: 'Snack' })).toBe('snack');
     expect(foodImageCategory({ name: 'Green smoothie', meal: 'Lunch' })).toBe('drink');
     expect(foodImageCategory({ name: 'Chicken rice bowl', meal: 'Dinner' })).toBe('main');
+  });
+});
+
+describe('curated Add suggestions', () => {
+  it('provides a distinct trusted image for every selectable dish', () => {
+    const imageUrls = verifiedFoods.map((food) => food.imageUrl);
+
+    expect(imageUrls).toHaveLength(verifiedFoods.length);
+    expect(new Set(imageUrls).size).toBe(verifiedFoods.length);
+    expect(imageUrls.every((imageUrl) => normalizeFoodImageUrl(imageUrl))).toBe(true);
+    expect(verifiedFoods.every((food) => food.imageSource === 'provider')).toBe(true);
   });
 });

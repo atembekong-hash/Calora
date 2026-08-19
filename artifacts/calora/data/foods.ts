@@ -16,6 +16,9 @@ export const verifiedFoods: FoodSuggestion[] = [
     sodium: 65,
     source: 'USDA verified',
     confidence: 99,
+    imageUrl:
+      'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=320&q=80',
+    imageSource: 'provider',
   },
   {
     name: 'Salmon rice bowl',
@@ -30,6 +33,9 @@ export const verifiedFoods: FoodSuggestion[] = [
     sodium: 580,
     source: 'USDA verified',
     confidence: 97,
+    imageUrl:
+      'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=320&q=80',
+    imageSource: 'provider',
   },
   {
     name: 'Eggs on sourdough',
@@ -44,6 +50,9 @@ export const verifiedFoods: FoodSuggestion[] = [
     sodium: 510,
     source: 'USDA verified',
     confidence: 98,
+    imageUrl:
+      'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=320&q=80',
+    imageSource: 'provider',
   },
   {
     name: 'Avocado toast',
@@ -58,6 +67,9 @@ export const verifiedFoods: FoodSuggestion[] = [
     sodium: 390,
     source: 'Brand verified',
     confidence: 94,
+    imageUrl:
+      'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?auto=format&fit=crop&w=320&q=80',
+    imageSource: 'provider',
   },
 ];
 
