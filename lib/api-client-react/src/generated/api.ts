@@ -36,6 +36,7 @@ import type {
   ListDiaryEntriesParams,
   ListPremiumRecipesParams,
   ListRecipesParams,
+  ListRestaurantFoodsParams,
   ListWeightsParams,
   PlannerGenerateInput,
   PlannerGenerateResponse,
@@ -49,6 +50,8 @@ import type {
   ReferralRedeemInput,
   ReferralRedeemResult,
   ReferralSummary,
+  RestaurantFood,
+  RestaurantFoodList,
   SearchFoods200,
   SearchFoodsParams,
   SyncRequest,
@@ -1228,6 +1231,167 @@ export function useGetPremiumRecipe<TData = Awaited<ReturnType<typeof getPremium
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPremiumRecipeQueryOptions(sourceId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListRestaurantFoodsUrl = (params: ListRestaurantFoodsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/restaurant-foods?${stringifiedParams}` : `/api/v1/restaurant-foods`
+}
+
+/**
+ * @summary Search branded restaurant foods from the configured nutrition provider
+ */
+export const listRestaurantFoods = async (params: ListRestaurantFoodsParams, options?: Parameters<typeof customFetch>[1]): Promise<RestaurantFoodList> => {
+
+  return customFetch<RestaurantFoodList>(getListRestaurantFoodsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRestaurantFoodsQueryKey = (params?: ListRestaurantFoodsParams,) => {
+    return [
+    `/api/v1/restaurant-foods`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListRestaurantFoodsQueryOptions = <TData = Awaited<ReturnType<typeof listRestaurantFoods>>, TError = ErrorType<void>>(params: ListRestaurantFoodsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRestaurantFoods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRestaurantFoodsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRestaurantFoods>>> = ({ signal }) => listRestaurantFoods(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRestaurantFoods>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRestaurantFoodsQueryResult = NonNullable<Awaited<ReturnType<typeof listRestaurantFoods>>>
+export type ListRestaurantFoodsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Search branded restaurant foods from the configured nutrition provider
+ */
+
+export function useListRestaurantFoods<TData = Awaited<ReturnType<typeof listRestaurantFoods>>, TError = ErrorType<void>>(
+ params: ListRestaurantFoodsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRestaurantFoods>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRestaurantFoodsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRestaurantFoodUrl = (sourceId: string,) => {
+
+
+
+
+  return `/api/v1/restaurant-foods/${sourceId}`
+}
+
+/**
+ * @summary Get nutrition and serving options for a branded restaurant food
+ */
+export const getRestaurantFood = async (sourceId: string, options?: Parameters<typeof customFetch>[1]): Promise<RestaurantFood> => {
+
+  return customFetch<RestaurantFood>(getGetRestaurantFoodUrl(sourceId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRestaurantFoodQueryKey = (sourceId: string,) => {
+    return [
+    `/api/v1/restaurant-foods/${sourceId}`
+    ] as const;
+    }
+
+
+export const getGetRestaurantFoodQueryOptions = <TData = Awaited<ReturnType<typeof getRestaurantFood>>, TError = ErrorType<void>>(sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRestaurantFood>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRestaurantFoodQueryKey(sourceId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRestaurantFood>>> = ({ signal }) => getRestaurantFood(sourceId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sourceId !== null && sourceId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRestaurantFood>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRestaurantFoodQueryResult = NonNullable<Awaited<ReturnType<typeof getRestaurantFood>>>
+export type GetRestaurantFoodQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get nutrition and serving options for a branded restaurant food
+ */
+
+export function useGetRestaurantFood<TData = Awaited<ReturnType<typeof getRestaurantFood>>, TError = ErrorType<void>>(
+ sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRestaurantFood>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRestaurantFoodQueryOptions(sourceId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

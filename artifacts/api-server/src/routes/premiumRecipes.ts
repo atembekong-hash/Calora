@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { getPremiumRecipe, listPremiumRecipes, premiumProviderStatus } from "../lib/premiumRecipes";
+import { FatSecretProviderError, getPremiumRecipe, listPremiumRecipes, premiumProviderStatus } from "../lib/premiumRecipes";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -18,8 +18,27 @@ router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
     });
     res.json(result);
   } catch (error) {
-    (req.log ?? logger).warn({ err: error }, "premium recipe provider unavailable");
     const status = premiumProviderStatus();
+    if (error instanceof FatSecretProviderError) {
+      (req.log ?? logger).warn(
+        { kind: error.kind, providerCode: error.providerCode, httpStatus: error.httpStatus },
+        "premium recipe provider unavailable",
+      );
+      const restricted = error.kind === "restricted" || error.kind === "authentication";
+      res.status(restricted ? 200 : 502).json({
+        ...status,
+        status: restricted ? "restricted" : "error",
+        recipes: [],
+        nextOffset: null,
+        message: restricted
+          ? "Premium recipes are not enabled for this provider account."
+          : error.kind === "rate_limited"
+            ? "Premium recipes are busy right now. Try again later."
+            : "Premium recipes are unavailable right now. Try again shortly.",
+      });
+      return;
+    }
+    (req.log ?? logger).warn({ err: error }, "premium recipe provider unavailable");
     res.status(502).json({ ...status, status: "error", recipes: [], nextOffset: null, message: "Premium recipes are unavailable right now. Try again shortly." });
   }
 });
@@ -35,6 +54,19 @@ router.get("/v1/premium-recipes/:sourceId", async (req, res): Promise<void> => {
     }
     res.json(recipe);
   } catch (error) {
+    if (error instanceof FatSecretProviderError) {
+      (req.log ?? logger).warn(
+        { kind: error.kind, providerCode: error.providerCode, httpStatus: error.httpStatus },
+        "premium recipe detail unavailable",
+      );
+      const restricted = error.kind === "restricted" || error.kind === "authentication";
+      res.status(restricted ? 503 : 502).json({
+        message: restricted
+          ? "Premium recipes are not enabled for this provider account."
+          : "Premium recipe provider unavailable",
+      });
+      return;
+    }
     (req.log ?? logger).warn({ err: error }, "premium recipe detail unavailable");
     res.status(502).json({ message: "Premium recipe provider unavailable" });
   }

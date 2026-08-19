@@ -637,6 +637,166 @@ export const GetPremiumRecipeResponse = zod.object({
 
 
 /**
+ * @summary Search branded restaurant foods from the configured nutrition provider
+ */
+export const listRestaurantFoodsQueryQueryMin = 2;
+export const listRestaurantFoodsQueryQueryMax = 120;
+
+export const listRestaurantFoodsQueryLimitDefault = 20;
+export const listRestaurantFoodsQueryLimitMax = 30;
+
+export const listRestaurantFoodsQueryOffsetDefault = 0;
+export const listRestaurantFoodsQueryOffsetMin = 0;
+
+
+
+export const ListRestaurantFoodsQueryParams = zod.object({
+  "query": zod.coerce.string().min(listRestaurantFoodsQueryQueryMin).max(listRestaurantFoodsQueryQueryMax),
+  "limit": zod.coerce.number().int().min(1).max(listRestaurantFoodsQueryLimitMax).default(listRestaurantFoodsQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(listRestaurantFoodsQueryOffsetMin).default(listRestaurantFoodsQueryOffsetDefault)
+})
+
+export const listRestaurantFoodsResponseFoodsItemCaloriesMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemProteinGMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemCarbsGMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemFatGMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemFiberGMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemSugarGMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemSodiumMgMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemServingsItemCaloriesMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemServingsItemProteinGMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemServingsItemCarbsGMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemServingsItemFatGMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemServingsItemFiberGMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemServingsItemSugarGMin = 0;
+
+export const listRestaurantFoodsResponseFoodsItemServingsItemSodiumMgMin = 0;
+
+
+
+export const ListRestaurantFoodsResponse = zod.object({
+  "status": zod.enum(['available', 'unavailable', 'restricted', 'error']),
+  "provider": zod.string(),
+  "message": zod.string().nullish(),
+  "foods": zod.array(zod.object({
+  "id": zod.string(),
+  "sourceId": zod.string(),
+  "name": zod.string(),
+  "brandName": zod.string().nullable(),
+  "foodUrl": zod.string().url().nullable(),
+  "serving": zod.string().nullable(),
+  "servingId": zod.string().nullable(),
+  "calories": zod.number().min(listRestaurantFoodsResponseFoodsItemCaloriesMin).nullable(),
+  "proteinG": zod.number().min(listRestaurantFoodsResponseFoodsItemProteinGMin).nullable(),
+  "carbsG": zod.number().min(listRestaurantFoodsResponseFoodsItemCarbsGMin).nullable(),
+  "fatG": zod.number().min(listRestaurantFoodsResponseFoodsItemFatGMin).nullable(),
+  "fiberG": zod.number().min(listRestaurantFoodsResponseFoodsItemFiberGMin).nullable(),
+  "sugarG": zod.number().min(listRestaurantFoodsResponseFoodsItemSugarGMin).nullable(),
+  "sodiumMg": zod.number().min(listRestaurantFoodsResponseFoodsItemSodiumMgMin).nullable(),
+  "servings": zod.array(zod.object({
+  "servingId": zod.string().nullable(),
+  "description": zod.string(),
+  "calories": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemCaloriesMin).nullable(),
+  "proteinG": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemProteinGMin).nullable(),
+  "carbsG": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemCarbsGMin).nullable(),
+  "fatG": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemFatGMin).nullable(),
+  "fiberG": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemFiberGMin).nullable(),
+  "sugarG": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemSugarGMin).nullable(),
+  "sodiumMg": zod.number().min(listRestaurantFoodsResponseFoodsItemServingsItemSodiumMgMin).nullable()
+})),
+  "sourceProvider": zod.string(),
+  "nutritionConfidence": zod.enum(['verified', 'unavailable']),
+  "nutritionSource": zod.string()
+})),
+  "nextOffset": zod.number().int().nullish()
+})
+
+
+/**
+ * @summary Get nutrition and serving options for a branded restaurant food
+ */
+
+
+
+export const GetRestaurantFoodParams = zod.object({
+  "sourceId": zod.coerce.string().min(1)
+})
+
+export const getRestaurantFoodResponseCaloriesMin = 0;
+
+export const getRestaurantFoodResponseProteinGMin = 0;
+
+export const getRestaurantFoodResponseCarbsGMin = 0;
+
+export const getRestaurantFoodResponseFatGMin = 0;
+
+export const getRestaurantFoodResponseFiberGMin = 0;
+
+export const getRestaurantFoodResponseSugarGMin = 0;
+
+export const getRestaurantFoodResponseSodiumMgMin = 0;
+
+export const getRestaurantFoodResponseServingsItemCaloriesMin = 0;
+
+export const getRestaurantFoodResponseServingsItemProteinGMin = 0;
+
+export const getRestaurantFoodResponseServingsItemCarbsGMin = 0;
+
+export const getRestaurantFoodResponseServingsItemFatGMin = 0;
+
+export const getRestaurantFoodResponseServingsItemFiberGMin = 0;
+
+export const getRestaurantFoodResponseServingsItemSugarGMin = 0;
+
+export const getRestaurantFoodResponseServingsItemSodiumMgMin = 0;
+
+
+
+export const GetRestaurantFoodResponse = zod.object({
+  "id": zod.string(),
+  "sourceId": zod.string(),
+  "name": zod.string(),
+  "brandName": zod.string().nullable(),
+  "foodUrl": zod.string().url().nullable(),
+  "serving": zod.string().nullable(),
+  "servingId": zod.string().nullable(),
+  "calories": zod.number().min(getRestaurantFoodResponseCaloriesMin).nullable(),
+  "proteinG": zod.number().min(getRestaurantFoodResponseProteinGMin).nullable(),
+  "carbsG": zod.number().min(getRestaurantFoodResponseCarbsGMin).nullable(),
+  "fatG": zod.number().min(getRestaurantFoodResponseFatGMin).nullable(),
+  "fiberG": zod.number().min(getRestaurantFoodResponseFiberGMin).nullable(),
+  "sugarG": zod.number().min(getRestaurantFoodResponseSugarGMin).nullable(),
+  "sodiumMg": zod.number().min(getRestaurantFoodResponseSodiumMgMin).nullable(),
+  "servings": zod.array(zod.object({
+  "servingId": zod.string().nullable(),
+  "description": zod.string(),
+  "calories": zod.number().min(getRestaurantFoodResponseServingsItemCaloriesMin).nullable(),
+  "proteinG": zod.number().min(getRestaurantFoodResponseServingsItemProteinGMin).nullable(),
+  "carbsG": zod.number().min(getRestaurantFoodResponseServingsItemCarbsGMin).nullable(),
+  "fatG": zod.number().min(getRestaurantFoodResponseServingsItemFatGMin).nullable(),
+  "fiberG": zod.number().min(getRestaurantFoodResponseServingsItemFiberGMin).nullable(),
+  "sugarG": zod.number().min(getRestaurantFoodResponseServingsItemSugarGMin).nullable(),
+  "sodiumMg": zod.number().min(getRestaurantFoodResponseServingsItemSodiumMgMin).nullable()
+})),
+  "sourceProvider": zod.string(),
+  "nutritionConfidence": zod.enum(['verified', 'unavailable']),
+  "nutritionSource": zod.string()
+})
+
+
+/**
  * Accepts either a barcode or a base64-encoded camera image. Barcode
  * requests are enriched from public nutrition sources and food photos
  * are analyzed by managed vision. Results remain review-only until the

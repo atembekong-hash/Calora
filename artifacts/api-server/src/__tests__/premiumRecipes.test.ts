@@ -80,4 +80,55 @@ describe("Premium recipe routes", () => {
     expect(res.body.recipes[0]).toMatchObject({ id: "premium:FatSecret:99", sourceProvider: "FatSecret", sourceUrl: "https://foods.fatsecret.com/recipes/99-fatsecret-bowl/Default.aspx", nutritionConfidence: "verified" });
     expect(String(fetchMock.mock.calls[1][0])).toContain("/recipes/search/v3");
   });
+
+  it("surfaces a FatSecret entitlement rejection as a safe restricted state", async () => {
+    process.env.FATSECRET_CLIENT_ID = "test-id";
+    process.env.FATSECRET_CLIENT_SECRET = "test-secret";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "token", expires_in: 3600 }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ error: { code: 13, message: "Missing premium scope detail" } }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider();
+    const res = await request(app).get("/v1/premium-recipes?query=bowl");
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ status: "restricted", provider: "FatSecret", recipes: [] });
+    expect(JSON.stringify(res.body)).not.toContain("scope detail");
+  });
+
+  it("normalizes FatSecret branded food servings without inventing nutrition", async () => {
+    const { normalizeFatSecretFood } = await import("../lib/premiumRecipes.js");
+    const food = normalizeFatSecretFood({
+      food_id: "123",
+      food_name: "Cheeseburger",
+      brand_name: "Example Burger",
+      food_url: "https://www.fatsecret.com/calories-nutrition/example/cheeseburger",
+      servings: {
+        serving: [{
+          serving_id: "456",
+          serving_description: "1 burger",
+          calories: "320",
+          protein: "17",
+          carbohydrate: "31",
+          fat: "15",
+          fiber: "2",
+          sugar: "7",
+          sodium: "710",
+        }],
+      },
+    });
+    expect(food).toMatchObject({
+      id: "fatsecret-food:123",
+      sourceId: "123",
+      brandName: "Example Burger",
+      serving: "1 burger",
+      servingId: "456",
+      calories: 320,
+      proteinG: 17,
+      carbsG: 31,
+      fatG: 15,
+      nutritionConfidence: "verified",
+      nutritionSource: "FatSecret nutrition data",
+    });
+    expect(food?.servings).toHaveLength(1);
+  });
 });

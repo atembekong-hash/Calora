@@ -353,7 +353,7 @@ export default function ScanScreen() {
             <View style={styles.captureActions}>
               <Pressable accessibilityLabel="Choose food photo from library" onPress={() => void choosePhoto()} style={[styles.secondaryButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="image" size={17} color={colors.foreground} /><Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Library</Text></Pressable>
               <Pressable accessibilityLabel="Capture food photo" onPress={() => void takePhoto()} style={[styles.shutter, { backgroundColor: colors.primary }]}>{analyzeCapture.isPending ? <ActivityIndicator color={colors.primaryForeground} /> : <Feather name="camera" size={25} color={colors.primaryForeground} />}</Pressable>
-              <View style={{ width: 92 }} />
+              <Pressable accessibilityLabel="Search restaurant foods" onPress={() => router.push({ pathname: '/restaurants', params: { date: entryDate } })} style={[styles.secondaryButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="coffee" size={17} color={colors.foreground} /><Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Restaurants</Text></Pressable>
             </View>
             <View style={[styles.trustCard, { backgroundColor: colors.hero }]}><Feather name="shield" size={17} color={colors.heroMuted} /><View style={{ flex: 1 }}><Text style={[styles.trustTitle, { color: colors.onHero }]}>Review before it counts</Text><Text style={[styles.trustBody, { color: colors.heroMuted }]}>Barcode matches use nutrition sources. Food photos are estimates. Nothing reaches your diary until you approve it.</Text></View></View>
             <View style={styles.altCaptureSection}>

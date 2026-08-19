@@ -9,6 +9,7 @@ import referralRouter from "./referral";
 import diaryRouter from "./diary";
 import syncRouter from "./sync";
 import premiumRecipesRouter from "./premiumRecipes";
+import restaurantFoodsRouter from "./restaurantFoods";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(referralRouter);
 router.use(diaryRouter);
 router.use(syncRouter);
 router.use(premiumRecipesRouter);
+router.use(restaurantFoodsRouter);
 
 export default router;

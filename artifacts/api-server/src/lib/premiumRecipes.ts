@@ -33,6 +33,44 @@ export type PremiumRecipe = {
   nutritionSource: string;
 };
 
+export type RestaurantFoodServing = {
+  servingId: string | null;
+  description: string;
+  calories: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+  fiberG: number | null;
+  sugarG: number | null;
+  sodiumMg: number | null;
+};
+
+export type RestaurantFood = Omit<RestaurantFoodServing, "description"> & {
+  id: string;
+  sourceId: string;
+  name: string;
+  brandName: string | null;
+  foodUrl: string | null;
+  serving: string | null;
+  servings: RestaurantFoodServing[];
+  sourceProvider: "FatSecret";
+  nutritionConfidence: "verified" | "unavailable";
+  nutritionSource: string;
+};
+
+export type FatSecretProviderErrorKind = "restricted" | "rate_limited" | "authentication" | "timeout" | "upstream" | "invalid_response";
+
+export class FatSecretProviderError extends Error {
+  constructor(
+    public readonly kind: FatSecretProviderErrorKind,
+    public readonly providerCode: string | null,
+    public readonly httpStatus: number | null,
+  ) {
+    super(`FatSecret provider ${kind}`);
+    this.name = "FatSecretProviderError";
+  }
+}
+
 type ProviderPayload = { recipes?: unknown[]; recipe?: unknown; nextOffset?: number | null };
 
 const configuredUrl = process.env.PREMIUM_RECIPE_PROVIDER_URL?.replace(/\/$/, "");
@@ -54,6 +92,12 @@ export function premiumProviderStatus() {
     : { status: "unavailable" as const, provider: providerName, message: "A Premium recipe provider is not connected yet." };
 }
 
+export function restaurantProviderStatus() {
+  return fatSecretEnabled
+    ? { status: "available" as const, provider: "FatSecret", message: null }
+    : { status: "unavailable" as const, provider: "FatSecret", message: "Restaurant nutrition search is not connected yet." };
+}
+
 async function fatSecretAccessToken() {
   if (fatSecretToken && fatSecretToken.expiresAt > Date.now() + 30_000) return fatSecretToken.value;
   const controller = new AbortController();
@@ -61,11 +105,23 @@ async function fatSecretAccessToken() {
   try {
     const credentials = Buffer.from(`${fatSecretClientId}:${fatSecretClientSecret}`).toString("base64");
     const response = await fetch(fatSecretTokenUrl, { method: "POST", headers: { Authorization: `Basic ${credentials}`, "content-type": "application/x-www-form-urlencoded" }, body: "grant_type=client_credentials&scope=basic", signal: controller.signal });
-    if (!response.ok) throw new Error(`FatSecret token request returned ${response.status}`);
+    if (!response.ok) {
+      throw new FatSecretProviderError(
+        response.status === 401 || response.status === 403 ? "authentication" : "upstream",
+        null,
+        response.status,
+      );
+    }
     const data = await response.json() as { access_token?: string; expires_in?: number };
-    if (!data.access_token) throw new Error("FatSecret token response was incomplete");
+    if (!data.access_token) throw new FatSecretProviderError("invalid_response", null, response.status);
     fatSecretToken = { value: data.access_token, expiresAt: Date.now() + Math.max(60, data.expires_in ?? 3600) * 1000 };
     return fatSecretToken.value;
+  } catch (error) {
+    if (error instanceof FatSecretProviderError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new FatSecretProviderError("timeout", null, null);
+    }
+    throw new FatSecretProviderError("upstream", null, null);
   } finally { clearTimeout(timer); }
 }
 
@@ -124,6 +180,113 @@ function fatSecretRecipe(input: unknown): PremiumRecipe | null {
   };
 }
 
+function rows(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : value ? [value] : [];
+}
+
+function fatSecretServing(input: unknown): RestaurantFoodServing | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as Record<string, unknown>;
+  const description = string(raw.serving_description) ?? string(raw.measurement_description) ?? "1 serving";
+  return {
+    servingId: string(raw.serving_id),
+    description,
+    calories: fatSecretNumber(raw.calories),
+    proteinG: fatSecretNumber(raw.protein),
+    carbsG: fatSecretNumber(raw.carbohydrate),
+    fatG: fatSecretNumber(raw.fat),
+    fiberG: fatSecretNumber(raw.fiber),
+    sugarG: fatSecretNumber(raw.sugar),
+    sodiumMg: fatSecretNumber(raw.sodium),
+  };
+}
+
+function nutrientsFromDescription(description: string | null): Omit<RestaurantFoodServing, "servingId" | "description"> {
+  const value = description ?? "";
+  const read = (label: string) => {
+    const match = value.match(new RegExp(`(?:${label}):?\\s*([\\d.]+)`, "i"));
+    return match ? fatSecretNumber(match[1]) : null;
+  };
+  return {
+    calories: read("Calories"),
+    proteinG: read("Protein"),
+    carbsG: read("Carbs?|Carbohydrate"),
+    fatG: read("Fat"),
+    fiberG: read("Fiber"),
+    sugarG: read("Sugar"),
+    sodiumMg: read("Sodium"),
+  };
+}
+
+export function normalizeFatSecretFood(input: unknown): RestaurantFood | null {
+  if (!input || typeof input !== "object") return null;
+  const raw = input as Record<string, unknown>;
+  const sourceId = string(raw.food_id);
+  const name = string(raw.food_name);
+  if (!sourceId || !name) return null;
+  const servingSource = raw.servings && typeof raw.servings === "object"
+    ? (raw.servings as { serving?: unknown }).serving
+    : raw.serving;
+  const servings = rows(servingSource).map(fatSecretServing).filter((serving): serving is RestaurantFoodServing => Boolean(serving));
+  const parsedDescription = string(raw.food_description);
+  const descriptionServing = parsedDescription
+    ? { servingId: null, description: parsedDescription.split(" - ")[0]?.trim() || "1 serving", ...nutrientsFromDescription(parsedDescription) }
+    : null;
+  const primary = servings[0] ?? descriptionServing ?? {
+    servingId: null,
+    description: "1 serving",
+    calories: null,
+    proteinG: null,
+    carbsG: null,
+    fatG: null,
+    fiberG: null,
+    sugarG: null,
+    sodiumMg: null,
+  };
+  const hasNutrition = primary.calories !== null
+    && primary.proteinG !== null
+    && primary.carbsG !== null
+    && primary.fatG !== null;
+  return {
+    id: `fatsecret-food:${sourceId}`,
+    sourceId,
+    name,
+    brandName: string(raw.brand_name),
+    foodUrl: string(raw.food_url),
+    serving: primary.description,
+    servingId: primary.servingId,
+    calories: primary.calories,
+    proteinG: primary.proteinG,
+    carbsG: primary.carbsG,
+    fatG: primary.fatG,
+    fiberG: primary.fiberG,
+    sugarG: primary.sugarG,
+    sodiumMg: primary.sodiumMg,
+    servings,
+    sourceProvider: "FatSecret",
+    nutritionConfidence: hasNutrition ? "verified" : "unavailable",
+    nutritionSource: hasNutrition ? "FatSecret nutrition data" : "Nutrition not supplied",
+  };
+}
+
+function fatSecretError(payload: Record<string, unknown>, status: number): FatSecretProviderError | null {
+  if (!payload.error) return null;
+  const raw = payload.error && typeof payload.error === "object"
+    ? payload.error as Record<string, unknown>
+    : {};
+  const code = string(raw.code) ?? (fatSecretNumber(raw.code) !== null ? String(raw.code) : null);
+  const message = string(raw.message)?.toLowerCase() ?? "";
+  const kind: FatSecretProviderErrorKind =
+    status === 429 || code === "12" || message.includes("limit") || message.includes("quota")
+      ? "rate_limited"
+      : status === 401 || code === "2" || message.includes("token")
+        ? "authentication"
+        : status === 403 || ["13", "14", "21"].includes(code ?? "") || message.includes("scope") || message.includes("permission")
+          ? "restricted"
+          : "upstream";
+  return new FatSecretProviderError(kind, code, status);
+}
+
 async function fatSecretFetch(path: string, params: Record<string, string | number>) {
   const token = await fatSecretAccessToken();
   const url = new URL(`${fatSecretApi}${path}`);
@@ -132,12 +295,24 @@ async function fatSecretFetch(path: string, params: Record<string, string | numb
   const timer = setTimeout(() => controller.abort(), Number.isFinite(PROVIDER_TIMEOUT_MS) ? PROVIDER_TIMEOUT_MS : 8_000);
   try {
     const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
-    if (!response.ok) throw new Error(`FatSecret recipe request returned ${response.status}`);
-    const payload = await response.json() as Record<string, unknown>;
-    if (payload.error) {
-      throw new Error("FatSecret request rejected");
+    const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
+    if (!payload) throw new FatSecretProviderError("invalid_response", null, response.status);
+    const providerError = fatSecretError(payload, response.status);
+    if (providerError) throw providerError;
+    if (!response.ok) {
+      throw new FatSecretProviderError(
+        response.status === 429 ? "rate_limited" : response.status === 401 ? "authentication" : response.status === 403 ? "restricted" : "upstream",
+        null,
+        response.status,
+      );
     }
     return payload;
+  } catch (error) {
+    if (error instanceof FatSecretProviderError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new FatSecretProviderError("timeout", null, null);
+    }
+    throw new FatSecretProviderError("upstream", null, null);
   } finally { clearTimeout(timer); }
 }
 
@@ -238,4 +413,29 @@ export async function getPremiumRecipe(sourceId: string) {
   }
   const payload = await providerFetch(`/recipes/${encodeURIComponent(sourceId)}`);
   return normalizePremiumRecipe(payload?.recipe ?? payload);
+}
+
+export async function listRestaurantFoods(input: { query: string; limit: number; offset: number }) {
+  const status = restaurantProviderStatus();
+  if (status.status !== "available") return { ...status, foods: [], nextOffset: null };
+  const pageNumber = Math.floor(input.offset / input.limit);
+  const payload = await fatSecretFetch("/foods/search/v5", {
+    search_expression: input.query,
+    max_results: input.limit,
+    page_number: pageNumber,
+  });
+  const search = payload.foods && typeof payload.foods === "object" ? payload.foods as Record<string, unknown> : {};
+  const foods = rows(search.food)
+    .map(normalizeFatSecretFood)
+    .filter((food): food is RestaurantFood => Boolean(food?.brandName));
+  const total = fatSecretNumber(search.total_results) ?? 0;
+  const nextProviderOffset = (pageNumber + 1) * input.limit;
+  return { ...status, foods, nextOffset: nextProviderOffset < total ? nextProviderOffset : null };
+}
+
+export async function getRestaurantFood(sourceId: string) {
+  const status = restaurantProviderStatus();
+  if (status.status !== "available") return null;
+  const payload = await fatSecretFetch("/food/v4", { food_id: sourceId.replace(/^fatsecret-food:/, "") });
+  return normalizeFatSecretFood(payload.food);
 }

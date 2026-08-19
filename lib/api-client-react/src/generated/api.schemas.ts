@@ -368,6 +368,128 @@ export interface PremiumRecipeList {
   nextOffset?: number | null;
 }
 
+export type RestaurantFoodListStatus = typeof RestaurantFoodListStatus[keyof typeof RestaurantFoodListStatus];
+
+
+export const RestaurantFoodListStatus = {
+  available: 'available',
+  unavailable: 'unavailable',
+  restricted: 'restricted',
+  error: 'error',
+} as const;
+
+export interface RestaurantFoodServing {
+  /** @nullable */
+  servingId: string | null;
+  description: string;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  calories: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  proteinG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  carbsG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  fatG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  fiberG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  sugarG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  sodiumMg: number | null;
+}
+
+export type RestaurantFoodNutritionConfidence = typeof RestaurantFoodNutritionConfidence[keyof typeof RestaurantFoodNutritionConfidence];
+
+
+export const RestaurantFoodNutritionConfidence = {
+  verified: 'verified',
+  unavailable: 'unavailable',
+} as const;
+
+export interface RestaurantFood {
+  id: string;
+  sourceId: string;
+  name: string;
+  /** @nullable */
+  brandName: string | null;
+  /** @nullable */
+  foodUrl: string | null;
+  /** @nullable */
+  serving: string | null;
+  /** @nullable */
+  servingId: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  calories: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  proteinG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  carbsG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  fatG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  fiberG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  sugarG: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  sodiumMg: number | null;
+  servings: RestaurantFoodServing[];
+  sourceProvider: string;
+  nutritionConfidence: RestaurantFoodNutritionConfidence;
+  nutritionSource: string;
+}
+
+export interface RestaurantFoodList {
+  status: RestaurantFoodListStatus;
+  provider: string;
+  /** @nullable */
+  message?: string | null;
+  foods: RestaurantFood[];
+  /** @nullable */
+  nextOffset?: number | null;
+}
+
 export type CaptureAnalyzeInputMode = typeof CaptureAnalyzeInputMode[keyof typeof CaptureAnalyzeInputMode];
 
 
@@ -1095,6 +1217,23 @@ query?: string;
  * @maxLength 80
  */
 category?: string;
+/**
+ * @minimum 1
+ * @maximum 30
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
+};
+
+export type ListRestaurantFoodsParams = {
+/**
+ * @minLength 2
+ * @maxLength 120
+ */
+query: string;
 /**
  * @minimum 1
  * @maximum 30

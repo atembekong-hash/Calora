@@ -798,6 +798,10 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowAdd(true);
   };
+  const openRestaurants = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({ pathname: '/restaurants', params: { date: selectedDate } });
+  };
 
   const handleLivingAction = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -973,6 +977,7 @@ export default function HomeScreen() {
             <IconButton icon="camera" label="Photo log" onPress={openAdd} colors={colors} primary />
             <IconButton icon="search" label="Search foods" onPress={openAdd} colors={colors} />
             <IconButton icon="edit-3" label="Quick add" onPress={openAdd} colors={colors} />
+            <IconButton icon="coffee" label="Restaurants" onPress={openRestaurants} colors={colors} />
           </View>
         </View>
 
@@ -1136,8 +1141,8 @@ function makeStyles(f: number) {
   livingRhythmFill: { height: 6, borderRadius: 3 },
    quickLogSection: { marginBottom: 22 },
    quickLogHeading: { marginBottom: 12 },
-   quickActions: { flexDirection: 'row', gap: 10 },
-  quickAction: { flex: 1, minHeight: 88, borderWidth: 1, borderRadius: 18, padding: 12, justifyContent: 'space-between' },
+   quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  quickAction: { flexGrow: 1, flexBasis: '46%', minHeight: 88, borderWidth: 1, borderRadius: 18, padding: 12, justifyContent: 'space-between' },
    quickActionPrimary: { shadowColor: '#1b3022', shadowOpacity: 0.12, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   quickIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   quickLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },

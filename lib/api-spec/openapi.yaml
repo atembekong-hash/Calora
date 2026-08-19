@@ -327,6 +327,46 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PremiumRecipe" }
+  /v1/restaurant-foods:
+    get:
+      operationId: listRestaurantFoods
+      tags: [foods]
+      summary: Search branded restaurant foods from the configured nutrition provider
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: query, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 120 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 30, default: 20 } }
+        - { name: offset, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        "200":
+          description: Branded food matches or a truthful provider availability state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RestaurantFoodList" }
+        "401":
+          description: A signed-in Calora account is required
+        "429":
+          description: Search quota exceeded
+  /v1/restaurant-foods/{sourceId}:
+    get:
+      operationId: getRestaurantFood
+      tags: [foods]
+      summary: Get nutrition and serving options for a branded restaurant food
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: sourceId, in: path, required: true, schema: { type: string, minLength: 1 } }
+      responses:
+        "200":
+          description: Branded food nutrition detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RestaurantFood" }
+        "401":
+          description: A signed-in Calora account is required
+        "404":
+          description: Food item not found
+        "429":
+          description: Detail quota exceeded
   /v1/capture/analyze:
     post:
       operationId: analyzeCapture
@@ -796,6 +836,54 @@ components:
             equipment: { type: array, items: { type: string } }
             fiberG: { type: number, nullable: true }
             sodiumMg: { type: number, nullable: true }
+    RestaurantFoodList:
+      type: object
+      required: [status, provider, foods]
+      properties:
+        status: { type: string, enum: [available, unavailable, restricted, error] }
+        provider: { type: string }
+        message: { type: [string, "null"] }
+        foods:
+          type: array
+          items: { $ref: "#/components/schemas/RestaurantFood" }
+        nextOffset: { type: [integer, "null"] }
+    RestaurantFood:
+      type: object
+      required: [id, sourceId, name, brandName, foodUrl, serving, servingId, calories, proteinG, carbsG, fatG, fiberG, sugarG, sodiumMg, servings, sourceProvider, nutritionConfidence, nutritionSource]
+      properties:
+        id: { type: string }
+        sourceId: { type: string }
+        name: { type: string }
+        brandName: { type: [string, "null"] }
+        foodUrl: { type: [string, "null"], format: uri }
+        serving: { type: [string, "null"] }
+        servingId: { type: [string, "null"] }
+        calories: { type: [number, "null"], minimum: 0 }
+        proteinG: { type: [number, "null"], minimum: 0 }
+        carbsG: { type: [number, "null"], minimum: 0 }
+        fatG: { type: [number, "null"], minimum: 0 }
+        fiberG: { type: [number, "null"], minimum: 0 }
+        sugarG: { type: [number, "null"], minimum: 0 }
+        sodiumMg: { type: [number, "null"], minimum: 0 }
+        servings:
+          type: array
+          items: { $ref: "#/components/schemas/RestaurantFoodServing" }
+        sourceProvider: { type: string }
+        nutritionConfidence: { type: string, enum: [verified, unavailable] }
+        nutritionSource: { type: string }
+    RestaurantFoodServing:
+      type: object
+      required: [servingId, description, calories, proteinG, carbsG, fatG, fiberG, sugarG, sodiumMg]
+      properties:
+        servingId: { type: [string, "null"] }
+        description: { type: string }
+        calories: { type: [number, "null"], minimum: 0 }
+        proteinG: { type: [number, "null"], minimum: 0 }
+        carbsG: { type: [number, "null"], minimum: 0 }
+        fatG: { type: [number, "null"], minimum: 0 }
+        fiberG: { type: [number, "null"], minimum: 0 }
+        sugarG: { type: [number, "null"], minimum: 0 }
+        sodiumMg: { type: [number, "null"], minimum: 0 }
     CaptureAnalyzeInput:
       type: object
       required: [mode]

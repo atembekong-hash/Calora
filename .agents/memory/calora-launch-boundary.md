@@ -7,4 +7,4 @@ Calora's first shippable milestone is intentionally local-first: diary, onboardi
 
 **Why:** Native billing, HealthKit/Health Connect, authenticated account sync, and production API handlers were not authorized or available during the initial build; faking them would undermine the product's trust positioning.
 
-**How to apply:** Keep unavailable native capabilities in explicit permission-required, unavailable-store, or needs-connection states until their real providers and production routes are connected. Do not label local changes as synced or imply payment/entitlement.
+**How to apply:** Keep unavailable native capabilities in explicit permission-required, unavailable-store, or needs-connection states until their real providers and production routes are connected. Apply the same rule to provider entitlements: credentials alone do not prove recipe or restaurant access, and review/logging must require a successful detail response. Do not label local changes as synced or imply payment/entitlement.
