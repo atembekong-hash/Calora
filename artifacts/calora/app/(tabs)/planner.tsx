@@ -17,11 +17,13 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { AppHeader } from '@/components/AppChrome';
+import { SwipeableTabList } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+const PLANNER_WORKSPACES = ['today', 'week', 'shopping'] as const;
 
 function parseDate(date: string) {
   return new Date(`${date}T12:00:00`);
@@ -752,13 +754,20 @@ export default function PlannerScreen() {
             <Feather name="compass" size={17} color={colors.foreground} />
           </Pressable>
         </View>
-        <View accessibilityRole="tablist" style={[styles.workspaceSwitch, { backgroundColor: colors.muted }]}>
-          {(['today', 'week', 'shopping'] as const).map((item) => {
+        <SwipeableTabList
+          items={PLANNER_WORKSPACES}
+          activeItem={workspace}
+          onChange={setWorkspace}
+          accessibilityLabel="Plan workspaces"
+          testID="planner-workspace-tabs"
+          style={[styles.workspaceSwitch, { backgroundColor: colors.muted }]}
+        >
+          {PLANNER_WORKSPACES.map((item) => {
             const active = workspace === item;
             const label = item === 'today' ? 'Today' : item === 'week' ? 'Week' : 'Shopping';
             return <Pressable key={item} accessibilityRole="tab" accessibilityLabel={`Show ${label} workspace`} accessibilityState={{ selected: active }} onPress={() => setWorkspace(item)} style={[styles.workspaceTab, active && { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.workspaceTabText, { color: active ? colors.foreground : colors.mutedForeground }]}>{label}{item === 'shopping' && uncheckedShopping > 0 ? ` · ${uncheckedShopping}` : ''}</Text></Pressable>;
           })}
-        </View>
+        </SwipeableTabList>
 
         {workspace === 'today' && <>
           <PlannerFocusCard meal={nextMeal} allLogged={allSelectedMealsLogged} selectedMeals={selectedMeals} target={profile?.calorieTarget ?? 2000} colors={colors} onPrimary={openPrimaryPlanAction} />

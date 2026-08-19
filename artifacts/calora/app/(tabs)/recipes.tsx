@@ -20,12 +20,14 @@ import { applySlotReplace, getPlannerWeekStart, plannerDate, plannerMealTypes } 
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
+import { SwipeableTabList } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance, recipeSourceLabel } from '@/lib/recipeModel';
 import { requestGeneratedRecipe, requestRecipeConcepts } from '@/lib/recipeGeneration';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
+const RECIPE_SECTIONS = ['discover', 'premium', 'create'] as const;
 
 function recipeKey(recipe: Recipe | CaloraRecipe) {
   return recipe.id;
@@ -889,14 +891,21 @@ export default function RecipesScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader title="Recipes" action={<Pressable accessibilityLabel="Create personalized recipe ideas" onPress={() => changeSection('create')}><Feather name="plus" size={21} color={colors.primary} /></Pressable>} />
-      <View accessibilityRole="tablist" style={[styles.sectionTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-        {(['discover', 'premium', 'create'] as const).map((section) => {
+      <SwipeableTabList
+        items={RECIPE_SECTIONS}
+        activeItem={activeSection}
+        onChange={changeSection}
+        accessibilityLabel="Recipe sections"
+        testID="recipes-section-tabs"
+        style={[styles.sectionTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}
+      >
+        {RECIPE_SECTIONS.map((section) => {
           const selectedSection = activeSection === section;
           return <ScalePressable key={section} accessibilityRole="tab" accessibilityState={{ selected: selectedSection }} accessibilityLabel={`${section[0].toUpperCase()}${section.slice(1)} recipes`} onPress={() => changeSection(section)} scale={0.98} haptic="none" style={[styles.sectionTab, selectedSection && { backgroundColor: colors.card }]}>
             <Text style={[styles.sectionTabText, { color: selectedSection ? colors.foreground : colors.mutedForeground }]}>{section[0].toUpperCase()}{section.slice(1)}</Text>
           </ScalePressable>;
         })}
-      </View>
+      </SwipeableTabList>
       <ScrollView ref={recipesScrollRef} contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false} onScroll={handleRecipeScroll} onMomentumScrollEnd={handleRecipeScroll} scrollEventThrottle={16} decelerationRate="normal">
         {activeSection === 'discover' ? <>
         <View style={styles.recipeHeader}>

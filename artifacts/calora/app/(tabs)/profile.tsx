@@ -28,6 +28,7 @@ import { deriveExportHasData, makeExportHandler } from '@/lib/exportUiHandler';
 import { SettingRowPressable } from '@/components/SettingRowPressable';
 import { AccountSection } from '@/components/auth/AccountSection';
 import { AppHeader } from '@/components/AppChrome';
+import { SwipeableTabList } from '@/components/SwipeableTabList';
 import { ReferralCard } from '@/components/ReferralCard';
 import { REVENUECAT_ENTITLEMENT_IDENTIFIER, useSubscription } from '@/lib/revenuecat';
 
@@ -53,6 +54,7 @@ const mealConfig: { key: 'breakfast' | 'lunch' | 'dinner'; label: string; icon: 
 ];
 
 type ProfileTab = 'you' | 'membership' | 'account';
+const PROFILE_TABS = ['you', 'membership', 'account'] as const;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -426,7 +428,14 @@ export default function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
-        <View style={[styles.profileTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+        <SwipeableTabList
+          items={PROFILE_TABS}
+          activeItem={profileTab}
+          onChange={setProfileTab}
+          accessibilityLabel="Profile sections"
+          testID="profile-section-tabs"
+          style={[styles.profileTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}
+        >
           {([
             { key: 'you' as const, label: 'You' },
             { key: 'membership' as const, label: 'Membership' },
@@ -439,7 +448,7 @@ export default function ProfileScreen() {
               </Pressable>
             );
           })}
-        </View>
+        </SwipeableTabList>
 
         <Text style={[styles.tabSubtitle, { color: colors.mutedForeground }]}>
           {{ you: 'Personalize Calora and set your reminders.', membership: 'Plans, rewards, and the tools you return to.', account: 'Your data, health connection, account, and help.' }[profileTab]}

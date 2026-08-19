@@ -14,6 +14,7 @@ import { BRAND } from '@/lib/brand';
 import { formatGrams, formatWhole } from '@/lib/formatters';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
+import { SwipeableTabList } from '@/components/SwipeableTabList';
 import { router } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
@@ -21,6 +22,7 @@ import { filterForgottenSources } from '@/lib/livingMemory';
 import { celebrationGate } from '@/lib/goalCelebration';
 
 type ProgressView = 'overview' | 'trends' | 'weight';
+const PROGRESS_VIEWS = ['overview', 'trends', 'weight'] as const;
 
 const moodColors: Record<Mood, string> = {
   energized: '#e5ad55',
@@ -1432,7 +1434,14 @@ export default function InsightsScreen() {
           </View>
         </View>
 
-        <View style={[styles.progressTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+        <SwipeableTabList
+          items={PROGRESS_VIEWS}
+          activeItem={progressView}
+          onChange={setProgressView}
+          accessibilityLabel="Progress sections"
+          testID="progress-section-tabs"
+          style={[styles.progressTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}
+        >
           {([
             { key: 'overview' as const, label: 'Overview' },
             { key: 'trends' as const, label: 'Trends' },
@@ -1452,7 +1461,7 @@ export default function InsightsScreen() {
               </Pressable>
             );
           })}
-        </View>
+        </SwipeableTabList>
         <Text style={[styles.progressTabSubtitle, { color: colors.mutedForeground }]}>
           {{ overview: 'Your weekly rhythm and today’s optional context.', trends: 'Calorie, nutrient, and weekly patterns in one place.', weight: 'Your weigh-ins, goal, and history tools.' }[progressView]}
         </Text>
