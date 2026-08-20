@@ -82,3 +82,27 @@ on the existing Calora backend:
 
 Keep the mobile app unchanged. To roll back, remove `FATSECRET_GATEWAY_URL`;
 the backend falls back to its current direct FatSecret transport.
+
+## Production verification record
+
+Production verification was completed on 2026-08-20 against the deployed
+Calora API with an authenticated QA account. No credentials, provider tokens,
+or gateway secret values are recorded here.
+
+- Premium recipe search and selected-recipe detail both returned HTTP 200 with
+  FatSecret attribution, and the selected ID was preserved through the detail
+  request.
+- Branded restaurant-food search and selected-item detail both returned HTTP
+  200 with FatSecret attribution. The returned item had a branded name and a
+  serving containing calories, protein, carbohydrates, and fat, so Calora
+  marked it ready for the required portion-review step.
+- One temporary, clearly labeled recipe diary entry and one restaurant diary
+  entry were sent through Calora's authenticated `/v1/sync` outbox contract.
+  Both mutations were accepted without conflicts, appeared in the subsequent
+  authenticated diary fetch, and were deleted successfully. A final diary
+  fetch confirmed no temporary QA rows remained.
+- Calora shows the required FatSecret attribution on restaurant results and
+  details. The production search/detail cycle returned no gateway, OAuth,
+  provider-envelope, timeout, IP-restriction, or quota error. This is an
+  observed normal-volume check, not a measurement of the provider's total
+  quota or a substitute for future launch-market monitoring.
