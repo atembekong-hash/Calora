@@ -64,16 +64,6 @@ describe.skipIf(!HAS_DB)('referral rewards under rapid retries (real schema)', (
 
   beforeAll(async () => {
     pool = (await import('@workspace/db')).pool;
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS calora_account_deletion_states (
-        identity_fingerprint TEXT PRIMARY KEY,
-        state TEXT NOT NULL CHECK (state IN ('active', 'deleting', 'deleted')),
-        requested_at TIMESTAMPTZ,
-        completed_at TIMESTAMPTZ,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        last_error TEXT
-      )
-    `);
     const express = (await import('express')).default;
     const referralRouter = (await import('../routes/referral.js')).default;
     app = express();

@@ -8,7 +8,7 @@ import { ScalePressable } from '@/components/ScalePressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ApiError, getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getRecipe, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
+import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getRecipe, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
@@ -39,6 +39,12 @@ function recipeKey(recipe: Recipe | CaloraRecipe) {
 
 function isLocalRecipe(recipe: Recipe | CaloraRecipe): recipe is CaloraRecipe {
   return 'isLocal' in recipe && recipe.isLocal === true;
+}
+
+function httpStatus(error: unknown): number | null {
+  if (!error || typeof error !== 'object' || !('status' in error)) return null;
+  const status = (error as { status: unknown }).status;
+  return typeof status === 'number' ? status : null;
 }
 
 function RecipeImage({ recipe, height = 160 }: { recipe: Recipe | CaloraRecipe; height?: number }) {
@@ -232,8 +238,9 @@ function PremiumCatalogue({ colors, onOpen, onSave, savedPremiumRecipes, onLoadM
   const userId = session?.user.id ?? null;
   const premiumQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(premiumParams));
   const query = useListPremiumRecipes(premiumParams, { query: { queryKey: premiumQueryKey, enabled: Boolean(userId), staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchInterval: 60_000 } });
-  const accessDeniedStatus = query.error instanceof ApiError && (query.error.status === 401 || query.error.status === 403)
-    ? query.error.status
+  const queryErrorStatus = httpStatus(query.error);
+  const accessDeniedStatus = queryErrorStatus === 401 || queryErrorStatus === 403
+    ? queryErrorStatus
     : null;
   const accessDenied = accessDeniedStatus !== null;
   // A cached response only describes a past entitlement. Never render it until
@@ -366,7 +373,8 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   });
   const premiumDetailKey = premiumRecipeDetailQueryKey(session?.user.id, getGetPremiumRecipeQueryKey(premiumSourceId));
   const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: premiumDetailKey, enabled: Boolean(premiumSourceId && session?.user.id), staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchInterval: 60_000 } });
-  const premiumDetailDenied = premiumDetailQuery.error instanceof ApiError && (premiumDetailQuery.error.status === 401 || premiumDetailQuery.error.status === 403);
+  const premiumDetailErrorStatus = httpStatus(premiumDetailQuery.error);
+  const premiumDetailDenied = premiumDetailErrorStatus === 401 || premiumDetailErrorStatus === 403;
   useEffect(() => {
     if (!premiumDetailDenied) return;
     queryClient.removeQueries({ queryKey: premiumDetailKey, exact: true });
