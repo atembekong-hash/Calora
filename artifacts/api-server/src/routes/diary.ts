@@ -263,7 +263,16 @@ router.post("/v1/diary/first-log", async (req, res) => {
     const candidates = await db
       .select({ calories: aiCaptureCandidatesTable.calories })
       .from(aiCaptureCandidatesTable)
-      .where(eq(aiCaptureCandidatesTable.sessionId, entry.captureSessionId));
+      .innerJoin(
+        aiCaptureSessionsTable,
+        eq(aiCaptureCandidatesTable.sessionId, aiCaptureSessionsTable.id),
+      )
+      .where(
+        and(
+          eq(aiCaptureCandidatesTable.sessionId, entry.captureSessionId),
+          eq(aiCaptureSessionsTable.userId, userId),
+        ),
+      );
     const analyzedCalories = candidates.reduce((sum, c) => sum + Number(c.calories), 0);
     const withinBand =
       analyzedCalories > 0 &&
@@ -283,6 +292,7 @@ router.post("/v1/diary/first-log", async (req, res) => {
         .where(
           and(
             eq(aiCaptureSessionsTable.id, entry.captureSessionId),
+              eq(aiCaptureSessionsTable.userId, userId),
             sql`${aiCaptureSessionsTable.reviewedAt} IS NULL`,
           ),
         )
