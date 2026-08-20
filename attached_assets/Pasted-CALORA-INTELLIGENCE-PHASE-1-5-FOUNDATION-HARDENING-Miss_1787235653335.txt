@@ -1,0 +1,538 @@
+CALORA INTELLIGENCE — PHASE 1.5 FOUNDATION HARDENING
+
+Mission
+
+Proceed with Phase 1.5: Foundation Hardening for Calora Intelligence.
+
+Phase 1 has already created the deterministic local Intelligence Foundation.
+
+This task must now verify, harden, and document that foundation before any Phase 2 Intelligence delivery is enabled.
+
+This is not Phase 2.
+
+Do not add visible Intelligence features.
+
+Do not redesign Calora.
+
+Do not rewrite Coach.
+
+Do not add predictions, prescriptive guidance, adaptive learning, proactive notifications, or new user-facing Intelligence cards.
+
+The objective is to resolve or clearly classify the remaining Phase 1 blockers and produce stronger technical evidence.
+
+---
+
+1. NON-NEGOTIABLE BOUNDARIES
+
+During Phase 1.5:
+
+- Do not enable Today Intelligence delivery.
+- Do not enable post-log Intelligence.
+- Do not enable Progress Intelligence.
+- Do not enable Coach fact-context delivery.
+- Do not add proactive notifications.
+- Do not add adaptive learning.
+- Do not add prediction.
+- Do not add causal inference.
+- Do not add LLM-generated nutrition facts.
+- Do not make local logging server-dependent.
+- Do not change core user-visible nutrition behavior unless a proven defect requires correction and is explicitly reported first.
+- Do not perform destructive schema operations.
+- Do not trigger a production build.
+- Do not begin Phase 2 automatically.
+
+If a blocker cannot be safely resolved inside the repository, document it precisely and stop short of unsafe assumptions.
+
+---
+
+2. OBJECTIVE A — MIGRATION AUTHORITY INVESTIGATION
+
+The Phase 1 report found two schema authorities:
+
+- "lib/db/src/schema/index.ts"
+- startup DDL in "artifacts/api-server/src/index.ts"
+
+Investigate this completely.
+
+Determine:
+
+1. What currently creates database schema in development.
+2. What currently creates schema in fresh deployments.
+3. Whether any migration tooling exists elsewhere in the repository.
+4. Whether Drizzle migrations are generated but ignored.
+5. Whether startup DDL is intended as bootstrap-only logic.
+6. Which tables/columns exist in Drizzle but not startup DDL.
+7. Which startup-DDL structures are not represented in Drizzle.
+8. Whether current deployment can drift depending on database age.
+9. The safest path to one canonical schema-management authority.
+
+Create an explicit schema parity table:
+
+TABLE / STRUCTURE
+DRIZZLE
+STARTUP DDL
+MATCH
+DIFFERENCE
+RISK
+RECOMMENDED ACTION
+
+Do not perform a broad migration unless it is clearly additive, reversible, and necessary for Phase 1.5 validation.
+
+Prefer investigation and a proposed migration strategy over speculative changes.
+
+---
+
+3. OBJECTIVE B — RLS AND TENANT ISOLATION VERIFICATION
+
+The Phase 1 report marked RLS as:
+
+RLS VERIFICATION BLOCKED: EXTERNAL CONSOLE ACCESS REQUIRED
+
+Re-check all repository evidence first.
+
+Search for:
+
+- "ENABLE ROW LEVEL SECURITY"
+- "CREATE POLICY"
+- Supabase migration folders
+- SQL policy definitions
+- user-scoped views
+- database functions
+- service-role usage
+- direct PostgreSQL access that bypasses RLS
+
+If repository evidence still cannot verify production RLS, report:
+
+RLS STATUS: NOT VERIFIED
+
+Do not infer database isolation from API route filtering.
+
+If external Supabase console access is required, specify exactly what must be checked:
+
+- which tables;
+- whether RLS is enabled;
+- policy names;
+- SELECT policy;
+- INSERT policy;
+- UPDATE policy;
+- DELETE policy;
+- service-role bypass behavior;
+- ownership predicates;
+- whether "auth.uid()" or equivalent user identity enforcement is used.
+
+Do not enable server-persisted Intelligence facts until this is verified.
+
+---
+
+4. OBJECTIVE C — REAL PARITY EVIDENCE
+
+The previous report stated that parity tests passed, but the new report must contain actual evidence.
+
+Run the relevant test suite and capture:
+
+- exact command;
+- total tests;
+- passed;
+- failed;
+- skipped;
+- execution result.
+
+Build a parity matrix for representative scenarios.
+
+At minimum test:
+
+1. New user with no profile/history.
+2. User with profile but no food logs.
+3. Single-day normal logger.
+4. Heavy logger.
+5. Partial macro data.
+6. AI-estimate-heavy day.
+7. Provider/barcode-heavy day.
+8. Manual-entry-heavy day.
+9. Mixed-provenance day.
+10. Edited food entry.
+11. Deleted food entry.
+12. Current-day active health energy.
+13. Different onboarding weight versus first logged weight.
+14. Timezone/day-boundary change.
+
+For applicable scenarios report:
+
+SCENARIO
+CURRENT CALORA RESULT
+INTELLIGENCE FACT RESULT
+MATCH / DIFFERENCE
+EXPLANATION
+
+Do not mark parity as proven without actual output.
+
+---
+
+5. OBJECTIVE D — INVALIDATION VERIFICATION
+
+Verify every declared invalidation rule with executable tests.
+
+At minimum:
+
+food_added
+food_updated
+food_deleted
+goal_changed
+target_changed
+weight_changed
+timezone_changed
+day_boundary_changed
+fact_relevant_preference_changed
+planner_changed
+source_refreshed
+
+For each, verify:
+
+1. original watermark;
+2. state change;
+3. resulting watermark;
+4. affected fact;
+5. whether recomputation is required;
+6. whether unrelated facts remain stable where appropriate.
+
+Also test negative cases.
+
+Examples:
+
+- unrelated historical diary change should not invalidate today's facts if intentionally excluded;
+- unrelated UI preference should not churn nutrition fact watermarks;
+- planner change should not invalidate facts that do not depend on planner state.
+
+---
+
+6. OBJECTIVE E — EVIDENCE MODEL STRESS TEST
+
+Test provenance preservation across mixed daily totals.
+
+Verify combinations such as:
+
+- provider + manual;
+- barcode + AI estimate;
+- manual + recipe estimate;
+- unknown legacy + provider;
+- AI estimate + recipe estimate;
+- corrected value where source evidence supports it.
+
+Confirm:
+
+- AI remains AI-estimated;
+- recipe estimate remains estimated;
+- unknown remains unknown;
+- aggregation never upgrades evidence class;
+- confidence responds correctly to mixed evidence.
+
+Document edge cases where current "FoodLog" lacks enough provenance to classify a source strongly.
+
+Do not invent missing provenance.
+
+---
+
+7. OBJECTIVE F — CONFIDENCE MODEL VALIDATION
+
+Test the current categorical model:
+
+HIGH
+MEDIUM
+LOW
+INSUFFICIENT
+
+Demonstrate actual scenarios that produce each category.
+
+Verify:
+
+- no food evidence;
+- missing target;
+- unknown provenance;
+- more than half estimated;
+- mixed usable evidence;
+- all strong evidence.
+
+Review whether the current rules create obvious false confidence.
+
+If problems are found, propose the smallest deterministic correction.
+
+Do not replace this with an opaque model.
+
+---
+
+8. OBJECTIVE G — WEIGHT BASELINE DECISION SUPPORT
+
+Do not silently unify Coach and Progress yet.
+
+Produce a decision analysis showing:
+
+COACH CURRENT BASELINE
+PROGRESS TREND BASELINE
+PROGRESS GOAL BASELINE
+WHY THEY DIFFER
+USER-VISIBLE CONSEQUENCES
+RECOMMENDED CANONICAL PRODUCT RULE
+MIGRATION/REGRESSION RISK
+
+If the current distinction is intentional and defensible, say so.
+
+If it is accidental, identify the safest future unification strategy.
+
+Do not change visible behavior unless explicitly required for correctness.
+
+---
+
+9. OBJECTIVE H — LOCAL-FIRST AND OFFLINE VALIDATION
+
+Verify the Intelligence Foundation under degraded conditions.
+
+Test:
+
+- no network;
+- API server unavailable;
+- AI provider unavailable;
+- stale authentication token where relevant;
+- local state hydrated successfully;
+- Intelligence Foundation disabled;
+- Intelligence Foundation enabled locally.
+
+Confirm:
+
+- food logging still works;
+- Today still renders;
+- existing navigation works;
+- local persistence works;
+- deterministic facts can compute without remote AI;
+- no retry storm occurs;
+- no optional Intelligence error blocks core flows.
+
+---
+
+10. OBJECTIVE I — PERFORMANCE MEASUREMENT
+
+The Phase 1 report did not provide actual measurements.
+
+Add measurable development/test instrumentation.
+
+Measure:
+
+- deterministic fact generation;
+- watermark generation;
+- confidence computation;
+- evidence partitioning;
+- context adaptation.
+
+Where practical, also compare:
+
+- Today render before/after Foundation availability;
+- meal-log completion path;
+- edit path;
+- delete path;
+- app hydration.
+
+Do not invent measurements.
+
+Report:
+
+OPERATION
+BEFORE
+AFTER
+DELTA
+SAMPLE SIZE
+ENVIRONMENT
+INTERPRETATION
+
+If a true before/after comparison cannot be reliably measured, say so.
+
+The critical question is whether Foundation computation introduces meaningful latency into core flows.
+
+---
+
+11. OBJECTIVE J — SECURITY HARDENING REVIEW
+
+Review all Phase 1 Foundation code for:
+
+- cross-user data leakage;
+- accidental persistence;
+- secret logging;
+- raw sensitive data in observability;
+- provenance spoofing;
+- malformed local data;
+- oversized inputs;
+- unsafe assumptions about authenticated state;
+- future server-adapter risks.
+
+Confirm that Foundation remains read-only.
+
+Confirm that no model or API call can mutate diary state through the Intelligence layer.
+
+---
+
+12. OBJECTIVE K — FEATURE FLAG VERIFICATION
+
+Verify all Intelligence flags.
+
+For each flag document:
+
+NAME
+DEFAULT
+CURRENT EFFECT
+USER-VISIBLE EFFECT
+DEPENDENCIES
+ROLLBACK BEHAVIOR
+
+Confirm that these remain disabled for visible delivery:
+
+- Today
+- post-log
+- Progress
+- Coach fact-context
+- feedback
+- proactive behavior
+
+Confirm that disabling the Foundation preserves current Calora behavior.
+
+---
+
+13. OBJECTIVE L — CLEAN REPOSITORY REVIEW
+
+After testing, inspect repository changes.
+
+Identify:
+
+- files created;
+- files modified;
+- dependencies added;
+- scripts added;
+- environment variables added;
+- migrations created;
+- database changes performed;
+- temporary debug code;
+- test artifacts;
+- generated files.
+
+Remove temporary/debug artifacts that are not needed.
+
+Do not remove useful permanent tests or documentation.
+
+---
+
+14. ACCEPTANCE GATES
+
+Phase 1.5 is complete only if the following are explicitly classified.
+
+Gate A — Deterministic parity
+
+PASS / PARTIAL / FAIL
+
+Gate B — Provenance preservation
+
+PASS / PARTIAL / FAIL
+
+Gate C — Confidence behavior
+
+PASS / PARTIAL / FAIL
+
+Gate D — Invalidation
+
+PASS / PARTIAL / FAIL
+
+Gate E — Offline resilience
+
+PASS / PARTIAL / FAIL
+
+Gate F — Performance
+
+PASS / PARTIAL / FAIL / NOT MEASURABLE
+
+Gate G — Schema/migration readiness
+
+PASS / BLOCKED
+
+Gate H — RLS/tenant isolation
+
+VERIFIED / NOT VERIFIED / FAIL
+
+Gate I — Security
+
+PASS / PARTIAL / FAIL
+
+Gate J — Phase 2 readiness
+
+APPROVE / APPROVE WITH CONDITIONS / DO NOT APPROVE
+
+Do not soften failed gates.
+
+---
+
+15. AUTOMATIC REPORT REQUIREMENT
+
+This is mandatory.
+
+When Phase 1.5 implementation, investigation, and testing are complete, automatically create and save the complete report as:
+
+"docs/CALORA_INTELLIGENCE_PHASE_1_5_HARDENING_REPORT.md"
+
+Do not wait for me to ask for the report.
+
+The report must be generated automatically as part of task completion.
+
+The Markdown report is the authoritative deliverable.
+
+It must include:
+
+1. Executive result
+2. Exact work performed
+3. Files created
+4. Files modified
+5. Exact test commands
+6. Test counts and results
+7. Parity matrix
+8. Invalidation test matrix
+9. Provenance validation
+10. Confidence validation
+11. Weight baseline decision analysis
+12. Offline-resilience results
+13. Performance measurements
+14. Schema parity table
+15. Migration-authority conclusion
+16. RLS verification status
+17. Security review
+18. Feature flag status
+19. Remaining blockers
+20. Acceptance-gate matrix
+21. Exact repository state
+22. Final engineering verdict
+23. Phase 2 readiness recommendation
+
+Do not report planned work as completed work.
+
+Do not mark a test as passed unless it was executed.
+
+Do not mark RLS verified without evidence.
+
+Do not invent benchmark numbers.
+
+Where evidence is unavailable, use:
+
+UNKNOWN / NOT VERIFIED / NOT MEASURABLE / BLOCKED
+
+After saving the file, provide only a concise chat summary and the exact saved path.
+
+---
+
+16. FINAL STOP CONDITION
+
+Do not begin Phase 2.
+
+Do not enable visible Intelligence.
+
+Do not modify Coach behavior.
+
+Do not enable server-persisted Intelligence.
+
+Complete Phase 1.5, save:
+
+"docs/CALORA_INTELLIGENCE_PHASE_1_5_HARDENING_REPORT.md"
+
+and STOP for approval.

@@ -1,0 +1,686 @@
+CALORA INTELLIGENCE — PHASE 1.6 DATABASE & SECURITY FOUNDATION
+
+Mission
+
+Proceed with Phase 1.6: Database & Security Foundation for Calora Intelligence.
+
+Phase 1 and Phase 1.5 established and hardened the local deterministic Intelligence Foundation.
+
+This phase must resolve the infrastructure blockers that currently prevent Phase 2 approval.
+
+The scope is intentionally narrow:
+
+1. establish a trustworthy schema migration authority;
+2. reconcile Drizzle schema and startup DDL;
+3. verify or properly harden Supabase tenant isolation and RLS;
+4. fix the unrelated existing Premium Recipes TypeScript release-gate errors;
+5. preserve all current Calora product behavior;
+6. automatically generate and save a complete technical report when finished.
+
+This is not Phase 2.
+
+Do not enable visible Intelligence.
+
+Do not change Coach behavior.
+
+Do not enable server-persisted Intelligence facts until the database security gate is proven.
+
+---
+
+1. NON-NEGOTIABLE RESTRICTIONS
+
+During Phase 1.6:
+
+- Do not enable Today Intelligence.
+- Do not enable post-log Intelligence.
+- Do not enable Progress Intelligence.
+- Do not enable Coach fact-context delivery.
+- Do not implement predictive Intelligence.
+- Do not implement adaptive learning.
+- Do not implement proactive notifications.
+- Do not redesign screens.
+- Do not rewrite Coach.
+- Do not add LLM-generated facts.
+- Do not make logging server-dependent.
+- Do not perform destructive database migrations without explicit approval.
+- Do not delete or rename production tables casually.
+- Do not weaken authentication or ownership checks.
+- Do not assume RLS is active merely because routes filter by user ID.
+- Do not begin Phase 2 automatically.
+- Do not trigger a production build unless explicitly instructed.
+
+If production state cannot be verified from available access, report it as NOT VERIFIED.
+
+Do not guess.
+
+---
+
+2. OBJECTIVE A — ESTABLISH ONE SCHEMA MIGRATION AUTHORITY
+
+The current repository has two schema authorities:
+
+- Drizzle schema definitions
+- startup DDL executed by the API
+
+This must be resolved.
+
+First, perform a complete investigation.
+
+Determine:
+
+1. which tool or process currently creates schema in development;
+2. which process creates schema in new deployments;
+3. whether existing databases depend on API startup DDL;
+4. whether any generated Drizzle migrations already exist;
+5. whether migration tooling is configured but unused;
+6. whether production deployments run migrations automatically;
+7. whether startup DDL contains functions, triggers, indexes, or constraints not represented in Drizzle;
+8. whether Drizzle contains tables or constraints missing from startup DDL.
+
+Create a definitive parity matrix:
+
+OBJECT
+DRIZZLE STATUS
+STARTUP DDL STATUS
+DATABASE DEPENDENCY
+MATCH / DRIFT
+RISK
+SAFE ACTION
+
+---
+
+3. TARGET MIGRATION ARCHITECTURE
+
+Unless repository evidence proves a better existing mechanism, the desired end state is:
+
+Drizzle schema
+      ↓
+Versioned generated migration SQL
+      ↓
+Reviewed committed migrations
+      ↓
+Controlled deployment
+      ↓
+Database
+
+Startup DDL should not remain a permanent competing schema authority.
+
+However:
+
+Do not remove startup DDL immediately if existing deployments depend on it.
+
+Develop a safe transition strategy.
+
+Possible staged approach:
+
+Stage A
+
+Create canonical versioned migration support.
+
+Stage B
+
+Reconcile current production/fresh-schema parity.
+
+Stage C
+
+Move remaining functions/triggers/indexes/RLS into committed migrations.
+
+Stage D
+
+Reduce startup DDL to harmless compatibility/bootstrap checks.
+
+Stage E
+
+Retire duplicate DDL only after deployment evidence proves it safe.
+
+Adapt this to actual repository conditions.
+
+---
+
+4. OBJECTIVE B — SCHEMA PARITY
+
+Compare all database structures.
+
+At minimum inspect:
+
+- users
+- profiles
+- food items
+- diary entries
+- weight entries
+- saved meals
+- recipes
+- recipe items
+- capture sessions
+- capture candidates
+- subscriptions
+- referral structures
+- sync mutation structures
+- consent events
+- rate-limit structures
+- account-deletion structures
+- functions
+- triggers
+- indexes
+- foreign keys
+- unique constraints
+- cascading deletion behavior
+
+For every mismatch classify:
+
+SAFE ADDITIVE FIX
+REQUIRES DATA MIGRATION
+REQUIRES PRODUCT DECISION
+LEGACY ONLY
+UNKNOWN
+
+Do not silently normalize mismatches.
+
+---
+
+5. OBJECTIVE C — FRESH DATABASE VALIDATION
+
+Create or use a safe disposable development/test database if available.
+
+Verify whether a clean database can be brought to the expected schema using the proposed canonical migration process.
+
+Test:
+
+- all expected tables exist;
+- expected columns exist;
+- foreign keys exist;
+- indexes exist;
+- unique constraints exist;
+- functions/triggers exist where required;
+- API starts successfully;
+- core database-backed tests pass.
+
+Never point destructive validation at production.
+
+If a disposable database cannot be safely created, state:
+
+FRESH DATABASE VALIDATION: BLOCKED
+
+and explain why.
+
+---
+
+6. OBJECTIVE D — EXISTING DATABASE COMPATIBILITY
+
+Verify that the migration strategy is safe for an existing Calora database.
+
+Look specifically for:
+
+- non-null additions;
+- renamed columns;
+- changed types;
+- unique constraints over existing data;
+- cascading deletions;
+- default-value differences;
+- existing duplicate values;
+- schema drift based on database age.
+
+Prefer:
+
+- additive changes;
+- nullable transitional fields;
+- backfill before enforcement;
+- reversible migrations.
+
+Do not introduce an unsafe migration simply to make schemas look cleaner.
+
+---
+
+7. OBJECTIVE E — SUPABASE RLS VERIFICATION
+
+The current status is:
+
+NOT VERIFIED
+
+This phase must attempt to resolve that.
+
+First inspect all repository-accessible evidence.
+
+Search for:
+
+- "ENABLE ROW LEVEL SECURITY"
+- "FORCE ROW LEVEL SECURITY"
+- "CREATE POLICY"
+- "ALTER POLICY"
+- "DROP POLICY"
+- "auth.uid()"
+- Supabase SQL migrations
+- policy definitions
+- grants
+- service-role usage
+- security-definer functions
+- database functions that access user tables
+
+If these do not exist in source control and production console access is necessary, do not fabricate verification.
+
+Report the exact external checks required.
+
+---
+
+8. RLS TABLE CLASSIFICATION
+
+Classify every table as one of:
+
+USER-OWNED
+SHARED READ-ONLY
+SYSTEM/OPERATIONAL
+PUBLIC
+SERVICE-ONLY
+UNKNOWN
+
+At minimum review user-owned tables such as:
+
+- profile
+- diary
+- weights
+- saved meals
+- recipes
+- recipe items
+- capture sessions
+- capture candidates
+- sync mutations
+- consent events
+- future Intelligence records
+
+For each user-owned table, determine the intended ownership chain.
+
+Example:
+
+recipe_items
+→ recipe_id
+→ recipes.user_id
+→ authenticated user
+
+Child resources must not be exposable merely because the child table lacks a direct "user_id".
+
+---
+
+9. RLS POLICY REQUIREMENTS
+
+For each user-owned table, verify or propose policies for:
+
+- SELECT
+- INSERT
+- UPDATE
+- DELETE
+
+Check both:
+
+USING (...)
+WITH CHECK (...)
+
+Ownership should be enforced against authenticated identity.
+
+Do not rely on user-supplied "user_id" alone.
+
+Where Supabase/Postgres auth is applicable, use a trustworthy identity boundary such as "auth.uid()" according to the project's actual architecture.
+
+---
+
+10. CROSS-USER SECURITY TESTS
+
+Where safe testing infrastructure permits, execute negative tenant-isolation tests.
+
+Create at least two test identities:
+
+USER_A
+USER_B
+
+Verify:
+
+USER_A cannot:
+
+- read USER_B diary entries;
+- modify USER_B diary entries;
+- delete USER_B diary entries;
+- read USER_B profile;
+- modify USER_B weights;
+- read USER_B saved meals;
+- read USER_B private recipes;
+- access USER_B capture records;
+- access USER_B consent records;
+- access USER_B sync mutations.
+
+Test relevant child-resource access as well.
+
+Do not report tenant isolation as verified without negative tests or equivalent strong database evidence.
+
+---
+
+11. SERVICE ROLE REVIEW
+
+Identify every server path using elevated database credentials or service-role behavior.
+
+For each, document:
+
+- why elevated access is needed;
+- which routes use it;
+- whether user identity is independently validated;
+- whether user ownership is enforced before query execution;
+- whether accidental cross-user queries are possible.
+
+RLS does not protect requests performed with privileged bypass credentials in the same way as normal authenticated requests.
+
+Treat this carefully.
+
+---
+
+12. FUTURE INTELLIGENCE SECURITY GATE
+
+Do not create or enable persistent Intelligence records until the following are true:
+
+MIGRATION AUTHORITY = VERIFIED
+SCHEMA PARITY = ACCEPTABLE
+TENANT ISOLATION = VERIFIED
+ACCOUNT DELETION = DEFINED
+RETENTION = DEFINED
+
+If any are missing:
+
+"intelligence.facts.server_adapter" must remain OFF.
+
+---
+
+13. ACCOUNT DELETION REVIEW
+
+Verify existing account deletion behavior.
+
+Determine whether deletion currently covers:
+
+- diary
+- profile
+- weights
+- recipes
+- saved meals
+- capture records
+- planner/server data if any
+- consent
+- subscriptions where appropriate
+- future Intelligence records
+
+Document:
+
+- cascade behavior;
+- triggers/functions;
+- recovery behavior;
+- orphan risks.
+
+Do not add persistent Intelligence tables without an explicit deletion path.
+
+---
+
+14. RETENTION POLICY DESIGN
+
+Do not implement adaptive or historical Intelligence storage yet.
+
+But define a proposed retention model for future:
+
+- facts;
+- insights;
+- evidence references;
+- feedback;
+- observability metadata.
+
+Separate:
+
+EPHEMERAL
+SHORT-LIVED
+USER-DURABLE
+SYSTEM-DURABLE
+SHOULD NOT BE STORED
+
+Do not retain raw images, raw audio, raw Coach conversations, or raw provider payloads merely for Intelligence convenience.
+
+---
+
+15. FIX THE PRE-EXISTING PREMIUM RECIPES TYPECHECK ERRORS
+
+The Phase 1.5 report found six pre-existing TypeScript errors in:
+
+"artifacts/calora/app/(tabs)/recipes.tsx"
+
+Fix these carefully.
+
+The reported problem involves:
+
+- API-client "ApiError" export mismatch;
+- nullable query-error accesses.
+
+Requirements:
+
+- preserve current Recipes functionality;
+- no redesign;
+- no new recipe feature;
+- no behavior changes beyond correctness;
+- do not weaken type safety with broad "any";
+- do not suppress errors using blanket "@ts-ignore";
+- do not disable strict checks.
+
+After correction, run the full project typecheck.
+
+Target:
+
+0 TypeScript errors
+
+If unrelated errors remain, document them individually.
+
+---
+
+16. FULL VALIDATION SUITE
+
+After all approved changes, execute:
+
+Intelligence tests
+
+- Phase 1 Foundation tests
+- Phase 1.5 hardening tests
+
+Mobile tests
+
+Full Calora test suite.
+
+Security tests
+
+Existing static asset/security tests plus any new RLS/migration tests.
+
+Typecheck
+
+Full Calora TypeScript typecheck.
+
+API tests
+
+Relevant server tests affected by migration/security changes.
+
+Fresh schema validation
+
+Where safe and possible.
+
+Do not claim passing status without executing the command.
+
+---
+
+17. RELEASE GATE MATRIX
+
+Evaluate:
+
+Migration authority
+
+"PASS / PARTIAL / BLOCKED / FAIL"
+
+Schema parity
+
+"PASS / PARTIAL / BLOCKED / FAIL"
+
+Fresh database provisioning
+
+"PASS / PARTIAL / BLOCKED / FAIL"
+
+Existing database compatibility
+
+"PASS / PARTIAL / BLOCKED / FAIL"
+
+RLS
+
+"VERIFIED / NOT VERIFIED / FAIL"
+
+Cross-user isolation
+
+"PASS / PARTIAL / NOT TESTED / FAIL"
+
+Service-role safety
+
+"PASS / PARTIAL / FAIL"
+
+Account deletion
+
+"PASS / PARTIAL / FAIL"
+
+TypeScript release check
+
+"PASS / FAIL"
+
+Existing test suite
+
+"PASS / FAIL"
+
+Intelligence Foundation regression
+
+"PASS / FAIL"
+
+Phase 2 readiness
+
+"APPROVE / APPROVE WITH CONDITIONS / DO NOT APPROVE"
+
+---
+
+18. EXTERNAL CONSOLE STOP RULE
+
+If you reach a point where production Supabase console access is required:
+
+STOP that part of execution.
+
+Do not assume the result.
+
+Create an exact checklist for me containing:
+
+1. where to open Supabase;
+2. which page/menu;
+3. which table;
+4. what RLS setting to inspect;
+5. what policies must exist;
+6. what SQL, if any, needs to be run;
+7. what screenshots or copied results I should return to you.
+
+Continue with repository-only work that is independently safe.
+
+Mark the RLS gate:
+
+AWAITING EXTERNAL VERIFICATION
+
+until evidence is provided.
+
+---
+
+19. NO PHASE 2 WORK
+
+Even if everything passes:
+
+Do not:
+
+- add Today's Focus;
+- add contextual insight cards;
+- change Coach;
+- enable Intelligence delivery flags;
+- implement server-side insight persistence;
+- implement predictions;
+- implement adaptive learning.
+
+Phase 2 requires separate approval.
+
+---
+
+20. AUTOMATIC REPORT REQUIREMENT
+
+This is mandatory.
+
+At the completion of Phase 1.6, automatically create and save:
+
+"docs/CALORA_INTELLIGENCE_PHASE_1_6_DATABASE_SECURITY_REPORT.md"
+
+Do not wait for me to request it.
+
+The report must be complete and unabridged.
+
+It must include:
+
+1. Executive verdict
+2. Exact scope completed
+3. Files created
+4. Files modified
+5. Dependencies added or removed
+6. Migration tooling discovered
+7. Migration authority decision
+8. Full schema parity matrix
+9. Fresh database validation
+10. Existing database compatibility findings
+11. RLS status
+12. Table ownership classification
+13. RLS policy matrix
+14. Cross-user test results
+15. Service-role analysis
+16. Account deletion analysis
+17. Retention proposal
+18. Premium Recipes TypeScript fixes
+19. Exact test commands
+20. Test counts
+21. Typecheck results
+22. Security test results
+23. Intelligence regression results
+24. Remaining unknowns
+25. Remaining blockers
+26. Release gate matrix
+27. Phase 2 readiness verdict
+28. Exact manual Supabase steps if external verification is still required
+29. Exact repository state at completion
+
+Evidence rules:
+
+- Do not report planned work as completed.
+- Do not mark RLS verified without evidence.
+- Do not mark tests passed unless executed.
+- Do not invent production database state.
+- Do not invent migration history.
+- Do not invent cross-user test results.
+- Label unavailable evidence clearly as:
+
+"UNKNOWN"
+
+"NOT VERIFIED"
+
+"NOT TESTED"
+
+or
+
+"BLOCKED"
+
+After creating the report, give me only a concise chat summary and the exact saved path.
+
+---
+
+21. FINAL STOP CONDITION
+
+Phase 1.6 ends when:
+
+- approved infrastructure work is complete;
+- validation has been executed;
+- the report has been saved automatically;
+- remaining external verification requirements are explicit.
+
+Then STOP.
+
+Do not begin Phase 2.
