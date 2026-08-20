@@ -93,6 +93,13 @@ async function runStartupMigrations(): Promise<void> {
     RETURNS TRIGGER AS $$
     DECLARE rate_limit_user_id TEXT;
     BEGIN
+      -- Deletion cleanup may need to anonymize a referral row whose other
+      -- participant is also tombstoned. Only the account-deletion transaction
+      -- sets this transaction-local marker; normal application writes remain
+      -- subject to every check below.
+      IF current_setting('calora.deletion_worker', true) = 'on' THEN
+        RETURN NEW;
+      END IF;
       IF TG_TABLE_NAME = 'calora_users' THEN
         PERFORM calora_assert_deletion_writable(NEW.external_id);
       ELSIF TG_TABLE_NAME = 'calora_referral_codes' THEN

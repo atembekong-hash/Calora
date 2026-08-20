@@ -199,6 +199,10 @@ valid session to retry. Those defects were remediated and independently reviewed
 - The mobile client now treats an in-progress deletion as pending rather than
   completed, clears device data best-effort, removes the profile photo, and
   signs out after a server-confirmed request.
+- A final completion review identified and repaired a concurrent-referral edge
+  case: when both participants delete at once, the deletion transaction is
+  explicitly authorized to anonymize their shared referral row while normal
+  application writes remain database-fenced.
 
 **Retest evidence:** API type check and mobile type check passed; API tests
 passed **217/217**; mobile tests passed **860/860**; the API workflow completed

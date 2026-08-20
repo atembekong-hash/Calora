@@ -87,7 +87,7 @@ describe("DELETE /v1/account", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ message: "Account permanently deleted." });
     expect(transaction).toHaveBeenCalledOnce();
-    expect(execute).toHaveBeenCalledTimes(5);
+    expect(execute).toHaveBeenCalledTimes(6);
     expect(deleteWhere).toHaveBeenCalledOnce();
     expect(deleteUser).toHaveBeenCalledWith("auth-user-1");
     expect(deleteRevenueCatSubscriber).toHaveBeenCalledWith("auth-user-1");

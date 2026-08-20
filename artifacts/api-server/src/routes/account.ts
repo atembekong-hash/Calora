@@ -36,6 +36,10 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
   const deletedReferredId = `deleted:${randomUUID()}`;
 
   await db.transaction(async (tx) => {
+    // The database fence blocks ordinary writes after a tombstone. This scoped
+    // setting authorizes only this deletion transaction to anonymize a referral
+    // relationship when its other participant is concurrently deleting.
+    await tx.execute(sql`SELECT set_config('calora.deletion_worker', 'on', true)`);
     await tx.execute(sql`
       DELETE FROM calora_referral_qualifications
       WHERE external_user_id = ${externalUserId}
