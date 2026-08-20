@@ -82,6 +82,44 @@ describe("AI recipe creation endpoints", () => {
     expect(mockOpenAiCreate).not.toHaveBeenCalled();
   });
 
+  it("allows bounded guest concepts without resolving authentication or account context", async () => {
+    mockOpenAiCreate.mockResolvedValueOnce(completion({
+      concepts: [{ title: "Lentil bowl", summary: "A quick dinner.", whyItFits: "Uses lentils.", keyIngredients: ["lentils"], estimatedMinutes: 25 }],
+    }));
+
+    const response = await request(app)
+      .post("/v1/recipes/guest-concepts")
+      .set("Authorization", "Bearer ignored-by-guest-route")
+      .send({ ingredients: ["lentils"], mealType: "Dinner", preferences: ["Vegan"], profile: { email: "must-not-forward@example.com" } });
+
+    expect(response.status).toBe(200);
+    expect(verifyBearerToken).not.toHaveBeenCalled();
+    expect(checkRateLimit.mock.calls.map((call) => call[0])).toEqual(expect.arrayContaining([
+      expect.stringContaining("guest-recipes:burst:ip:"),
+      expect.stringContaining("guest-recipes:daily:ip:"),
+    ]));
+    const payload = JSON.parse(mockOpenAiCreate.mock.calls[0][0].messages[1].content);
+    expect(payload).not.toHaveProperty("profile");
+    expect(payload).toMatchObject({ ingredients: ["lentils"], preferences: ["Vegan"] });
+  });
+
+  it("fails closed before model work when a guest limiter is unavailable", async () => {
+    checkRateLimit.mockResolvedValue({ allowed: false, retryAfterSecs: 30, degraded: true });
+    const response = await request(app).post("/v1/recipes/guest-concepts").send({ request: "A quick dinner" });
+    expect(response.status).toBe(503);
+    expect(mockOpenAiCreate).not.toHaveBeenCalled();
+  });
+
+  it("stops guest requests at the independent quota before model work", async () => {
+    checkRateLimit
+      .mockResolvedValueOnce({ allowed: true, retryAfterSecs: 0 })
+      .mockResolvedValueOnce({ allowed: false, retryAfterSecs: 3600 });
+    const response = await request(app).post("/v1/recipes/guest-concepts").send({ request: "A quick dinner" });
+    expect(response.status).toBe(429);
+    expect(response.headers["retry-after"]).toBe("3600");
+    expect(mockOpenAiCreate).not.toHaveBeenCalled();
+  });
+
   it("validates concept requests before calling the model", async () => {
     const [missingPrompt, malformedBody] = await Promise.all([
       request(app).post("/v1/recipes/concepts").send({ ingredients: [], request: "" }),

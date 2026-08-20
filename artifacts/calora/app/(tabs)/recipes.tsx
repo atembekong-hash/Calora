@@ -24,6 +24,8 @@ import { SwipeableTabList } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance, recipeSourceLabel } from '@/lib/recipeModel';
 import { requestGeneratedRecipe, requestRecipeConcepts } from '@/lib/recipeGeneration';
+import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
+import { useAuth } from '@/context/AuthContext';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -136,6 +138,7 @@ function UpcomingRecipeSection({
 type RecipeConcept = { title: string; summary: string; whyItFits: string; keyIngredients: string[]; estimatedMinutes: number | null };
 function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof useCalora>['colors']; onOpenRecipe: (recipe: CaloraRecipe) => void }) {
   const { shoppingItems, plannerMeals, logs, profile, saveRecipe } = useCalora();
+  const { session } = useAuth();
   const [mode, setMode] = useState<'pantry' | 'goals' | 'tell' | 'surprise'>('pantry');
   const [request, setRequest] = useState('');
   const [ingredients, setIngredients] = useState('');
@@ -150,17 +153,22 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
   const finishingRef = useRef(false);
   const start = (next: typeof mode) => {
     setMode(next);
-    if (next === 'pantry') setIngredients(shoppingItems.filter((item) => !item.checked).slice(0, 8).map((item) => item.name).join(', '));
-    if (next === 'goals') setRequest(`${profile?.diet ?? 'Balanced'} ${mealType.toLowerCase()} that supports my ${profile?.goal ?? 'wellness'} goal`);
-    if (next === 'surprise') setRequest(`A fresh ${mealType.toLowerCase()} idea inspired by my plan: ${plannerMeals.slice(0, 2).map((meal) => meal.name).join(', ')}`);
+    if (next === 'pantry') setIngredients(session ? shoppingItems.filter((item) => !item.checked).slice(0, 8).map((item) => item.name).join(', ') : '');
+    if (next === 'goals') setRequest(session ? `${profile?.diet ?? 'Balanced'} ${mealType.toLowerCase()} that supports my ${profile?.goal ?? 'wellness'} goal` : `A balanced ${mealType.toLowerCase()} idea`);
+    if (next === 'surprise') setRequest(session ? `A fresh ${mealType.toLowerCase()} idea inspired by my plan: ${plannerMeals.slice(0, 2).map((meal) => meal.name).join(', ')}` : `A fresh ${mealType.toLowerCase()} idea`);
   };
   const generate = async () => {
     if (finishingRef.current) return;
     abortRef.current?.abort(); const controller = new AbortController(); abortRef.current = controller;
     setStatus('loading'); setError(''); setConcepts([]);
     try {
-      const contextIngredients = mode === 'pantry' ? ingredients : ingredients || logs.slice(0, 3).map((log) => log.name).join(', ');
-      const data = await requestRecipeConcepts<{ concepts?: RecipeConcept[] }>({ ingredients: contextIngredients.split(',').map((item) => item.trim()).filter(Boolean), mealType, servings: Number(servings), maxMinutes: Number(minutes), preferences: profile ? [profile.diet, `${profile.goal} goal`] : [], request }, controller.signal);
+      const contextIngredients = session
+        ? (mode === 'pantry' ? ingredients : ingredients || logs.slice(0, 3).map((log) => log.name).join(', '))
+        : ingredients;
+      const payload = { ingredients: contextIngredients.split(',').map((item) => item.trim()).filter(Boolean), mealType, servings: Number(servings), maxMinutes: Number(minutes), preferences: session && profile ? [profile.diet, `${profile.goal} goal`] : [], request };
+      const data = session
+        ? await requestRecipeConcepts<{ concepts?: RecipeConcept[] }>(payload, controller.signal)
+        : await requestGuestRecipeConcepts<{ concepts?: RecipeConcept[] }>(payload, controller.signal);
       setConcepts(data.concepts ?? []); setStatus('idle');
     } catch (cause) {
       if ((cause as Error).name === 'AbortError') {
@@ -175,6 +183,10 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
   const constraints = [{ label: 'Meal', value: mealType, setter: setMealType }, { label: 'Serves', value: servings, setter: setServings }, { label: 'Minutes', value: minutes, setter: setMinutes }];
   const finishConcept = async (concept: RecipeConcept) => {
     if (finishingRef.current) return;
+    if (!session) {
+      setError('Sign in to turn an idea into a full recipe and save it to your collection.');
+      return;
+    }
     finishingRef.current = true;
     setFinishingTitle(concept.title); setError('');
     try {
@@ -182,7 +194,24 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       onOpenRecipe(saveRecipe({ name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, calories: generated.nutrition?.calories, proteinG: generated.nutrition?.proteinG, carbsG: generated.nutrition?.carbsG, fatG: generated.nutrition?.fatG, source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', createdAt: new Date().toISOString() }));
     } catch (cause) { setError((cause as Error).message); } finally { finishingRef.current = false; setFinishingTitle(null); }
   };
-  return <View><Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>Start with what matters today. Calora returns ideas—not full recipes—so you stay in control.</Text><View style={styles.createModeGrid}>{([['pantry', 'Use what I have', 'shopping-bag'], ['goals', 'Match my goals', 'target'], ['tell', 'Tell Calora', 'message-circle'], ['surprise', 'Surprise me', 'shuffle']] as const).map(([key, label, icon]) => <Pressable key={key} onPress={() => start(key)} style={[styles.createModeCard, { backgroundColor: mode === key ? colors.accent : colors.card, borderColor: colors.border }]}><Feather name={icon} size={17} color={colors.primary} /><Text style={[styles.createModeText, { color: colors.foreground }]}>{label}</Text></Pressable>)}</View><View style={[styles.createSheet, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Ingredients or request</Text><TextInput value={mode === 'tell' ? request : ingredients} onChangeText={mode === 'tell' ? setRequest : setIngredients} placeholder={mode === 'tell' ? 'e.g. cozy vegetarian dinner with lentils' : 'e.g. lentils, spinach, lemon'} placeholderTextColor={colors.mutedForeground} multiline style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} /><View style={styles.createConstraintRow}>{constraints.map((item) => <View key={item.label} style={{ flex: 1 }}><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{item.label}</Text><TextInput value={item.value} onChangeText={item.setter} style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} /></View>)}</View><ScalePressable onPress={generate} disabled={status === 'loading' || Boolean(finishingTitle)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{status === 'loading' ? 'Generating concepts…' : 'Generate 3 ideas'}</Text></ScalePressable>{status === 'loading' && <Pressable onPress={() => abortRef.current?.abort()}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>}{status === 'error' && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{error}</Text><Pressable onPress={generate}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}</View>{concepts.map((concept, index) => <Pressable key={`${concept.title}-${index}`} disabled={Boolean(finishingTitle)} onPress={() => finishConcept(concept)} style={[styles.recipeCard, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={styles.cardContent}><Text style={[styles.detailEyebrow, { color: colors.primary }]}>CONCEPT {index + 1}</Text><Text style={[styles.recipeName, { color: colors.foreground }]}>{concept.title}</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{concept.summary}</Text><Text style={[styles.sourceText, { color: colors.mutedForeground }]}>{finishingTitle === concept.title ? 'Building your recipe…' : `${concept.whyItFits}${concept.estimatedMinutes ? ` · ~${concept.estimatedMinutes} min` : ''}`}</Text></View></Pressable>)}</View>;
+  return <View>
+    <View style={[styles.createHero, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.createHeroIcon, { backgroundColor: colors.accent }]}><Feather name="star" size={20} color={colors.accentForeground} /></View>
+      <View style={{ flex: 1 }}><Text style={[styles.createHeroTitle, { color: colors.foreground }]}>AI Recipe Creator</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{session ? 'Add ingredients and choose preferences for ideas made around you.' : 'Add ingredients and preferences to generate a few recipe ideas—no account needed.'}</Text></View>
+    </View>
+    <Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>Choose a starting point, then tailor your meal.</Text>
+    <View style={styles.createModeGrid}>{([['pantry', session ? 'Use my pantry' : 'Add my ingredients', 'shopping-bag'], ['goals', session ? 'Match my goals' : 'Choose a style', 'target'], ['tell', 'Tell Calora', 'message-circle'], ['surprise', 'Surprise me', 'shuffle']] as const).map(([key, label, icon]) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected: mode === key }} onPress={() => start(key)} style={[styles.createModeCard, { backgroundColor: mode === key ? colors.accent : colors.card, borderColor: mode === key ? colors.primary : colors.border }]}><Feather name={icon} size={17} color={colors.primary} /><Text style={[styles.createModeText, { color: colors.foreground }]}>{label}</Text></Pressable>)}</View>
+    <View style={[styles.createSheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Ingredients or request</Text>
+      <TextInput value={mode === 'tell' ? request : ingredients} onChangeText={mode === 'tell' ? setRequest : setIngredients} placeholder={mode === 'tell' ? 'e.g. cozy vegetarian dinner with lentils' : 'e.g. lentils, spinach, lemon'} placeholderTextColor={colors.mutedForeground} multiline style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} />
+      <View style={styles.createConstraintRow}>{constraints.map((item) => <View key={item.label} style={{ flex: 1 }}><Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>{item.label}</Text><TextInput value={item.value} onChangeText={item.setter} keyboardType={item.label === 'Meal' ? 'default' : 'number-pad'} style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} /></View>)}</View>
+      {!session && <Text style={[styles.guestBoundary, { color: colors.mutedForeground }]}>Guest ideas are generic. Sign in to use your pantry and turn an idea into a saved recipe.</Text>}
+      <ScalePressable accessibilityLabel="Generate five recipe ideas" onPress={generate} disabled={status === 'loading' || Boolean(finishingTitle)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="star" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{status === 'loading' ? 'Generating ideas…' : 'Generate 5 ideas'}</Text></ScalePressable>
+      {status === 'loading' && <Pressable onPress={() => abortRef.current?.abort()}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>}
+      {status === 'error' && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{error}</Text><Pressable onPress={generate}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}
+    </View>
+    {concepts.map((concept, index) => <Pressable key={`${concept.title}-${index}`} accessibilityLabel={`${session ? 'Open' : 'Preview'} ${concept.title}`} disabled={Boolean(finishingTitle)} onPress={() => finishConcept(concept)} style={[styles.recipeCard, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={styles.cardContent}><Text style={[styles.detailEyebrow, { color: colors.primary }]}>CONCEPT {index + 1}</Text><Text style={[styles.recipeName, { color: colors.foreground }]}>{concept.title}</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{concept.summary}</Text><Text style={[styles.sourceText, { color: colors.mutedForeground }]}>{!session ? 'Sign in to turn this into a full saved recipe' : finishingTitle === concept.title ? 'Building your recipe…' : `${concept.whyItFits}${concept.estimatedMinutes ? ` · ~${concept.estimatedMinutes} min` : ''}`}</Text></View></Pressable>)}
+  </View>;
 }
 
 function PremiumCatalogue({ colors, onOpen, onSave, savedPremiumRecipes, onLoadMoreRef }: { colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null> }) {
@@ -1117,6 +1146,10 @@ function makeStyles(f: number) {
   sourceAction: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, paddingVertical: 13 },
   sourceActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   createSheet: { borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20, paddingBottom: 28 },
+  createHero: { borderWidth: 1, borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  createHeroIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  createHeroTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f },
+  guestBoundary: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginTop: 12 },
   createFormContent: { paddingBottom: 30 },
   formError: { flexDirection: 'row', gap: 8, alignItems: 'center', borderRadius: 11, padding: 10, marginTop: 10 },
   formErrorText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 14 },

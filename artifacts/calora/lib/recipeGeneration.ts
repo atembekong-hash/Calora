@@ -122,6 +122,20 @@ export function requestRecipeConcepts<T>(payload: ConceptPayload, signal?: Abort
   });
 }
 
+/** Guest recipe ideas are deliberately generic: this request carries only the
+ * creator form values and never an access token or account-derived context. */
+export async function requestGuestRecipeConcepts<T>(payload: ConceptPayload, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${getApiBaseUrl()}/api/v1/recipes/guest-concepts`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    signal,
+    body: JSON.stringify(payload),
+  });
+  const data = (await response.json().catch(() => ({}))) as T & { message?: string };
+  if (!response.ok) throw new Error(data.message ?? 'Guest recipe ideas are unavailable.');
+  return data;
+}
+
 export function requestGeneratedRecipe<T>(payload: { title: string; summary: string; servings: number }): Promise<T> {
   return postWithAuthRetry<T>({
     path: '/api/v1/recipes/generated',

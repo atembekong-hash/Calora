@@ -22,6 +22,7 @@ import {
   SIGN_IN_MESSAGE,
   getFreshAccessToken,
   requestRecipeConcepts,
+  requestGuestRecipeConcepts,
   requestGeneratedRecipe,
 } from '../recipeGeneration';
 
@@ -135,6 +136,18 @@ describe('requestRecipeConcepts (authenticated generation path)', () => {
     await expect(requestRecipeConcepts(CONCEPT_PAYLOAD)).rejects.toThrow('Calora couldn’t generate ideas right now.');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(mockRefreshSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('requestGuestRecipeConcepts', () => {
+  it('posts only the creator payload to the guest endpoint without a bearer token', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { concepts: [{ title: 'Lentil bowl' }] }));
+    const result = await requestGuestRecipeConcepts<{ concepts: { title: string }[] }>(CONCEPT_PAYLOAD);
+    expect(result.concepts[0].title).toBe('Lentil bowl');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.example.com/api/v1/recipes/guest-concepts');
+    expect(init.headers.Authorization).toBeUndefined();
+    expect(JSON.parse(init.body)).toEqual(CONCEPT_PAYLOAD);
   });
 });
 
