@@ -4,6 +4,7 @@ import { collectEvidence } from './evidence';
 import { evidenceOriginForLog } from './evidence';
 import { intelligenceFeatureFlags } from './featureFlags';
 import { reportIntelligenceEvent } from './observability';
+import { measureIntelligenceOperation } from './observability';
 import type {
   IntelligenceContext,
   IntelligenceEvidence,
@@ -58,23 +59,25 @@ function fnv1a(value: string): string {
 }
 
 export function createSourceWatermark(context: IntelligenceContext): SourceWatermark {
-  const relevant = {
-    date: context.date,
-    timezone: context.timezone,
-    profile: context.profile ? {
-      goal: context.profile.goal,
-      calorieTarget: context.profile.calorieTarget,
-      weightKg: context.profile.weightKg,
-      targetWeightKg: context.profile.targetWeightKg,
-    } : null,
-    logs: context.foodLogs
-      .filter((log) => log.date === context.date)
-      .map((log) => [log.id, log.date, log.meal, log.calories, log.protein, log.carbs, log.fat, log.fiber, log.sugar, log.sodium, log.source, log.confidence, log.memoryId ?? ''])
-      .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
-    weights: context.weights.map((weight) => [weight.id, weight.date, weight.kg, weight.source]),
-    activeEnergyKcal: context.activeEnergyKcal,
-  };
-  return { value: `fnv1a-v1:${fnv1a(JSON.stringify(relevant))}`, algorithm: 'fnv1a-v1', inputVersion: 1 };
+  return measureIntelligenceOperation<SourceWatermark>('watermark_generation', () => {
+    const relevant = {
+      date: context.date,
+      timezone: context.timezone,
+      dayBoundary: context.dayBoundary,
+      profile: context.profile ? {
+        calorieTarget: context.profile.calorieTarget,
+        weightKg: context.profile.weightKg,
+        targetWeightKg: context.profile.targetWeightKg,
+      } : null,
+      logs: context.foodLogs
+        .filter((log) => log.date === context.date)
+        .map((log) => [log.id, log.date, log.meal, log.calories, log.protein, log.carbs, log.fat, log.fiber, log.sugar, log.sodium, log.source, log.confidence, log.memoryId ?? ''])
+        .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
+      weights: context.weights.map((weight) => [weight.id, weight.date, weight.kg, weight.source]),
+      activeEnergyKcal: context.activeEnergyKcal,
+    };
+    return { value: `fnv1a-v1:${fnv1a(JSON.stringify(relevant))}`, algorithm: 'fnv1a-v1', inputVersion: 1 };
+  }).value;
 }
 
 function dayMissingData(context: IntelligenceContext, dayLogs: readonly FoodLog[]): MissingDataKind[] {
@@ -124,6 +127,7 @@ export function buildDailyIntelligenceFacts(
   context: IntelligenceContext,
   options: { generatedAt?: string } = {},
 ): IntelligenceFact[] {
+  return measureIntelligenceOperation('fact_generation', () => {
   const startedAt = Date.now();
   const generatedAt = options.generatedAt ?? new Date().toISOString();
   const dayLogs = context.foodLogs.filter((log) => log.date === context.date);
@@ -131,7 +135,8 @@ export function buildDailyIntelligenceFacts(
   const evidence = collectEvidence(dayLogs);
   const missingData = dayMissingData(context, dayLogs);
   const watermark = createSourceWatermark(context);
-  const calorieTarget = finite(context.profile?.calorieTarget);
+  // Preserve Today's existing fallback without making this layer profile-authoritative.
+  const calorieTarget = finite(context.profile?.calorieTarget ?? 2000);
   const proteinTarget = calorieTarget ? Math.round((calorieTarget * 0.26) / 4) : 0;
   const carbsTarget = calorieTarget ? Math.round((calorieTarget * 0.44) / 4) : 0;
   const fatTarget = calorieTarget ? Math.round((calorieTarget * 0.3) / 9) : 0;
@@ -227,7 +232,8 @@ export function buildDailyIntelligenceFacts(
     evidenceCounts,
     missingData,
   });
-  return facts;
+    return facts;
+  }).value;
 }
 
 export const intelligenceFoundationEnabled =

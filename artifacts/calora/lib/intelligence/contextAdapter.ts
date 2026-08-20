@@ -2,6 +2,7 @@ import type { CaloraRecipe } from '@/context/CaloraContext';
 import type { PlannerMeal } from '@workspace/api-client-react';
 import type { IntelligenceContext, MissingDataKind } from './types';
 import { INTELLIGENCE_CALCULATION_VERSION } from './types';
+import { measureIntelligenceOperation } from './observability';
 
 type LocalCaloraState = {
   logs: IntelligenceContext['foodLogs'];
@@ -34,7 +35,7 @@ export function createIntelligenceContext(
   state: LocalCaloraState,
   options: { date: string; timezone?: string } = { date: new Date().toISOString().slice(0, 10) },
 ): IntelligenceContext {
-  return {
+  return measureIntelligenceOperation<IntelligenceContext>('context_adaptation', () => ({
     date: options.date,
     timezone: options.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'unknown',
     dayBoundary: 'local-calendar-day',
@@ -51,5 +52,5 @@ export function createIntelligenceContext(
     activeEnergyKcal: Number.isFinite(state.activeEnergyKcal) ? Math.max(0, state.activeEnergyKcal ?? 0) : null,
     sourceVersion: INTELLIGENCE_CALCULATION_VERSION,
     missingData: missingDataForContext(state),
-  };
+  })).value;
 }

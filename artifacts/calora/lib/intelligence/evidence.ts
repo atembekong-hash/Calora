@@ -1,5 +1,6 @@
 import type { FoodLog } from '@/context/CaloraContext';
 import type { EvidenceOrigin, EvidenceQuality, IntelligenceEvidence } from './types';
+import { measureIntelligenceOperation } from './observability';
 
 const QUALITY_BY_ORIGIN: Record<EvidenceOrigin, EvidenceQuality> = {
   verified: 'strong',
@@ -45,18 +46,20 @@ export function evidenceQualityForOrigin(origin: EvidenceOrigin): EvidenceQualit
 }
 
 export function collectEvidence(logs: readonly FoodLog[]): IntelligenceEvidence[] {
-  const byOrigin = new Map<EvidenceOrigin, IntelligenceEvidence>();
-  for (const log of logs) {
-    const origin = evidenceOriginForLog(log);
-    const current = byOrigin.get(origin) ?? {
-      origin,
-      quality: evidenceQualityForOrigin(origin),
-      count: 0,
-      logIds: [],
-    };
-    current.count += 1;
-    current.logIds.push(log.id);
-    byOrigin.set(origin, current);
-  }
-  return [...byOrigin.values()].sort((left, right) => left.origin.localeCompare(right.origin));
+  return measureIntelligenceOperation('evidence_partitioning', () => {
+    const byOrigin = new Map<EvidenceOrigin, IntelligenceEvidence>();
+    for (const log of logs) {
+      const origin = evidenceOriginForLog(log);
+      const current = byOrigin.get(origin) ?? {
+        origin,
+        quality: evidenceQualityForOrigin(origin),
+        count: 0,
+        logIds: [],
+      };
+      current.count += 1;
+      current.logIds.push(log.id);
+      byOrigin.set(origin, current);
+    }
+    return [...byOrigin.values()].sort((left, right) => left.origin.localeCompare(right.origin));
+  }).value;
 }

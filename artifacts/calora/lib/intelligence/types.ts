@@ -99,16 +99,25 @@ export type InvalidationReason =
   | 'target_changed'
   | 'weight_changed'
   | 'timezone_changed'
-  | 'preference_changed'
+  | 'fact_relevant_preference_changed'
   | 'planner_changed'
   | 'source_refreshed'
   | 'day_boundary_changed';
+
+export type IntelligenceFactFamily =
+  | 'daily_nutrition'
+  | 'meal_distribution'
+  | 'logging_completeness'
+  | 'weight_baselines'
+  | 'planner';
 
 export type InsightInvalidationEvent = {
   reason: InvalidationReason;
   occurredAt: string;
   previousWatermark?: SourceWatermark;
   nextWatermark?: SourceWatermark;
+  affectedFactFamilies: IntelligenceFactFamily[];
+  requiresRecomputation: boolean;
 };
 
 export type IntelligenceContext = {
@@ -141,4 +150,9 @@ export type IntelligenceObservabilityEvent = {
   evidenceCounts?: Partial<Record<EvidenceOrigin, number>>;
   missingData?: MissingDataKind[];
   featureFlags: Record<string, boolean>;
+};
+
+export type IntelligencePerformanceSample = {
+  operation: 'context_adaptation' | 'evidence_partitioning' | 'confidence_computation' | 'watermark_generation' | 'fact_generation';
+  durationMs: number;
 };

@@ -125,7 +125,7 @@ describe('Intelligence Foundation', () => {
       moodLogs: {},
       activityLogs: {},
       activityMinutesLogs: {},
-      plannerMeals: [{ id: 'unrelated-plan', day: '2026-08-19', meal: 'Dinner', name: 'Dinner' }],
+      plannerMeals: [],
       shoppingItems: [],
       localRecipes: [],
     }, { date: '2026-08-20', timezone: 'America/New_York' });
@@ -166,13 +166,15 @@ describe('Intelligence Foundation', () => {
       'target_changed',
       'weight_changed',
       'timezone_changed',
-      'preference_changed',
+      'fact_relevant_preference_changed',
       'planner_changed',
       'source_refreshed',
       'day_boundary_changed',
     ] as const;
     for (const reason of reasons) {
-      expect(shouldInvalidateFacts(reason)).toBe(true);
+      expect(shouldInvalidateFacts(reason)).toBe(
+        reason !== 'fact_relevant_preference_changed' && reason !== 'planner_changed' && reason !== 'goal_changed',
+      );
       expect(createInvalidationEvent(reason, undefined, undefined, '2026-08-20T00:00:00.000Z')).toMatchObject({
         reason,
         occurredAt: '2026-08-20T00:00:00.000Z',
@@ -206,7 +208,7 @@ describe('Intelligence Foundation', () => {
   it('stays local and deterministic when no profile or API is available', () => {
     const facts = buildDailyIntelligenceFacts(contextFor([log()], null));
     const target = facts.find((item) => item.factType === 'daily.calorie_target');
-    expect(target?.value).toBe(0);
+    expect(target?.value).toBe(2000);
     expect(target?.missingData).toContain('missing_profile');
     expect(target?.missingData).toContain('missing_target');
   });

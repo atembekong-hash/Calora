@@ -1,25 +1,31 @@
 import type {
   InvalidationReason,
+  IntelligenceFactFamily,
   InsightInvalidationEvent,
   SourceWatermark,
 } from './types';
 
-const FACT_INPUT_REASONS = new Set<InvalidationReason>([
-  'food_added',
-  'food_updated',
-  'food_deleted',
-  'goal_changed',
-  'target_changed',
-  'weight_changed',
-  'timezone_changed',
-  'preference_changed',
-  'planner_changed',
-  'source_refreshed',
-  'day_boundary_changed',
-]);
+const AFFECTED_FACTS: Record<InvalidationReason, IntelligenceFactFamily[]> = {
+  food_added: ['daily_nutrition', 'meal_distribution', 'logging_completeness'],
+  food_updated: ['daily_nutrition', 'meal_distribution', 'logging_completeness'],
+  food_deleted: ['daily_nutrition', 'meal_distribution', 'logging_completeness'],
+  // No implemented fact consumes profile.goal yet.
+  goal_changed: [],
+  target_changed: ['daily_nutrition'],
+  weight_changed: ['weight_baselines'],
+  timezone_changed: ['daily_nutrition', 'meal_distribution', 'logging_completeness'],
+  day_boundary_changed: ['daily_nutrition', 'meal_distribution', 'logging_completeness'],
+  fact_relevant_preference_changed: [],
+  planner_changed: [],
+  source_refreshed: ['daily_nutrition', 'meal_distribution', 'logging_completeness', 'weight_baselines'],
+};
+
+export function affectedFactFamilies(reason: InvalidationReason): IntelligenceFactFamily[] {
+  return [...AFFECTED_FACTS[reason]];
+}
 
 export function shouldInvalidateFacts(reason: InvalidationReason): boolean {
-  return FACT_INPUT_REASONS.has(reason);
+  return affectedFactFamilies(reason).length > 0;
 }
 
 export function createInvalidationEvent(
@@ -28,5 +34,13 @@ export function createInvalidationEvent(
   nextWatermark?: SourceWatermark,
   occurredAt = new Date().toISOString(),
 ): InsightInvalidationEvent {
-  return { reason, occurredAt, previousWatermark, nextWatermark };
+  const affected = affectedFactFamilies(reason);
+  return {
+    reason,
+    occurredAt,
+    previousWatermark,
+    nextWatermark,
+    affectedFactFamilies: affected,
+    requiresRecomputation: affected.length > 0,
+  };
 }
