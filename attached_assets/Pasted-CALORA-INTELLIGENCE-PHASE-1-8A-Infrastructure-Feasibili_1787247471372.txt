@@ -1,0 +1,601 @@
+CALORA INTELLIGENCE — PHASE 1.8A
+
+Infrastructure Feasibility + Restricted Phase 2A Safety Gate
+
+Mission
+
+Perform a focused architecture investigation to answer two separate questions:
+
+Question A: Can Calora's current managed PostgreSQL environment reliably support the proposed least-privilege runtime role + transaction-local identity + PostgreSQL RLS architecture across development, deployment, production, credential rotation, and rollback?
+
+Question B: If full database-level RLS cannot yet be implemented, can a restricted early phase of Calora Contextual Intelligence safely begin using the already-built deterministic/read-only Intelligence Foundation and existing proven API authorization boundary, without introducing new persistent sensitive Intelligence data?
+
+This is primarily an investigation and decision phase.
+
+Do not force implementation merely to obtain a PASS.
+
+---
+
+PART I — CURRENT BASELINE
+
+Treat these Phase 1.8 findings as established until direct evidence disproves them:
+
+- Calora domain data lives in managed PostgreSQL.
+- Supabase provides authentication.
+- The API currently uses one "DATABASE_URL".
+- The effective PostgreSQL runtime role is "postgres".
+- That role is superuser, table owner, role creator, and bypasses RLS.
+- Runtime and schema-management privileges are not separated.
+- No dedicated "calora_api" runtime role currently exists.
+- No transaction-local database user context exists.
+- All 19 "calora_*" tables currently have RLS disabled.
+- Existing API authorization remains the proven tenant-isolation boundary.
+- Phase 1.8 intentionally made no database or application connection changes.
+
+Do not repeat Phase 1.8 blindly.
+
+Investigate the unresolved platform questions.
+
+---
+
+PART II — REPLIT POSTGRESQL CAPABILITY INVESTIGATION
+
+Determine conclusively whether the managed PostgreSQL environment supports the target architecture.
+
+Investigate actual platform behavior and available project/database controls, not assumptions.
+
+Determine whether Calora can safely maintain:
+
+1. a dedicated non-superuser runtime PostgreSQL role;
+2. a separate credential for that role;
+3. separate migration/admin credentials;
+4. custom grants;
+5. RLS policies;
+6. helper functions required by RLS;
+7. transaction-local settings;
+8. safe "pg.Pool" behavior;
+9. credential rotation;
+10. production deployment;
+11. persistence of custom roles/policies after publishing;
+12. rollback.
+
+Inspect available Replit project/database configuration, deployment mechanisms, documentation available to the environment, and existing repository lifecycle.
+
+Do not expose credentials.
+
+---
+
+PART III — PRODUCTION PROPAGATION
+
+Determine exactly how the following could reach production:
+
+CREATE ROLE
+GRANT / REVOKE
+ALTER TABLE ENABLE ROW LEVEL SECURITY
+CREATE POLICY
+CREATE FUNCTION
+ALTER FUNCTION
+DROP POLICY
+credential changes
+runtime DATABASE_URL changes
+
+Determine whether these operations can be:
+
+- source-controlled;
+- applied deterministically;
+- versioned;
+- audited;
+- rolled back;
+- reproduced in a fresh environment.
+
+Do not accept "it probably persists" as evidence.
+
+Classify each capability:
+
+VERIFIED
+SUPPORTED BUT NOT VERIFIED
+UNSUPPORTED
+UNKNOWN
+
+Provide evidence.
+
+---
+
+PART IV — ROLE PERSISTENCE TEST
+
+If and only if a disposable/non-production test can be performed safely, test whether a harmless custom PostgreSQL role survives the relevant managed lifecycle.
+
+Do not change the production runtime credential.
+
+Do not alter existing Calora table access merely for this test.
+
+If the test cannot be safely performed, record it as NOT TESTED.
+
+---
+
+PART V — CONNECTION AND POOLING FEASIBILITY
+
+Determine whether transaction-local identity is technically reliable with Calora's actual connection architecture.
+
+Investigate:
+
+- "pg.Pool";
+- direct vs pooled upstream connection;
+- transaction pooling if any;
+- session pooling if any;
+- connection reuse;
+- "SET LOCAL";
+- transaction boundaries;
+- reconnect behavior;
+- whether transaction-local custom settings survive only within the intended transaction.
+
+The required property is:
+
+USER_A context
+exists only inside USER_A transaction
+
+COMMIT / ROLLBACK
+
+context disappears
+
+USER_B receives no USER_A context
+
+Do not implement the production transaction wrapper yet unless the entire lifecycle is proven safe.
+
+---
+
+PART VI — CREDENTIAL LIFECYCLE
+
+Determine how a dedicated API runtime credential would be:
+
+- created;
+- stored;
+- injected into Replit;
+- injected into deployment;
+- rotated;
+- revoked;
+- recovered;
+- rolled back.
+
+The API runtime credential must never be exposed to the mobile application.
+
+Determine whether Calora can maintain conceptually:
+
+DATABASE_ADMIN_URL
+DATABASE_RUNTIME_URL
+
+or a platform-equivalent separation.
+
+Do not create secret values unless required for an approved safe disposable test.
+
+Never include secret values in reports.
+
+---
+
+PART VII — ROLLBACK FEASIBILITY
+
+Design a concrete rollback procedure for a future least-privilege/RLS deployment.
+
+Cover:
+
+- bad runtime credentials;
+- missing grants;
+- RLS blocking legitimate traffic;
+- broken transaction context;
+- policy errors;
+- failed deployment;
+- custom role disappearance;
+- connection failures.
+
+The rollback procedure must restore service without losing data.
+
+It must not require an uncontrolled permanent return to superuser runtime after the architecture has been declared secure.
+
+Classify rollback:
+
+VERIFIED
+DESIGNED BUT NOT TESTED
+NOT AVAILABLE
+
+---
+
+PART VIII — INFRASTRUCTURE DECISION
+
+At the end of the PostgreSQL investigation choose exactly one:
+
+OUTCOME A
+
+"CURRENT PLATFORM SUPPORTS TARGET SECURITY ARCHITECTURE"
+
+Explain exactly how.
+
+OUTCOME B
+
+"CURRENT PLATFORM CAN SUPPORT IT AFTER SPECIFIC CONFIGURATION"
+
+List the required configuration.
+
+OUTCOME C
+
+"CURRENT PLATFORM CANNOT RELIABLY SUPPORT TARGET ARCHITECTURE"
+
+Explain the blocking capabilities.
+
+If Outcome C applies, evaluate realistic database migration destinations.
+
+At minimum consider:
+
+- keeping current PostgreSQL with API-only authorization;
+- Supabase PostgreSQL;
+- another managed PostgreSQL provider only if there is a concrete architectural reason.
+
+Do not recommend migration merely because another platform has more features.
+
+Compare:
+
+- security;
+- migration complexity;
+- downtime risk;
+- existing Drizzle compatibility;
+- Supabase Auth integration;
+- operational burden;
+- cost implications where determinable;
+- rollback;
+- long-term maintainability.
+
+Do not perform a migration.
+
+---
+
+PART IX — PHASE 2A SAFETY INVESTIGATION
+
+Separately evaluate whether Restricted Contextual Intelligence Phase 2A can safely begin before database-level RLS exists.
+
+Do not assume that all Intelligence work requires persistent Intelligence storage.
+
+Inspect the existing Intelligence Foundation and identify what can operate entirely from existing authorized Calora data.
+
+Determine whether these kinds of deterministic contextual insights can be generated transiently/read-only:
+
+- current calorie status;
+- macro balance;
+- meal distribution;
+- logging completeness;
+- recent nutrition patterns;
+- goal progress;
+- freshness/completeness warnings;
+- deterministic comparisons against existing user goals;
+- other already-defined Foundation facts.
+
+Trace every proposed fact to its existing authorized source.
+
+Do not introduce unsupported facts.
+
+---
+
+PART X — DEFINE THREE INTELLIGENCE CLASSES
+
+Classify future Intelligence capabilities into:
+
+CLASS A — SAFE NOW
+
+Requirements:
+
+- reads existing data through existing authenticated API boundary;
+- deterministic;
+- no new sensitive persistent Intelligence records;
+- no cross-user processing;
+- no autonomous action;
+- no LLM-generated facts treated as truth;
+- no background profiling.
+
+CLASS B — REQUIRES ADDITIONAL CONTROLS
+
+Examples may include:
+
+- persisted Intelligence history;
+- server-side derived user profiles;
+- longitudinal behavioral models;
+- proactive background analysis;
+- cross-session personalization;
+- Coach memory derived from Intelligence;
+- new sensitive derived records.
+
+Identify the exact missing security control for each.
+
+CLASS C — NOT APPROPRIATE YET
+
+Examples may include:
+
+- autonomous interventions;
+- high-confidence health claims unsupported by data;
+- opaque behavioral profiling;
+- uncontrolled LLM-derived nutrition facts;
+- cross-user/global learning using private data.
+
+Classify based on the actual Calora architecture.
+
+---
+
+PART XI — DETERMINE WHETHER PHASE 2A NEEDS NEW STORAGE
+
+This is a hard gate.
+
+Design the smallest viable Phase 2A architecture.
+
+Prefer:
+
+existing authorized Calora data
+        ↓
+deterministic Intelligence Foundation
+        ↓
+transient insight calculation
+        ↓
+presentation
+
+over:
+
+user data
+↓
+new Intelligence database
+↓
+persistent profile
+↓
+presentation
+
+unless persistence is genuinely required.
+
+Determine whether Phase 2A can work with:
+
+- no new database tables;
+- no persistent Intelligence facts;
+- no Intelligence profile;
+- no new background worker;
+- no new cross-user processing.
+
+If yes, document that architecture precisely.
+
+---
+
+PART XII — PRIVACY AND SECURITY BOUNDARY
+
+For restricted Phase 2A, prove that:
+
+- every insight belongs only to the authenticated user;
+- all underlying reads use existing server-resolved identity;
+- no arbitrary "user_id" can be supplied;
+- no insight response leaks another user's information;
+- no Intelligence cache can cross users;
+- no logs contain sensitive derived nutrition information unnecessarily;
+- logout/account switching cannot expose the previous user's insight;
+- account deletion does not leave new Intelligence records because Phase 2A creates none.
+
+If any of these cannot be guaranteed, Phase 2A remains blocked.
+
+---
+
+PART XIII — COACH BOUNDARY
+
+Do not rewrite Calora Coach.
+
+Determine how Coach may eventually consume Contextual Intelligence.
+
+For Phase 2A, keep the architecture conceptually:
+
+Existing Calora data
+        ↓
+Intelligence Foundation
+        ↓
+Contextual Insight
+
+Future:
+
+Intelligence Foundation
+        ↓
+Contextual Insight Engine
+        ↓
+Coach context
+        ↓
+personalized explanation/conversation
+
+The Coach must not become the source of truth.
+
+The Intelligence Foundation remains the factual layer.
+
+Do not enable Coach integration during this investigation.
+
+---
+
+PART XIV — PHASE 2A FEATURE-FLAG MODEL
+
+Determine the safest feature flags for future restricted rollout.
+
+At minimum preserve:
+
+intelligence.facts.server_adapter = OFF
+
+unless a later approved architecture specifically requires it.
+
+Consider separate flags for:
+
+intelligence.contextual.today
+intelligence.contextual.post_log
+intelligence.contextual.progress
+intelligence.contextual.coach_context
+
+All should remain OFF during this investigation.
+
+Document dependencies between them.
+
+---
+
+PART XV — PHASE 2A FAILURE BEHAVIOR
+
+Define fail-safe behavior.
+
+If Intelligence cannot establish:
+
+- authenticated identity;
+- adequate data freshness;
+- adequate completeness;
+- sufficient confidence;
+- deterministic evidence;
+
+then the insight should not fabricate an answer.
+
+Prefer:
+
+NO INSIGHT
+INSUFFICIENT DATA
+STALE DATA
+LOW CONFIDENCE
+
+as appropriate.
+
+The existing Calora experience must continue normally when Intelligence is unavailable.
+
+---
+
+PART XVI — PERFORMANCE BOUNDARY
+
+Estimate from actual architecture whether transient Intelligence calculations can occur without materially degrading:
+
+- Today/Home;
+- food logging;
+- post-log response;
+- Progress;
+- Coach launch.
+
+Do not invent benchmarks.
+
+If useful, perform non-invasive local measurements against the existing Foundation.
+
+No production optimization work is required in this phase.
+
+---
+
+PART XVII — DECISION MATRIX
+
+Produce two independent verdicts.
+
+DATABASE INFRASTRUCTURE VERDICT
+
+Choose:
+
+A — TARGET RLS ARCHITECTURE IS FEASIBLE
+B — FEASIBLE AFTER SPECIFIC PLATFORM CONFIGURATION
+C — NOT RELIABLY FEASIBLE ON CURRENT PLATFORM
+UNKNOWN
+
+RESTRICTED PHASE 2A VERDICT
+
+Choose:
+
+APPROVE
+APPROVE WITH CONDITIONS
+DO NOT APPROVE
+
+Do not make Phase 2A approval depend automatically on RLS.
+
+Instead evaluate whether the proposed Phase 2A adds a new persistent security boundary.
+
+If Phase 2A remains transient, deterministic, user-scoped, and inside the already-tested API authorization boundary, assess it on those facts.
+
+---
+
+PART XVIII — IF PHASE 2A IS APPROVED
+
+Do not implement it yet.
+
+Instead produce the exact proposed scope for the next implementation task.
+
+The proposed Phase 2A must explicitly exclude:
+
+- persistent Intelligence facts;
+- persistent behavioral profiles;
+- proactive background analysis;
+- Coach rewrite;
+- autonomous recommendations;
+- LLM-generated factual state;
+- new cross-user processing;
+- database migration.
+
+The next implementation task should focus only on safe contextual insight delivery using the established Foundation.
+
+---
+
+PART XIX — VALIDATION
+
+This investigation should remain non-destructive.
+
+If any repository changes are required solely for safe investigation, keep them minimal.
+
+Run relevant baseline validation if code changes occur.
+
+Do not rerun expensive suites simply to manufacture activity when nothing changed.
+
+Record exactly what was tested and what was only inspected.
+
+---
+
+PART XX — AUTOMATIC REPORT
+
+When complete, automatically create and save:
+
+"docs/CALORA_INTELLIGENCE_PHASE_1_8A_INFRASTRUCTURE_AND_PHASE_2A_FEASIBILITY_REPORT.md"
+
+Do not wait for me to request it.
+
+The report must contain:
+
+1. Executive verdict
+2. Current PostgreSQL architecture
+3. Managed platform capabilities investigated
+4. Runtime-role feasibility
+5. Credential-separation feasibility
+6. Role persistence findings
+7. Grant/RLS deployment feasibility
+8. Pooling findings
+9. Transaction-local identity feasibility
+10. Production propagation findings
+11. Rollback findings
+12. Database infrastructure verdict
+13. Migration alternatives if necessary
+14. Existing Intelligence Foundation capabilities
+15. Phase 2A proposed architecture
+16. Class A capabilities
+17. Class B capabilities
+18. Class C capabilities
+19. Persistence requirements
+20. Privacy/security analysis
+21. Coach boundary
+22. Feature-flag model
+23. Failure behavior
+24. Performance considerations
+25. Remaining unknowns
+26. Remaining blockers
+27. Database infrastructure verdict
+28. Restricted Phase 2A verdict
+29. Exact scope recommended for the next task
+30. Files changed, if any
+31. Tests/inspections performed
+
+Never include passwords, tokens, connection strings, secret values, or sensitive user data.
+
+---
+
+FINAL STOP CONDITION
+
+After the investigation:
+
+- save the report;
+- make no production database migration;
+- do not enable RLS unless separately approved;
+- do not change the production database credential;
+- do not begin database migration;
+- do not enable Contextual Intelligence;
+- do not begin Phase 2A implementation;
+- keep persistent Intelligence disabled;
+- keep Coach integration disabled.
+
+Give me a concise summary, both verdicts, the exact report path, and then STOP for review.
