@@ -22,6 +22,30 @@ type SubscriberResponse = {
 };
 
 /**
+ * Reads the current RevenueCat entitlement for a Calora account. This is the
+ * server authority for Premium API access; device-side purchase state is never
+ * accepted as an authorization signal.
+ */
+export async function hasActivePremiumEntitlement(appUserId: string): Promise<boolean> {
+  const response = await connectors.proxy(
+    "revenuecat",
+    `/v1/subscribers/${encodeURIComponent(appUserId)}`,
+    { method: "GET" },
+  );
+  if (!response.ok) {
+    throw new Error(`RevenueCat subscriber lookup failed (${response.status})`);
+  }
+
+  const subscriber = (await response.json()) as SubscriberResponse;
+  const expiry = subscriber.subscriber?.entitlements?.[ENTITLEMENT_ID]?.expires_date;
+  // RevenueCat uses a null expiry for lifetime access. A malformed expiry is
+  // never treated as access, so an upstream data issue cannot unlock content.
+  if (expiry === null) return Boolean(subscriber.subscriber?.entitlements?.[ENTITLEMENT_ID]);
+  const expiresAt = typeof expiry === "string" ? Date.parse(expiry) : Number.NaN;
+  return Number.isFinite(expiresAt) && expiresAt > Date.now();
+}
+
+/**
  * Grants `days` of the Pro promotional entitlement to `appUserId`, extending
  * (never truncating) any existing access. Returns the new end time.
  * Throws on any RevenueCat API failure — callers must not silently swallow.

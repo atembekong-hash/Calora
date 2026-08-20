@@ -303,6 +303,7 @@ paths:
       operationId: listPremiumRecipes
       tags: [recipes]
       summary: Browse a configured Premium recipe provider
+      security: [{ bearerAuth: [] }]
       parameters:
         - { name: query, in: query, required: false, schema: { type: string, maxLength: 120 } }
         - { name: category, in: query, required: false, schema: { type: string, maxLength: 80 } }
@@ -314,11 +315,23 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PremiumRecipeList" }
+        "401":
+          description: A signed-in Calora account is required
+        "403":
+          description: An active Calora Premium entitlement is required
+        "429":
+          description: Premium recipe quota exceeded
+        "503":
+          description: Entitlement verification or abuse protection is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/premium-recipes/{sourceId}:
     get:
       operationId: getPremiumRecipe
       tags: [recipes]
       summary: Get a Premium recipe detail
+      security: [{ bearerAuth: [] }]
       parameters:
         - { name: sourceId, in: path, required: true, schema: { type: string, minLength: 1 } }
       responses:
@@ -327,6 +340,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PremiumRecipe" }
+        "401":
+          description: A signed-in Calora account is required
+        "403":
+          description: An active Calora Premium entitlement is required
+        "429":
+          description: Premium recipe quota exceeded
+        "503":
+          description: Entitlement verification or abuse protection is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/restaurant-foods:
     get:
       operationId: listRestaurantFoods
@@ -614,6 +638,12 @@ components:
         type: string
         format: uuid
   schemas:
+    ApiMessage:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
     HealthStatus:
       type: object
       properties:

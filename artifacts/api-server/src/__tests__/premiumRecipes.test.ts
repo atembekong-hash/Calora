@@ -2,6 +2,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 
+const { verifyBearerTokenMock, hasActivePremiumEntitlementMock, checkRateLimitMock } = vi.hoisted(() => ({
+  verifyBearerTokenMock: vi.fn(),
+  hasActivePremiumEntitlementMock: vi.fn(),
+  checkRateLimitMock: vi.fn(),
+}));
+
+vi.mock("../lib/supabase-auth.js", () => ({
+  verifyBearerToken: verifyBearerTokenMock,
+}));
+
+vi.mock("../lib/revenuecat.js", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../lib/revenuecat.js")>(),
+  hasActivePremiumEntitlement: hasActivePremiumEntitlementMock,
+}));
+
+vi.mock("../lib/rate-limit.js", () => ({
+  checkRateLimit: checkRateLimitMock,
+}));
+
 const originalNodeEnv = process.env.NODE_ENV;
 
 afterEach(() => {
@@ -28,6 +47,9 @@ beforeEach(() => {
   delete process.env.FATSECRET_GATEWAY_SECRET;
   delete process.env.FATSECRET_CLIENT_ID;
   delete process.env.FATSECRET_CLIENT_SECRET;
+  verifyBearerTokenMock.mockResolvedValue({ id: "premium-user", email: "premium@example.com" });
+  hasActivePremiumEntitlementMock.mockResolvedValue(true);
+  checkRateLimitMock.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
 });
 
 async function appWithProvider(url?: string) {
@@ -40,6 +62,35 @@ async function appWithProvider(url?: string) {
 }
 
 describe("Premium recipe routes", () => {
+  it("rejects anonymous requests before entitlement, quota, or provider work", async () => {
+    verifyBearerTokenMock.mockResolvedValue(null);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const res = await request(app).get("/v1/premium-recipes");
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ message: "Sign in to access Premium recipes." });
+    expect(hasActivePremiumEntitlementMock).not.toHaveBeenCalled();
+    expect(checkRateLimitMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a signed-in account without a current Premium entitlement before provider work", async () => {
+    hasActivePremiumEntitlementMock.mockResolvedValue(false);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const res = await request(app).get("/v1/premium-recipes/premium%3AProvider%3A42");
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ message: "Premium access is not available for this account." });
+    expect(checkRateLimitMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("returns an honest unavailable state with no provider configuration", async () => {
     const app = await appWithProvider();
     const res = await request(app).get("/v1/premium-recipes");
@@ -76,6 +127,41 @@ describe("Premium recipe routes", () => {
     const res = await request(app).get("/v1/premium-recipes");
     expect(res.status).toBe(502);
     expect(res.body).toMatchObject({ status: "error", recipes: [] });
+  });
+
+  it("does not reach the provider when RevenueCat entitlement verification fails", async () => {
+    hasActivePremiumEntitlementMock.mockRejectedValue(new Error("RevenueCat unavailable"));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const res = await request(app).get("/v1/premium-recipes");
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ message: "Premium recipes are temporarily unavailable. Please try again shortly." });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("applies independent account and IP limits after entitlement verification", async () => {
+    checkRateLimitMock
+      .mockResolvedValueOnce({ allowed: true, retryAfterSecs: 0 })
+      .mockResolvedValueOnce({ allowed: false, retryAfterSecs: 23 });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const res = await request(app).get("/v1/premium-recipes");
+
+    expect(res.status).toBe(429);
+    expect(res.headers["retry-after"]).toBe("23");
+    expect(checkRateLimitMock).toHaveBeenCalledWith("premium-recipes:user:premium-user", 60, 60 * 60);
+    expect(checkRateLimitMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^premium-recipes:ip:/),
+      120,
+      60 * 60,
+      { failClosed: true },
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("uses FatSecret OAuth and normalizes a recipe search result", async () => {

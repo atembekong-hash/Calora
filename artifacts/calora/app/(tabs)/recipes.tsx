@@ -3,12 +3,12 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ActivityIndicator, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getRecipe, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
+import { ApiError, getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getRecipe, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
@@ -26,6 +26,8 @@ import { recipeNutritionLabel, recipeProvenance, recipeSourceLabel } from '@/lib
 import { requestGeneratedRecipe, requestRecipeConcepts } from '@/lib/recipeGeneration';
 import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
+import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
+import { hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -216,21 +218,44 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
 
 function PremiumCatalogue({ colors, onOpen, onSave, savedPremiumRecipes, onLoadMoreRef }: { colors: ReturnType<typeof useCalora>['colors']; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null> }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [offset, setOffset] = useState(0);
   const [filterVisible, setFilterVisible] = useState(false);
   const [loadedRecipes, setLoadedRecipes] = useState<PremiumRecipe[]>([]);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
   const loadingMoreRef = useRef(false);
   const hasMountedFiltersRef = useRef(false);
   const premiumParams = { query: search || undefined, category: category || undefined, limit: RECIPE_PAGE_SIZE, offset };
-  const query = useListPremiumRecipes(premiumParams, { query: { queryKey: getListPremiumRecipesQueryKey(premiumParams), staleTime: 1000 * 60 * 5 } });
-  const data = query.data;
+  const userId = session?.user.id ?? null;
+  const premiumQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(premiumParams));
+  const query = useListPremiumRecipes(premiumParams, { query: { queryKey: premiumQueryKey, enabled: Boolean(userId), staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchInterval: 60_000 } });
+  const accessDeniedStatus = query.error instanceof ApiError && (query.error.status === 401 || query.error.status === 403)
+    ? query.error.status
+    : null;
+  const accessDenied = accessDeniedStatus !== null;
+  // A cached response only describes a past entitlement. Never render it until
+  // a request mounted for this screen has verified current server access.
+  const currentAccess = hasCurrentPremiumAccess(query);
+  const data = currentAccess ? query.data : undefined;
+  useEffect(() => {
+    if (!accessDenied) return;
+    queryClient.removeQueries({ queryKey: premiumQueryKey, exact: true });
+  }, [accessDenied, premiumQueryKey, queryClient]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void query.refetch();
+    });
+    return () => subscription.remove();
+  }, [query.refetch]);
   useEffect(() => {
     if (!data?.recipes) return;
-    setLoadedRecipes((current) => offset === 0 ? data.recipes : [...current, ...data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id))]);
+    setLoadedRecipes((current) => offset === 0 || loadedForUserId !== userId ? data.recipes : [...current, ...data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id))]);
+    setLoadedForUserId(userId);
     loadingMoreRef.current = false;
-  }, [data?.recipes, offset]);
+  }, [data?.recipes, loadedForUserId, offset, userId]);
   useEffect(() => {
     onLoadMoreRef.current = () => {
       if (data?.nextOffset == null || query.isFetching || loadingMoreRef.current) return;
@@ -251,12 +276,15 @@ function PremiumCatalogue({ colors, onOpen, onSave, savedPremiumRecipes, onLoadM
     setLoadedRecipes([]);
     loadingMoreRef.current = false;
   }, [search, category]);
-  const hasLoadedRecipes = loadedRecipes.length > 0;
+  const hasLoadedRecipes = loadedForUserId === userId && loadedRecipes.length > 0;
+  if (!session) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in to browse Premium recipes</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Premium recipe sources are available to signed-in members only.</Text><Pressable accessibilityLabel="Sign in to access Premium recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text></Pressable></View>;
+  if (accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="award" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{accessDeniedStatus === 401 ? 'Sign in to browse Premium recipes' : 'Premium membership required'}</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{accessDeniedStatus === 401 ? 'Your session has ended. Sign in again to access Premium recipes.' : 'An active Calora Premium membership is required to browse these recipes.'}</Text></View>;
   // A new offset has its own React Query key. Do not replace an existing grid
   // with the initial loader/error state while that page is resolving: collapsing
   // the parent ScrollView content makes React Native clamp its scroll offset.
-  if (query.isLoading && !hasLoadedRecipes) return <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Connecting to Premium recipes…</Text></View>;
-  if ((query.isError || data?.status === 'error') && !hasLoadedRecipes) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data?.message ?? 'Try again shortly. Discover remains available.'}</Text><Pressable onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
+  if (query.isError && !accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Try again shortly. Discover remains available.</Text><Pressable onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
+  if (!currentAccess) return <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Checking Premium access…</Text></View>;
+  if (data?.status === 'error' && !hasLoadedRecipes) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'Try again shortly. Discover remains available.'}</Text><Pressable onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
    if (data?.status === 'restricted') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are not available</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'This recipe provider is not enabled for this account yet. Discover remains available.'}</Text></View>;
   if (data?.status === 'unavailable') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="link-2" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium source not connected</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message}</Text></View>;
   const recipes = loadedRecipes;
@@ -317,6 +345,8 @@ function scaleIngredient(ingredient: string, multiplier: number): string {
 
 function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void }) {
   const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const premium = recipe ? recipeProvenance(recipe).sourceType === 'premium' : false;
   const remoteRecipeId = recipe && !local && !premium ? recipe.id : '';
@@ -334,8 +364,25 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
       },
     },
   });
-  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: getGetPremiumRecipeQueryKey(premiumSourceId), enabled: Boolean(premiumSourceId), staleTime: 1000 * 60 * 30 } });
-  const detail = premiumDetailQuery.data ?? detailQuery.data ?? recipe;
+  const premiumDetailKey = premiumRecipeDetailQueryKey(session?.user.id, getGetPremiumRecipeQueryKey(premiumSourceId));
+  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: premiumDetailKey, enabled: Boolean(premiumSourceId && session?.user.id), staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchInterval: 60_000 } });
+  const premiumDetailDenied = premiumDetailQuery.error instanceof ApiError && (premiumDetailQuery.error.status === 401 || premiumDetailQuery.error.status === 403);
+  useEffect(() => {
+    if (!premiumDetailDenied) return;
+    queryClient.removeQueries({ queryKey: premiumDetailKey, exact: true });
+    onClose();
+  }, [onClose, premiumDetailDenied, premiumDetailKey, queryClient]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && premium) void premiumDetailQuery.refetch();
+    });
+    return () => subscription.remove();
+  }, [premium, premiumDetailQuery.refetch]);
+  const detail = premium
+    ? hasCurrentPremiumAccess(premiumDetailQuery)
+      ? premiumDetailQuery.data
+      : null
+    : detailQuery.data ?? recipe;
 
   // Existing review state (used for local recipes)
   const [reviewDraftId, setReviewDraftId] = useState<string | null>(null);
@@ -835,6 +882,7 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
 
 export default function RecipesScreen() {
   const { colors, profile, logs, localRecipes, savedRecipeIds, toggleSavedRecipe, fontScale } = useCalora();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
@@ -868,6 +916,9 @@ export default function RecipesScreen() {
   const recipesScrollRef = useRef<ScrollView | null>(null);
   const discoverScrollYRef = useRef(0);
   const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
+  useEffect(() => {
+    setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current);
+  }, [user?.id]);
   const remainingCalories = Math.max((profile?.calorieTarget ?? 2000) - logs.filter((log) => log.date === dateKey()).reduce((sum, log) => sum + log.calories, 0), 0);
   const localMatches = useMemo(() => localRecipes.filter((recipe) => {
     const haystack = `${recipe.name} ${recipe.category ?? ''} ${recipe.tags.join(' ')} ${recipe.ingredients.join(' ')}`.toLowerCase();

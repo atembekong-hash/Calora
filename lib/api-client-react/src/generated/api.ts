@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ApiMessage,
   CaptureAnalysis,
   CaptureAnalyzeInput,
   CoachRespondInput,
@@ -1122,7 +1123,7 @@ export const getListPremiumRecipesQueryKey = (params?: ListPremiumRecipesParams,
     }
 
 
-export const getListPremiumRecipesQueryOptions = <TData = Awaited<ReturnType<typeof listPremiumRecipes>>, TError = ErrorType<unknown>>(params?: ListPremiumRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPremiumRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListPremiumRecipesQueryOptions = <TData = Awaited<ReturnType<typeof listPremiumRecipes>>, TError = ErrorType<void | ApiMessage>>(params?: ListPremiumRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPremiumRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1141,14 +1142,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ListPremiumRecipesQueryResult = NonNullable<Awaited<ReturnType<typeof listPremiumRecipes>>>
-export type ListPremiumRecipesQueryError = ErrorType<unknown>
+export type ListPremiumRecipesQueryError = ErrorType<void | ApiMessage>
 
 
 /**
  * @summary Browse a configured Premium recipe provider
  */
 
-export function useListPremiumRecipes<TData = Awaited<ReturnType<typeof listPremiumRecipes>>, TError = ErrorType<unknown>>(
+export function useListPremiumRecipes<TData = Awaited<ReturnType<typeof listPremiumRecipes>>, TError = ErrorType<void | ApiMessage>>(
  params?: ListPremiumRecipesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPremiumRecipes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -1199,7 +1200,7 @@ export const getGetPremiumRecipeQueryKey = (sourceId: string,) => {
     }
 
 
-export const getGetPremiumRecipeQueryOptions = <TData = Awaited<ReturnType<typeof getPremiumRecipe>>, TError = ErrorType<unknown>>(sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPremiumRecipe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetPremiumRecipeQueryOptions = <TData = Awaited<ReturnType<typeof getPremiumRecipe>>, TError = ErrorType<void | ApiMessage>>(sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPremiumRecipe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -1218,14 +1219,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type GetPremiumRecipeQueryResult = NonNullable<Awaited<ReturnType<typeof getPremiumRecipe>>>
-export type GetPremiumRecipeQueryError = ErrorType<unknown>
+export type GetPremiumRecipeQueryError = ErrorType<void | ApiMessage>
 
 
 /**
  * @summary Get a Premium recipe detail
  */
 
-export function useGetPremiumRecipe<TData = Awaited<ReturnType<typeof getPremiumRecipe>>, TError = ErrorType<unknown>>(
+export function useGetPremiumRecipe<TData = Awaited<ReturnType<typeof getPremiumRecipe>>, TError = ErrorType<void | ApiMessage>>(
  sourceId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPremiumRecipe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
