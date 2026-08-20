@@ -1,124 +1,217 @@
 # Calora Intelligence — Supabase Security Report
 
-## Security-stop verdict
+## Executive verdict
 
-**STOPPED WITHOUT DATABASE MUTATION.** The supplied Supabase credentials successfully reached the configured project, but the project does not expose any of the expected Calora application tables. Applying tenant RLS policies in this project would not secure the live Calora database and would create misleading security evidence.
+Direct Supabase management access verified and remediated the configured Calora
+Supabase project. A publicly executable `SECURITY DEFINER` event-trigger helper
+was removed from the public RPC surface.
 
-No RLS, policy, grant, function, trigger, schema, data, account, or configuration change was made.
+**Phase 2 is not approved.** The Supabase project does not contain any Calora
+application tables, so database-level tenant isolation for Calora data cannot
+be implemented or verified there. The actual Calora domain schema remains in
+the separate managed PostgreSQL database.
 
 ## Verified project and environment
 
-| Check | Result |
+| Property | Verified value |
 | --- | --- |
-| Configured Supabase project reference | `pzdulhkpwbrbrgskwwwe` |
-| Connectivity | REST API reached successfully using server-side credentials without exposing their values |
-| Calora identity match | PARTIAL: this reference is the one configured in Calora’s Supabase client and Auth integration |
-| Project display name / account metadata | Not available through the supplied application credentials |
-| Environment classification | **UNKNOWN**: no authoritative development/staging/production label is available through the supplied credentials or environment configuration |
-| Safe-to-mutate determination | **NO** |
+| Project reference | `pzdulhkpwbrbrgskwwwe` |
+| Project name | `caloraapp` |
+| Project status | `ACTIVE_HEALTHY` |
+| Region | `us-west-2` |
+| Configured app URL match | Yes; the mobile and API auth configuration use this project reference |
+| Supabase branches | None; this is the primary project |
+| Environment label | **UNKNOWN** — Supabase exposes no development/staging/production label for this project |
+| Auth user count | 10 at inspection time |
 
-The app’s mobile configuration and server auth verifier both use this project for Supabase Auth. That proves an Auth integration relationship, not that it is the application database containing Calora data.
+The project identity is unambiguous: it is the active `caloraapp` project
+configured by Calora for Supabase Auth. Its environment tier cannot be inferred
+from a project name, URL, or branch absence, so this report does not label it
+production.
 
-## Original and final live Supabase state
+## Original and final database security state
 
-The following representative Calora application tables were queried through the Supabase REST interface with a zero-row metadata-safe request:
-
-`calora_users`, `calora_profiles`, `calora_diary_entries`, `calora_weight_entries`, `calora_saved_meals`, `calora_recipes`, `calora_recipe_items`, `calora_ai_capture_sessions`, `calora_ai_capture_candidates`, `calora_subscriptions`, `calora_sync_mutations`, `calora_consent_events`, `calora_referral_codes`, `calora_referral_redemptions`, `calora_food_items`, `calora_recipe_nutrition`, `calora_capture_rate_limits`, and `calora_account_deletion_states`.
-
-Every request returned `404 Not Found`.
-
-| Security property | Original state | Final state |
+| Property | Original | Final |
 | --- | --- | --- |
-| Calora application tables in this Supabase REST schema | Not present | Unchanged |
-| RLS enablement for Calora tables | Not inspectable because tables are absent | Unchanged |
-| FORCE RLS | Not inspectable because tables are absent | Unchanged |
-| RLS policies | Not inspectable because tables are absent | Unchanged |
-| Table grants / ownership | Not inspectable through REST and tables are absent | Unchanged |
-| Security-definer functions | Not inspectable through REST | Unchanged |
-| Data / schema / policy changes | None | None |
+| Public application tables | None | None |
+| `calora_*` tables in Supabase | None | None |
+| Public-table RLS state | No public tables to inspect | No public tables to inspect |
+| FORCE RLS | No public tables to inspect | No public tables to inspect |
+| Public-schema policies | None | None |
+| Public-schema table grants | None | None |
+| Applied Supabase migrations | None | One security migration |
+| `public.rls_auto_enable()` | `SECURITY DEFINER`, executable by `PUBLIC` | `SECURITY DEFINER`, executable only by `postgres` |
+| Security advisor | Two public-function warnings plus leaked-password warning | Leaked-password warning only |
 
-## Repository-defined ownership classification
+The project includes Supabase-managed schemas such as `auth`, `storage`, and
+`realtime`, but contains no Calora domain schema in `public` or another
+application schema. Direct REST checks and managed PostgreSQL metadata both
+confirmed this.
 
-This is the intended classification from the canonical Drizzle schema, **not a claim about live Supabase objects**:
+## Table-by-table ownership classification
 
-| Tables | Intended classification | Ownership model |
+The following are Calora's **repository-defined intended classifications** from
+the canonical Drizzle schema. They are not live Supabase tables.
+
+| Table | Classification | Intended ownership / exposure |
 | --- | --- | --- |
-| `calora_users`, `calora_profiles`, `calora_diary_entries`, `calora_weight_entries`, `calora_saved_meals`, `calora_recipes`, `calora_ai_capture_sessions`, `calora_subscriptions`, `calora_sync_mutations`, `calora_consent_events` | USER-OWNED | Internal `user_id` references `calora_users`; `external_id` maps to Supabase Auth identity |
-| `calora_recipe_items` | USER-OWNED CHILD | `recipe_items → recipes → user_id` |
-| `calora_ai_capture_candidates` | USER-OWNED CHILD | `capture_candidates → capture_sessions → user_id` |
-| `calora_referral_codes`, `calora_referral_qualifications`, `calora_referral_redemptions` | SERVICE-ONLY / USER-OWNED | Use Supabase Auth external IDs; referral semantics involve one or two users and require explicit design |
-| `calora_food_items`, `calora_recipe_nutrition` | SHARED READ-ONLY / SERVICE-ONLY | No direct user owner; client exposure must be explicit |
-| `calora_capture_rate_limits`, `calora_account_deletion_states` | SYSTEM/OPERATIONAL | Ordinary mobile clients must not access them |
+| `calora_users` | USER-OWNED | Maps Supabase Auth `external_id` to internal UUID |
+| `calora_profiles` | USER-OWNED | Direct internal `user_id` owner |
+| `calora_diary_entries` | USER-OWNED | Direct internal `user_id` owner |
+| `calora_weight_entries` | USER-OWNED | Direct internal `user_id` owner |
+| `calora_saved_meals` | USER-OWNED | Direct internal `user_id` owner |
+| `calora_recipes` | USER-OWNED | Direct internal `user_id` owner |
+| `calora_recipe_items` | USER-OWNED CHILD | `recipe_items → recipes → owning user` |
+| `calora_ai_capture_sessions` | USER-OWNED | Direct internal `user_id` owner |
+| `calora_ai_capture_candidates` | USER-OWNED CHILD | `capture_candidates → capture_sessions → owning user` |
+| `calora_subscriptions` | SERVICE-ONLY | Server-managed entitlement state |
+| `calora_sync_mutations` | USER-OWNED | Direct internal `user_id` owner |
+| `calora_consent_events` | USER-OWNED | Direct internal `user_id` owner |
+| `calora_referral_codes` | USER-OWNED / SERVICE-ONLY | Supabase Auth external identity; server-mediated |
+| `calora_referral_qualifications` | SERVICE-ONLY | Server-verified qualification records |
+| `calora_referral_redemptions` | SERVICE-ONLY | Two-party server-mediated referral records |
+| `calora_food_items` | SHARED READ-ONLY | No direct user owner; exposure must be deliberate |
+| `calora_recipe_nutrition` | SHARED READ-ONLY | No direct user owner; exposure must be deliberate |
+| `calora_capture_rate_limits` | SYSTEM/OPERATIONAL | Never mobile-client accessible |
+| `calora_account_deletion_states` | SYSTEM/OPERATIONAL | Never mobile-client accessible |
 
-## Policies, grants, and functions
+## Policies, grants, and security-definer functions
 
-- **Policies created or changed:** none.
-- **Policy logic created or changed:** none.
-- **Grants reviewed:** no Calora tables exist in this Supabase REST schema; PostgreSQL catalog/grant access was not available through the provided application credentials.
-- **Security-definer functions reviewed:** not available through the Supabase REST interface; no claim is made.
-- **Child-resource ownership protections:** not created because the relevant child and parent tables are absent.
+### Calora tenant policies
 
-## Service-role audit
+No Calora RLS policy was created, changed, or tested because no Calora table
+exists in this Supabase project. It would be unsafe and misleading to create
+generic policies without the live data schema and its internal-user-ID bridge.
 
-Repository inspection finds the service-role key used only by server-side Supabase administration in `artifacts/api-server/src/lib/supabase-admin.ts`, consumed by account-deletion handling in `artifacts/api-server/src/routes/account.ts`.
+### Grants reviewed
 
-- The Expo/mobile code uses the public Supabase URL and anon key, not the service-role key.
-- Server routes verify the authenticated bearer identity; request-body user IDs are not trusted for account deletion.
-- The service role is used for privileged Auth user deletion, not as a client-side shortcut around data ownership.
-- This static review does **not** prove deployed mobile bundles or other runtime environments are free of accidental secret exposure; no secret values were inspected or recorded.
+- Public-schema table grants: none, because public contains no tables.
+- Original routine grant: `PUBLIC` could execute
+  `public.rls_auto_enable()`.
+- Final routine grant: only `postgres` retains `EXECUTE`.
+- `anon`, `authenticated`, and `service_role` each return `false` for
+  `has_function_privilege(..., 'public.rls_auto_enable()', 'EXECUTE')`.
 
-## Cross-user and same-user tests
+### Security-definer remediation
 
-| Test area | Result |
-| --- | --- |
-| Two dedicated Supabase test identities | Not created; no Calora data tables exist in the target project |
-| USER_A read/insert/update/delete against USER_B profile | BLOCKED |
-| Diary, weights, saved meals, recipes, recipe items | BLOCKED |
-| Capture sessions and candidates | BLOCKED |
-| Consent and sync mutations | BLOCKED |
-| Same-user operations | BLOCKED |
-| RLS policy negative tests | BLOCKED |
+`public.rls_auto_enable()` is an internal event-trigger function that enables
+RLS after public-table creation. It has an `ensure_rls` event-trigger
+dependency and no repository callers or recent invocation evidence. It is not
+an application RPC and ordinary Supabase roles do not need to execute it.
 
-No isolation claim is made without executed negative tests.
+Applied, source-controlled policy logic:
+
+```sql
+REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC;
+```
+
+The applied managed migration is named `revoke_public_rls_auto_enable`.
+
+## Service-role findings
+
+- `SUPABASE_SERVICE_ROLE_KEY` is consumed only in server-side
+  `artifacts/api-server/src/lib/supabase-admin.ts`.
+- Mobile/Expo code uses the public URL and anon key; it does not import or use
+  the service-role key.
+- The account-deletion endpoint validates the bearer identity and does not
+  trust a caller-supplied user ID.
+- Service role is used for privileged Supabase Auth user deletion, not as a
+  client-side RLS bypass.
+- This project has no domain tables for the service role to access.
+
+No secret value, password, token, or key was displayed or saved.
+
+## Child-resource ownership protections
+
+No live Supabase child tables exist to protect. The required production data
+model remains:
+
+- `recipe_items → recipes → owning user`
+- `capture_candidates → capture_sessions → owning user`
+
+Any future move of this schema to Supabase must implement these as transitive
+ownership predicates based on the verified Supabase Auth identity, not
+client-supplied ownership fields.
+
+## Cross-user and same-user validation matrix
+
+| Resource | USER_A → USER_B negative test | Same-user test | Reason |
+| --- | --- | --- | --- |
+| Profile | BLOCKED | BLOCKED | No Calora table in Supabase |
+| Diary | BLOCKED | BLOCKED | No Calora table in Supabase |
+| Weights | BLOCKED | BLOCKED | No Calora table in Supabase |
+| Saved meals | BLOCKED | BLOCKED | No Calora table in Supabase |
+| Recipes | BLOCKED | BLOCKED | No Calora table in Supabase |
+| Recipe items | BLOCKED | BLOCKED | No Calora table in Supabase |
+| Capture sessions | BLOCKED | BLOCKED | No Calora table in Supabase |
+| Capture candidates | BLOCKED | BLOCKED | No Calora table in Supabase |
+| Consent | BLOCKED | BLOCKED | No Calora table in Supabase |
+| Sync mutations | BLOCKED | BLOCKED | No Calora table in Supabase |
+
+No test identity or data was created because there is no safe target table for
+the requested operations. No cross-user isolation claim is made.
 
 ## Account-deletion validation
 
-No Supabase database security change was made, so the existing application-side account-deletion route and database fence were not altered. The authoritative Calora data schema has previously been observed in the project’s managed PostgreSQL database, not in this Supabase REST schema. The account-deletion fence cannot be validated against this Supabase project because the relevant tables are absent.
+The Supabase security change does not alter Calora account deletion. Existing
+API validation includes the real managed-PostgreSQL account-deletion fence
+regression test, which passed as part of the API suite. The Supabase project
+contains Auth users but no corresponding Calora domain/deletion-state tables,
+so it cannot validate the application-data deletion fence.
 
-## Repository and database changes performed
+## Repository and live database changes
 
-| Category | Result |
+| Category | Changes |
 | --- | --- |
-| Repository files modified | This report only |
-| Supabase database changes | None |
-| RLS policies enabled/created | None |
-| Auth users created | None |
-| Application data created/changed/deleted | None |
+| Repository | Added `supabase/migrations/20260820150000_revoke_public_rls_auto_enable.sql`; updated this report |
+| Supabase database | Applied migration `revoke_public_rls_auto_enable` |
+| Data changes | None |
+| Auth user changes | None |
+| Calora table changes | None |
+| API startup DDL | None added |
+| Intelligence behavior | None enabled |
 
-## Exact validation commands and results
+The migration records the exact live Supabase security change. It is a
+Supabase-specific security migration; `lib/db/src/schema/index.ts` remains the
+canonical schema authority for Calora’s application data in managed PostgreSQL.
 
-| Operation | Result |
+## Validation commands and results
+
+| Validation | Result |
 | --- | --- |
-| Read repository auth/database configuration and schema | Confirmed Supabase Auth external ID → internal Calora user-row mapping |
-| Read configured secret existence | Anon and service-role secrets are present; values were not displayed |
-| Extract project reference from configured Supabase URL in a server-side process | `pzdulhkpwbrbrgskwwwe` |
-| REST reachability check | PASS |
-| Zero-row REST existence checks for 18 Calora tables | All returned `404 Not Found` |
-| Typechecks, API suite, Calora suite, database integration tests | Not rerun: no source or application-database change was safe or appropriate after the target mismatch |
-| RLS policy / two-user / account-deletion fence tests against Supabase | BLOCKED: required tables are absent |
+| Supabase managed project identity lookup | PASS — `caloraapp`, matching configured reference |
+| Supabase schema/table metadata inventory | PASS — no Calora public tables |
+| Supabase policy / public grant inventory | PASS — no public table policies or grants |
+| Security-definer definition, dependency, and caller search | PASS — event-trigger helper, no repository caller, no recent invocation evidence |
+| `has_function_privilege` for `anon`, `authenticated`, `service_role` | PASS — all false after remediation |
+| Supabase security advisor | PASS for function exposure — two SECURITY DEFINER execution warnings resolved |
+| `pnpm --filter @workspace/calora run typecheck` | PASS |
+| `pnpm --filter @workspace/api-server run typecheck` | PASS |
+| `pnpm --filter @workspace/api-server test` | PASS — 225 tests in 19 files |
+| `pnpm --filter @workspace/calora test` | PASS — 884 tests in 50 files plus 6 static-asset security tests |
+| Calora database integration and account-deletion fence test | PASS — included in API suite |
+| Supabase RLS / two-user tenant tests | BLOCKED — no Calora data schema in this project |
 
-## Remaining unknowns and risks
+## Remaining unknowns and security risks
 
-1. The exact environment label and project display name for project `pzdulhkpwbrbrgskwwwe` are not verifiable with the supplied application credentials.
-2. It is unknown whether the actual Calora PostgreSQL database is intentionally separate from Supabase Auth or whether a separate Supabase database/project was intended.
-3. Database-level tenant isolation for the real Calora tables remains unverified in the database where those tables actually reside.
-4. RLS policies must not be copied blindly from a generic Supabase pattern because Calora’s user-owned tables use internal UUIDs bridged from Supabase Auth external IDs.
-5. Production propagation of account-deletion support objects remains unverified.
+1. Supabase exposes no authoritative environment label; do not treat the
+   branchless primary project as production without confirmation.
+2. Leaked-password protection remains disabled in Supabase Auth. This is the
+   only remaining Supabase security-advisor warning.
+3. Calora database-level tenant isolation remains unverified in the separate
+   managed PostgreSQL database where Calora tables live.
+4. Production propagation of the managed-PostgreSQL account-deletion support
+   objects remains unverified.
+5. A future migration of Calora data into Supabase requires a separately
+   approved schema/RLS design, transitive child policies, and executed
+   two-user negative tests.
 
 ## Phase 2 readiness
 
 **DO NOT APPROVE PHASE 2.**
 
-`intelligence.facts.server_adapter` must remain blocked. No persistent Intelligence facts, Today Intelligence, post-log Intelligence, Progress Intelligence, Coach fact context, proactive Intelligence, or adaptive Intelligence was enabled.
-
-The next safe action requires an authoritative mapping to the live Calora application database and, if it is Supabase, an administrator-capable PostgreSQL/schema connection for that exact project. Only then can policies, grants, security-definer functions, and two-user negative isolation tests be performed directly and safely.
+`intelligence.facts.server_adapter` must remain blocked. Do not enable
+persistent Intelligence facts, Today Intelligence, post-log Intelligence,
+Progress Intelligence, Coach fact context, proactive Intelligence, or adaptive
+Intelligence until tenant isolation is proven in the database that actually
+stores Calora domain data.

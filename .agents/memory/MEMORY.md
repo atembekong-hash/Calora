@@ -28,3 +28,4 @@
 - [FatSecret static egress](fatsecret-static-egress.md) — FatSecret Premier calls must leave from an allowlisted static IP; enable the gateway only after that route is verified.
 - [RevenueCat Test Store price replacements](revenuecat-test-store-price-replacements.md) — Test Store price changes require replacement products; archive historical products when deletion is blocked.
 - [Managed database support objects](managed-database-support-objects.md) — Drizzle table pushes do not establish PostgreSQL functions or triggers; production propagation must be proven separately.
+- [Supabase Auth boundary](supabase-auth-boundary.md) — Calora’s configured Supabase project currently provides Auth, while Calora domain data remains in managed PostgreSQL.
