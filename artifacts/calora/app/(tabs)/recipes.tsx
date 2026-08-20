@@ -193,6 +193,7 @@ function PremiumCatalogue({ colors, onOpen, onSave, savedPremiumRecipes, onLoadM
   const [filterVisible, setFilterVisible] = useState(false);
   const [loadedRecipes, setLoadedRecipes] = useState<PremiumRecipe[]>([]);
   const loadingMoreRef = useRef(false);
+  const hasMountedFiltersRef = useRef(false);
   const premiumParams = { query: search || undefined, category: category || undefined, limit: RECIPE_PAGE_SIZE, offset };
   const query = useListPremiumRecipes(premiumParams, { query: { queryKey: getListPremiumRecipesQueryKey(premiumParams), staleTime: 1000 * 60 * 5 } });
   const data = query.data;
@@ -210,6 +211,13 @@ function PremiumCatalogue({ colors, onOpen, onSave, savedPremiumRecipes, onLoadM
     return () => { onLoadMoreRef.current = null; };
   }, [data?.nextOffset, onLoadMoreRef, query.isFetching]);
   useEffect(() => {
+    // React Query can restore Premium results from cache immediately when this
+    // section remounts. Do not clear that restored list on the initial render;
+    // only reset pagination after an actual search/filter change.
+    if (!hasMountedFiltersRef.current) {
+      hasMountedFiltersRef.current = true;
+      return;
+    }
     setOffset(0);
     setLoadedRecipes([]);
     loadingMoreRef.current = false;
