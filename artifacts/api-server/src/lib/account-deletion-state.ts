@@ -1,8 +1,15 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 
 export type AccountDeletionState = "active" | "deleting" | "deleted";
+export type AccountDeletionStage = "application" | "revenuecat" | "auth";
+export type AccountDeletionClaim =
+  | { kind: "completed" }
+  | { kind: "in_progress" }
+  | { kind: "claimed"; operationId: string; stage: AccountDeletionStage };
+
+const LEASE_SECONDS = 5 * 60;
 
 function identityFingerprint(externalUserId: string): string {
   return createHash("sha256").update(externalUserId).digest("hex");
@@ -33,7 +40,7 @@ export async function assertAccountWritable(externalUserId: string): Promise<voi
   });
 }
 
-export async function beginAccountDeletion(externalUserId: string): Promise<AccountDeletionState> {
+export async function claimAccountDeletion(externalUserId: string): Promise<AccountDeletionClaim> {
   const fingerprint = identityFingerprint(externalUserId);
   return db.transaction(async (tx) => {
     await tx.execute(sql`
@@ -41,39 +48,87 @@ export async function beginAccountDeletion(externalUserId: string): Promise<Acco
       VALUES (${fingerprint}, 'active')
       ON CONFLICT (identity_fingerprint) DO NOTHING
     `);
-    const current = await tx.execute<{ state: AccountDeletionState }>(sql`
-      SELECT state
+    const current = await tx.execute<{
+      state: AccountDeletionState;
+      stage: AccountDeletionStage | null;
+      lease_expires_at: Date | null;
+    }>(sql`
+      SELECT state, stage, lease_expires_at
       FROM calora_account_deletion_states
       WHERE identity_fingerprint = ${fingerprint}
       FOR UPDATE
     `);
-    const state = current.rows[0]?.state;
-    if (state === "deleted") return state;
+    const row = current.rows[0];
+    if (row?.state === "deleted") return { kind: "completed" };
+    if (row?.state === "deleting" && row.lease_expires_at && row.lease_expires_at > new Date()) {
+      return { kind: "in_progress" };
+    }
+    const operationId = randomUUID();
+    const stage = row?.stage ?? "application";
     await tx.execute(sql`
       UPDATE calora_account_deletion_states
-      SET state = 'deleting', requested_at = COALESCE(requested_at, now()), updated_at = now(), last_error = NULL
+      SET state = 'deleting',
+          operation_id = ${operationId}::uuid,
+          stage = ${stage},
+          recovery_external_user_id = ${externalUserId},
+          lease_expires_at = now() + (${LEASE_SECONDS} || ' seconds')::interval,
+          requested_at = COALESCE(requested_at, now()),
+          updated_at = now(),
+          last_error = NULL
       WHERE identity_fingerprint = ${fingerprint}
     `);
-    return "deleting";
+    return { kind: "claimed", operationId, stage };
   });
 }
 
-export async function markAccountDeletionFailed(externalUserId: string): Promise<void> {
+export async function checkpointAccountDeletion(externalUserId: string, operationId: string, stage: AccountDeletionStage): Promise<boolean> {
   const fingerprint = identityFingerprint(externalUserId);
-  await db.execute(sql`
+  const result = await db.execute(sql`
     UPDATE calora_account_deletion_states
-    SET state = 'deleting', updated_at = now(), last_error = 'retry_required'
-    WHERE identity_fingerprint = ${fingerprint}
+    SET stage = ${stage}, updated_at = now(),
+        lease_expires_at = now() + (${LEASE_SECONDS} || ' seconds')::interval,
+        last_error = NULL
+    WHERE identity_fingerprint = ${fingerprint} AND state = 'deleting' AND operation_id = ${operationId}::uuid
+    RETURNING identity_fingerprint
   `);
+  return result.rows.length === 1;
 }
 
-export async function completeAccountDeletion(externalUserId: string): Promise<void> {
+export async function markAccountDeletionFailed(externalUserId: string, operationId: string): Promise<boolean> {
   const fingerprint = identityFingerprint(externalUserId);
-  await db.execute(sql`
+  const result = await db.execute(sql`
     UPDATE calora_account_deletion_states
-    SET state = 'deleted', completed_at = now(), updated_at = now(), last_error = NULL
-    WHERE identity_fingerprint = ${fingerprint}
+    SET updated_at = now(), last_error = 'retry_required', lease_expires_at = now()
+    WHERE identity_fingerprint = ${fingerprint} AND state = 'deleting' AND operation_id = ${operationId}::uuid
+    RETURNING identity_fingerprint
   `);
+  return result.rows.length === 1;
+}
+
+export async function completeAccountDeletion(externalUserId: string, operationId: string): Promise<boolean> {
+  const fingerprint = identityFingerprint(externalUserId);
+  const result = await db.execute(sql`
+    UPDATE calora_account_deletion_states
+    SET state = 'deleted', completed_at = now(), updated_at = now(),
+        operation_id = NULL, recovery_external_user_id = NULL,
+        lease_expires_at = NULL, last_error = NULL
+    WHERE identity_fingerprint = ${fingerprint} AND state = 'deleting' AND operation_id = ${operationId}::uuid
+    RETURNING identity_fingerprint
+  `);
+  return result.rows.length === 1;
+}
+
+export async function listRecoverableAccountDeletions(): Promise<string[]> {
+  const rows = await db.execute<{ recovery_external_user_id: string }>(sql`
+    SELECT recovery_external_user_id
+    FROM calora_account_deletion_states
+    WHERE state = 'deleting'
+      AND recovery_external_user_id IS NOT NULL
+      AND (lease_expires_at IS NULL OR lease_expires_at <= now())
+    ORDER BY updated_at ASC
+    LIMIT 25
+  `);
+  return rows.rows.map((row) => row.recovery_external_user_id);
 }
 
 export class AccountDeletionInProgressError extends Error {

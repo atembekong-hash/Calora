@@ -11,11 +11,13 @@
 import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { sql, eq } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { db, pool, usersTable } from "@workspace/db";
 import { getSupabaseAdmin } from "../lib/supabase-admin.js";
 import {
-  beginAccountDeletion,
+  claimAccountDeletion,
+  checkpointAccountDeletion,
   completeAccountDeletion,
+  listRecoverableAccountDeletions,
   markAccountDeletionFailed,
 } from "../lib/account-deletion-state.js";
 import { deleteRevenueCatSubscriber } from "../lib/revenuecat.js";
@@ -63,6 +65,78 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
   });
 }
 
+export async function runAccountDeletion(externalUserId: string): Promise<"completed" | "in_progress"> {
+  // A session-scoped advisory lock remains held throughout external provider
+  // calls. Unlike a time lease alone, a slow worker cannot lose ownership and
+  // continue concurrently after another worker takes over.
+  const client = await pool.connect();
+  const lock = await client.query<{ locked: boolean }>(
+    "SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS locked",
+    [`calora-account-deletion:${externalUserId}`],
+  );
+  if (!lock.rows[0]?.locked) {
+    client.release();
+    return "in_progress";
+  }
+
+  let operationId: string | null = null;
+  try {
+    const claim = await claimAccountDeletion(externalUserId);
+    if (claim.kind === "completed") return "completed";
+    if (claim.kind === "in_progress") return "in_progress";
+    operationId = claim.operationId;
+    if (claim.stage === "application") {
+      await deleteApplicationData(externalUserId);
+      if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "revenuecat")) {
+        throw new Error("Account deletion ownership was lost before RevenueCat erasure.");
+      }
+    }
+    if (claim.stage === "application" || claim.stage === "revenuecat") {
+      await deleteRevenueCatSubscriber(externalUserId);
+      if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "auth")) {
+        throw new Error("Account deletion ownership was lost before Auth erasure.");
+      }
+    }
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) throw new Error("Supabase Admin is unavailable");
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(externalUserId);
+    // A prior worker may have completed Auth removal just before crashing.
+    // Supabase's not-found response therefore proves this idempotent stage.
+    if (error && (error as { status?: number }).status !== 404) throw error;
+    if (!await completeAccountDeletion(externalUserId, claim.operationId)) {
+      throw new Error("Account deletion ownership was lost before finalization.");
+    }
+    return "completed";
+  } catch (error) {
+    // The state helper only mutates a matching operation, so a stale worker
+    // cannot overwrite a successor's checkpoint or terminal tombstone.
+    if (operationId) {
+      await markAccountDeletionFailed(externalUserId, operationId).catch(() => undefined);
+    }
+    throw error;
+  } finally {
+    await client.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [`calora-account-deletion:${externalUserId}`]).catch(() => undefined);
+    client.release();
+  }
+}
+
+/**
+ * Server-owned recovery for interrupted deletions. The temporary external id
+ * exists only until the terminal state is recorded, so this can safely finish
+ * provider erasure after the user's access token has expired.
+ */
+export async function recoverPendingAccountDeletions(): Promise<void> {
+  const pending = await listRecoverableAccountDeletions();
+  for (const externalUserId of pending) {
+    try {
+      await runAccountDeletion(externalUserId);
+    } catch {
+      // The operation retains its retry checkpoint and will be retried after
+      // the lease expires. Individual failures must not block other accounts.
+    }
+  }
+}
+
 router.delete("/v1/account", async (req, res): Promise<void> => {
   // ── 0. Guard: credentials must be configured ────────────────────────────
   const supabaseAdmin = getSupabaseAdmin();
@@ -95,48 +169,17 @@ router.delete("/v1/account", async (req, res): Promise<void> => {
   // ── 3. Fence writes before removing application data ────────────────────
   // The state is keyed by a one-way identity fingerprint, not the deleted
   // user's Auth id, so it can prevent recreation without retaining PII.
-  const deletionState = await beginAccountDeletion(userId);
-  if (deletionState === "deleted") {
-    res.status(200).json({ message: "Account permanently deleted." });
-    return;
-  }
-
-  // ── 4. Remove application data before deleting the login ────────────────
-  // The database transaction means a cleanup failure leaves both the app data
-  // and Auth identity intact. Auth is deliberately deleted last because it is
-  // an external system and cannot participate in the database transaction.
   try {
-    await deleteApplicationData(userId);
+    const outcome = await runAccountDeletion(userId);
+    if (outcome === "in_progress") {
+      res.status(202).json({ message: "Account deletion is already in progress. It will continue securely." });
+      return;
+    }
   } catch {
-    await markAccountDeletionFailed(userId).catch(() => undefined);
-    req.log.error("Account deletion application-data cleanup failed");
+    req.log.error("Account deletion operation failed");
     res.status(502).json({ message: "Account deletion failed on the server. Please try again or contact support." });
     return;
   }
-
-  // ── 5. Erase the billing-provider subscriber before deleting Auth ───────
-  // RevenueCat uses the Auth id as app_user_id. A provider failure leaves the
-  // durable state in "deleting" so a later authenticated retry can finish.
-  try {
-    await deleteRevenueCatSubscriber(userId);
-  } catch {
-    await markAccountDeletionFailed(userId).catch(() => undefined);
-    req.log.error("Account deletion billing-provider operation failed");
-    res.status(502).json({ message: "Account deletion failed on the server. Please try again or contact support." });
-    return;
-  }
-
-  // ── 6. Delete the auth record ───────────────────────────────────────────
-  const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-
-  if (deleteError) {
-    await markAccountDeletionFailed(userId).catch(() => undefined);
-    req.log.error("Account deletion auth-provider operation failed");
-    res.status(502).json({ message: "Account deletion failed on the server. Please try again or contact support." });
-    return;
-  }
-
-  await completeAccountDeletion(userId);
   res.status(200).json({ message: "Account permanently deleted." });
 });
 

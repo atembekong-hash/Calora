@@ -299,6 +299,11 @@ export const captureRateLimitsTable = pgTable("calora_capture_rate_limits", {
 export const accountDeletionStatesTable = pgTable("calora_account_deletion_states", {
   identityFingerprint: text("identity_fingerprint").primaryKey(),
   state: text("state").notNull(),
+  operationId: uuid("operation_id"),
+  stage: text("stage").notNull().default("application"),
+  leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+  /** Retained only while a server-owned erasure operation remains incomplete. */
+  recoveryExternalUserId: text("recovery_external_user_id"),
   requestedAt: timestamp("requested_at", { withTimezone: true }),
   completedAt: timestamp("completed_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

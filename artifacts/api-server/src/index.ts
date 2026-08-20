@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
+import { recoverPendingAccountDeletions } from "./routes/account";
 
 const rawPort = process.env["PORT"];
 
@@ -52,11 +53,64 @@ async function runStartupMigrations(): Promise<void> {
     CREATE TABLE IF NOT EXISTS calora_account_deletion_states (
       identity_fingerprint TEXT PRIMARY KEY,
       state                TEXT NOT NULL CHECK (state IN ('active', 'deleting', 'deleted')),
+      operation_id         UUID,
+      stage                TEXT NOT NULL DEFAULT 'application',
+      lease_expires_at     TIMESTAMPTZ,
+      recovery_external_user_id TEXT,
       requested_at         TIMESTAMPTZ,
       completed_at         TIMESTAMPTZ,
       updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       last_error           TEXT
     )
+  `);
+  await pool.query(`
+    ALTER TABLE calora_account_deletion_states
+      ADD COLUMN IF NOT EXISTS operation_id UUID,
+      ADD COLUMN IF NOT EXISTS stage TEXT NOT NULL DEFAULT 'application',
+      ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS recovery_external_user_id TEXT
+  `);
+  // The tombstone check is enforced inside PostgreSQL, not just by route
+  // middleware. It prevents an in-flight or future route from recreating
+  // user-linked records after deletion has entered its protected phase.
+  await pool.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
+  await pool.query(`
+    CREATE OR REPLACE FUNCTION calora_assert_deletion_writable(external_user_id TEXT)
+    RETURNS VOID AS $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM calora_account_deletion_states
+        WHERE identity_fingerprint = encode(digest(external_user_id, 'sha256'), 'hex')
+          AND state <> 'active'
+      ) THEN
+        RAISE EXCEPTION 'account deletion is in progress' USING ERRCODE = '55000';
+      END IF;
+    END;
+    $$ LANGUAGE plpgsql
+  `);
+  await pool.query(`
+    CREATE OR REPLACE FUNCTION calora_account_deletion_write_fence()
+    RETURNS TRIGGER AS $$
+    DECLARE rate_limit_user_id TEXT;
+    BEGIN
+      IF TG_TABLE_NAME = 'calora_users' THEN
+        PERFORM calora_assert_deletion_writable(NEW.external_id);
+      ELSIF TG_TABLE_NAME = 'calora_referral_codes' THEN
+        PERFORM calora_assert_deletion_writable(NEW.user_id);
+      ELSIF TG_TABLE_NAME = 'calora_referral_redemptions' THEN
+        PERFORM calora_assert_deletion_writable(NEW.referrer_user_id);
+        PERFORM calora_assert_deletion_writable(NEW.referred_user_id);
+      ELSIF TG_TABLE_NAME = 'calora_referral_qualifications' THEN
+        PERFORM calora_assert_deletion_writable(NEW.external_user_id);
+      ELSIF TG_TABLE_NAME = 'calora_capture_rate_limits' THEN
+        rate_limit_user_id := substring(NEW.key FROM '(?:^|:)user:(.+)$');
+        IF rate_limit_user_id IS NOT NULL THEN
+          PERFORM calora_assert_deletion_writable(rate_limit_user_id);
+        END IF;
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS calora_food_items (
@@ -135,6 +189,24 @@ async function runStartupMigrations(): Promise<void> {
       code       TEXT        NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
     )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS calora_referral_qualifications (
+      id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      external_user_id   TEXT        NOT NULL,
+      capture_session_id TEXT        NOT NULL,
+      approved_at        TIMESTAMPTZ,
+      expires_at         TIMESTAMPTZ NOT NULL,
+      created_at         TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    )
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS calora_referral_qualification_session_idx
+      ON calora_referral_qualifications (capture_session_id)
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS calora_referral_qualification_user_idx
+      ON calora_referral_qualifications (external_user_id)
   `);
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS calora_referral_codes_code_idx
@@ -216,6 +288,16 @@ async function runStartupMigrations(): Promise<void> {
       reset_at TIMESTAMPTZ NOT NULL
     )
   `);
+  // Install only after every fenced table exists. Recreating the trigger is
+  // idempotent and lets the trigger function evolve with future tables.
+  for (const tableName of ["calora_users", "calora_referral_codes", "calora_referral_redemptions", "calora_referral_qualifications", "calora_capture_rate_limits"]) {
+    await pool.query(`
+      DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON ${tableName};
+      CREATE TRIGGER calora_account_deletion_write_fence_trigger
+      BEFORE INSERT OR UPDATE ON ${tableName}
+      FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence()
+    `);
+  }
   logger.info("Startup migrations complete");
 }
 
@@ -226,6 +308,7 @@ async function runStartupMigrations(): Promise<void> {
 // Runs once per hour; errors are logged but never crash the server.
 // ---------------------------------------------------------------------------
 const RATE_LIMIT_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const ACCOUNT_DELETION_RECOVERY_INTERVAL_MS = 60 * 1000; // 1 minute
 
 async function cleanupExpiredRateLimitRows(): Promise<void> {
   try {
@@ -246,6 +329,8 @@ async function cleanupExpiredRateLimitRows(): Promise<void> {
 
 runStartupMigrations()
   .then(() => {
+    void recoverPendingAccountDeletions();
+    setInterval(() => void recoverPendingAccountDeletions(), ACCOUNT_DELETION_RECOVERY_INTERVAL_MS).unref();
     app.listen(port, (err) => {
       if (err) {
         logger.error({ err }, "Error listening on port");

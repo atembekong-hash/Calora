@@ -20,6 +20,12 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  delete process.env.PREMIUM_RECIPE_PROVIDER_URL;
+  delete process.env.PREMIUM_RECIPE_PROVIDER_NAME;
+  delete process.env.PREMIUM_RECIPE_PROVIDER_API_KEY;
+  delete process.env.PREMIUM_RECIPE_ACCESS_MODE;
+  delete process.env.FATSECRET_GATEWAY_URL;
+  delete process.env.FATSECRET_GATEWAY_SECRET;
   delete process.env.FATSECRET_CLIENT_ID;
   delete process.env.FATSECRET_CLIENT_SECRET;
 });

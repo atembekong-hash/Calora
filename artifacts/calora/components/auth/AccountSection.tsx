@@ -129,20 +129,34 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (!response.ok) {
-        const body = await response.json().catch(() => ({})) as { error?: string };
-        throw new Error(body.error ?? `Account deletion failed (${response.status})`);
+        const body = await response.json().catch(() => ({})) as { error?: string; message?: string };
+        throw new Error(body.message ?? body.error ?? `Account deletion failed (${response.status})`);
       }
+      const deletionPending = response.status === 202;
 
-      // Cloud record deleted — now clear local data and sign out.
-      await clearAllData();
-      await signOut();
+      // Cloud deletion is final. Always end the local session, even when a
+      // best-effort local persistence cleanup reports an error; retrying the
+      // server request with a now-deleted account would be misleading.
+      let localCleanupError: unknown = null;
+      try {
+        await clearProfilePhoto();
+        await clearAllData();
+      } catch (error) {
+        localCleanupError = error;
+      } finally {
+        await signOut();
+      }
 
       setDeleteModal(false);
 
       setTimeout(() => {
         Alert.alert(
-          'Account deleted',
-          `Your ${BRAND.name} account and all associated data have been permanently removed.`,
+          deletionPending ? 'Deletion in progress' : 'Account deleted',
+          deletionPending
+            ? `Your deletion request is securely in progress. This device has been signed out, and the server will finish removing your account even if you cannot reopen the app.`
+            : localCleanupError
+            ? `Your ${BRAND.name} account was permanently removed and this device was signed out. Some on-device data could not be cleared automatically; restart the app before using it again.`
+            : `Your ${BRAND.name} account and all associated data have been permanently removed.`,
         );
       }, 300);
     } catch (err: unknown) {
@@ -152,7 +166,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
     } finally {
       setDeleteLoading(false);
     }
-  }, [deleteConfirmText, deleteLoading, session, clearAllData, signOut]);
+  }, [deleteConfirmText, deleteLoading, session, clearAllData, clearProfilePhoto, signOut]);
 
   // ── Signed-out state ───────────────────────────────────────────────────────
 

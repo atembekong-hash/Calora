@@ -2,12 +2,14 @@
 
 **Date:** 2026-08-18
 **Residual hardening retest:** 2026-08-19
+**Account-deletion finality retest:** 2026-08-20
 **Scope:** Authorized, non-destructive audit of the Calora API server
 (`artifacts/api-server`), the Expo mobile client (`artifacts/calora`), the
 shared DB/schema (`lib/db`), and deployment/configuration. No destructive tests
 were run against real users, transactions, or third parties.
 
-**Verdict:** **Ready, with documented residual risks.** Confirmed AI cost/DoS
+**Verdict:** **Security controls remediated in development; not an unconditional
+production-launch certification.** Confirmed AI cost/DoS
 vulnerabilities were found and remediated: (1) planner and coach AI endpoints
 were unauthenticated and unthrottled, and (2) public recipe-detail cache misses
 were uncoalesced, allowing concurrent anonymous OpenAI amplification. All are now
@@ -173,3 +175,38 @@ This decision must be revisited before adding cookie authentication,
    incompatible majors.
 5. **No penetration testing of Supabase/RevenueCat/OpenAI provider internals** —
    out of authorized scope; these are trusted managed services.
+
+## Account-deletion finality retest — 2026-08-20
+
+The earlier account-deletion workflow was not release-safe: concurrent requests
+could overlap provider calls, authenticated writes could outlive the initial
+application guard, and an interrupted operation depended on the user retaining a
+valid session to retry. Those defects were remediated and independently reviewed.
+
+- A session-scoped PostgreSQL advisory lock now gives one deletion operation
+  ownership across application cleanup, RevenueCat erasure, and Supabase Auth
+  removal. Conditional operation IDs prevent stale workers from changing
+  checkpoints or a terminal tombstone.
+- The deletion state persists a short-lived recovery identifier only while
+  erasure is incomplete. A server-owned recovery loop resumes staged work after
+  failure without relying on a user JWT, and removes that identifier on the
+  terminal state. An already-absent Auth identity is treated as an idempotent
+  successful final stage.
+- Startup migrations create every directly external-ID-linked deletion table and
+  install database write fences for user rows, referrals, qualifications, and
+  user-keyed rate-limit buckets. This prevents recreation after deletion begins
+  even if future route middleware is missed.
+- The mobile client now treats an in-progress deletion as pending rather than
+  completed, clears device data best-effort, removes the profile photo, and
+  signs out after a server-confirmed request.
+
+**Retest evidence:** API type check and mobile type check passed; API tests
+passed **217/217**; mobile tests passed **860/860**; the API workflow completed
+startup migrations and served normally. An independent architecture review passed
+the operation ownership, recovery, fence, and client behavior.
+
+**Remaining production gate:** perform one disposable-account deletion and
+forced-recovery exercise after deployment, including the database role's ability
+to create `pgcrypto` and install the write-fence triggers. Native device,
+production deployment, provider-internal, store billing, and OAuth boundaries
+remain outside this development-environment certification.
