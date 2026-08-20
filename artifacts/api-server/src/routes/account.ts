@@ -13,6 +13,12 @@ import { randomUUID } from "node:crypto";
 import { sql, eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { getSupabaseAdmin } from "../lib/supabase-admin.js";
+import {
+  beginAccountDeletion,
+  completeAccountDeletion,
+  markAccountDeletionFailed,
+} from "../lib/account-deletion-state.js";
+import { deleteRevenueCatSubscriber } from "../lib/revenuecat.js";
 
 const router: IRouter = Router();
 
@@ -49,6 +55,7 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
     await tx.execute(sql`
       DELETE FROM calora_capture_rate_limits
       WHERE key = ${`user:${externalUserId}`}
+         OR key LIKE ${`%:user:${externalUserId}`}
     `);
 
     // All user-owned records reference calora_users with ON DELETE CASCADE.
@@ -85,27 +92,51 @@ router.delete("/v1/account", async (req, res): Promise<void> => {
 
   const userId = userData.user.id;
 
-  // ── 3. Remove application data before deleting the login ────────────────
+  // ── 3. Fence writes before removing application data ────────────────────
+  // The state is keyed by a one-way identity fingerprint, not the deleted
+  // user's Auth id, so it can prevent recreation without retaining PII.
+  const deletionState = await beginAccountDeletion(userId);
+  if (deletionState === "deleted") {
+    res.status(200).json({ message: "Account permanently deleted." });
+    return;
+  }
+
+  // ── 4. Remove application data before deleting the login ────────────────
   // The database transaction means a cleanup failure leaves both the app data
   // and Auth identity intact. Auth is deliberately deleted last because it is
   // an external system and cannot participate in the database transaction.
   try {
     await deleteApplicationData(userId);
   } catch {
+    await markAccountDeletionFailed(userId).catch(() => undefined);
     req.log.error("Account deletion application-data cleanup failed");
     res.status(502).json({ message: "Account deletion failed on the server. Please try again or contact support." });
     return;
   }
 
-  // ── 4. Delete the auth record ───────────────────────────────────────────
+  // ── 5. Erase the billing-provider subscriber before deleting Auth ───────
+  // RevenueCat uses the Auth id as app_user_id. A provider failure leaves the
+  // durable state in "deleting" so a later authenticated retry can finish.
+  try {
+    await deleteRevenueCatSubscriber(userId);
+  } catch {
+    await markAccountDeletionFailed(userId).catch(() => undefined);
+    req.log.error("Account deletion billing-provider operation failed");
+    res.status(502).json({ message: "Account deletion failed on the server. Please try again or contact support." });
+    return;
+  }
+
+  // ── 6. Delete the auth record ───────────────────────────────────────────
   const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
   if (deleteError) {
+    await markAccountDeletionFailed(userId).catch(() => undefined);
     req.log.error("Account deletion auth-provider operation failed");
     res.status(502).json({ message: "Account deletion failed on the server. Please try again or contact support." });
     return;
   }
 
+  await completeAccountDeletion(userId);
   res.status(200).json({ message: "Account permanently deleted." });
 });
 

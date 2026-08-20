@@ -56,3 +56,16 @@ export async function grantPromoDays(appUserId: string, days: number): Promise<D
 
   return new Date(endTimeMs);
 }
+
+/** Removes the RevenueCat subscriber record associated with a deleted account. */
+export async function deleteRevenueCatSubscriber(appUserId: string): Promise<void> {
+  const response = await connectors.proxy(
+    "revenuecat",
+    `/v1/subscribers/${encodeURIComponent(appUserId)}`,
+    { method: "DELETE" },
+  );
+  // A missing subscriber is already deleted and therefore satisfies erasure.
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`RevenueCat subscriber deletion failed (${response.status})`);
+  }
+}

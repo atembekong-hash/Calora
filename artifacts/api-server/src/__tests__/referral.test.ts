@@ -79,6 +79,12 @@ vi.mock('../lib/referral-qualification.js', () => ({
   hasSavedDiaryEntry: (...args: unknown[]) => hasSavedDiaryEntry(...args),
 }));
 
+const assertAccountWritable = vi.fn();
+vi.mock('../lib/account-deletion-state.js', () => ({
+  assertAccountWritable: (...args: unknown[]) => assertAccountWritable(...args),
+  AccountDeletionInProgressError: class AccountDeletionInProgressError extends Error {},
+}));
+
 import express from 'express';
 import referralRouter from '../routes/referral.js';
 
@@ -113,6 +119,7 @@ beforeEach(() => {
   verifyBearerToken.mockResolvedValue(USER);
   grantPromoDays.mockResolvedValue(undefined);
   hasSavedDiaryEntry.mockResolvedValue(false);
+  assertAccountWritable.mockResolvedValue(undefined);
 });
 
 describe('POST /v1/referral/activate — qualification gate', () => {

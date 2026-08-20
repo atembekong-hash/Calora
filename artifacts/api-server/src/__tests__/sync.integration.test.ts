@@ -116,6 +116,16 @@ describe.skipIf(!HAS_DB)('diary sync idempotency (real schema)', () => {
         ADD COLUMN IF NOT EXISTS capture_session_id UUID
           REFERENCES calora_ai_capture_sessions(id) ON DELETE SET NULL
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS calora_account_deletion_states (
+        identity_fingerprint TEXT PRIMARY KEY,
+        state TEXT NOT NULL CHECK (state IN ('active', 'deleting', 'deleted')),
+        requested_at TIMESTAMPTZ,
+        completed_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_error TEXT
+      )
+    `);
 
     const express = (await import('express')).default;
     const syncRouter = (await import('../routes/sync.js')).default;

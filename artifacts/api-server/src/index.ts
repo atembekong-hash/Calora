@@ -49,6 +49,16 @@ async function runStartupMigrations(): Promise<void> {
       ON calora_users (external_id)
   `);
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS calora_account_deletion_states (
+      identity_fingerprint TEXT PRIMARY KEY,
+      state                TEXT NOT NULL CHECK (state IN ('active', 'deleting', 'deleted')),
+      requested_at         TIMESTAMPTZ,
+      completed_at         TIMESTAMPTZ,
+      updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_error           TEXT
+    )
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS calora_food_items (
       id                 UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
       source             TEXT          NOT NULL,

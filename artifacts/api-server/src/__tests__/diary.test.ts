@@ -74,6 +74,11 @@ vi.mock('../lib/supabase-auth.js', () => ({
   verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args),
 }));
 
+vi.mock('../lib/account-deletion-state.js', () => ({
+  assertAccountWritable: vi.fn().mockResolvedValue(undefined),
+  AccountDeletionInProgressError: class AccountDeletionInProgressError extends Error {},
+}));
+
 // Wrap drizzle-orm's eq/and with spies so the cross-user test can assert
 // that the DELETE WHERE clause references the authenticated user's internal id.
 vi.mock('drizzle-orm', async () => {

@@ -20,6 +20,7 @@ import { and, count, eq, sql } from "drizzle-orm";
 import { db, referralCodesTable, referralRedemptionsTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { grantPromoDays } from "../lib/revenuecat.js";
+import { assertAccountWritable, AccountDeletionInProgressError } from "../lib/account-deletion-state.js";
 import { hasSavedDiaryEntry } from "../lib/referral-qualification.js";
 
 const router: IRouter = Router();
@@ -77,6 +78,7 @@ router.get("/v1/referral", async (req, res) => {
       res.status(401).json({ message: "Please sign in to view your invite code." });
       return;
     }
+    await assertAccountWritable(user.id);
 
     const code = await ensureCode(user.id);
 
@@ -116,6 +118,10 @@ router.get("/v1/referral", async (req, res) => {
             },
     });
   } catch (err) {
+    if (err instanceof AccountDeletionInProgressError) {
+      res.status(423).json({ message: "Account deletion is in progress." });
+      return;
+    }
     console.error("[referral] summary failed:", err);
     res.status(503).json({ message: "Referrals are unavailable right now. Please try again later." });
   }
@@ -129,6 +135,7 @@ router.post("/v1/referral/redeem", async (req, res) => {
       res.status(401).json({ message: "Please sign in to redeem an invite code." });
       return;
     }
+    await assertAccountWritable(user.id);
 
     const rawCode = typeof req.body?.code === "string" ? req.body.code.trim().toUpperCase() : "";
     if (rawCode.length < 4 || rawCode.length > 16) {
@@ -180,6 +187,10 @@ router.post("/v1/referral/redeem", async (req, res) => {
       message: `Invite accepted! Log your first meal to unlock ${REWARD_DAYS} days of Pro for you both.`,
     });
   } catch (err) {
+    if (err instanceof AccountDeletionInProgressError) {
+      res.status(423).json({ message: "Account deletion is in progress." });
+      return;
+    }
     console.error("[referral] redeem failed:", err);
     res.status(503).json({ message: "Referrals are unavailable right now. Please try again later." });
   }
@@ -193,6 +204,7 @@ router.post("/v1/referral/activate", async (req, res) => {
       res.status(401).json({ message: "Please sign in first." });
       return;
     }
+    await assertAccountWritable(user.id);
 
     const rows = await db
       .select()
@@ -339,6 +351,10 @@ router.post("/v1/referral/activate", async (req, res) => {
       message: `You've unlocked ${REWARD_DAYS} days of CaloraApp Pro. Enjoy!`,
     });
   } catch (err) {
+    if (err instanceof AccountDeletionInProgressError) {
+      res.status(423).json({ message: "Account deletion is in progress." });
+      return;
+    }
     console.error("[referral] activate failed:", err);
     res.status(503).json({ message: "Referrals are unavailable right now. Please try again later." });
   }

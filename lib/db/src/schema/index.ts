@@ -292,6 +292,19 @@ export const captureRateLimitsTable = pgTable("calora_capture_rate_limits", {
   resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
 });
 
+/**
+ * A one-way identity tombstone used to fence writes after account deletion
+ * starts, without retaining the Supabase user id itself.
+ */
+export const accountDeletionStatesTable = pgTable("calora_account_deletion_states", {
+  identityFingerprint: text("identity_fingerprint").primaryKey(),
+  state: text("state").notNull(),
+  requestedAt: timestamp("requested_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  lastError: text("last_error"),
+});
+
 export const insertRecipeNutritionSchema = createInsertSchema(recipeNutritionTable);
 export type RecipeNutrition = typeof recipeNutritionTable.$inferSelect;
 

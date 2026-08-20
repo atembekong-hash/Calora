@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 
-const { transaction, execute, deleteWhere, deleteUser, getUser } = vi.hoisted(() => {
+const {
+  transaction, execute, deleteWhere, deleteUser, getUser,
+  beginDeletion, completeDeletion, failedDeletion, deleteRevenueCatSubscriber,
+} = vi.hoisted(() => {
   const execute = vi.fn();
   const deleteWhere = vi.fn();
   const tx = {
@@ -15,6 +18,10 @@ const { transaction, execute, deleteWhere, deleteUser, getUser } = vi.hoisted(()
     deleteWhere,
     getUser: vi.fn(),
     deleteUser: vi.fn(),
+    beginDeletion: vi.fn(),
+    completeDeletion: vi.fn(),
+    failedDeletion: vi.fn(),
+    deleteRevenueCatSubscriber: vi.fn(),
   };
 });
 
@@ -30,6 +37,16 @@ vi.mock("../lib/supabase-admin.js", () => ({
       admin: { deleteUser },
     },
   }),
+}));
+
+vi.mock("../lib/account-deletion-state.js", () => ({
+  beginAccountDeletion: (...args: unknown[]) => beginDeletion(...args),
+  completeAccountDeletion: (...args: unknown[]) => completeDeletion(...args),
+  markAccountDeletionFailed: (...args: unknown[]) => failedDeletion(...args),
+}));
+
+vi.mock("../lib/revenuecat.js", () => ({
+  deleteRevenueCatSubscriber: (...args: unknown[]) => deleteRevenueCatSubscriber(...args),
 }));
 
 import accountRouter from "../routes/account.js";
@@ -49,6 +66,10 @@ describe("DELETE /v1/account", () => {
     vi.clearAllMocks();
     getUser.mockResolvedValue({ data: { user: { id: "auth-user-1" } }, error: null });
     deleteUser.mockResolvedValue({ error: null });
+    beginDeletion.mockResolvedValue("deleting");
+    completeDeletion.mockResolvedValue(undefined);
+    failedDeletion.mockResolvedValue(undefined);
+    deleteRevenueCatSubscriber.mockResolvedValue(undefined);
   });
 
   it("removes application data before deleting the authenticated Auth identity", async () => {
@@ -62,6 +83,8 @@ describe("DELETE /v1/account", () => {
     expect(execute).toHaveBeenCalledTimes(5);
     expect(deleteWhere).toHaveBeenCalledOnce();
     expect(deleteUser).toHaveBeenCalledWith("auth-user-1");
+    expect(deleteRevenueCatSubscriber).toHaveBeenCalledWith("auth-user-1");
+    expect(completeDeletion).toHaveBeenCalledWith("auth-user-1");
     expect(deleteWhere.mock.invocationCallOrder[0]).toBeLessThan(deleteUser.mock.invocationCallOrder[0]);
   });
 
@@ -98,5 +121,30 @@ describe("DELETE /v1/account", () => {
 
     expect(res.status).toBe(502);
     expect(res.body.message).toContain("Account deletion failed");
+    expect(failedDeletion).toHaveBeenCalledWith("auth-user-1");
+  });
+
+  it("does not report success when RevenueCat subscriber deletion fails", async () => {
+    deleteRevenueCatSubscriber.mockRejectedValueOnce(new Error("provider unavailable"));
+
+    const res = await request(buildApp())
+      .delete("/v1/account")
+      .set("Authorization", "Bearer valid-token");
+
+    expect(res.status).toBe(502);
+    expect(deleteUser).not.toHaveBeenCalled();
+    expect(failedDeletion).toHaveBeenCalledWith("auth-user-1");
+  });
+
+  it("is idempotent after a completed deletion", async () => {
+    beginDeletion.mockResolvedValueOnce("deleted");
+
+    const res = await request(buildApp())
+      .delete("/v1/account")
+      .set("Authorization", "Bearer valid-token");
+
+    expect(res.status).toBe(200);
+    expect(deleteUser).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
   });
 });

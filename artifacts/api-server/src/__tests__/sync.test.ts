@@ -75,6 +75,11 @@ vi.mock('../lib/supabase-auth.js', () => ({
   verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args),
 }));
 
+vi.mock('../lib/account-deletion-state.js', () => ({
+  assertAccountWritable: vi.fn().mockResolvedValue(undefined),
+  AccountDeletionInProgressError: class AccountDeletionInProgressError extends Error {},
+}));
+
 // ── App setup ─────────────────────────────────────────────────────────────────
 
 import express from 'express';

@@ -73,6 +73,11 @@ vi.mock('@workspace/db', () => {
   };
 });
 
+vi.mock('../lib/account-deletion-state.js', () => ({
+  assertAccountWritable: vi.fn().mockResolvedValue(undefined),
+  AccountDeletionInProgressError: class AccountDeletionInProgressError extends Error {},
+}));
+
 // ---------------------------------------------------------------------------
 // Mock @workspace/integrations-openai-ai-server before it is imported so that
 // the module initialisation guard (which throws on missing env vars) never runs.

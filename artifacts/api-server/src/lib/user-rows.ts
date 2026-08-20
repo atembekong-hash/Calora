@@ -6,8 +6,10 @@
 
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
+import { assertAccountWritable } from "./account-deletion-state.js";
 
 export async function ensureUserRow(externalId: string, email: string | null): Promise<string> {
+  await assertAccountWritable(externalId);
   const existing = await db
     .select({ id: usersTable.id })
     .from(usersTable)
