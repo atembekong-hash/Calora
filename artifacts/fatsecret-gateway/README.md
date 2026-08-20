@@ -41,6 +41,20 @@ Railway start command: `pnpm --filter @workspace/fatsecret-gateway run start`
 
 Health check path: `/health`
 
+## Production build behavior
+
+The gateway bundles only its local TypeScript source into `dist/index.mjs`.
+Node runtime packages, including Express and Pino, remain external and load
+from the deployment's installed `node_modules`. This is intentional: Express
+uses CommonJS dependencies such as `debug` and `body-parser`, whose runtime
+`require()` calls must execute in Node's CommonJS loader rather than inside an
+ESM bundle wrapper.
+
+No Railway command change is needed:
+
+- Build: `pnpm --filter @workspace/fatsecret-gateway run build`
+- Start: `pnpm --filter @workspace/fatsecret-gateway run start`
+
 ## Internal API contract
 
 All operation endpoints require `x-calora-gateway-secret` and JSON bodies:

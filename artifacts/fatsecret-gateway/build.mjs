@@ -12,9 +12,12 @@ await build({
   bundle: true,
   format: "esm",
   platform: "node",
+  // Node must load runtime dependencies from node_modules. Bundling CommonJS
+  // packages such as Express into an ESM entrypoint breaks their dynamic
+  // require() calls (for example debug's require("tty")) at runtime.
+  packages: "external",
   outdir: distDir,
   outExtension: { ".js": ".mjs" },
   sourcemap: "linked",
   logLevel: "info",
-  external: ["pino"],
 });
