@@ -12,6 +12,7 @@ import type {
 } from '@/context/CaloraContext';
 import type { AcceptedFoodMemory, RepeatPattern } from '@/lib/foodMemory';
 import { dateKey, dateList, rollingDateRange } from '@/lib/dates';
+import { getCoachWeightChangeKg, getLatestLoggedWeight } from '@/lib/intelligence/weightMetrics';
 
 type PlannerLike = { day: string; meal: string; name: string };
 
@@ -102,8 +103,7 @@ export function buildCoachContext({
   });
 
   const waterDays = dailySummaries.filter((day) => day.waterOunces > 0);
-  const latestWeight = weights[weights.length - 1]?.kg ?? null;
-  const startingWeight = profile?.weightKg ?? weights[0]?.kg ?? null;
+  const latestWeight = getLatestLoggedWeight(weights);
   const missingData: string[] = [];
   if (!profile) missingData.push('profile');
   if (!logs.length) missingData.push('approved diary entries');
@@ -136,7 +136,7 @@ export function buildCoachContext({
       activityLoggedDays: Object.keys(activityLogs).filter((date) => days.includes(date)).length,
       weightEntries: weights.length,
       latestWeightKg: latestWeight,
-      weightChangeKg: latestWeight !== null && startingWeight !== null ? Number((latestWeight - startingWeight).toFixed(1)) : null,
+      weightChangeKg: getCoachWeightChangeKg(profile, weights),
     },
     planning: {
       plannedMealCount: plannerMeals.filter((meal) => days.includes(meal.day)).length,
