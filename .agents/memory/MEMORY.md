@@ -27,3 +27,4 @@
 - [Trusted static asset routing](trusted-static-asset-routing.md) — public URL paths must resolve through a startup-built file allowlist, never directly into filesystem paths.
 - [FatSecret static egress](fatsecret-static-egress.md) — FatSecret Premier calls must leave from an allowlisted static IP; enable the gateway only after that route is verified.
 - [RevenueCat Test Store price replacements](revenuecat-test-store-price-replacements.md) — Test Store price changes require replacement products; archive historical products when deletion is blocked.
+- [Managed database support objects](managed-database-support-objects.md) — Drizzle table pushes do not establish PostgreSQL functions or triggers; production propagation must be proven separately.
