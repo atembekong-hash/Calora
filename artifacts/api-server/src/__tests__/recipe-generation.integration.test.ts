@@ -51,6 +51,11 @@ vi.mock("@workspace/db", () => ({
 
 vi.mock("drizzle-orm", () => ({ eq: vi.fn(() => ({})) }));
 
+vi.mock("../lib/account-deletion-state.js", () => ({
+  assertAccountWritable: vi.fn().mockResolvedValue(undefined),
+  AccountDeletionInProgressError: class AccountDeletionInProgressError extends Error {},
+}));
+
 // supabase-auth is intentionally NOT mocked — verifyBearerToken runs against
 // the real Supabase project so this test exercises the live auth path.
 

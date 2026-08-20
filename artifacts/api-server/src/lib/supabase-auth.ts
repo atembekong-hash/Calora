@@ -8,6 +8,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Request } from "express";
+import { AccountDeletionInProgressError, assertAccountWritable } from "./account-deletion-state.js";
 
 let _client: SupabaseClient | null = null;
 
@@ -43,6 +44,16 @@ export async function verifyBearerToken(req: Request): Promise<VerifiedUser | nu
 
   const { data, error } = await verifier.auth.getUser(token);
   if (error || !data?.user) return null;
+
+  try {
+    await assertAccountWritable(data.user.id);
+  } catch (error) {
+    // Treat a deletion tombstone as an unusable credential for normal API
+    // routes. The dedicated account endpoint verifies with the Admin client so
+    // it can still retry a partially completed deletion.
+    if (error instanceof AccountDeletionInProgressError) return null;
+    throw error;
+  }
 
   return { id: data.user.id, email: data.user.email ?? null };
 }

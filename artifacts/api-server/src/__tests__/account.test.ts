@@ -136,6 +136,26 @@ describe("DELETE /v1/account", () => {
     expect(failedDeletion).toHaveBeenCalledWith("auth-user-1");
   });
 
+  it("retries a RevenueCat failure and only completes deletion after the retry succeeds", async () => {
+    deleteRevenueCatSubscriber
+      .mockRejectedValueOnce(new Error("provider unavailable"))
+      .mockResolvedValueOnce(undefined);
+
+    const first = await request(buildApp())
+      .delete("/v1/account")
+      .set("Authorization", "Bearer valid-token");
+    const second = await request(buildApp())
+      .delete("/v1/account")
+      .set("Authorization", "Bearer valid-token");
+
+    expect(first.status).toBe(502);
+    expect(second.status).toBe(200);
+    expect(beginDeletion).toHaveBeenCalledTimes(2);
+    expect(deleteRevenueCatSubscriber).toHaveBeenCalledTimes(2);
+    expect(deleteUser).toHaveBeenCalledOnce();
+    expect(completeDeletion).toHaveBeenCalledOnce();
+  });
+
   it("is idempotent after a completed deletion", async () => {
     beginDeletion.mockResolvedValueOnce("deleted");
 
