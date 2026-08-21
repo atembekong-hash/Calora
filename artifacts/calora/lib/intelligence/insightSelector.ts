@@ -103,7 +103,12 @@ function active(
  */
 export function selectContextualInsight(
   facts: readonly IntelligenceFact[],
-  options: { generatedAt?: string; includeWeightTrend?: boolean; includeNutritionCoverage?: boolean } = {},
+  options: {
+    generatedAt?: string;
+    includeWeightTrend?: boolean;
+    includeNutritionCoverage?: boolean;
+    includeMacroRecordCoverage?: boolean;
+  } = {},
 ): ContextualInsight {
   const generatedAt = options.generatedAt ?? facts[0]?.generatedAt ?? '';
   if (!facts.length) return inactive('insufficient_data', generatedAt, 'no_facts');
@@ -113,7 +118,13 @@ export function selectContextualInsight(
 
   const watermarkGroups = new Map<string, Set<string>>();
   for (const fact of facts) {
-    const windowKey = `${fact.timeWindow.start}:${fact.timeWindow.end}:${fact.timeWindow.timezone}:${fact.timeWindow.dayBoundary}`;
+    const baseWindowKey = `${fact.timeWindow.start}:${fact.timeWindow.end}:${fact.timeWindow.timezone}:${fact.timeWindow.dayBoundary}`;
+    // Current-day facts are intentionally one coherent snapshot. Longitudinal
+    // facts have fact-specific source scopes, so separate families may validly
+    // share a calendar window while carrying distinct scoped watermarks.
+    const windowKey = fact.timeWindow.start === fact.timeWindow.end
+      ? baseWindowKey
+      : `${baseWindowKey}:${fact.factType}`;
     const group = watermarkGroups.get(windowKey) ?? new Set<string>();
     group.add(fact.sourceWatermark.value);
     watermarkGroups.set(windowKey, group);
@@ -181,6 +192,23 @@ export function selectContextualInsight(
       'Recent nutrition record coverage',
       `Nutrition logged on ${coverage.value.loggedDayCount} of the last 7 local-calendar days.`,
       [coverage],
+      generatedAt,
+    );
+  }
+  const macroCoverage = recordFact(facts, 'nutrition.seven_day_macro_record_coverage');
+  if (options.includeMacroRecordCoverage && macroCoverage && ACTIVE_CONFIDENCE.includes(macroCoverage.confidence)
+    && macroCoverage.value.state === 'eligible'
+    && macroCoverage.value.windowDays === 7
+    && typeof macroCoverage.value.qualifiedDayCount === 'number'
+    && Number.isInteger(macroCoverage.value.qualifiedDayCount)
+    && macroCoverage.value.qualifiedDayCount >= 3
+    && macroCoverage.value.qualifiedDayCount <= 7) {
+    return active(
+      'macro_record_coverage',
+      110,
+      'Macro record coverage',
+      `Macro records are complete on ${macroCoverage.value.qualifiedDayCount} of the last 7 local-calendar days.`,
+      [macroCoverage],
       generatedAt,
     );
   }

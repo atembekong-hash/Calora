@@ -1269,6 +1269,7 @@ export default function InsightsScreen() {
       enabled: isIntelligenceFeatureEnabled('intelligence.insights.progress'),
       weightTrendEnabled: isIntelligenceFeatureEnabled('intelligence.insights.progress_weight_trend'),
       nutritionCoverageEnabled: isIntelligenceFeatureEnabled('intelligence.insights.progress_nutrition_coverage'),
+      macroRecordCoverageEnabled: isIntelligenceFeatureEnabled('intelligence.insights.progress_macro_record_coverage'),
     });
   }, [
     activityLogs,

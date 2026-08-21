@@ -10,7 +10,13 @@ import type { ContextualInsight, IntelligenceFact } from './types';
  */
 export function selectVisibleLocalInsight(
   facts: readonly IntelligenceFact[],
-  options: { hydrated: boolean; enabled: boolean; weightTrendEnabled?: boolean; nutritionCoverageEnabled?: boolean },
+  options: {
+    hydrated: boolean;
+    enabled: boolean;
+    weightTrendEnabled?: boolean;
+    nutritionCoverageEnabled?: boolean;
+    macroRecordCoverageEnabled?: boolean;
+  },
 ): ContextualInsight | null {
   if (!options.hydrated || !options.enabled) return null;
 
@@ -18,6 +24,7 @@ export function selectVisibleLocalInsight(
     const insight = selectContextualInsight(facts, {
       includeWeightTrend: options.weightTrendEnabled === true,
       includeNutritionCoverage: options.nutritionCoverageEnabled === true,
+      includeMacroRecordCoverage: options.macroRecordCoverageEnabled === true,
     });
     return insight.state === 'active' && insight.freshness === 'fresh' ? insight : null;
   } catch {

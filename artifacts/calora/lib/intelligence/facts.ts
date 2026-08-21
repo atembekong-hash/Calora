@@ -16,6 +16,7 @@ import { INTELLIGENCE_CALCULATION_VERSION } from './types';
 import { getCoachWeightChangeKg, getFirstLoggedWeight, getLatestLoggedWeight, getProfileBaselineWeight } from './weightMetrics';
 import { calculateWeightShortTrend } from './weightTrend';
 import { calculateNutritionSevenDayCoverage } from './nutritionCoverage';
+import { calculateSevenDayMacroRecordCoverage } from './macroRecordCoverage';
 
 const MEALS: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -91,6 +92,20 @@ function nutritionCoverageWatermark(context: IntelligenceContext, start: string,
     logs: context.foodLogs
       .filter((log) => log.date >= start && log.date <= end)
       .map((log) => [log.id, log.date])
+      .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
+  };
+  return { value: `fnv1a-v1:${fnv1a(JSON.stringify(relevant))}`, algorithm: 'fnv1a-v1', inputVersion: 1 };
+}
+
+function macroRecordCoverageWatermark(context: IntelligenceContext, start: string, end: string): SourceWatermark {
+  const relevant = {
+    start,
+    end,
+    timezone: context.timezone,
+    dayBoundary: context.dayBoundary,
+    logs: context.foodLogs
+      .filter((log) => log.date >= start && log.date <= end)
+      .map((log) => [log.id, log.date, log.calories, log.protein, log.carbs, log.fat])
       .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
   };
   return { value: `fnv1a-v1:${fnv1a(JSON.stringify(relevant))}`, algorithm: 'fnv1a-v1', inputVersion: 1 };
@@ -220,6 +235,40 @@ function nutritionCoverageFact(
   };
 }
 
+function macroRecordCoverageFact(
+  context: IntelligenceContext,
+  dailyWatermark: SourceWatermark,
+  generatedAt: string,
+): IntelligenceFact {
+  const coverage = calculateSevenDayMacroRecordCoverage(context.foodLogs, context.date, context.timezone);
+  const start = coverage?.start ?? context.date;
+  const watermark = coverage
+    ? macroRecordCoverageWatermark(context, start, context.date)
+    : dailyWatermark;
+  const evidence: IntelligenceEvidence[] = coverage
+    ? [{ origin: 'derived', quality: 'moderate', count: coverage.qualifyingLogCount, logIds: [] }]
+    : [];
+  const missingData: MissingDataKind[] = coverage ? [] : ['insufficient_history'];
+  return {
+    id: `${INTELLIGENCE_CALCULATION_VERSION}:${context.date}:nutrition.seven_day_macro_record_coverage`,
+    factType: 'nutrition.seven_day_macro_record_coverage',
+    value: coverage
+      ? { qualifiedDayCount: coverage.qualifiedDayCount, windowDays: 7, state: 'eligible' }
+      : { state: 'insufficient' },
+    unit: null,
+    timeWindow: { start, end: context.date, timezone: context.timezone, dayBoundary: context.dayBoundary },
+    generatedAt,
+    validFrom: generatedAt,
+    validUntil: null,
+    calculationVersion: INTELLIGENCE_CALCULATION_VERSION,
+    sourceWatermark: watermark,
+    confidence: confidenceForEvidence(evidence, missingData),
+    evidence,
+    freshness: 'fresh',
+    missingData,
+  };
+}
+
 export function buildDailyIntelligenceFacts(
   context: IntelligenceContext,
   options: { generatedAt?: string } = {},
@@ -313,6 +362,7 @@ export function buildDailyIntelligenceFacts(
   ));
   facts.push(weightTrendFact(context, watermark, generatedAt));
   facts.push(nutritionCoverageFact(context, watermark, generatedAt));
+  facts.push(macroRecordCoverageFact(context, watermark, generatedAt));
 
   const confidenceCounts = facts.reduce<Partial<Record<IntelligenceFact['confidence'], number>>>((counts, item) => {
     counts[item.confidence] = (counts[item.confidence] ?? 0) + 1;

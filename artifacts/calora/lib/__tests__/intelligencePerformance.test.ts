@@ -8,6 +8,7 @@ import { selectContextualInsight } from '@/lib/intelligence/insightSelector';
 import { selectPostLogInsight } from '@/lib/intelligence/postLogSelector';
 import { calculateWeightShortTrend } from '@/lib/intelligence/weightTrend';
 import { calculateNutritionSevenDayCoverage } from '@/lib/intelligence/nutritionCoverage';
+import { calculateSevenDayMacroRecordCoverage } from '@/lib/intelligence/macroRecordCoverage';
 
 const profile: Profile = {
   name: 'Performance', goal: 'maintain', activity: 'moderate', diet: 'Everything',
@@ -53,6 +54,7 @@ describe('Intelligence Foundation local performance', () => {
         { id: 'trend-4', date: '2026-08-20', kg: 79.2, source: 'manual' },
       ], '2026-08-20', 'America/New_York')),
       nutritionCoverageMs: averageMs(() => calculateNutritionSevenDayCoverage(logs, '2026-08-20', 'America/New_York')),
+      macroRecordCoverageMs: averageMs(() => calculateSevenDayMacroRecordCoverage(logs, '2026-08-20', 'America/New_York')),
     };
     console.info('[intelligence-performance]', JSON.stringify(samples));
     expect(Object.values(samples).every((sample) => Number.isFinite(sample) && sample >= 0)).toBe(true);

@@ -58,7 +58,10 @@ describe('Intelligence Phase 1.5 hardening', () => {
   });
 
   it('classifies invalidation precisely and keeps negative cases stable', () => {
-    expect(affectedFactFamilies('food_added')).toEqual(['daily_nutrition', 'meal_distribution', 'logging_completeness', 'nutrition_seven_day_coverage']);
+    expect(affectedFactFamilies('food_added')).toEqual([
+      'daily_nutrition', 'meal_distribution', 'logging_completeness',
+      'nutrition_seven_day_coverage', 'nutrition_seven_day_macro_record_coverage',
+    ]);
     expect(affectedFactFamilies('target_changed')).toEqual(['daily_nutrition']);
     expect(affectedFactFamilies('weight_changed')).toEqual(['weight_baselines', 'weight_short_trend']);
     expect(affectedFactFamilies('goal_changed')).toEqual([]);
@@ -113,7 +116,7 @@ describe('Intelligence Phase 1.5 hardening', () => {
     setIntelligenceObserver((event) => observed.push(event));
     const result = buildDailyIntelligenceFacts(context([original]));
     setIntelligenceObserver(null);
-    expect(result).toHaveLength(20);
+    expect(result).toHaveLength(21);
     expect(original.notes).toBe('private note');
     expect(JSON.stringify(observed)).not.toContain('private note');
     expect(JSON.stringify(observed)).not.toContain('sensitive://photo');
