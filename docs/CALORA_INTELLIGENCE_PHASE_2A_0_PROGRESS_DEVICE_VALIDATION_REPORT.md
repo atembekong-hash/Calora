@@ -2,13 +2,13 @@
 
 ## 1. Executive verdict
 
-**Progress Intelligence production readiness: APPROVE WITH CONDITIONS.**
+**Phase 2A.0 implementation and controlled Android validation: COMPLETE.**
 
-The approved Progress-only insight path passes automated local validation for eligibility, suppression, live recomputation, account boundaries, no persistence, no network, failure containment, and kill-switch behavior. A narrowly scoped failure-containment fix was added so malformed local facts simply withhold the optional card rather than risk affecting Progress.
+The approved Progress-only insight path passes automated local validation for eligibility, suppression, live recomputation, account boundaries, no persistence, no network, failure containment, and kill-switch behavior. The completed physical Android evidence covers account switching/tenant isolation, authenticated force-close/relaunch, and post-authentication offline behavior. No unresolved code defect, security failure, or observed account/data-isolation failure remains from the Phase 2A.0 scope.
 
-Production publication remains conditional on the remaining manual native-device and assistive-technology checks listed below. One physical Android account-switch/tenant-isolation session is recorded below; no iOS device, Android emulator, iOS simulator, TalkBack, or VoiceOver session is claimed.
+**Production publication readiness: PENDING MANDATORY PRE-PRODUCTION VALIDATION.** The remaining physical-device, responsive-layout, and assistive-technology checks are intentionally deferred as validation debt. They are not passed, inferred, or waived.
 
-**Phase 2A expansion readiness: DO NOT APPROVE.** This validation authorizes no additional Intelligence surfaces. Today, post-log, Coach, server, persistent, feedback, and proactive Intelligence remain out of scope and disabled.
+**Next Intelligence phase: NO AUTHORIZED PHASE.** The approved roadmap does not name or authorize a post-Progress delivery phase. Any additional surface requires a separate approval after the pre-production gate; Today, post-log, Coach, server, persistent, feedback, and proactive Intelligence remain out of scope and disabled.
 
 ## 2. Environment and device matrix
 
@@ -160,7 +160,21 @@ No device jank or repeated-render claim is made. Measure representative Progress
 | `pnpm --filter @workspace/api-server run typecheck` | PASS |
 | `pnpm --filter @workspace/api-server test` | PASS — 20 files, 228 tests |
 
-## 8. Manual validations still required
+## 8. Deferred pre-production validation register
+
+The following mandatory checks are **PENDING / DEFERRED — NOT PASSED**. They must be completed and recorded in the dedicated pre-production validation stage before publication. No evidence is inferred from the Android checks above.
+
+| Validation debt | Status | Exact required evidence |
+| --- | --- | --- |
+| iOS account switching | PENDING / DEFERRED | User A → User B → User A must show no previous-user Progress, weight-history, or insight leakage |
+| iOS force-close / relaunch | PENDING / DEFERRED | Authenticated relaunch must restore only the correct account-local state and not flash a prior account |
+| iOS post-authentication offline behavior | PENDING / DEFERRED | Airplane-mode Progress, Weight, and local insight behavior must remain safe and internally consistent |
+| Android and iOS narrow/large responsive layouts | PENDING / DEFERRED | No clipping, overflow, overlap, or unusable truncation on the actual visible card |
+| Android and iOS large-text layouts | PENDING / DEFERRED | Large accessibility text must preserve readable, usable card content |
+| TalkBack | PENDING / DEFERRED | One informational announcement with visible title/message and no evidence metadata or duplicate traversal |
+| VoiceOver | PENDING / DEFERRED | One informational announcement with visible title/message and no evidence metadata or duplicate traversal |
+
+### Required pre-production procedures
 
 ### Physical-device Progress card
 
@@ -194,15 +208,18 @@ No device jank or repeated-render claim is made. Measure representative Progress
 | Offline behavior | PASS (architecture/tests and physical Android post-authentication session); iOS confirmation required |
 | No persistence | PASS |
 | No network | PASS |
-| Accessibility | REQUIRES MANUAL VALIDATION |
-| Responsive layout | PARTIAL |
+| Accessibility | PENDING / DEFERRED — mandatory pre-production validation |
+| Responsive layout | PENDING / DEFERRED — mandatory pre-production validation |
 | Performance | PARTIAL |
 | Failure containment | PASS |
 | Feature-flag rollback | PASS |
 | Regression suite | PASS |
-| Progress Intelligence production readiness | APPROVE WITH CONDITIONS |
-| Phase 2A expansion readiness | DO NOT APPROVE |
+| Phase 2A.0 implementation and controlled Android validation | COMPLETE |
+| Production publication readiness | PENDING / DEFERRED — mandatory pre-production validation |
+| Next Intelligence phase | NO AUTHORIZED PHASE |
 
-## 10. Remaining blockers and stop condition
+## 10. Final gate decision and roadmap boundary
 
-The remaining release conditions are iOS account-switch, restart/force-close, and offline confirmation; Android and iOS responsive and large-text validation; and TalkBack/VoiceOver validation. No further Intelligence implementation is authorized by this report. Do not enable Today or post-log delivery, modify Coach, add persistence/network behavior, or begin another Phase 2A surface without a separate approved task.
+Phase 2A.0 has no unresolved code defect, security failure, or observed data-isolation failure. Its remaining items are mandatory pre-production validation debt: iOS account-switch, restart/force-close, and offline confirmation; Android and iOS responsive and large-text validation; and TalkBack/VoiceOver validation.
+
+The approved roadmap contains no next named or eligible Intelligence implementation phase after the Progress rollout. Its explicit rule is that any future delivery expansion requires separate approval and must remain Foundation-only, transient, account-isolated, non-persistent, network-free, and outside Coach/background/server behavior. Do not enable Today or post-log delivery, modify Coach, add persistence/network behavior, or begin another Phase 2A surface without a separately authorized task.
