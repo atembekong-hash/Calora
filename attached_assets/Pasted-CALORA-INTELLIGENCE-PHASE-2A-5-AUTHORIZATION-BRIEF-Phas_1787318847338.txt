@@ -1,0 +1,188 @@
+CALORA INTELLIGENCE — PHASE 2A.5 AUTHORIZATION BRIEF
+
+Phase 2A.4 is complete. Determine and specify the next controlled Intelligence phase, Phase 2A.5.
+
+Review the current repository and completed Intelligence work through Phase 2A.4, including:
+
+Intelligence Foundation
+
+Progress Intelligence
+
+Today Intelligence
+
+Post-Log Intelligence
+
+Phase 2A.3 Weight Short Trend
+
+Phase 2A.4 7-Day Nutrition Coverage
+
+Coach Fact Context dark architecture and consent/migration work
+
+current feature flags
+
+deferred pre-production validation debt
+
+
+Do not implement anything in this task.
+
+Identify the single highest-value next capability that can be added without requiring Coach activation, server-side Intelligence persistence, new database work, proactive notifications, or LLM-generated factual state.
+
+Evaluate candidate directions such as:
+
+multi-day macro coverage
+
+meal distribution patterns
+
+logging coverage quality
+
+weight/nutrition relationship observations
+
+goal-progress context
+
+trend explanation
+
+Planner-related local context
+
+Recipe-related local context
+
+evidence/explanation UI
+
+another bounded longitudinal Progress insight
+
+
+Do not assume any candidate is appropriate.
+
+Rank the candidates using:
+
+1. user value
+
+
+2. factual integrity
+
+
+3. Foundation reuse
+
+
+4. privacy risk
+
+
+5. account-isolation risk
+
+
+6. persistence requirement
+
+
+7. network/server requirement
+
+
+8. implementation complexity
+
+
+9. UX noise risk
+
+
+10. reversibility
+
+
+11. regression risk
+
+
+12. readiness of existing data
+
+
+
+Recommend one Phase 2A.5 capability.
+
+The authorization brief must define:
+
+exact phase name
+
+user problem
+
+user-facing value
+
+why it is the correct next phase
+
+exact Foundation fact(s) required
+
+deterministic calculation logic
+
+minimum evidence thresholds
+
+suppression rules
+
+delivery surface
+
+priority relative to existing Progress/Today/Post-Log candidates
+
+feature flag and default
+
+account-isolation requirements
+
+privacy boundary
+
+persistence/network/server/Coach/LLM boundaries
+
+stale/failure behavior
+
+interaction with all existing Intelligence surfaces
+
+prohibited interpretations
+
+rollback strategy
+
+automated validation matrix
+
+deferred device/accessibility debt
+
+exact subsequent implementation scope
+
+required completion report
+
+
+Preserve these global rules:
+
+insufficient evidence means silence
+
+missing logs are not proof of behavior
+
+no diagnosis
+
+no causal claims
+
+no adherence scoring unless explicitly and separately authorized
+
+no recommendations or nudges
+
+no predictions or forecasts
+
+no persistent Intelligence state
+
+no new server/API/database work
+
+no Coach Fact Context activation
+
+no LLM factual generation
+
+no analytics expansion
+
+
+Keep Coach Fact Context dark and unchanged.
+
+Automatically create and save:
+
+docs/CALORA_INTELLIGENCE_PHASE_2A_5_AUTHORIZATION_BRIEF.md
+
+End with:
+
+GO
+
+REVISE
+
+or
+
+NO-GO
+
+and explain why.
+
+Then STOP for approval. Do not begin Phase 2A.5 implementation.
