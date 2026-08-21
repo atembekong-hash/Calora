@@ -20,6 +20,12 @@ import { dateKey } from '@/lib/dates';
 import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { celebrationGate } from '@/lib/goalCelebration';
+import {
+  buildDailyIntelligenceFacts,
+  createIntelligenceContext,
+  isIntelligenceFeatureEnabled,
+  selectVisibleLocalInsight,
+} from '@/lib/intelligence';
 
 type ProgressView = 'overview' | 'trends' | 'weight';
 const PROGRESS_VIEWS = ['overview', 'trends', 'weight'] as const;
@@ -1113,7 +1119,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected } = useCalora();
+  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected } = useCalora();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showWeight, setShowWeight] = useState(false);
@@ -1224,10 +1230,58 @@ export default function InsightsScreen() {
   const isEditingMinutes = useRef(false);
   const isEditingWeight = useRef(false);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  // todayKey is reactive: a 60-second interval checks whether the calendar date has rolled over
+  // so that mood, activity, water check-ins, and the local insight all use the current day.
+  const [todayKey, setTodayKey] = useState(() => dateKey());
+  const [progressView, setProgressView] = useState<ProgressView>('overview');
+  useEffect(() => {
+    const id = setInterval(() => {
+      const current = dateKey();
+      setTodayKey((prev) => (prev !== current ? current : prev));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
   const remembered = useMemo(
     () => filterForgottenSources(livingMemory, { logs, waterLogs, moodLogs, activityLogs, plannerMeals }),
     [activityLogs, livingMemory, logs, moodLogs, plannerMeals, waterLogs],
   );
+  // This value is deliberately derived during render rather than stored in
+  // component or provider state. A hydration reset, sign-out, or account scope
+  // switch therefore removes it synchronously; the keyed provider then
+  // recomputes only from the newly hydrated account's local snapshot.
+  const localInsight = useMemo(() => {
+    if (!hydrated || !isIntelligenceFeatureEnabled('intelligence.insights.progress')) return null;
+
+    const context = createIntelligenceContext({
+      logs,
+      profile,
+      weights,
+      waterLogs,
+      moodLogs,
+      activityLogs,
+      activityMinutesLogs,
+      plannerMeals,
+      shoppingItems,
+      localRecipes,
+    }, { date: todayKey });
+    return selectVisibleLocalInsight(buildDailyIntelligenceFacts(context), {
+      hydrated,
+      enabled: isIntelligenceFeatureEnabled('intelligence.insights.progress'),
+    });
+  }, [
+    activityLogs,
+    activityMinutesLogs,
+    hydrated,
+    localRecipes,
+    logs,
+    moodLogs,
+    plannerMeals,
+    profile,
+    shoppingItems,
+    todayKey,
+    waterLogs,
+    weights,
+  ]);
   const dataTrust = trustScore(remembered.logs);
   const latestWeight = weights[weights.length - 1]?.kg ?? profile?.weightKg ?? 76;
   const startingWeight = profile?.weightKg ?? latestWeight;
@@ -1340,18 +1394,6 @@ export default function InsightsScreen() {
   // synchronisation gate — when hydrated flips true the stored value is already present).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, goalReached, showGoalProgress, targetWeight]);
-  // todayKey is reactive: a 60-second interval checks whether the calendar date has rolled over
-  // so that mood, activity, and water check-ins always save to the correct day even when the
-  // screen stays open past midnight.
-  const [todayKey, setTodayKey] = useState(() => dateKey());
-  const [progressView, setProgressView] = useState<ProgressView>('overview');
-  useEffect(() => {
-    const id = setInterval(() => {
-      const current = dateKey();
-      setTodayKey((prev) => (prev !== current ? current : prev));
-    }, 60_000);
-    return () => clearInterval(id);
-  }, []);
   // Sync minutes input with stored value when date changes or after hydration loads persisted data.
   // Skip the sync while the user is actively editing so in-progress input is not overwritten.
   useEffect(() => {
@@ -1468,6 +1510,26 @@ export default function InsightsScreen() {
 
         <View style={progressView === 'overview' ? undefined : styles.hiddenSection}>
         <MotivationalQuote colors={colors} style={{ marginBottom: 16 }} />
+
+        {localInsight ? (
+          <AnimatedReveal delay={100}>
+            <View
+              accessibilityLabel={`Local insight: ${localInsight.title}. ${localInsight.message}`}
+              accessibilityRole="summary"
+              style={[styles.localInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              testID="local-contextual-insight"
+            >
+              <View style={[styles.localInsightIcon, { backgroundColor: colors.accent }]}>
+                <Feather name="shield" size={16} color={colors.accentForeground} />
+              </View>
+              <View style={styles.localInsightCopy}>
+                <Text style={[styles.localInsightEyebrow, { color: colors.mutedForeground }]}>LOCAL INSIGHT</Text>
+                <Text style={[styles.localInsightTitle, { color: colors.foreground }]}>{localInsight.title}</Text>
+                <Text style={[styles.localInsightMessage, { color: colors.mutedForeground }]}>{localInsight.message}</Text>
+              </View>
+            </View>
+          </AnimatedReveal>
+        ) : null}
 
         <AnimatedReveal delay={150} style={styles.statRow}>
           <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -2026,6 +2088,12 @@ function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
   hiddenSection: { display: 'none' },
+  localInsightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 16 },
+  localInsightIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  localInsightCopy: { flex: 1 },
+  localInsightEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 0.9, marginBottom: 3 },
+  localInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, lineHeight: 19 * f },
+  localInsightMessage: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17 * f, marginTop: 3 },
   progressTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 15, padding: 4, gap: 4, marginBottom: 10 },
   progressTab: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11, paddingHorizontal: 5 },
   progressTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },

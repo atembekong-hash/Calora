@@ -182,13 +182,13 @@ describe('Intelligence Foundation', () => {
     }
   });
 
-  it('keeps all visible delivery flags disabled', () => {
+  it('enables only the approved local Progress delivery flag', () => {
     expect(intelligenceFeatureFlags['intelligence.foundation.enabled']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.facts.local_adapter']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.facts.server_adapter']).toBe(false);
     expect(intelligenceFeatureFlags['intelligence.insights.today']).toBe(false);
     expect(intelligenceFeatureFlags['intelligence.insights.post_log']).toBe(false);
-    expect(intelligenceFeatureFlags['intelligence.insights.progress']).toBe(false);
+    expect(intelligenceFeatureFlags['intelligence.insights.progress']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.coach.fact_context']).toBe(false);
     expect(intelligenceFeatureFlags['intelligence.evidence.display']).toBe(false);
     expect(intelligenceFeatureFlags['intelligence.feedback']).toBe(false);

@@ -120,14 +120,14 @@ describe('Intelligence Phase 1.5 hardening', () => {
     expect(measureIntelligenceOperation('fact_generation', () => 1, (() => { let value = 0; return () => ++value; })()).sample.durationMs).toBe(1);
   });
 
-  it('keeps every visible delivery switch off and Foundation disconnected from UI', () => {
+  it('limits visible delivery to the reviewed local Progress surface', () => {
     expect(intelligenceFeatureFlags['intelligence.foundation.enabled']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.facts.local_adapter']).toBe(true);
+    expect(intelligenceFeatureFlags['intelligence.insights.progress']).toBe(true);
     for (const flag of [
       'intelligence.facts.server_adapter',
       'intelligence.insights.today',
       'intelligence.insights.post_log',
-      'intelligence.insights.progress',
       'intelligence.coach.fact_context',
       'intelligence.evidence.display',
       'intelligence.feedback',

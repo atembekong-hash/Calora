@@ -2,9 +2,9 @@
 
 ## Executive verdict and rollout decision
 
-Phase 1.9 hardens the existing account-scoped local foundation and adds a restricted contextual selector. The selector is a pure local calculation over already-derived Foundation facts. It is not mounted in a screen, cache, Coach context, background worker, API route, or persistence layer.
+Phase 1.9 hardens the existing account-scoped local foundation and adds a restricted contextual selector. The selector is a pure local calculation over already-derived Foundation facts. Following a separate safety review, the Progress tab is the sole approved visible consumer. It recomputes one eligible current-account result from local state during render; it is not mounted in a cache, Coach context, background worker, API route, or persistence layer.
 
-**Rollout decision: stop for review.** All visible Intelligence delivery flags, the server-facts adapter, Coach fact context, feedback, and proactive behavior remain disabled.
+**Rollout decision: restricted Progress delivery approved.** Only `intelligence.insights.progress` is enabled. The server-facts adapter, Today and post-log delivery, Coach fact context, feedback, and proactive behavior remain disabled.
 
 ## Local persistence map and account boundary
 
@@ -43,6 +43,16 @@ Allowed categories are limited to:
 Priority is deterministic: calorie-target status (400), macro balance (300), meal distribution (200), and descriptive weight baseline (100). Confidence must be high or medium, facts must be fresh, and all facts must share one source watermark. The selector otherwise returns `stale`, `low_confidence`, `insufficient_data`, or `no_insight`; it does not fabricate an active result.
 
 The module imports no storage, React, server client, Coach code, or network client. Its output excludes account identifiers, food names, notes, photos, and raw local state.
+
+## Approved Progress delivery boundary
+
+The Progress overview may render one selector result only after Calora hydration completes and only while `intelligence.insights.progress` is enabled. The screen creates a read-only local Foundation snapshot for the current local calendar day, passes it through the delivery gate and existing selector, and renders only an `active` result with `fresh` freshness.
+
+- The card is not held in React state, a provider, AsyncStorage, React Query, Coach messages, analytics, or any network request.
+- On hydration reset it evaluates to `null` synchronously. Sign-out and account switching remount the account-scoped provider; the card has no previous-account value to flash and can only recompute from the next hydrated scope.
+- The display exposes only the selector's pre-sanitized title and message. It does not expose evidence identifiers, raw food names, notes, photos, account identifiers, or source log IDs.
+- Accessibility uses a concise `summary` label containing the same title and message that are visibly rendered. It is informational and does not introduce an action or navigation path.
+- The enabled flag is intentionally limited to this one surface. A disabled flag, unfinished hydration, insufficient evidence, stale facts, mixed watermarks, and low confidence all render no card.
 
 ## Privacy proofs
 
@@ -107,16 +117,16 @@ Modified:
 
 ## Remaining unknowns and blockers
 
-No visible rollout is authorized in this phase. A future visible Phase 2A still needs a separate review of copy/text presentation, real-device timing, account lifecycle behavior on native hardware, and the broader database-isolation constraints recorded in earlier reports. Existing database/RLS blockers remain unchanged.
+The restricted Progress card is the only authorized visible rollout. Native-device validation must be recorded with the release evidence before production publication: confirm the card appears only for eligible verified local data, disappears during sign-out and account switching, stays hidden for stale/low-confidence data, and announces its informational label correctly with VoiceOver and TalkBack. Existing database/RLS blockers remain unchanged.
 
 ## Recommended future Phase 2A scope
 
-If separately approved, the only recommended next step is a narrowly scoped, visible local consumer of the already-transient selector for the currently hydrated account. It must recompute from Foundation facts, clear synchronously on hydration/scope reset, preserve all confidence/freshness gates, remain non-persistent and network-free, and add no Coach, background, server, database, or LLM integration.
+Any future delivery expansion still needs separate approval. It must recompute from Foundation facts, clear synchronously on hydration/scope reset, preserve all confidence/freshness gates, remain non-persistent and network-free, and add no Coach, background, server, database, or LLM integration.
 
 ## Explicitly not added
 
 - Persistent Intelligence facts, insight history, profiles, or cache entries
 - Intelligence network/API/server-adapter behavior
-- UI delivery in Today, post-log, Progress, Planner, Recipes, or Coach
+- UI delivery outside the approved Progress overview (Today, post-log, Planner, Recipes, or Coach)
 - Coach context changes, analytics payloads, background computation, notifications, or LLM state
 - Database, RLS, deployment, or production-build changes

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { FoodLog, Profile } from '@/context/CaloraContext';
 import { createIntelligenceContext } from '@/lib/intelligence/contextAdapter';
 import { buildDailyIntelligenceFacts } from '@/lib/intelligence/facts';
+import { selectVisibleLocalInsight } from '@/lib/intelligence/insightDelivery';
 import { selectContextualInsight } from '@/lib/intelligence/insightSelector';
 import type { IntelligenceFact } from '@/lib/intelligence/types';
 
@@ -122,5 +123,17 @@ describe('restricted contextual insight selector', () => {
     expect(userBInsight).toMatchObject({ state: 'insufficient_data', type: 'none' });
     expect(JSON.stringify(userBInsight)).not.toContain('2100');
     expect(JSON.stringify(userBInsight)).not.toContain('Selector');
+  });
+
+  it('delivers only an eligible fresh result after hydration and clears it on reset', () => {
+    const activeFacts = facts([log({ calories: 2100 })]);
+
+    expect(selectVisibleLocalInsight(activeFacts, { hydrated: true, enabled: true })).toMatchObject({
+      state: 'active',
+      type: 'calorie_status',
+    });
+    expect(selectVisibleLocalInsight(activeFacts, { hydrated: false, enabled: true })).toBeNull();
+    expect(selectVisibleLocalInsight(activeFacts, { hydrated: true, enabled: false })).toBeNull();
+    expect(selectVisibleLocalInsight([], { hydrated: true, enabled: true })).toBeNull();
   });
 });

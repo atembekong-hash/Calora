@@ -4,6 +4,7 @@ export * from './evidence';
 export * from './facts';
 export * from './featureFlags';
 export * from './invalidation';
+export * from './insightDelivery';
 export * from './insightSelector';
 export * from './observability';
 export * from './types';
