@@ -14,6 +14,12 @@ export function selectVisibleLocalInsight(
 ): ContextualInsight | null {
   if (!options.hydrated || !options.enabled) return null;
 
-  const insight = selectContextualInsight(facts);
-  return insight.state === 'active' && insight.freshness === 'fresh' ? insight : null;
+  try {
+    const insight = selectContextualInsight(facts);
+    return insight.state === 'active' && insight.freshness === 'fresh' ? insight : null;
+  } catch {
+    // Intelligence is optional UI context. A malformed local snapshot must
+    // never make the Progress screen unavailable or retry indefinitely.
+    return null;
+  }
 }

@@ -136,4 +136,41 @@ describe('restricted contextual insight selector', () => {
     expect(selectVisibleLocalInsight(activeFacts, { hydrated: true, enabled: false })).toBeNull();
     expect(selectVisibleLocalInsight([], { hydrated: true, enabled: true })).toBeNull();
   });
+
+  it('withholds stale or mixed-watermark snapshots at the visible delivery gate', () => {
+    const activeFacts = facts([log({ calories: 2100 })]);
+    const staleFacts = activeFacts.map((fact) => ({ ...fact, freshness: 'stale' as const }));
+    const mixedFacts = [...activeFacts, {
+      ...activeFacts[0],
+      sourceWatermark: { ...activeFacts[0].sourceWatermark, value: 'different' },
+    }];
+
+    expect(selectVisibleLocalInsight(staleFacts, { hydrated: true, enabled: true })).toBeNull();
+    expect(selectVisibleLocalInsight(mixedFacts, { hydrated: true, enabled: true })).toBeNull();
+  });
+
+  it('recomputes delivery from current facts after food is added and deleted', () => {
+    const before = facts([log({ calories: 400 })]);
+    const afterAdd = facts([log({ calories: 2100 })]);
+    const afterDelete = facts([]);
+
+    expect(selectVisibleLocalInsight(before, { hydrated: true, enabled: true })).toMatchObject({
+      type: 'meal_distribution',
+      state: 'active',
+    });
+    expect(selectVisibleLocalInsight(afterAdd, { hydrated: true, enabled: true })).toMatchObject({
+      type: 'calorie_status',
+      state: 'active',
+    });
+    expect(selectVisibleLocalInsight(afterDelete, { hydrated: true, enabled: true })).toBeNull();
+  });
+
+  it('fails closed when a malformed fact snapshot reaches the optional delivery gate', () => {
+    const malformed = facts([log({ calories: 2100 })]).map((fact) => ({
+      ...fact,
+      evidence: undefined,
+    })) as unknown as IntelligenceFact[];
+
+    expect(selectVisibleLocalInsight(malformed, { hydrated: true, enabled: true })).toBeNull();
+  });
 });

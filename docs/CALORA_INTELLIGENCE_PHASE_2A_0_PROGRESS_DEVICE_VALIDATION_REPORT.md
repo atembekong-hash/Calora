@@ -1,0 +1,186 @@
+# Calora Intelligence Phase 2A.0: Progress Intelligence Device Validation
+
+## 1. Executive verdict
+
+**Progress Intelligence production readiness: APPROVE WITH CONDITIONS.**
+
+The approved Progress-only insight path passes automated local validation for eligibility, suppression, live recomputation, account boundaries, no persistence, no network, failure containment, and kill-switch behavior. A narrowly scoped failure-containment fix was added so malformed local facts simply withhold the optional card rather than risk affecting Progress.
+
+Production publication remains conditional on the manual native-device and assistive-technology checks listed below. No physical Android/iOS device, Android emulator, iOS simulator, TalkBack, or VoiceOver session was available to this environment, and none is claimed.
+
+**Phase 2A expansion readiness: DO NOT APPROVE.** This validation authorizes no additional Intelligence surfaces. Today, post-log, Coach, server, persistent, feedback, and proactive Intelligence remain out of scope and disabled.
+
+## 2. Environment and device matrix
+
+| Environment | Executed | Result | Scope |
+| --- | --- | --- | --- |
+| Node/Vitest development workspace | Yes | PASS | Deterministic Foundation, selector, delivery, account lifecycle, privacy, failure, and regression validation |
+| Expo web preview, 402 × 874 | Yes | PASS (smoke only) | Onboarding rendered and advanced through all five pages without browser errors; not a native-device test and did not enter authenticated Progress |
+| Physical Android device | No | REQUIRES MANUAL DEVICE VALIDATION | No device session available |
+| Physical iOS device | No | REQUIRES MANUAL DEVICE VALIDATION | No device session available |
+| Android emulator | No | REQUIRES MANUAL DEVICE VALIDATION | No emulator session available |
+| iOS simulator | No | REQUIRES MANUAL DEVICE VALIDATION | No simulator session available |
+| TalkBack / VoiceOver | No | REQUIRES MANUAL ACCESSIBILITY VALIDATION | No assistive-technology session available |
+
+The web smoke check produced no browser errors. It did include non-blocking Expo web warnings for notifications, deprecated shadow properties, and RevenueCat browser mode.
+
+## 3. Exact Progress integration reviewed
+
+The only visible consumer is the Progress overview in `artifacts/calora/app/(tabs)/insights.tsx`. It derives a current-day local context during render from the authenticated account’s hydrated state, creates Foundation facts, and passes them to `selectVisibleLocalInsight`.
+
+The delivery gate in `artifacts/calora/lib/intelligence/insightDelivery.ts` is the only approved visible selector gate:
+
+- it returns `null` before hydration or when the Progress flag is disabled;
+- it returns only fresh, active selector results;
+- it retains no previous result;
+- it now returns `null` for malformed facts, keeping Progress optional and available.
+
+The card is mounted once on the Progress overview with `testID="local-contextual-insight"`. It is an informational `summary` whose accessibility label mirrors its visible title and message. It receives no raw state directly and no duplicate selector or delivery path was found.
+
+The configuration keeps only `intelligence.insights.progress` enabled. Server facts, Today, post-log, Coach fact context, evidence display, feedback, observability, and proactive flags remain disabled.
+
+## 4. Automated validation results
+
+### Eligible insight
+
+**PASS.** Verified representative local facts produce exactly one `calorie_status` insight when logged calories reach the target. The title and message are deterministic and derived only from Foundation facts. Selector serialization tests confirm that raw meal names, notes, account-like identifiers, and source log IDs do not appear.
+
+### No data
+
+**PASS.** Empty local facts return an inactive `insufficient_data` state, and the visible delivery gate returns `null`. No nutrition assessment is delivered.
+
+### Low confidence
+
+**PASS.** Photo-estimate-only evidence produces `low_confidence`; the delivery gate returns no card.
+
+### Stale data and mixed watermarks
+
+**PASS.** Facts marked stale and fact sets with incompatible watermarks return no visible card. Dedicated delivery-gate regressions verify the suppression rather than relying only on selector output.
+
+### Live recomputation
+
+**PASS.** The selector is recomputed from current render inputs. The regression suite verifies an active meal-distribution insight changes to higher-priority calorie status after a food addition, then disappears after deletion. No prior insight is stored.
+
+### Sign-out, account switching, and restart/hydration
+
+**PASS (automated provider/account boundary).** The keyed provider and account-specific persistence tests cover:
+
+- unresolved A hydration followed by B;
+- A → guest sign-out;
+- failed sign-out retaining A’s scope;
+- unchanged-account token refresh;
+- pending A autosave during A → B;
+- account namespace separation and A → B → A restoration.
+
+The card is render-derived and hydration-gated, so it evaluates to `null` during the reset and recomputes only from the incoming hydrated scope. A real physical account-switch/restart visual session remains manual validation.
+
+### Offline and privacy inspection
+
+**PASS (automated architecture).** The selector has no network, storage, logging, analytics, Coach, living-memory, React Query, or server dependency. Tests replace `fetch`, storage, and console logging and observe no calls; inputs remain unchanged. The local delivery gate contains no I/O. A device airplane-mode verification remains manual.
+
+### Feature-flag rollback
+
+**PASS.** The gate returns `null` when `intelligence.insights.progress` is disabled, without migration or cleanup. The flag test confirms all unapproved delivery paths remain disabled.
+
+### Failure containment
+
+**PASS.** A malformed fact snapshot previously could throw while formatting visible evidence. The delivery gate now catches that local failure and returns `null`; a regression test verifies the optional card fails closed without a retry loop or logging path.
+
+## 5. Content, layout, accessibility, and performance
+
+### Content quality
+
+**PASS (code review).** Current deterministic categories use factual, bounded language:
+
+- “Daily calorie target reached” states logged totals, not a health judgment.
+- “Protein is trailing today” states logged quantities and does not diagnose.
+- “Most logged calories are in one meal” refers to logged calories rather than inferred behavior.
+- “Weight baseline available” is descriptive rather than prescriptive.
+
+No selector wording asserts unobserved behavior such as skipped meals, causality, or medical advice.
+
+### Responsive layout
+
+**PARTIAL.** Static review confirms the card uses a flexible copy column, shrink-safe icon, and standard Progress spacing. The web smoke check validated only onboarding, not authenticated Progress. Validate the actual card manually on narrow Android, larger Android, representative iPhone, large text, light mode, and dark mode.
+
+### Accessibility
+
+**REQUIRES MANUAL ACCESSIBILITY VALIDATION.** Static review confirms `accessibilityRole="summary"` and a label containing the same visible title/message. Complete the TalkBack and VoiceOver procedure below before production publication.
+
+### Performance
+
+**PARTIAL.** Node/Vitest development-machine measurements are not device measurements:
+
+| Operation | Average (100 iterations) |
+| --- | ---: |
+| Context adaptation | 0.2203 ms |
+| Evidence partitioning | 0.0224 ms |
+| Confidence computation | 0.0570 ms |
+| Watermark generation | 0.1601 ms |
+| Fact generation | 0.3015 ms |
+| Insight selection with fact generation | 0.1630 ms |
+
+No device jank or repeated-render claim is made. Measure representative Progress opening and update behavior during manual device validation.
+
+## 6. Defects found and fixed
+
+| Defect | Resolution |
+| --- | --- |
+| Malformed local Foundation facts could propagate an exception through the optional visible delivery path. | `selectVisibleLocalInsight` now fails closed to `null`; no UI expansion, network, storage, logging, or retry behavior was added. |
+
+## 7. Exact validation commands and results
+
+| Command | Result |
+| --- | --- |
+| `pnpm --filter @workspace/calora run typecheck` | PASS |
+| Focused Foundation, selector, hardening, performance, and account lifecycle suites | PASS — 5 files, 44 tests |
+| `pnpm --filter @workspace/calora test` | PASS — 52 files, 906 tests; 6 static-server security tests |
+| `pnpm --filter @workspace/api-server run typecheck` | PASS |
+| `pnpm --filter @workspace/api-server test` | PASS — 20 files, 228 tests |
+
+## 8. Manual validations still required
+
+### Physical-device Progress card
+
+1. Sign in to User A with a high- or medium-confidence local day that meets an approved insight condition.
+2. Open Progress overview and confirm exactly one card, understandable title/message, no raw identifiers, and no overlap.
+3. Repeat with an empty account, low-confidence data, stale/mixed test facts where test tooling permits, and a changed food log; confirm suppression or recomputation.
+4. Sign out, sign in as User B, and return to User A. Confirm no A title/message flashes in guest or B state and that A recomputes only after A hydrates.
+5. Force-close and reopen with each account. Confirm no card appears before safe hydration and no insight itself was stored.
+6. Enable airplane mode after authentication and repeat Progress opening. Confirm the card remains local and no Intelligence network dependency appears.
+
+### Accessibility and responsive layout
+
+1. With a visible card, enable TalkBack on Android and VoiceOver on iOS.
+2. Confirm the card is announced once as informational summary text with the same title/message, without evidence metadata or duplicate traversal.
+3. Repeat at large accessibility text, light and dark themes, narrow Android, large Android, and a representative iPhone.
+4. Confirm there is no clipping, horizontal overflow, overlap, unusable truncation, or collision with existing Progress content.
+
+## 9. Acceptance matrix
+
+| Gate | Result |
+| --- | --- |
+| Eligible insight delivery | PASS (automated); manual visual confirmation required |
+| No-data behavior | PASS |
+| Low-confidence suppression | PASS |
+| Stale-data suppression | PASS |
+| Watermark consistency | PASS |
+| Live recomputation | PASS |
+| Sign-out safety | PASS (automated); manual visual confirmation required |
+| Account-switch safety | PASS (automated); manual visual confirmation required |
+| Restart/hydration safety | PASS (automated); manual visual confirmation required |
+| Offline behavior | PASS (architecture/tests); manual airplane-mode confirmation required |
+| No persistence | PASS |
+| No network | PASS |
+| Accessibility | REQUIRES MANUAL VALIDATION |
+| Responsive layout | PARTIAL |
+| Performance | PARTIAL |
+| Failure containment | PASS |
+| Feature-flag rollback | PASS |
+| Regression suite | PASS |
+| Progress Intelligence production readiness | APPROVE WITH CONDITIONS |
+| Phase 2A expansion readiness | DO NOT APPROVE |
+
+## 10. Remaining blockers and stop condition
+
+The only remaining release conditions are real authenticated native-device visual, offline, responsive, and VoiceOver/TalkBack validation. No further Intelligence implementation is authorized by this report. Do not enable Today or post-log delivery, modify Coach, add persistence/network behavior, or begin another Phase 2A surface without a separate approved task.
