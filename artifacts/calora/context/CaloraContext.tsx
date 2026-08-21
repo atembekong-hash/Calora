@@ -68,7 +68,7 @@ import {
   selectPostLogInsight,
   type PostLogInsight,
 } from '@/lib/intelligence';
-import { coachFactConsentCache, CoachFactRequestLifecycle } from '@/lib/intelligence';
+import { coachFactConsentCache, CoachFactRequestLifecycle, invalidateAllCoachLifecycleEpochs } from '@/lib/intelligence';
 import {
   normalizeFoodImageMetadata,
   normalizeFoodImageUrl,
@@ -519,6 +519,7 @@ export function CaloraProvider({
   useEffect(() => {
     return () => {
       CoachFactRequestLifecycle.invalidateAll();
+      invalidateAllCoachLifecycleEpochs('account_switch');
       void coachFactConsentCache.clear(accountId ?? null);
     };
   }, [accountId]);
@@ -1129,6 +1130,7 @@ export function CaloraProvider({
       setIsClearing(true);
       try {
         CoachFactRequestLifecycle.invalidateAll();
+        invalidateAllCoachLifecycleEpochs('clear_data');
         await coachFactConsentCache.clear(accountId ?? null);
         await performClearAllData({
         pm: pm.current,

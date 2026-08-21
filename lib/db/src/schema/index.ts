@@ -2,6 +2,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   integer,
   jsonb,
@@ -279,12 +280,18 @@ export const coachFactContextConsentsTable = pgTable("calora_coach_fact_context_
   userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   purpose: text("purpose").notNull(),
   documentVersion: text("document_version").notNull(),
+  /**
+   * Server-enforced state constraint. Only the two explicit terminal values
+   * are permitted — no free-form text from application logic can be stored.
+   */
   state: text("state").notNull(),
   decidedAt: timestamp("decided_at", { withTimezone: true }).notNull(),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
+  userPurposeKey: primaryKey({ columns: [table.userId, table.purpose] }),
   userPurposeIndex: uniqueIndex("calora_coach_fact_context_consents_user_purpose_idx").on(table.userId, table.purpose),
+  stateCheck: check("calora_coach_fact_context_consents_state_chk", sql`${table.state} IN ('consented_current', 'revoked')`),
 }));
 
 export const recipeNutritionTable = pgTable("calora_recipe_nutrition", {

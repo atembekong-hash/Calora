@@ -9,7 +9,20 @@ import { getCoachFactRolloutDecision } from "../lib/coach-fact-rollout.js";
 
 const router: IRouter = Router();
 const COACH_MODEL = "gpt-5.6-terra";
-const TTL_MS = 60_000;
+
+/**
+ * Hard TTL: the window between generatedAt and expiresAt must be exactly this.
+ * Exported so tests can validate the constant without hard-coding it.
+ */
+export const FACT_CONTEXT_TTL_MS = 60_000;
+
+/**
+ * Maximum allowed skew between the client-reported generatedAt and the
+ * server-observed clock. Rejects contexts generated implausibly far in the
+ * future (clock skew attack) while tolerating reasonable network delay.
+ */
+export const FACT_CONTEXT_MAX_FUTURE_SKEW_MS = 10_000;
+
 export const COACH_FACT_PROVIDER_TIMEOUT_MS = 12_000;
 const allowedKeys = new Set(["daily.calorie_status", "daily.protein_status", "daily.meal_distribution", "daily.logging_completeness"]);
 const factLimitations: Record<string, string[]> = {
@@ -204,9 +217,29 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
     return;
   }
   const { factContext, messages, currentScreen } = parsed.data;
+  const now = Date.now();
   const generatedAt = factContext.generatedAt.getTime();
   const expiresAt = factContext.expiresAt.getTime();
-  if (expiresAt <= generatedAt || expiresAt - generatedAt > TTL_MS || expiresAt <= Date.now()) {
+
+  // Reject malformed windows: expiry must be strictly after generation.
+  if (expiresAt <= generatedAt) {
+    res.status(400).json({ message: "Coach Fact Context has expired." });
+    return;
+  }
+  // Reject contexts generated implausibly far in the future (clock skew / replay attempt).
+  if (generatedAt > now + FACT_CONTEXT_MAX_FUTURE_SKEW_MS) {
+    res.status(400).json({ message: "Coach Fact Context has expired." });
+    return;
+  }
+  // The context issuer always creates a 60-second window. Requiring the exact
+  // window prevents callers from stretching a future-skew timestamp into a
+  // longer replay opportunity.
+  if (expiresAt - generatedAt !== FACT_CONTEXT_TTL_MS) {
+    res.status(400).json({ message: "Coach Fact Context has expired." });
+    return;
+  }
+  // Reject contexts that are already past their server-observed expiry.
+  if (expiresAt <= now) {
     res.status(400).json({ message: "Coach Fact Context has expired." });
     return;
   }
@@ -253,6 +286,14 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
     const content = completion.choices[0]?.message?.content;
     if (!content) throw new Error("empty provider response");
     const safe = validateDarkCoachClaims(parseJson(content), factContext);
+    // A rollback, cohort removal, or consent revoke that occurs while the
+    // provider is pending must discard the completion rather than surface it.
+    if (!serverGateEnabled()
+      || !getCoachFactRolloutDecision(user.id).cohortEligible
+      || !(await hasCurrentCoachFactConsent(user.id, user.email))) {
+      res.status(404).json({ message: "Coach Fact Context is unavailable." });
+      return;
+    }
     res.json(RespondCoachFactContextResponse.parse(safe ?? safeResponse(factContext.requestNonce, "limited")));
   } catch {
     res.status(502).json(RespondCoachFactContextResponse.parse(safeResponse(factContext.requestNonce, "unavailable")));

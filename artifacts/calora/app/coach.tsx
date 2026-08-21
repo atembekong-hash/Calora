@@ -6,7 +6,7 @@ import {
   useRespondCoach,
 } from '@workspace/api-client-react';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   ActivityIndicator,
@@ -23,9 +23,11 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { buildCoachContext } from '@/lib/coachContext';
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { useCalora } from '@/context/CaloraContext';
+import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
 import { CoachFactContextConsentPanel } from '@/components/CoachFactContextConsentPanel';
-import { isIntelligenceFeatureEnabled } from '@/lib/intelligence';
+import { isIntelligenceFeatureEnabled, useCoachSendAdapter } from '@/lib/intelligence';
+import type { IntelligenceFact } from '@/lib/intelligence';
 
 type DisplayTurn = {
   id: string;
@@ -131,9 +133,32 @@ export default function CoachScreen() {
     coachMessages,
     setCoachMessages,
     clearCoachHistory,
+    hydrated,
+    hydrationError,
   } = useCalora();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const respondCoach = useRespondCoach();
+  const coachSendAdapter = useCoachSendAdapter();
+  // Track hydration generation: bumps whenever hydrated goes false→true or
+  // hydrationError changes (covers retries and clear-data resets).
+  const hydrationGenerationRef = useRef(0);
+  const prevHydratedRef = useRef(hydrated);
+  const prevHydrationErrorRef = useRef(hydrationError);
+  if (prevHydratedRef.current !== hydrated || prevHydrationErrorRef.current !== hydrationError) {
+    hydrationGenerationRef.current += 1;
+    prevHydratedRef.current = hydrated;
+    prevHydrationErrorRef.current = hydrationError;
+  }
+  const hydrationGeneration = hydrationGenerationRef.current;
+  // Runs during the render that observes an identity, hydration, or consent
+  // change, before a pending async Coach result can update this screen.
+  coachSendAdapter.syncLiveState({
+    accountId: user?.id ?? null,
+    hydrationGeneration,
+    consentAccepted: coachConsentAccepted,
+  });
+
   const [composer, setComposer] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
   const [turns, setTurns] = useState<DisplayTurn[]>(() => coachMessages.map((message, index) => ({
@@ -162,31 +187,61 @@ export default function CoachScreen() {
   const sendMessage = async (value = composer.trim()) => {
     if (!value || respondCoach.isPending) return;
     const userMessage: CoachMessage = { role: 'user', content: value.slice(0, 3000) };
+    // Capture current messages synchronously before any await so we use the
+    // state at send-time, not whatever React committed after re-renders.
     const nextMessages = [...coachMessages, userMessage].slice(-11);
     const userTurn: DisplayTurn = { id: `user-${Date.now()}`, role: 'user', content: userMessage.content };
     setTurns((current) => [...current, userTurn]);
     setComposer('');
+
+    // Capture epoch-relevant state synchronously at send-time.
+    const emptyFacts: readonly IntelligenceFact[] = [];
+    const adapterInput = {
+      accountId: user?.id ?? null,
+      hydrationGeneration,
+      hydrated,
+      consentAccepted: coachConsentAccepted,
+      facts: emptyFacts,
+    };
+
     try {
-      const response = await respondCoach.mutateAsync({
-        data: {
-          context,
-          messages: nextMessages,
-          currentScreen: 'progress-coach',
-        },
-      });
-      const assistantMessage: CoachMessage = { role: 'assistant', content: response.message };
+      const result = await coachSendAdapter.sendWithArchitecture(
+        nextMessages,
+        // Legacy send delegate — called only when architecture is 'legacy'.
+        () => respondCoach.mutateAsync({
+          data: {
+            context,
+            messages: nextMessages,
+            currentScreen: 'progress-coach',
+          },
+        }),
+        adapterInput,
+      );
+
+      if (result.kind === 'stale' || result.kind === 'unavailable') {
+        // Epoch advanced or Fact Context failed cleanly; do not show response.
+        return;
+      }
+
+      // Both 'legacy_response' and 'fact_context_response' carry a message.
+      const message = result.response.message;
+      const assistantMessage: CoachMessage = { role: 'assistant', content: message };
       setCoachMessages([...nextMessages, assistantMessage].slice(-12));
+      // For legacy responses we can attach the full CoachResponse to the turn
+      // (used by EvidenceCard). Fact Context responses have a different shape
+      // and are not passed as `response` to avoid type mismatches.
+      const legacyResponse = result.kind === 'legacy_response' ? result.response : undefined;
       setTurns((current) => [...current, {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: response.message,
-        response,
+        content: message,
+        response: legacyResponse,
       }]);
     } catch {
       setTurns((current) => [...current, {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: 'I couldn’t reach Coach just now. Nothing was changed. Your local Progress data is still available.',
+        content: 'I couldn\u2019t reach Coach just now. Nothing was changed. Your local Progress data is still available.',
       }]);
     }
   };

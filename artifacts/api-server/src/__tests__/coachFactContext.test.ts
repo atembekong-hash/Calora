@@ -15,6 +15,8 @@ vi.mock("../lib/coach-fact-rollout.js", () => ({ getCoachFactRolloutDecision: (.
 import { openai } from "@workspace/integrations-openai-ai-server";
 import coachFactContextRouter, {
   COACH_FACT_PROVIDER_TIMEOUT_MS,
+  FACT_CONTEXT_TTL_MS,
+  FACT_CONTEXT_MAX_FUTURE_SKEW_MS,
   createDarkCoachCompletion,
   validateDarkCoachClaims,
 } from "../routes/coachFactContext.js";
@@ -190,5 +192,142 @@ describe("dark Coach Fact Context path", () => {
     expect(validateDarkCoachClaims(response, valid)).not.toBeNull();
     expect(validateDarkCoachClaims({ ...response, observations: [{ ...response.observations[0], factKeys: ["daily.protein_status"] }] }, valid)).toBeNull();
     expect(validateDarkCoachClaims({ ...response, observations: [{ ...response.observations[0], text: "This week you logged 400 kcal." }] }, valid)).toBeNull();
+  });
+});
+
+describe("exported timestamp constants", () => {
+  it("TTL is exactly 60 seconds", () => {
+    expect(FACT_CONTEXT_TTL_MS).toBe(60_000);
+  });
+  it("max future skew is a small positive value (≤ 30s)", () => {
+    expect(FACT_CONTEXT_MAX_FUTURE_SKEW_MS).toBeGreaterThan(0);
+    expect(FACT_CONTEXT_MAX_FUTURE_SKEW_MS).toBeLessThanOrEqual(30_000);
+  });
+});
+
+describe("adversarial timestamp validation", () => {
+  const server = (() => { const i = express(); i.use(express.json()); i.use(coachFactContextRouter); return i; })();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.COACH_FACT_CONTEXT_ENABLED = "true";
+    verifyBearerToken.mockResolvedValue({ id: "user-a" });
+    hasCurrentCoachFactConsent.mockResolvedValue(true);
+    getCoachFactRolloutDecision.mockReturnValue({ cohortEligible: true, legacyFallbackEnabled: false });
+    checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+  });
+  afterEach(() => { delete process.env.COACH_FACT_CONTEXT_ENABLED; });
+
+  function buildBody(generatedAt: Date, expiresAt: Date) {
+    const b = body();
+    b.factContext.generatedAt = generatedAt.toISOString();
+    b.factContext.expiresAt = expiresAt.toISOString();
+    return b;
+  }
+
+  it("rejects a context that is already expired (expiresAt in the past)", async () => {
+    const past = new Date(Date.now() - 70_000);
+    const b = buildBody(past, new Date(past.getTime() + FACT_CONTEXT_TTL_MS));
+    const res = await request(server).post("/v1/coach/fact-context/respond").send(b);
+    expect(res.status).toBe(400);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a context with expiresAt <= generatedAt (malformed/zero window)", async () => {
+    const now = new Date();
+    const b = buildBody(now, now); // expiresAt === generatedAt
+    const res = await request(server).post("/v1/coach/fact-context/respond").send(b);
+    expect(res.status).toBe(400);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a context with expiresAt before generatedAt (inverted window)", async () => {
+    const now = new Date();
+    const b = buildBody(new Date(now.getTime() + 5_000), now); // expiry before generation
+    const res = await request(server).post("/v1/coach/fact-context/respond").send(b);
+    expect(res.status).toBe(400);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a context with an excessive interval beyond the TTL", async () => {
+    const now = new Date();
+    const b = buildBody(now, new Date(now.getTime() + FACT_CONTEXT_TTL_MS + 1));
+    const res = await request(server).post("/v1/coach/fact-context/respond").send(b);
+    expect(res.status).toBe(400);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a context generated implausibly far in the future (beyond allowed skew)", async () => {
+    const future = new Date(Date.now() + FACT_CONTEXT_MAX_FUTURE_SKEW_MS + 5_000);
+    const b = buildBody(future, new Date(future.getTime() + FACT_CONTEXT_TTL_MS));
+    const res = await request(server).post("/v1/coach/fact-context/respond").send(b);
+    expect(res.status).toBe(400);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("accepts a context generated slightly in the future within allowed skew", async () => {
+    // generatedAt is slightly in the future but within skew; expiresAt is FACT_CONTEXT_TTL_MS later
+    // and also still in the future, so this should pass timestamp validation and reach the model.
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({
+      message: "ok", observations: [], actions: [], safetyState: "normal",
+      limitations: [], contextCoverage: { usedSections: [], missingSections: [] }, requestNonce: nonce,
+    }) } }] } as never);
+    const slightlyFuture = new Date(Date.now() + FACT_CONTEXT_MAX_FUTURE_SKEW_MS - 1_000);
+    const b = buildBody(slightlyFuture, new Date(slightlyFuture.getTime() + FACT_CONTEXT_TTL_MS));
+    // This body's expiresAt is now + skew - 1s + TTL = now + ~69s, still in the future.
+    const res = await request(server).post("/v1/coach/fact-context/respond").send(b);
+    // Passes timestamp check; may fail fact validation but must not 400 on timestamp.
+    expect(res.status).not.toBe(400);
+  });
+});
+
+describe("server-owned cohort rollout mechanism (via endpoint integration)", () => {
+  it("the endpoint returns 404 when the mocked rollout simulates eligibility revocation", async () => {
+    // Simulate: user was eligible (cohortEligible: true) then cohort is removed.
+    const appInstance = express();
+    appInstance.use(express.json());
+    appInstance.use(coachFactContextRouter);
+
+    vi.clearAllMocks();
+    process.env.COACH_FACT_CONTEXT_ENABLED = "true";
+    verifyBearerToken.mockResolvedValue({ id: "user-b" });
+    hasCurrentCoachFactConsent.mockResolvedValue(true);
+    checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+
+    // First call: simulate user in cohort — endpoint proceeds to validation.
+    getCoachFactRolloutDecision.mockReturnValueOnce({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" });
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({
+      message: "ok", observations: [], actions: [], safetyState: "normal",
+      limitations: [], contextCoverage: { usedSections: [], missingSections: [] }, requestNonce: nonce,
+    }) } }] } as never);
+    const firstRes = await request(appInstance).post("/v1/coach/fact-context/respond").send(body());
+    // Should not be 404 due to rollout.
+    expect(firstRes.status).not.toBe(404);
+
+    // Second call: cohort removed — endpoint must return 404, no egress.
+    getCoachFactRolloutDecision.mockReturnValueOnce({ cohortEligible: false, legacyFallbackEnabled: false, reason: "cohort_deny" });
+    const secondRes = await request(appInstance).post("/v1/coach/fact-context/respond").send(body());
+    expect(secondRes.status).toBe(404);
+    // Provider must not have been called a second time after cohort removal.
+    expect(vi.mocked(openai.chat.completions.create)).toHaveBeenCalledTimes(1);
+
+    delete process.env.COACH_FACT_CONTEXT_ENABLED;
+  });
+
+  it("the endpoint returns 404 when server gate is off regardless of cohort or consent", async () => {
+    const appInstance = express();
+    appInstance.use(express.json());
+    appInstance.use(coachFactContextRouter);
+
+    vi.clearAllMocks();
+    delete process.env.COACH_FACT_CONTEXT_ENABLED; // gate off
+    verifyBearerToken.mockResolvedValue({ id: "user-c" });
+    hasCurrentCoachFactConsent.mockResolvedValue(true);
+    getCoachFactRolloutDecision.mockReturnValue({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" });
+
+    const res = await request(appInstance).post("/v1/coach/fact-context/respond").send(body());
+    expect(res.status).toBe(404);
+    expect(verifyBearerToken).not.toHaveBeenCalled();
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 });

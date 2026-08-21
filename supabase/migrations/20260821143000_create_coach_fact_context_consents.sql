@@ -1,30 +1,18 @@
--- Server-authoritative consent ledger for the dormant Coach Fact Context path.
--- This table stores consent metadata only: never facts, prompts, messages, or
--- any other user nutrition content. Deleting calora_users cascades this row.
-CREATE TABLE IF NOT EXISTS public.calora_coach_fact_context_consents (
-  user_id uuid NOT NULL REFERENCES public.calora_users(id) ON DELETE CASCADE,
-  purpose text NOT NULL,
-  document_version text NOT NULL,
-  state text NOT NULL CHECK (state IN ('consented_current', 'revoked')),
-  decided_at timestamptz NOT NULL,
-  revoked_at timestamptz,
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS calora_coach_fact_context_consents_user_purpose_idx
-  ON public.calora_coach_fact_context_consents (user_id, purpose);
-
-ALTER TABLE public.calora_coach_fact_context_consents ENABLE ROW LEVEL SECURITY;
-
--- The mobile client never accesses this ledger through the public data API.
--- It is read and written only by the authenticated API server service role.
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    REVOKE ALL ON TABLE public.calora_coach_fact_context_consents FROM anon;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    REVOKE ALL ON TABLE public.calora_coach_fact_context_consents FROM authenticated;
-  END IF;
-END
-$$;
+-- NEUTRALIZED: This migration is intentionally inert.
+--
+-- The canonical authority for calora_coach_fact_context_consents is the
+-- @workspace/db Drizzle schema (lib/db/src/schema/index.ts) deployed via
+-- `pnpm --filter db push` in scripts/post-merge.sh.
+--
+-- A Supabase migration that re-creates the same table would introduce a second
+-- deployment authority and risk state divergence (missing CHECK constraint,
+-- missing primary-key/FK, duplicate DDL). This file is retained as an
+-- immutable audit artifact but contains no executable DDL.
+--
+-- Schema, index, FK (user_id → calora_users ON DELETE CASCADE), and state
+-- constraint (state IN ('consented_current','revoked')) are all declared in
+-- lib/db/src/schema/index.ts and pushed by the canonical managed-DB path.
+--
+-- The mobile client never accesses this ledger through the Supabase public
+-- data API; it is read and written only by the authenticated API server via
+-- the service role, which is enforced at the application layer.

@@ -18,3 +18,5 @@ export * from './coachFactRequestLifecycle';
 export * from './coachFactContextClient';
 export * from './coachFactConsentCache';
 export * from './coachFactActivationCoordinator';
+export * from './coachLifecycleEpoch';
+export * from './useCoachSendAdapter';
