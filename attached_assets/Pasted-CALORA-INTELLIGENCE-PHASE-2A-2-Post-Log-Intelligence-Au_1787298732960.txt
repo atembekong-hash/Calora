@@ -1,0 +1,734 @@
+CALORA INTELLIGENCE — PHASE 2A.2
+
+Post-Log Intelligence
+
+Authorization
+
+Phase 2A.2 is hereby authorized as the next controlled Calora Intelligence implementation phase.
+
+The approved architectural baseline is:
+
+Current authenticated account
+        ↓
+Account-isolated local state
+        ↓
+Intelligence Foundation
+        ↓
+Canonical deterministic selector
+        ↓
+Surface-specific delivery policy
+        ↓
+Optional transient Intelligence
+
+Preserve all established invariants from Progress and Today.
+
+This phase authorizes Post-Log Intelligence only.
+
+Do not expand any other Intelligence surface.
+
+---
+
+1. Mission
+
+Add a narrowly scoped contextual response immediately after a successful food log when, and only when, that new log materially changes an eligible Intelligence signal.
+
+The post-log experience should answer:
+
+“Did this log materially change something worth knowing right now?”
+
+Most food logs should produce no Intelligence response.
+
+Silence is a valid result.
+
+The feature must never make food logging feel slower, noisier, judgmental, or interrupted.
+
+---
+
+2. Core Product Rule
+
+Post-Log Intelligence is event-triggered contextual feedback, not a permanent surface.
+
+The correct model is:
+
+successful food log
+        ↓
+before/after Foundation facts
+        ↓
+detect meaningful eligible change
+        ↓
+deterministic post-log selector
+        ↓
+zero or one short transient response
+
+Do not show an insight merely because a log occurred.
+
+Require a meaningful state change.
+
+---
+
+3. Absolute Scope Rule
+
+Do not implement anything outside this phase.
+
+Do not enable:
+
+- Coach fact context
+- proactive notifications
+- background Intelligence
+- persistent Intelligence
+- server Intelligence
+- feedback learning
+- behavioral memory
+- analytics expansion
+- Planner Intelligence
+- Recipe Intelligence
+- Scan Intelligence beyond the successful-log trigger
+- additional Progress or Today behavior
+
+If you discover a useful future feature, document it in the report.
+
+Do not implement it.
+
+---
+
+4. Preserve Existing Logging Flow
+
+Food logging remains primary.
+
+Do not:
+
+- add extra confirmation steps;
+- block successful logging while Intelligence computes;
+- delay navigation materially;
+- require network access for Intelligence;
+- make the log dependent on selector success;
+- replace current success behavior with Intelligence.
+
+The food log must be considered successful before Post-Log Intelligence runs.
+
+If Intelligence fails, the food log remains successful.
+
+---
+
+5. Trigger Boundary
+
+Determine every legitimate food-log completion path.
+
+Audit at minimum:
+
+- manual food logging;
+- search result logging;
+- barcode logging;
+- photo/AI logging after user confirmation;
+- restaurant logging where implemented;
+- recipe logging;
+- saved meal logging;
+- scan/capture flow;
+- any quick-add or equivalent path.
+
+Do not trigger from incomplete drafts.
+
+Do not trigger before the final user-approved nutrition values are committed.
+
+Do not trigger from merely viewing or selecting a food.
+
+Create one canonical post-log trigger contract rather than duplicating logic across every input flow.
+
+---
+
+6. Before/After Comparison
+
+Post-Log Intelligence must compare the state immediately before the committed log with the state immediately after it.
+
+Conceptually:
+
+BEFORE FACTS
++
+COMMITTED LOG
+→
+AFTER FACTS
+→
+MEANINGFUL CHANGE DETECTOR
+
+Do not infer the effect from the food object alone.
+
+Use actual Foundation outputs.
+
+The change detector must be deterministic.
+
+---
+
+7. Meaningful Change Requirement
+
+A post-log response may appear only when the new log creates a material transition.
+
+Examples of eligible transitions:
+
+Calorie status
+
+- below meaningful threshold → near target
+- below target → target reached
+- below target → materially above target
+
+Macro balance
+
+- protein materially behind → meaningfully improved
+- protein target reached
+- another supported macro crosses a defined meaningful boundary
+
+Meal distribution
+
+- new entry materially changes where recorded calories are concentrated
+
+Logging completeness
+
+- logging state becomes sufficiently complete for a stronger current-day assessment
+
+Do not trigger for tiny numerical changes.
+
+Define deterministic thresholds.
+
+Document them.
+
+---
+
+8. Anti-Noise Rules
+
+This is critical.
+
+Do not show Post-Log Intelligence:
+
+- after every log;
+- for trivial changes;
+- when the exact same message is already visible on Today and nothing meaningful changed;
+- for low-confidence facts;
+- for stale facts;
+- for incompatible watermarks;
+- when the new log is based mostly on weak evidence and cannot support the claim;
+- when the user simply edits metadata that does not materially affect the facts;
+- when logging is undone or rolled back before completion.
+
+Prefer silence.
+
+Target behavior should feel occasional and earned.
+
+---
+
+9. Duplicate-Surface Policy
+
+Today, Progress, and Post-Log share the canonical facts layer but have different delivery purposes.
+
+Define a deterministic surface policy.
+
+Progress
+
+Longer-horizon or descriptive context.
+
+Today
+
+Current-day standing.
+
+Post-Log
+
+Meaningful change caused by the just-completed log.
+
+Post-Log should not merely repeat the current Today card word-for-word unless the transition itself is the relevant message.
+
+Example:
+
+Today:
+“Protein is trailing today.”
+
+After a protein-rich meal:
+
+Post-log:
+“Protein is catching up.”
+
+That is acceptable because the post-log message describes the transition.
+
+Do not add retained cross-surface display history.
+
+Use deterministic before/after facts instead.
+
+---
+
+10. Tone Rules
+
+Post-log language must remain:
+
+- factual;
+- brief;
+- calm;
+- non-judgmental;
+- non-diagnostic;
+- non-prescriptive unless an existing deterministic target fact explicitly supports it.
+
+Avoid:
+
+- “Good job”
+- “Bad choice”
+- “You ate too much”
+- “You should not have”
+- “Healthy/unhealthy” moral scoring
+- guilt or reward language
+
+Describe what changed.
+
+---
+
+11. Example Output Types
+
+Allowed conceptual examples:
+
+«Protein is catching up
+You now have 91 of 133 g logged today.»
+
+«Daily target nearly reached
+1,742 of 1,900 calories are now logged.»
+
+«Daily calorie target reached
+Your logged total is now at your configured target.»
+
+«More of today's intake is logged
+There is now enough recorded data for a stronger daily picture.»
+
+These are examples only.
+
+Use actual Foundation rules and targets.
+
+---
+
+12. Output Contract
+
+Create a structured post-log result.
+
+Conceptually:
+
+PostLogInsight
+- id/type
+- transitionType
+- category
+- priority
+- title
+- message
+- beforeFactRefs
+- afterFactRefs
+- confidence
+- freshness
+- reason
+
+Do not store raw meal names, notes, images, account identifiers, or provider payloads in the result.
+
+---
+
+13. Delivery Form
+
+Choose the least intrusive existing UI pattern appropriate to Calora.
+
+Prefer a transient pattern such as:
+
+- brief inline confirmation card;
+- short non-blocking sheet;
+- transient banner;
+- existing post-log success region.
+
+Do not invent a large modal unless the existing UX clearly requires it.
+
+Requirements:
+
+- does not block navigation;
+- can disappear naturally;
+- does not require dismissal to continue;
+- does not cover critical controls;
+- works in light/dark mode;
+- accessible.
+
+Do not redesign the logging flow.
+
+---
+
+14. No Persistence
+
+Post-Log Intelligence must not be persisted.
+
+Do not write it to:
+
+- AsyncStorage;
+- PostgreSQL;
+- Supabase;
+- Coach history;
+- living memory;
+- React Query persistence;
+- analytics event payloads containing nutrition content;
+- local files.
+
+It exists only as transient UI state for the current interaction.
+
+---
+
+15. No Network
+
+The post-log selector must make:
+
+- zero API calls;
+- zero LLM calls;
+- zero server-facts calls;
+- zero provider calls.
+
+The underlying log may use normal existing APIs where already required.
+
+Post-Log Intelligence itself must not add another network dependency.
+
+---
+
+16. Account Isolation
+
+Explicitly test:
+
+USER_A logs food
+→ post-log response appears
+
+sign out
+
+USER_B logs different food
+
+Verify no User A post-log response can flash or survive into User B.
+
+Also test:
+
+USER_A logs
+→ response pending
+→ account switch occurs immediately
+
+The old response must disappear synchronously.
+
+---
+
+17. Rapid Logging
+
+Users may log several foods quickly.
+
+Test:
+
+log A
+log B
+log C
+
+Define deterministic behavior.
+
+Avoid stacking three Intelligence banners.
+
+Recommended model:
+
+- newest eligible transition replaces older transient output;
+- ineligible logs do not unnecessarily resurrect an old response;
+- no queue of historical insights.
+
+Document the final behavior.
+
+---
+
+18. Edit and Delete Semantics
+
+A food edit or deletion is not automatically a post-log event.
+
+Determine explicit policy.
+
+Recommended:
+
+- new committed food log → eligible trigger;
+- material edit to just-logged item → recompute or withdraw if the existing transient response is still active;
+- deletion/undo → remove or recompute the transient response;
+- historical edit unrelated to current interaction → no post-log delivery.
+
+Do not create noise from background recalculation.
+
+---
+
+19. Undo / Rollback Safety
+
+If the user undoes or deletes the just-added item:
+
+- the prior post-log response must disappear or recompute correctly;
+- no stale “target reached” or similar response may remain;
+- existing logging data remains authoritative.
+
+Add regression coverage.
+
+---
+
+20. Confidence and Provenance
+
+Use the established Foundation evidence model.
+
+Do not produce strong post-log claims from weak input.
+
+Examples:
+
+- provider/barcode/manual verified values may support normal eligible transitions;
+- AI-estimated or recipe-estimated values must respect existing confidence degradation;
+- unknown provenance must not be upgraded.
+
+Post-log convenience must not weaken factual standards.
+
+---
+
+21. Hydration and Freshness
+
+Suppress delivery when:
+
+- account hydration is incomplete;
+- after-state facts are stale;
+- before/after facts use incompatible watermarks;
+- current-day identity cannot be established;
+- account scope changes during computation.
+
+Fail closed.
+
+---
+
+22. Failure Containment
+
+Post-Log Intelligence must be optional.
+
+If:
+
+- fact generation throws;
+- transition detection fails;
+- formatting fails;
+- delivery component fails;
+
+then:
+
+food log remains successful
++
+no Intelligence response
+
+No retry loop.
+
+No blocking error.
+
+No user-visible technical message.
+
+---
+
+23. Feature Flag
+
+Activate only:
+
+intelligence.insights.post_log
+
+using the established Intelligence configuration system.
+
+Keep:
+
+intelligence.coach.fact_context = OFF
+intelligence.facts.server_adapter = OFF
+intelligence.feedback = OFF
+intelligence.proactive = OFF
+
+and all unapproved capabilities OFF.
+
+Turning Post-Log Intelligence OFF must remove the feature without migration or cleanup.
+
+---
+
+24. Performance
+
+Measure added overhead to successful logging.
+
+At minimum measure:
+
+- before-fact snapshot;
+- after-fact snapshot;
+- transition detection;
+- selector;
+- UI delivery decision.
+
+Report development measurements accurately.
+
+The Intelligence path must not materially delay food logging.
+
+If meaningful delay appears, optimize or fail closed.
+
+---
+
+25. Accessibility
+
+The transient message must:
+
+- be announced once;
+- not steal focus unexpectedly;
+- remain understandable with large text;
+- avoid duplicate screen-reader traversal;
+- not trap the user;
+- not require gesture dismissal.
+
+Do not claim device accessibility PASS without actual validation.
+
+---
+
+26. Automated Test Matrix
+
+Add permanent tests for at minimum:
+
+1. eligible calorie transition;
+2. eligible protein transition;
+3. trivial-change suppression;
+4. no-data suppression;
+5. low-confidence suppression;
+6. stale suppression;
+7. incompatible-watermark suppression;
+8. same-message/no-material-change suppression;
+9. rapid sequential logs;
+10. undo/delete withdrawal;
+11. material edit recomputation;
+12. account switch during transient delivery;
+13. failed hydration;
+14. malformed facts;
+15. feature flag OFF;
+16. no persistence;
+17. no network;
+18. selector determinism;
+19. Today/Post-Log policy consistency;
+20. Progress/Post-Log policy consistency;
+21. food log succeeds if Intelligence throws.
+
+---
+
+27. Full Regression
+
+Run:
+
+pnpm --filter @workspace/calora run typecheck
+pnpm --filter @workspace/calora test
+pnpm --filter @workspace/api-server run typecheck
+pnpm --filter @workspace/api-server test
+
+Record exact counts.
+
+Do not claim physical-device validation unless executed.
+
+---
+
+28. Acceptance Gates
+
+Trigger correctness
+
+"PASS / PARTIAL / FAIL"
+
+Meaningful-change detection
+
+"PASS / PARTIAL / FAIL"
+
+Anti-noise behavior
+
+"PASS / PARTIAL / FAIL"
+
+Cross-surface consistency
+
+"PASS / PARTIAL / FAIL"
+
+Account isolation
+
+"PASS / PARTIAL / FAIL"
+
+Rapid logging behavior
+
+"PASS / PARTIAL / FAIL"
+
+Edit/delete/undo correctness
+
+"PASS / PARTIAL / FAIL"
+
+Confidence/provenance
+
+"PASS / PARTIAL / FAIL"
+
+No persistence
+
+"PASS / FAIL"
+
+No network
+
+"PASS / FAIL"
+
+Failure containment
+
+"PASS / FAIL"
+
+Feature-flag rollback
+
+"PASS / FAIL"
+
+Performance
+
+"PASS / PARTIAL / NOT MEASURABLE / FAIL"
+
+Regression suite
+
+"PASS / FAIL"
+
+Phase 2A.2 technical completion
+
+"APPROVE / APPROVE WITH CONDITIONS / DO NOT APPROVE"
+
+---
+
+29. Mandatory Report
+
+Automatically create and save:
+
+"docs/CALORA_INTELLIGENCE_PHASE_2A_2_POST_LOG_INTELLIGENCE_REPORT.md"
+
+Do not wait for me to request it.
+
+The report must contain:
+
+1. Executive verdict
+2. Logging pathways audited
+3. Canonical trigger architecture
+4. Before/after fact model
+5. Meaningful-change thresholds
+6. Anti-noise policy
+7. Cross-surface policy
+8. Output contract
+9. Delivery UI decision
+10. Account-isolation behavior
+11. Rapid-log behavior
+12. Edit/delete/undo behavior
+13. Confidence/provenance rules
+14. Failure containment
+15. No-persistence proof
+16. No-network proof
+17. Performance measurements
+18. Feature-flag state
+19. Files created
+20. Files modified
+21. Exact test commands
+22. Exact test counts/results
+23. Defects discovered
+24. Defects fixed
+25. Physical-device validation debt
+26. Acceptance matrix
+27. Remaining risks
+28. Recommendation for next roadmap decision
+
+Never include credentials or private user data.
+
+Do not mark unexecuted device checks PASS.
+
+---
+
+30. Final Stop Condition
+
+When Phase 2A.2 is complete:
+
+- save the report automatically;
+- keep Coach OFF;
+- keep proactive Intelligence OFF;
+- keep server/persistent Intelligence OFF;
+- do not start another Intelligence phase;
+- do not create another surface automatically.
+
+Return the final verdict and report path, then STOP for review.
