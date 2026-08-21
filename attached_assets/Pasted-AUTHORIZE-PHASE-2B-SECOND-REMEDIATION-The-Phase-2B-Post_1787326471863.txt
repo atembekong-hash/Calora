@@ -1,0 +1,524 @@
+AUTHORIZE PHASE 2B SECOND REMEDIATION
+
+The Phase 2B Post-Remediation Activation-Readiness Re-review is accepted.
+
+Execute the smallest exact remediation defined in:
+
+CALORA_INTELLIGENCE_PHASE_2B_REREVIEW_REPORT.md
+
+Mission
+
+Make the dormant Coach Fact Context path genuinely activation-ready before any flag can route traffic.
+
+This is remediation only. It does not authorize controlled activation.
+
+
+---
+
+1. Correct the durable-consent deployment architecture
+
+The previous remediation placed consent DDL in a Supabase migration path even though the reviewed Calora domain architecture places calora_users and related application data in managed PostgreSQL/Drizzle.
+
+Correct this mismatch.
+
+First identify the canonical production migration/deployment path for the database that actually owns calora_users.
+
+Then:
+
+move/create the coach_fact_context_v1 consent-ledger DDL in that canonical managed PostgreSQL migration path;
+
+ensure the canonical Drizzle schema and deployed DDL agree;
+
+preserve server-authoritative consent;
+
+preserve one consent record per (user_id, purpose);
+
+preserve versioned consent;
+
+preserve revoke state;
+
+preserve ON DELETE CASCADE;
+
+preserve account isolation;
+
+store metadata only;
+
+never store Fact Context values, Foundation facts, prompts, messages or conversation content.
+
+
+Remove or neutralize the incorrect Supabase migration if leaving it would create deployment ambiguity or future schema drift.
+
+Do not maintain two competing consent-ledger migration authorities.
+
+Test against the actual target database architecture, not merely a convenient development database.
+
+Prove:
+
+table creation;
+
+ownership;
+
+accept;
+
+read;
+
+revoke;
+
+stale consent version;
+
+account A/B isolation;
+
+deletion cascade;
+
+recreated-account starts not_consented;
+
+idempotent behavior where intended.
+
+
+
+---
+
+2. Close the future-timestamp TTL loophole
+
+Enforce server-observed freshness for every incoming CoachFactContextV1.
+
+The server must not trust client time alone.
+
+Validate:
+
+generatedAt;
+
+expiresAt;
+
+server current time;
+
+maximum context lifetime;
+
+explicitly bounded clock skew.
+
+
+Reject contexts that are:
+
+future-dated beyond the approved skew;
+
+expired;
+
+excessively old;
+
+malformed;
+
+internally inconsistent;
+
+constructed with an interval exceeding the approved TTL.
+
+
+Keep the intended Fact Context lifetime at 60 seconds unless the existing architecture explicitly requires otherwise.
+
+Define one small documented clock-skew allowance rather than allowing arbitrary future timestamps.
+
+Add adversarial tests for:
+
+far-future generatedAt;
+
+slightly future within permitted skew;
+
+future expiresAt paired with malicious generation time;
+
+expired context;
+
+boundary expiry;
+
+malformed timestamps;
+
+excessive TTL;
+
+replay after server-observed expiry.
+
+
+Fail closed.
+
+
+---
+
+3. Make the coordinator the real Coach architecture authority
+
+Integrate CoachFactActivationCoordinator into the actual Coach send boundary.
+
+The live Coach architecture must have one architecture-selection authority.
+
+For each request, the coordinator must select exactly one:
+
+LEGACY
+
+or
+
+FACT_CONTEXT
+
+Never both.
+
+When Fact Context gates/cohort/consent do not authorize the new architecture, preserve current legacy behavior according to the explicitly defined migration policy.
+
+When Fact Context eventually becomes eligible, the live Coach path must be structurally capable of using only the sanitized Fact Context request.
+
+Do not activate that eligibility in this task.
+
+Remove parallel send-decision ownership from app/coach.tsx if necessary so that a future flag change cannot bypass the coordinator.
+
+Prove:
+
+exactly one architecture is selected;
+
+no mixed payload;
+
+no Fact Context attached to legacy requests;
+
+no legacy CoachContext attached to Fact Context requests;
+
+no accidental double request;
+
+no hidden automatic fallback after Fact Context egress begins.
+
+
+
+---
+
+4. Add a synchronous account/hydration epoch
+
+Implement a live, account-scoped lifecycle epoch or equivalent synchronous fence owned by the Coach activation/request architecture.
+
+A request must bind to the current:
+
+account;
+
+hydration generation/epoch;
+
+consent state/version;
+
+architecture selection;
+
+request scope;
+
+nonce;
+
+expiry.
+
+
+The epoch must synchronously invalidate on:
+
+sign-out;
+
+account switch;
+
+local-data clear;
+
+account deletion;
+
+hydration reset;
+
+consent revocation;
+
+relevant rollout rollback.
+
+
+Before accepting a response, compare against the current live lifecycle state, not merely the values captured when the request started.
+
+If anything changed:
+
+discard the response.
+
+Where practical, abort the in-flight request as well.
+
+Prove Account A's response can never settle into Account B's active session.
+
+
+---
+
+5. Prove in-flight invalidation
+
+Add deterministic tests for requests pending during:
+
+sign-out;
+
+A → B account switch;
+
+hydration reset;
+
+clear-data;
+
+account deletion;
+
+consent revoke;
+
+client gate rollback;
+
+server gate rollback;
+
+cohort removal;
+
+request expiry;
+
+provider timeout;
+
+late provider completion.
+
+
+A stale response must never become user-visible.
+
+Verify there is no transition that causes Fact Context to fall back into a legacy request after sanitized egress has already begun.
+
+
+---
+
+6. Build bounded server-owned cohort configuration
+
+Replace the current conceptual/hard-coded deny-all rollout with a server-owned, bounded, reversible cohort mechanism suitable for a later controlled activation.
+
+It must remain deny-all after this task.
+
+Requirements:
+
+default deny;
+
+authenticated account-scoped decision;
+
+server authoritative;
+
+no client self-enrollment;
+
+explicit named cohort configuration;
+
+deterministic membership;
+
+rapid removal/rollback;
+
+privacy-safe observability;
+
+no Fact Context values stored for cohort membership;
+
+no broad percentage rollout unless separately authorized.
+
+
+Do not add any real account to a cohort.
+
+Do not activate an internal cohort.
+
+
+---
+
+7. Rollback rehearsal
+
+Using tests/staging only, exercise:
+
+Fact Context eligible request → server gate OFF
+
+and:
+
+Fact Context eligible request → cohort membership removed
+
+Verify:
+
+new Fact Context egress stops;
+
+pending responses are rejected where required;
+
+no mixed architecture occurs;
+
+no stale response becomes visible;
+
+no automatic broad-context retry occurs;
+
+legacy behavior remains isolated according to the migration policy.
+
+
+Restore all gates/cohorts to their current safe state afterward.
+
+
+---
+
+8. Preserve verified security boundaries
+
+Do not weaken:
+
+bearer authentication;
+
+server-authoritative consent;
+
+cache-only authorization prohibition;
+
+strict Fact Context schema;
+
+frozen allowlist;
+
+raw/legacy shape rejection;
+
+risk screening before provider egress;
+
+deterministic claim validation;
+
+12-second provider deadline;
+
+privacy-safe logging;
+
+60-second context lifetime;
+
+account isolation.
+
+
+The Fact Context allowlist remains frozen.
+
+Do not add weight, nutrition coverage, macro coverage, food logs, meals, notes, photos, recipes, planner, shopping, wellness, activity or arbitrary Foundation facts.
+
+
+---
+
+9. Regression validation
+
+Run all focused tests plus complete:
+
+Calora typecheck;
+
+Calora test suite;
+
+API server typecheck;
+
+API server test suite;
+
+real target-database consent integration tests;
+
+architecture-selection tests;
+
+lifecycle/epoch tests;
+
+TTL/skew adversarial tests;
+
+rollback/cohort tests.
+
+
+Investigate and repair any regression caused by this remediation.
+
+Do not hide failures by weakening tests.
+
+
+---
+
+Hard stop boundaries
+
+At completion:
+
+Client Fact Context gate = OFF
+
+Server Fact Context gate = OFF
+
+Server cohort = DENY ALL
+
+Fact Context allowlist = UNCHANGED
+
+Legacy Coach remains available and unchanged for current users
+
+Longitudinal Intelligence flags remain OFF
+
+Do not:
+
+activate Fact Context;
+
+add a real user to a cohort;
+
+migrate production traffic;
+
+expand the allowlist;
+
+retire legacy Coach;
+
+add new Intelligence facts;
+
+reopen Phase 2A;
+
+start Planner/Recipe Intelligence;
+
+begin Phase 2C.
+
+
+Physical-device and accessibility validation remains deferred and must not be marked passed.
+
+
+---
+
+Required automatic report
+
+Create and save:
+
+docs/CALORA_INTELLIGENCE_PHASE_2B_SECOND_REMEDIATION_REPORT.md
+
+Document:
+
+1. corrected database authority and migration path;
+
+
+2. DDL/schema proof;
+
+
+3. consent lifecycle results;
+
+
+4. deletion/recreated-account proof;
+
+
+5. server freshness/skew policy;
+
+
+6. adversarial timestamp results;
+
+
+7. live coordinator integration;
+
+
+8. exactly-one-architecture proof;
+
+
+9. synchronous lifecycle epoch design;
+
+
+10. every in-flight invalidation case;
+
+
+11. cohort architecture;
+
+
+12. rollback rehearsal;
+
+
+13. privacy/security boundary verification;
+
+
+14. files created/modified/deleted;
+
+
+15. exact tests and results;
+
+
+16. defects discovered and fixed;
+
+
+17. remaining blockers;
+
+
+18. deferred validation debt;
+
+
+19. final gate/cohort states.
+
+
+
+End with exactly one:
+
+SECOND REMEDIATION VERDICT: READY FOR FINAL PHASE 2B ACTIVATION-READINESS REVIEW
+
+SECOND REMEDIATION VERDICT: ADDITIONAL REMEDIATION REQUIRED
+
+or
+
+SECOND REMEDIATION VERDICT: DO NOT PROCEED
+
+Save the report and STOP.
+
+Do not activate anything and do not proceed automatically to another phase.
