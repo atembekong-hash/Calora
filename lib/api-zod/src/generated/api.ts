@@ -1256,6 +1256,155 @@ export const RespondCoachResponse = zod.object({
 
 
 /**
+ * An intentionally disabled replacement path for future Coach rollout.
+ * It accepts only a short-lived, allowlisted Fact Context and never
+ * accepts the legacy broad CoachContext.
+ * @summary Dark, sanitized Coach Fact Context response path
+ */
+export const respondCoachFactContextBodyFactContextCalculationVersionMax = 64;
+
+export const respondCoachFactContextBodyFactContextRequestNonceRegExp = new RegExp('^[a-f0-9]{24,64}$');
+export const respondCoachFactContextBodyFactContextMissingDataMax = 4;
+
+export const respondCoachFactContextBodyFactContextFactsItemStatementMax = 280;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesConsumedKcalMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesConsumedKcalMax = 10000;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesTargetKcalMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesTargetKcalMax = 10000;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesRemainingKcalMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesRemainingKcalMax = 10000;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesConsumedGMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesConsumedGMax = 1000;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesTargetGMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesTargetGMax = 1000;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMax = 1000;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMax = 4;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesLogCountMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesLogCountMax = 100;
+
+export const respondCoachFactContextBodyFactContextFactsItemLimitationsItemMax = 180;
+
+export const respondCoachFactContextBodyFactContextFactsItemLimitationsMax = 3;
+
+export const respondCoachFactContextBodyFactContextFactsMin = 0;
+export const respondCoachFactContextBodyFactContextFactsMax = 4;
+
+export const respondCoachFactContextBodyFactContextLimitationsItemMax = 220;
+
+export const respondCoachFactContextBodyFactContextLimitationsMax = 3;
+
+export const respondCoachFactContextBodyMessagesItemContentMax = 3000;
+
+export const respondCoachFactContextBodyMessagesMax = 12;
+
+
+
+export const RespondCoachFactContextBody = zod.object({
+  "factContext": zod.object({
+  "schemaVersion": zod.enum(['coach-fact-context-v1']),
+  "purpose": zod.enum(['coach_discussion']),
+  "generatedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date(),
+  "calculationVersion": zod.string().min(1).max(respondCoachFactContextBodyFactContextCalculationVersionMax),
+  "requestNonce": zod.string().regex(respondCoachFactContextBodyFactContextRequestNonceRegExp),
+  "coverage": zod.enum(['available', 'partial', 'insufficient']),
+  "missingData": zod.array(zod.enum(['no_profile', 'no_logged_food_today', 'incomplete_logging', 'unknown_provenance'])).max(respondCoachFactContextBodyFactContextMissingDataMax),
+  "facts": zod.array(zod.object({
+  "key": zod.enum(['daily.calorie_status', 'daily.protein_status', 'daily.meal_distribution', 'daily.logging_completeness']),
+  "status": zod.enum(['available', 'limited', 'unknown']),
+  "statement": zod.string().min(1).max(respondCoachFactContextBodyFactContextFactsItemStatementMax),
+  "values": zod.object({
+  "consumedKcal": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesConsumedKcalMin).max(respondCoachFactContextBodyFactContextFactsItemValuesConsumedKcalMax).optional(),
+  "targetKcal": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesTargetKcalMin).max(respondCoachFactContextBodyFactContextFactsItemValuesTargetKcalMax).optional(),
+  "remainingKcal": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesRemainingKcalMin).max(respondCoachFactContextBodyFactContextFactsItemValuesRemainingKcalMax).optional(),
+  "consumedG": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesConsumedGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesConsumedGMax).optional(),
+  "targetG": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesTargetGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesTargetGMax).optional(),
+  "remainingG": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMax).optional(),
+  "mealSlotsLogged": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMin).max(respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMax).optional(),
+  "logCount": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesLogCountMin).max(respondCoachFactContextBodyFactContextFactsItemValuesLogCountMax).optional(),
+  "state": zod.enum(['partially_logged', 'no_logs']).optional()
+}),
+  "unit": zod.union([zod.literal('kcal'),zod.literal('g'),zod.literal(null)]).nullable(),
+  "timeWindow": zod.enum(['today']),
+  "confidence": zod.enum(['high', 'medium', 'limited']),
+  "freshness": zod.enum(['fresh', 'limited']),
+  "provenance": zod.enum(['verified', 'mixed', 'estimated', 'derived']),
+  "limitations": zod.array(zod.string().max(respondCoachFactContextBodyFactContextFactsItemLimitationsItemMax)).max(respondCoachFactContextBodyFactContextFactsItemLimitationsMax)
+})).min(respondCoachFactContextBodyFactContextFactsMin).max(respondCoachFactContextBodyFactContextFactsMax),
+  "limitations": zod.array(zod.string().max(respondCoachFactContextBodyFactContextLimitationsItemMax)).max(respondCoachFactContextBodyFactContextLimitationsMax)
+}),
+  "messages": zod.array(zod.object({
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string().min(1).max(respondCoachFactContextBodyMessagesItemContentMax)
+})).min(1).max(respondCoachFactContextBodyMessagesMax),
+  "currentScreen": zod.enum(['progress-coach'])
+})
+
+export const respondCoachFactContextResponseMessageMax = 1200;
+
+export const respondCoachFactContextResponseObservationsItemTextMax = 500;
+
+export const respondCoachFactContextResponseObservationsItemFactKeysMax = 4;
+
+export const respondCoachFactContextResponseObservationsMax = 3;
+
+export const respondCoachFactContextResponseActionsItemLabelMax = 80;
+
+export const respondCoachFactContextResponseActionsItemParamsMaxOne = 120;
+
+export const respondCoachFactContextResponseActionsMax = 3;
+
+export const respondCoachFactContextResponseLimitationsItemMax = 220;
+
+export const respondCoachFactContextResponseLimitationsMax = 4;
+
+export const respondCoachFactContextResponseContextCoverageUsedSectionsItemMax = 50;
+
+export const respondCoachFactContextResponseContextCoverageUsedSectionsMax = 4;
+
+export const respondCoachFactContextResponseContextCoverageMissingSectionsItemMax = 50;
+
+export const respondCoachFactContextResponseContextCoverageMissingSectionsMax = 4;
+
+export const respondCoachFactContextResponseRequestNonceRegExp = new RegExp('^[a-f0-9]{24,64}$');
+
+
+export const RespondCoachFactContextResponse = zod.object({
+  "message": zod.string().min(1).max(respondCoachFactContextResponseMessageMax),
+  "observations": zod.array(zod.object({
+  "text": zod.string().min(1).max(respondCoachFactContextResponseObservationsItemTextMax),
+  "confidence": zod.enum(['high', 'medium', 'limited']),
+  "factKeys": zod.array(zod.enum(['daily.calorie_status', 'daily.protein_status', 'daily.meal_distribution', 'daily.logging_completeness'])).min(1).max(respondCoachFactContextResponseObservationsItemFactKeysMax)
+})).max(respondCoachFactContextResponseObservationsMax),
+  "actions": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string().max(respondCoachFactContextResponseActionsItemLabelMax),
+  "kind": zod.enum(['navigate', 'prepare']),
+  "destination": zod.enum(['home', 'progress', 'recipes', 'planner', 'scan', 'profile']),
+  "params": zod.record(zod.string(), zod.string().max(respondCoachFactContextResponseActionsItemParamsMaxOne)).optional(),
+  "confirmationRequired": zod.boolean()
+})).max(respondCoachFactContextResponseActionsMax),
+  "safetyState": zod.enum(['normal', 'caution', 'support_redirect']),
+  "limitations": zod.array(zod.string().max(respondCoachFactContextResponseLimitationsItemMax)).max(respondCoachFactContextResponseLimitationsMax),
+  "contextCoverage": zod.object({
+  "usedSections": zod.array(zod.string().max(respondCoachFactContextResponseContextCoverageUsedSectionsItemMax)).max(respondCoachFactContextResponseContextCoverageUsedSectionsMax),
+  "missingSections": zod.array(zod.string().max(respondCoachFactContextResponseContextCoverageMissingSectionsItemMax)).max(respondCoachFactContextResponseContextCoverageMissingSectionsMax)
+}),
+  "requestNonce": zod.string().regex(respondCoachFactContextResponseRequestNonceRegExp)
+})
+
+
+/**
  * @summary Request a portable data export
  */
 export const RequestDataExportResponse = zod.object({

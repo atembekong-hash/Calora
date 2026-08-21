@@ -8,6 +8,7 @@
 - [Progress motion](progress-motion.md) — Progress uses restrained entrance, fill, pulse, and bar animations around trustworthy weekly signals.
 - [Local save feedback](local-save-feedback.md) — local wellness actions should acknowledge saves briefly without blocking the logging flow.
 - [Coach safety boundary](coach-safety-boundary.md) — Coach receives bounded local context and may only return evidence-backed guidance plus allowlisted navigation.
+- [Dark Coach Fact Context](dark-coach-fact-context.md) — any future Coach fact rollout must preserve the closed, deterministic context and response boundary; never re-open broad free-text metadata.
 - [Coach chat menu](coach-chat-menu.md) — the Coach header menu owns local history, new-chat, and clear-history actions without changing Coach's safety boundary.
 - [Living state engine](living-state-engine.md) — shared adaptive state must be deterministic, explicit about missing history, and prioritized by the highest-context daily need.
 - [Living memory ledger](living-memory-ledger.md) — reliable local memory must be normalized from confirmed sources before any memory becomes visible in the interface.

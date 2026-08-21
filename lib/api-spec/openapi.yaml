@@ -493,6 +493,37 @@ paths:
           description: Invalid coach input
         "502":
           description: Coach provider unavailable
+  /v1/coach/fact-context/respond:
+    post:
+      operationId: respondCoachFactContext
+      tags: [coach]
+      summary: Dark, sanitized Coach Fact Context response path
+      description: |
+        An intentionally disabled replacement path for future Coach rollout.
+        It accepts only a short-lived, allowlisted Fact Context and never
+        accepts the legacy broad CoachContext.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachFactContextRequest"
+      responses:
+        "200":
+          description: Validated dark Coach response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachFactContextResponse"
+        "400":
+          description: Invalid, expired, or unsafe fact context request
+        "401":
+          description: Not signed in
+        "404":
+          description: Dark fact context path is disabled
+        "502":
+          description: Coach provider unavailable
   /v1/privacy/export:
     post:
       operationId: requestDataExport
@@ -1109,6 +1140,119 @@ components:
       properties:
         role: { type: string, enum: [user, assistant] }
         content: { type: string, minLength: 1, maxLength: 3000 }
+    CoachFactContextFact:
+      type: object
+      additionalProperties: false
+      required: [key, status, statement, values, unit, timeWindow, confidence, freshness, provenance, limitations]
+      properties:
+        key: { type: string, enum: [daily.calorie_status, daily.protein_status, daily.meal_distribution, daily.logging_completeness] }
+        status: { type: string, enum: [available, limited, unknown] }
+        statement: { type: string, minLength: 1, maxLength: 280 }
+        values:
+          type: object
+          additionalProperties: false
+          maxProperties: 4
+          properties:
+            consumedKcal: { type: integer, minimum: 0, maximum: 10000 }
+            targetKcal: { type: integer, minimum: 0, maximum: 10000 }
+            remainingKcal: { type: integer, minimum: 0, maximum: 10000 }
+            consumedG: { type: integer, minimum: 0, maximum: 1000 }
+            targetG: { type: integer, minimum: 0, maximum: 1000 }
+            remainingG: { type: integer, minimum: 0, maximum: 1000 }
+            mealSlotsLogged: { type: integer, minimum: 0, maximum: 4 }
+            logCount: { type: integer, minimum: 0, maximum: 100 }
+            state: { type: string, enum: [partially_logged, no_logs] }
+        unit: { type: [string, "null"], enum: [kcal, g, null] }
+        timeWindow: { type: string, enum: [today] }
+        confidence: { type: string, enum: [high, medium, limited] }
+        freshness: { type: string, enum: [fresh, limited] }
+        provenance: { type: string, enum: [verified, mixed, estimated, derived] }
+        limitations:
+          type: array
+          maxItems: 3
+          items: { type: string, maxLength: 180 }
+    CoachFactContext:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, purpose, generatedAt, expiresAt, calculationVersion, requestNonce, coverage, missingData, facts, limitations]
+      properties:
+        schemaVersion: { type: string, enum: [coach-fact-context-v1] }
+        purpose: { type: string, enum: [coach_discussion] }
+        generatedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        calculationVersion: { type: string, minLength: 1, maxLength: 64 }
+        requestNonce: { type: string, pattern: "^[a-f0-9]{24,64}$" }
+        coverage: { type: string, enum: [available, partial, insufficient] }
+        missingData:
+          type: array
+          maxItems: 4
+          items: { type: string, enum: [no_profile, no_logged_food_today, incomplete_logging, unknown_provenance] }
+        facts:
+          type: array
+          minItems: 0
+          maxItems: 4
+          items: { $ref: "#/components/schemas/CoachFactContextFact" }
+        limitations:
+          type: array
+          maxItems: 3
+          items: { type: string, maxLength: 220 }
+    CoachFactObservation:
+      type: object
+      additionalProperties: false
+      required: [text, confidence, factKeys]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 500 }
+        confidence: { type: string, enum: [high, medium, limited] }
+        factKeys:
+          type: array
+          minItems: 1
+          maxItems: 4
+          items: { type: string, enum: [daily.calorie_status, daily.protein_status, daily.meal_distribution, daily.logging_completeness] }
+    CoachFactContextRequest:
+      type: object
+      additionalProperties: false
+      required: [factContext, messages, currentScreen]
+      properties:
+        factContext: { $ref: "#/components/schemas/CoachFactContext" }
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items: { $ref: "#/components/schemas/CoachMessage" }
+        currentScreen: { type: string, enum: [progress-coach], maxLength: 40 }
+    CoachFactContextResponse:
+      type: object
+      additionalProperties: false
+      required: [message, observations, actions, safetyState, limitations, contextCoverage, requestNonce]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 1200 }
+        observations:
+          type: array
+          maxItems: 3
+          items: { $ref: "#/components/schemas/CoachFactObservation" }
+        actions:
+          type: array
+          maxItems: 3
+          items: { $ref: "#/components/schemas/CoachAction" }
+        safetyState: { type: string, enum: [normal, caution, support_redirect] }
+        limitations:
+          type: array
+          maxItems: 4
+          items: { type: string, maxLength: 220 }
+        contextCoverage:
+          type: object
+          additionalProperties: false
+          required: [usedSections, missingSections]
+          properties:
+            usedSections:
+              type: array
+              maxItems: 4
+              items: { type: string, maxLength: 50 }
+            missingSections:
+              type: array
+              maxItems: 4
+              items: { type: string, maxLength: 50 }
+        requestNonce: { type: string, pattern: "^[a-f0-9]{24,64}$" }
     CoachDateRange:
       type: object
       required: [start, end]

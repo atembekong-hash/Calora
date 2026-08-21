@@ -789,6 +789,333 @@ export interface CoachMessage {
   content: string;
 }
 
+export type CoachFactContextFactKey = typeof CoachFactContextFactKey[keyof typeof CoachFactContextFactKey];
+
+
+export const CoachFactContextFactKey = {
+  dailycalorie_status: 'daily.calorie_status',
+  dailyprotein_status: 'daily.protein_status',
+  dailymeal_distribution: 'daily.meal_distribution',
+  dailylogging_completeness: 'daily.logging_completeness',
+} as const;
+
+export type CoachFactContextFactStatus = typeof CoachFactContextFactStatus[keyof typeof CoachFactContextFactStatus];
+
+
+export const CoachFactContextFactStatus = {
+  available: 'available',
+  limited: 'limited',
+  unknown: 'unknown',
+} as const;
+
+export type CoachFactContextFactValuesState = typeof CoachFactContextFactValuesState[keyof typeof CoachFactContextFactValuesState];
+
+
+export const CoachFactContextFactValuesState = {
+  partially_logged: 'partially_logged',
+  no_logs: 'no_logs',
+} as const;
+
+export type CoachFactContextFactValues = {
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  consumedKcal?: number;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  targetKcal?: number;
+  /**
+     * @minimum 0
+     * @maximum 10000
+     */
+  remainingKcal?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  consumedG?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  targetG?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  remainingG?: number;
+  /**
+     * @minimum 0
+     * @maximum 4
+     */
+  mealSlotsLogged?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  logCount?: number;
+  state?: CoachFactContextFactValuesState;
+};
+
+/**
+ * @nullable
+ */
+export type CoachFactContextFactUnit = typeof CoachFactContextFactUnit[keyof typeof CoachFactContextFactUnit] | null;
+
+
+export const CoachFactContextFactUnit = {
+  kcal: 'kcal',
+  g: 'g',
+} as const;
+
+export type CoachFactContextFactTimeWindow = typeof CoachFactContextFactTimeWindow[keyof typeof CoachFactContextFactTimeWindow];
+
+
+export const CoachFactContextFactTimeWindow = {
+  today: 'today',
+} as const;
+
+export type CoachFactContextFactConfidence = typeof CoachFactContextFactConfidence[keyof typeof CoachFactContextFactConfidence];
+
+
+export const CoachFactContextFactConfidence = {
+  high: 'high',
+  medium: 'medium',
+  limited: 'limited',
+} as const;
+
+export type CoachFactContextFactFreshness = typeof CoachFactContextFactFreshness[keyof typeof CoachFactContextFactFreshness];
+
+
+export const CoachFactContextFactFreshness = {
+  fresh: 'fresh',
+  limited: 'limited',
+} as const;
+
+export type CoachFactContextFactProvenance = typeof CoachFactContextFactProvenance[keyof typeof CoachFactContextFactProvenance];
+
+
+export const CoachFactContextFactProvenance = {
+  verified: 'verified',
+  mixed: 'mixed',
+  estimated: 'estimated',
+  derived: 'derived',
+} as const;
+
+export interface CoachFactContextFact {
+  key: CoachFactContextFactKey;
+  status: CoachFactContextFactStatus;
+  /**
+     * @minLength 1
+     * @maxLength 280
+     */
+  statement: string;
+  values: CoachFactContextFactValues;
+  /** @nullable */
+  unit: CoachFactContextFactUnit;
+  timeWindow: CoachFactContextFactTimeWindow;
+  confidence: CoachFactContextFactConfidence;
+  freshness: CoachFactContextFactFreshness;
+  provenance: CoachFactContextFactProvenance;
+  /**
+     * @maxItems 3
+     * @items.maxLength 180
+     */
+  limitations: string[];
+}
+
+export type CoachFactContextSchemaVersion = typeof CoachFactContextSchemaVersion[keyof typeof CoachFactContextSchemaVersion];
+
+
+export const CoachFactContextSchemaVersion = {
+  'coach-fact-context-v1': 'coach-fact-context-v1',
+} as const;
+
+export type CoachFactContextPurpose = typeof CoachFactContextPurpose[keyof typeof CoachFactContextPurpose];
+
+
+export const CoachFactContextPurpose = {
+  coach_discussion: 'coach_discussion',
+} as const;
+
+export type CoachFactContextCoverage = typeof CoachFactContextCoverage[keyof typeof CoachFactContextCoverage];
+
+
+export const CoachFactContextCoverage = {
+  available: 'available',
+  partial: 'partial',
+  insufficient: 'insufficient',
+} as const;
+
+export type CoachFactContextMissingDataItem = typeof CoachFactContextMissingDataItem[keyof typeof CoachFactContextMissingDataItem];
+
+
+export const CoachFactContextMissingDataItem = {
+  no_profile: 'no_profile',
+  no_logged_food_today: 'no_logged_food_today',
+  incomplete_logging: 'incomplete_logging',
+  unknown_provenance: 'unknown_provenance',
+} as const;
+
+export interface CoachFactContext {
+  schemaVersion: CoachFactContextSchemaVersion;
+  purpose: CoachFactContextPurpose;
+  generatedAt: string;
+  expiresAt: string;
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  calculationVersion: string;
+  /** @pattern ^[a-f0-9]{24,64}$ */
+  requestNonce: string;
+  coverage: CoachFactContextCoverage;
+  /** @maxItems 4 */
+  missingData: CoachFactContextMissingDataItem[];
+  /**
+     * @minItems 0
+     * @maxItems 4
+     */
+  facts: CoachFactContextFact[];
+  /**
+     * @maxItems 3
+     * @items.maxLength 220
+     */
+  limitations: string[];
+}
+
+export type CoachFactObservationConfidence = typeof CoachFactObservationConfidence[keyof typeof CoachFactObservationConfidence];
+
+
+export const CoachFactObservationConfidence = {
+  high: 'high',
+  medium: 'medium',
+  limited: 'limited',
+} as const;
+
+export type CoachFactObservationFactKeysItem = typeof CoachFactObservationFactKeysItem[keyof typeof CoachFactObservationFactKeysItem];
+
+
+export const CoachFactObservationFactKeysItem = {
+  dailycalorie_status: 'daily.calorie_status',
+  dailyprotein_status: 'daily.protein_status',
+  dailymeal_distribution: 'daily.meal_distribution',
+  dailylogging_completeness: 'daily.logging_completeness',
+} as const;
+
+export interface CoachFactObservation {
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  text: string;
+  confidence: CoachFactObservationConfidence;
+  /**
+     * @minItems 1
+     * @maxItems 4
+     */
+  factKeys: CoachFactObservationFactKeysItem[];
+}
+
+/**
+ * @maxLength 40
+ */
+export type CoachFactContextRequestCurrentScreen = typeof CoachFactContextRequestCurrentScreen[keyof typeof CoachFactContextRequestCurrentScreen];
+
+
+export const CoachFactContextRequestCurrentScreen = {
+  'progress-coach': 'progress-coach',
+} as const;
+
+export interface CoachFactContextRequest {
+  factContext: CoachFactContext;
+  /**
+     * @minItems 1
+     * @maxItems 12
+     */
+  messages: CoachMessage[];
+  /** @maxLength 40 */
+  currentScreen: CoachFactContextRequestCurrentScreen;
+}
+
+export type CoachFactContextResponseSafetyState = typeof CoachFactContextResponseSafetyState[keyof typeof CoachFactContextResponseSafetyState];
+
+
+export const CoachFactContextResponseSafetyState = {
+  normal: 'normal',
+  caution: 'caution',
+  support_redirect: 'support_redirect',
+} as const;
+
+export type CoachFactContextResponseContextCoverage = {
+  /**
+     * @maxItems 4
+     * @items.maxLength 50
+     */
+  usedSections: string[];
+  /**
+     * @maxItems 4
+     * @items.maxLength 50
+     */
+  missingSections: string[];
+};
+
+export type CoachActionKind = typeof CoachActionKind[keyof typeof CoachActionKind];
+
+
+export const CoachActionKind = {
+  navigate: 'navigate',
+  prepare: 'prepare',
+} as const;
+
+export type CoachActionDestination = typeof CoachActionDestination[keyof typeof CoachActionDestination];
+
+
+export const CoachActionDestination = {
+  home: 'home',
+  progress: 'progress',
+  recipes: 'recipes',
+  planner: 'planner',
+  scan: 'scan',
+  profile: 'profile',
+} as const;
+
+export type CoachActionParams = {[key: string]: string};
+
+export interface CoachAction {
+  id: string;
+  /** @maxLength 80 */
+  label: string;
+  kind: CoachActionKind;
+  destination: CoachActionDestination;
+  params?: CoachActionParams;
+  confirmationRequired: boolean;
+}
+
+export interface CoachFactContextResponse {
+  /**
+     * @minLength 1
+     * @maxLength 1200
+     */
+  message: string;
+  /** @maxItems 3 */
+  observations: CoachFactObservation[];
+  /** @maxItems 3 */
+  actions: CoachAction[];
+  safetyState: CoachFactContextResponseSafetyState;
+  /**
+     * @maxItems 4
+     * @items.maxLength 220
+     */
+  limitations: string[];
+  contextCoverage: CoachFactContextResponseContextCoverage;
+  /** @pattern ^[a-f0-9]{24,64}$ */
+  requestNonce: string;
+}
+
 export interface CoachDateRange {
   start: string;
   end: string;
@@ -986,38 +1313,6 @@ export interface CoachObservation {
   confidence: CoachObservationConfidence;
   /** @maxItems 6 */
   evidenceKeys: string[];
-}
-
-export type CoachActionKind = typeof CoachActionKind[keyof typeof CoachActionKind];
-
-
-export const CoachActionKind = {
-  navigate: 'navigate',
-  prepare: 'prepare',
-} as const;
-
-export type CoachActionDestination = typeof CoachActionDestination[keyof typeof CoachActionDestination];
-
-
-export const CoachActionDestination = {
-  home: 'home',
-  progress: 'progress',
-  recipes: 'recipes',
-  planner: 'planner',
-  scan: 'scan',
-  profile: 'profile',
-} as const;
-
-export type CoachActionParams = {[key: string]: string};
-
-export interface CoachAction {
-  id: string;
-  /** @maxLength 80 */
-  label: string;
-  kind: CoachActionKind;
-  destination: CoachActionDestination;
-  params?: CoachActionParams;
-  confirmationRequired: boolean;
 }
 
 export type CoachResponseSafetyState = typeof CoachResponseSafetyState[keyof typeof CoachResponseSafetyState];

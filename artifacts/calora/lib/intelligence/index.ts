@@ -11,3 +11,6 @@ export * from './weightTrend';
 export * from './observability';
 export * from './types';
 export * from './weightMetrics';
+export * from './coachFactContext';
+export * from './coachFactRequestLifecycle';
+export * from './coachFactContextClient';

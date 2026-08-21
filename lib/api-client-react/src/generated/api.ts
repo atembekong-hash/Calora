@@ -23,6 +23,8 @@ import type {
   ApiMessage,
   CaptureAnalysis,
   CaptureAnalyzeInput,
+  CoachFactContextRequest,
+  CoachFactContextResponse,
   CoachRespondInput,
   CoachResponse,
   DeletionRequest,
@@ -1700,6 +1702,80 @@ export const useRespondCoach = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRespondCoachMutationOptions(options));
+    }
+
+export const getRespondCoachFactContextUrl = () => {
+
+
+
+
+  return `/api/v1/coach/fact-context/respond`
+}
+
+/**
+ * An intentionally disabled replacement path for future Coach rollout.
+ * It accepts only a short-lived, allowlisted Fact Context and never
+ * accepts the legacy broad CoachContext.
+ * @summary Dark, sanitized Coach Fact Context response path
+ */
+export const respondCoachFactContext = async (coachFactContextRequest: CoachFactContextRequest, options?: Parameters<typeof customFetch>[1]): Promise<CoachFactContextResponse> => {
+
+  return customFetch<CoachFactContextResponse>(getRespondCoachFactContextUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(coachFactContextRequest)
+  }
+);}
+
+
+
+
+
+export const getRespondCoachFactContextMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondCoachFactContext>>, TError,{data: BodyType<CoachFactContextRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof respondCoachFactContext>>, TError,{data: BodyType<CoachFactContextRequest>}, TContext> => {
+
+const mutationKey = ['respondCoachFactContext'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof respondCoachFactContext>>, {data: BodyType<CoachFactContextRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  respondCoachFactContext(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RespondCoachFactContextMutationResult = NonNullable<Awaited<ReturnType<typeof respondCoachFactContext>>>
+    export type RespondCoachFactContextMutationBody = BodyType<CoachFactContextRequest>
+    export type RespondCoachFactContextMutationError = ErrorType<void>
+
+    /**
+ * @summary Dark, sanitized Coach Fact Context response path
+ */
+export const useRespondCoachFactContext = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondCoachFactContext>>, TError,{data: BodyType<CoachFactContextRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof respondCoachFactContext>>,
+        TError,
+        {data: BodyType<CoachFactContextRequest>},
+        TContext
+      > => {
+      return useMutation(getRespondCoachFactContextMutationOptions(options));
     }
 
 export const getRequestDataExportUrl = () => {
