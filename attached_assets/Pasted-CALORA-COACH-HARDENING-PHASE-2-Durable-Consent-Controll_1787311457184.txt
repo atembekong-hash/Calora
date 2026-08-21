@@ -1,0 +1,455 @@
+CALORA COACH HARDENING — PHASE 2
+
+Durable Consent + Controlled Legacy-to-Fact-Context Migration Plan
+
+Mission
+
+Design and prepare the production-safe migration from the current broad legacy CoachContext pathway to the new dark CoachFactContextV1 architecture.
+
+Do not enable the new pathway yet.
+
+Do not remove the legacy Coach pathway yet.
+
+Do not turn either fact-context feature gate ON.
+
+This phase must solve the remaining product/privacy/lifecycle questions required before migration authorization.
+
+
+---
+
+1. Consent architecture
+
+Design a durable, account-scoped, versioned consent model for:
+
+coach_fact_context_v1
+
+It must support:
+
+not consented
+
+consented to current version
+
+revoked
+
+stale/older consent version
+
+account switch
+
+sign-out
+
+account deletion
+
+
+Do not reuse the old generic Coach consent boolean as proof of consent for this new data purpose.
+
+Determine the safest storage location using the actual Calora architecture.
+
+Compare at minimum:
+
+account-scoped local persistence
+
+server-side consent record
+
+hybrid local/server consent
+
+
+Evaluate privacy, deletion, cross-device behavior, account isolation, offline behavior, rollback, and operational complexity.
+
+Recommend one.
+
+
+---
+
+2. Consent copy
+
+Draft the exact proposed user-facing consent disclosure for the new Coach Fact Context.
+
+It must plainly explain:
+
+what summarized categories may leave the device
+
+that raw food names, diary notes, photos, recipe text, raw timelines, and identifiers are excluded
+
+that current conversation messages are still sent to the Coach service
+
+that the context is used only to help Coach explain current logged information
+
+that Coach is not medical care
+
+that consent can be revoked
+
+that revocation stops future Fact Context sharing
+
+that it cannot retract a request already completed remotely
+
+
+Keep the copy concise enough for product use but specific enough for informed consent.
+
+Do not implement the final consent screen yet unless explicitly authorized later.
+
+
+---
+
+3. Legacy-context migration strategy
+
+Design a controlled replacement path.
+
+Required principle:
+
+Do not send legacy CoachContext and CoachFactContextV1 together.
+
+Evaluate a staged migration such as:
+
+1. legacy Coach remains default
+
+
+2. new Fact Context path remains dark
+
+
+3. consent-ready test cohort
+
+
+4. internal/test users only
+
+
+5. limited opted-in rollout
+
+
+6. compare failures/quality/safety
+
+
+7. progressively move eligible traffic
+
+
+8. retain legacy only as a short-lived rollback path
+
+
+9. retire legacy broad context after validation
+
+
+
+Adapt the stages to the actual repository and feature-flag system.
+
+
+---
+
+4. Traffic eligibility
+
+Define exactly when a Coach request may use Fact Context.
+
+Require:
+
+authenticated current account
+
+hydrated account state
+
+current version consent
+
+client gate ON
+
+server gate ON
+
+fresh eligible Foundation facts
+
+valid request scope nonce
+
+context TTL valid
+
+no high-risk pre-egress safety trigger
+
+
+If any gate fails, define the behavior explicitly.
+
+Do not silently fall back to the broad legacy context unless the rollout phase specifically authorizes that fallback.
+
+
+---
+
+5. Legacy fallback policy
+
+Decide whether rollout should use:
+
+no fallback
+
+explicit temporary legacy fallback
+
+user-visible fallback
+
+
+Evaluate privacy and safety tradeoffs.
+
+The system must never downgrade from sanitized Fact Context to broad legacy context without a deliberate policy.
+
+
+---
+
+6. Conversation continuity
+
+Determine how existing local Coach conversation history behaves when the underlying context architecture changes.
+
+Define:
+
+whether old turns remain visible
+
+whether old factual statements are treated as stale
+
+whether a migration banner/disclaimer is needed
+
+how current Foundation facts supersede prior Coach claims
+
+how account switching resets active request context
+
+
+Do not treat conversation history as factual evidence.
+
+
+---
+
+7. Revocation behavior
+
+Define exact behavior when consent is revoked:
+
+future Fact Context construction stops immediately
+
+in-flight request is aborted where possible
+
+late response is discarded
+
+stored consent state updates
+
+existing conversation history is not rewritten
+
+no Fact Context is retained
+
+
+Determine what happens offline and after app restart.
+
+
+---
+
+8. Account deletion
+
+Ensure the chosen durable consent model has an account-deletion path.
+
+If server-side consent is recommended, define deletion behavior.
+
+If local-only consent is recommended, define local clear behavior.
+
+Do not create a migration yet.
+
+
+---
+
+9. Rollout flags
+
+Design the full rollout-gate matrix.
+
+At minimum:
+
+intelligence.coach.fact_context
+
+server coach_fact_context
+
+consent version gate
+
+optional cohort/rollout gate
+
+legacy fallback gate if approved
+
+
+All must default to safe states.
+
+Define rollback behavior for each.
+
+
+---
+
+10. Quality/safety acceptance criteria
+
+Before migration, define measurable criteria for:
+
+unsupported claim rejection
+
+hallucination containment
+
+stale-context suppression
+
+consent correctness
+
+account-switch safety
+
+sign-out safety
+
+high-risk topic suppression
+
+timeout and provider failure
+
+response latency
+
+response usefulness
+
+conversation continuity
+
+no legacy/new payload coexistence
+
+
+
+---
+
+11. Controlled rollout cohorts
+
+Propose rollout stages such as:
+
+development only
+
+internal testers
+
+opt-in beta
+
+small percentage
+
+expanded percentage
+
+full migration
+
+
+Do not activate any stage.
+
+Define the evidence required to move between stages.
+
+
+---
+
+12. Legacy retirement criteria
+
+Define when the old broad CoachContext can finally be removed.
+
+Require proof that:
+
+eligible Coach functionality works under Fact Context
+
+consent UX is stable
+
+rollback has been tested
+
+no required product capability depends on broad raw context
+
+device QA passes
+
+safety and privacy gates pass
+
+no unresolved cross-account lifecycle issue remains
+
+
+
+---
+
+13. Production migration risks
+
+Identify:
+
+user confusion
+
+reduced Coach richness
+
+missing legacy capabilities
+
+consent drop-off
+
+model response changes
+
+latency changes
+
+rollback risk
+
+stale history risk
+
+privacy regressions
+
+accidental legacy fallback
+
+flag/config drift
+
+
+Rank each by severity and mitigation.
+
+
+---
+
+14. Recommendation
+
+End with one exact migration recommendation:
+
+AUTHORIZE IMPLEMENTATION OF DURABLE CONSENT + ROLLOUT CONTROLS
+
+or
+
+DO NOT AUTHORIZE — <reason>
+
+If authorization is recommended, define the exact next implementation scope.
+
+Do not implement it in this phase.
+
+
+---
+
+15. Automatic report
+
+Automatically create and save:
+
+docs/CALORA_COACH_FACT_CONTEXT_CONSENT_MIGRATION_PLAN.md
+
+Include:
+
+1. consent storage recommendation
+
+
+2. consent state machine
+
+
+3. exact proposed consent copy
+
+
+4. traffic eligibility
+
+
+5. fallback policy
+
+
+6. conversation continuity
+
+
+7. revocation lifecycle
+
+
+8. account deletion behavior
+
+
+9. rollout flags
+
+
+10. rollout cohorts
+
+
+11. acceptance criteria
+
+
+12. legacy retirement criteria
+
+
+13. risks and mitigations
+
+
+14. rollback model
+
+
+15. final authorization recommendation
+
+
+16. exact next implementation scope
+
+
+
+Do not modify production code, prompts, consent UI, feature flags, server behavior, or database state.
+
+Save the report and STOP for review.
