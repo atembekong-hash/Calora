@@ -13,7 +13,11 @@ const getCoachFactRolloutDecision = vi.fn();
 vi.mock("../lib/coach-fact-rollout.js", () => ({ getCoachFactRolloutDecision: (...args: unknown[]) => getCoachFactRolloutDecision(...args) }));
 
 import { openai } from "@workspace/integrations-openai-ai-server";
-import coachFactContextRouter, { validateDarkCoachClaims } from "../routes/coachFactContext.js";
+import coachFactContextRouter, {
+  COACH_FACT_PROVIDER_TIMEOUT_MS,
+  createDarkCoachCompletion,
+  validateDarkCoachClaims,
+} from "../routes/coachFactContext.js";
 
 function app() {
   const instance = express();
@@ -150,6 +154,31 @@ describe("dark Coach Fact Context path", () => {
     expect(response.body.contextCoverage.usedSections).toEqual(["daily.calorie_status"]);
     expect(response.body.requestNonce).toBe(nonce);
     expect(JSON.stringify(response.body)).not.toMatch(/pizza|secret|private notes|hidden context/i);
+  });
+
+  it("aborts an unresolved provider call at the configured deadline", async () => {
+    vi.useFakeTimers();
+    let aborted = false;
+    let lateResolve: ((value: unknown) => void) | undefined;
+    vi.mocked(openai.chat.completions.create).mockImplementationOnce((_request, options) => new Promise((resolve) => {
+      lateResolve = resolve;
+      options?.signal?.addEventListener("abort", () => { aborted = true; });
+    }) as never);
+    const pending = createDarkCoachCompletion({ model: "test" } as never);
+    const expectation = expect(pending).rejects.toThrow(/deadline/i);
+    await vi.advanceTimersByTimeAsync(COACH_FACT_PROVIDER_TIMEOUT_MS + 1);
+    await expectation;
+    expect(aborted).toBe(true);
+    lateResolve?.({ choices: [{ message: { content: "{}" } }] });
+    await Promise.resolve();
+    vi.useRealTimers();
+  });
+
+  it("returns safe unavailable handling for a rejected provider call", async () => {
+    vi.mocked(openai.chat.completions.create).mockRejectedValueOnce(new Error("provider unavailable"));
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+    expect(response.status).toBe(502);
+    expect(response.body.message).toMatch(/couldn't reach Coach/i);
   });
 
   it("validates fact references, limited uncertainty, and timeframes deterministically", () => {

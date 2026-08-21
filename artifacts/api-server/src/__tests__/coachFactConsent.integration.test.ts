@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   coachFactContextConsentsTable,
   db,
@@ -41,5 +41,28 @@ describe.skipIf(!HAS_DB)("Coach Fact Context consent ledger (real schema)", () =
     const consentRows = await db.select().from(coachFactContextConsentsTable)
       .where(eq(coachFactContextConsentsTable.userId, owner.id));
     expect(consentRows).toHaveLength(0);
+  });
+
+  it("keeps accept/revoke idempotent, rejects stale document versions, and starts a recreated account clean", async () => {
+    const account = externalId("lifecycle");
+    expect((await acceptCoachFactConsent(account, null)).state).toBe("consented_current");
+    expect((await acceptCoachFactConsent(account, null)).state).toBe("consented_current");
+
+    const [owner] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.externalId, account));
+    await db.update(coachFactContextConsentsTable)
+      .set({ documentVersion: "obsolete-version" })
+      .where(and(
+        eq(coachFactContextConsentsTable.userId, owner.id),
+        eq(coachFactContextConsentsTable.purpose, "coach_fact_context_v1"),
+      ));
+    expect((await getCoachFactConsent(account, null)).state).toBe("stale_version");
+
+    expect((await revokeCoachFactConsent(account, null)).state).toBe("revoked");
+    expect((await revokeCoachFactConsent(account, null)).state).toBe("revoked");
+    await db.delete(usersTable).where(eq(usersTable.id, owner.id));
+
+    // The same external identity receives a new internal account row, never a
+    // revived old consent decision.
+    expect((await getCoachFactConsent(account, null)).state).toBe("not_consented");
   });
 });

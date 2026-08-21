@@ -32,3 +32,4 @@
 - [Supabase Auth boundary](supabase-auth-boundary.md) — Calora’s configured Supabase project currently provides Auth, while Calora domain data remains in managed PostgreSQL.
 - [PostgreSQL tenant isolation](postgres-tenant-isolation.md) — current API predicates are tested, but the shared superuser pool cannot enforce database tenant isolation.
 - [Restricted Phase 2A boundary](restricted-phase-2a-boundary.md) — future contextual insights must remain transient, deterministic, and account-isolated until stronger controls are proven.
+- [Coach Fact Context replay policy](coach-fact-context-replay-policy.md) — TTL-bounded duplicate dark requests need no nonce ledger unless product requires exactly-once egress or audit semantics.

@@ -95,7 +95,13 @@ export async function revokeCoachFactConsent(externalUserId: string, email: stri
     updatedAt: now,
   }).onConflictDoUpdate({
     target: [coachFactContextConsentsTable.userId, coachFactContextConsentsTable.purpose],
-    set: { state: "revoked", decidedAt: now, revokedAt: now, updatedAt: now },
+    set: {
+      documentVersion: COACH_FACT_CONTEXT_CONSENT_DOCUMENT_VERSION,
+      state: "revoked",
+      decidedAt: now,
+      revokedAt: now,
+      updatedAt: now,
+    },
   });
   return getCoachFactConsent(externalUserId, email);
 }

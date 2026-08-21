@@ -10,6 +10,7 @@ import { getCoachFactRolloutDecision } from "../lib/coach-fact-rollout.js";
 const router: IRouter = Router();
 const COACH_MODEL = "gpt-5.6-terra";
 const TTL_MS = 60_000;
+export const COACH_FACT_PROVIDER_TIMEOUT_MS = 12_000;
 const allowedKeys = new Set(["daily.calorie_status", "daily.protein_status", "daily.meal_distribution", "daily.logging_completeness"]);
 const factLimitations: Record<string, string[]> = {
   "daily.calorie_status": ["This reflects logged records today and is not a recommendation."],
@@ -64,6 +65,28 @@ function safeResponse(requestNonce: string, reason: "risk" | "limited" | "unavai
     contextCoverage: { usedSections: [], missingSections: ["fact context"] },
     requestNonce,
   };
+}
+
+/**
+ * Enforces a hard server deadline before any response is parsed or returned.
+ * The abort signal asks the provider transport to stop; Promise.race ensures
+ * a late completion can never reach the response path.
+ */
+export async function createDarkCoachCompletion(request: Parameters<typeof openai.chat.completions.create>[0]) {
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const deadline = new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => {
+        controller.abort();
+        reject(new Error("Coach Fact Context provider deadline exceeded"));
+      }, COACH_FACT_PROVIDER_TIMEOUT_MS);
+    });
+    const provider = openai.chat.completions.create(request, { signal: controller.signal });
+    return await Promise.race([provider, deadline]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 function exactStatementFor(fact: { key: string; values: Record<string, string | number | boolean> }): string | null {
@@ -211,7 +234,7 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
     return;
   }
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await createDarkCoachCompletion({
       model: COACH_MODEL, max_completion_tokens: 900, response_format: { type: "json_object" },
       messages: [{
         role: "system",
@@ -226,6 +249,7 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
         ].join("\n"),
       }, ...messages.map((message) => ({ role: message.role, content: message.content }))],
     });
+    if (!("choices" in completion)) throw new Error("unexpected streaming provider response");
     const content = completion.choices[0]?.message?.content;
     if (!content) throw new Error("empty provider response");
     const safe = validateDarkCoachClaims(parseJson(content), factContext);
