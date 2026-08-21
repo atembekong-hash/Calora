@@ -8,6 +8,7 @@ export * from './insightDelivery';
 export * from './insightSelector';
 export * from './postLogSelector';
 export * from './weightTrend';
+export * from './nutritionCoverage';
 export * from './observability';
 export * from './types';
 export * from './weightMetrics';

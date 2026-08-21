@@ -10,12 +10,15 @@ import type { ContextualInsight, IntelligenceFact } from './types';
  */
 export function selectVisibleLocalInsight(
   facts: readonly IntelligenceFact[],
-  options: { hydrated: boolean; enabled: boolean; weightTrendEnabled?: boolean },
+  options: { hydrated: boolean; enabled: boolean; weightTrendEnabled?: boolean; nutritionCoverageEnabled?: boolean },
 ): ContextualInsight | null {
   if (!options.hydrated || !options.enabled) return null;
 
   try {
-    const insight = selectContextualInsight(facts, { includeWeightTrend: options.weightTrendEnabled === true });
+    const insight = selectContextualInsight(facts, {
+      includeWeightTrend: options.weightTrendEnabled === true,
+      includeNutritionCoverage: options.nutritionCoverageEnabled === true,
+    });
     return insight.state === 'active' && insight.freshness === 'fresh' ? insight : null;
   } catch {
     // Intelligence is optional UI context. A malformed local snapshot must

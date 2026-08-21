@@ -98,7 +98,8 @@ export type ContextualInsightCategory =
   | 'meal_distribution'
   | 'logging_completeness'
   | 'weight_baseline'
-  | 'weight_trend';
+  | 'weight_trend'
+  | 'nutrition_coverage';
 
 export type ContextualInsightState =
   | 'active'
@@ -182,6 +183,7 @@ export type IntelligenceFactFamily =
   | 'logging_completeness'
   | 'weight_baselines'
   | 'weight_short_trend'
+  | 'nutrition_seven_day_coverage'
   | 'planner';
 
 export type InsightInvalidationEvent = {

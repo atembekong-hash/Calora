@@ -103,7 +103,7 @@ function active(
  */
 export function selectContextualInsight(
   facts: readonly IntelligenceFact[],
-  options: { generatedAt?: string; includeWeightTrend?: boolean } = {},
+  options: { generatedAt?: string; includeWeightTrend?: boolean; includeNutritionCoverage?: boolean } = {},
 ): ContextualInsight {
   const generatedAt = options.generatedAt ?? facts[0]?.generatedAt ?? '';
   if (!facts.length) return inactive('insufficient_data', generatedAt, 'no_facts');
@@ -111,8 +111,16 @@ export function selectContextualInsight(
     return inactive('stale', generatedAt, 'facts_not_fresh', facts);
   }
 
-  const watermarks = new Set(facts.map((fact) => fact.sourceWatermark.value));
-  if (watermarks.size !== 1) return inactive('stale', generatedAt, 'mixed_watermarks', facts);
+  const watermarkGroups = new Map<string, Set<string>>();
+  for (const fact of facts) {
+    const windowKey = `${fact.timeWindow.start}:${fact.timeWindow.end}:${fact.timeWindow.timezone}:${fact.timeWindow.dayBoundary}`;
+    const group = watermarkGroups.get(windowKey) ?? new Set<string>();
+    group.add(fact.sourceWatermark.value);
+    watermarkGroups.set(windowKey, group);
+  }
+  if ([...watermarkGroups.values()].some((watermarks) => watermarks.size !== 1)) {
+    return inactive('stale', generatedAt, 'mixed_watermarks', facts);
+  }
 
   const usable = facts.filter((fact) => ACTIVE_CONFIDENCE.includes(fact.confidence));
   if (!usable.length) {
@@ -158,6 +166,23 @@ export function selectContextualInsight(
         ? 'Across your logged 28-day comparison window, recorded weight was lower in recent entries.'
         : 'Across your logged 28-day comparison window, recorded weight was broadly stable.';
     return active('weight_trend', 150, 'Recent logged weight pattern', copy, [trend], generatedAt);
+  }
+  const coverage = recordFact(facts, 'nutrition.seven_day_coverage');
+  if (options.includeNutritionCoverage && coverage && ACTIVE_CONFIDENCE.includes(coverage.confidence)
+    && coverage.value.state === 'eligible'
+    && coverage.value.windowDays === 7
+    && typeof coverage.value.loggedDayCount === 'number'
+    && Number.isInteger(coverage.value.loggedDayCount)
+    && coverage.value.loggedDayCount >= 3
+    && coverage.value.loggedDayCount <= 7) {
+    return active(
+      'nutrition_coverage',
+      125,
+      'Recent nutrition record coverage',
+      `Nutrition logged on ${coverage.value.loggedDayCount} of the last 7 local-calendar days.`,
+      [coverage],
+      generatedAt,
+    );
   }
   const completeness = recordFact(facts, 'daily.logging_completeness');
   if (completeness && completeness.value.state === 'no_logs') {
