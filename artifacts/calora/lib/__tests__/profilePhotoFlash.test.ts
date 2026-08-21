@@ -126,6 +126,10 @@ import { storageKeyForAccount } from '../accountStorage';
 
 const STORAGE_KEY = storageKeyForAccount(null);
 const STORED_PHOTO_URI = '/test/docs/calora-profile-photo.jpg';
+const ACCOUNT_PROFILE = {
+  name: 'User A', goal: 'lose' as const, activity: 'moderate' as const, diet: 'Everything' as const,
+  heightCm: 170, weightKg: 80, targetWeightKg: 70, age: 30, calorieTarget: 2000,
+};
 
 // ---------------------------------------------------------------------------
 // Wrapper — provides the REAL CaloraProvider to every renderHook call.
@@ -490,5 +494,123 @@ describe('real CaloraProvider — cross-session guarantee: photo flash is preven
 
     // User A's photo is never seen by User B.
     expect(sessionB.result.current.profilePhotoUri).toBeNull();
+  });
+});
+
+describe('real CaloraProvider — account switch during hydration', () => {
+  it('does not apply User A hydration after the provider switches to User B', async () => {
+    const userAKey = storageKeyForAccount('user-a');
+    const userBKey = storageKeyForAccount('user-b');
+    _asyncStore[userAKey] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      onboardingComplete: true,
+      profile: { name: 'User A' },
+      logs: [{ id: 'a-private-log' }],
+      coachMessages: [{ id: 'a-private-coach' }],
+    });
+    _asyncStore[userBKey] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      onboardingComplete: true,
+      profile: { name: 'User B' },
+      logs: [{ id: 'b-private-log' }],
+      coachMessages: [{ id: 'b-private-coach' }],
+    });
+
+    const release = blockNextAsyncRead();
+    let activeAccountId = 'user-a';
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: activeAccountId, key: activeAccountId, children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+
+    await act(async () => {
+      activeAccountId = 'user-b';
+      handle.rerender();
+      release();
+      await new Promise<void>((res) => setTimeout(res, 0));
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    expect(handle.result.current.profile?.name).toBe('User B');
+    expect(handle.result.current.logs.map((entry) => entry.id)).toEqual(['b-private-log']);
+    expect(handle.result.current.coachMessages).toHaveLength(1);
+  });
+
+  it('hydrates guest state rather than User A after a sign-out scope switch', async () => {
+    const userAKey = storageKeyForAccount('user-a');
+    _asyncStore[userAKey] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION, onboardingComplete: true,
+      profile: ACCOUNT_PROFILE, logs: [{ id: 'a-private-log' }],
+    });
+
+    let activeAccountId: string | null = 'user-a';
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: activeAccountId, key: activeAccountId ?? 'guest', children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+    expect(handle.result.current.profile?.name).toBe('User A');
+
+    await act(async () => {
+      activeAccountId = null;
+      handle.rerender();
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    expect(handle.result.current.profile).toBeNull();
+    expect(handle.result.current.logs.some((entry) => entry.id === 'a-private-log')).toBe(false);
+  });
+
+  it('keeps the same hydrated account intact when token refresh does not change identity', async () => {
+    const userAKey = storageKeyForAccount('user-a');
+    _asyncStore[userAKey] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION, onboardingComplete: true, profile: ACCOUNT_PROFILE,
+    });
+    let activeAccountId = 'user-a';
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: activeAccountId, key: activeAccountId, children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+
+    // Token refresh updates auth session, not the verified user id/scope.
+    activeAccountId = 'user-a';
+    handle.rerender();
+    expect(handle.result.current.profile?.name).toBe('User A');
+  });
+
+  it('keeps User A mounted when sign-out fails because the active scope does not change', async () => {
+    const userAKey = storageKeyForAccount('user-a');
+    _asyncStore[userAKey] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION, onboardingComplete: true, profile: ACCOUNT_PROFILE,
+    });
+    let activeAccountId = 'user-a';
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: activeAccountId, key: activeAccountId, children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+
+    // A failed Supabase sign-out leaves the active session/user unchanged.
+    handle.rerender();
+    expect(handle.result.current.profile?.name).toBe('User A');
+    expect(handle.result.current.hydrated).toBe(true);
+  });
+
+  it('keeps a pending User A autosave in User A storage when switching to User B', async () => {
+    let activeAccountId = 'user-a';
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: activeAccountId, key: activeAccountId, children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+
+    act(() => { handle.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+    activeAccountId = 'user-b';
+    handle.rerender();
+    await act(async () => {
+      await new Promise<void>((res) => setTimeout(res, 0));
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    const userAState = _asyncStore[storageKeyForAccount('user-a')] ?? '';
+    const userBState = _asyncStore[storageKeyForAccount('user-b')] ?? '';
+    expect(userAState).toContain('User A');
+    expect(userBState).not.toContain('User A');
   });
 });

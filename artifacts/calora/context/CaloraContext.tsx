@@ -60,7 +60,7 @@ import {
 } from '@/lib/livingMemory';
 import type { PlannerAck } from '@/lib/plannerAck';
 import { normalizePlannerPreferences } from '@/lib/planType';
-import { LEGACY_STORAGE_KEY, storageKeyForAccount } from '@/lib/accountStorage';
+import { quarantineLegacyStorage, storageKeyForAccount } from '@/lib/accountStorage';
 import {
   normalizeFoodImageMetadata,
   normalizeFoodImageUrl,
@@ -572,11 +572,10 @@ export function CaloraProvider({
      if (saved.profilePhotoUri) setProfilePhotoUriState(saved.profilePhotoUri);
   });
 
-  // The former device-wide key had no reliable owner. Do not migrate it into
-  // any account namespace: ownership cannot be proven. Removing it is
-  // best-effort only; even if device storage is unavailable it is never read.
+  // The former device-wide key had no reliable owner. Never attach it to an
+  // account automatically; quarantine it only after a successful raw copy.
   useEffect(() => {
-    AsyncStorage.removeItem(LEGACY_STORAGE_KEY).catch(() => {});
+    quarantineLegacyStorage(AsyncStorage).catch(() => {});
   }, []);
 
   // ── Profile photo stale-URI guard ─────────────────────────────────────────

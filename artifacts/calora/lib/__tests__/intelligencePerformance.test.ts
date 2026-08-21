@@ -4,6 +4,7 @@ import { confidenceForEvidence } from '@/lib/intelligence/confidence';
 import { createIntelligenceContext } from '@/lib/intelligence/contextAdapter';
 import { collectEvidence } from '@/lib/intelligence/evidence';
 import { buildDailyIntelligenceFacts, createSourceWatermark } from '@/lib/intelligence/facts';
+import { selectContextualInsight } from '@/lib/intelligence/insightSelector';
 
 const profile: Profile = {
   name: 'Performance', goal: 'maintain', activity: 'moderate', diet: 'Everything',
@@ -35,6 +36,7 @@ describe('Intelligence Foundation local performance', () => {
       confidenceComputationMs: averageMs(() => confidenceForEvidence(evidence, [])),
       watermarkGenerationMs: averageMs(() => createSourceWatermark(adapted)),
       factGenerationMs: averageMs(() => buildDailyIntelligenceFacts(adapted)),
+      insightSelectionMs: averageMs(() => selectContextualInsight(buildDailyIntelligenceFacts(adapted))),
     };
     console.info('[intelligence-performance]', JSON.stringify(samples));
     expect(Object.values(samples).every((sample) => Number.isFinite(sample) && sample >= 0)).toBe(true);

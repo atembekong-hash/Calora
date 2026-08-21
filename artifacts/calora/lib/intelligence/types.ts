@@ -91,6 +91,55 @@ export type InsightCandidate = {
   status: InsightStatus;
 };
 
+/** The only categories allowed for the restricted, local Phase 1.9 selector. */
+export type ContextualInsightCategory =
+  | 'calorie_status'
+  | 'macro_balance'
+  | 'meal_distribution'
+  | 'logging_completeness'
+  | 'weight_baseline';
+
+export type ContextualInsightState =
+  | 'active'
+  | 'no_insight'
+  | 'insufficient_data'
+  | 'low_confidence'
+  | 'stale';
+
+export type ContextualInsightFactReference = {
+  id: string;
+  factType: string;
+  sourceWatermark: string;
+};
+
+/** Safe evidence classification for transient selector output. */
+export type ContextualInsightEvidenceClass = Pick<
+  IntelligenceEvidence,
+  'origin' | 'quality' | 'count'
+>;
+
+/**
+ * Pure selector output. This type intentionally carries only derived fact
+ * references and display-ready strings; it has no account id, log text, photo,
+ * storage key, or persistence metadata.
+ */
+export type ContextualInsight = {
+  id: string;
+  type: ContextualInsightCategory | 'none';
+  category: ContextualInsightCategory | null;
+  priority: number | null;
+  title: string | null;
+  message: string | null;
+  supportingFacts: ContextualInsightFactReference[];
+  evidence: ContextualInsightEvidenceClass[];
+  confidence: InsightConfidence;
+  freshness: FreshnessState;
+  state: ContextualInsightState;
+  reason: string | null;
+  generatedAt: string;
+  expiresAt: string | null;
+};
+
 export type InvalidationReason =
   | 'food_added'
   | 'food_updated'
@@ -153,6 +202,6 @@ export type IntelligenceObservabilityEvent = {
 };
 
 export type IntelligencePerformanceSample = {
-  operation: 'context_adaptation' | 'evidence_partitioning' | 'confidence_computation' | 'watermark_generation' | 'fact_generation';
+  operation: 'context_adaptation' | 'evidence_partitioning' | 'confidence_computation' | 'watermark_generation' | 'fact_generation' | 'insight_selection';
   durationMs: number;
 };
