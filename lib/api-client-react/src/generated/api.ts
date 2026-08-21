@@ -23,6 +23,8 @@ import type {
   ApiMessage,
   CaptureAnalysis,
   CaptureAnalyzeInput,
+  CoachFactConsentAccept,
+  CoachFactConsentStatus,
   CoachFactContextRequest,
   CoachFactContextResponse,
   CoachRespondInput,
@@ -1776,6 +1778,225 @@ export const useRespondCoachFactContext = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRespondCoachFactContextMutationOptions(options));
+    }
+
+export const getGetCoachFactContextConsentUrl = () => {
+
+
+
+
+  return `/api/v1/coach/fact-context/consent`
+}
+
+/**
+ * @summary Read current server-authoritative Fact Context consent status
+ */
+export const getCoachFactContextConsent = async ( options?: Parameters<typeof customFetch>[1]): Promise<CoachFactConsentStatus> => {
+
+  return customFetch<CoachFactConsentStatus>(getGetCoachFactContextConsentUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCoachFactContextConsentQueryKey = () => {
+    return [
+    `/api/v1/coach/fact-context/consent`
+    ] as const;
+    }
+
+
+export const getGetCoachFactContextConsentQueryOptions = <TData = Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCoachFactContextConsentQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCoachFactContextConsent>>> = ({ signal }) => getCoachFactContextConsent({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCoachFactContextConsentQueryResult = NonNullable<Awaited<ReturnType<typeof getCoachFactContextConsent>>>
+export type GetCoachFactContextConsentQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read current server-authoritative Fact Context consent status
+ */
+
+export function useGetCoachFactContextConsent<TData = Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCoachFactContextConsent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCoachFactContextConsentQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAcceptCoachFactContextConsentUrl = () => {
+
+
+
+
+  return `/api/v1/coach/fact-context/consent/accept`
+}
+
+/**
+ * @summary Accept the current Fact Context disclosure version
+ */
+export const acceptCoachFactContextConsent = async (coachFactConsentAccept: CoachFactConsentAccept, options?: Parameters<typeof customFetch>[1]): Promise<CoachFactConsentStatus> => {
+
+  return customFetch<CoachFactConsentStatus>(getAcceptCoachFactContextConsentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(coachFactConsentAccept)
+  }
+);}
+
+
+
+
+
+export const getAcceptCoachFactContextConsentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptCoachFactContextConsent>>, TError,{data: BodyType<CoachFactConsentAccept>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptCoachFactContextConsent>>, TError,{data: BodyType<CoachFactConsentAccept>}, TContext> => {
+
+const mutationKey = ['acceptCoachFactContextConsent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptCoachFactContextConsent>>, {data: BodyType<CoachFactConsentAccept>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  acceptCoachFactContextConsent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptCoachFactContextConsentMutationResult = NonNullable<Awaited<ReturnType<typeof acceptCoachFactContextConsent>>>
+    export type AcceptCoachFactContextConsentMutationBody = BodyType<CoachFactConsentAccept>
+    export type AcceptCoachFactContextConsentMutationError = ErrorType<void>
+
+    /**
+ * @summary Accept the current Fact Context disclosure version
+ */
+export const useAcceptCoachFactContextConsent = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptCoachFactContextConsent>>, TError,{data: BodyType<CoachFactConsentAccept>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptCoachFactContextConsent>>,
+        TError,
+        {data: BodyType<CoachFactConsentAccept>},
+        TContext
+      > => {
+      return useMutation(getAcceptCoachFactContextConsentMutationOptions(options));
+    }
+
+export const getRevokeCoachFactContextConsentUrl = () => {
+
+
+
+
+  return `/api/v1/coach/fact-context/consent/revoke`
+}
+
+/**
+ * @summary Revoke Fact Context consent for future requests
+ */
+export const revokeCoachFactContextConsent = async ( options?: Parameters<typeof customFetch>[1]): Promise<CoachFactConsentStatus> => {
+
+  return customFetch<CoachFactConsentStatus>(getRevokeCoachFactContextConsentUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeCoachFactContextConsentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeCoachFactContextConsent>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeCoachFactContextConsent>>, TError,void, TContext> => {
+
+const mutationKey = ['revokeCoachFactContextConsent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeCoachFactContextConsent>>, void> = () => {
+
+
+          return  revokeCoachFactContextConsent(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeCoachFactContextConsentMutationResult = NonNullable<Awaited<ReturnType<typeof revokeCoachFactContextConsent>>>
+
+    export type RevokeCoachFactContextConsentMutationError = ErrorType<void>
+
+    /**
+ * @summary Revoke Fact Context consent for future requests
+ */
+export const useRevokeCoachFactContextConsent = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeCoachFactContextConsent>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeCoachFactContextConsent>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRevokeCoachFactContextConsentMutationOptions(options));
     }
 
 export const getRequestDataExportUrl = () => {

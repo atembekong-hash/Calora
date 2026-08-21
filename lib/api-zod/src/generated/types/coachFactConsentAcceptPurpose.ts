@@ -6,9 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type CoachFactContextPurpose = typeof CoachFactContextPurpose[keyof typeof CoachFactContextPurpose];
+export type CoachFactConsentAcceptPurpose = typeof CoachFactConsentAcceptPurpose[keyof typeof CoachFactConsentAcceptPurpose];
 
 
-export const CoachFactContextPurpose = {
+export const CoachFactConsentAcceptPurpose = {
   coach_fact_context_v1: 'coach_fact_context_v1',
 } as const;

@@ -1,7 +1,8 @@
 import type { IntelligenceFact, MissingDataKind } from './types';
 
 export const COACH_FACT_CONTEXT_SCHEMA_VERSION = 'coach-fact-context-v1' as const;
-export const COACH_FACT_CONTEXT_PURPOSE = 'coach_discussion' as const;
+/** This versioned, purpose-specific identifier is distinct from legacy Coach consent. */
+export const COACH_FACT_CONTEXT_PURPOSE = 'coach_fact_context_v1' as const;
 export const COACH_FACT_CONTEXT_TTL_MS = 60_000;
 
 export const COACH_FACT_KEYS = [

@@ -520,10 +520,61 @@ paths:
           description: Invalid, expired, or unsafe fact context request
         "401":
           description: Not signed in
+        "403":
+          description: Current server-confirmed consent is required
         "404":
           description: Dark fact context path is disabled
         "502":
           description: Coach provider unavailable
+  /v1/coach/fact-context/consent:
+    get:
+      operationId: getCoachFactContextConsent
+      tags: [coach]
+      summary: Read current server-authoritative Fact Context consent status
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current purpose-scoped consent status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachFactConsentStatus" }
+        "401":
+          description: Not signed in
+  /v1/coach/fact-context/consent/accept:
+    post:
+      operationId: acceptCoachFactContextConsent
+      tags: [coach]
+      summary: Accept the current Fact Context disclosure version
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CoachFactConsentAccept" }
+      responses:
+        "200":
+          description: Current purpose-scoped consent status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachFactConsentStatus" }
+        "400":
+          description: Invalid consent request
+        "401":
+          description: Not signed in
+  /v1/coach/fact-context/consent/revoke:
+    post:
+      operationId: revokeCoachFactContextConsent
+      tags: [coach]
+      summary: Revoke Fact Context consent for future requests
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current purpose-scoped consent status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachFactConsentStatus" }
+        "401":
+          description: Not signed in
   /v1/privacy/export:
     post:
       operationId: requestDataExport
@@ -1177,7 +1228,7 @@ components:
       required: [schemaVersion, purpose, generatedAt, expiresAt, calculationVersion, requestNonce, coverage, missingData, facts, limitations]
       properties:
         schemaVersion: { type: string, enum: [coach-fact-context-v1] }
-        purpose: { type: string, enum: [coach_discussion] }
+        purpose: { type: string, enum: [coach_fact_context_v1] }
         generatedAt: { type: string, format: date-time }
         expiresAt: { type: string, format: date-time }
         calculationVersion: { type: string, minLength: 1, maxLength: 64 }
@@ -1220,6 +1271,23 @@ components:
           maxItems: 12
           items: { $ref: "#/components/schemas/CoachMessage" }
         currentScreen: { type: string, enum: [progress-coach], maxLength: 40 }
+    CoachFactConsentAccept:
+      type: object
+      additionalProperties: false
+      required: [purpose, documentVersion]
+      properties:
+        purpose: { type: string, enum: [coach_fact_context_v1] }
+        documentVersion: { type: string, enum: ["2026-08-21"] }
+    CoachFactConsentStatus:
+      type: object
+      additionalProperties: false
+      required: [purpose, documentVersion, state, decidedAt, revokedAt]
+      properties:
+        purpose: { type: string, enum: [coach_fact_context_v1] }
+        documentVersion: { type: string, enum: ["2026-08-21"] }
+        state: { type: string, enum: [not_consented, consented_current, revoked, stale_version] }
+        decidedAt: { type: [string, "null"], format: date-time }
+        revokedAt: { type: [string, "null"], format: date-time }
     CoachFactContextResponse:
       type: object
       additionalProperties: false

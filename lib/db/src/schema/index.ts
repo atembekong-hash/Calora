@@ -270,6 +270,23 @@ export const consentEventsTable = pgTable("calora_consent_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * The current server-authoritative decision for a narrowly-scoped Coach data
+ * purpose. This ledger deliberately contains consent metadata only: never
+ * Fact Context, Foundation facts, prompts, or conversation content.
+ */
+export const coachFactContextConsentsTable = pgTable("calora_coach_fact_context_consents", {
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  purpose: text("purpose").notNull(),
+  documentVersion: text("document_version").notNull(),
+  state: text("state").notNull(),
+  decidedAt: timestamp("decided_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userPurposeIndex: uniqueIndex("calora_coach_fact_context_consents_user_purpose_idx").on(table.userId, table.purpose),
+}));
+
 export const recipeNutritionTable = pgTable("calora_recipe_nutrition", {
   mealId: text("meal_id").primaryKey(),
   calories: integer("calories").notNull(),
@@ -326,6 +343,7 @@ export const insertAiCaptureCandidateSchema = createInsertSchema(aiCaptureCandid
 export const insertSubscriptionSchema = createInsertSchema(subscriptionsTable);
 export const insertSyncMutationSchema = createInsertSchema(syncMutationsTable);
 export const insertConsentEventSchema = createInsertSchema(consentEventsTable);
+export const insertCoachFactContextConsentSchema = createInsertSchema(coachFactContextConsentsTable);
 
 export type User = typeof usersTable.$inferSelect;
 export type Profile = typeof profilesTable.$inferSelect;

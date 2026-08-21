@@ -1312,7 +1312,7 @@ export const respondCoachFactContextBodyMessagesMax = 12;
 export const RespondCoachFactContextBody = zod.object({
   "factContext": zod.object({
   "schemaVersion": zod.enum(['coach-fact-context-v1']),
-  "purpose": zod.enum(['coach_discussion']),
+  "purpose": zod.enum(['coach_fact_context_v1']),
   "generatedAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date(),
   "calculationVersion": zod.string().min(1).max(respondCoachFactContextBodyFactContextCalculationVersionMax),
@@ -1401,6 +1401,47 @@ export const RespondCoachFactContextResponse = zod.object({
   "missingSections": zod.array(zod.string().max(respondCoachFactContextResponseContextCoverageMissingSectionsItemMax)).max(respondCoachFactContextResponseContextCoverageMissingSectionsMax)
 }),
   "requestNonce": zod.string().regex(respondCoachFactContextResponseRequestNonceRegExp)
+})
+
+
+/**
+ * @summary Read current server-authoritative Fact Context consent status
+ */
+export const GetCoachFactContextConsentResponse = zod.object({
+  "purpose": zod.enum(['coach_fact_context_v1']),
+  "documentVersion": zod.enum(['2026-08-21']),
+  "state": zod.enum(['not_consented', 'consented_current', 'revoked', 'stale_version']),
+  "decidedAt": zod.coerce.date().nullable(),
+  "revokedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Accept the current Fact Context disclosure version
+ */
+export const AcceptCoachFactContextConsentBody = zod.object({
+  "purpose": zod.enum(['coach_fact_context_v1']),
+  "documentVersion": zod.enum(['2026-08-21'])
+})
+
+export const AcceptCoachFactContextConsentResponse = zod.object({
+  "purpose": zod.enum(['coach_fact_context_v1']),
+  "documentVersion": zod.enum(['2026-08-21']),
+  "state": zod.enum(['not_consented', 'consented_current', 'revoked', 'stale_version']),
+  "decidedAt": zod.coerce.date().nullable(),
+  "revokedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Revoke Fact Context consent for future requests
+ */
+export const RevokeCoachFactContextConsentResponse = zod.object({
+  "purpose": zod.enum(['coach_fact_context_v1']),
+  "documentVersion": zod.enum(['2026-08-21']),
+  "state": zod.enum(['not_consented', 'consented_current', 'revoked', 'stale_version']),
+  "decidedAt": zod.coerce.date().nullable(),
+  "revokedAt": zod.coerce.date().nullable()
 })
 
 

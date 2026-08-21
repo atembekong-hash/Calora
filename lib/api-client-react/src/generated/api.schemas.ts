@@ -938,7 +938,7 @@ export type CoachFactContextPurpose = typeof CoachFactContextPurpose[keyof typeo
 
 
 export const CoachFactContextPurpose = {
-  coach_discussion: 'coach_discussion',
+  coach_fact_context_v1: 'coach_fact_context_v1',
 } as const;
 
 export type CoachFactContextCoverage = typeof CoachFactContextCoverage[keyof typeof CoachFactContextCoverage];
@@ -1039,6 +1039,59 @@ export interface CoachFactContextRequest {
   messages: CoachMessage[];
   /** @maxLength 40 */
   currentScreen: CoachFactContextRequestCurrentScreen;
+}
+
+export type CoachFactConsentAcceptPurpose = typeof CoachFactConsentAcceptPurpose[keyof typeof CoachFactConsentAcceptPurpose];
+
+
+export const CoachFactConsentAcceptPurpose = {
+  coach_fact_context_v1: 'coach_fact_context_v1',
+} as const;
+
+export type CoachFactConsentAcceptDocumentVersion = typeof CoachFactConsentAcceptDocumentVersion[keyof typeof CoachFactConsentAcceptDocumentVersion];
+
+
+export const CoachFactConsentAcceptDocumentVersion = {
+  '2026-08-21': '2026-08-21',
+} as const;
+
+export interface CoachFactConsentAccept {
+  purpose: CoachFactConsentAcceptPurpose;
+  documentVersion: CoachFactConsentAcceptDocumentVersion;
+}
+
+export type CoachFactConsentStatusPurpose = typeof CoachFactConsentStatusPurpose[keyof typeof CoachFactConsentStatusPurpose];
+
+
+export const CoachFactConsentStatusPurpose = {
+  coach_fact_context_v1: 'coach_fact_context_v1',
+} as const;
+
+export type CoachFactConsentStatusDocumentVersion = typeof CoachFactConsentStatusDocumentVersion[keyof typeof CoachFactConsentStatusDocumentVersion];
+
+
+export const CoachFactConsentStatusDocumentVersion = {
+  '2026-08-21': '2026-08-21',
+} as const;
+
+export type CoachFactConsentStatusState = typeof CoachFactConsentStatusState[keyof typeof CoachFactConsentStatusState];
+
+
+export const CoachFactConsentStatusState = {
+  not_consented: 'not_consented',
+  consented_current: 'consented_current',
+  revoked: 'revoked',
+  stale_version: 'stale_version',
+} as const;
+
+export interface CoachFactConsentStatus {
+  purpose: CoachFactConsentStatusPurpose;
+  documentVersion: CoachFactConsentStatusDocumentVersion;
+  state: CoachFactConsentStatusState;
+  /** @nullable */
+  decidedAt: string | null;
+  /** @nullable */
+  revokedAt: string | null;
 }
 
 export type CoachFactContextResponseSafetyState = typeof CoachFactContextResponseSafetyState[keyof typeof CoachFactContextResponseSafetyState];

@@ -68,6 +68,7 @@ import {
   selectPostLogInsight,
   type PostLogInsight,
 } from '@/lib/intelligence';
+import { coachFactConsentCache, CoachFactRequestLifecycle } from '@/lib/intelligence';
 import {
   normalizeFoodImageMetadata,
   normalizeFoodImageUrl,
@@ -515,6 +516,12 @@ export function CaloraProvider({
     plannerMeals,
   }));
   const storageKey = storageKeyForAccount(accountId);
+  useEffect(() => {
+    return () => {
+      CoachFactRequestLifecycle.invalidateAll();
+      void coachFactConsentCache.clear(accountId ?? null);
+    };
+  }, [accountId]);
   const pm = useRef(new PersistenceManager(AsyncStorage, storageKey));
   /** Guard that prevents a second tap from entering clearAllData while the first is in progress. */
   const clearingRef = useRef(false);
@@ -1121,6 +1128,8 @@ export function CaloraProvider({
       clearingRef.current = true;
       setIsClearing(true);
       try {
+        CoachFactRequestLifecycle.invalidateAll();
+        await coachFactConsentCache.clear(accountId ?? null);
         await performClearAllData({
         pm: pm.current,
         emptyLivingMemory: emptyLivingMemory(),

@@ -14,3 +14,4 @@ export * from './weightMetrics';
 export * from './coachFactContext';
 export * from './coachFactRequestLifecycle';
 export * from './coachFactContextClient';
+export * from './coachFactConsentCache';

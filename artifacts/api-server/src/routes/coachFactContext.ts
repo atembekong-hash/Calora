@@ -4,6 +4,8 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
+import { hasCurrentCoachFactConsent } from "../lib/coach-fact-consent.js";
+import { getCoachFactRolloutDecision } from "../lib/coach-fact-rollout.js";
 
 const router: IRouter = Router();
 const COACH_MODEL = "gpt-5.6-terra";
@@ -148,6 +150,25 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
   const user = await verifyBearerToken(req);
   if (!user) {
     res.status(401).json({ message: "Please sign in to chat with Coach." });
+    return;
+  }
+  // Consent and cohorts are independently server-owned. Client cache/flags can
+  // never authorize this endpoint, and the default rollout remains deny-all.
+  let hasConsent = false;
+  try {
+    hasConsent = await hasCurrentCoachFactConsent(user.id, user.email);
+  } catch {
+    // A consent lookup failure is never permission to send minimized facts.
+    res.status(503).json({ message: "Coach Fact Context consent could not be verified." });
+    return;
+  }
+  if (!hasConsent) {
+    res.status(403).json({ message: "Current Coach Fact Context consent is required." });
+    return;
+  }
+  const rollout = getCoachFactRolloutDecision(user.id);
+  if (!rollout.cohortEligible || rollout.legacyFallbackEnabled) {
+    res.status(404).json({ message: "Coach Fact Context is unavailable." });
     return;
   }
   if (!isStrictDarkRequest(req.body)) {

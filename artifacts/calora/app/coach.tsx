@@ -24,6 +24,8 @@ import { buildCoachContext } from '@/lib/coachContext';
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { useCalora } from '@/context/CaloraContext';
 import { AppHeader } from '@/components/AppChrome';
+import { CoachFactContextConsentPanel } from '@/components/CoachFactContextConsentPanel';
+import { isIntelligenceFeatureEnabled } from '@/lib/intelligence';
 
 type DisplayTurn = {
   id: string;
@@ -225,6 +227,9 @@ export default function CoachScreen() {
           <Text style={[styles.eyebrow, { color: colors.primary }]}>{BRAND.name.toUpperCase()} INTELLIGENCE</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Your food, wellness, and planning context in one place.</Text>
         </View>
+        {isIntelligenceFeatureEnabled('intelligence.coach.fact_context') && (
+          <CoachFactContextConsentPanel colors={colors} />
+        )}
 
         {!coachConsentAccepted ? (
           <View style={[styles.consentCard, { backgroundColor: colors.hero }]}>

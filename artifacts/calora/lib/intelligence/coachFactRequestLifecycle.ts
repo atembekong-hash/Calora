@@ -10,7 +10,12 @@ export type CoachFactRequestScope = {
 
 /** In-memory only scope guard. Call invalidate on sign-out, clear, or hydration reset. */
 export class CoachFactRequestLifecycle {
+  private static readonly instances = new Set<CoachFactRequestLifecycle>();
   private active: CoachFactRequestScope | null = null;
+
+  constructor() {
+    CoachFactRequestLifecycle.instances.add(this);
+  }
 
   begin(context: CoachFactContextV1, accountId: string | null, hydrationGeneration: number): CoachFactRequestScope {
     this.invalidate();
@@ -22,6 +27,11 @@ export class CoachFactRequestLifecycle {
   invalidate() {
     if (this.active) this.active.aborted = true;
     this.active = null;
+  }
+
+  /** Used by account lifecycle fences before a new identity may hydrate. */
+  static invalidateAll() {
+    CoachFactRequestLifecycle.instances.forEach((lifecycle) => lifecycle.invalidate());
   }
 
   canAccept(scope: CoachFactRequestScope, context: CoachFactContextV1, current: Pick<CoachFactRequestScope, 'accountId' | 'hydrationGeneration'>) {

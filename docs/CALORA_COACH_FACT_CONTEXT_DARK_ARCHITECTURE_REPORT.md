@@ -19,7 +19,7 @@ hydrated current-account state
 ```
 
 `CoachFactContextV1` uses `coach-fact-context-v1`, purpose
-`coach_discussion`, a calculation version, generated/expiry timestamps,
+`coach_fact_context_v1`, a calculation version, generated/expiry timestamps,
 opaque request nonce, coverage state, closed missing-data labels, deterministic
 limitations, and approved fact cards. It excludes account identifiers,
 watermarks, fact IDs, raw records, dates, food/meal/recipe text, notes,
@@ -43,11 +43,14 @@ reconstructs the allowed statement from the allowed value shape before egress.
 
 ## Consent, lifecycle, and expiry
 
-The technical consent model is purpose/version-specific and distinguishes not
-consented, consented-current, revoked, and stale-version states. The dark
-registry is account-keyed **in memory only**: it deliberately has no
-AsyncStorage, database, or migration. A future rollout needs separately
-authorized account-scoped durable consent and user-facing disclosure.
+The technical consent model is server-authoritative, account-scoped, and
+purpose/version-specific for `coach_fact_context_v1`. Its ledger stores only
+the consent document version, current/revoked state, and decision timestamps;
+it never stores Fact Context, Foundation facts, prompts, or Coach messages.
+Authenticated read, accept, and revoke operations are separate from legacy
+Coach consent. The client may keep an account-scoped last-known status only to
+explain the dormant UI; that cache never authorizes context construction,
+egress, or a retry.
 
 Contexts expire after 60 seconds. A request scope captures account identity
 locally, hydration generation, and nonce without serializing the account
@@ -60,10 +63,16 @@ hydration reset, local clear, nonce mismatch, abort, or expiry.
 - Server: `COACH_FACT_CONTEXT_ENABLED` only enables the dark route when the
   environment value is exactly `true`; otherwise it returns 404 before auth,
   parsing, or provider access.
+- Server consent and cohort controls are independently fail-closed. Even if the
+  endpoint gate is enabled later, it requires the verified account's current
+  consent and a server-derived eligible cohort. The only implemented cohort
+  decision is deny-all and the legacy fallback control is always false.
 - The dark request uses `factContext`, not legacy `context`. Its strict
   top-level and nested key check rejects unknown fields, legacy markers, raw
   Foundation fields, and any mixed legacy/new payload.
-- `coach.tsx` and the legacy `/v1/coach/respond` handler were not changed.
+- The dormant consent panel is guarded by the still-false client flag. It does
+  not mount, fetch, or route traffic while dark. The legacy `/v1/coach/respond`
+  handler and legacy generic consent remain unchanged.
 
 ## Risk, prompt, and claim controls
 
@@ -95,10 +104,10 @@ never a partial model answer.
 The Fact Context API disallows free-text source fields and arbitrary values;
 the server validates deterministic fact shape and statement before LLM egress.
 User and historical messages remain untrusted and cannot alter system rules.
-The server does not add Fact Context storage, caches, analytics, raw request
-logs, model response logs, or database objects. Existing HTTP serializers
-continue to omit request bodies. No additional instrumentation was added,
-which is safer than recording sensitive values during this dark phase.
+The server adds only the minimal consent ledger described above. It does not
+add Fact Context storage, raw facts, prompts, Coach messages, analytics, raw
+request logs, or model-response logs. Existing HTTP serializers continue to
+omit request bodies.
 
 ## Files created
 
@@ -123,7 +132,9 @@ which is safer than recording sensitive values during this dark phase.
 - Calora typecheck: passed.
 - API typecheck: passed.
 - Calora full suite: **54 files / 938 tests passed**.
-- API full suite: **21 files / 234 tests passed**.
+- Consent enforcement, account isolation, lifecycle invalidation, default-deny
+  cohort/fallback, and malformed-cache tests are included with the affected
+  API and Calora suites.
 - Focused coverage proves allowlist, raw-field rejection, TTL/expiry,
   consent states, lifecycle discard, server/client-off behavior, no
   coexistence, risk suppression, supported/unsupported claims, injection,
@@ -141,14 +152,15 @@ which is safer than recording sensitive values during this dark phase.
 
 ## Remaining blockers and migration-readiness verdict
 
-The dark architecture is technically ready for controlled review but **not for
-production migration**. It has no approved durable consent UX, no authorized
-client wiring, and both gates are intentionally off. The legacy broad Coach
-payload remains live by explicit scope restriction.
+The durable consent and default-deny rollout-control foundation is implemented,
+but it is **not authorized for production migration**. Both gates remain off,
+no cohort is active, the consent UI remains unmounted behind the false client
+gate, and the legacy broad Coach payload remains live by explicit scope
+restriction.
 
 ## Next recommended authorization
 
-Authorize a separate privacy/product review for durable, versioned consent
-copy and a tightly controlled replacement rollout plan. That approval must
-decide whether to migrate eligible traffic away from the legacy broad context;
-it must not enable these gates independently.
+Authorize a separate evidence review before any activation. It must decide
+whether an approved cohort, either gate, and real-device rollout validation can
+advance together; it must not enable these controls independently or introduce
+legacy fallback.

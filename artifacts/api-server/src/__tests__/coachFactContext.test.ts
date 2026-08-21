@@ -7,6 +7,10 @@ const verifyBearerToken = vi.fn();
 vi.mock("../lib/supabase-auth.js", () => ({ verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args) }));
 const checkRateLimit = vi.fn();
 vi.mock("../lib/rate-limit.js", () => ({ checkRateLimit: (...args: unknown[]) => checkRateLimit(...args) }));
+const hasCurrentCoachFactConsent = vi.fn();
+vi.mock("../lib/coach-fact-consent.js", () => ({ hasCurrentCoachFactConsent: (...args: unknown[]) => hasCurrentCoachFactConsent(...args) }));
+const getCoachFactRolloutDecision = vi.fn();
+vi.mock("../lib/coach-fact-rollout.js", () => ({ getCoachFactRolloutDecision: (...args: unknown[]) => getCoachFactRolloutDecision(...args) }));
 
 import { openai } from "@workspace/integrations-openai-ai-server";
 import coachFactContextRouter, { validateDarkCoachClaims } from "../routes/coachFactContext.js";
@@ -23,7 +27,7 @@ function body(message = "What is in my records?") {
   const now = new Date();
   return {
     factContext: {
-      schemaVersion: "coach-fact-context-v1", purpose: "coach_discussion",
+      schemaVersion: "coach-fact-context-v1", purpose: "coach_fact_context_v1",
       generatedAt: now.toISOString(), expiresAt: new Date(now.getTime() + 60_000).toISOString(),
       calculationVersion: "nutrition-facts-v1", requestNonce: nonce, coverage: "partial",
       missingData: [], limitations: [],
@@ -45,6 +49,8 @@ describe("dark Coach Fact Context path", () => {
     vi.clearAllMocks();
     process.env.COACH_FACT_CONTEXT_ENABLED = "true";
     verifyBearerToken.mockResolvedValue({ id: "user-a" });
+    hasCurrentCoachFactConsent.mockResolvedValue(true);
+    getCoachFactRolloutDecision.mockReturnValue({ cohortEligible: true, legacyFallbackEnabled: false });
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
   });
   afterEach(() => { delete process.env.COACH_FACT_CONTEXT_ENABLED; });
@@ -69,6 +75,22 @@ describe("dark Coach Fact Context path", () => {
       const response = await request(server).post("/v1/coach/fact-context/respond").send(invalid);
       expect(response.status).toBe(400);
     }
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("fails closed on missing consent or a default-deny rollout without provider egress", async () => {
+    hasCurrentCoachFactConsent.mockResolvedValueOnce(false);
+    expect((await request(server).post("/v1/coach/fact-context/respond").send(body())).status).toBe(403);
+    getCoachFactRolloutDecision.mockReturnValueOnce({ cohortEligible: false, legacyFallbackEnabled: false });
+    expect((await request(server).post("/v1/coach/fact-context/respond").send(body())).status).toBe(404);
+    getCoachFactRolloutDecision.mockReturnValueOnce({ cohortEligible: true, legacyFallbackEnabled: true });
+    expect((await request(server).post("/v1/coach/fact-context/respond").send(body())).status).toBe(404);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when server consent verification is unavailable", async () => {
+    hasCurrentCoachFactConsent.mockRejectedValueOnce(new Error("consent store unavailable"));
+    expect((await request(server).post("/v1/coach/fact-context/respond").send(body())).status).toBe(503);
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 
