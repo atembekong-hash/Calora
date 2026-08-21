@@ -16,7 +16,7 @@ Production publication remains conditional on the remaining manual native-device
 | --- | --- | --- | --- |
 | Node/Vitest development workspace | Yes | PASS | Deterministic Foundation, selector, delivery, account lifecycle, privacy, failure, and regression validation |
 | Expo web preview, 402 × 874 | Yes | PASS (smoke only) | Onboarding rendered and advanced through all five pages without browser errors; not a native-device test and did not enter authenticated Progress |
-| Physical Android device | Yes | PASS (account switch / tenant isolation and offline only) | Authenticated User A → User B → User A Progress validation and post-authentication airplane-mode validation; other Android checks remain required |
+| Physical Android device | Yes | PASS (account switch / tenant isolation, authenticated relaunch, and offline only) | Authenticated User A → User B → User A Progress validation, authenticated force-close/relaunch, and post-authentication airplane-mode validation; responsive and accessibility checks remain required |
 | Physical iOS device | No | REQUIRES MANUAL DEVICE VALIDATION | No device session available |
 | Android emulator | No | REQUIRES MANUAL DEVICE VALIDATION | No emulator session available |
 | iOS simulator | No | REQUIRES MANUAL DEVICE VALIDATION | No simulator session available |
@@ -72,7 +72,7 @@ The configuration keeps only `intelligence.insights.progress` enabled. Server fa
 - pending A autosave during A → B;
 - account namespace separation and A → B → A restoration.
 
-The card is render-derived and hydration-gated, so it evaluates to `null` during the reset and recomputes only from the incoming hydrated scope. A real physical account-switch/restart visual session remains manual validation.
+The card is render-derived and hydration-gated, so it evaluates to `null` during the reset and recomputes only from the incoming hydrated scope. Physical Android account-switch and authenticated relaunch evidence are recorded below; iOS restart validation remains manual.
 
 #### Physical Android account-switch / tenant-isolation evidence
 
@@ -82,7 +82,13 @@ The card is render-derived and hydration-gated, so it evaluates to `null` during
 - The second account showed only its own state: 76.0 kg and the distinct “Protein is trailing today — 56 of 133 g logged” insight. No original-account −2.0 kg trend or weight-history state appeared.
 - Returning to the original account restored its 74.0 kg current weight, 76.0 kg baseline, three weigh-ins, −2.0 kg trend, 68 kg goal, 25% progress, and “Weight baseline available” state.
 
-No cross-account Progress Intelligence or weight-history leakage was observed. This result covers Android sign-out/account-switch tenant isolation only; iOS validation, restart/force-close, offline, responsive layout, large text, TalkBack, and VoiceOver remain untested.
+No cross-account Progress Intelligence or weight-history leakage was observed. This result covers Android sign-out/account-switch tenant isolation only; iOS validation, responsive layout, large text, TalkBack, and VoiceOver remain untested.
+
+#### Physical Android authenticated relaunch evidence
+
+**PASS.** A physical Android force-close and relaunch while authenticated restored the correct Progress state. The returning session showed the expected account-local state with no observed cross-account insight or health-state leakage after relaunch.
+
+This result covers authenticated Android force-close/relaunch only. It does not claim iOS restart behavior, large-text or responsive-layout validation, or TalkBack/VoiceOver validation.
 
 ### Offline and privacy inspection
 
@@ -90,7 +96,7 @@ No cross-account Progress Intelligence or weight-history leakage was observed. T
 
 #### Physical Android airplane-mode evidence
 
-**PASS.** After authentication, a physical Android airplane-mode session kept the existing authenticated Progress state available and internally consistent. Progress overview and Weight continued to show the correct account-local 76.0 kg baseline, 74.0 kg current weight, three weigh-ins, −2.0 kg trend, 68 kg goal, and 25% goal progress. No crash, blank state, or visible cross-account leakage was observed.
+**PASS.** After authentication, a physical Android airplane-mode session kept the existing authenticated Progress state and local Progress Intelligence available and internally consistent. Offline Progress overview and Weight navigation remained functional and continued to show the correct account-local 76.0 kg baseline, 74.0 kg current weight, three weigh-ins, −2.0 kg trend, 68 kg goal, and 25% goal progress. No crash, blank state, or visible cross-account leakage was observed.
 
 This result covers Android offline behavior after authentication only. It does not claim iOS offline validation, network-traffic inspection, or any untested device, accessibility, or responsive-layout condition.
 
@@ -162,7 +168,7 @@ No device jank or repeated-render claim is made. Measure representative Progress
 2. Open Progress overview and confirm exactly one card, understandable title/message, no raw identifiers, and no overlap.
 3. Repeat with an empty account, low-confidence data, stale/mixed test facts where test tooling permits, and a changed food log; confirm suppression or recomputation.
 4. **PASS on physical Android for one authenticated sequence.** Sign out, sign in as User B, and return to User A. The tested sequence showed no original-account insight or weight-history leakage into User B, and the original account restored correctly. Repeat on iOS and verify no A title/message flash in guest or B state.
-5. Force-close and reopen with each account. Confirm no card appears before safe hydration and no insight itself was stored.
+5. **PASS on physical Android while authenticated.** Force-close and relaunch restored the correct account-local Progress state without observed cross-account insight or state leakage. Repeat on iOS; confirm no card appears before safe hydration and no insight itself was stored.
 6. **PASS on physical Android after authentication.** Airplane-mode Progress and Weight retained the correct local account state without a crash, blank state, or visible cross-account leakage. Repeat on iOS and inspect any applicable device network behavior before production publication.
 
 ### Accessibility and responsive layout
@@ -184,7 +190,7 @@ No device jank or repeated-render claim is made. Measure representative Progress
 | Live recomputation | PASS |
 | Sign-out safety | PASS (automated and physical Android account-switch session); iOS confirmation required |
 | Account-switch safety | PASS (automated and physical Android tenant-isolation session); iOS confirmation required |
-| Restart/hydration safety | PASS (automated); manual visual confirmation required |
+| Restart/hydration safety | PASS (automated and physical Android authenticated relaunch); iOS confirmation required |
 | Offline behavior | PASS (architecture/tests and physical Android post-authentication session); iOS confirmation required |
 | No persistence | PASS |
 | No network | PASS |
@@ -199,4 +205,4 @@ No device jank or repeated-render claim is made. Measure representative Progress
 
 ## 10. Remaining blockers and stop condition
 
-The remaining release conditions are iOS account-switch and offline confirmation; Android and iOS restart/force-close, responsive, and large-text validation; and TalkBack/VoiceOver validation. No further Intelligence implementation is authorized by this report. Do not enable Today or post-log delivery, modify Coach, add persistence/network behavior, or begin another Phase 2A surface without a separate approved task.
+The remaining release conditions are iOS account-switch, restart/force-close, and offline confirmation; Android and iOS responsive and large-text validation; and TalkBack/VoiceOver validation. No further Intelligence implementation is authorized by this report. Do not enable Today or post-log delivery, modify Coach, add persistence/network behavior, or begin another Phase 2A surface without a separate approved task.
