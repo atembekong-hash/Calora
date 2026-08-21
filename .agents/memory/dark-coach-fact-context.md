@@ -18,3 +18,15 @@ unsupported-claim channels even when observation claims were checked.
 until separate consent/rollout authorization. New fact categories need their
 own explicit allowlist, deterministic server reconstruction, adversarial tests,
 and security review; never broaden generic string fields for convenience.
+
+For durable consent, use a server-authoritative, account-scoped,
+purpose/version ledger with an optional local cache that cannot authorize
+egress. The legacy generic Coach consent is never proof for this purpose.
+
+**Why:** Local-only state cannot provide cross-device, deletion, or
+server-enforceable consent guarantees; a cached affirmative decision can become
+stale or be forged.
+
+**How to apply:** Cache only for restrictive offline UI. The server must deny
+unknown, revoked, or outdated consent and must enforce consent independently of
+client flags before Fact Context reaches a provider.
