@@ -7,6 +7,7 @@ export * from './invalidation';
 export * from './insightDelivery';
 export * from './insightSelector';
 export * from './postLogSelector';
+export * from './weightTrend';
 export * from './observability';
 export * from './types';
 export * from './weightMetrics';

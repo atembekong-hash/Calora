@@ -1267,6 +1267,7 @@ export default function InsightsScreen() {
     return selectVisibleLocalInsight(buildDailyIntelligenceFacts(context), {
       hydrated,
       enabled: isIntelligenceFeatureEnabled('intelligence.insights.progress'),
+      weightTrendEnabled: isIntelligenceFeatureEnabled('intelligence.insights.progress_weight_trend'),
     });
   }, [
     activityLogs,

@@ -60,7 +60,7 @@ describe('Intelligence Phase 1.5 hardening', () => {
   it('classifies invalidation precisely and keeps negative cases stable', () => {
     expect(affectedFactFamilies('food_added')).toEqual(['daily_nutrition', 'meal_distribution', 'logging_completeness']);
     expect(affectedFactFamilies('target_changed')).toEqual(['daily_nutrition']);
-    expect(affectedFactFamilies('weight_changed')).toEqual(['weight_baselines']);
+    expect(affectedFactFamilies('weight_changed')).toEqual(['weight_baselines', 'weight_short_trend']);
     expect(affectedFactFamilies('goal_changed')).toEqual([]);
     expect(affectedFactFamilies('planner_changed')).toEqual([]);
     expect(affectedFactFamilies('fact_relevant_preference_changed')).toEqual([]);
@@ -113,7 +113,7 @@ describe('Intelligence Phase 1.5 hardening', () => {
     setIntelligenceObserver((event) => observed.push(event));
     const result = buildDailyIntelligenceFacts(context([original]));
     setIntelligenceObserver(null);
-    expect(result).toHaveLength(18);
+    expect(result).toHaveLength(19);
     expect(original.notes).toBe('private note');
     expect(JSON.stringify(observed)).not.toContain('private note');
     expect(JSON.stringify(observed)).not.toContain('sensitive://photo');
@@ -125,6 +125,7 @@ describe('Intelligence Phase 1.5 hardening', () => {
     expect(intelligenceFeatureFlags['intelligence.facts.local_adapter']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.insights.progress']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.insights.today']).toBe(true);
+    expect(intelligenceFeatureFlags['intelligence.insights.progress_weight_trend']).toBe(false);
     for (const flag of [
       'intelligence.facts.server_adapter',
       'intelligence.coach.fact_context',

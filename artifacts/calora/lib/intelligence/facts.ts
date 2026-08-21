@@ -14,6 +14,7 @@ import type {
 } from './types';
 import { INTELLIGENCE_CALCULATION_VERSION } from './types';
 import { getCoachWeightChangeKg, getFirstLoggedWeight, getLatestLoggedWeight, getProfileBaselineWeight } from './weightMetrics';
+import { calculateWeightShortTrend } from './weightTrend';
 
 const MEALS: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -123,6 +124,48 @@ function fact(
   };
 }
 
+function weightTrendFact(
+  context: IntelligenceContext,
+  watermark: SourceWatermark,
+  generatedAt: string,
+): IntelligenceFact {
+  const trend = calculateWeightShortTrend(context.weights, context.date, context.timezone);
+  const evidence: IntelligenceEvidence[] = trend
+    ? [{ origin: 'derived', quality: 'moderate', count: trend.entryCount, logIds: [] }]
+    : [];
+  const missingData: MissingDataKind[] = trend ? [] : ['missing_weight'];
+  return {
+    id: `${INTELLIGENCE_CALCULATION_VERSION}:${context.date}:weight.short_trend`,
+    factType: 'weight.short_trend',
+    value: trend
+      ? {
+        direction: trend.direction,
+        deltaKg: trend.deltaKg,
+        entryCount: trend.entryCount,
+        earlierEntryCount: trend.earlierEntryCount,
+        recentEntryCount: trend.recentEntryCount,
+        windowDays: 28,
+      }
+      : { state: 'insufficient' },
+    unit: 'kg',
+    timeWindow: {
+      start: trend?.start ?? context.date,
+      end: trend?.end ?? context.date,
+      timezone: context.timezone,
+      dayBoundary: context.dayBoundary,
+    },
+    generatedAt,
+    validFrom: generatedAt,
+    validUntil: null,
+    calculationVersion: INTELLIGENCE_CALCULATION_VERSION,
+    sourceWatermark: watermark,
+    confidence: confidenceForEvidence(evidence, missingData),
+    evidence,
+    freshness: 'fresh',
+    missingData,
+  };
+}
+
 export function buildDailyIntelligenceFacts(
   context: IntelligenceContext,
   options: { generatedAt?: string } = {},
@@ -214,6 +257,7 @@ export function buildDailyIntelligenceFacts(
     [{ origin: 'derived', quality: 'moderate', count: context.weights.length, logIds: context.weights.map((weight) => weight.id) }],
     context.weights.length ? [] : ['missing_weight'],
   ));
+  facts.push(weightTrendFact(context, watermark, generatedAt));
 
   const confidenceCounts = facts.reduce<Partial<Record<IntelligenceFact['confidence'], number>>>((counts, item) => {
     counts[item.confidence] = (counts[item.confidence] ?? 0) + 1;

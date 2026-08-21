@@ -97,7 +97,8 @@ export type ContextualInsightCategory =
   | 'macro_balance'
   | 'meal_distribution'
   | 'logging_completeness'
-  | 'weight_baseline';
+  | 'weight_baseline'
+  | 'weight_trend';
 
 export type ContextualInsightState =
   | 'active'
@@ -180,6 +181,7 @@ export type IntelligenceFactFamily =
   | 'meal_distribution'
   | 'logging_completeness'
   | 'weight_baselines'
+  | 'weight_short_trend'
   | 'planner';
 
 export type InsightInvalidationEvent = {

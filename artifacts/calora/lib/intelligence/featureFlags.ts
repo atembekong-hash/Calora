@@ -11,6 +11,8 @@ export const intelligenceFeatureFlags = {
   // current-account, local selector result after hydration. All other
   // delivery, network, Coach, feedback, and proactive paths remain disabled.
   'intelligence.insights.progress': true,
+  // Phase 2A.3 is intentionally dark until its dedicated rollout approval.
+  'intelligence.insights.progress_weight_trend': false,
   'intelligence.coach.fact_context': false,
   'intelligence.evidence.display': false,
   'intelligence.observability': false,

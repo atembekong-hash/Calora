@@ -12,12 +12,12 @@ const AFFECTED_FACTS: Record<InvalidationReason, IntelligenceFactFamily[]> = {
   // No implemented fact consumes profile.goal yet.
   goal_changed: [],
   target_changed: ['daily_nutrition'],
-  weight_changed: ['weight_baselines'],
-  timezone_changed: ['daily_nutrition', 'meal_distribution', 'logging_completeness'],
-  day_boundary_changed: ['daily_nutrition', 'meal_distribution', 'logging_completeness'],
+  weight_changed: ['weight_baselines', 'weight_short_trend'],
+  timezone_changed: ['daily_nutrition', 'meal_distribution', 'logging_completeness', 'weight_short_trend'],
+  day_boundary_changed: ['daily_nutrition', 'meal_distribution', 'logging_completeness', 'weight_short_trend'],
   fact_relevant_preference_changed: [],
   planner_changed: [],
-  source_refreshed: ['daily_nutrition', 'meal_distribution', 'logging_completeness', 'weight_baselines'],
+  source_refreshed: ['daily_nutrition', 'meal_distribution', 'logging_completeness', 'weight_baselines', 'weight_short_trend'],
 };
 
 export function affectedFactFamilies(reason: InvalidationReason): IntelligenceFactFamily[] {

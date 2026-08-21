@@ -6,6 +6,7 @@ import { collectEvidence } from '@/lib/intelligence/evidence';
 import { buildDailyIntelligenceFacts, createSourceWatermark } from '@/lib/intelligence/facts';
 import { selectContextualInsight } from '@/lib/intelligence/insightSelector';
 import { selectPostLogInsight } from '@/lib/intelligence/postLogSelector';
+import { calculateWeightShortTrend } from '@/lib/intelligence/weightTrend';
 
 const profile: Profile = {
   name: 'Performance', goal: 'maintain', activity: 'moderate', diet: 'Everything',
@@ -44,6 +45,12 @@ describe('Intelligence Foundation local performance', () => {
       postLogTransitionMs: averageMs(() => selectPostLogInsight(beforeFacts, afterFacts, {
         hydrated: true, enabled: true, accountScopeMatches: true, currentDay: true, addedCalories: 100, addedMeal: 'Lunch',
       })),
+      weightShortTrendMs: averageMs(() => calculateWeightShortTrend([
+        { id: 'trend-1', date: '2026-07-24', kg: 80, source: 'manual' },
+        { id: 'trend-2', date: '2026-07-30', kg: 80, source: 'manual' },
+        { id: 'trend-3', date: '2026-08-08', kg: 79.4, source: 'manual' },
+        { id: 'trend-4', date: '2026-08-20', kg: 79.2, source: 'manual' },
+      ], '2026-08-20', 'America/New_York')),
     };
     console.info('[intelligence-performance]', JSON.stringify(samples));
     expect(Object.values(samples).every((sample) => Number.isFinite(sample) && sample >= 0)).toBe(true);

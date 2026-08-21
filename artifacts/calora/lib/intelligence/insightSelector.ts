@@ -103,7 +103,7 @@ function active(
  */
 export function selectContextualInsight(
   facts: readonly IntelligenceFact[],
-  options: { generatedAt?: string } = {},
+  options: { generatedAt?: string; includeWeightTrend?: boolean } = {},
 ): ContextualInsight {
   const generatedAt = options.generatedAt ?? facts[0]?.generatedAt ?? '';
   if (!facts.length) return inactive('insufficient_data', generatedAt, 'no_facts');
@@ -148,6 +148,17 @@ export function selectContextualInsight(
     return active('meal_distribution', 200, 'Most logged calories are in one meal', `${Math.round(Number(concentratedMeal.value.percentageOfDailyCalories))}% of today’s logged calories are in ${meal}.`, [concentratedMeal], generatedAt);
   }
 
+  const trend = recordFact(facts, 'weight.short_trend');
+  if (options.includeWeightTrend && trend && ACTIVE_CONFIDENCE.includes(trend.confidence)
+    && (trend.value.direction === 'up' || trend.value.direction === 'down' || trend.value.direction === 'stable')
+    && typeof trend.value.windowDays === 'number') {
+    const copy = trend.value.direction === 'up'
+      ? 'Across your logged 28-day comparison window, recorded weight was higher in recent entries.'
+      : trend.value.direction === 'down'
+        ? 'Across your logged 28-day comparison window, recorded weight was lower in recent entries.'
+        : 'Across your logged 28-day comparison window, recorded weight was broadly stable.';
+    return active('weight_trend', 150, 'Recent logged weight pattern', copy, [trend], generatedAt);
+  }
   const completeness = recordFact(facts, 'daily.logging_completeness');
   if (completeness && completeness.value.state === 'no_logs') {
     return inactive('insufficient_data', generatedAt, 'no_logged_meals', [completeness]);

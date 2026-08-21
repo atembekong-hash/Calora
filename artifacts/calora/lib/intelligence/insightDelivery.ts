@@ -10,12 +10,12 @@ import type { ContextualInsight, IntelligenceFact } from './types';
  */
 export function selectVisibleLocalInsight(
   facts: readonly IntelligenceFact[],
-  options: { hydrated: boolean; enabled: boolean },
+  options: { hydrated: boolean; enabled: boolean; weightTrendEnabled?: boolean },
 ): ContextualInsight | null {
   if (!options.hydrated || !options.enabled) return null;
 
   try {
-    const insight = selectContextualInsight(facts);
+    const insight = selectContextualInsight(facts, { includeWeightTrend: options.weightTrendEnabled === true });
     return insight.state === 'active' && insight.freshness === 'fresh' ? insight : null;
   } catch {
     // Intelligence is optional UI context. A malformed local snapshot must
