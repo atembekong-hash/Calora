@@ -27,6 +27,7 @@ import * as Sharing from 'expo-sharing';
 import { deriveExportHasData, makeExportHandler } from '@/lib/exportUiHandler';
 import { SettingRowPressable } from '@/components/SettingRowPressable';
 import { AccountSection } from '@/components/auth/AccountSection';
+import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
 import { SwipeableTabList } from '@/components/SwipeableTabList';
 import { ReferralCard } from '@/components/ReferralCard';
@@ -59,6 +60,7 @@ const PROFILE_TABS = ['you', 'membership', 'account'] as const;
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
+  const { user } = useAuth();
   const {
     colors, themePreference, setThemePreference,
     profile, updateProfile,
@@ -318,7 +320,7 @@ export default function ProfileScreen() {
       result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
     }
     if (!result.canceled && result.assets[0]) {
-      const copyResult = await copyProfilePhoto(result.assets[0].uri, FileSystem);
+      const copyResult = await copyProfilePhoto(result.assets[0].uri, FileSystem, user?.id);
       if (!copyResult.ok) {
         if (copyResult.reason === 'no-directory') {
           Alert.alert('Storage unavailable', 'Could not locate the app documents folder. Please try again.');
@@ -361,7 +363,7 @@ export default function ProfileScreen() {
     // If the user removed their photo (had one before, now cleared), delete the file from disk.
     // This runs only on save so a remove-then-cancel leaves the file intact.
     if (profilePhotoUri && !cleanUri) {
-      const deleteResult = await deleteProfilePhoto(FileSystem);
+      const deleteResult = await deleteProfilePhoto(FileSystem, user?.id);
       if (!deleteResult.ok) {
         console.error('[saveProfileEdit] deleteAsync failed', deleteResult.error);
         Alert.alert('Photo error', 'Could not remove the photo file. Please try again.');

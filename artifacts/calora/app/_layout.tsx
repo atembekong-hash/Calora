@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -16,7 +16,7 @@ import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { CaloraProvider } from '@/context/CaloraContext';
-import { AuthProvider } from '@/context/AuthContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { setAuthTokenGetter, setBaseUrl } from '@workspace/api-client-react';
 import { supabase } from '@/lib/supabase';
 import { getApiBaseUrl } from '@/lib/api-config';
@@ -57,17 +57,19 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // Disable window-focus refetching — on mobile (native) there are no
-      // browser focus events. On web preview, focus events from user interaction
-      // would trigger mid-click re-renders that swap DOM nodes and break
-      // button presses in modals. Individual queries set their own staleTime.
-      refetchOnWindowFocus: false,
+function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        // Disable window-focus refetching — on mobile (native) there are no
+        // browser focus events. On web preview, focus events from user interaction
+        // would trigger mid-click re-renders that swap DOM nodes and break
+        // button presses in modals. Individual queries set their own staleTime.
+        refetchOnWindowFocus: false,
+      },
     },
-  },
-});
+  });
+}
 
 /**
  * Listens for notification taps and navigates to the relevant tab.
@@ -123,6 +125,34 @@ function DiarySyncWorker() {
   return null;
 }
 
+/**
+ * Auth changes are a hard privacy boundary. Keying the state and query
+ * providers unmounts old in-memory data before the next identity hydrates.
+ */
+function AccountScopedProviders({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const accountId = user?.id ?? null;
+  const scopeKey = accountId ?? 'guest';
+  const scopedQueryClient = useMemo(() => createQueryClient(), [scopeKey]);
+
+  return (
+    <CaloraProvider key={scopeKey} accountId={accountId}>
+      <QueryClientProvider key={scopeKey} client={scopedQueryClient}>
+        <SubscriptionProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <KeyboardProvider>
+              <AppStatusBar />
+              <DiarySyncWorker />
+              <ReferralActivator />
+              {children}
+            </KeyboardProvider>
+          </GestureHandlerRootView>
+        </SubscriptionProvider>
+      </QueryClientProvider>
+    </CaloraProvider>
+  );
+}
+
 function RootLayoutNav() {
   return (
     <>
@@ -160,20 +190,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <AuthProvider>
-          <CaloraProvider>
-            <QueryClientProvider client={queryClient}>
-              <SubscriptionProvider>
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <KeyboardProvider>
-                    <AppStatusBar />
-                    <DiarySyncWorker />
-                    <ReferralActivator />
-                    <RootLayoutNav />
-                  </KeyboardProvider>
-                </GestureHandlerRootView>
-              </SubscriptionProvider>
-            </QueryClientProvider>
-          </CaloraProvider>
+          <AccountScopedProviders>
+            <RootLayoutNav />
+          </AccountScopedProviders>
         </AuthProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

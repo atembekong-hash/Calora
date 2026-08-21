@@ -88,7 +88,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
   const handleSignOut = useCallback(async () => {
     Alert.alert(
       'Sign out?',
-      `You'll stay signed out of ${BRAND.name} on this device. Your local data stays intact.`,
+      `Your local health data stays safely separated from other accounts on this device.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {

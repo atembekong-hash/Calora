@@ -118,12 +118,13 @@ import { renderHook, act } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { CaloraProvider, useCalora } from '@/context/CaloraContext';
 import { STORAGE_SCHEMA_VERSION } from '../storageSchema';
+import { storageKeyForAccount } from '../accountStorage';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = '@calora/local-state-v2';
+const STORAGE_KEY = storageKeyForAccount(null);
 const STORED_PHOTO_URI = '/test/docs/calora-profile-photo.jpg';
 
 // ---------------------------------------------------------------------------

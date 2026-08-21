@@ -18,6 +18,14 @@ export type FileSystemAdapter = {
   getInfoAsync: (uri: string) => Promise<{ exists: boolean }>;
 };
 
+function photoPath(fs: FileSystemAdapter, accountId?: string | null): string | null {
+  if (!fs.documentDirectory) return null;
+  // Keep the unauthenticated/local-only path stable. Authenticated profiles
+  // always receive their own opaque account suffix.
+  if (!accountId?.trim()) return `${fs.documentDirectory}calora-profile-photo.jpg`;
+  return `${fs.documentDirectory}calora-profile-photo-${encodeURIComponent(accountId)}.jpg`;
+}
+
 // ── Verify ────────────────────────────────────────────────────────────────────
 
 /**
@@ -62,11 +70,12 @@ export type PhotoCopyResult =
 export async function copyProfilePhoto(
   sourceUri: string,
   fs: FileSystemAdapter,
+  accountId?: string | null,
 ): Promise<PhotoCopyResult> {
-  if (!fs.documentDirectory) {
+  const dest = photoPath(fs, accountId);
+  if (!dest) {
     return { ok: false, reason: 'no-directory' };
   }
-  const dest = `${fs.documentDirectory}calora-profile-photo.jpg`;
   try {
     await fs.copyAsync({ from: sourceUri, to: dest });
     return { ok: true, dest };
@@ -95,12 +104,13 @@ export type PhotoDeleteResult =
  */
 export async function deleteProfilePhoto(
   fs: FileSystemAdapter,
+  accountId?: string | null,
 ): Promise<PhotoDeleteResult> {
-  if (!fs.documentDirectory) {
+  const dest = photoPath(fs, accountId);
+  if (!dest) {
     // No coherent storage path — skip silently and let the caller clear state.
     return { ok: true };
   }
-  const dest = `${fs.documentDirectory}calora-profile-photo.jpg`;
   try {
     await fs.deleteAsync(dest, { idempotent: true });
     return { ok: true };

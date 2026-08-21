@@ -60,6 +60,7 @@ import {
 } from '@/lib/livingMemory';
 import type { PlannerAck } from '@/lib/plannerAck';
 import { normalizePlannerPreferences } from '@/lib/planType';
+import { LEGACY_STORAGE_KEY, storageKeyForAccount } from '@/lib/accountStorage';
 import {
   normalizeFoodImageMetadata,
   normalizeFoodImageUrl,
@@ -357,7 +358,6 @@ type CaloraContextValue = {
   addIngredientsToShopping: (ingredients: string[], sourceId: string) => void;
 };
 
-const STORAGE_KEY = '@calora/local-state-v2';
 const today = dateKey();
 
 // foodSourceForMemory moved to lib/captureReviewTransitions.ts
@@ -447,7 +447,14 @@ function mergeHealthWeights(current: WeightEntry[], snapshot: HealthSnapshot): W
   }, current);
 }
 
-export function CaloraProvider({ children }: { children: ReactNode }) {
+export function CaloraProvider({
+  children,
+  accountId,
+}: {
+  children: ReactNode;
+  /** The Supabase identity that owns this provider instance (null = guest). */
+  accountId?: string | null;
+}) {
   const systemScheme = useColorScheme();
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -497,7 +504,8 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     activityLogs: {},
     plannerMeals,
   }));
-  const pm = useRef(new PersistenceManager(AsyncStorage, STORAGE_KEY));
+  const storageKey = storageKeyForAccount(accountId);
+  const pm = useRef(new PersistenceManager(AsyncStorage, storageKey));
   /** Guard that prevents a second tap from entering clearAllData while the first is in progress. */
   const clearingRef = useRef(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -563,6 +571,13 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
      if (saved.fontSizeScale) setFontSizeScaleState(saved.fontSizeScale as 'small' | 'default' | 'large' | 'xlarge');
      if (saved.profilePhotoUri) setProfilePhotoUriState(saved.profilePhotoUri);
   });
+
+  // The former device-wide key had no reliable owner. Do not migrate it into
+  // any account namespace: ownership cannot be proven. Removing it is
+  // best-effort only; even if device storage is unavailable it is never read.
+  useEffect(() => {
+    AsyncStorage.removeItem(LEGACY_STORAGE_KEY).catch(() => {});
+  }, []);
 
   // ── Profile photo stale-URI guard ─────────────────────────────────────────
   // On the first render after hydration completes, verify that the persisted
@@ -985,7 +1000,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     profilePhotoUri,
     setProfilePhotoUri: setProfilePhotoUriState,
     clearProfilePhoto: async () => {
-      await deleteProfilePhoto(FileSystem);
+      await deleteProfilePhoto(FileSystem, accountId);
       setProfilePhotoUriState(null);
     },
     mealReminders,
@@ -998,7 +1013,7 @@ export function CaloraProvider({ children }: { children: ReactNode }) {
     },
     setHealthConnected,
     clearOutbox: () => setOutbox([]),
-      exportRawStorageData: () => readRawStorageData(AsyncStorage.getItem.bind(AsyncStorage), STORAGE_KEY),
+      exportRawStorageData: () => readRawStorageData(AsyncStorage.getItem.bind(AsyncStorage), storageKey),
       exportData: async () => {
         // resolveExportData reads exportSnapshotRef.current first (the gap-bridge
         // set synchronously by clearAllData before React re-renders) and falls
