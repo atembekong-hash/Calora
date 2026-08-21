@@ -1,0 +1,92 @@
+Mission: Define and authorize Calora Intelligence Phase 2A.4
+
+Phase 2A.3 is complete. Begin the next-phase determination for Phase 2A.4.
+
+Review the complete Calora Intelligence roadmap, Phase 2A.0 through Phase 2A.3 reports, completed task history, current feature flags, Intelligence architecture, Foundation facts, Progress/Today/Post-Log delivery surfaces, Coach Fact Context work, and current repository state.
+
+Do not assume what Phase 2A.4 should be. Derive it from the existing architecture, roadmap, dependencies, and highest-value safe next capability.
+
+Physical-device, responsive-layout, large-text, TalkBack, VoiceOver, and related device/accessibility checks are intentionally deferred to final pre-production validation. Keep them recorded as pending debt, but do not allow them to block unrelated Phase 2A development.
+
+Coach Fact Context must remain dark. Do not enable its client gate, server gate, cohort, production routing, or real-user migration.
+
+Determine the strongest logical Phase 2A.4 that advances Calora from simple descriptive signals toward genuinely useful nutrition intelligence without violating the established privacy, account-isolation, deterministic-computation, fail-closed, and no-unapproved-persistence boundaries.
+
+Produce a Phase 2A.4 Authorization Brief containing:
+
+1. Exact phase name.
+
+
+2. User problem being solved.
+
+
+3. User-facing value.
+
+
+4. Why this is the correct next phase.
+
+
+5. Dependencies and their current status.
+
+
+6. Exact Foundation facts required.
+
+
+7. Exact deterministic intelligence logic.
+
+
+8. Eligible delivery surface(s).
+
+
+9. Trigger conditions.
+
+
+10. Suppression and insufficient-data rules.
+
+
+11. Feature flags and default states.
+
+
+12. Account-isolation requirements.
+
+
+13. Privacy and data boundaries.
+
+
+14. Persistence, network, server, Coach and LLM boundaries.
+
+
+15. Failure and stale-data behavior.
+
+
+16. Interaction with existing Progress, Today and Post-Log Intelligence.
+
+
+17. Explicitly prohibited capabilities.
+
+
+18. Rollback strategy.
+
+
+19. Required automated tests and regression coverage.
+
+
+20. Deferred pre-production validation.
+
+
+21. Exact implementation scope for the subsequent task.
+
+
+22. Required Phase 2A.4 completion report.
+
+
+
+Prefer the smallest high-value capability that can be independently implemented, tested, feature-gated and rolled back.
+
+Do not bundle multiple unrelated Intelligence features into Phase 2A.4.
+
+Do not introduce speculative health conclusions, diagnosis, physiology claims, causal claims, unsafe recommendations, fabricated certainty, or LLM-generated factual state.
+
+Preserve the established rule that insufficient or questionable evidence produces silence rather than a weak insight.
+
+STOP CONDITION: Do not implement Phase 2A.4 in this task. Do not modify production behavior. Return the authorization brief and your recommended GO / REVISE / NO-GO decision for our approval.
