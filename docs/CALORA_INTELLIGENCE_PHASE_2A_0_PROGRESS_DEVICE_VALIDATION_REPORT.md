@@ -16,7 +16,7 @@ Production publication remains conditional on the remaining manual native-device
 | --- | --- | --- | --- |
 | Node/Vitest development workspace | Yes | PASS | Deterministic Foundation, selector, delivery, account lifecycle, privacy, failure, and regression validation |
 | Expo web preview, 402 × 874 | Yes | PASS (smoke only) | Onboarding rendered and advanced through all five pages without browser errors; not a native-device test and did not enter authenticated Progress |
-| Physical Android device | Yes | PASS (account switch / tenant isolation only) | Authenticated User A → User B → User A Progress validation; other Android checks remain required |
+| Physical Android device | Yes | PASS (account switch / tenant isolation and offline only) | Authenticated User A → User B → User A Progress validation and post-authentication airplane-mode validation; other Android checks remain required |
 | Physical iOS device | No | REQUIRES MANUAL DEVICE VALIDATION | No device session available |
 | Android emulator | No | REQUIRES MANUAL DEVICE VALIDATION | No emulator session available |
 | iOS simulator | No | REQUIRES MANUAL DEVICE VALIDATION | No simulator session available |
@@ -86,7 +86,13 @@ No cross-account Progress Intelligence or weight-history leakage was observed. T
 
 ### Offline and privacy inspection
 
-**PASS (automated architecture).** The selector has no network, storage, logging, analytics, Coach, living-memory, React Query, or server dependency. Tests replace `fetch`, storage, and console logging and observe no calls; inputs remain unchanged. The local delivery gate contains no I/O. A device airplane-mode verification remains manual.
+**PASS (automated architecture).** The selector has no network, storage, logging, analytics, Coach, living-memory, React Query, or server dependency. Tests replace `fetch`, storage, and console logging and observe no calls; inputs remain unchanged. The local delivery gate contains no I/O. Physical Android airplane-mode verification is recorded below; iOS verification remains manual.
+
+#### Physical Android airplane-mode evidence
+
+**PASS.** After authentication, a physical Android airplane-mode session kept the existing authenticated Progress state available and internally consistent. Progress overview and Weight continued to show the correct account-local 76.0 kg baseline, 74.0 kg current weight, three weigh-ins, −2.0 kg trend, 68 kg goal, and 25% goal progress. No crash, blank state, or visible cross-account leakage was observed.
+
+This result covers Android offline behavior after authentication only. It does not claim iOS offline validation, network-traffic inspection, or any untested device, accessibility, or responsive-layout condition.
 
 ### Feature-flag rollback
 
@@ -157,7 +163,7 @@ No device jank or repeated-render claim is made. Measure representative Progress
 3. Repeat with an empty account, low-confidence data, stale/mixed test facts where test tooling permits, and a changed food log; confirm suppression or recomputation.
 4. **PASS on physical Android for one authenticated sequence.** Sign out, sign in as User B, and return to User A. The tested sequence showed no original-account insight or weight-history leakage into User B, and the original account restored correctly. Repeat on iOS and verify no A title/message flash in guest or B state.
 5. Force-close and reopen with each account. Confirm no card appears before safe hydration and no insight itself was stored.
-6. Enable airplane mode after authentication and repeat Progress opening. Confirm the card remains local and no Intelligence network dependency appears.
+6. **PASS on physical Android after authentication.** Airplane-mode Progress and Weight retained the correct local account state without a crash, blank state, or visible cross-account leakage. Repeat on iOS and inspect any applicable device network behavior before production publication.
 
 ### Accessibility and responsive layout
 
@@ -179,7 +185,7 @@ No device jank or repeated-render claim is made. Measure representative Progress
 | Sign-out safety | PASS (automated and physical Android account-switch session); iOS confirmation required |
 | Account-switch safety | PASS (automated and physical Android tenant-isolation session); iOS confirmation required |
 | Restart/hydration safety | PASS (automated); manual visual confirmation required |
-| Offline behavior | PASS (architecture/tests); manual airplane-mode confirmation required |
+| Offline behavior | PASS (architecture/tests and physical Android post-authentication session); iOS confirmation required |
 | No persistence | PASS |
 | No network | PASS |
 | Accessibility | REQUIRES MANUAL VALIDATION |
@@ -193,4 +199,4 @@ No device jank or repeated-render claim is made. Measure representative Progress
 
 ## 10. Remaining blockers and stop condition
 
-The remaining release conditions are iOS account-switch confirmation; Android and iOS restart/force-close, offline, responsive, and large-text validation; and TalkBack/VoiceOver validation. No further Intelligence implementation is authorized by this report. Do not enable Today or post-log delivery, modify Coach, add persistence/network behavior, or begin another Phase 2A surface without a separate approved task.
+The remaining release conditions are iOS account-switch and offline confirmation; Android and iOS restart/force-close, responsive, and large-text validation; and TalkBack/VoiceOver validation. No further Intelligence implementation is authorized by this report. Do not enable Today or post-log delivery, modify Coach, add persistence/network behavior, or begin another Phase 2A surface without a separate approved task.
