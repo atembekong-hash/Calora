@@ -5,6 +5,7 @@ import { createIntelligenceContext } from '@/lib/intelligence/contextAdapter';
 import { collectEvidence } from '@/lib/intelligence/evidence';
 import { buildDailyIntelligenceFacts, createSourceWatermark } from '@/lib/intelligence/facts';
 import { selectContextualInsight } from '@/lib/intelligence/insightSelector';
+import { selectPostLogInsight } from '@/lib/intelligence/postLogSelector';
 
 const profile: Profile = {
   name: 'Performance', goal: 'maintain', activity: 'moderate', diet: 'Everything',
@@ -30,6 +31,9 @@ describe('Intelligence Foundation local performance', () => {
   it('records repeatable local-only operation samples', () => {
     const adapted = createIntelligenceContext(state, { date: '2026-08-20', timezone: 'America/New_York' });
     const evidence = collectEvidence(logs);
+    const beforeAdapted = createIntelligenceContext({ ...state, logs: logs.slice(0, -1) }, { date: '2026-08-20', timezone: 'America/New_York' });
+    const beforeFacts = buildDailyIntelligenceFacts(beforeAdapted);
+    const afterFacts = buildDailyIntelligenceFacts(adapted);
     const samples = {
       contextAdaptationMs: averageMs(() => createIntelligenceContext(state, { date: '2026-08-20', timezone: 'America/New_York' })),
       evidencePartitioningMs: averageMs(() => collectEvidence(logs)),
@@ -37,6 +41,9 @@ describe('Intelligence Foundation local performance', () => {
       watermarkGenerationMs: averageMs(() => createSourceWatermark(adapted)),
       factGenerationMs: averageMs(() => buildDailyIntelligenceFacts(adapted)),
       insightSelectionMs: averageMs(() => selectContextualInsight(buildDailyIntelligenceFacts(adapted))),
+      postLogTransitionMs: averageMs(() => selectPostLogInsight(beforeFacts, afterFacts, {
+        hydrated: true, enabled: true, accountScopeMatches: true, currentDay: true, addedCalories: 100, addedMeal: 'Lunch',
+      })),
     };
     console.info('[intelligence-performance]', JSON.stringify(samples));
     expect(Object.values(samples).every((sample) => Number.isFinite(sample) && sample >= 0)).toBe(true);

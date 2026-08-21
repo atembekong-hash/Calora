@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -15,7 +15,7 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
-import { CaloraProvider } from '@/context/CaloraContext';
+import { CaloraProvider, useCalora } from '@/context/CaloraContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { setAuthTokenGetter, setBaseUrl } from '@workspace/api-client-react';
 import { supabase } from '@/lib/supabase';
@@ -125,6 +125,36 @@ function DiarySyncWorker() {
   return null;
 }
 
+/** One account-keyed, non-blocking home for an already-sanitized transient. */
+function PostLogIntelligenceHost() {
+  const { postLogInsight, clearPostLogInsight, hydrated, colors, fontScale } = useCalora();
+  useEffect(() => {
+    if (!hydrated || !postLogInsight) {
+      if (!hydrated) clearPostLogInsight();
+      return;
+    }
+    const timeout = setTimeout(clearPostLogInsight, 4200);
+    return () => clearTimeout(timeout);
+  }, [clearPostLogInsight, hydrated, postLogInsight]);
+
+  if (!hydrated || !postLogInsight) return null;
+  return (
+    <View pointerEvents="none" style={styles.postLogWrap}>
+      <View
+        testID="post-log-intelligence"
+        accessibilityRole="summary"
+        accessibilityLiveRegion="polite"
+        accessibilityLabel={`${postLogInsight.title}. ${postLogInsight.message}`}
+        style={[styles.postLogCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+      >
+        <Text style={[styles.postLogEyebrow, { color: colors.primary, fontSize: 10 * fontScale }]}>JUST LOGGED</Text>
+        <Text style={[styles.postLogTitle, { color: colors.foreground, fontSize: 14 * fontScale }]}>{postLogInsight.title}</Text>
+        <Text style={[styles.postLogMessage, { color: colors.mutedForeground, fontSize: 12 * fontScale }]}>{postLogInsight.message}</Text>
+      </View>
+    </View>
+  );
+}
+
 /**
  * Auth changes are a hard privacy boundary. Keying the state and query
  * providers unmounts old in-memory data before the next identity hydrates.
@@ -144,6 +174,7 @@ function AccountScopedProviders({ children }: { children: React.ReactNode }) {
               <AppStatusBar />
               <DiarySyncWorker />
               <ReferralActivator />
+              <PostLogIntelligenceHost />
               {children}
             </KeyboardProvider>
           </GestureHandlerRootView>
@@ -198,3 +229,27 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  postLogWrap: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 98,
+    zIndex: 100,
+  },
+  postLogCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  postLogEyebrow: { fontFamily: 'Inter_700Bold', letterSpacing: 0.9, marginBottom: 3 },
+  postLogTitle: { fontFamily: 'Inter_700Bold', lineHeight: 20 },
+  postLogMessage: { fontFamily: 'Inter_400Regular', lineHeight: 18, marginTop: 3 },
+});

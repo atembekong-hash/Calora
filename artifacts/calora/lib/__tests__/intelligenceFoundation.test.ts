@@ -187,7 +187,7 @@ describe('Intelligence Foundation', () => {
     expect(intelligenceFeatureFlags['intelligence.facts.local_adapter']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.facts.server_adapter']).toBe(false);
     expect(intelligenceFeatureFlags['intelligence.insights.today']).toBe(true);
-    expect(intelligenceFeatureFlags['intelligence.insights.post_log']).toBe(false);
+    expect(intelligenceFeatureFlags['intelligence.insights.post_log']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.insights.progress']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.coach.fact_context']).toBe(false);
     expect(intelligenceFeatureFlags['intelligence.evidence.display']).toBe(false);

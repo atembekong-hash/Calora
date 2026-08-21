@@ -140,6 +140,28 @@ export type ContextualInsight = {
   expiresAt: string | null;
 };
 
+export type PostLogTransitionType =
+  | 'calorie_target_reached'
+  | 'protein_recovery'
+  | 'meal_concentration'
+  | 'logging_completeness';
+
+/** A transient, sanitized post-commit transition. Never persisted or logged. */
+export type PostLogInsight = {
+  id: string;
+  type: 'post_log';
+  transitionType: PostLogTransitionType;
+  category: ContextualInsightCategory | 'logging_completeness';
+  priority: number;
+  title: string;
+  message: string;
+  beforeFactRefs: ContextualInsightFactReference[];
+  afterFactRefs: ContextualInsightFactReference[];
+  confidence: InsightConfidence;
+  freshness: FreshnessState;
+  reason: 'material_transition';
+};
+
 export type InvalidationReason =
   | 'food_added'
   | 'food_updated'

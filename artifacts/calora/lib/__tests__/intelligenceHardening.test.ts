@@ -127,7 +127,6 @@ describe('Intelligence Phase 1.5 hardening', () => {
     expect(intelligenceFeatureFlags['intelligence.insights.today']).toBe(true);
     for (const flag of [
       'intelligence.facts.server_adapter',
-      'intelligence.insights.post_log',
       'intelligence.coach.fact_context',
       'intelligence.evidence.display',
       'intelligence.feedback',

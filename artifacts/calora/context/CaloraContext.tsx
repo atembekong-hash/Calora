@@ -62,6 +62,13 @@ import type { PlannerAck } from '@/lib/plannerAck';
 import { normalizePlannerPreferences } from '@/lib/planType';
 import { quarantineLegacyStorage, storageKeyForAccount } from '@/lib/accountStorage';
 import {
+  buildDailyIntelligenceFacts,
+  createIntelligenceContext,
+  isIntelligenceFeatureEnabled,
+  selectPostLogInsight,
+  type PostLogInsight,
+} from '@/lib/intelligence';
+import {
   normalizeFoodImageMetadata,
   normalizeFoodImageUrl,
   type FoodImageSource,
@@ -280,6 +287,9 @@ type CaloraContextValue = {
    */
   pendingPlannerAck: PlannerAck | null;
   setPendingPlannerAck: (ack: PlannerAck | null) => void;
+  /** Ephemeral only: a single sanitized post-log transition for the active account. */
+  postLogInsight: PostLogInsight | null;
+  clearPostLogInsight: () => void;
   forgetLivingObservation: (kind: 'meal' | 'water' | 'mood' | 'activity' | 'planner', id: string) => void;
   setCoachConsentAccepted: (accepted: boolean) => void;
   setCoachMessages: (messages: CoachMessage[]) => void;
@@ -522,6 +532,14 @@ export function CaloraProvider({
   const [recipeSlotTarget, setRecipeSlotTarget] = useState<{ day: string; mealType: PlannerMeal['meal'] } | null>(null);
   const [pendingUndoSwap, setPendingUndoSwap] = useState<{ newMeal: PlannerMeal; originalMeal: PlannerMeal } | null>(null);
   const [pendingPlannerAck, setPendingPlannerAck] = useState<PlannerAck | null>(null);
+  const [postLogInsight, setPostLogInsight] = useState<PostLogInsight | null>(null);
+  const postLogSourceIdRef = useRef<string | null>(null);
+  // Keeps explicit commit boundaries atomic across rapid calls before React rerenders.
+  // It is not persisted and is never exposed to UI consumers.
+  const logsRef = useRef<FoodLog[]>([]);
+  useEffect(() => {
+    logsRef.current = logs;
+  }, [logs]);
 
   const { hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying } = useHydrationEffect<Partial<CaloraState>>(pm, (saved) => {
     if (!saved) return;
@@ -694,6 +712,48 @@ export function CaloraProvider({
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
     setOutbox((current) => [...current, { id: makeId('mutation'), entity, operation, createdAt: new Date().toISOString() }]);
   };
+  const clearPostLogInsight = () => {
+    postLogSourceIdRef.current = null;
+    setPostLogInsight(null);
+  };
+  const publishPostLogInsight = (beforeLogs: FoodLog[], afterLogs: FoodLog[], addedLog: FoodLog) => {
+    clearPostLogInsight();
+    const todayKey = dateKey();
+    if (!accountId || !hydrated || addedLog.date !== todayKey) return;
+    try {
+      const common = {
+        profile,
+        weights,
+        waterLogs,
+        moodLogs,
+        activityLogs,
+        activityMinutesLogs,
+        plannerMeals,
+        shoppingItems,
+        localRecipes,
+        activeEnergyKcal: healthConnection.snapshot?.activeEnergyKcal ?? null,
+      };
+      const before = buildDailyIntelligenceFacts(createIntelligenceContext({ ...common, logs: beforeLogs }, { date: todayKey }));
+      const after = buildDailyIntelligenceFacts(createIntelligenceContext({ ...common, logs: afterLogs }, { date: todayKey }));
+      const insight = selectPostLogInsight(before, after, {
+        hydrated,
+        enabled: isIntelligenceFeatureEnabled('intelligence.insights.post_log'),
+        accountScopeMatches: Boolean(accountId),
+        currentDay: addedLog.date === todayKey,
+        addedCalories: addedLog.calories,
+        addedMeal: addedLog.meal,
+      });
+      if (insight) {
+        postLogSourceIdRef.current = addedLog.id;
+        setPostLogInsight(insight);
+      }
+    } catch {
+      clearPostLogInsight();
+    }
+  };
+  useEffect(() => {
+    if (!hydrated) clearPostLogInsight();
+  }, [hydrated]);
   const rememberedSources = useMemo(() => filterForgottenSources(livingMemory, {
     logs,
     waterLogs,
@@ -824,13 +884,17 @@ export function CaloraProvider({
         diaryLogId: id,
         correctionIds: [],
       };
-      setLogs((current) => [...current, nextLog]);
+      const beforeLogs = logsRef.current;
+      const nextLogs = [...beforeLogs, nextLog];
+      logsRef.current = nextLogs;
+      setLogs((current) => current.some((log) => log.id === nextLog.id) ? current : [...current, nextLog]);
       setFoodMemories((current) => [...current, acceptedMemory]);
       setLivingMemory((current) => upsertMealObservation(current, id, nextLog.date, nextLog.meal));
       queueMutation('diaryEntry', 'upsert');
+      publishPostLogInsight(beforeLogs, nextLogs, nextLog);
     },
     updateLog: (id, patch) => {
-      const existing = logs.find((log) => log.id === id);
+      const existing = logsRef.current.find((log) => log.id === id);
        const updated = existing ? normalizeLogImageMetadata({ ...existing, ...patch }) : null;
       if (updated) {
         setLivingMemory((memory) => upsertMealObservation(
@@ -840,14 +904,18 @@ export function CaloraProvider({
           updated.meal,
         ));
       }
+      logsRef.current = logsRef.current.map((log) => log.id === id ? normalizeLogImageMetadata({ ...log, ...patch }) : log);
       setLogs((current) => current.map((log) => log.id === id ? normalizeLogImageMetadata({ ...log, ...patch }) : log));
       queueMutation('diaryEntry', 'upsert');
+      if (postLogSourceIdRef.current === id) clearPostLogInsight();
     },
     removeLog: (id) => {
+      logsRef.current = logsRef.current.filter((log) => log.id !== id);
       setLogs((current) => current.filter((log) => log.id !== id));
       setFoodMemories((current) => current.filter((memory) => memory.diaryLogId !== id));
       setLivingMemory((current) => removeMealObservation(current, id));
       queueMutation('diaryEntry', 'delete');
+      if (postLogSourceIdRef.current === id) clearPostLogInsight();
     },
     createFoodMemoryDraft: (analysis, date = dateKey(), meal = 'Snack') => {
       const draft = captureAnalysisToDraft(analysis, date, meal);
@@ -880,7 +948,7 @@ export function CaloraProvider({
       if (!rawDraft) return null;
       const draft = normalizeMemoryImageMetadata(rawDraft);
       if (draft.plannerMealId) {
-        const existingPlannerLog = logs.find((log) => log.plannerMealId === draft.plannerMealId);
+        const existingPlannerLog = logsRef.current.find((log) => log.plannerMealId === draft.plannerMealId);
         if (existingPlannerLog) {
           setFoodDrafts((current) => current.filter((item) => item.id !== draftId));
           return existingPlannerLog;
@@ -889,12 +957,16 @@ export function CaloraProvider({
       const logId = makeId('log');
       const acceptedAt = new Date().toISOString();
       const { log, memory } = buildAcceptResult(draft, logId, acceptedAt);
-      setLogs((current) => [...current, log]);
+      const beforeLogs = logsRef.current;
+      const nextLogs = [...beforeLogs, log];
+      logsRef.current = nextLogs;
+      setLogs((current) => current.some((item) => item.id === log.id) ? current : [...current, log]);
       setFoodMemories((current) => [...current, memory]);
       setLivingMemory((current) => upsertMealObservation(current, log.id, log.date, log.meal));
       setFoodDrafts((current) => current.filter((item) => item.id !== draftId));
       setRepeatPatterns((current) => updateRepeatPatterns(current, memory, log, makeId('repeat'), acceptedAt));
       queueMutation('diaryEntry', 'upsert');
+      publishPostLogInsight(beforeLogs, nextLogs, log);
       return log;
     },
     rejectFoodMemory: (draftId) => {
@@ -1188,10 +1260,12 @@ export function CaloraProvider({
      setPendingUndoSwap,
      pendingPlannerAck,
      setPendingPlannerAck,
+      postLogInsight,
+      clearPostLogInsight,
      goalCelebrationSeenTargetKg,
      markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
      resetGoalCelebrationSeen: () => setGoalCelebrationSeenTargetKg(null),
-     }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerWeekStart, plannerViewedDay, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+      }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

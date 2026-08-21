@@ -4,6 +4,7 @@ import { createIntelligenceContext } from '@/lib/intelligence/contextAdapter';
 import { buildDailyIntelligenceFacts } from '@/lib/intelligence/facts';
 import { selectVisibleLocalInsight, selectVisibleTodayInsight } from '@/lib/intelligence/insightDelivery';
 import { selectContextualInsight } from '@/lib/intelligence/insightSelector';
+import { selectPostLogInsight } from '@/lib/intelligence/postLogSelector';
 import type { IntelligenceFact } from '@/lib/intelligence/types';
 
 const profile: Profile = {
@@ -231,5 +232,49 @@ describe('restricted contextual insight selector', () => {
     expect(selectVisibleTodayInsight(userA, { hydrated: true, enabled: true })).toMatchObject({
       type: 'calorie_status',
     });
+  });
+
+  it('selects deterministic material Post-Log transitions and rejects ordinary changes', () => {
+    const options = (calories: number, meal = 'Breakfast') => ({
+      hydrated: true, enabled: true, accountScopeMatches: true, currentDay: true, addedCalories: calories, addedMeal: meal,
+    });
+    expect(selectPostLogInsight(
+      facts([log({ calories: 1800 })]),
+      facts([log({ calories: 1800 }), log({ id: 'added', meal: 'Dinner', calories: 250 })]),
+      options(250, 'Dinner'),
+    )).toMatchObject({ transitionType: 'calorie_target_reached', category: 'calorie_status' });
+    expect(selectPostLogInsight(
+      facts([log({ calories: 1000, protein: 50 })]),
+      facts([log({ calories: 1000, protein: 50 }), log({ id: 'protein', meal: 'Lunch', calories: 200, protein: 30 })]),
+      options(200, 'Lunch'),
+    )).toMatchObject({ transitionType: 'protein_recovery', category: 'macro_balance' });
+    expect(selectPostLogInsight(
+      facts([log({ calories: 400 }), log({ id: 'lunch', meal: 'Lunch', calories: 600 })]),
+      facts([log({ calories: 400 }), log({ id: 'lunch', meal: 'Lunch', calories: 600 }), log({ id: 'breakfast-2', calories: 600 })]),
+      options(600),
+    )).toMatchObject({ transitionType: 'meal_concentration', category: 'meal_distribution' });
+    expect(selectPostLogInsight(
+      facts([log({ calories: 400 })]),
+      facts([log({ calories: 400 }), log({ id: 'lunch', meal: 'Lunch', calories: 300 })]),
+      options(300, 'Lunch'),
+    )).toMatchObject({ transitionType: 'logging_completeness' });
+    expect(selectPostLogInsight(
+      facts([log({ calories: 1000 })]),
+      facts([log({ calories: 1000 }), log({ id: 'small', calories: 50 })]),
+      options(50),
+    )).toBeNull();
+  });
+
+  it('fails closed for Post-Log hydration, flag, scope, stale, malformed, and unchanged facts', () => {
+    const before = facts([log({ calories: 1800 })]);
+    const after = facts([log({ calories: 1800 }), log({ id: 'added', calories: 250 })]);
+    const options = { hydrated: true, enabled: true, accountScopeMatches: true, currentDay: true, addedCalories: 250, addedMeal: 'Breakfast' };
+    expect(selectPostLogInsight(before, after, { ...options, hydrated: false })).toBeNull();
+    expect(selectPostLogInsight(before, after, { ...options, enabled: false })).toBeNull();
+    expect(selectPostLogInsight(before, after, { ...options, accountScopeMatches: false })).toBeNull();
+    expect(selectPostLogInsight(before, before, options)).toBeNull();
+    expect(selectPostLogInsight(before.map((fact) => ({ ...fact, freshness: 'stale' as const })), after, options)).toBeNull();
+    expect(selectPostLogInsight(before as unknown as IntelligenceFact[], after.map((fact) => ({ ...fact, evidence: undefined })) as unknown as IntelligenceFact[], options)).toBeNull();
+    expect(JSON.stringify(selectPostLogInsight(before, after, options))).not.toContain('food-1');
   });
 });

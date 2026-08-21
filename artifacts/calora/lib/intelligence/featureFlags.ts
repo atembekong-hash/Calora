@@ -6,7 +6,7 @@ export const intelligenceFeatureFlags = {
   // current-day selector result after hydration. It never retains output and
   // excludes descriptive weight-baseline context reserved for Progress.
   'intelligence.insights.today': true,
-  'intelligence.insights.post_log': false,
+  'intelligence.insights.post_log': true,
   // Approved, narrowly scoped delivery: the Progress tab may render one
   // current-account, local selector result after hydration. All other
   // delivery, network, Coach, feedback, and proactive paths remain disabled.
