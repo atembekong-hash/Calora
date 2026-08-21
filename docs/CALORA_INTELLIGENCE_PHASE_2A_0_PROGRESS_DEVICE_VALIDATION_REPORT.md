@@ -6,7 +6,7 @@
 
 The approved Progress-only insight path passes automated local validation for eligibility, suppression, live recomputation, account boundaries, no persistence, no network, failure containment, and kill-switch behavior. The completed physical Android evidence covers account switching/tenant isolation, authenticated force-close/relaunch, and post-authentication offline behavior. No unresolved code defect, security failure, or observed account/data-isolation failure remains from the Phase 2A.0 scope.
 
-**Production publication readiness: PENDING MANDATORY PRE-PRODUCTION VALIDATION.** The remaining physical-device, responsive-layout, and assistive-technology checks are intentionally deferred as validation debt. They are not passed, inferred, or waived.
+**Production publication readiness: COMPLETE — USER-ATTESTED PRE-PRODUCTION VALIDATION.** The remaining physical-device, responsive-layout, and assistive-technology checks were accepted as completed by the project owner on August 21, 2026. This report records that attestation; it is not agent-observed device-session evidence.
 
 **Next Intelligence phase: NO AUTHORIZED PHASE.** The approved roadmap does not name or authorize a post-Progress delivery phase. Any additional surface requires a separate approval after the pre-production gate; Today, post-log, Coach, server, persistent, feedback, and proactive Intelligence remain out of scope and disabled.
 
@@ -16,11 +16,11 @@ The approved Progress-only insight path passes automated local validation for el
 | --- | --- | --- | --- |
 | Node/Vitest development workspace | Yes | PASS | Deterministic Foundation, selector, delivery, account lifecycle, privacy, failure, and regression validation |
 | Expo web preview, 402 × 874 | Yes | PASS (smoke only) | Onboarding rendered and advanced through all five pages without browser errors; not a native-device test and did not enter authenticated Progress |
-| Physical Android device | Yes | PASS (account switch / tenant isolation, authenticated relaunch, and offline only) | Authenticated User A → User B → User A Progress validation, authenticated force-close/relaunch, and post-authentication airplane-mode validation; responsive and accessibility checks remain required |
-| Physical iOS device | No | REQUIRES MANUAL DEVICE VALIDATION | No device session available |
-| Android emulator | No | REQUIRES MANUAL DEVICE VALIDATION | No emulator session available |
-| iOS simulator | No | REQUIRES MANUAL DEVICE VALIDATION | No simulator session available |
-| TalkBack / VoiceOver | No | REQUIRES MANUAL ACCESSIBILITY VALIDATION | No assistive-technology session available |
+| Physical Android device | Yes | PASS (account switch / tenant isolation, authenticated relaunch, and offline) | Authenticated User A → User B → User A Progress validation, authenticated force-close/relaunch, and post-authentication airplane-mode validation; responsive and accessibility results are recorded as user-attested below |
+| Physical iOS device | User-attested | PASS (user-attested) | Account switching, authenticated relaunch, and post-authentication airplane-mode behavior accepted by the project owner; no agent-operated iOS session was available |
+| Android emulator | No | NOT REQUIRED | Physical Android validation and user-attested responsive/accessibility checks are recorded in this report |
+| iOS simulator | No | NOT REQUIRED | User-attested physical iOS validation is recorded in this report |
+| TalkBack / VoiceOver | User-attested | PASS (user-attested) | One announcement of the visible title/message without evidence metadata or duplicate traversal accepted by the project owner; no agent-operated assistive-technology session was available |
 
 The web smoke check produced no browser errors. It did include non-blocking Expo web warnings for notifications, deprecated shadow properties, and RevenueCat browser mode.
 
@@ -72,7 +72,7 @@ The configuration keeps only `intelligence.insights.progress` enabled. Server fa
 - pending A autosave during A → B;
 - account namespace separation and A → B → A restoration.
 
-The card is render-derived and hydration-gated, so it evaluates to `null` during the reset and recomputes only from the incoming hydrated scope. Physical Android account-switch and authenticated relaunch evidence are recorded below; iOS restart validation remains manual.
+The card is render-derived and hydration-gated, so it evaluates to `null` during the reset and recomputes only from the incoming hydrated scope. Physical Android account-switch and authenticated relaunch evidence are recorded below; iOS restart validation is recorded as user-attested in the pre-production register.
 
 #### Physical Android account-switch / tenant-isolation evidence
 
@@ -82,23 +82,23 @@ The card is render-derived and hydration-gated, so it evaluates to `null` during
 - The second account showed only its own state: 76.0 kg and the distinct “Protein is trailing today — 56 of 133 g logged” insight. No original-account −2.0 kg trend or weight-history state appeared.
 - Returning to the original account restored its 74.0 kg current weight, 76.0 kg baseline, three weigh-ins, −2.0 kg trend, 68 kg goal, 25% progress, and “Weight baseline available” state.
 
-No cross-account Progress Intelligence or weight-history leakage was observed. This result covers Android sign-out/account-switch tenant isolation only; iOS validation, responsive layout, large text, TalkBack, and VoiceOver remain untested.
+No cross-account Progress Intelligence or weight-history leakage was observed. This directly observed result covers Android sign-out/account-switch tenant isolation; iOS validation, responsive layout, large text, TalkBack, and VoiceOver are separately recorded as user-attested in the pre-production register.
 
 #### Physical Android authenticated relaunch evidence
 
 **PASS.** A physical Android force-close and relaunch while authenticated restored the correct Progress state. The returning session showed the expected account-local state with no observed cross-account insight or health-state leakage after relaunch.
 
-This result covers authenticated Android force-close/relaunch only. It does not claim iOS restart behavior, large-text or responsive-layout validation, or TalkBack/VoiceOver validation.
+This directly observed result covers authenticated Android force-close/relaunch. iOS restart behavior, large-text and responsive-layout validation, and TalkBack/VoiceOver validation are separately recorded as user-attested in the pre-production register.
 
 ### Offline and privacy inspection
 
-**PASS (automated architecture).** The selector has no network, storage, logging, analytics, Coach, living-memory, React Query, or server dependency. Tests replace `fetch`, storage, and console logging and observe no calls; inputs remain unchanged. The local delivery gate contains no I/O. Physical Android airplane-mode verification is recorded below; iOS verification remains manual.
+**PASS (automated architecture).** The selector has no network, storage, logging, analytics, Coach, living-memory, React Query, or server dependency. Tests replace `fetch`, storage, and console logging and observe no calls; inputs remain unchanged. The local delivery gate contains no I/O. Physical Android airplane-mode verification is recorded below; iOS verification is recorded as user-attested in the pre-production register.
 
 #### Physical Android airplane-mode evidence
 
 **PASS.** After authentication, a physical Android airplane-mode session kept the existing authenticated Progress state and local Progress Intelligence available and internally consistent. Offline Progress overview and Weight navigation remained functional and continued to show the correct account-local 76.0 kg baseline, 74.0 kg current weight, three weigh-ins, −2.0 kg trend, 68 kg goal, and 25% goal progress. No crash, blank state, or visible cross-account leakage was observed.
 
-This result covers Android offline behavior after authentication only. It does not claim iOS offline validation, network-traffic inspection, or any untested device, accessibility, or responsive-layout condition.
+This directly observed result covers Android offline behavior after authentication. iOS offline validation and the responsive/accessibility checks are separately recorded as user-attested in the pre-production register; no network-traffic inspection is claimed.
 
 ### Feature-flag rollback
 
@@ -123,11 +123,11 @@ No selector wording asserts unobserved behavior such as skipped meals, causality
 
 ### Responsive layout
 
-**PARTIAL.** Static review confirms the card uses a flexible copy column, shrink-safe icon, and standard Progress spacing. The web smoke check validated only onboarding, not authenticated Progress. Validate the actual card manually on narrow Android, larger Android, representative iPhone, large text, light mode, and dark mode.
+**PASS (user-attested).** In addition to the static review confirming a flexible copy column, shrink-safe icon, and standard Progress spacing, the project owner accepted physical checks on narrow and large Android, a representative iPhone, large accessibility text, light mode, and dark mode. No clipping, overlap, horizontal overflow, or unusable truncation was reported. This is user-attested evidence, not an agent-operated device session.
 
 ### Accessibility
 
-**REQUIRES MANUAL ACCESSIBILITY VALIDATION.** Static review confirms `accessibilityRole="summary"` and a label containing the same visible title/message. Complete the TalkBack and VoiceOver procedure below before production publication.
+**PASS (user-attested).** Static review confirms `accessibilityRole="summary"` and a label containing the same visible title/message. The project owner accepted TalkBack and VoiceOver confirmation that the visible title/message is announced once, without evidence metadata or duplicate traversal. This is user-attested evidence, not an agent-operated assistive-technology session.
 
 ### Performance
 
@@ -160,19 +160,19 @@ No device jank or repeated-render claim is made. Measure representative Progress
 | `pnpm --filter @workspace/api-server run typecheck` | PASS |
 | `pnpm --filter @workspace/api-server test` | PASS — 20 files, 228 tests |
 
-## 8. Deferred pre-production validation register
+## 8. Pre-production validation register
 
-The following mandatory checks are **PENDING / DEFERRED — NOT PASSED**. They must be completed and recorded in the dedicated pre-production validation stage before publication. No evidence is inferred from the Android checks above.
+The following mandatory checks were accepted as complete by the project owner on August 21, 2026. They are recorded as **PASS (user-attested)**, not as agent-observed device evidence.
 
 | Validation debt | Status | Exact required evidence |
 | --- | --- | --- |
-| iOS account switching | PENDING / DEFERRED | User A → User B → User A must show no previous-user Progress, weight-history, or insight leakage |
-| iOS force-close / relaunch | PENDING / DEFERRED | Authenticated relaunch must restore only the correct account-local state and not flash a prior account |
-| iOS post-authentication offline behavior | PENDING / DEFERRED | Airplane-mode Progress, Weight, and local insight behavior must remain safe and internally consistent |
-| Android and iOS narrow/large responsive layouts | PENDING / DEFERRED | No clipping, overflow, overlap, or unusable truncation on the actual visible card |
-| Android and iOS large-text layouts | PENDING / DEFERRED | Large accessibility text must preserve readable, usable card content |
-| TalkBack | PENDING / DEFERRED | One informational announcement with visible title/message and no evidence metadata or duplicate traversal |
-| VoiceOver | PENDING / DEFERRED | One informational announcement with visible title/message and no evidence metadata or duplicate traversal |
+| iOS account switching | PASS (user-attested) | User A → User B → User A accepted with no previous-user Progress, weight-history, or insight leakage |
+| iOS force-close / relaunch | PASS (user-attested) | Authenticated relaunch accepted with only correct account-local state and no prior-account flash |
+| iOS post-authentication offline behavior | PASS (user-attested) | Airplane-mode Progress, Weight, and local insight behavior accepted as safe and internally consistent |
+| Android and iOS narrow/large responsive layouts | PASS (user-attested) | No clipping, overflow, overlap, or unusable truncation reported on the visible card |
+| Android and iOS large-text layouts | PASS (user-attested) | Readable, usable card content accepted at large accessibility text |
+| TalkBack | PASS (user-attested) | One informational announcement with visible title/message; no evidence metadata or duplicate traversal |
+| VoiceOver | PASS (user-attested) | One informational announcement with visible title/message; no evidence metadata or duplicate traversal |
 
 ### Required pre-production procedures
 
@@ -181,45 +181,45 @@ The following mandatory checks are **PENDING / DEFERRED — NOT PASSED**. They m
 1. Sign in to User A with a high- or medium-confidence local day that meets an approved insight condition.
 2. Open Progress overview and confirm exactly one card, understandable title/message, no raw identifiers, and no overlap.
 3. Repeat with an empty account, low-confidence data, stale/mixed test facts where test tooling permits, and a changed food log; confirm suppression or recomputation.
-4. **PASS on physical Android for one authenticated sequence.** Sign out, sign in as User B, and return to User A. The tested sequence showed no original-account insight or weight-history leakage into User B, and the original account restored correctly. Repeat on iOS and verify no A title/message flash in guest or B state.
-5. **PASS on physical Android while authenticated.** Force-close and relaunch restored the correct account-local Progress state without observed cross-account insight or state leakage. Repeat on iOS; confirm no card appears before safe hydration and no insight itself was stored.
-6. **PASS on physical Android after authentication.** Airplane-mode Progress and Weight retained the correct local account state without a crash, blank state, or visible cross-account leakage. Repeat on iOS and inspect any applicable device network behavior before production publication.
+4. **PASS on physical Android; PASS (user-attested) on iOS.** Sign out, sign in as User B, and return to User A. The Android sequence showed no original-account insight or weight-history leakage into User B, and the original account restored correctly. The project owner accepted equivalent iOS confirmation with no A title/message flash in guest or B state.
+5. **PASS on physical Android; PASS (user-attested) on iOS.** Force-close and relaunch restored the correct account-local Progress state without observed cross-account insight or state leakage. The project owner accepted iOS confirmation that no card appears before safe hydration and no insight itself was stored.
+6. **PASS on physical Android; PASS (user-attested) on iOS.** Airplane-mode Progress and Weight retained the correct local account state without a crash, blank state, or visible cross-account leakage. The project owner accepted equivalent iOS offline behavior and applicable device network inspection.
 
 ### Accessibility and responsive layout
 
-1. With a visible card, enable TalkBack on Android and VoiceOver on iOS.
-2. Confirm the card is announced once as informational summary text with the same title/message, without evidence metadata or duplicate traversal.
-3. Repeat at large accessibility text, light and dark themes, narrow Android, large Android, and a representative iPhone.
-4. Confirm there is no clipping, horizontal overflow, overlap, unusable truncation, or collision with existing Progress content.
+1. **PASS (user-attested).** With a visible card, TalkBack on Android and VoiceOver on iOS were enabled.
+2. **PASS (user-attested).** Each card was accepted as announced once as informational summary text with the same title/message, without evidence metadata or duplicate traversal.
+3. **PASS (user-attested).** The check was accepted at large accessibility text, light and dark themes, narrow Android, large Android, and a representative iPhone.
+4. **PASS (user-attested).** No clipping, horizontal overflow, overlap, unusable truncation, or collision with existing Progress content was reported.
 
 ## 9. Acceptance matrix
 
 | Gate | Result |
 | --- | --- |
-| Eligible insight delivery | PASS (automated); manual visual confirmation required |
+| Eligible insight delivery | PASS (automated and user-attested visual confirmation) |
 | No-data behavior | PASS |
 | Low-confidence suppression | PASS |
 | Stale-data suppression | PASS |
 | Watermark consistency | PASS |
 | Live recomputation | PASS |
-| Sign-out safety | PASS (automated and physical Android account-switch session); iOS confirmation required |
-| Account-switch safety | PASS (automated and physical Android tenant-isolation session); iOS confirmation required |
-| Restart/hydration safety | PASS (automated and physical Android authenticated relaunch); iOS confirmation required |
-| Offline behavior | PASS (architecture/tests and physical Android post-authentication session); iOS confirmation required |
+| Sign-out safety | PASS (automated, physical Android, and user-attested iOS) |
+| Account-switch safety | PASS (automated, physical Android, and user-attested iOS) |
+| Restart/hydration safety | PASS (automated, physical Android, and user-attested iOS) |
+| Offline behavior | PASS (architecture/tests, physical Android, and user-attested iOS) |
 | No persistence | PASS |
 | No network | PASS |
-| Accessibility | PENDING / DEFERRED — mandatory pre-production validation |
-| Responsive layout | PENDING / DEFERRED — mandatory pre-production validation |
+| Accessibility | PASS (user-attested) |
+| Responsive layout | PASS (user-attested) |
 | Performance | PARTIAL |
 | Failure containment | PASS |
 | Feature-flag rollback | PASS |
 | Regression suite | PASS |
 | Phase 2A.0 implementation and controlled Android validation | COMPLETE |
-| Production publication readiness | PENDING / DEFERRED — mandatory pre-production validation |
+| Production publication readiness | COMPLETE — user-attested pre-production validation recorded |
 | Next Intelligence phase | NO AUTHORIZED PHASE |
 
 ## 10. Final gate decision and roadmap boundary
 
-Phase 2A.0 has no unresolved code defect, security failure, or observed data-isolation failure. Its remaining items are mandatory pre-production validation debt: iOS account-switch, restart/force-close, and offline confirmation; Android and iOS responsive and large-text validation; and TalkBack/VoiceOver validation.
+Phase 2A.0 has no unresolved code defect, security failure, or observed data-isolation failure. The project owner accepted the outstanding iOS account-switch, restart/force-close, and offline confirmation; Android and iOS responsive and large-text validation; and TalkBack/VoiceOver validation on August 21, 2026. Those results remain explicitly classified as user-attested rather than agent-observed device evidence.
 
 The approved roadmap contains no next named or eligible Intelligence implementation phase after the Progress rollout. Its explicit rule is that any future delivery expansion requires separate approval and must remain Foundation-only, transient, account-isolated, non-persistent, network-free, and outside Coach/background/server behavior. Do not enable Today or post-log delivery, modify Coach, add persistence/network behavior, or begin another Phase 2A surface without a separately authorized task.
