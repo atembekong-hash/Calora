@@ -283,6 +283,21 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source.indexOf('<PlannerPeek')).toBeLessThan(source.indexOf('<RecipeSwipeWidget'));
   });
 
+  it('mounts a single secondary Today insight between the diary footer and planner', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source.split('testID="today-contextual-insight"').length - 1).toBe(1);
+    expect(source.indexOf('testID="today-contextual-insight"')).toBeGreaterThan(source.indexOf('styles.footerNote'));
+    expect(source.indexOf('testID="today-contextual-insight"')).toBeLessThan(source.indexOf('<PlannerPeek'));
+    expect(source).toContain("isIntelligenceFeatureEnabled('intelligence.insights.today')");
+    expect(source).toContain('selectVisibleTodayInsight');
+  });
+
   it('rounds displayed calories while retaining one decimal place for macro display', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');

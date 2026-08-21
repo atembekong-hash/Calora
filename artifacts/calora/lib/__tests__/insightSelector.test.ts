@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { FoodLog, Profile } from '@/context/CaloraContext';
 import { createIntelligenceContext } from '@/lib/intelligence/contextAdapter';
 import { buildDailyIntelligenceFacts } from '@/lib/intelligence/facts';
-import { selectVisibleLocalInsight } from '@/lib/intelligence/insightDelivery';
+import { selectVisibleLocalInsight, selectVisibleTodayInsight } from '@/lib/intelligence/insightDelivery';
 import { selectContextualInsight } from '@/lib/intelligence/insightSelector';
 import type { IntelligenceFact } from '@/lib/intelligence/types';
 
@@ -20,9 +20,9 @@ function log(overrides: Partial<FoodLog> = {}): FoodLog {
   };
 }
 
-function facts(logs: FoodLog[], profileValue: Profile | null = profile): IntelligenceFact[] {
+function facts(logs: FoodLog[], profileValue: Profile | null = profile, weights: { id: string; date: string; kg: number; source: 'manual' | 'health' }[] = []): IntelligenceFact[] {
   return buildDailyIntelligenceFacts(createIntelligenceContext({
-    logs, profile: profileValue, weights: [], waterLogs: {}, moodLogs: {},
+    logs, profile: profileValue, weights, waterLogs: {}, moodLogs: {},
     activityLogs: {}, activityMinutesLogs: {}, plannerMeals: [], shoppingItems: [], localRecipes: [],
   }, { date: '2026-08-20', timezone: 'America/New_York' }), { generatedAt: '2026-08-20T12:00:00.000Z' });
 }
@@ -172,5 +172,64 @@ describe('restricted contextual insight selector', () => {
     })) as unknown as IntelligenceFact[];
 
     expect(selectVisibleLocalInsight(malformed, { hydrated: true, enabled: true })).toBeNull();
+  });
+
+  it('keeps Today and Progress canonical selection consistent for actionable current-day facts', () => {
+    const input = facts([log({ calories: 2100 })]);
+    const progress = selectVisibleLocalInsight(input, { hydrated: true, enabled: true });
+    const today = selectVisibleTodayInsight(input, { hydrated: true, enabled: true });
+
+    expect(today).toEqual(progress);
+    expect(today).toMatchObject({ type: 'calorie_status', state: 'active' });
+  });
+
+  it('suppresses Progress-only descriptive weight context from Today without storing a fallback', () => {
+    const input = facts([], profile, [{ id: 'weight-1', date: '2026-08-20', kg: 80, source: 'manual' }])
+      .filter((fact) => fact.factType === 'weight.baselines');
+
+    expect(selectVisibleLocalInsight(input, { hydrated: true, enabled: true })).toMatchObject({
+      type: 'weight_baseline',
+      state: 'active',
+    });
+    expect(selectVisibleTodayInsight(input, { hydrated: true, enabled: true })).toBeNull();
+  });
+
+  it('keeps Today delivery hydration-, flag-, and malformed-input-safe', () => {
+    const input = facts([log({ calories: 2100 })]);
+    const malformed = input.map((fact) => ({ ...fact, evidence: undefined })) as unknown as IntelligenceFact[];
+
+    expect(selectVisibleTodayInsight(input, { hydrated: false, enabled: true })).toBeNull();
+    expect(selectVisibleTodayInsight(input, { hydrated: true, enabled: false })).toBeNull();
+    expect(selectVisibleTodayInsight(malformed, { hydrated: true, enabled: true })).toBeNull();
+  });
+
+  it('recomputes Today from current local facts after an add and deletion', () => {
+    const before = facts([log({ calories: 400 })]);
+    const afterAdd = facts([log({ calories: 2100 })]);
+    const afterDelete = facts([]);
+
+    expect(selectVisibleTodayInsight(before, { hydrated: true, enabled: true })).toMatchObject({
+      type: 'meal_distribution',
+      state: 'active',
+    });
+    expect(selectVisibleTodayInsight(afterAdd, { hydrated: true, enabled: true })).toMatchObject({
+      type: 'calorie_status',
+      state: 'active',
+    });
+    expect(selectVisibleTodayInsight(afterDelete, { hydrated: true, enabled: true })).toBeNull();
+  });
+
+  it('clears Today during guest hydration and recomputes only from the next account facts', () => {
+    const userA = facts([log({ calories: 2100 })]);
+    const userB = facts([], { ...profile, name: 'Different account', calorieTarget: 1800 });
+
+    expect(selectVisibleTodayInsight(userA, { hydrated: true, enabled: true })).toMatchObject({
+      type: 'calorie_status',
+    });
+    expect(selectVisibleTodayInsight(userA, { hydrated: false, enabled: true })).toBeNull();
+    expect(selectVisibleTodayInsight(userB, { hydrated: true, enabled: true })).toBeNull();
+    expect(selectVisibleTodayInsight(userA, { hydrated: true, enabled: true })).toMatchObject({
+      type: 'calorie_status',
+    });
   });
 });

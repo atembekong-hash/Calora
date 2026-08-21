@@ -37,6 +37,12 @@ import {
   isWaterConfirmed,
   recordWaterConfirmation,
 } from '@/lib/waterConfirmation';
+import {
+  buildDailyIntelligenceFacts,
+  createIntelligenceContext,
+  isIntelligenceFeatureEnabled,
+  selectVisibleTodayInsight,
+} from '@/lib/intelligence';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -769,7 +775,11 @@ function makeGaugeStyles(f: number) {
 const gaugeStyles = makeGaugeStyles(1.0);
 
 export default function HomeScreen() {
-  const { logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood, livingState, fontScale, profilePhotoUri, healthConnection } = useCalora();
+  const {
+    logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood,
+    livingState, fontScale, profilePhotoUri, healthConnection, weights,
+    activityLogs, activityMinutesLogs, plannerMeals, shoppingItems, localRecipes, hydrated,
+  } = useCalora();
   const insets = useSafeAreaInsets();
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
@@ -794,6 +804,42 @@ export default function HomeScreen() {
   const progress = Math.min(selectedTotals.calories / (target + activeEnergy), 1);
   const isProgressAction = livingState.action.kind === 'view_progress';
   const selectedWater = waterLogs[selectedDate] ?? 0;
+  const todayInsight = useMemo(() => {
+    if (!isToday(selectedDate)) return null;
+
+    const context = createIntelligenceContext({
+      logs,
+      profile,
+      weights,
+      waterLogs,
+      moodLogs,
+      activityLogs,
+      activityMinutesLogs,
+      plannerMeals,
+      shoppingItems,
+      localRecipes,
+      activeEnergyKcal: activeEnergy,
+    }, { date: selectedDate });
+
+    return selectVisibleTodayInsight(buildDailyIntelligenceFacts(context), {
+      hydrated,
+      enabled: isIntelligenceFeatureEnabled('intelligence.insights.today'),
+    });
+  }, [
+    activeEnergy,
+    activityLogs,
+    activityMinutesLogs,
+    hydrated,
+    localRecipes,
+    logs,
+    moodLogs,
+    plannerMeals,
+    profile,
+    selectedDate,
+    shoppingItems,
+    waterLogs,
+    weights,
+  ]);
 
   const openAdd = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1014,6 +1060,24 @@ export default function HomeScreen() {
           <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved on this device · waiting for a connection' : syncState === 'local' ? 'Saved on this device · ready to sync' : syncState === 'offline' ? 'Loading your local diary…' : 'Core foods are sourced from verified nutrition data.'}</Text>
         </View>
 
+        {todayInsight ? (
+          <View
+            testID="today-contextual-insight"
+            accessibilityRole="summary"
+            accessibilityLabel={`Today insight: ${todayInsight.title}. ${todayInsight.message}`}
+            style={[styles.todayInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <View style={[styles.todayInsightIcon, { backgroundColor: colors.accent }]}>
+              <Feather name="sun" size={16} color={colors.accentForeground} />
+            </View>
+            <View style={styles.todayInsightCopy}>
+              <Text style={[styles.todayInsightEyebrow, { color: colors.mutedForeground }]}>TODAY'S INSIGHT</Text>
+              <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{todayInsight.title}</Text>
+              <Text style={[styles.todayInsightMessage, { color: colors.mutedForeground }]}>{todayInsight.message}</Text>
+            </View>
+          </View>
+        ) : null}
+
         <PlannerPeek selectedDate={selectedDate} />
 
         <LivingRhythmCard
@@ -1114,6 +1178,12 @@ function makeStyles(f: number) {
   trustBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 12 },
   trustText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   heroInsight: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16, marginTop: 14, opacity: 0.82 },
+   todayInsightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderWidth: 1, borderRadius: 16, padding: 14, marginTop: 12, marginBottom: 16 },
+   todayInsightIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+   todayInsightCopy: { flex: 1, minWidth: 0 },
+   todayInsightEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 0.9, marginBottom: 3 },
+   todayInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, lineHeight: 19 * f },
+   todayInsightMessage: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17 * f, marginTop: 3 },
    fuelSnapshot: { flexDirection: 'row', borderTopWidth: 1, paddingTop: 13, marginTop: 5 },
    fuelSnapshotItem: { flex: 1, alignItems: 'center' },
    fuelSnapshotValue: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, letterSpacing: -0.25 },

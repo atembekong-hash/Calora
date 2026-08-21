@@ -23,3 +23,16 @@ export function selectVisibleLocalInsight(
     return null;
   }
 }
+
+/**
+ * Today shares the canonical local selector with Progress, but has a narrower
+ * surface policy: it is for actionable current-day context, not descriptive
+ * weight-history context. This wrapper remains stateless and fail-closed.
+ */
+export function selectVisibleTodayInsight(
+  facts: readonly IntelligenceFact[],
+  options: { hydrated: boolean; enabled: boolean },
+): ContextualInsight | null {
+  const insight = selectVisibleLocalInsight(facts, options);
+  return insight?.category === 'weight_baseline' ? null : insight;
+}
