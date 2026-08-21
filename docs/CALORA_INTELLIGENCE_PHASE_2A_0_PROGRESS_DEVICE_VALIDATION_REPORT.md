@@ -6,7 +6,7 @@
 
 The approved Progress-only insight path passes automated local validation for eligibility, suppression, live recomputation, account boundaries, no persistence, no network, failure containment, and kill-switch behavior. A narrowly scoped failure-containment fix was added so malformed local facts simply withhold the optional card rather than risk affecting Progress.
 
-Production publication remains conditional on the manual native-device and assistive-technology checks listed below. No physical Android/iOS device, Android emulator, iOS simulator, TalkBack, or VoiceOver session was available to this environment, and none is claimed.
+Production publication remains conditional on the remaining manual native-device and assistive-technology checks listed below. One physical Android account-switch/tenant-isolation session is recorded below; no iOS device, Android emulator, iOS simulator, TalkBack, or VoiceOver session is claimed.
 
 **Phase 2A expansion readiness: DO NOT APPROVE.** This validation authorizes no additional Intelligence surfaces. Today, post-log, Coach, server, persistent, feedback, and proactive Intelligence remain out of scope and disabled.
 
@@ -16,7 +16,7 @@ Production publication remains conditional on the manual native-device and assis
 | --- | --- | --- | --- |
 | Node/Vitest development workspace | Yes | PASS | Deterministic Foundation, selector, delivery, account lifecycle, privacy, failure, and regression validation |
 | Expo web preview, 402 × 874 | Yes | PASS (smoke only) | Onboarding rendered and advanced through all five pages without browser errors; not a native-device test and did not enter authenticated Progress |
-| Physical Android device | No | REQUIRES MANUAL DEVICE VALIDATION | No device session available |
+| Physical Android device | Yes | PASS (account switch / tenant isolation only) | Authenticated User A → User B → User A Progress validation; other Android checks remain required |
 | Physical iOS device | No | REQUIRES MANUAL DEVICE VALIDATION | No device session available |
 | Android emulator | No | REQUIRES MANUAL DEVICE VALIDATION | No emulator session available |
 | iOS simulator | No | REQUIRES MANUAL DEVICE VALIDATION | No simulator session available |
@@ -73,6 +73,16 @@ The configuration keeps only `intelligence.insights.progress` enabled. Server fa
 - account namespace separation and A → B → A restoration.
 
 The card is render-derived and hydration-gated, so it evaluates to `null` during the reset and recomputes only from the incoming hydrated scope. A real physical account-switch/restart visual session remains manual validation.
+
+#### Physical Android account-switch / tenant-isolation evidence
+
+**PASS.** An authenticated physical Android session executed the required original-account → sign-out → second-account → sign-out → original-account sequence:
+
+- Original account before switching: 76 kg baseline, 74 kg current weight, three weigh-ins, −2.0 kg trend, 68 kg goal, 25% progress, and the “Weight baseline available” insight.
+- The second account showed only its own state: 76.0 kg and the distinct “Protein is trailing today — 56 of 133 g logged” insight. No original-account −2.0 kg trend or weight-history state appeared.
+- Returning to the original account restored its 74.0 kg current weight, 76.0 kg baseline, three weigh-ins, −2.0 kg trend, 68 kg goal, 25% progress, and “Weight baseline available” state.
+
+No cross-account Progress Intelligence or weight-history leakage was observed. This result covers Android sign-out/account-switch tenant isolation only; iOS validation, restart/force-close, offline, responsive layout, large text, TalkBack, and VoiceOver remain untested.
 
 ### Offline and privacy inspection
 
@@ -145,7 +155,7 @@ No device jank or repeated-render claim is made. Measure representative Progress
 1. Sign in to User A with a high- or medium-confidence local day that meets an approved insight condition.
 2. Open Progress overview and confirm exactly one card, understandable title/message, no raw identifiers, and no overlap.
 3. Repeat with an empty account, low-confidence data, stale/mixed test facts where test tooling permits, and a changed food log; confirm suppression or recomputation.
-4. Sign out, sign in as User B, and return to User A. Confirm no A title/message flashes in guest or B state and that A recomputes only after A hydrates.
+4. **PASS on physical Android for one authenticated sequence.** Sign out, sign in as User B, and return to User A. The tested sequence showed no original-account insight or weight-history leakage into User B, and the original account restored correctly. Repeat on iOS and verify no A title/message flash in guest or B state.
 5. Force-close and reopen with each account. Confirm no card appears before safe hydration and no insight itself was stored.
 6. Enable airplane mode after authentication and repeat Progress opening. Confirm the card remains local and no Intelligence network dependency appears.
 
@@ -166,8 +176,8 @@ No device jank or repeated-render claim is made. Measure representative Progress
 | Stale-data suppression | PASS |
 | Watermark consistency | PASS |
 | Live recomputation | PASS |
-| Sign-out safety | PASS (automated); manual visual confirmation required |
-| Account-switch safety | PASS (automated); manual visual confirmation required |
+| Sign-out safety | PASS (automated and physical Android account-switch session); iOS confirmation required |
+| Account-switch safety | PASS (automated and physical Android tenant-isolation session); iOS confirmation required |
 | Restart/hydration safety | PASS (automated); manual visual confirmation required |
 | Offline behavior | PASS (architecture/tests); manual airplane-mode confirmation required |
 | No persistence | PASS |
@@ -183,4 +193,4 @@ No device jank or repeated-render claim is made. Measure representative Progress
 
 ## 10. Remaining blockers and stop condition
 
-The only remaining release conditions are real authenticated native-device visual, offline, responsive, and VoiceOver/TalkBack validation. No further Intelligence implementation is authorized by this report. Do not enable Today or post-log delivery, modify Coach, add persistence/network behavior, or begin another Phase 2A surface without a separate approved task.
+The remaining release conditions are iOS account-switch confirmation; Android and iOS restart/force-close, offline, responsive, and large-text validation; and TalkBack/VoiceOver validation. No further Intelligence implementation is authorized by this report. Do not enable Today or post-log delivery, modify Coach, add persistence/network behavior, or begin another Phase 2A surface without a separate approved task.
