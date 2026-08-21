@@ -1,0 +1,259 @@
+CALORA INTELLIGENCE — PHASE 2A.6 STRATEGIC DECISION & AUTHORIZATION REVIEW
+
+Phase 2A.5 is complete. Do not assume Phase 2A.6 requires another Intelligence feature.
+
+Your mission is to determine whether Calora should:
+
+A. Build one additional Phase 2A Intelligence capability
+
+or
+
+B. Stop Phase 2A feature expansion and consolidate the Intelligence system before moving to the next architectural stage.
+
+Do not implement anything.
+
+Review the actual repository and all completed Intelligence work through Phase 2A.5, including:
+
+Intelligence Foundation
+
+Progress Intelligence
+
+Today Intelligence
+
+Post-Log Intelligence
+
+Weight Short Trend
+
+7-Day Nutrition Coverage
+
+7-Day Macro Record Coverage
+
+selector priorities and one-card policy
+
+all current feature flags
+
+Coach Fact Context dark architecture
+
+Coach hardening and consent/migration work
+
+current tests, reports and known validation debt
+
+
+First: audit what Calora Intelligence can actually do now
+
+Build a capability map showing:
+
+existing Foundation facts;
+
+existing selectors;
+
+delivery surfaces;
+
+enabled vs default-OFF capabilities;
+
+overlapping signals;
+
+unused facts;
+
+missing facts;
+
+feature dependencies;
+
+current suppression rules;
+
+where Intelligence provides meaningful user value;
+
+where additional Intelligence would merely duplicate existing information.
+
+
+Second: evaluate whether Phase 2A is reaching diminishing returns
+
+Pay particular attention to Progress.
+
+It now has several candidates competing for one card. Determine whether another Progress-only fact would provide enough incremental value to justify additional code, testing and maintenance.
+
+Evaluate whether the growing selector hierarchy is becoming an architectural smell.
+
+Do not recommend another feature merely because the necessary data exists.
+
+Third: evaluate the remaining candidate directions
+
+Consider at minimum:
+
+longitudinal macro patterns;
+
+meal-distribution patterns;
+
+goal-progress context;
+
+evidence/explanation UI;
+
+Intelligence transparency;
+
+user-controlled insight preferences;
+
+Planner Intelligence;
+
+Recipe Intelligence;
+
+longitudinal nutrition trends;
+
+relationships between different facts;
+
+Coach integration readiness;
+
+consolidation of existing Intelligence;
+
+no additional Phase 2A feature.
+
+
+For each, evaluate:
+
+1. genuine user value;
+
+
+2. incremental value over existing capabilities;
+
+
+3. factual integrity;
+
+
+4. risk of behavioral or health inference;
+
+
+5. UX noise;
+
+
+6. Foundation reuse;
+
+
+7. architectural complexity;
+
+
+8. privacy;
+
+
+9. persistence requirements;
+
+
+10. server/network requirements;
+
+
+11. LLM requirements;
+
+
+12. test burden;
+
+
+13. reversibility;
+
+
+14. long-term maintenance cost.
+
+
+
+Fourth: challenge the current Intelligence architecture
+
+Determine whether:
+
+the one-card Progress model is still appropriate;
+
+candidate priorities remain defensible;
+
+some signals are too similar;
+
+any current capability should remain permanently dark;
+
+any existing capability should eventually replace another;
+
+the Foundation is becoming overloaded with low-value facts;
+
+Phase 2A should be formally closed before Coach or another architectural stage.
+
+
+Do not modify anything.
+
+Fifth: make one decision
+
+Choose exactly one:
+
+DECISION A — AUTHORIZE PHASE 2A.6
+
+Recommend exactly one additional bounded capability and provide its full authorization specification.
+
+OR:
+
+DECISION B — CLOSE PHASE 2A
+
+Explain why further local descriptive Intelligence has reached diminishing returns and define what should happen next.
+
+If recommending closure, identify the next architectural stage and its prerequisites.
+
+Important boundaries
+
+Coach Fact Context remains dark.
+
+Do not enable any existing default-OFF Intelligence flag.
+
+Do not activate Coach traffic.
+
+Do not add persistence, APIs, databases, analytics, notifications, background work or LLM behavior.
+
+Do not modify production code.
+
+Deferred device/accessibility validation remains recorded as pending and does not need to block this strategic review.
+
+Required report
+
+Automatically create:
+
+docs/CALORA_INTELLIGENCE_PHASE_2A_6_STRATEGIC_DECISION.md
+
+Include:
+
+1. current Intelligence capability map;
+
+
+2. feature-flag map;
+
+
+3. selector/priority map;
+
+
+4. overlap analysis;
+
+
+5. diminishing-returns analysis;
+
+
+6. candidate comparison;
+
+
+7. architecture critique;
+
+
+8. capabilities that should remain dark;
+
+
+9. capabilities that may eventually be retired or replaced;
+
+
+10. recommended decision;
+
+
+11. exact reasoning;
+
+
+12. next architectural stage if Phase 2A closes;
+
+
+13. exact next authorized task;
+
+
+14. remaining risks and validation debt.
+
+
+
+Do not implement the recommendation.
+
+Save the report and STOP for review.
