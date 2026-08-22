@@ -1,0 +1,599 @@
+AUTHORIZE PHASE 2B FINAL REMEDIATION
+
+The Final Phase 2B Activation-Readiness Review is accepted.
+
+Execute only the remediation required by:
+
+CALORA_INTELLIGENCE_PHASE_2B_FINAL_ACTIVATION_READINESS_REVIEW.md
+
+Mission: close the remaining blockers that prevent controlled Coach Fact Context activation.
+
+This task does not authorize activation.
+
+
+---
+
+1. Establish immutable managed-PostgreSQL migration authority
+
+Replace any remaining schema-push-only ambiguity with a single production-deployable managed PostgreSQL migration history for the Coach Fact Context consent ledger.
+
+Requirements:
+
+canonical migration file/history under the actual managed PostgreSQL/Drizzle deployment path;
+
+production application record or equivalent immutable deployment evidence;
+
+schema must match the current Drizzle model;
+
+no competing active Supabase DDL;
+
+preserve ON DELETE CASCADE;
+
+preserve valid-state constraint;
+
+preserve metadata-only consent storage;
+
+preserve one consent record per user/purpose;
+
+prove idempotent deployment behavior where applicable.
+
+
+Independently verify the target schema after application.
+
+Do not rely only on drizzle-kit push.
+
+
+---
+
+2. Replace compile-time cohort control with an operational server-owned cohort system
+
+Implement a bounded, auditable cohort mechanism that can be changed without source-code deployment.
+
+Requirements:
+
+server authoritative;
+
+default deny;
+
+empty cohort after this task;
+
+no client self-enrollment;
+
+explicit named membership;
+
+immediate global kill switch;
+
+immediate per-cohort disable/removal;
+
+account-scoped decisions;
+
+short-lived or explicitly reviewable membership;
+
+privacy-safe operational records;
+
+no Fact Context values stored;
+
+no percentage rollout unless separately authorized.
+
+
+The system must support an emergency rollback without rebuilding or redeploying application code.
+
+Do not add any real user to the cohort.
+
+
+---
+
+3. Wire real daily Foundation facts into the live Coach coordinator
+
+The final review found that live Coach currently passes facts: [].
+
+Correct this.
+
+Feed only the already-approved, frozen Coach Fact Context daily fact allowlist into the live coordinator:
+
+daily calories consumed;
+
+daily calorie target;
+
+daily protein consumed;
+
+daily protein target.
+
+
+Do not expand the allowlist.
+
+Do not send:
+
+weight;
+
+nutrition coverage;
+
+macro record coverage;
+
+meals;
+
+raw logs;
+
+food names;
+
+notes;
+
+photos;
+
+recipes;
+
+planner;
+
+shopping;
+
+wellness;
+
+activity;
+
+arbitrary Foundation facts.
+
+
+Prove the Fact Context branch receives only sanitized eligible daily facts.
+
+Prove the legacy branch continues to receive only legacy context.
+
+Prove no broad legacy context crosses into the Fact Context branch.
+
+
+---
+
+4. Replace leaking global lifecycle ownership
+
+The final review found lifecycle epochs registered in a module-global set without proper unregister ownership.
+
+Replace that with mounted, explicit lifecycle ownership.
+
+Requirements:
+
+proper registration and cleanup;
+
+no stale epoch accumulation after Coach unmount/remount;
+
+explicit invalidation on:
+
+sign-out;
+
+account switch;
+
+hydration reset;
+
+local-data clear;
+
+account deletion;
+
+consent revocation;
+
+client gate rollback;
+
+server/cohort rollback where relevant;
+
+Coach unmount.
+
+
+
+Response settlement must compare against current live lifecycle state.
+
+Prove a stale response cannot render after any invalidation.
+
+
+---
+
+5. Make request validation recursively strict
+
+Close the nested-object acceptance gap.
+
+Unknown properties must be rejected recursively, including inside fact.values and all other nested Fact Context structures.
+
+Do not rely on schemas that silently strip unknown fields.
+
+Add adversarial tests for:
+
+extra nested keys;
+
+prototype-like/property injection;
+
+nested arrays/objects;
+
+unexpected value fields;
+
+raw/legacy markers;
+
+malformed types.
+
+
+The server must reject unexpected structure before provider egress.
+
+
+---
+
+6. Add narrow aggregate request and message budgets
+
+Add endpoint-specific limits stricter than the global body parser.
+
+Define and enforce:
+
+maximum serialized Fact Context size;
+
+maximum conversation-turn count;
+
+maximum aggregate conversation-message bytes/characters;
+
+maximum individual message size;
+
+maximum total request size appropriate for this minimized endpoint.
+
+
+Keep these limits small enough to preserve the purpose of Fact Context minimization.
+
+Reject oversized requests before provider egress.
+
+Do not silently truncate security-relevant content.
+
+Document the exact limits and reasoning.
+
+
+---
+
+7. Finalize replay/idempotency policy
+
+The final review requires an explicit product/security decision.
+
+Determine whether duplicate provider egress within the valid 60-second context window is acceptable.
+
+If bounded replay remains acceptable:
+
+document the threat model;
+
+document abuse/cost bounds;
+
+prove bearer auth, server consent, cohort membership, TTL, account binding and rate limits constrain replay;
+
+add concurrent duplicate/replay tests;
+
+define operational monitoring that does not log sensitive content.
+
+
+If replay is not acceptable:
+
+implement server-owned cryptographic request IDs/nonces and atomic per-account consumption;
+
+keep storage minimal;
+
+document cleanup/expiry;
+
+test concurrency and double-submit races.
+
+
+Do not leave the policy ambiguous.
+
+
+---
+
+8. Prove full lifecycle invalidation at the real send boundary
+
+Use the real Coach send adapter and actual coordinator integration.
+
+Test pending requests during:
+
+A → B account switch;
+
+B → A account switch;
+
+sign-out;
+
+hydration reset;
+
+clear data;
+
+account deletion;
+
+consent revoke;
+
+client gate OFF;
+
+server gate OFF;
+
+cohort removal;
+
+Coach unmount;
+
+request expiry;
+
+provider timeout;
+
+late provider completion.
+
+
+Every stale response must be discarded.
+
+No Fact Context request may retry through legacy after sanitized egress begins.
+
+
+---
+
+9. Isolated activation rehearsal
+
+Test/staging only. No production activation.
+
+Using a synthetic or approved non-production test account:
+
+1. establish current consent;
+
+
+2. place the account in the temporary test cohort;
+
+
+3. enable test-only client/server gates;
+
+
+4. prove the live Coach path selects Fact Context;
+
+
+5. inspect provider-bound payload;
+
+
+6. verify only approved daily facts leave;
+
+
+7. verify claim validation;
+
+
+8. revoke consent during a pending request;
+
+
+9. remove cohort membership;
+
+
+10. disable server gate;
+
+
+11. verify immediate rollback behavior;
+
+
+12. restore all controls to OFF / deny-all.
+
+
+
+Do not use a real production cohort.
+
+Do not leave any account eligible after the rehearsal.
+
+
+---
+
+10. Direct API abuse testing
+
+Attempt:
+
+no authentication;
+
+wrong account;
+
+revoked consent;
+
+no cohort;
+
+client-forged cohort claims;
+
+raw Foundation payloads;
+
+legacy payloads;
+
+mixed payloads;
+
+unknown nested keys;
+
+oversized requests;
+
+malicious timestamps;
+
+replay/concurrent duplicates;
+
+stale nonce/request scope;
+
+unsupported fact keys;
+
+unsupported model claims.
+
+
+Prove fail-closed behavior.
+
+
+---
+
+11. Production deployment procedure
+
+Produce a concrete deployment and rollback runbook covering:
+
+database migration order;
+
+server deployment;
+
+old-client compatibility;
+
+new-client compatibility;
+
+gate defaults;
+
+cohort configuration;
+
+consent document version;
+
+partial deployment failure;
+
+rollback;
+
+database downgrade/forward recovery where applicable.
+
+
+Identify any sequence that could accidentally expose Fact Context.
+
+Fix the sequence or report it as a blocker.
+
+
+---
+
+12. Regression validation
+
+Run:
+
+Calora typecheck;
+
+full Calora suite;
+
+API typecheck;
+
+full API suite;
+
+real managed-PostgreSQL migration tests;
+
+real-database consent tests;
+
+recursive schema tests;
+
+request-budget tests;
+
+replay tests;
+
+cohort tests;
+
+activation rehearsal tests;
+
+lifecycle/unmount tests;
+
+rollback tests;
+
+existing security/static checks.
+
+
+Do not weaken tests to obtain PASS.
+
+
+---
+
+Hard boundaries
+
+At final completion:
+
+client Fact Context gate = OFF
+
+server Fact Context gate = OFF
+
+operational cohort = EMPTY / DENY ALL
+
+Fact Context allowlist = UNCHANGED
+
+legacy Coach = AVAILABLE
+
+longitudinal Intelligence flags = OFF
+
+
+Do not:
+
+activate production Fact Context;
+
+enroll a real user;
+
+expand the allowlist;
+
+retire legacy Coach;
+
+add new Phase 2A facts;
+
+begin Planner/Recipe Intelligence;
+
+begin Phase 2C.
+
+
+Physical-device/accessibility validation remains deferred and must not be marked passed.
+
+
+---
+
+Required automatic report
+
+Create:
+
+docs/CALORA_INTELLIGENCE_PHASE_2B_FINAL_REMEDIATION_REPORT.md
+
+Include:
+
+1. immutable migration/deployment mechanism;
+
+
+2. production-schema proof;
+
+
+3. operational cohort design;
+
+
+4. cohort rollback evidence;
+
+
+5. live Foundation fact wiring;
+
+
+6. exactly-one-architecture proof;
+
+
+7. lifecycle ownership and cleanup;
+
+
+8. recursive strict-schema proof;
+
+
+9. request/message budget values;
+
+
+10. replay/idempotency policy and evidence;
+
+
+11. isolated activation rehearsal;
+
+
+12. direct API abuse results;
+
+
+13. provider egress inspection;
+
+
+14. deployment/rollback runbook;
+
+
+15. files changed;
+
+
+16. exact tests and results;
+
+
+17. defects found and fixed;
+
+
+18. remaining blockers;
+
+
+19. deferred validation debt;
+
+
+20. final gates and cohort state.
+
+
+
+End with exactly one:
+
+FINAL REMEDIATION VERDICT: READY FOR ONE LAST INDEPENDENT ACTIVATION REVIEW
+
+FINAL REMEDIATION VERDICT: ADDITIONAL REMEDIATION REQUIRED
+
+or
+
+FINAL REMEDIATION VERDICT: DO NOT PROCEED
+
+Save the report and STOP.
+
+Do not activate anything.
