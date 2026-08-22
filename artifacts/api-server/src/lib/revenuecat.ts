@@ -20,6 +20,12 @@ type SubscriberEntitlement = { expires_date: string | null };
 type SubscriberResponse = {
   subscriber?: { entitlements?: Record<string, SubscriberEntitlement> };
 };
+type EntitlementListResponse = {
+  items?: { id?: string; lookup_key?: string }[];
+};
+type ActiveEntitlementsResponse = {
+  items?: { entitlement_id?: string }[];
+};
 
 /**
  * Reads the current RevenueCat entitlement for a Calora account. This is the
@@ -27,22 +33,44 @@ type SubscriberResponse = {
  * accepted as an authorization signal.
  */
 export async function hasActivePremiumEntitlement(appUserId: string): Promise<boolean> {
-  const response = await connectors.proxy(
-    "revenuecat",
-    `/v1/subscribers/${encodeURIComponent(appUserId)}`,
-    { method: "GET" },
-  );
-  if (!response.ok) {
-    throw new Error(`RevenueCat subscriber lookup failed (${response.status})`);
+  const projectId = process.env.REVENUECAT_PROJECT_ID;
+  if (!projectId) {
+    throw new Error("RevenueCat project ID is not configured");
   }
 
-  const subscriber = (await response.json()) as SubscriberResponse;
-  const expiry = subscriber.subscriber?.entitlements?.[ENTITLEMENT_ID]?.expires_date;
-  // RevenueCat uses a null expiry for lifetime access. A malformed expiry is
-  // never treated as access, so an upstream data issue cannot unlock content.
-  if (expiry === null) return Boolean(subscriber.subscriber?.entitlements?.[ENTITLEMENT_ID]);
-  const expiresAt = typeof expiry === "string" ? Date.parse(expiry) : Number.NaN;
-  return Number.isFinite(expiresAt) && expiresAt > Date.now();
+  // The connected RevenueCat credential authorizes the v2 REST API. Resolve
+  // the opaque entitlement ID from its stable lookup key before checking the
+  // customer's currently active entitlement records.
+  const entitlementsResponse = await connectors.proxy(
+    "revenuecat",
+    `/v2/projects/${encodeURIComponent(projectId)}/entitlements?limit=100`,
+    { method: "GET" },
+  );
+  if (!entitlementsResponse.ok) {
+    throw new Error(`RevenueCat entitlement lookup failed (${entitlementsResponse.status})`);
+  }
+
+  const entitlements = (await entitlementsResponse.json()) as EntitlementListResponse;
+  const premiumEntitlementId = entitlements.items?.find(
+    (entitlement) => entitlement.lookup_key === ENTITLEMENT_ID,
+  )?.id;
+  if (!premiumEntitlementId) {
+    throw new Error("RevenueCat Premium entitlement is not configured");
+  }
+
+  const activeResponse = await connectors.proxy(
+    "revenuecat",
+    `/v2/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(appUserId)}/active_entitlements`,
+    { method: "GET" },
+  );
+  if (!activeResponse.ok) {
+    throw new Error(`RevenueCat subscriber lookup failed (${activeResponse.status})`);
+  }
+
+  const activeEntitlements = (await activeResponse.json()) as ActiveEntitlementsResponse;
+  return activeEntitlements.items?.some(
+    (entitlement) => entitlement.entitlement_id === premiumEntitlementId,
+  ) ?? false;
 }
 
 /**
