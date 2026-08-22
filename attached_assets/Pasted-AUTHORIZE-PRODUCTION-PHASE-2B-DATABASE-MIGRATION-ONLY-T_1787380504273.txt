@@ -1,0 +1,221 @@
+AUTHORIZE PRODUCTION PHASE 2B DATABASE MIGRATION ONLY
+
+The Production Evidence Report is accepted.
+
+The only current blocker is that the actual production managed PostgreSQL database has not applied the committed Phase 2B migration. 
+
+Mission: apply the already-reviewed, committed Phase 2B migration to the production managed PostgreSQL target using the established Replit publish-time migration procedure, then verify the resulting production schema and dark-state controls.
+
+This task is database deployment and verification only.
+
+Do not modify application architecture.
+
+Do not create new migrations unless the existing committed migration fails for a real compatibility reason that cannot be resolved otherwise. If that happens, STOP and report the exact failure before changing schema design.
+
+1. Pre-deployment verification
+
+Before publishing:
+
+confirm the authoritative production branch and commit;
+
+confirm the committed managed-PostgreSQL Phase 2B migration is present;
+
+confirm the migration journal/history is intact;
+
+confirm the Supabase consent migration remains inert;
+
+confirm production deployment uses the canonical managed PostgreSQL/Drizzle migration path;
+
+confirm Fact Context client/server gates remain OFF;
+
+confirm no cohort is enabled.
+
+
+If repository state has diverged, reconcile safely before deployment. Do not overwrite newer remote work or force-push.
+
+2. Apply migration through the approved production procedure
+
+Use the established Replit publish-time managed-database migration flow.
+
+Do not use:
+
+ad-hoc production SQL;
+
+drizzle-kit push;
+
+manual table creation;
+
+Supabase SQL editor;
+
+an alternate migration authority.
+
+
+Apply the committed forward migration exactly through the production deployment mechanism.
+
+3. Verify migration success in production
+
+After deployment, inspect the actual production managed PostgreSQL target read-only.
+
+Verify:
+
+Migration history
+
+the Phase 2B migration is recorded as applied.
+
+
+Required tables
+
+calora_coach_fact_context_consents
+
+calora_server_config
+
+calora_cohort_memberships
+
+calora_coach_fact_context_idempotency
+
+
+Required constraints and relationships
+
+consent composite ownership key;
+
+account foreign key;
+
+ON DELETE CASCADE;
+
+valid consent-state constraint;
+
+cohort uniqueness rules;
+
+replay/idempotency uniqueness;
+
+expected indexes;
+
+schema compatibility with current API code.
+
+
+Verify that these tables contain only the approved structural metadata and no Fact Context values, Foundation facts, Coach messages, prompts, nutrition content, or provider responses.
+
+4. Verify production dark state
+
+After migration, prove:
+
+client intelligence.coach.fact_context = OFF;
+
+server COACH_FACT_CONTEXT_ENABLED = OFF/default deny;
+
+operational global configuration = absent or false;
+
+active cohort membership count = 0;
+
+real eligible accounts = 0;
+
+Fact Context allowlist = unchanged;
+
+longitudinal Intelligence flags = OFF;
+
+Legacy Coach = available.
+
+
+Do not temporarily enable anything merely to test migration success.
+
+5. Smoke verification
+
+Perform only safe, non-mutating production checks necessary to confirm:
+
+application remains healthy;
+
+legacy Coach remains available;
+
+Fact Context endpoint remains inaccessible under the current dark state;
+
+database-backed rollout checks fail closed.
+
+
+Do not use real-user Fact Context.
+
+6. Regression safety
+
+Run the relevant post-deployment checks required by the repository's deployment procedure.
+
+Do not modify unrelated application code to compensate for deployment issues.
+
+If the migration fails or production schema differs materially from expectations, STOP and report the exact discrepancy.
+
+Hard boundaries
+
+This does not authorize:
+
+Fact Context activation;
+
+real-user enrollment;
+
+cohort activation;
+
+server gate activation;
+
+client gate activation;
+
+synthetic rehearsal;
+
+allowlist expansion;
+
+Legacy Coach retirement;
+
+Phase 2C.
+
+
+Physical-device/accessibility checks remain deferred.
+
+Automatic report
+
+Create:
+
+docs/CALORA_COACH_FACT_CONTEXT_PRODUCTION_MIGRATION_VERIFICATION_REPORT.md
+
+Include:
+
+1. production commit deployed;
+
+
+2. migration procedure used;
+
+
+3. migration history evidence;
+
+
+4. exact production tables verified;
+
+
+5. constraints/indexes verified;
+
+
+6. metadata-only privacy proof;
+
+
+7. production dark-state proof;
+
+
+8. smoke-check results;
+
+
+9. deployment errors or warnings;
+
+
+10. remaining blockers;
+
+
+11. exact final gate/cohort state.
+
+
+
+End with exactly one:
+
+PRODUCTION MIGRATION VERDICT: VERIFIED — READY FOR SYNTHETIC REHEARSAL AUTHORIZATION
+
+PRODUCTION MIGRATION VERDICT: BLOCKED
+
+PRODUCTION MIGRATION VERDICT: DO NOT PROCEED
+
+Save the report and STOP.
+
+Do not run the synthetic rehearsal yet.
