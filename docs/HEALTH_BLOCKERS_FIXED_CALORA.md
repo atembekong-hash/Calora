@@ -110,6 +110,6 @@ After publishing, repeat the production Premium entitlement allow check and
 confirm the route does not return `401` or `503`. Do not activate Coach Fact
 Context as part of that recheck.
 
-PRE-ACTIVATION HEALTH VERDICT: PARTIALLY UNBLOCKED — RevenueCat connector and
-Premium access are verified in development; publishing remains required before
+PRE-ACTIVATION HEALTH VERDICT: BLOCKED — RevenueCat connector and Premium
+access are verified in development, but publishing remains required before
 production health can be considered clear.
