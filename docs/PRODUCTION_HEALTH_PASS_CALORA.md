@@ -1,119 +1,122 @@
-# Production health verification — Calora
+# Calora production health verification
 
 **Verification date:** 2026-08-22  
-**Scope:** Post-publish health verification only. Coach Fact Context was not
-activated, enrolled, consented, or sent to a provider.
+**Scope:** Rerun of the post-publish production health verification after the
+non-secret RevenueCat project identifier was configured. Coach Fact Context
+remained dark throughout this work.
 
-## 1. Deployed revision
+## Result at a glance
 
-- Expected validated source revision: `a47782a81531f90010a5001d55665606e2804b31`
-- Working tree before publishing: clean; no unexpected source changes.
+| Check | Result |
+| --- | --- |
+| Published deployment | Active public autoscale deployment; successful build |
+| API base health | `GET /api` returned `200 {"status":"ok"}` |
+| Explicit health | `GET /api/healthz` returned `200 {"status":"ok"}` |
+| Normal recipes | `GET /api/v1/recipes?limit=1` returned `200` |
+| RevenueCat v2 project and entitlement configuration | Pass |
+| RevenueCat v2 customer and active-entitlement reads | Pass |
+| Entitled Premium Recipes path | Authenticated `200` |
+| Anonymous Premium Recipes path | Correct `401` |
+| Authenticated non-entitled Premium Recipes path | Not verified |
+| Coach Fact Context | Still dark; no rollout state changed |
 
-## 2. Deployment result
+## Deployment and health
 
-- Deployment is active, public, and reports a successful build.
-- The post-publish public endpoint checks below reached the deployed service.
+- Validated deployed revision: `a47782a81531f90010a5001d55665606e2804b31`.
+- Deployment metadata reports an active public autoscale deployment with a
+  successful build.
+- The public API base route and explicit health route each returned `200` with
+  the expected minimal `{"status":"ok"}` response.
+- A normal recipe listing returned `200`, confirming the public API is serving
+  beyond its dependency-free health response.
 
-## 3. Production `/api` result
+## RevenueCat v2 verification
 
-- `GET /api` returned `200`.
-- Response: `{"status":"ok"}`.
+`REVENUECAT_PROJECT_ID` is now configured in the production runtime. Its value
+was treated as non-secret configuration and is intentionally not repeated in
+this report.
 
-## 4. Production `/api/healthz` result
+Read-only requests through the existing authenticated RevenueCat connection
+passed:
 
-- `GET /api/healthz` returned `200`.
-- Response: `{"status":"ok"}`.
+1. RevenueCat project listing returned `200` and contained the configured
+   Calora project.
+2. Project entitlement listing returned `200` and contained the stable
+   `caloraapp_pro` lookup key.
+3. Project customer listing returned `200`.
+4. Active-entitlement reads returned `200` for all 41 listed customers.
+5. Exactly one customer had the resolved Premium entitlement; 40 did not.
 
-## 5. Normal production API operation
+No RevenueCat customer, entitlement identifier, credential, token, or response
+body was written to logs or this report.
 
-- `GET /api/v1/recipes?limit=1` returned `200` with a normal recipe response.
-- An anonymous Premium Recipes request returned the intended `401` sign-in
-  response before entitlement verification.
+## Premium Recipes authorization behavior
 
-## 6. RevenueCat v2 production result
+### Entitled allow path
 
-Production is missing the non-secret configuration value
-`REVENUECAT_PROJECT_ID`. It is absent from shared, development, and production
-environment configuration.
+The one active RevenueCat customer was securely correlated to its existing
+controlled Supabase test account without exposing the account identifier. That
+account authenticated using an existing approved test fixture and
+`GET /api/v1/premium-recipes?limit=1` returned `200`.
 
-The deployed v2 entitlement helper explicitly requires that value before it
-constructs a RevenueCat request. Therefore, it correctly fails closed and the
-following production checks were **not run**:
+This confirms the live sequence:
 
-- RevenueCat connection authentication;
-- project lookup;
-- authorized test-account customer lookup;
-- active-entitlement lookup;
-- entitled Premium Recipes allow path;
-- non-entitled authenticated Premium Recipes denial path.
+1. Supabase bearer-token verification;
+2. RevenueCat v2 entitlement lookup;
+3. Premium entitlement recognition; and
+4. Premium Recipes access.
 
-No credential, customer identifier, entitlement record, or token was printed or
-stored while detecting this blocker.
+The entitled check did not return `401` or `503`.
 
-## 7. Previous RevenueCat failures
+### Anonymous boundary
 
-The previous upstream `401 Invalid API Key` condition and its contained Premium
-Recipes `503` cannot be declared resolved in production. The deployed helper
-cannot reach the repaired v2 connector until `REVENUECAT_PROJECT_ID` is
-configured. This is intentionally fail-closed rather than an authorization
-bypass.
+An anonymous request to Premium Recipes returned the expected `401` sign-in
+response before entitlement work.
 
-## 8. Runtime and log findings
+### Authenticated non-entitled deny path
 
-- Public API health and normal recipe reads are currently successful.
-- Deployment logs contain startup-time probe failures, including `500` results
-  for routed paths while artifact processes were starting. These are material
-  observations even though the public API and explicit health endpoint later
-  returned `200`.
-- No post-publish successful Premium entitlement verification can be asserted
-  because production configuration blocks that path before an external call.
+An authenticated production request for a known non-entitled controlled account
+could not be completed. The available test-credential fixtures authenticate the
+entitled account, while the older documented QA fixture did not authenticate
+and no mapped non-entitled controlled credential is available in this
+environment.
 
-## 9. Coach Fact Context dark-state verification
+Therefore, the required live `403` assertion is **not** substituted with the
+anonymous `401`, a local test, or a synthetic account. The route's local
+regression coverage still verifies `403` for an authenticated account without
+the entitlement, but production deny behavior remains incomplete.
 
-No Coach Fact Context control changed during publish or verification.
+## Runtime logs
 
-| Control | Post-publish evidence | State |
-| --- | --- | --- |
-| Process gate | No production `COACH_FACT_CONTEXT_ENABLED` environment value exists; an empty deployed request returned `404` unavailable before parsing, authentication, or provider use | Off / fail closed |
-| Global rollout | Production read-only query found 0 rollout config rows | Off |
-| Active cohort | Production read-only query found 0 active cohort rows | Empty |
-| Consent rows | Production read-only query found 0 rows | Empty |
-| Nonce rows | Production read-only query found 0 rows | Empty |
-| Frozen allowlist | Source remains limited to the approved four daily fact keys | Unchanged |
-| Provider traffic | No Fact Context payload, authenticated request, or provider call was made | None |
+- Deployment logs include `500` health-probe entries during process startup,
+  before the API server reported its port and before the service settled.
+- The current public `/api` and `/api/healthz` checks are both healthy at
+  `200`.
+- No deployment log entry matched:
+  - `Invalid API Key`;
+  - `premium entitlement verification unavailable`; or
+  - a Premium Recipes entitlement `503`.
 
-The previously authorized controlled account was not enrolled or activated.
+The startup probe observations should remain visible in release monitoring, but
+they do not contradict the subsequent successful live health checks.
 
-## 10. Regression results
+## Coach Fact Context dark-state boundary
 
-Pre-publish validation passed:
+No Coach Fact Context configuration, rollout membership, consent record, nonce,
+process-gate value, provider request, or account enrollment was created or
+modified during this verification.
 
-- API health tests: 2 passing;
-- Premium Recipes tests: 15 passing;
-- API typecheck: passing.
+The deployed Fact Context route returned `404` to an empty unauthenticated
+request, consistent with the unavailable/dark path. The existing frozen
+allowlist remains unchanged. This verification did not authorize or perform a
+controlled activation.
 
-Post-publish smoke checks confirmed `GET /api`, `GET /api/healthz`, and normal
-recipe browsing are healthy. RevenueCat entitlement enforcement cannot complete
-its production regression until the missing project identifier is added.
+## Remaining requirement
 
-## 11. Exact final production state
-
-- API base health: healthy.
-- Explicit API health: healthy.
-- Normal recipe API: healthy.
-- RevenueCat v2 production entitlement verification: blocked before provider
-  access by absent `REVENUECAT_PROJECT_ID`.
-- Premium entitlement allow/deny verification: incomplete.
-- Coach Fact Context: dark and fail closed.
-- Controlled account: not enrolled and not activated.
-
-## 12. Remaining blocker
-
-Configure the existing, non-secret `REVENUECAT_PROJECT_ID` value in the
-production environment using the Calora RevenueCat project identifier already
-approved for the repaired connector. Do not add a credential to source control
-or chat. After configuration, rerun the read-only v2 project/customer/active
-entitlement checks and both authenticated Premium Recipes allow/deny checks.
-Continue to keep Coach Fact Context dark during that recheck.
+Use the existing approved non-entitled internal test account and its mapped
+credential to make one authenticated request to
+`GET /api/v1/premium-recipes?limit=1`. It must return `403`, not `401`, `200`,
+or `503`. Record only the status and outcome; do not put account identifiers,
+passwords, or access tokens into logs or this report.
 
 POST-PUBLISH PRODUCTION VERDICT: BLOCKED
