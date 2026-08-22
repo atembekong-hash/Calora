@@ -20,10 +20,9 @@ Two independent issues were found:
    lookups now return `200`.
 
 The base-path health fix has been implemented and verified in development. It
-requires a user-initiated Publish to become active in production. No secret was
-read, changed, or exposed during the RevenueCat recheck. A live Premium allow
-path remains unverified because the connected project has no active
-`caloraapp_pro` customer available for testing.
+requires a user-initiated Publish to become active in production. No credential
+value was exposed, copied, or changed during the RevenueCat recheck. The live
+Premium allow path is verified through the development API proxy.
 
 ## Confirmed production evidence
 
@@ -36,9 +35,10 @@ path remains unverified because the connected project has no active
 | Apple universal-link document | `200` |
 | Android asset-link document | `200` |
 | RevenueCat connector status | Repaired; authenticated read-only project and customer lookups returned `200` |
-| RevenueCat entitlement records | 41 customer records examined; no active `caloraapp_pro` entitlement was present |
-| Premium-route deny behavior | Focused route tests confirm authenticated accounts without entitlement receive `403`; the local QA credentials are no longer accepted, so this could not be repeated against a live session |
-| Premium-route allow behavior | Pending an active test entitlement; no live account can currently exercise the allow path |
+| RevenueCat entitlement records | 41 customer records examined; v2 found one active `caloraapp_pro` entitlement and 40 customers without it |
+| Legacy subscriber lookup | v1 returned `401` for the active customer despite the repaired v2 connection, so it could not be used for entitlement authorization |
+| Premium-route deny behavior | Focused route and helper tests confirm an authenticated account without the entitlement receives `403` |
+| Premium-route allow behavior | The authorized active internal test account reached `GET /api/v1/premium-recipes` through the development proxy with `200` and an available catalog; it did not return `401`, `403`, or `503` |
 
 The source and artifact configuration already identify `/api/healthz` as the
 explicit startup health endpoint. The additional `/api` response is a
@@ -66,16 +66,22 @@ The new regression test verifies both paths. Validation completed successfully:
 The API code does not build a RevenueCat authorization header or read a
 RevenueCat environment variable. It uses the Replit RevenueCat connector proxy.
 The former provider-specific `Invalid API Key` response is no longer present:
-read-only project, customer, and active-entitlement lookups all returned
+read-only v2 project, customer, and active-entitlement lookups all returned
 `200` through the existing connection. This confirms the repaired connection
 can perform server-side RevenueCat reads without exposing a credential.
 
-There are currently no customers with an active `caloraapp_pro` entitlement in
-the connected project. The Premium route's deny and unavailable branches remain
-covered by the focused test suite, but the live allow path cannot be exercised
-until a designated test account has an active entitlement. Do not grant,
-purchase, reset, or otherwise alter a customer solely for this recheck without
-the account owner's approval.
+The old v1 subscriber endpoint still returned `401` for the active internal
+test customer. The Premium entitlement helper now uses the supported v2
+project/customer active-entitlements API instead: it resolves the stable
+`caloraapp_pro` lookup key to RevenueCat's opaque entitlement ID, then checks
+only that customer's currently active records. It fails closed for missing
+configuration and provider failures.
+
+The focused helper tests cover active access, no-entitlement denial, and an
+upstream verification failure. The full API suite passed, and the active
+internal test account reached the real Premium list route successfully. No
+subscription, entitlement, customer, credential, or account data was changed
+to perform the check.
 
 ## Coach Fact Context prerequisite state
 
@@ -94,15 +100,15 @@ No Fact Context control was changed.
 
 ## Residual risk and release boundary
 
-The production base-path health repair is not live until the user publishes the
-validated source. RevenueCat entitlement verification is available again, but
-live Premium allow-path validation remains blocked until an active test account
-is available. Neither condition authorizes a Coach Fact Context change.
+The production base-path health repair and this RevenueCat v2 compatibility fix
+are not live until the user publishes the validated source. RevenueCat
+entitlement verification and the live Premium allow path are now validated in
+development. Neither condition authorizes a Coach Fact Context change.
 
-After an active test account is available, repeat the Premium entitlement allow
-check and confirm the route does not return `401` or `503`. Do not activate
-Coach Fact Context as part of that recheck.
+After publishing, repeat the production Premium entitlement allow check and
+confirm the route does not return `401` or `503`. Do not activate Coach Fact
+Context as part of that recheck.
 
-PRE-ACTIVATION HEALTH VERDICT: PARTIALLY UNBLOCKED — RevenueCat connector
-verification is repaired; Premium allow-path verification remains pending an
-active test account.
+PRE-ACTIVATION HEALTH VERDICT: PARTIALLY UNBLOCKED — RevenueCat connector and
+Premium access are verified in development; publishing remains required before
+production health can be considered clear.
