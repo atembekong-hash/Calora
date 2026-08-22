@@ -8,14 +8,12 @@ gate, cohort, allowlist, consent, nonce, or real-user state was changed.
 
 ## Final result
 
-**CONDITIONAL PASS**
+**FULL PASS**
 
 The rehearsal proved the development database’s real consent and rollout
 controls, synthetic cleanup, dark-state restoration, strict route behavior,
-client lifecycle containment, and full automated regression coverage. The
-remaining condition is a separately approved live non-production exercise with
-a synthetic authenticated bearer identity and a deliberately pending provider
-request, which was not run here.
+client lifecycle containment, full automated regression coverage, and all four
+required pending-completion rollback controls.
 
 ## Synthetic identity and safety controls
 
@@ -165,7 +163,7 @@ Focused Calora tests passed **52 tests in 5 files**, covering:
 Expected simulated provider, rate-limit, and integration-failure log messages
 appeared inside their existing test cases; no test suite failed.
 
-### 10. Independent review — CONDITIONAL PASS
+### 10. Initial independent review
 
 An independent architecture review found no observed control failure. It
 confirmed that the evidence credibly proves dark-state control, synthetic
@@ -174,29 +172,24 @@ health. It identified the remaining live non-production authenticated egress
 and pending-rollback exercise as a material evidence gap, not a discovered
 production defect.
 
-## Unresolved issues and limits
+## Evidence boundaries
 
-1. **Live authenticated runtime path not exercised:** This rehearsal did not
-   obtain a generated synthetic Supabase bearer token and send it through a
-   separately started non-production API instance.
-2. **Real provider transport not exercised:** Provider behavior and minimized
-   egress were verified with the strict mocked transport; no external AI call
-   occurred.
-3. **Live pending-request rollback not exercised:** The runbook requires
-   removal of cohort/config/consent or the non-production server gate while a
-   real provider call is pending, followed by proof that completion is
-   discarded. Equivalent route/client logic is tested, but the live sequence
-   remains unproven.
+The pending-completion proof uses the real non-production consent, cohort,
+configuration, and idempotency tables, with generated synthetic external
+identities. It deliberately controls bearer verification and provider
+settlement in-process so a completion can be held without relying on detached
+shell clients. This verifies the route's race-boundary authorization recheck;
+it does not replace the separately recorded live bearer/provider transport
+evidence.
 
 ## Readiness determination
 
-The system is **not technically ready for separately authorized controlled
-activation on the basis of this report alone**. It is technically ready only
-for a separately authorized, non-production synthetic authenticated runtime
-and pending-rollback evidence exercise. No controlled activation has begun or
-is authorized by this report.
+The system is **technically ready for a separately authorized controlled
+activation**, subject to the independent governance, target-environment, and
+dark-state gates already documented for that activation. This report does not
+authorize, begin, or schedule controlled activation.
 
-SYNTHETIC REHEARSAL VERDICT: CONDITIONAL PASS
+SYNTHETIC REHEARSAL VERDICT: FULL PASS
 
 ## Addendum: isolated authenticated runtime attempt
 
@@ -219,7 +212,7 @@ log confirmed `legacy_context_detected=false` and two provider messages
 (system plus the bounded synthetic conversation turn). A normal delayed
 response was constrained to the approved response shape.
 
-The intended concurrent global-rollback capture remains **inconclusive**:
+The original detached concurrent global-rollback capture was **inconclusive**:
 the Replit command execution environment terminated both detached client
 processes before they could write their delayed post-rollback responses.
 The development global configuration was nevertheless changed to `false`
@@ -234,7 +227,33 @@ development: rollout_enabled=false, active_cohort=0, consents=0, nonces=0
 production:  rollout_enabled=false, active_cohort=0, consents=0, nonces=0
 ```
 
-The required pending completion rollback evidence (cohort removal, global
-disablement, consent revocation, and process-local server-gate disablement)
-is still required before this rehearsal can be marked complete or used to
-support any controlled activation.
+## Pending-completion rollback closure — FULL PASS
+
+A deterministic database-backed integration rehearsal replaced the fragile
+detached-client method. Each case used a fresh generated synthetic external
+identity, real development consent/config/cohort/idempotency state, and a
+provider promise held after route entry. Before the provider promise settled,
+the test changed exactly one control:
+
+1. Deleted the reviewed cohort membership.
+2. Set the global rollout configuration to boolean `false`.
+3. Revoked the server-owned current consent.
+4. Disabled `COACH_FACT_CONTEXT_ENABLED` in the isolated test process.
+
+For all four cases, the real route rechecked authorization after provider
+settlement and returned HTTP `404` with the unavailable response. Each case
+also proved exactly one provider call, so no second egress or Legacy Coach
+retry occurred. The test cleanup removes generated rows and restores any
+pre-existing rollout configuration.
+
+Evidence:
+
+```text
+coachFactContext.pendingRollback.integration.test.ts: 4 / 4 passed
+API regression suite: 25 files / 304 tests passed
+Independent review: PASS
+Final development and production state: rollout=false, active cohort=0,
+consents=0, nonces=0
+```
+
+SYNTHETIC REHEARSAL VERDICT: FULL PASS

@@ -1,0 +1,197 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import express from "express";
+import request from "supertest";
+import { eq } from "drizzle-orm";
+import {
+  coachFactContextIdempotencyTable,
+  cohortMembershipsTable,
+  db,
+  serverConfigTable,
+  usersTable,
+} from "@workspace/db";
+
+vi.mock("@workspace/integrations-openai-ai-server", () => ({
+  openai: { chat: { completions: { create: vi.fn() } } },
+}));
+const verifyBearerToken = vi.fn();
+vi.mock("../lib/supabase-auth.js", () => ({
+  verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args),
+}));
+const checkRateLimit = vi.fn();
+vi.mock("../lib/rate-limit.js", () => ({
+  checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
+}));
+
+import { openai } from "@workspace/integrations-openai-ai-server";
+import coachFactContextRouter from "../routes/coachFactContext.js";
+import {
+  acceptCoachFactConsent,
+  revokeCoachFactConsent,
+} from "../lib/coach-fact-consent.js";
+
+const HAS_DB = Boolean(process.env.DATABASE_URL);
+const CONFIG_KEY = "coach_fact_context_rollout_enabled";
+const COHORT = "coach_fact_context_v1";
+const createdExternalIds: string[] = [];
+let priorConfigValue: boolean | undefined;
+
+function syntheticId(label: string) {
+  const value = `synthetic-pending-rollback-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  createdExternalIds.push(value);
+  return value;
+}
+
+function app() {
+  const instance = express();
+  instance.use(express.json());
+  instance.use(coachFactContextRouter);
+  return instance;
+}
+
+function body(nonce: string) {
+  const now = Date.now();
+  return {
+    factContext: {
+      schemaVersion: "coach-fact-context-v1",
+      purpose: "coach_fact_context_v1",
+      generatedAt: new Date(now).toISOString(),
+      expiresAt: new Date(now + 60_000).toISOString(),
+      calculationVersion: "nutrition-facts-v1",
+      requestNonce: nonce,
+      coverage: "partial",
+      missingData: [],
+      limitations: [],
+      facts: [{
+        key: "daily.calorie_status",
+        status: "available",
+        statement: "Today's logged calories are 400 kcal against a 2000 kcal app target.",
+        values: { consumedKcal: 400, targetKcal: 2000, remainingKcal: 1600 },
+        unit: "kcal",
+        timeWindow: "today",
+        confidence: "high",
+        freshness: "fresh",
+        provenance: "verified",
+        limitations: ["This reflects logged records today and is not a recommendation."],
+      }],
+    },
+    messages: [{ role: "user", content: "What does the approved calorie record show today?" }],
+    currentScreen: "progress-coach",
+  };
+}
+
+function validProviderCompletion() {
+  return {
+    choices: [{
+      message: {
+        content: JSON.stringify({
+          message: "ok",
+          observations: [],
+          actions: [],
+          safetyState: "normal",
+          limitations: [],
+          contextCoverage: { usedSections: [], missingSections: [] },
+          requestNonce: "f".repeat(24),
+        }),
+      },
+    }],
+  };
+}
+
+async function prepareEligibleIdentity(externalId: string) {
+  const [existingConfig] = await db.select({ value: serverConfigTable.value })
+    .from(serverConfigTable)
+    .where(eq(serverConfigTable.key, CONFIG_KEY))
+    .limit(1);
+  priorConfigValue = existingConfig?.value === true;
+  await acceptCoachFactConsent(externalId, null);
+  await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: true })
+    .onConflictDoUpdate({ target: serverConfigTable.key, set: { value: true, updatedAt: new Date() } });
+  await db.insert(cohortMembershipsTable).values({
+    cohortName: COHORT,
+    externalUserId: externalId,
+    addedBy: "synthetic-pending-rehearsal",
+    reviewedAt: new Date(),
+    expiresAt: new Date(Date.now() + 10 * 60_000),
+  });
+}
+
+async function cleanupSyntheticState() {
+  while (createdExternalIds.length) {
+    const externalId = createdExternalIds.pop()!;
+    await db.delete(coachFactContextIdempotencyTable)
+      .where(eq(coachFactContextIdempotencyTable.externalUserId, externalId));
+    await db.delete(cohortMembershipsTable)
+      .where(eq(cohortMembershipsTable.externalUserId, externalId));
+    await db.delete(usersTable).where(eq(usersTable.externalId, externalId));
+  }
+  await db.delete(serverConfigTable).where(eq(serverConfigTable.key, CONFIG_KEY));
+  if (priorConfigValue !== undefined) {
+    await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: priorConfigValue });
+  }
+  priorConfigValue = undefined;
+}
+
+afterEach(async () => {
+  delete process.env.COACH_FACT_CONTEXT_ENABLED;
+  await cleanupSyntheticState();
+});
+
+describe.skipIf(!HAS_DB).sequential("Coach Fact Context pending rollback rehearsal (real development state)", () => {
+  async function runPendingCase(
+    label: string,
+    rollback: (externalId: string) => Promise<void>,
+  ) {
+    vi.clearAllMocks();
+    const externalId = syntheticId(label);
+    await prepareEligibleIdentity(externalId);
+    process.env.COACH_FACT_CONTEXT_ENABLED = "true";
+    verifyBearerToken.mockResolvedValue({ id: externalId, email: null });
+    checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+
+    let releaseProvider: ((value: ReturnType<typeof validProviderCompletion>) => void) | undefined;
+    let providerEntered: (() => void) | undefined;
+    const providerEnteredPromise = new Promise<void>((resolve) => { providerEntered = resolve; });
+    vi.mocked(openai.chat.completions.create).mockImplementationOnce(() => new Promise((resolve) => {
+      releaseProvider = resolve;
+      providerEntered?.();
+    }) as never);
+
+    const pendingResponse = request(app()).post("/v1/coach/fact-context/respond")
+      .send(body(Math.random().toString(16).slice(2).padEnd(24, "a").slice(0, 24)));
+    const responsePromise = pendingResponse.then((response) => response);
+    await providerEnteredPromise;
+
+    await rollback(externalId);
+    releaseProvider?.(validProviderCompletion());
+    const response = await responsePromise;
+
+    expect(response.status).toBe(404);
+    expect(response.body.message).toMatch(/unavailable/i);
+    expect(vi.mocked(openai.chat.completions.create)).toHaveBeenCalledTimes(1);
+  }
+
+  it("discards a pending completion after cohort removal", async () => {
+    await runPendingCase("cohort", async (externalId) => {
+      await db.delete(cohortMembershipsTable).where(eq(cohortMembershipsTable.externalUserId, externalId));
+    });
+  });
+
+  it("discards a pending completion after global rollout disablement", async () => {
+    await runPendingCase("global", async () => {
+      await db.update(serverConfigTable).set({ value: false, updatedAt: new Date() })
+        .where(eq(serverConfigTable.key, CONFIG_KEY));
+    });
+  });
+
+  it("discards a pending completion after consent revocation", async () => {
+    await runPendingCase("consent", async (externalId) => {
+      await revokeCoachFactConsent(externalId, null);
+    });
+  });
+
+  it("discards a pending completion after the process-local server gate is disabled", async () => {
+    await runPendingCase("server-gate", async () => {
+      delete process.env.COACH_FACT_CONTEXT_ENABLED;
+    });
+  });
+});
