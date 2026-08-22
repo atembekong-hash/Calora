@@ -1,0 +1,156 @@
+REMEDIATE PRE-ACTIVATION PRODUCTION HEALTH BLOCKERS
+
+Do not activate Coach Fact Context yet.
+
+The first controlled activation correctly stopped because the mandatory production health gate failed.
+
+Your mission now is to diagnose and remediate the production health blockers, then independently prove the activation prerequisites are healthy.
+
+Current known blockers:
+
+1. Production health-check requests are returning HTTP 500.
+
+
+2. RevenueCat entitlement verification is returning HTTP 401 and causing contained HTTP 503 responses.
+
+
+3. Production Coach Fact Context server-gate state and client-capability state have not yet been independently verified.
+
+
+
+Diagnose before editing
+
+Trace each failure from request to root cause.
+
+For the RevenueCat 401, inspect:
+
+which RevenueCat endpoint is being called;
+
+which credential/environment variable the server expects;
+
+whether that variable exists in the actual production runtime;
+
+whether the credential type is correct for the endpoint;
+
+whether development and production configuration have been confused;
+
+whether the deployed secret differs from the intended secret;
+
+whether authorization headers are constructed correctly;
+
+whether the RevenueCat project/app configuration matches Calora;
+
+whether credential rotation or previous configuration changes created stale production configuration.
+
+
+Never print, expose, commit, or place secret values in the report.
+
+Verify presence/type/configuration using redacted fingerprints or safe metadata only.
+
+Determine whether the RevenueCat failure is itself causing the health-check 500 or whether the health-check failure has an independent cause.
+
+Repair
+
+Fix only confirmed root causes.
+
+Do not weaken authentication, entitlement enforcement, health checks, fail-closed behavior, or Coach Fact Context security controls merely to make the tests pass.
+
+If a production secret must be replaced and you cannot safely perform that operation with existing authorized controls, STOP and tell me exactly which secret/configuration I need to update and where.
+
+Production health proof
+
+After remediation, prove:
+
+production health endpoint succeeds consistently;
+
+RevenueCat authentication succeeds;
+
+entitlement verification no longer produces the current 401;
+
+the associated contained 503 condition is resolved;
+
+ordinary production API behavior remains healthy;
+
+Legacy Coach remains operational;
+
+no regression was introduced.
+
+
+Fact Context prerequisite verification
+
+Independently establish the actual production state of:
+
+server Fact Context gate;
+
+client Fact Context capability;
+
+global rollout;
+
+cohort membership;
+
+consent state;
+
+schema/migrations;
+
+frozen allowlist;
+
+nonce/replay infrastructure.
+
+
+Before controlled activation, expected state remains:
+
+global rollout OFF/absent;
+
+cohort size 0;
+
+no unauthorized consent;
+
+no Fact Context production traffic.
+
+
+Do not activate the previously authorized account during this remediation task.
+
+Required report
+
+Create:
+
+HEALTH_BLOCKERS_FIXED_CALORA.md
+
+Keep the distinguishing words at the beginning of the filename.
+
+Document:
+
+root cause of the HTTP 500;
+
+root cause of RevenueCat 401;
+
+relationship between the 401, 503 and health failure;
+
+configuration/code changes made;
+
+production health evidence;
+
+RevenueCat verification evidence;
+
+Fact Context gate/capability verification;
+
+regression results;
+
+exact final production state;
+
+anything requiring manual action from me.
+
+
+End with exactly one:
+
+PRE-ACTIVATION HEALTH VERDICT: PASS
+
+or
+
+PRE-ACTIVATION HEALTH VERDICT: BLOCKED
+
+If PASS, explicitly state whether the previously authorized single-account controlled activation can safely resume.
+
+Save the report and STOP.
+
+Do not activate Fact Context as part of this task.
