@@ -338,3 +338,32 @@ deny-all. Do not add an application admin endpoint or use an ad-hoc production
 database write merely to make that operation available.
 
 FIRST ACTIVATION VERDICT: HOLD — MORE OBSERVATION OR REMEDIATION REQUIRED
+
+## 15. Control-plane handoff verification
+
+**Verification date:** 2026-08-22
+**Outcome:** The approved live sequence remains unstarted because this review
+environment has production read access and deployment metadata access only.
+
+Immediately before handoff, aggregate-only production verification returned:
+
+```text
+deployment=active_autoscale_with_successful_build
+global_rollout_enabled_count=0
+active_reviewed_cohort_count=0
+current_fact_context_consent_count=1 (approved pilot only)
+unexpired_fact_context_nonce_count=0
+```
+
+The process gate was not changed and the server-owned consent was not changed.
+No cohort membership, global rollout configuration, client capability, provider
+configuration, or deployment changed. No Fact Context request, replay request,
+nonce claim, provider egress, or response validation event occurred.
+
+The remaining authorized sequence must be run by a production operator with
+supported control-plane access: enable only the process gate, global rollout,
+and reviewed pilot cohort; verify aggregate eligibility is exactly one after
+each transition; make the single bounded request and its replay check; then
+restore every control to the deny-all baseline. No public or temporary
+administrative endpoint, ad-hoc production SQL, or deployment workaround is an
+approved substitute.
