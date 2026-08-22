@@ -7,3 +7,18 @@ uri = "file://screenshots/calora-today-editorial-calm.jpg"
 type = "image"
 title = "Calora Today — proposed visual direction"
 description = "A non-live mobile mockup for approval. It prioritizes daily balance, one clear food-logging action, and the diary before secondary wellness or discovery content."
+logical_id = "33378ab9-3b28-4a04-a55d-f5b5f85347c9"
+
+[[outputs]]
+id = "Jd1FtpI13JGlQP368k0o_"
+uri = "file://docs/SYNTHETIC_REHEARSAL_COACH_FACT_CONTEXT_REPORT.md"
+type = "text"
+title = "Calora Coach Fact Context — Synthetic Rehearsal Report"
+description = "Final FULL PASS report covering all four pending-completion rollback controls, verified development-cluster isolation, regression evidence, cleanup, and the explicit no-activation boundary."
+logical_id = "fea511eb-1476-45b3-b0ee-195f913fdaf8"
+content_hash = "sha256:4a9e25cd3afe6444bef7e4b063f4a9128dd60af230f8dc3e7993c209ee1be352"
+size = 11324
+mtime_ms = 1787405790692
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/fea511eb-1476-45b3-b0ee-195f913fdaf8/f33531ef-b5fd-4f56-ad7b-b569036ab90f"
+storage_version_token = "1787406348806553"
+content_type = "text/markdown"
