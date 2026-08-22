@@ -64,7 +64,8 @@ The new regression test verifies both paths. Validation completed successfully:
 ## RevenueCat repair and remaining validation
 
 The API code does not build a RevenueCat authorization header or read a
-RevenueCat environment variable. It uses the Replit RevenueCat connector proxy.
+RevenueCat credential. It uses the Replit RevenueCat connector proxy and the
+non-secret configured project ID.
 The former provider-specific `Invalid API Key` response is no longer present:
 read-only v2 project, customer, and active-entitlement lookups all returned
 `200` through the existing connection. This confirms the repaired connection
