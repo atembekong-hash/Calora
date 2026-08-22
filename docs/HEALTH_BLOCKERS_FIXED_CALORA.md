@@ -1,9 +1,16 @@
 # Calora pre-activation production health remediation
 
 **Assessment date:** 2026-08-22  
-**Scope:** Production-health remediation before any Coach Fact Context
-activation. This work did not activate, enroll, consent, or send provider
-traffic for Coach Fact Context.
+**Scope:** Historical production-health remediation snapshot taken before the
+later approved-pilot authentication and consent repair. This assessment did not
+activate, enroll, consent, or send provider traffic for Coach Fact Context.
+Its zero-consent evidence is not the later post-repair verification state.
+
+**Current status:** This pre-publish assessment is superseded by the released
+production verification in `ACTIVATION_REMEDIATIONS_RELEASED_CALORA.md`. That
+later report identifies the deployed revision and records final production
+`GET /api`, `GET /api/healthz`, RevenueCat v2, authenticated missing-customer
+denial, and dark-gate checks.
 
 ## Executive result
 
@@ -19,10 +26,10 @@ Two independent issues were found:
    has since been repaired and read-only RevenueCat project and customer
    lookups now return `200`.
 
-The base-path health fix has been implemented and verified in development. It
-requires a user-initiated Publish to become active in production. No credential
-value was exposed, copied, or changed during the RevenueCat recheck. The live
-Premium allow path is verified through the development API proxy.
+At the time of this historical assessment, the base-path health fix had been
+implemented and verified in development but still required publishing. No
+credential value was exposed, copied, or changed during the RevenueCat recheck.
+The live Premium allow path was verified through the development API proxy.
 
 ## Confirmed production evidence
 
@@ -84,9 +91,12 @@ internal test account reached the real Premium list route successfully. No
 subscription, entitlement, customer, credential, or account data was changed
 to perform the check.
 
-## Coach Fact Context prerequisite state
+## Coach Fact Context prerequisite state (historical pre-repair snapshot)
 
-No Fact Context control was changed.
+No Fact Context control was changed during this historical health assessment.
+The zero consent count below predates the later approved-pilot repair recorded
+in `ACTIVATION_REMEDIATIONS_RELEASED_CALORA.md`; it does not describe the
+post-repair state.
 
 | Control | Evidence | State |
 | --- | --- | --- |
@@ -96,20 +106,16 @@ No Fact Context control was changed.
 | Server-owned consent | Production read-only query found 0 consent rows | Empty |
 | Idempotency nonce ledger | Production read-only query found 0 nonce rows | Empty |
 | Required operational tables | All four rollout, cohort, consent, and idempotency tables are present | Present |
-| Frozen fact allowlist | Source remains restricted to the four approved daily fact keys | Unchanged |
+| Frozen fact allowlist | Source remains restricted to `daily.calorie_status` and `daily.protein_status` only | Unchanged |
 | Client capability | Current client source keeps `intelligence.coach.fact_context` hard-false | Dark in current source; a released native binary cannot be independently inspected from this environment |
 
 ## Residual risk and release boundary
 
-The production base-path health repair and this RevenueCat v2 compatibility fix
-are not live until the user publishes the validated source. RevenueCat
-entitlement verification and the live Premium allow path are now validated in
-development. Neither condition authorizes a Coach Fact Context change.
+At the time of this historical assessment, publishing remained necessary before
+production health could be considered clear. That blocker was subsequently
+resolved and rechecked against the deployed revision in
+`ACTIVATION_REMEDIATIONS_RELEASED_CALORA.md`; this document must not be used as
+the current production-readiness verdict.
 
-After publishing, repeat the production Premium entitlement allow check and
-confirm the route does not return `401` or `503`. Do not activate Coach Fact
-Context as part of that recheck.
-
-PRE-ACTIVATION HEALTH VERDICT: BLOCKED — RevenueCat connector and Premium
-access are verified in development, but publishing remains required before
-production health can be considered clear.
+HISTORICAL PRE-PUBLISH HEALTH VERDICT: BLOCKED — SUPERSEDED BY THE FINAL
+RELEASED PRODUCTION VERIFICATION REPORT

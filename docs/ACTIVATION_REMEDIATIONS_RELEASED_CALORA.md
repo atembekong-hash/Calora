@@ -68,7 +68,7 @@ an authenticated Premium request could be made. No substitute account was used,
 and no new test account was created. The prior `503` regression is therefore
 not cleared by a live production request in this report.
 
-## 5. Approved pilot-account and consent verification
+## 5. Initial pre-repair pilot-account and consent verification (historical)
 
 Only the previously approved original pilot identity was examined. In the
 production authentication system it was found but did not meet the required
@@ -109,7 +109,11 @@ cannot expose ordinary users: the production server must still require the
 process gate, global database gate, reviewed cohort membership, and current
 server-owned consent. Those controls remain independently deny-all.
 
-## 8. Exact production dark state after verification
+## 8. Initial pre-repair production dark-state snapshot (historical)
+
+This snapshot was taken during the release verification before the later
+approved-pilot authentication repair described in section 9. Its zero consent
+count is a historical baseline, not the final post-repair state.
 
 ```text
 process_gate=unset/off
@@ -124,26 +128,84 @@ percentage_rollout=none
 
 No Fact Context provider request, nonce, cohort membership, global rollout
 configuration, process-gate setting, or client capability change was made.
-Legacy Coach remains the unavailable-path fallback. Consent alone would not
-make an account eligible, and no production consent was created during this
-verification.
+Legacy Coach remains the unavailable-path fallback. No production consent had
+been created at the time of this pre-repair snapshot.
 
-## 9. Remaining blockers and recommendation
+## 9. Final post-repair approved-pilot production verification
 
-The first controlled activation cannot resume yet. Before a fresh activation
-review:
+This verification occurred after the initial pre-repair snapshots in sections 5
+and 8. The following evidence supersedes those historical readiness findings
+for the same approved pilot only.
 
-1. restore and verify the same approved pilot account’s production
-   confirmation, internal/purpose designation, and approved authentication
-   fixture;
-2. use only that authenticated pilot to verify or establish current
-   server-owned production consent;
-3. rerun the missing-RevenueCat-customer live denial check using that same
-   approved pilot; and
-4. repeat the dark-state checks immediately before any separately authorized
-   one-account activation.
+The same previously approved pilot identity was repaired through the
+server-side Supabase administrative path only. Its confirmation and reviewed
+internal-test and activation-purpose markers were restored without recording
+its identity, email address, credential, or token.
+
+The approved fixture then authenticated that exact account successfully. No
+other account was inspected, created, substituted, enrolled, or used to
+establish the required evidence.
+
+Using only that authenticated session:
+
+1. the server-owned consent status was read;
+2. the current reviewed consent was established when absent, using the
+   authenticated consent-acceptance endpoint and document version
+   `2026-08-21`;
+3. a subsequent server read returned `consented_current`; and
+4. the authenticated Premium request for the account without a RevenueCat
+   customer returned the reviewed stable `403` denial:
+   `Premium access is not available for this account.`
+
+The authenticated Coach Fact Context route remained unavailable with `404`
+before request-body handling. This proves the process gate remains off for the
+prepared account; no Fact Context request, nonce, provider egress, or Legacy
+Coach fallback occurred.
+
+## 10. Final production control snapshot
+
+Immediately after the post-repair approved-pilot verification, read-only
+production checks against the deployed revision identified at the top of this
+report returned:
+
+```text
+process_gate=off (authenticated Fact Context route=404)
+global_rollout_enabled_count=0
+active_reviewed_cohort_count=0
+fact_context_consent_count=1 (approved pilot only)
+fact_context_nonce_count=0
+eligible_account_count=0
+percentage_rollout=none
+```
+
+Public production health checks returned `200` for the API, health endpoint,
+and ordinary recipe endpoint. The anonymous Premium control returned `401`.
+The API and Calora typechecks, API test suite, and Calora test suite passed.
+
+## 11. Source reconciliation and final boundary proof
+
+The repository was safely reconciled with the latest remote history without
+accepting stale changes that would have reintroduced unapproved Fact Context
+facts or removed the stable missing-customer denial. The resulting reviewed
+source remains traceable to the released remediation revision and contains:
+
+```text
+daily.calorie_status
+daily.protein_status
+```
+
+No meal-distribution, logging-completeness, or other Foundation fact is
+allowlisted in the mobile construction, server validation, generated schemas,
+or observation validation paths. RevenueCat v2 entitlement checks remain in
+place, with a missing customer treated as an explicit fail-closed access
+denial.
 
 This report intentionally contains no account identifier, email, credential,
-token, prompt, fact value, or provider response content.
+token, prompt, fact value, or provider response content. The PASS verdict is
+based only on the post-repair snapshot in sections 9 and 10: one current
+consent for the approved pilot, stable authenticated `403` and `404` checks,
+and independently deny-all process, global-rollout, and cohort controls. The
+repaired pilot remains prepared but ineligible because consent does not
+override those controls.
 
-ACTIVATION REMEDIATION VERDICT: BLOCKED
+ACTIVATION REMEDIATION VERDICT: PASS — FIRST CONTROLLED ACTIVATION MAY RESUME
