@@ -1,8 +1,8 @@
 # Calora Coach Fact Context — First Controlled Activation
 
-**Activation review date:** 2026-08-22  
+**Initial activation review date:** 2026-08-22
 **Activation outcome:** Stopped at the mandatory pre-activation safety gate.  
-**Production mutations:** None.
+**Initial-review production mutations:** None.
 
 ## 1. Scope and authorization boundary
 
@@ -90,7 +90,7 @@ non-entitled controls above, but it should be addressed before treating
 Premium authorization behavior as uniformly stable for all authenticated
 accounts.
 
-## 7. Exact final production state
+## 7. Initial-review final production state
 
 ```text
 process_gate=unset/off
@@ -101,10 +101,11 @@ nonce_count=0
 eligible_account_count=0
 ```
 
-No Coach Fact Context provider traffic, account enrollment, consent, cohort
-membership, rollout configuration, process-gate setting, database schema, or
-deployment changed. No credentials, account identifiers, tokens, prompts,
-facts, or provider response content are recorded here.
+During the initial review, no Coach Fact Context provider traffic, account
+enrollment, consent, cohort membership, rollout configuration, process-gate
+setting, database schema, or deployment changed. No credentials, account
+identifiers, tokens, prompts, facts, or provider response content are recorded
+here.
 
 ## 8. Residual risk and recommendation
 
@@ -121,3 +122,59 @@ Do not activate until all of the following are separately cleared:
    or formally accepted as a bounded fail-closed condition.
 
 FIRST ACTIVATION VERDICT: HOLD — MORE OBSERVATION OR REMEDIATION REQUIRED
+
+## 9. Pilot-account preparation update
+
+**Preparation date:** 2026-08-22
+**Activation outcome:** Still held; no rollout was enabled.
+
+The same previously designated internal account was re-verified without
+recording its identifier, email address, token, or credential. Exactly one
+confirmed, password-capable account carried both the expected internal-test
+marker and explicit authorization-purpose marker. Its approved internal
+authentication fixture was repaired through the Supabase administrative path,
+then that same account authenticated successfully.
+
+The server-owned consent API was exercised using only that authenticated
+session against the running development API:
+
+1. the current status returned `not_consented` for document version
+   `2026-08-21`;
+2. accepting the reviewed disclosure returned `consented_current`; and
+3. a subsequent server read returned the same current state and document
+   version.
+
+The administrative authentication-fixture repair and the development
+server-owned consent acceptance are the only operational mutations in this
+preparation update. This dated entry is the approval/audit record for those
+bounded actions. It does not supersede the initial review's historical
+production snapshot above.
+
+## 10. Post-preparation control snapshot
+
+The following sanitized verification was taken immediately after the
+development consent acceptance:
+
+```text
+approved_account_selection=exactly_one_confirmed_internal_and_purpose_marked_account
+authentication=successful_via_approved_internal_fixture
+consent_document_version=2026-08-21
+current_consent_count=1
+enabled_rollout_config_count=0
+active_reviewed_cohort_count=0
+nonce_count=0
+process_gate=off (authenticated dark endpoint returned 404 before body validation)
+```
+
+The dark endpoint remained unavailable (`404`) for the authenticated,
+consented account. No Fact Context request reached payload validation, rollout
+eligibility, nonce creation, or provider egress. With the process gate off and
+no enabled rollout configuration or active reviewed cohort, eligible-account
+count remains `0`.
+
+The following were not changed: the process gate, global rollout
+configuration, cohort membership, client feature gate, Fact Context allowlist,
+provider configuration, production Fact Context controls, or any unrelated
+account. The account is prepared for a future separately approved activation,
+but is not eligible for Fact Context while the deny-all controls remain in
+place.
