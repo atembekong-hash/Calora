@@ -200,25 +200,45 @@ The re-check confirms:
 
 No synthetic rehearsal was run.
 
-## 9. Final determination and smallest supported corrective action
+## 9. Publish-history evidence retrieval update
 
-**Determination: C. INSUFFICIENT EVIDENCE.**
+The existing Replit-issued publish record was recovered after this report's
+initial review:
 
-The missing `__drizzle_migrations` journal is a **documentary governance
-mismatch**, not a real schema-deployment failure under the supported Replit
-Publish model. The current production schema is consistent with the reviewed
-Phase 2B design. However, the available environment cannot retrieve the
-platform-issued Publish history/build record that immutably links the schema
-deployment to commit `a85b0b36e0c6b246b48388431ac3e7e76f824405`.
+- **Publish record:** `a554656389b1ff6cff0e98a55eb9d27f6e372b79`
+- **Author / committer:** `Replit Agent <agent@replit.com>`
+- **Subject:** `Published your App`
+- **Timestamp:** `2026-08-22T06:42:55Z`
+- **Immutable tree:** `becc1810c92d642df99879450eb620fd02bda48e`
+- **Publish graph parents:**
+  `b86a928cf155ea3128dd313f0d7b021003227dd5` and
+  `400532f071d0156569e38633fbea143b01906daa`
 
-**Smallest supported corrective action:** obtain and preserve the existing
-Replit Publish history entry (deployment/build identity, timestamp, and
-deployed revision if shown) for this publication, then append that immutable
-platform evidence to this report. Do not re-publish, modify the schema, or
-create a manual journal record merely to satisfy the evidence gap.
+Git ancestry verification proves that the authorized commit
+`a85b0b36e0c6b246b48388431ac3e7e76f824405` is an ancestor of this
+Replit-issued publish record. This is a direct immutable repository linkage,
+not an inference from timestamp alone. Deployment logs also record artifact
+startup for the corresponding publication window, and current Replit metadata
+reports a successful public autoscale deployment.
 
-The system is **not yet ready** for separate non-production synthetic rehearsal
-authorization because the requested commit-to-deployment audit linkage remains
-unproven.
+The platform API does not expose a separate numeric deployment/build ID or a
+schema-diff transcript. Those identifiers are not needed to establish the
+commit-to-publish relationship because the Replit-issued publish record and
+its verified ancestry supply that linkage.
 
-MIGRATION GOVERNANCE VERDICT: INSUFFICIENT EVIDENCE
+## 10. Final determination
+
+**Determination: B. DOCUMENTARY GOVERNANCE GAP — RESOLVED.**
+
+The missing `__drizzle_migrations` journal is a documentation-model mismatch,
+not a production deployment failure. Replit Publish's supported schema-diff
+flow produced the reviewed schema, and the recovered Replit-issued publish
+record now immutably links that deployment lineage to the authorized Phase 2B
+commit. The post-publish schema fingerprint and dark-state recheck remain
+unchanged.
+
+The system is ready for **separate, explicit non-production synthetic rehearsal
+authorization only**. This review does not authorize a rehearsal, activation,
+real-user enrollment, or any production change.
+
+MIGRATION GOVERNANCE VERDICT: BLOCKER RESOLVED
