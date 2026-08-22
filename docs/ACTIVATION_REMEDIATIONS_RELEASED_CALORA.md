@@ -208,4 +208,33 @@ and independently deny-all process, global-rollout, and cohort controls. The
 repaired pilot remains prepared but ineligible because consent does not
 override those controls.
 
+## 12. Subsequent activation-review handoff
+
+After this remediation verification passed, the separately authorized
+one-account activation review rechecked the prepared pilot and deny-all state.
+It did not start activation because this environment has supported production
+read access and deployment metadata access, but not the approved control-plane
+write access required to change the process gate, global rollout, or reviewed
+cohort.
+
+The subsequent review left the following unchanged:
+
+```text
+process_gate=off
+client_fact_context_capability=off
+global_rollout_enabled_count=0
+active_reviewed_cohort_count=0
+current_fact_context_consent_count=1 (approved pilot only)
+unexpired_fact_context_nonce_count=0
+eligible_account_count=0
+provider_requests_since_remediation_release=0
+```
+
+This does not reverse the remediation PASS. It clarifies the next boundary:
+the first live one-account activation may resume only with a production
+operator who has supported control-plane access and follows the separately
+approved, reversible sequence. No public or temporary administrative endpoint,
+ad-hoc production SQL, deployment workaround, percentage rollout, or
+substitute account is approved.
+
 ACTIVATION REMEDIATION VERDICT: PASS — FIRST CONTROLLED ACTIVATION MAY RESUME
