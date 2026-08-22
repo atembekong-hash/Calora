@@ -33,11 +33,14 @@ import {
 const SYNTHETIC_REHEARSAL_OPT_IN = process.env.COACH_FACT_CONTEXT_SYNTHETIC_REHEARSAL === "development-only";
 const SAFE_REHEARSAL_ENVIRONMENT = process.env.NODE_ENV === "test" && SYNTHETIC_REHEARSAL_OPT_IN;
 const HAS_SAFE_DB = Boolean(process.env.DATABASE_URL) && SAFE_REHEARSAL_ENVIRONMENT;
-const DEVELOPMENT_DATABASE_ALLOWLIST = new Set(["heliumdb"]);
+const VERIFIED_DEVELOPMENT_TARGET = {
+  databaseName: "heliumdb",
+  postgresSystemIdentifier: "7670770438921318420",
+} as const;
 const CONFIG_KEY = "coach_fact_context_rollout_enabled";
 const COHORT = "coach_fact_context_v1";
 const createdExternalIds: string[] = [];
-let priorConfig: { exists: boolean; value?: boolean } | undefined;
+let priorConfig: { exists: boolean; value?: unknown } | undefined;
 let priorServerGate: string | undefined;
 let gateSnapshotCaptured = false;
 
@@ -109,7 +112,7 @@ async function prepareEligibleIdentity(externalId: string) {
     .where(eq(serverConfigTable.key, CONFIG_KEY))
     .limit(1);
   priorConfig = existingConfig
-    ? { exists: true, value: existingConfig.value === true }
+    ? { exists: true, value: existingConfig.value }
     : { exists: false };
   priorServerGate = process.env.COACH_FACT_CONTEXT_ENABLED;
   gateSnapshotCaptured = true;
@@ -137,7 +140,7 @@ async function cleanupSyntheticState() {
   if (priorConfig !== undefined) {
     await db.delete(serverConfigTable).where(eq(serverConfigTable.key, CONFIG_KEY));
     if (priorConfig.exists) {
-      await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: priorConfig.value === true });
+      await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: priorConfig.value });
     }
   }
   priorConfig = undefined;
@@ -155,9 +158,15 @@ afterEach(async () => {
 
 describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context pending rollback rehearsal (real development state)", () => {
   beforeEach(async () => {
-    const result = await pool.query<{ database_name: string }>("SELECT current_database() AS database_name");
-    if (!DEVELOPMENT_DATABASE_ALLOWLIST.has(result.rows[0]?.database_name ?? "")) {
-      throw new Error("Synthetic Coach Fact Context rehearsal blocked: database target is not allowlisted development infrastructure.");
+    const result = await pool.query<{ database_name: string; system_identifier: string }>(
+      "SELECT current_database() AS database_name, system_identifier::text AS system_identifier FROM pg_control_system()",
+    );
+    const target = result.rows[0];
+    if (
+      target?.database_name !== VERIFIED_DEVELOPMENT_TARGET.databaseName
+      || target.system_identifier !== VERIFIED_DEVELOPMENT_TARGET.postgresSystemIdentifier
+    ) {
+      throw new Error("Synthetic Coach Fact Context rehearsal blocked: database target is not the verified development cluster.");
     }
   });
 

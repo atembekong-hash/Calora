@@ -233,8 +233,10 @@ A deterministic database-backed integration rehearsal replaced the fragile
 detached-client method. It can execute only with both `NODE_ENV=test` and the
 explicit `COACH_FACT_CONTEXT_SYNTHETIC_REHEARSAL=development-only` opt-in. It
 also queries the connected database before every case and blocks before any
-write unless the target is the allowlisted development database identity
-`heliumdb`; production’s distinct `neondb` identity is not allowlisted.
+write unless both the database name and immutable PostgreSQL cluster system
+identifier match the verified development target (`heliumdb` on cluster
+`7670770438921318420`). Production's distinct `neondb` database and
+`7670939736220280207` cluster are not allowlisted.
 Each case used a fresh generated synthetic external identity, real development
 consent/config/cohort/idempotency state, and a provider promise held after
 route entry. Before the provider promise settled, the test changed exactly one
@@ -249,8 +251,8 @@ For all four cases, the real route rechecked authorization after provider
 settlement and returned HTTP `404` with the unavailable response. Each case
 also proved exactly one provider call, so no second egress or Legacy Coach
 retry occurred. The test cleanup removes generated rows, restores the exact
-original rollout-row presence/value, and restores the original process-local
-server-gate value.
+original rollout-row presence/raw JSON value, and restores the original
+process-local server-gate value.
 
 Evidence:
 
