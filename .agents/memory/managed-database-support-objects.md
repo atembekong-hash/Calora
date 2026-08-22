@@ -25,3 +25,16 @@ capture the platform Publish identity when exposed, and compare the production
 schema read-only against canonical source. Correct defects only through a new
 forward change and Publish; never manual DDL, manual journal inserts, or
 deployment/startup migration scripts.
+
+When the deployment API omits a build ID or deployed revision, a Replit-authored
+`Published your App` Git record with verified ancestry to the reviewed commit,
+plus successful deployment metadata and a post-publish schema fingerprint, is
+the strongest supported commit-to-production audit linkage.
+
+**Why:** Managed Publish records may retain immutable repository lineage even
+when the production schema-diff transcript and a Drizzle journal are not
+exposed to read-only tooling.
+
+**How to apply:** Prove ancestry directly; do not infer a commit match from
+timestamps alone. Record the Publish commit, timestamp, tree, schema
+fingerprint, and any platform evidence gaps in the release report.
