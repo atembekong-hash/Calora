@@ -230,10 +230,12 @@ production:  rollout_enabled=false, active_cohort=0, consents=0, nonces=0
 ## Pending-completion rollback closure — FULL PASS
 
 A deterministic database-backed integration rehearsal replaced the fragile
-detached-client method. Each case used a fresh generated synthetic external
-identity, real development consent/config/cohort/idempotency state, and a
-provider promise held after route entry. Before the provider promise settled,
-the test changed exactly one control:
+detached-client method. It can execute only with both `NODE_ENV=test` and the
+explicit `COACH_FACT_CONTEXT_SYNTHETIC_REHEARSAL=development-only` opt-in.
+Each case used a fresh generated synthetic external identity, real development
+consent/config/cohort/idempotency state, and a provider promise held after
+route entry. Before the provider promise settled, the test changed exactly one
+control:
 
 1. Deleted the reviewed cohort membership.
 2. Set the global rollout configuration to boolean `false`.
@@ -243,8 +245,9 @@ the test changed exactly one control:
 For all four cases, the real route rechecked authorization after provider
 settlement and returned HTTP `404` with the unavailable response. Each case
 also proved exactly one provider call, so no second egress or Legacy Coach
-retry occurred. The test cleanup removes generated rows and restores any
-pre-existing rollout configuration.
+retry occurred. The test cleanup removes generated rows, restores the exact
+original rollout-row presence/value, and restores the original process-local
+server-gate value.
 
 Evidence:
 

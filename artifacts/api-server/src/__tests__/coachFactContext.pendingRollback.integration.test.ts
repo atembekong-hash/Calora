@@ -29,11 +29,14 @@ import {
   revokeCoachFactConsent,
 } from "../lib/coach-fact-consent.js";
 
-const HAS_DB = Boolean(process.env.DATABASE_URL);
+const SYNTHETIC_REHEARSAL_OPT_IN = process.env.COACH_FACT_CONTEXT_SYNTHETIC_REHEARSAL === "development-only";
+const SAFE_REHEARSAL_ENVIRONMENT = process.env.NODE_ENV === "test" && SYNTHETIC_REHEARSAL_OPT_IN;
+const HAS_SAFE_DB = Boolean(process.env.DATABASE_URL) && SAFE_REHEARSAL_ENVIRONMENT;
 const CONFIG_KEY = "coach_fact_context_rollout_enabled";
 const COHORT = "coach_fact_context_v1";
 const createdExternalIds: string[] = [];
-let priorConfigValue: boolean | undefined;
+let priorConfig: { exists: boolean; value?: boolean } | undefined;
+let priorServerGate: string | undefined;
 
 function syntheticId(label: string) {
   const value = `synthetic-pending-rollback-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -102,7 +105,10 @@ async function prepareEligibleIdentity(externalId: string) {
     .from(serverConfigTable)
     .where(eq(serverConfigTable.key, CONFIG_KEY))
     .limit(1);
-  priorConfigValue = existingConfig?.value === true;
+  priorConfig = existingConfig
+    ? { exists: true, value: existingConfig.value === true }
+    : { exists: false };
+  priorServerGate = process.env.COACH_FACT_CONTEXT_ENABLED;
   await acceptCoachFactConsent(externalId, null);
   await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: true })
     .onConflictDoUpdate({ target: serverConfigTable.key, set: { value: true, updatedAt: new Date() } });
@@ -125,18 +131,20 @@ async function cleanupSyntheticState() {
     await db.delete(usersTable).where(eq(usersTable.externalId, externalId));
   }
   await db.delete(serverConfigTable).where(eq(serverConfigTable.key, CONFIG_KEY));
-  if (priorConfigValue !== undefined) {
-    await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: priorConfigValue });
+  if (priorConfig?.exists) {
+    await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: priorConfig.value === true });
   }
-  priorConfigValue = undefined;
+  priorConfig = undefined;
 }
 
 afterEach(async () => {
-  delete process.env.COACH_FACT_CONTEXT_ENABLED;
+  if (priorServerGate === undefined) delete process.env.COACH_FACT_CONTEXT_ENABLED;
+  else process.env.COACH_FACT_CONTEXT_ENABLED = priorServerGate;
+  priorServerGate = undefined;
   await cleanupSyntheticState();
 });
 
-describe.skipIf(!HAS_DB).sequential("Coach Fact Context pending rollback rehearsal (real development state)", () => {
+describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context pending rollback rehearsal (real development state)", () => {
   async function runPendingCase(
     label: string,
     rollback: (externalId: string) => Promise<void>,
