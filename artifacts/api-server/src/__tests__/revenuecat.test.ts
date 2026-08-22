@@ -64,6 +64,16 @@ describe("hasActivePremiumEntitlement", () => {
     await expect(hasActivePremiumEntitlement("free-user")).resolves.toBe(false);
   });
 
+  it("fails closed for an account that does not yet have a RevenueCat customer", async () => {
+    proxyMock
+      .mockResolvedValueOnce(jsonResponse({
+        items: [{ id: "entitlement-123", lookup_key: "caloraapp_pro" }],
+      }))
+      .mockResolvedValueOnce(jsonResponse({ message: "Customer not found" }, 404));
+
+    await expect(hasActivePremiumEntitlement("new-free-user")).resolves.toBe(false);
+  });
+
   it("fails closed when RevenueCat cannot verify the customer's entitlements", async () => {
     proxyMock
       .mockResolvedValueOnce(jsonResponse({

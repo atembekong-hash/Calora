@@ -91,6 +91,20 @@ describe("Premium recipe routes", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("returns the same stable denial when the account has no RevenueCat customer yet", async () => {
+    hasActivePremiumEntitlementMock.mockResolvedValue(false);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const res = await request(app).get("/v1/premium-recipes");
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ message: "Premium access is not available for this account." });
+    expect(checkRateLimitMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("returns an honest unavailable state with no provider configuration", async () => {
     const app = await appWithProvider();
     const res = await request(app).get("/v1/premium-recipes");

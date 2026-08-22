@@ -63,6 +63,13 @@ export async function hasActivePremiumEntitlement(appUserId: string): Promise<bo
     `/v2/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(appUserId)}/active_entitlements`,
     { method: "GET" },
   );
+  // RevenueCat has no customer record until an account first reaches its
+  // billing system. That is a normal non-Premium state, not an availability
+  // failure. Treat it as an explicit fail-closed denial while preserving
+  // errors for every other provider failure.
+  if (activeResponse.status === 404) {
+    return false;
+  }
   if (!activeResponse.ok) {
     throw new Error(`RevenueCat subscriber lookup failed (${activeResponse.status})`);
   }
