@@ -1,0 +1,374 @@
+AUTHORIZE FIRST CONTROLLED ACTIVATION
+
+Mission
+
+Execute Calora Coach Fact Context's first controlled production activation using the smallest practical explicitly authorized cohort.
+
+Phase 2B technical validation and synthetic rehearsal are complete.
+
+This authorization permits only the first controlled activation described below.
+
+It does not authorize general rollout, percentage rollout, automatic cohort expansion, allowlist expansion, or Legacy Coach retirement.
+
+
+---
+
+1. Pre-activation safety gate
+
+Before changing any production activation control, independently verify:
+
+production database is the expected managed PostgreSQL target;
+
+Phase 2B schema is present;
+
+production application health is normal;
+
+client Fact Context capability is in the expected reviewed state;
+
+server Fact Context gate is currently OFF/default deny;
+
+operational global rollout is OFF/absent;
+
+active Fact Context cohort members = 0;
+
+consent rows are in the expected pre-activation state;
+
+nonce/idempotency state is healthy;
+
+frozen allowlist is unchanged;
+
+Legacy Coach is operational;
+
+no unreviewed Phase 2B code/schema drift exists.
+
+
+If any precondition differs materially from the reviewed architecture:
+
+STOP. DO NOT ACTIVATE.
+
+
+---
+
+2. Activation cohort
+
+Activate ONE explicitly authorized controlled test account only.
+
+Do not select an ordinary customer.
+
+Prefer an internal/tester account specifically designated for this controlled activation.
+
+If no such account has been explicitly identified and safely authorized, STOP and request the account rather than choosing one yourself.
+
+No second account may be added during this task.
+
+No percentage rollout.
+
+No random sampling.
+
+No automatic enrollment.
+
+
+---
+
+3. Consent remains mandatory
+
+Cohort membership must never substitute for consent.
+
+The selected account must complete the reviewed current-version Coach Fact Context consent flow.
+
+Verify server-authoritative consent before Fact Context egress.
+
+Local/cache-only consent must remain insufficient.
+
+Revocation must immediately restore denial according to the reviewed architecture.
+
+
+---
+
+4. Activate in strict order
+
+Follow the reviewed deployment/activation runbook.
+
+Use the minimum controls necessary for the single account.
+
+Activation order must preserve fail-closed behavior throughout.
+
+Never create a temporary state in which unrestricted accounts can become eligible.
+
+Immediately after each control change, verify eligibility before proceeding.
+
+If eligibility exceeds the single authorized account:
+
+ROLL BACK IMMEDIATELY.
+
+
+---
+
+5. Frozen data boundary
+
+Do not expand Coach Fact Context.
+
+The only eligible facts remain:
+
+daily calories consumed;
+
+daily calorie target;
+
+daily protein consumed;
+
+daily protein target.
+
+
+No weight.
+
+No meal details.
+
+No food names.
+
+No diary.
+
+No notes.
+
+No photos.
+
+No recipes.
+
+No Planner.
+
+No shopping information.
+
+No wellness/activity data.
+
+No longitudinal facts.
+
+No broad Legacy Coach context.
+
+
+---
+
+6. First live production validation
+
+Using only the authorized controlled account, validate the real production path:
+
+authenticated user
+
+→ current consent
+
+→ cohort eligibility
+
+→ architecture coordinator
+
+→ sanitized Fact Context
+
+→ server authorization
+
+→ nonce claim
+
+→ risk screening
+
+→ provider
+
+→ deterministic claim validation
+
+→ lifecycle settlement
+
+→ Coach UI
+
+Verify exactly one architecture is used.
+
+Inspect the provider-bound payload structurally without creating sensitive-content logs.
+
+Confirm no Legacy Coach broad context crosses the Fact Context boundary.
+
+
+---
+
+7. Validate normal user behavior
+
+For the controlled account, test a small representative set of ordinary Coach interactions.
+
+Confirm:
+
+responses arrive normally;
+
+approved facts can be used correctly;
+
+unsupported facts are not claimed;
+
+the Coach does not invent inaccessible nutrition information;
+
+response validation behaves correctly;
+
+duplicate/replayed requests remain rejected;
+
+provider failures remain contained;
+
+Legacy Coach is not accidentally invoked after Fact Context egress.
+
+
+Do not deliberately send sensitive real-world personal information merely to test the system.
+
+
+---
+
+8. Live rollback validation
+
+While the controlled activation exists, verify the operational rollback mechanisms without expanding the cohort.
+
+Confirm that:
+
+removing the account from the cohort prevents new Fact Context requests;
+
+consent revocation prevents new Fact Context requests;
+
+global rollout kill prevents Fact Context;
+
+restoring the approved single-account configuration behaves deterministically.
+
+
+Do not repeatedly manipulate production controls without reason.
+
+Record every control transition.
+
+
+---
+
+9. Automatic rollback conditions
+
+Immediately disable controlled Fact Context if any of the following occurs:
+
+unauthorized account becomes eligible;
+
+consent bypass;
+
+cross-account data exposure;
+
+broad Legacy context reaches Fact Context provider egress;
+
+unsupported Foundation facts leave the device/server boundary;
+
+stale response settles after lifecycle invalidation;
+
+Fact Context automatically retries through Legacy Coach;
+
+duplicate provider egress bypasses nonce protection;
+
+rollout cannot be stopped promptly;
+
+provider output bypasses deterministic validation;
+
+material privacy leakage appears in logs;
+
+unexpected database/schema behavior;
+
+repeated unexplained server errors attributable to Fact Context.
+
+
+Any cross-account or unauthorized data exposure is an immediate STOP condition.
+
+
+---
+
+10. No expansion
+
+Even if every test passes:
+
+DO NOT ADD A SECOND USER.
+
+DO NOT START A PERCENTAGE ROLLOUT.
+
+DO NOT EXPAND THE ALLOWLIST.
+
+DO NOT RETIRE LEGACY COACH.
+
+DO NOT BEGIN PHASE 2C.
+
+Expansion requires a separate authorization after review of this activation.
+
+
+---
+
+11. Post-activation state
+
+If the controlled activation passes without rollback-triggering defects, leave only the explicitly authorized account eligible if doing so is consistent with the reviewed activation plan.
+
+Otherwise restore complete deny-all state.
+
+Report the exact final state.
+
+
+---
+
+Required report
+
+Create:
+
+FIRST_CONTROLLED_ACTIVATION_CALORA.md
+
+Keep the distinguishing report name at the beginning for mobile visibility.
+
+Include:
+
+1. exact production state before activation;
+
+
+2. authorized cohort size;
+
+
+3. consent evidence;
+
+
+4. exact activation sequence;
+
+
+5. eligibility proof;
+
+
+6. real production request-path evidence;
+
+
+7. provider-boundary structural proof;
+
+
+8. exactly-one-architecture proof;
+
+
+9. response-validation results;
+
+
+10. nonce/replay results;
+
+
+11. rollback tests;
+
+
+12. errors or anomalies;
+
+
+13. privacy/logging findings;
+
+
+14. regressions;
+
+
+15. exact final production state;
+
+
+16. any residual risk;
+
+
+17. recommendation for the next stage.
+
+
+
+End with exactly one:
+
+FIRST ACTIVATION VERDICT: PASS — ELIGIBLE FOR SEPARATE EXPANSION REVIEW
+
+FIRST ACTIVATION VERDICT: HOLD — REMEDIATION OR MORE OBSERVATION REQUIRED
+
+FIRST ACTIVATION VERDICT: ROLLED BACK
+
+Save the report and STOP.
+
+Do not expand beyond the single authorized account.
