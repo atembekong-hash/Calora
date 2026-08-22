@@ -107,9 +107,10 @@ setting, database schema, or deployment changed. No credentials, account
 identifiers, tokens, prompts, facts, or provider response content are recorded
 here.
 
-## 8. Residual risk and recommendation
+## 8. Initial-review residual risk and recommendation
 
-Do not activate until all of the following are separately cleared:
+At the time of the initial review, activation could not proceed until all of the
+following were separately cleared:
 
 1. the originally designated account is confirmed, authenticated through an
    approved internal path, and remains explicitly authorized;
@@ -120,8 +121,6 @@ Do not activate until all of the following are separately cleared:
    retaining the one-account server controls; and
 4. the missing-RevenueCat-customer Premium behavior is evaluated and corrected
    or formally accepted as a bounded fail-closed condition.
-
-FIRST ACTIVATION VERDICT: HOLD — MORE OBSERVATION OR REMEDIATION REQUIRED
 
 ## 9. Pilot-account preparation update
 
@@ -204,3 +203,50 @@ global rollout, cohort membership, consent change, provider request, client
 feature flag, or any production activation. The client Fact Context capability
 remains dark by default, and the existing server-side deny-all controls remain
 required for any later, separately reviewed activation.
+
+## 12. Remediation integration and current final state
+
+The three remediation tracks are now reflected in the project:
+
+| Remediation | Current status | Activation effect |
+| --- | --- | --- |
+| Approved pilot-account readiness | The original authorized internal account is confirmed, has an approved authentication fixture, and completed the current consent flow in development. | It is prepared for a future verification; it is not enrolled or eligible in production. |
+| Fact-only boundary | Server, mobile request construction, schemas, and tests are narrowed to calorie status and protein status only. | No meal-distribution or logging-completeness fact can be selected by the updated source. The client feature remains dark by default. |
+| Missing RevenueCat customer handling | Server authorization and regression coverage now classify a missing RevenueCat customer as a stable fail-closed access denial. | The fix must be included in, and rechecked against, the next production deployment. |
+
+These remediations supersede the corresponding initial-review concerns, but
+they do not change the following production controls:
+
+```text
+process_gate=off
+global_rollout=disabled_or_absent
+active_reviewed_cohort_count=0
+production_fact_context_consent_enrollments=0
+eligible_account_count=0
+provider_requests_during_this_activation_record=0
+```
+
+No account identifier, credential, token, prompt, fact value, or provider
+response is recorded in this report. No percentage rollout, additional account,
+Legacy Coach change, or Phase 2C work is authorized by these remediation
+updates.
+
+## 13. Remaining conditions before a new activation review
+
+A separate, fresh production review is still required before changing any
+activation control. It must:
+
+1. verify the released production source includes the narrowed fact boundary
+   and stable missing-customer Premium behavior;
+2. re-verify the same approved pilot account through the production
+   authentication and server-owned consent flow, without substituting another
+   account;
+3. confirm current health and the Premium `200` / `401` / `403` controls;
+4. confirm process gate off, global rollout off, no other consent or cohort
+   enrollment, no nonce records, and Legacy Coach availability;
+5. use a separately reviewed client release to enable the Fact Context
+   capability only when all server-side one-account controls are ready; and
+6. obtain explicit approval for the limited live request, replay check, and
+   reversibility sequence described in the controlled-activation procedure.
+
+FIRST ACTIVATION VERDICT: HOLD — MORE OBSERVATION OR REMEDIATION REQUIRED
