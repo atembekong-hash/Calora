@@ -1,0 +1,389 @@
+FIRST CONTROLLED COACH FACT CONTEXT ACTIVATION
+
+Mission
+
+Resume and execute the previously authorized single-account controlled production activation of Calora Coach Fact Context.
+
+The production-health gate is now clear.
+
+This task authorizes one controlled account only.
+
+Do not expand beyond that account.
+
+Do not start percentage rollout.
+
+Do not enroll ordinary users.
+
+Do not expand the fact allowlist.
+
+Do not retire Legacy Coach.
+
+Do not begin Phase 2C.
+
+
+---
+
+1. Pre-activation verification
+
+Before changing any activation control, independently verify:
+
+production API health is 200;
+
+RevenueCat production verification remains healthy;
+
+Premium entitlement paths remain 200 / 401 / 403 as previously proven;
+
+production Fact Context process gate is currently OFF;
+
+global rollout is OFF/absent;
+
+active cohort count = 0;
+
+consent state is clean;
+
+nonce state is clean;
+
+frozen four-fact allowlist is unchanged;
+
+Legacy Coach remains operational.
+
+
+If any material prerequisite differs from the reviewed state:
+
+STOP AND REPORT.
+
+
+---
+
+2. Authorized account
+
+Use only the previously designated internal controlled activation account.
+
+Do not substitute another account.
+
+If the account identity cannot be verified safely, STOP rather than selecting another user.
+
+Confirm:
+
+Supabase authentication succeeds;
+
+account ownership is clear;
+
+account is explicitly authorized for this activation;
+
+no unrelated customer data is involved.
+
+
+
+---
+
+3. Consent
+
+Establish the current approved Coach Fact Context consent for that account through the reviewed server-owned consent flow.
+
+Verify:
+
+current document version;
+
+server-authoritative state;
+
+account ownership;
+
+no stale or local-only consent authorization.
+
+
+Cohort membership alone must never authorize Fact Context.
+
+
+---
+
+4. Controlled rollout
+
+Enable the minimum production controls required for that one account only.
+
+Follow the reviewed order:
+
+1. verify server gate state;
+
+
+2. enable operational global rollout only as required;
+
+
+3. add the single authorized account to the reviewed cohort;
+
+
+4. verify exactly one eligible account;
+
+
+5. confirm no percentage or accidental broad eligibility.
+
+
+
+After each change, query the actual production state.
+
+If eligibility exceeds one account:
+
+ROLL BACK IMMEDIATELY.
+
+
+---
+
+5. Frozen Fact Context boundary
+
+The only approved facts remain:
+
+daily calories consumed;
+
+daily calorie target;
+
+daily protein consumed;
+
+daily protein target.
+
+
+No weight.
+
+No food names.
+
+No raw meals.
+
+No diary.
+
+No notes.
+
+No photos.
+
+No recipes.
+
+No planner.
+
+No shopping data.
+
+No activity/wellness data.
+
+No longitudinal history.
+
+No broad Legacy Coach context.
+
+
+---
+
+6. First live production request
+
+Using only the authorized account, execute the real production path:
+
+authenticated user
+
+→ valid consent
+
+→ cohort eligibility
+
+→ architecture coordinator
+
+→ sanitized Fact Context
+
+→ server authorization
+
+→ nonce claim
+
+→ risk screening
+
+→ provider
+
+→ deterministic response validation
+
+→ lifecycle settlement
+
+→ Coach UI
+
+Prove exactly one architecture was selected.
+
+Inspect provider egress structurally without logging sensitive content.
+
+Verify legacy_context_detected=false.
+
+
+---
+
+7. Controlled functional checks
+
+Test only a small representative set of ordinary Coach interactions.
+
+Verify:
+
+valid response delivery;
+
+correct use of approved calorie/protein facts;
+
+no claim of inaccessible facts;
+
+deterministic response constraints;
+
+nonce replay rejection;
+
+provider failure containment;
+
+no automatic fallback to broader Legacy context after Fact Context egress.
+
+
+Do not perform broad exploratory traffic.
+
+
+---
+
+8. Live rollback checks
+
+While the single-account activation is live, verify the reviewed rollback controls one at a time.
+
+Confirm:
+
+cohort removal blocks new Fact Context requests;
+
+consent revocation blocks new Fact Context requests;
+
+operational global kill blocks Fact Context;
+
+restoring the approved one-account state works deterministically.
+
+
+Avoid unnecessary repeated production toggling.
+
+
+---
+
+9. Automatic rollback triggers
+
+Immediately restore deny-all if any of these occur:
+
+more than one account becomes eligible;
+
+consent bypass;
+
+cross-account data exposure;
+
+unauthorized fact leaves the approved boundary;
+
+Legacy context reaches Fact Context provider egress;
+
+stale response settles after invalidation;
+
+nonce replay succeeds;
+
+duplicate provider request occurs;
+
+rollout cannot be disabled promptly;
+
+provider output bypasses response validation;
+
+privacy-sensitive information appears in logs;
+
+unexpected database or authorization behavior;
+
+repeated unexplained Fact Context errors.
+
+
+Any cross-account or unauthorized-data issue is an immediate STOP condition.
+
+
+---
+
+10. Final state
+
+If the controlled activation passes:
+
+leave only the single authorized account eligible;
+
+leave no broader rollout enabled;
+
+record the exact active configuration.
+
+
+If any rollback trigger occurs:
+
+global rollout OFF;
+
+cohort empty;
+
+consent revoked/cleaned as appropriate;
+
+Fact Context unavailable;
+
+Legacy Coach remains available.
+
+
+
+---
+
+Required report
+
+Create:
+
+FIRST_CONTROLLED_ACTIVATION_CALORA.md
+
+Keep the distinctive words at the beginning.
+
+Include:
+
+1. pre-activation production state;
+
+
+2. authorized account verification;
+
+
+3. consent evidence;
+
+
+4. exact activation sequence;
+
+
+5. eligibility count;
+
+
+6. real production Coach request evidence;
+
+
+7. provider-boundary structural evidence;
+
+
+8. exactly-one-architecture evidence;
+
+
+9. approved-fact usage;
+
+
+10. response-validation results;
+
+
+11. nonce/replay result;
+
+
+12. live rollback results;
+
+
+13. errors or anomalies;
+
+
+14. privacy/log findings;
+
+
+15. final production state;
+
+
+16. residual risk;
+
+
+17. recommendation for next stage.
+
+
+
+End with exactly one:
+
+FIRST ACTIVATION VERDICT: PASS — ELIGIBLE FOR SEPARATE EXPANSION REVIEW
+
+FIRST ACTIVATION VERDICT: HOLD — MORE OBSERVATION OR REMEDIATION REQUIRED
+
+FIRST ACTIVATION VERDICT: ROLLED BACK
+
+Save the report and STOP.
+
+Do not add a second account or expand rollout.
