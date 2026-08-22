@@ -17,7 +17,7 @@ remained dark throughout this work.
 | RevenueCat v2 customer and active-entitlement reads | Pass |
 | Entitled Premium Recipes path | Authenticated `200` |
 | Anonymous Premium Recipes path | Correct `401` |
-| Authenticated non-entitled Premium Recipes path | Not verified |
+| Authenticated non-entitled Premium Recipes path | Authenticated `403` |
 | Coach Fact Context | Still dark; no rollout state changed |
 
 ## Deployment and health
@@ -75,21 +75,18 @@ response before entitlement work.
 
 ### Authenticated non-entitled deny path
 
-An authenticated production request for a known non-entitled controlled account
-could not be completed. The available test-credential fixtures authenticate the
-entitled account, while the older documented QA fixture did not authenticate
-and no mapped non-entitled controlled credential is available in this
-environment.
+A new confirmed internal QA account was created and designated specifically for
+this proof. Its RevenueCat identity was established through Calora's supported
+mobile subscriber-resolution path, then its v2 customer record was confirmed
+to have no subscription and no active `caloraapp_pro` entitlement.
 
-Therefore, the required live `403` assertion is **not** substituted with the
-anonymous `401`, a local test, or a synthetic account. The route's local
-regression coverage still verifies `403` for an authenticated account without
-the entitlement, but production deny behavior remains incomplete.
+After successful authentication, exactly one production
+`GET /api/v1/premium-recipes?limit=1` request as that account returned `403`.
+This is a live authenticated deny proof, not an anonymous `401`, a local test,
+or a synthetic authorization result.
 
-The dedicated follow-up record is
-`docs/NON_PREMIUM_DENY_PROOF_CALORA.md`. It confirms that no explicitly
-designated non-entitled controlled account is available in the current
-verification materials, so no undesignated customer or broken fixture was used.
+The detailed account-creation, non-entitlement, control, and dark-state record
+is in `docs/NON_PREMIUM_QA_PASS_CALORA.md`.
 
 ## Runtime logs
 
@@ -118,10 +115,9 @@ controlled activation.
 
 ## Remaining requirement
 
-Use the existing approved non-entitled internal test account and its mapped
-credential to make one authenticated request to
-`GET /api/v1/premium-recipes?limit=1`. It must return `403`, not `401`, `200`,
-or `503`. Record only the status and outcome; do not put account identifiers,
-passwords, or access tokens into logs or this report.
+The prior live authenticated non-Premium deny-path blocker is closed. The
+previously authorized single-account Coach Fact Context controlled activation
+may resume under its existing governance controls. This verification did not
+activate Coach Fact Context.
 
-POST-PUBLISH PRODUCTION VERDICT: BLOCKED
+POST-PUBLISH PRODUCTION VERDICT: PASS — CONTROLLED ACTIVATION MAY RESUME

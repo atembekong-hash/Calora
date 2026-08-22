@@ -1,0 +1,176 @@
+CREATE QA NON-PREMIUM ACCOUNT + CLOSE DENY-PATH BLOCKER
+
+The remaining production-health blocker is the lack of an approved authenticated non-entitled Calora test account.
+
+Mission: create and designate one dedicated internal QA account, verify it has no active caloraapp_pro entitlement, then use it to prove the production Premium Recipes deny path returns HTTP 403.
+
+You are authorized to perform the full setup needed for this QA account using the existing Calora Supabase and RevenueCat integrations.
+
+Do not use or modify a real customer account.
+
+Do not grant Premium.
+
+Do not activate Coach Fact Context.
+
+1. Create the QA account
+
+Create one new internal Calora QA account in the existing Supabase Auth project.
+
+Requirements:
+
+clearly identifiable as internal QA;
+
+usable authentication credentials;
+
+email confirmed if required by the current auth flow;
+
+no production customer data;
+
+no existing subscription history;
+
+no Premium entitlement;
+
+no Coach Fact Context consent or cohort enrollment.
+
+
+Generate the account using a secure internal test credential mechanism already supported by the project.
+
+Do not print the password, access token, refresh token, or sensitive identifiers in the report.
+
+If a temporary credential must be surfaced to the user for manual use, stop and request that explicitly rather than exposing it automatically.
+
+2. Establish RevenueCat identity state
+
+Ensure the QA account maps correctly through the existing RevenueCat customer lookup path.
+
+Verify:
+
+RevenueCat lookup succeeds;
+
+the account has no active caloraapp_pro entitlement;
+
+no subscription or entitlement is created as part of this task;
+
+no other customer's RevenueCat state is modified.
+
+
+If RevenueCat does not yet contain a customer record for the QA account, allow the normal supported customer resolution/creation path only if that is how the current application behaves.
+
+Do not fabricate entitlement records.
+
+3. Production deny-path proof
+
+Authenticate as the new QA account and make exactly one production request to:
+
+GET /api/v1/premium-recipes?limit=1
+
+Required result:
+
+HTTP 403
+
+The following results are failures:
+
+200
+
+401
+
+500
+
+503
+
+
+Record only the status and pass/fail result.
+
+Do not record credentials, bearer tokens, email addresses, Supabase user IDs, RevenueCat customer IDs, or other sensitive identifiers in the report.
+
+4. Safety checks
+
+Confirm:
+
+entitled internal test account still receives 200;
+
+anonymous request still receives 401;
+
+new non-entitled QA account receives 403;
+
+RevenueCat v2 verification remains healthy;
+
+production API health remains 200;
+
+no existing customer state changed.
+
+
+5. Coach Fact Context boundary
+
+Keep Coach Fact Context completely dark:
+
+process gate OFF;
+
+rollout OFF;
+
+active cohort = 0;
+
+consent rows unchanged/empty as expected;
+
+nonce rows unchanged/empty as expected;
+
+no provider traffic;
+
+no controlled activation.
+
+
+6. Update verification state
+
+If the production 403 proof succeeds, close the previous production-health blocker.
+
+Update:
+
+PRODUCTION_HEALTH_PASS_CALORA.md
+
+and create a new mobile-friendly report:
+
+NON_PREMIUM_QA_PASS_CALORA.md
+
+Include:
+
+1. QA account creation result;
+
+
+2. auth verification;
+
+
+3. RevenueCat non-entitlement verification;
+
+
+4. production 403 proof;
+
+
+5. entitled 200 control check;
+
+
+6. anonymous 401 control check;
+
+
+7. production health;
+
+
+8. Fact Context dark state;
+
+
+9. whether any manual follow-up is required.
+
+
+
+End with exactly one:
+
+NON-PREMIUM QA VERDICT: PASS — PRODUCTION HEALTH BLOCKER CLOSED
+
+or
+
+NON-PREMIUM QA VERDICT: BLOCKED
+
+If PASS, state explicitly that the previously authorized single-account Coach Fact Context controlled activation may resume.
+
+Save the report and STOP.
+
+Do not activate Coach Fact Context in this task.
