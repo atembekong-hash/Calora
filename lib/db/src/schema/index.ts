@@ -262,6 +262,81 @@ export const syncMutationsTable = pgTable("calora_sync_mutations", {
   processedAt: timestamp("processed_at", { withTimezone: true }),
 });
 
+/**
+ * Durable idempotency / replay-prevention ledger for the Coach Fact Context
+ * dark path.
+ *
+ * Design invariants (Task 473):
+ *  - One row per (externalUserId, requestNonce): the nonce is consumed on
+ *    first claim and cannot be replayed — even if the provider call later
+ *    fails, the nonce is still spent to prevent replay-with-different-facts.
+ *  - NO facts, messages, prompt text, or other content stored here. This
+ *    table carries only the structural metadata needed to detect a replay.
+ *  - Server-written only: never readable or writable from a client path.
+ *  - TTL: rows older than the fact-context window (60 s + skew) are stale;
+ *    a periodic vacuum can remove them, but they are harmless if left.
+ */
+export const coachFactContextIdempotencyTable = pgTable("calora_coach_fact_context_idempotency", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  externalUserId: text("external_user_id").notNull(),
+  requestNonce: text("request_nonce").notNull(),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, (table) => ({
+  userNonceIndex: uniqueIndex("calora_coach_fact_context_idempotency_user_nonce_idx").on(table.externalUserId, table.requestNonce),
+}));
+
+/**
+ * Server-owned operational configuration key/value store.
+ *
+ * Only the server writes here. Client requests can never modify this table.
+ * The global kill-switch for any server feature is set by inserting/updating
+ * a row with the feature's key. Application code reads this table directly;
+ * it is not exposed via any client-facing API.
+ *
+ * Schema: key (PK) → value (jsonb) with server-managed updatedAt.
+ */
+export const serverConfigTable = pgTable("calora_server_config", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<unknown>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Server-owned named cohort memberships.
+ *
+ * Populated exclusively by offline review and explicit server-side approval.
+ * Client requests can never add or read cohort memberships — the server
+ * reads this table directly to make rollout decisions.
+ *
+ * Default behaviour: deny-all. An absent row means the user is not in any
+ * cohort; the server never infers membership from a missing row.
+ *
+ * `cohortName` is a typed constant in server code (never free-form client
+ * input) so code review can track every membership change.
+ */
+export const cohortMembershipsTable = pgTable("calora_cohort_memberships", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  cohortName: text("cohort_name").notNull(),
+  externalUserId: text("external_user_id").notNull(),
+  addedAt: timestamp("added_at", { withTimezone: true }).defaultNow().notNull(),
+  addedBy: text("added_by").notNull(),
+  /**
+   * Hard expiry for this membership. NULL means no time-based expiry (row
+   * deletion is required to revoke). Non-NULL means the rollout gate must
+   * verify NOW() < expiresAt before granting access.
+   */
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  /**
+   * Timestamp of the last explicit server-side approval review. Must be
+   * non-NULL for a membership to be considered active; a NULL value means
+   * the row was inserted without a review pass and is treated as inactive.
+   */
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+}, (table) => ({
+  cohortUserIndex: uniqueIndex("calora_cohort_memberships_cohort_user_idx").on(table.cohortName, table.externalUserId),
+}));
+
 export const consentEventsTable = pgTable("calora_consent_events", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
@@ -351,6 +426,9 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptionsTable);
 export const insertSyncMutationSchema = createInsertSchema(syncMutationsTable);
 export const insertConsentEventSchema = createInsertSchema(consentEventsTable);
 export const insertCoachFactContextConsentSchema = createInsertSchema(coachFactContextConsentsTable);
+export const insertServerConfigSchema = createInsertSchema(serverConfigTable);
+export const insertCohortMembershipSchema = createInsertSchema(cohortMembershipsTable);
+export const insertCoachFactContextIdempotencySchema = createInsertSchema(coachFactContextIdempotencyTable);
 
 export type User = typeof usersTable.$inferSelect;
 export type Profile = typeof profilesTable.$inferSelect;
@@ -365,5 +443,9 @@ export type AiCaptureCandidate = typeof aiCaptureCandidatesTable.$inferSelect;
 export type Subscription = typeof subscriptionsTable.$inferSelect;
 export type SyncMutation = typeof syncMutationsTable.$inferSelect;
 export type ConsentEvent = typeof consentEventsTable.$inferSelect;
+export type ServerConfig = typeof serverConfigTable.$inferSelect;
+export type CohortMembership = typeof cohortMembershipsTable.$inferSelect;
+export type CoachFactContextIdempotency = typeof coachFactContextIdempotencyTable.$inferSelect;
+export type CoachFactContextConsent = typeof coachFactContextConsentsTable.$inferSelect;
 
 export const userIdSchema = z.string().uuid();

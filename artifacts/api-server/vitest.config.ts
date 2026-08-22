@@ -15,6 +15,7 @@ export default defineConfig({
         '../../lib/integrations-openai-ai-server/src/index.ts',
       ),
       '@workspace/api-zod': path.resolve(__dirname, '../../lib/api-zod/src/index.ts'),
+      '@workspace/db': path.resolve(__dirname, '../../lib/db/src/index.ts'),
     },
   },
 });

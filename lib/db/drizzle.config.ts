@@ -7,8 +7,13 @@ if (!process.env.DATABASE_URL) {
 
 export default defineConfig({
   schema: path.join(__dirname, "./src/schema/index.ts"),
+  out: path.join(__dirname, "./migrations"),
   dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL,
   },
+  // Never allow drizzle-kit to drop columns or tables it does not recognise —
+  // this prevents accidental data loss from a partial schema view.
+  strict: true,
+  verbose: true,
 });

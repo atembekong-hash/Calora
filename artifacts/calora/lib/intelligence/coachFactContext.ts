@@ -136,7 +136,8 @@ function buildFacts(facts: readonly IntelligenceFact[]): CoachApprovedFact[] {
     const source = calorie as IntelligenceFact[];
     result.push({
       key: 'daily.calorie_status', status: 'available',
-      statement: `Today’s logged calories are ${finiteValue(source[0], 'value')} kcal against a ${finiteValue(source[1], 'value')} kcal app target.`,
+      // Protocol literal: must exactly match the server deterministic validator.
+      statement: `Today's logged calories are ${finiteValue(source[0], 'value')} kcal against a ${finiteValue(source[1], 'value')} kcal app target.`,
       values: { consumedKcal: finiteValue(source[0], 'value')!, targetKcal: finiteValue(source[1], 'value')!, remainingKcal: finiteValue(source[2], 'value')! },
       unit: 'kcal', timeWindow: 'today', confidence: confidence(source), freshness: 'fresh', provenance: provenance(source),
       limitations: ['This reflects logged records today and is not a recommendation.'],
@@ -146,7 +147,8 @@ function buildFacts(facts: readonly IntelligenceFact[]): CoachApprovedFact[] {
     const source = protein as IntelligenceFact[];
     result.push({
       key: 'daily.protein_status', status: 'available',
-      statement: `Today’s logged protein is ${finiteValue(source[0], 'value')} g against a ${finiteValue(source[1], 'value')} g app target.`,
+      // Protocol literal: must exactly match the server deterministic validator.
+      statement: `Today's logged protein is ${finiteValue(source[0], 'value')} g against a ${finiteValue(source[1], 'value')} g app target.`,
       values: { consumedG: finiteValue(source[0], 'value')!, targetG: finiteValue(source[1], 'value')!, remainingG: finiteValue(source[2], 'value')! },
       unit: 'g', timeWindow: 'today', confidence: confidence(source), freshness: 'fresh', provenance: provenance(source),
       limitations: ['This reflects logged records today and is not medical nutrition advice.'],

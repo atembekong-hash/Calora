@@ -26,8 +26,14 @@ import { useCalora } from '@/context/CaloraContext';
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
 import { CoachFactContextConsentPanel } from '@/components/CoachFactContextConsentPanel';
-import { isIntelligenceFeatureEnabled, useCoachSendAdapter } from '@/lib/intelligence';
+import {
+  isIntelligenceFeatureEnabled,
+  useCoachSendAdapter,
+  buildDailyIntelligenceFacts,
+  createIntelligenceContext,
+} from '@/lib/intelligence';
 import type { IntelligenceFact } from '@/lib/intelligence';
+import { dateKey } from '@/lib/dates';
 
 type DisplayTurn = {
   id: string;
@@ -111,6 +117,20 @@ function ActionCard({ action, colors }: { action: CoachAction; colors: ReturnTyp
   );
 }
 
+/**
+ * Frozen approved daily calorie+protein fact types.
+ * Only these fact types are extracted from the full daily intelligence fact
+ * set and passed to the Coach send adapter.  No other content is included.
+ */
+const CALORIE_PROTEIN_FACT_TYPES = Object.freeze([
+  'daily.calories_consumed',
+  'daily.calorie_target',
+  'daily.calories_remaining',
+  'daily.protein_consumed',
+  'daily.protein_target',
+  'daily.protein_remaining',
+] as const);
+
 export default function CoachScreen() {
   const {
     colors,
@@ -119,6 +139,7 @@ export default function CoachScreen() {
     waterLogs,
     moodLogs,
     activityLogs,
+    activityMinutesLogs,
     weights,
     plannerMeals,
     shoppingItems,
@@ -128,6 +149,7 @@ export default function CoachScreen() {
     foodMemories,
     repeatPatterns,
     livingMemory,
+    healthConnection,
     coachConsentAccepted,
     setCoachConsentAccepted,
     coachMessages,
@@ -195,13 +217,46 @@ export default function CoachScreen() {
     setComposer('');
 
     // Capture epoch-relevant state synchronously at send-time.
-    const emptyFacts: readonly IntelligenceFact[] = [];
+    // Build and freeze only the approved daily calorie+protein facts.
+    // These are the only facts fed to the Fact Context path; no other content
+    // (mood, hydration, weight, planner, etc.) is included.
+    let frozenFacts: readonly IntelligenceFact[] = Object.freeze([]);
+    if (hydrated && user?.id) {
+      try {
+        const todayKey = dateKey();
+        const intelligenceCtx = createIntelligenceContext(
+          {
+            logs,
+            profile,
+            weights,
+            waterLogs,
+            moodLogs,
+            activityLogs,
+            activityMinutesLogs,
+            plannerMeals,
+            shoppingItems,
+            localRecipes,
+            activeEnergyKcal: healthConnection.snapshot?.activeEnergyKcal ?? null,
+          },
+          { date: todayKey },
+        );
+        const allFacts = buildDailyIntelligenceFacts(intelligenceCtx);
+        frozenFacts = Object.freeze(
+          allFacts.filter((fact) =>
+            (CALORIE_PROTEIN_FACT_TYPES as readonly string[]).includes(fact.factType),
+          ),
+        );
+      } catch {
+        // Fact build failure must never block the send path.
+        frozenFacts = Object.freeze([]);
+      }
+    }
     const adapterInput = {
       accountId: user?.id ?? null,
       hydrationGeneration,
       hydrated,
       consentAccepted: coachConsentAccepted,
-      facts: emptyFacts,
+      facts: frozenFacts,
     };
 
     try {

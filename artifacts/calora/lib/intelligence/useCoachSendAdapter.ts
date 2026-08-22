@@ -12,7 +12,7 @@
  *  - Exposes `invalidateEpoch` as a public rollback hook callable from outside the hook.
  */
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { CoachMessage, CoachResponse, CoachFactContextResponse } from '@workspace/api-client-react';
 import { CoachFactActivationCoordinator } from './coachFactActivationCoordinator';
 import { CoachLifecycleEpoch, registerCoachLifecycleEpoch, type EpochInvalidationReason } from './coachLifecycleEpoch';
@@ -75,12 +75,17 @@ export type CoachSendAdapterHook = {
  * the life of the component. Exposed as a plain factory so tests can
  * instantiate it without React.
  */
-export function createCoachSendAdapter(): CoachSendAdapterHook {
+export type CoachSendAdapterWithCleanup = CoachSendAdapterHook & {
+  /** Deregisters the epoch from the global lifecycle set. Call on unmount. */
+  cleanup: () => void;
+};
+
+export function createCoachSendAdapter(): CoachSendAdapterWithCleanup {
   const coordinator = new CoachFactActivationCoordinator();
   const epoch = new CoachLifecycleEpoch();
   // The global lifecycle uses the same concrete fence as this adapter, so
   // clear-data and account teardown invalidate an in-flight screen request.
-  registerCoachLifecycleEpoch(epoch);
+  const unregister = registerCoachLifecycleEpoch(epoch);
 
   const sendWithArchitecture = async (
     messages: CoachMessage[],
@@ -163,19 +168,40 @@ export function createCoachSendAdapter(): CoachSendAdapterHook {
     epoch.onConsentChange(input.consentAccepted);
   };
 
-  return { sendWithArchitecture, invalidateEpoch, syncLiveState };
+  const cleanup = (): void => {
+    // Deregister from the global lifecycle set and fence any in-flight work.
+    unregister();
+    epoch.invalidate('client_rollback');
+    coordinator.invalidate();
+  };
+
+  return { sendWithArchitecture, invalidateEpoch, syncLiveState, cleanup };
 }
 
 /**
  * React hook wrapper around createCoachSendAdapter.
  * The adapter (coordinator + epoch) is created once per component mount
- * and is stable across re-renders.
+ * and is stable across re-renders.  The epoch is registered with the global
+ * lifecycle on creation and deregistered when the component unmounts so that
+ * a mounted Coach screen never receives responses from a prior session.
  */
 export function useCoachSendAdapter(): CoachSendAdapterHook {
-  const adapterRef = useRef<CoachSendAdapterHook | null>(null);
+  const adapterRef = useRef<CoachSendAdapterWithCleanup | null>(null);
   if (!adapterRef.current) {
     adapterRef.current = createCoachSendAdapter();
   }
+
+  // Deregister the epoch from the global lifecycle set on unmount.
+  // This ensures that clear-data or account teardown after the screen has
+  // already unmounted does not attempt to invalidate a dangling epoch.
+  useEffect(() => {
+    const adapter = adapterRef.current!;
+    return () => {
+      adapter.cleanup();
+    };
+    // Empty dep array: adapter is stable for the life of the component.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { sendWithArchitecture, invalidateEpoch, syncLiveState } = adapterRef.current;
 
