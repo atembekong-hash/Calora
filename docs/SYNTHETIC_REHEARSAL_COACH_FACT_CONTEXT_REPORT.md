@@ -197,3 +197,44 @@ and pending-rollback evidence exercise. No controlled activation has begun or
 is authorized by this report.
 
 SYNTHETIC REHEARSAL VERDICT: CONDITIONAL PASS
+
+## Addendum: isolated authenticated runtime attempt
+
+After the initial report, an isolated non-production API process was run on
+local port 9000 with `COACH_FACT_CONTEXT_ENABLED=true` scoped only to that
+temporary process. A generated, confirmed synthetic Supabase Auth identity was
+used; it and its temporary files were deleted afterward.
+
+The live consent endpoint returned `consented_current`. A valid authenticated
+Fact Context request with only the deterministic calorie fact reached the
+configured production-provider boundary and returned the safe unavailable
+response (`502`); replaying its exact nonce returned `409`. This proves the
+live bearer middleware, server-owned consent, real cohort authorization, nonce
+claim, replay denial, and provider failure containment. No legacy retry
+occurred.
+
+For a deterministic pending-request exercise, a disposable local provider
+simulator delayed its response and retained no request content. Its structural
+log confirmed `legacy_context_detected=false` and two provider messages
+(system plus the bounded synthetic conversation turn). A normal delayed
+response was constrained to the approved response shape.
+
+The intended concurrent global-rollback capture remains **inconclusive**:
+the Replit command execution environment terminated both detached client
+processes before they could write their delayed post-rollback responses.
+The development global configuration was nevertheless changed to `false`
+while the simulator had received a request, and all controls were subsequently
+purged. This is not counted as proof that the server emitted the required
+post-settlement `404`.
+
+Final cleanup was rechecked after the attempt:
+
+```text
+development: rollout_enabled=false, active_cohort=0, consents=0, nonces=0
+production:  rollout_enabled=false, active_cohort=0, consents=0, nonces=0
+```
+
+The required pending completion rollback evidence (cohort removal, global
+disablement, consent revocation, and process-local server-gate disablement)
+is still required before this rehearsal can be marked complete or used to
+support any controlled activation.
