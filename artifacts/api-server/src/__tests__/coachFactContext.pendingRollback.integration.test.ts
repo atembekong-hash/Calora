@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import { eq } from "drizzle-orm";
@@ -6,6 +6,7 @@ import {
   coachFactContextIdempotencyTable,
   cohortMembershipsTable,
   db,
+  pool,
   serverConfigTable,
   usersTable,
 } from "@workspace/db";
@@ -32,11 +33,13 @@ import {
 const SYNTHETIC_REHEARSAL_OPT_IN = process.env.COACH_FACT_CONTEXT_SYNTHETIC_REHEARSAL === "development-only";
 const SAFE_REHEARSAL_ENVIRONMENT = process.env.NODE_ENV === "test" && SYNTHETIC_REHEARSAL_OPT_IN;
 const HAS_SAFE_DB = Boolean(process.env.DATABASE_URL) && SAFE_REHEARSAL_ENVIRONMENT;
+const DEVELOPMENT_DATABASE_ALLOWLIST = new Set(["heliumdb"]);
 const CONFIG_KEY = "coach_fact_context_rollout_enabled";
 const COHORT = "coach_fact_context_v1";
 const createdExternalIds: string[] = [];
 let priorConfig: { exists: boolean; value?: boolean } | undefined;
 let priorServerGate: string | undefined;
+let gateSnapshotCaptured = false;
 
 function syntheticId(label: string) {
   const value = `synthetic-pending-rollback-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -109,6 +112,7 @@ async function prepareEligibleIdentity(externalId: string) {
     ? { exists: true, value: existingConfig.value === true }
     : { exists: false };
   priorServerGate = process.env.COACH_FACT_CONTEXT_ENABLED;
+  gateSnapshotCaptured = true;
   await acceptCoachFactConsent(externalId, null);
   await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: true })
     .onConflictDoUpdate({ target: serverConfigTable.key, set: { value: true, updatedAt: new Date() } });
@@ -130,21 +134,33 @@ async function cleanupSyntheticState() {
       .where(eq(cohortMembershipsTable.externalUserId, externalId));
     await db.delete(usersTable).where(eq(usersTable.externalId, externalId));
   }
-  await db.delete(serverConfigTable).where(eq(serverConfigTable.key, CONFIG_KEY));
-  if (priorConfig?.exists) {
-    await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: priorConfig.value === true });
+  if (priorConfig !== undefined) {
+    await db.delete(serverConfigTable).where(eq(serverConfigTable.key, CONFIG_KEY));
+    if (priorConfig.exists) {
+      await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: priorConfig.value === true });
+    }
   }
   priorConfig = undefined;
 }
 
 afterEach(async () => {
-  if (priorServerGate === undefined) delete process.env.COACH_FACT_CONTEXT_ENABLED;
-  else process.env.COACH_FACT_CONTEXT_ENABLED = priorServerGate;
+  if (gateSnapshotCaptured) {
+    if (priorServerGate === undefined) delete process.env.COACH_FACT_CONTEXT_ENABLED;
+    else process.env.COACH_FACT_CONTEXT_ENABLED = priorServerGate;
+  }
   priorServerGate = undefined;
+  gateSnapshotCaptured = false;
   await cleanupSyntheticState();
 });
 
 describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context pending rollback rehearsal (real development state)", () => {
+  beforeEach(async () => {
+    const result = await pool.query<{ database_name: string }>("SELECT current_database() AS database_name");
+    if (!DEVELOPMENT_DATABASE_ALLOWLIST.has(result.rows[0]?.database_name ?? "")) {
+      throw new Error("Synthetic Coach Fact Context rehearsal blocked: database target is not allowlisted development infrastructure.");
+    }
+  });
+
   async function runPendingCase(
     label: string,
     rollback: (externalId: string) => Promise<void>,

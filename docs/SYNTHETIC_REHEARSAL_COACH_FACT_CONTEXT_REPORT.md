@@ -231,7 +231,10 @@ production:  rollout_enabled=false, active_cohort=0, consents=0, nonces=0
 
 A deterministic database-backed integration rehearsal replaced the fragile
 detached-client method. It can execute only with both `NODE_ENV=test` and the
-explicit `COACH_FACT_CONTEXT_SYNTHETIC_REHEARSAL=development-only` opt-in.
+explicit `COACH_FACT_CONTEXT_SYNTHETIC_REHEARSAL=development-only` opt-in. It
+also queries the connected database before every case and blocks before any
+write unless the target is the allowlisted development database identity
+`heliumdb`; production’s distinct `neondb` identity is not allowlisted.
 Each case used a fresh generated synthetic external identity, real development
 consent/config/cohort/idempotency state, and a provider promise held after
 route entry. Before the provider promise settled, the test changed exactly one
