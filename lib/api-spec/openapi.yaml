@@ -1196,13 +1196,13 @@ components:
       additionalProperties: false
       required: [key, status, statement, values, unit, timeWindow, confidence, freshness, provenance, limitations]
       properties:
-        key: { type: string, enum: [daily.calorie_status, daily.protein_status, daily.meal_distribution, daily.logging_completeness] }
+        key: { type: string, enum: [daily.calorie_status, daily.protein_status] }
         status: { type: string, enum: [available, limited, unknown] }
         statement: { type: string, minLength: 1, maxLength: 280 }
         values:
           type: object
           additionalProperties: false
-          maxProperties: 4
+          maxProperties: 3
           properties:
             consumedKcal: { type: integer, minimum: 0, maximum: 10000 }
             targetKcal: { type: integer, minimum: 0, maximum: 10000 }
@@ -1210,9 +1210,6 @@ components:
             consumedG: { type: integer, minimum: 0, maximum: 1000 }
             targetG: { type: integer, minimum: 0, maximum: 1000 }
             remainingG: { type: integer, minimum: 0, maximum: 1000 }
-            mealSlotsLogged: { type: integer, minimum: 0, maximum: 4 }
-            logCount: { type: integer, minimum: 0, maximum: 100 }
-            state: { type: string, enum: [partially_logged, no_logs] }
         unit: { type: [string, "null"], enum: [kcal, g, null] }
         timeWindow: { type: string, enum: [today] }
         confidence: { type: string, enum: [high, medium, limited] }
@@ -1257,8 +1254,8 @@ components:
         factKeys:
           type: array
           minItems: 1
-          maxItems: 4
-          items: { type: string, enum: [daily.calorie_status, daily.protein_status, daily.meal_distribution, daily.logging_completeness] }
+          maxItems: 2
+          items: { type: string, enum: [daily.calorie_status, daily.protein_status] }
     CoachFactContextRequest:
       type: object
       additionalProperties: false

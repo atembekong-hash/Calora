@@ -178,3 +178,29 @@ provider configuration, production Fact Context controls, or any unrelated
 account. The account is prepared for a future separately approved activation,
 but is not eligible for Fact Context while the deny-all controls remain in
 place.
+
+
+## 11. Approved first-activation fact boundary
+
+**Decision date:** 2026-08-22
+**Decision:** The first controlled activation may share only the following
+current-day, deterministic facts with Coach:
+
+1. logged calorie consumed and app calorie target; and
+2. logged protein consumed and app protein target.
+
+The corresponding permitted fact types are `daily.calorie_status` and
+`daily.protein_status`. Their existing deterministic statements may include
+the derived remaining value needed to validate their consumed/target
+arithmetic, but no separate fact category is approved by this decision.
+
+`daily.meal_distribution` and `daily.logging_completeness` are not approved
+for this activation. They must not be constructed by the mobile client,
+accepted by the server, represented in the Fact Context request/response
+schemas, or cited in Coach observations.
+
+This is a narrowing decision only. It does not authorize a process gate,
+global rollout, cohort membership, consent change, provider request, client
+feature flag, or any production activation. The client Fact Context capability
+remains dark by default, and the existing server-side deny-all controls remain
+required for any later, separately reviewed activation.

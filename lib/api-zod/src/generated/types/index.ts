@@ -51,7 +51,6 @@ export * from './coachFactContextFactStatus';
 export * from './coachFactContextFactTimeWindow';
 export * from './coachFactContextFactUnit';
 export * from './coachFactContextFactValues';
-export * from './coachFactContextFactValuesState';
 export * from './coachFactContextMissingDataItem';
 export * from './coachFactContextPurpose';
 export * from './coachFactContextRequest';

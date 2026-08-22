@@ -12,6 +12,4 @@ export type CoachFactObservationFactKeysItem = typeof CoachFactObservationFactKe
 export const CoachFactObservationFactKeysItem = {
   dailycalorie_status: 'daily.calorie_status',
   dailyprotein_status: 'daily.protein_status',
-  dailymeal_distribution: 'daily.meal_distribution',
-  dailylogging_completeness: 'daily.logging_completeness',
 } as const;

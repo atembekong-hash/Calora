@@ -31,6 +31,16 @@ describe('CoachFactContextV1', () => {
     expect(factContext?.expiresAt).toBe('2026-08-21T12:01:00.000Z');
   });
 
+  it('exports only calorie and protein status, never meal-distribution or logging-completeness facts', () => {
+    const facts = buildDailyIntelligenceFacts(context, { generatedAt: '2026-08-21T12:00:00.000Z' });
+    const factContext = buildCoachFactContext({
+      hydrated: true, consent: { state: 'consented_current', purpose: COACH_FACT_CONTEXT_PURPOSE },
+      facts, now: new Date('2026-08-21T12:00:00.000Z'), nonce: 'a'.repeat(24),
+    });
+    expect(COACH_FACT_KEYS).toEqual(['daily.calorie_status', 'daily.protein_status']);
+    expect(factContext?.facts.map((fact) => fact.key)).toEqual(['daily.calorie_status', 'daily.protein_status']);
+  });
+
   it('fails closed without hydration or current purpose-scoped consent', () => {
     const facts = buildDailyIntelligenceFacts(context);
     expect(buildCoachFactContext({ hydrated: false, consent: { state: 'consented_current', purpose: COACH_FACT_CONTEXT_PURPOSE }, facts })).toBeNull();

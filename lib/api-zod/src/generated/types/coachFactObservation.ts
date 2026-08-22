@@ -17,7 +17,7 @@ export interface CoachFactObservation {
   confidence: CoachFactObservationConfidence;
   /**
      * @minItems 1
-     * @maxItems 4
+     * @maxItems 2
      */
   factKeys: CoachFactObservationFactKeysItem[];
 }

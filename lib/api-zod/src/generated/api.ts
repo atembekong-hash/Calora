@@ -1286,12 +1286,6 @@ export const respondCoachFactContextBodyFactContextFactsItemValuesTargetGMax = 1
 export const respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMin = 0;
 export const respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMax = 1000;
 
-export const respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMin = 0;
-export const respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMax = 4;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesLogCountMin = 0;
-export const respondCoachFactContextBodyFactContextFactsItemValuesLogCountMax = 100;
-
 export const respondCoachFactContextBodyFactContextFactsItemLimitationsItemMax = 180;
 
 export const respondCoachFactContextBodyFactContextFactsItemLimitationsMax = 3;
@@ -1320,7 +1314,7 @@ export const RespondCoachFactContextBody = zod.object({
   "coverage": zod.enum(['available', 'partial', 'insufficient']),
   "missingData": zod.array(zod.enum(['no_profile', 'no_logged_food_today', 'incomplete_logging', 'unknown_provenance'])).max(respondCoachFactContextBodyFactContextMissingDataMax),
   "facts": zod.array(zod.object({
-  "key": zod.enum(['daily.calorie_status', 'daily.protein_status', 'daily.meal_distribution', 'daily.logging_completeness']),
+  "key": zod.enum(['daily.calorie_status', 'daily.protein_status']),
   "status": zod.enum(['available', 'limited', 'unknown']),
   "statement": zod.string().min(1).max(respondCoachFactContextBodyFactContextFactsItemStatementMax),
   "values": zod.object({
@@ -1329,10 +1323,7 @@ export const RespondCoachFactContextBody = zod.object({
   "remainingKcal": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesRemainingKcalMin).max(respondCoachFactContextBodyFactContextFactsItemValuesRemainingKcalMax).optional(),
   "consumedG": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesConsumedGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesConsumedGMax).optional(),
   "targetG": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesTargetGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesTargetGMax).optional(),
-  "remainingG": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMax).optional(),
-  "mealSlotsLogged": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMin).max(respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMax).optional(),
-  "logCount": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesLogCountMin).max(respondCoachFactContextBodyFactContextFactsItemValuesLogCountMax).optional(),
-  "state": zod.enum(['partially_logged', 'no_logs']).optional()
+  "remainingG": zod.number().int().min(respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMin).max(respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMax).optional()
 }),
   "unit": zod.union([zod.literal('kcal'),zod.literal('g'),zod.literal(null)]).nullable(),
   "timeWindow": zod.enum(['today']),
@@ -1354,7 +1345,7 @@ export const respondCoachFactContextResponseMessageMax = 1200;
 
 export const respondCoachFactContextResponseObservationsItemTextMax = 500;
 
-export const respondCoachFactContextResponseObservationsItemFactKeysMax = 4;
+export const respondCoachFactContextResponseObservationsItemFactKeysMax = 2;
 
 export const respondCoachFactContextResponseObservationsMax = 3;
 
@@ -1384,7 +1375,7 @@ export const RespondCoachFactContextResponse = zod.object({
   "observations": zod.array(zod.object({
   "text": zod.string().min(1).max(respondCoachFactContextResponseObservationsItemTextMax),
   "confidence": zod.enum(['high', 'medium', 'limited']),
-  "factKeys": zod.array(zod.enum(['daily.calorie_status', 'daily.protein_status', 'daily.meal_distribution', 'daily.logging_completeness'])).min(1).max(respondCoachFactContextResponseObservationsItemFactKeysMax)
+  "factKeys": zod.array(zod.enum(['daily.calorie_status', 'daily.protein_status'])).min(1).max(respondCoachFactContextResponseObservationsItemFactKeysMax)
 })).max(respondCoachFactContextResponseObservationsMax),
   "actions": zod.array(zod.object({
   "id": zod.string(),

@@ -8,8 +8,6 @@ export const COACH_FACT_CONTEXT_TTL_MS = 60_000;
 export const COACH_FACT_KEYS = [
   'daily.calorie_status',
   'daily.protein_status',
-  'daily.meal_distribution',
-  'daily.logging_completeness',
 ] as const;
 
 export type CoachFactKey = typeof COACH_FACT_KEYS[number];
@@ -89,12 +87,6 @@ function finiteValue(fact: IntelligenceFact, name: string): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : null;
 }
 
-function valueState(fact: IntelligenceFact): string | null {
-  return fact.value && typeof fact.value === 'object' && 'state' in fact.value
-    ? String(fact.value.state)
-    : null;
-}
-
 function factByType(facts: readonly IntelligenceFact[], factType: string) {
   return facts.find((fact) => fact.factType === factType);
 }
@@ -128,8 +120,6 @@ function buildFacts(facts: readonly IntelligenceFact[]): CoachApprovedFact[] {
     factByType(facts, 'daily.protein_target'),
     factByType(facts, 'daily.protein_remaining'),
   ];
-  const meals = ['breakfast', 'lunch', 'dinner', 'snack'].map((meal) => factByType(facts, `meal.${meal}.distribution`));
-  const completeness = factByType(facts, 'daily.logging_completeness');
   const result: CoachApprovedFact[] = [];
 
   if (eligible(calorie)) {
@@ -152,29 +142,6 @@ function buildFacts(facts: readonly IntelligenceFact[]): CoachApprovedFact[] {
       values: { consumedG: finiteValue(source[0], 'value')!, targetG: finiteValue(source[1], 'value')!, remainingG: finiteValue(source[2], 'value')! },
       unit: 'g', timeWindow: 'today', confidence: confidence(source), freshness: 'fresh', provenance: provenance(source),
       limitations: ['This reflects logged records today and is not medical nutrition advice.'],
-    });
-  }
-  if (eligible(meals)) {
-    const source = meals as IntelligenceFact[];
-    const slotsLogged = source.filter((fact) => valueState(fact) === 'logged').length;
-    result.push({
-      key: 'daily.meal_distribution', status: 'available',
-      statement: `${slotsLogged} meal slot${slotsLogged === 1 ? '' : 's'} have logged food today.`,
-      values: { mealSlotsLogged: slotsLogged },
-      unit: null, timeWindow: 'today', confidence: confidence(source), freshness: 'fresh', provenance: provenance(source),
-      limitations: ['Meal distribution is descriptive and does not assess adherence.'],
-    });
-  }
-  if (eligible([completeness])) {
-    const source = completeness!;
-    const logCount = finiteValue(source, 'logCount')!;
-    const mealSlotsLogged = finiteValue(source, 'mealSlotsLogged')!;
-    result.push({
-      key: 'daily.logging_completeness', status: 'available',
-      statement: logCount ? `${logCount} food record${logCount === 1 ? '' : 's'} across ${mealSlotsLogged} meal slot${mealSlotsLogged === 1 ? '' : 's'} are logged today.` : 'No food records are logged today.',
-      values: { logCount, mealSlotsLogged, state: valueState(source) ?? 'unknown' },
-      unit: null, timeWindow: 'today', confidence: confidence([source]), freshness: 'fresh', provenance: provenance([source]),
-      limitations: ['Missing records are unknown, not evidence of non-adherence.'],
     });
   }
   return result;

@@ -5,7 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CoachFactContextFactValuesState } from './coachFactContextFactValuesState';
 
 export type CoachFactContextFactValues = {
   /**
@@ -38,15 +37,4 @@ export type CoachFactContextFactValues = {
      * @maximum 1000
      */
   remainingG?: number;
-  /**
-     * @minimum 0
-     * @maximum 4
-     */
-  mealSlotsLogged?: number;
-  /**
-     * @minimum 0
-     * @maximum 100
-     */
-  logCount?: number;
-  state?: CoachFactContextFactValuesState;
 };

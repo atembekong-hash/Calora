@@ -12,6 +12,4 @@ export type CoachFactContextFactKey = typeof CoachFactContextFactKey[keyof typeo
 export const CoachFactContextFactKey = {
   dailycalorie_status: 'daily.calorie_status',
   dailyprotein_status: 'daily.protein_status',
-  dailymeal_distribution: 'daily.meal_distribution',
-  dailylogging_completeness: 'daily.logging_completeness',
 } as const;

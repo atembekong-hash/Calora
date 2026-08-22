@@ -795,8 +795,6 @@ export type CoachFactContextFactKey = typeof CoachFactContextFactKey[keyof typeo
 export const CoachFactContextFactKey = {
   dailycalorie_status: 'daily.calorie_status',
   dailyprotein_status: 'daily.protein_status',
-  dailymeal_distribution: 'daily.meal_distribution',
-  dailylogging_completeness: 'daily.logging_completeness',
 } as const;
 
 export type CoachFactContextFactStatus = typeof CoachFactContextFactStatus[keyof typeof CoachFactContextFactStatus];
@@ -806,14 +804,6 @@ export const CoachFactContextFactStatus = {
   available: 'available',
   limited: 'limited',
   unknown: 'unknown',
-} as const;
-
-export type CoachFactContextFactValuesState = typeof CoachFactContextFactValuesState[keyof typeof CoachFactContextFactValuesState];
-
-
-export const CoachFactContextFactValuesState = {
-  partially_logged: 'partially_logged',
-  no_logs: 'no_logs',
 } as const;
 
 export type CoachFactContextFactValues = {
@@ -847,17 +837,6 @@ export type CoachFactContextFactValues = {
      * @maximum 1000
      */
   remainingG?: number;
-  /**
-     * @minimum 0
-     * @maximum 4
-     */
-  mealSlotsLogged?: number;
-  /**
-     * @minimum 0
-     * @maximum 100
-     */
-  logCount?: number;
-  state?: CoachFactContextFactValuesState;
 };
 
 /**
@@ -1002,8 +981,6 @@ export type CoachFactObservationFactKeysItem = typeof CoachFactObservationFactKe
 export const CoachFactObservationFactKeysItem = {
   dailycalorie_status: 'daily.calorie_status',
   dailyprotein_status: 'daily.protein_status',
-  dailymeal_distribution: 'daily.meal_distribution',
-  dailylogging_completeness: 'daily.logging_completeness',
 } as const;
 
 export interface CoachFactObservation {
@@ -1015,7 +992,7 @@ export interface CoachFactObservation {
   confidence: CoachFactObservationConfidence;
   /**
      * @minItems 1
-     * @maxItems 4
+     * @maxItems 2
      */
   factKeys: CoachFactObservationFactKeysItem[];
 }

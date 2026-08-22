@@ -33,7 +33,7 @@ export const COACH_FACT_PROVIDER_TIMEOUT_MS = 12_000;
  *
  * Budget derivation (conservative upper bound):
  *   - factContext wrapper + top-level strings: ~800 B
- *   - 4 facts × (keys + values + statement + limitations): ~2 800 B
+ *   - 2 facts × (keys + values + statement + limitations): ~1 400 B
  *   - 12 messages × 3 000 chars: ~36 000 B
  *   - currentScreen (64 char): ~70 B
  *   Total structural maximum ≈ 40 000 B; budget set to 48 000 B (20% margin).
@@ -71,8 +71,6 @@ const MAX_BODY_DEPTH = 6;
 const ALLOWED_FACT_KEYS = new Set([
   "daily.calorie_status",
   "daily.protein_status",
-  "daily.meal_distribution",
-  "daily.logging_completeness",
 ]);
 
 /**
@@ -83,8 +81,6 @@ const ALLOWED_FACT_KEYS = new Set([
 const FACT_VALUE_KEYS: Record<string, ReadonlyArray<string>> = {
   "daily.calorie_status":      ["consumedKcal", "targetKcal", "remainingKcal"],
   "daily.protein_status":      ["consumedG", "targetG", "remainingG"],
-  "daily.meal_distribution":   ["mealSlotsLogged"],
-  "daily.logging_completeness":["logCount", "mealSlotsLogged", "state"],
 };
 
 /**
@@ -95,8 +91,6 @@ const FACT_VALUE_KEYS: Record<string, ReadonlyArray<string>> = {
 const FACT_LIMITATIONS: Record<string, ReadonlyArray<string>> = {
   "daily.calorie_status":      ["This reflects logged records today and is not a recommendation."],
   "daily.protein_status":      ["This reflects logged records today and is not medical nutrition advice."],
-  "daily.meal_distribution":   ["Meal distribution is descriptive and does not assess adherence."],
-  "daily.logging_completeness":["Missing records are unknown, not evidence of non-adherence."],
 };
 
 const riskPatterns: RegExp[] = [
@@ -269,21 +263,6 @@ function exactStatementFor(fact: { key: string; values: Record<string, string | 
     typeof v("consumedG") === "number" && typeof v("targetG") === "number" && typeof v("remainingG") === "number"
   ) {
     return `Today's logged protein is ${v("consumedG")} g against a ${v("targetG")} g app target.`;
-  }
-  if (fact.key === "daily.meal_distribution" && typeof v("mealSlotsLogged") === "number") {
-    const slots = v("mealSlotsLogged");
-    return `${slots} meal slot${slots === 1 ? "" : "s"} have logged food today.`;
-  }
-  if (
-    fact.key === "daily.logging_completeness" &&
-    typeof v("logCount") === "number" && typeof v("mealSlotsLogged") === "number" &&
-    (v("state") === "partially_logged" || v("state") === "no_logs")
-  ) {
-    const count = v("logCount");
-    const slots = v("mealSlotsLogged");
-    return count
-      ? `${count} food record${count === 1 ? "" : "s"} across ${slots} meal slot${slots === 1 ? "" : "s"} are logged today.`
-      : "No food records are logged today.";
   }
   return null;
 }

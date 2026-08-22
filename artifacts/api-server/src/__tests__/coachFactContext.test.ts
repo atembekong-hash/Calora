@@ -121,6 +121,19 @@ describe("dark Coach Fact Context path", () => {
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 
+  it("rejects the unapproved meal-distribution and logging-completeness categories", async () => {
+    for (const key of ["daily.meal_distribution", "daily.logging_completeness"]) {
+      const invalid = body();
+      invalid.factContext.facts[0] = {
+        ...invalid.factContext.facts[0],
+        key,
+      };
+      const response = await request(server).post("/v1/coach/fact-context/respond").send(invalid);
+      expect(response.status).toBe(400);
+    }
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
   it("fails closed on missing consent or a default-deny rollout without provider egress", async () => {
     hasCurrentCoachFactConsent.mockResolvedValueOnce(false);
     expect((await request(server).post("/v1/coach/fact-context/respond").send(body())).status).toBe(403);
@@ -202,6 +215,42 @@ describe("dark Coach Fact Context path", () => {
     });
     expect(response.status).toBe(200);
     expect(openai.chat.completions.create).toHaveBeenCalledOnce();
+  });
+
+  it("accepts a real mobile insufficient context with all defined missing-data reasons", async () => {
+    const mobileBuilderPath = new URL("../../../calora/lib/intelligence/coachFactContext.ts", import.meta.url).pathname;
+    const { buildCoachFactContext } = await import(mobileBuilderPath) as {
+      buildCoachFactContext: (input: unknown) => ReturnType<typeof body>["factContext"];
+    };
+    const insufficientFact = {
+      ...mobileFact("daily.calories_consumed", 0, "kcal"),
+      freshness: "limited",
+      missingData: ["missing_profile", "incomplete_day"],
+    };
+    const factContext = buildCoachFactContext({
+      hydrated: true,
+      consent: { state: "consented_current", purpose: "coach_fact_context_v1" },
+      nonce,
+      now: new Date(),
+      facts: [insufficientFact] as never,
+    });
+    expect(factContext?.facts).toEqual([]);
+    expect(factContext?.missingData).toEqual([
+      "no_profile",
+      "incomplete_logging",
+      "no_logged_food_today",
+    ]);
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({
+      message: "ok", observations: [], actions: [], safetyState: "normal",
+      limitations: [], contextCoverage: { usedSections: [], missingSections: [] }, requestNonce: nonce,
+    }) } }] } as never);
+    const response = await request(server).post("/v1/coach/fact-context/respond").send({
+      factContext,
+      messages: [{ role: "user", content: "What is in my records?" }],
+      currentScreen: "progress-coach",
+    });
+    expect(response.status).toBe(200);
+    expect(response.body.observations).toEqual([]);
   });
 
   it("replaces all model output with a limited response on unsupported numeric or injected claim", async () => {
