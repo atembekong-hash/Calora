@@ -86,6 +86,11 @@ anonymous `401`, a local test, or a synthetic account. The route's local
 regression coverage still verifies `403` for an authenticated account without
 the entitlement, but production deny behavior remains incomplete.
 
+The dedicated follow-up record is
+`docs/NON_PREMIUM_DENY_PROOF_CALORA.md`. It confirms that no explicitly
+designated non-entitled controlled account is available in the current
+verification materials, so no undesignated customer or broken fixture was used.
+
 ## Runtime logs
 
 - Deployment logs include `500` health-probe entries during process startup,
