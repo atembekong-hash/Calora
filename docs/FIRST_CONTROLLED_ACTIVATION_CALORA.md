@@ -249,4 +249,92 @@ activation control. It must:
 6. obtain explicit approval for the limited live request, replay check, and
    reversibility sequence described in the controlled-activation procedure.
 
+## 14. Separately authorized one-account activation review
+
+**Review date:** 2026-08-22
+**Authorization:** Written authorization for the exact one-account activation,
+live-request, replay-check, and immediate-rollback sequence was confirmed before
+any control change was considered.
+
+The authorization remained limited to the previously approved pilot. It did not
+authorize a second account, percentage rollout, ordinary-user enrollment,
+allowlist expansion, Legacy Coach changes, or Phase 2C work.
+
+### Fresh production preflight
+
+The review repeated production-safe checks immediately before any possible
+activation action:
+
+| Check | Result |
+| --- | --- |
+| Active deployment | Healthy public autoscale deployment with a successful build |
+| `GET /api/healthz` | `200` |
+| Process gate observable behavior | Fact Context `POST` returned `404` before body handling |
+| Global rollout enabled rows | `0` |
+| Active reviewed cohort members | `0` |
+| Current approved Fact Context consent rows | `1` — the approved pilot only |
+| Unexpired Fact Context nonce rows | `0` |
+| Client/server fact boundary | Only `daily.calorie_status` and `daily.protein_status` |
+
+The single current consent is server-owned but is not sufficient to make any
+account eligible. With the process gate closed, no enabled global rollout row,
+and no reviewed cohort membership, the approved pilot and every other account
+remain denied.
+
+### Safe stop before activation
+
+The approved production controls are intentionally offline-only:
+
+- the process gate is a deployed runtime environment setting;
+- the global rollout and reviewed cohort are managed PostgreSQL state; and
+- the public application exposes no client-facing or administrative activation
+  endpoint.
+
+This review environment exposes production database reads only and deployment
+metadata only. It has no supported production mutation authority for those
+controls. No attempt was made to bypass that boundary with ad-hoc SQL, a
+one-off production script, a temporary admin route, or a deployment change.
+
+Consequently, the live activation portion was not started. No cohort membership,
+global rollout configuration, consent state, process gate, client capability,
+or provider configuration changed. No live Fact Context request, provider
+egress, response validation event, nonce claim, replay request, or rollback
+toggle occurred.
+
+### Provider, replay, and rollback evidence status
+
+The reviewed implementation continues to enforce the two-fact allowlist,
+metadata-only nonce claim, deterministic response validation, and
+post-provider authorization recheck. The prior synthetic and pending-request
+rehearsals remain evidence for those controls only; they are not represented as
+new production egress or rollback evidence here.
+
+Because no activation control was changed, immediate rollback was inherent in
+the preserved deny-all state rather than exercised through a production toggle.
+No account identifier, credential, token, prompt, fact value, request body, or
+provider response was read or recorded during this review.
+
+### Final production state
+
+```text
+process_gate=off (Fact Context route=404 before request handling)
+client_fact_context_capability=off
+global_rollout_enabled_count=0
+active_reviewed_cohort_count=0
+current_fact_context_consent_count=1 (approved pilot only; insufficient alone)
+unexpired_fact_context_nonce_count=0
+eligible_account_count=0
+provider_requests_during_review=0
+```
+
+### Residual risk and next action
+
+The required one-account live evidence remains outstanding. It must be performed
+by an authorized production operator with supported control-plane access, using
+the already approved pilot and the exact written sequence: activate only the
+minimum controls, verify one eligible account after each transition, perform
+the bounded live and replay checks, then restore every activation control to
+deny-all. Do not add an application admin endpoint or use an ad-hoc production
+database write merely to make that operation available.
+
 FIRST ACTIVATION VERDICT: HOLD — MORE OBSERVATION OR REMEDIATION REQUIRED
