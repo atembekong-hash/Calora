@@ -9,14 +9,19 @@ Drizzle's managed schema push covers the typed relational schema but does not by
 
 **How to apply:** When adding database-enforced behavior beyond tables, columns, indexes, and foreign keys, identify its supported development and production application path before relying on it. Add a real-database behavioral test and inventory proof; do not claim a production security gate passes from application-level ownership checks or development-only setup.
 
-For safety-sensitive Calora domain tables, use a committed, forward-only Drizzle
-migration and the migration journal rather than treating `drizzle-kit push` as
-deployment authority. A migration must be safe for already-provisioned
-development schemas and must never be edited after application.
+For safety-sensitive Calora domain tables, retain a committed, forward-only
+Drizzle migration and its development journal; never treat `drizzle-kit push`
+as production deployment authority. Replit-managed production schema changes
+are instead applied through the user-confirmed Publish schema-diff flow, which
+does not promise a project `__drizzle_migrations` record.
 
-**Why:** Schema push has no immutable history or target-application evidence,
-which leaves consent and rollout controls ambiguous during production review.
+**Why:** Requiring a development Drizzle journal in production would pressure
+an unsupported manual bookkeeping change even when the managed Publish flow
+correctly applied the reviewed schema.
 
-**How to apply:** Keep Supabase DDL inert for Calora domain data, test the
-managed PostgreSQL constraints directly, and correct an applied schema only
-with a new forward migration.
+**How to apply:** Keep Supabase DDL inert for Calora domain data. For every
+material publish, retain the reviewed commit and immutable migration artifact,
+capture the platform Publish identity when exposed, and compare the production
+schema read-only against canonical source. Correct defects only through a new
+forward change and Publish; never manual DDL, manual journal inserts, or
+deployment/startup migration scripts.
