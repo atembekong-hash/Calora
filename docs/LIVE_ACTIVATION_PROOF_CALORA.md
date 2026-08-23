@@ -236,3 +236,33 @@ activation attempt requires separate written approval after the deny-all
 read-back succeeds.
 
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED
+
+## 23. Deny-all rollback verification
+
+**Verification date:** 2026-08-23
+**Scope:** Read-only production confirmation after the human-operated rollback.
+
+```text
+deployment=active_autoscale_with_successful_build
+api=200
+healthz=200
+process_gate=off (public Fact Context endpoint returned 404)
+global_rollout_matching_key_count=1
+global_rollout_json_boolean_false_count=1
+global_rollout_json_string_false_count=0
+global_rollout_conflicting_value_count=0
+coach_fact_context_v1_cohort_total_count=0
+active_reviewed_unexpired_cohort_count=0
+eligible_account_count=0
+former_pilot_unexpired_nonce_count=0
+percentage_rollout=none
+legacy_coach_route=available (authenticated route returned 401)
+```
+
+No Fact Context request, provider execution, nonce claim, replay attempt, or
+Legacy retry was initiated by this session. Deployment-log inspection returned
+no related deployment log entries. The rollout is restored to deny-all and must
+not be reactivated without fresh approval and a new protected operator
+checkpoint.
+
+FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — DENY-ALL ROLLBACK VERIFIED, NEW ATTEMPT REQUIRES FRESH APPROVAL

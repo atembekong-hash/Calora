@@ -667,3 +667,44 @@ deployment health, and public route behavior. It cannot independently attest to
 unrelated external changes outside those production records.
 
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED
+
+## 23. Deny-all rollback verification
+
+**Verification date:** 2026-08-23
+**Verification method:** Production read-only database replica, deployment
+metadata, public route probes, and deployment-log inspection. No production
+mutation or activation attempt was made by this verification.
+
+The authorized human operator reported completing the process-gate-first
+rollback. Fresh read-back confirmed the required deny-all state:
+
+```text
+deployment=active_autoscale_with_successful_build
+api=200
+healthz=200
+process_gate=off (POST /api/v1/coach/fact-context/respond returned 404)
+global_rollout_matching_key_count=1
+global_rollout_json_boolean_false_count=1
+global_rollout_json_string_false_count=0
+global_rollout_conflicting_value_count=0
+coach_fact_context_v1_cohort_total_count=0
+active_reviewed_unexpired_cohort_count=0
+eligible_account_count=0
+former_pilot_unexpired_nonce_count=0
+percentage_rollout=none
+legacy_coach_route=available (authenticated route returned 401)
+```
+
+No live Fact Context request, provider execution, nonce claim, replay request,
+or Legacy retry was performed by this session during the failed activation
+attempt. Deployment-log inspection returned no related deployment log entries,
+and no unexpired nonce remained for the former pilot. The read-back scope covers
+activation controls, cohort, nonce, health, and route behavior; it cannot
+independently attest to unrelated external production changes outside those
+records.
+
+The rollback is verified and the deployment is preserved in deny-all. No new
+activation attempt is authorized without fresh written approval, a fresh
+time-bounded membership approval, and a new protected operator checkpoint.
+
+FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — DENY-ALL ROLLBACK VERIFIED, NEW ATTEMPT REQUIRES FRESH APPROVAL
