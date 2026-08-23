@@ -112,4 +112,22 @@ The repeated preflight remained healthy and deny-all. No activation control,
 pilot request, nonce, provider execution, replay attempt, or rollback action
 occurred after the access verification.
 
+## 19. Conclusive missing capability
+
+The missing capability is the authorized human-operated Replit
+Database → Production → My Data edit permission required to create/update the
+single global rollout record and single reviewed pilot cohort record. Replit
+documents this as a protected manual production-data operation and does not
+allow agents to modify production database records.
+
+Railway does not own this Replit autoscale production service; Supabase owns
+authentication only; and the connected RevenueCat service owns entitlement data
+only. None can legitimately mutate the Calora rollout or cohort records.
+
+The smallest legitimate next action is a human operator performing the two
+protected My Data record edits through the documented change record, then using
+Publishing production-secret settings for the process gate. No generic write
+access, SQL, script, endpoint, migration, or provider configuration change is
+authorized.
+
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED

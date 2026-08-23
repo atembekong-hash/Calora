@@ -477,4 +477,41 @@ deployment workarounds were not attempted.
 
 Production remains deny-all.
 
+## 19. Production-owner and capability conclusion
+
+**Verification date:** 2026-08-22
+
+A full ownership audit established the legitimate production control-plane
+boundary:
+
+| Required mutation | Legitimate owner | Supported production surface |
+| --- | --- | --- |
+| Process gate | Replit Publishing | Publishing production-secret settings |
+| Global rollout record | Replit-managed PostgreSQL | Database → Production → My Data |
+| Reviewed pilot cohort record | Replit-managed PostgreSQL | Database → Production → My Data |
+| Pilot consent | Calora API and managed PostgreSQL | Authenticated consent API |
+| Replay nonce | Calora API and managed PostgreSQL | Automatic request-time claim only |
+
+Railway does not own the deployed Calora control plane. The production service is
+Replit autoscale; no Railway service setting can provide the missing database
+record mutations. Supabase owns authentication for this project, not the Calora
+domain rollout/cohort records. RevenueCat owns entitlement data only and cannot
+authorize or write Fact Context rollout controls.
+
+Replit’s supported production-database guidance confirms that edits to live
+records use the human-operated Database → Production → My Data edit mode and
+that agents cannot modify production databases. The exact missing external
+capability is therefore an authorized human operator’s ability to use that
+protected My Data edit mode to create/update the one global rollout record and
+the one reviewed pilot cohort record. This is not a request for generic database
+write access, SQL, a credential, an API, or an application change.
+
+The smallest legitimate next action is for that authorized Replit operator to
+use the existing documented UI path and protected change record to make only
+those two records, with read-back after each mutation. The process gate must
+remain off until those checks pass and must be changed only through the
+separate Publishing production-secret setting. No code, migration, Railway
+configuration, Supabase configuration, RevenueCat change, or new endpoint is
+required or authorized.
+
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED
