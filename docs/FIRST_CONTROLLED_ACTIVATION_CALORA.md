@@ -367,3 +367,48 @@ each transition; make the single bounded request and its replay check; then
 restore every control to the deny-all baseline. No public or temporary
 administrative endpoint, ad-hoc production SQL, or deployment workaround is an
 approved substitute.
+
+## 16. Approved operator control-plane documentation update
+
+**Update date:** 2026-08-22
+**Outcome:** The supported production operator path is now documented, but no
+live activation has been executed through it.
+
+The completed operator-control-plane work establishes the approved production
+surfaces for a separately authorized operator:
+
+| Control | Supported operator surface |
+| --- | --- |
+| Process gate | Publishing production-secret settings |
+| Global rollout gate | Production Database My Data |
+| Reviewed pilot membership | Production Database My Data |
+
+The governing procedure is
+[`COACH_FACT_CONTEXT_OPERATOR_CONTROL_PLANE.md`](./COACH_FACT_CONTEXT_OPERATOR_CONTROL_PLANE.md).
+It requires an access-controlled change record, explicit accountable-operator
+and reviewer approval, a read-back after every mutation, one-account-only
+eligibility proof, a process-gate-first rollback, and final deny-all
+verification.
+
+This update does not authorize an agent session, a repository merge, or any
+end-user session to perform a production mutation. It also does not record a
+pilot identifier, credential, token, fact value, prompt, nonce, or Coach
+response.
+
+At this update, the operational evidence remains:
+
+```text
+process_gate=off
+global_rollout=absent_or_false
+active_reviewed_cohort_count=0
+eligible_account_count=0
+percentage_rollout=none
+live_fact_context_provider_requests=0
+```
+
+The client capability remains off and Legacy Coach remains available. The
+controlled live request, replay proof, and reversibility test remain pending
+the operator’s explicit approval checkpoint and execution of the documented
+procedure.
+
+FIRST ACTIVATION VERDICT: HOLD — OPERATOR APPROVAL AND EXECUTION REQUIRED
