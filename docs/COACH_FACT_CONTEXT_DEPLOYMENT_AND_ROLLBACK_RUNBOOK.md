@@ -15,6 +15,19 @@ Legacy Coach remains available when architecture selection chooses Legacy before
 any minimized Fact Context egress. A request that has selected Fact Context must
 never retry through Legacy with broad context.
 
+## Production operator control plane
+
+The approved production writer path is documented in
+[`COACH_FACT_CONTEXT_OPERATOR_CONTROL_PLANE.md`](./COACH_FACT_CONTEXT_OPERATOR_CONTROL_PLANE.md).
+It uses only the authorized operator's Publishing production-secret settings
+for the process gate and the managed Database **My Data** surface for the
+global rollout and reviewed cohort records.
+
+Do not replace that path with direct production SQL, an ad-hoc script, an
+application-admin endpoint, an authentication bypass, or a deployment
+workaround. The operator runbook includes the required approval record,
+per-transition read-backs, and immediate deny-all rollback sequence.
+
 ## Deployment order
 
 1. Confirm the client feature gate is hard-false and the server environment
@@ -73,15 +86,20 @@ or conversation content.
 
 No redeploy is required for the server-owned controls:
 
-1. Set the config value to `false` or delete the config row. This globally
+1. Remove or change `COACH_FACT_CONTEXT_ENABLED` so it is not exactly `true`,
+   then complete the normal supported configuration lifecycle. This is the
+   first emergency action because the route checks this process gate before
+   request authentication and data handling.
+2. Set the config value to `false` or delete the config row. This globally
    denies the endpoint on the next decision.
-2. Delete an individual cohort membership to deny that identity immediately.
-3. Revoke server consent to deny the identity independently.
-4. If a code-level emergency stop is needed, remove or change
-   `COACH_FACT_CONTEXT_ENABLED` so it is not exactly `true`, then restart the
-   API process.
+3. Delete an individual cohort membership to deny that identity immediately.
+4. Revoke server consent to deny the identity independently.
 5. Keep the client gate off. Do not route an in-flight minimized request to
    Legacy Coach.
+
+For the production operator surfaces, required read-backs, approval evidence,
+and the complete deny-all verification, follow
+[`COACH_FACT_CONTEXT_OPERATOR_CONTROL_PLANE.md`](./COACH_FACT_CONTEXT_OPERATOR_CONTROL_PLANE.md).
 
 The idempotency ledger contains only external identity, nonce, claim time, and
 expiry. It must never be used to store facts, prompts, messages, or provider
@@ -94,6 +112,7 @@ responses.
 - Consent, rollout, or idempotency lookup failure: the endpoint fails closed.
 - Provider timeout or late completion: return the safe unavailable response;
   the client lifecycle epoch suppresses stale settlements.
-- Unexpected exposure: immediately perform the global rollback above, remove
+- Unexpected exposure: immediately complete the process-gate-first deny-all
+  rollback above, remove
   all cohort rows, preserve no new Fact Context payloads, and investigate from
   structural operational records only.
