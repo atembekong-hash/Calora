@@ -150,6 +150,44 @@ describe("dark Coach Fact Context path", () => {
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["unavailable", { allowed: false, retryAfterSecs: 30, degraded: true }],
+    ["unknown", undefined],
+    ["malformed", { allowed: true }],
+    ["unexpected degraded allow", { allowed: true, retryAfterSecs: 0, degraded: true }],
+  ])("denies provider execution when request protection is %s", async (_label, protectionResult) => {
+    checkRateLimit.mockResolvedValueOnce(protectionResult);
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+
+    expect(response.status).toBe(503);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("denies provider execution when request protection throws", async () => {
+    checkRateLimit.mockRejectedValueOnce(new Error("limiter unavailable"));
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+
+    expect(response.status).toBe(503);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("uses the fail-closed protection policy for Fact Context", async () => {
+    checkRateLimit.mockResolvedValueOnce({ allowed: false, retryAfterSecs: 60 });
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+
+    expect(response.status).toBe(429);
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      "coach-fact-context:user:user-a",
+      40,
+      60 * 60,
+      { failClosed: true },
+    );
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
   it("prevents higher-risk content from sending fact context to the model", async () => {
     const response = await request(server).post("/v1/coach/fact-context/respond").send(body("I am pregnant and want a medication dose for purging"));
     expect(response.status).toBe(200);

@@ -108,6 +108,27 @@ function serverGateEnabled() {
   return process.env.COACH_FACT_CONTEXT_ENABLED === "true";
 }
 
+type VerifiedRateLimitDecision = {
+  allowed: boolean;
+  retryAfterSecs: number;
+  degraded?: boolean;
+};
+
+/**
+ * A paid provider call requires a complete, healthy limiter decision. Do not
+ * trust a partial or unexpected object from a degraded protection dependency.
+ */
+function isVerifiedRateLimitDecision(value: unknown): value is VerifiedRateLimitDecision {
+  if (!isPlainObject(value)) return false;
+  return (
+    typeof value.allowed === "boolean" &&
+    typeof value.retryAfterSecs === "number" &&
+    Number.isFinite(value.retryAfterSecs) &&
+    value.retryAfterSecs >= 0 &&
+    (value.degraded === undefined || typeof value.degraded === "boolean")
+  );
+}
+
 function parseJson(content: string) {
   return JSON.parse(
     content.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim(),
@@ -487,7 +508,19 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
     return;
   }
 
-  const rate = await checkRateLimit(`coach-fact-context:user:${user.id}`, 40, 60 * 60);
+  let rate: unknown;
+  try {
+    // Fact Context is a controlled paid-provider path, so a limiter outage must
+    // deny execution rather than fall back to an unmetered authenticated call.
+    rate = await checkRateLimit(`coach-fact-context:user:${user.id}`, 40, 60 * 60, { failClosed: true });
+  } catch {
+    res.status(503).json({ message: "Coach Fact Context request protection could not be verified." });
+    return;
+  }
+  if (!isVerifiedRateLimitDecision(rate) || rate.degraded) {
+    res.status(503).json({ message: "Coach Fact Context request protection could not be verified." });
+    return;
+  }
   if (!rate.allowed) {
     res.setHeader("Retry-After", String(rate.retryAfterSecs));
     res.status(429).json({ message: "Too many Coach requests. Please wait before trying again.", retryAfterSecs: rate.retryAfterSecs });

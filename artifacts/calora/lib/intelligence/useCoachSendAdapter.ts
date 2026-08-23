@@ -133,6 +133,12 @@ export function createCoachSendAdapter(): CoachSendAdapterWithCleanup {
       return { kind: 'legacy_response', response };
     }
 
+    if (selection.kind === 'unavailable') {
+      // Fact Context was selected but could not be safely prepared. Never
+      // downgrade this send to the legacy provider route.
+      return { kind: 'unavailable', reason: selection.reason };
+    }
+
     // Fact Context path: never retries with legacy context, never double-requests.
     const result = await coordinator.request({
       selection,

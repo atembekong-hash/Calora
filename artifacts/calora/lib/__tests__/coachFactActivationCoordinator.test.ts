@@ -35,7 +35,7 @@ describe('CoachFactActivationCoordinator', () => {
     expect(isIntelligenceFeatureEnabled).toHaveBeenCalledWith('intelligence.coach.fact_context');
   });
 
-  it('requires current server-confirmed consent even if the client gate is later approved', async () => {
+  it('denies a selected Fact Context send when server consent is not current instead of falling back to legacy', async () => {
     vi.mocked(isIntelligenceFeatureEnabled).mockReturnValueOnce(true);
     const coordinator = new CoachFactActivationCoordinator();
     const getConsent = vi.fn().mockResolvedValue({
@@ -51,8 +51,36 @@ describe('CoachFactActivationCoordinator', () => {
       hydrationGeneration: 1,
       facts: [],
       getConsent,
-    })).resolves.toEqual({ kind: 'legacy' });
+    })).resolves.toEqual({ kind: 'unavailable', reason: 'consent_not_current' });
     expect(getConsent).toHaveBeenCalledTimes(1);
+  });
+
+  it('denies a selected Fact Context send when consent verification fails instead of falling back to legacy', async () => {
+    vi.mocked(isIntelligenceFeatureEnabled).mockReturnValueOnce(true);
+    const coordinator = new CoachFactActivationCoordinator();
+    const getConsent = vi.fn().mockRejectedValue(new Error('unavailable'));
+
+    await expect(coordinator.select({
+      accountId: 'account-a',
+      hydrated: true,
+      hydrationGeneration: 1,
+      facts: [],
+      getConsent,
+    })).resolves.toEqual({ kind: 'unavailable', reason: 'consent_unavailable' });
+  });
+
+  it('never dispatches a request when the selected Fact Context branch is unavailable', async () => {
+    const coordinator = new CoachFactActivationCoordinator();
+    const request = vi.fn();
+
+    await expect(coordinator.request({
+      selection: { kind: 'unavailable', reason: 'consent_unavailable' },
+      messages: [{ role: 'user', content: 'hello' }],
+      accountId: 'account-a',
+      hydrationGeneration: 1,
+      request,
+    })).resolves.toEqual({ kind: 'unavailable', reason: 'consent_unavailable' });
+    expect(request).not.toHaveBeenCalled();
   });
 
   it('rejects a selection if the account or hydration generation changes before egress', async () => {

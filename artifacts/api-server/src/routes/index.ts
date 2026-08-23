@@ -19,8 +19,11 @@ router.use(healthRouter);
 router.use(recipesRouter);
 router.use(captureRouter);
 router.use(plannerRouter);
-router.use(coachRouter);
+// Register the controlled Fact Context path first. Its endpoint is exact and
+// terminal; a request that enters it cannot fall through to the legacy Coach
+// provider route.
 router.use(coachFactContextRouter);
+router.use(coachRouter);
 router.use(coachFactConsentRouter);
 router.use(accountRouter);
 router.use(referralRouter);

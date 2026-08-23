@@ -10,8 +10,15 @@ import { CoachFactRequestLifecycle } from './coachFactRequestLifecycle';
 import { requestDarkCoachFactContext, type DarkCoachRequestResult } from './coachFactContextClient';
 import type { IntelligenceFact } from './types';
 
+type FactContextUnavailableReason =
+  | 'missing_account_or_hydration'
+  | 'consent_unavailable'
+  | 'consent_not_current'
+  | 'context_unavailable';
+
 export type CoachArchitectureSelection =
   | { kind: 'legacy' }
+  | { kind: 'unavailable'; reason: FactContextUnavailableReason }
   | {
     kind: 'fact_context';
     context: CoachFactContextV1;
@@ -22,6 +29,7 @@ export type CoachArchitectureSelection =
 
 export type CoordinatorRequestResult =
   | { kind: 'legacy' }
+  | { kind: 'unavailable'; reason: FactContextUnavailableReason }
   | DarkCoachRequestResult;
 
 /**
@@ -43,17 +51,22 @@ export class CoachFactActivationCoordinator {
     facts: readonly IntelligenceFact[];
     getConsent?: typeof getCoachFactContextConsent;
   }): Promise<CoachArchitectureSelection> {
-    if (!isIntelligenceFeatureEnabled('intelligence.coach.fact_context') || !input.accountId || !input.hydrated) {
+    if (!isIntelligenceFeatureEnabled('intelligence.coach.fact_context')) {
       return { kind: 'legacy' };
+    }
+    // Once Fact Context is selected, it is a terminal architecture. A missing
+    // prerequisite must not downgrade this send to the broader legacy provider.
+    if (!input.accountId || !input.hydrated) {
+      return { kind: 'unavailable', reason: 'missing_account_or_hydration' };
     }
     let serverConsent: CoachFactConsentStatus;
     try {
       serverConsent = await (input.getConsent ?? getCoachFactContextConsent)();
     } catch {
-      return { kind: 'legacy' };
+      return { kind: 'unavailable', reason: 'consent_unavailable' };
     }
     if (serverConsent.purpose !== COACH_FACT_CONTEXT_PURPOSE || serverConsent.state !== 'consented_current') {
-      return { kind: 'legacy' };
+      return { kind: 'unavailable', reason: 'consent_not_current' };
     }
     const context = buildCoachFactContext({
       hydrated: input.hydrated,
@@ -66,7 +79,7 @@ export class CoachFactActivationCoordinator {
       serverConsent,
       accountId: input.accountId,
       hydrationGeneration: input.hydrationGeneration,
-    } : { kind: 'legacy' };
+    } : { kind: 'unavailable', reason: 'context_unavailable' };
   }
 
   async request(input: {
@@ -77,6 +90,9 @@ export class CoachFactActivationCoordinator {
     request?: (input: { factContext: CoachFactContextV1; messages: CoachMessage[]; currentScreen: string }) => Promise<CoachFactContextResponse>;
   }): Promise<CoordinatorRequestResult> {
     if (input.selection.kind === 'legacy') return { kind: 'legacy' };
+    if (input.selection.kind === 'unavailable') {
+      return { kind: 'unavailable', reason: input.selection.reason };
+    }
     if (input.selection.accountId !== input.accountId
       || input.selection.hydrationGeneration !== input.hydrationGeneration) {
       this.lifecycle.invalidate();
