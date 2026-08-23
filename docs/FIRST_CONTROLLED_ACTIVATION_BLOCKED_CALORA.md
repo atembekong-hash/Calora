@@ -85,21 +85,29 @@ unavailable Fact Context request to Legacy.
 
 ## 5. Required future path
 
+The read-only verification environment documented here cannot make production
+mutations. The approved operator-only control-plane path is now documented in
+[`COACH_FACT_CONTEXT_OPERATOR_CONTROL_PLANE.md`](./COACH_FACT_CONTEXT_OPERATOR_CONTROL_PLANE.md):
+
+- Publishing production-secret settings govern the process gate;
+- the managed Database **My Data** surface governs the global rollout record
+  and one reviewed cohort membership; and
+- the protected change record captures approval, sanitized evidence, and every
+  read-back/rollback transition.
+
 The activation may be reconsidered only when an authorized production operator
-provides an existing, supported, auditable control-plane mechanism that can
-independently and reversibly govern all three controls: process gate, global
-rollout gate, and the one reviewed cohort membership. That future operator must
-perform the approved sequence with verification after every mutation; no
-substitute account, percentage rollout, broader fact boundary, or alternate
-write mechanism is authorized.
+uses that path and completes its approval checkpoint. No substitute account,
+percentage rollout, broader fact boundary, direct production SQL, temporary or
+public administration endpoint, authentication bypass, or deployment workaround
+is authorized.
 
 ## 6. Residual risks
 
-- Treating environment-variable administration as a complete control plane
-  would leave the server-owned database gates without an approved writer.
-- Direct database writes or a newly created administrative surface would bypass
-  the review and audit boundary that makes the activation reversible.
-- Proceeding without all three independently controllable gates would make an
-  unexpected state harder to contain.
+- Treating a public route, a script, or an end-user session as an operator
+  control plane would bypass the approved review boundary.
+- Skipping a control-panel read-back or the protected change record would make
+  an unexpected state harder to reconstruct and contain.
+- This evidence remains a read-only historical snapshot. The new operator path
+  is not evidence that an activation occurred.
 
-FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED
+FIRST CONTROLLED ACTIVATION VERDICT: HOLD — OPERATOR APPROVAL AND EXECUTION REQUIRED
