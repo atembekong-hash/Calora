@@ -131,3 +131,38 @@ access, SQL, script, endpoint, migration, or provider configuration change is
 authorized.
 
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED
+
+## 20. Post-membership read-back evidence
+
+**Verification date:** 2026-08-23
+**Scope:** Read-only confirmation after the authorized human operator's
+protected cohort-membership write. No identifier, audit value, or timestamp
+from the controlled account is recorded here.
+
+```text
+reviewed_pilot_membership_count=1
+reviewed_pilot_active_unexpired_membership_count=1
+active_reviewed_unexpired_cohort_membership_count=1
+cohort_total_membership_count=1
+review_state=non_null
+expiry_state=non_null_and_future
+current_pilot_consent_count=1
+unexpired_pilot_nonce_count=0
+global_rollout=absent
+process_gate=off (public Fact Context endpoint returned 404)
+percentage_rollout=none
+```
+
+The membership matches the approved one-account boundary and no duplicate
+active membership is present. The deployment remains healthy. The global
+rollout record is absent, so the application is still deny-all and no request,
+provider execution, replay check, or rollback transition was authorized or
+performed.
+
+The next required action is external: the accountable human operator must use
+Production Database My Data to set only
+`coach_fact_context_rollout_enabled` to JSON boolean `true`, then read it back
+while reconfirming the sole active reviewed membership. The process gate must
+remain off until that step passes.
+
+FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — GLOBAL ROLLOUT GATE REMAINS ABSENT

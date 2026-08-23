@@ -515,3 +515,51 @@ configuration, Supabase configuration, RevenueCat change, or new endpoint is
 required or authorized.
 
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED
+
+## 20. Post-membership read-back checkpoint
+
+**Verification date:** 2026-08-23
+**Verification method:** Production read-only database replica, deployment
+metadata, and the public dark-route behavior. No production mutation was made
+by this verification.
+
+An authorized human operator reported creating the one reviewed pilot membership
+through the protected Production Database My Data surface. The post-write
+read-back confirmed the following sanitized state:
+
+```text
+target_coach_fact_context_v1_membership_count=1
+target_active_reviewed_unexpired_membership_count=1
+cohort_active_reviewed_unexpired_membership_count=1
+cohort_total_membership_count=1
+target_reviewed_at=non_null
+target_expires_at=non_null_and_future
+current_pilot_consent_count=1
+target_unexpired_nonce_count=0
+global_rollout=absent
+process_gate=off (POST /api/v1/coach/fact-context/respond returned 404)
+deployment=active_autoscale_with_successful_build
+percentage_rollout=none
+```
+
+The single row satisfies the controlled-membership requirements: the named
+cohort is the approved cohort, it is reviewed, explicitly time-bounded, and it
+is the sole active reviewed, unexpired membership. The matching current
+server-owned consent remains present. No duplicate active cohort membership or
+pre-existing Fact Context nonce was observed.
+
+The global rollout record remains absent, so the runtime remains deny-all even
+with the valid reviewed membership. The procedure does **not** authorize
+enabling the process gate at this point: an authorized human operator must
+first create or update only `coach_fact_context_rollout_enabled` to JSON boolean
+`true` through Production Database My Data and perform the required read-back.
+Only then may the separately controlled Publishing process-gate step be
+considered.
+
+This session performed no write and no live Fact Context request. The
+read-back is scoped to the activation-control, consent, and nonce records; it
+confirms that this session did not change unrelated production data, but cannot
+independently attest to unrelated external operator actions outside those
+records.
+
+FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — GLOBAL ROLLOUT GATE REMAINS ABSENT
