@@ -612,3 +612,58 @@ health back. Do not send a pilot request until that read-back proves all three
 gates match the approved one-account state.
 
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — PROCESS GATE REQUIRES AUTHORIZED HUMAN ACTION
+
+## 22. Post-process-gate preflight stop
+
+**Verification date:** 2026-08-23
+**Verification method:** Production read-only database replica, active
+deployment metadata, public route probes, and reviewed runtime source. No
+production mutation, pilot request, nonce claim, provider execution, replay
+attempt, or rollback transition was made by this verification.
+
+The process-gate republish is effective: the production deployment is healthy,
+`GET /api` and `GET /api/healthz` both return `200`, and the Fact Context route
+now reaches input validation rather than returning its dark-route `404`. Legacy
+Coach remains available at its authenticated route. The reviewed source and
+generated API contract continue to allow only `daily.calorie_status` and
+`daily.protein_status`.
+
+The global rollout row remains exactly one row with the approved key and JSON
+boolean `true` value; no string `"true"` value was found. There is exactly one
+membership row in the approved cohort, no second or conflicting membership, one
+current unrevoked consent record, and no pre-existing nonce for the pilot.
+
+However, the required membership is no longer active: its review remains
+non-null, but its expiry is not in the future. The sanitized preflight state is:
+
+```text
+deployment=active_autoscale_with_successful_build
+api=200
+healthz=200
+process_gate=effectively_on (Fact Context invalid-body probe returned 400)
+global_rollout_matching_key_count=1
+global_rollout_json_boolean_true_count=1
+global_rollout_json_string_true_count=0
+cohort_total_membership_count=1
+target_active_reviewed_unexpired_membership_count=0
+cohort_active_reviewed_unexpired_membership_count=0
+other_active_membership_count=0
+current_pilot_consent_count=1
+target_unexpired_nonce_count=0
+percentage_rollout=none
+```
+
+This is a stop condition. No live request may be sent because the approved
+pilot is not eligible. The protected operator must immediately perform the
+documented deny-all rollback in order: (1) disable or remove
+`COACH_FACT_CONTEXT_ENABLED` in Publishing production secrets and wait for the
+configuration lifecycle, (2) set the global rollout record to JSON `false` or
+delete it, and (3) delete the expired reviewed pilot membership. The operator
+must then read all three controls back and mark the protected change record
+rolled back and verified.
+
+The verification scope covers activation configuration, cohort, consent, nonce,
+deployment health, and public route behavior. It cannot independently attest to
+unrelated external changes outside those production records.
+
+FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED

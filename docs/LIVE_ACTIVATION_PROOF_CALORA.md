@@ -200,3 +200,39 @@ configuration plus production health. The process gate must not be treated as
 enabled until that verification passes; no live request is yet authorized.
 
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — PROCESS GATE REQUIRES AUTHORIZED HUMAN ACTION
+
+## 22. Post-process-gate preflight stop evidence
+
+**Verification date:** 2026-08-23
+**Scope:** Read-only production verification. No controlled-account identifier,
+operator metadata, timestamp, or Coach content is recorded here.
+
+```text
+deployment=active_autoscale_with_successful_build
+api=200
+healthz=200
+process_gate=effectively_on (Fact Context invalid-body probe returned 400)
+global_rollout_matching_key_count=1
+global_rollout_json_boolean_true_count=1
+global_rollout_json_string_true_count=0
+cohort_total_membership_count=1
+active_reviewed_unexpired_cohort_membership_count=0
+other_active_membership_count=0
+current_pilot_consent_count=1
+unexpired_pilot_nonce_count=0
+percentage_rollout=none
+```
+
+The process and global gates are effective, but the sole reviewed cohort
+membership is expired and therefore inactive. The approved pilot is not
+eligible. The fact boundary remains calorie/protein only, and Legacy Coach is
+still available through its authenticated route.
+
+No live request, provider execution, nonce claim, replay attempt, Legacy retry,
+or rollback mutation was performed. The required next action is immediate
+human-only deny-all rollback: process gate off first, global rollout
+false/absent second, then removal of the expired pilot membership. A new
+activation attempt requires separate written approval after the deny-all
+read-back succeeds.
+
+FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED
