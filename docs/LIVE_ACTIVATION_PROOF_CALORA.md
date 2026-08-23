@@ -101,4 +101,15 @@ access-controlled change record to execute the approved one-account sequence,
 including per-transition read-backs, one live request, replay proof, and
 process-gate-first rollback. Until then, preserve deny-all.
 
+## 18. Operator-access grant verification
+
+The claimed access grant did not expose either required protected writer to this
+session. Production database inspection remains read-only, and the protected
+Publishing and Production Database My Data writer surfaces are not available for
+an auditable operator action here.
+
+The repeated preflight remained healthy and deny-all. No activation control,
+pilot request, nonce, provider execution, replay attempt, or rollback action
+occurred after the access verification.
+
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED

@@ -451,4 +451,30 @@ bypasses, and deployment workarounds remain prohibited and were not attempted.
 No pilot request, provider egress, nonce claim, replay attempt, or rollback
 transition occurred. Production therefore remains deny-all.
 
+## 18. Operator-access grant verification
+
+**Verification date:** 2026-08-22
+
+After the claimed production-operator access grant, this session repeated the
+required read-only preflight. Repository parity was clean; deployment health,
+API and health responses, Premium controls, pilot authentication, current
+consent, two-fact boundary, dark-route denial, and Legacy Coach availability
+all remained valid.
+
+The protected writer capability itself was not exposed to this session:
+
+```text
+Publishing production-secret writer: not available in this session
+Production Database My Data writer: not available in this session
+Available production database capability: read-only
+```
+
+The authorization therefore could not be independently verified or used through
+the documented operator surfaces. No process gate, rollout record, cohort
+membership, consent, nonce, provider request, replay request, or rollback
+control changed. Direct SQL, scripts, endpoints, authentication bypasses, and
+deployment workarounds were not attempted.
+
+Production remains deny-all.
+
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED
