@@ -412,3 +412,43 @@ the operator’s explicit approval checkpoint and execution of the documented
 procedure.
 
 FIRST ACTIVATION VERDICT: HOLD — OPERATOR APPROVAL AND EXECUTION REQUIRED
+
+## 17. Final execution preflight and safe stop
+
+**Verification date:** 2026-08-22
+**Outcome:** All read-only activation prerequisites passed; the protected
+operator execution could not begin from this session.
+
+Immediately before any possible production mutation, the repository was aligned
+with `origin/main`, the active production deployment was healthy, and the API,
+health, and normal recipe endpoints returned `200`. Premium controls remained
+entitled `200`, anonymous `401`, and confirmed non-entitled `403`.
+
+The approved pilot authenticated successfully, retained current server-owned
+consent for document version `2026-08-21`, and remained denied at the dark Fact
+Context route. The source boundary remained limited to
+`daily.calorie_status` and `daily.protein_status`; no other Fact Context key
+was allowlisted. Legacy Coach remained available.
+
+The verified production baseline was:
+
+```text
+process_gate=off
+global_rollout=off_or_absent
+active_reviewed_cohort_count=0
+eligible_account_count=0
+unexpired_nonce_count=0
+percentage_rollout=none
+```
+
+No mutation followed this preflight. The documented execution procedure requires
+an authorized human operator in protected Publishing settings and Production
+Database My Data, together with the access-controlled operator/reviewer change
+record. This session has neither those protected UI surfaces nor production
+database write authority. Direct SQL, scripts, endpoints, authentication
+bypasses, and deployment workarounds remain prohibited and were not attempted.
+
+No pilot request, provider egress, nonce claim, replay attempt, or rollback
+transition occurred. Production therefore remains deny-all.
+
+FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — NO EXPANSION AUTHORIZED
