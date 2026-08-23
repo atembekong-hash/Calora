@@ -166,3 +166,37 @@ while reconfirming the sole active reviewed membership. The process gate must
 remain off until that step passes.
 
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — GLOBAL ROLLOUT GATE REMAINS ABSENT
+
+## 21. Post-global-rollout read-back evidence
+
+**Verification date:** 2026-08-23
+**Scope:** Read-only confirmation after the authorized human operator's
+protected global-rollout write. No identifier, audit value, or timestamp from
+the controlled account is recorded here.
+
+```text
+global_rollout_matching_key_count=1
+global_rollout_json_boolean_true_count=1
+global_rollout_json_string_true_count=0
+global_rollout_updated_at=present
+active_reviewed_unexpired_cohort_membership_count=1
+cohort_total_membership_count=1
+other_active_membership_count=0
+current_pilot_consent_count=1
+unexpired_pilot_nonce_count=0
+process_gate=off (public Fact Context endpoint returned 404)
+percentage_rollout=none
+deployment=active_autoscale_with_successful_build
+```
+
+The global gate has exactly the required key and JSON boolean value. The
+approved pilot remains the sole active, reviewed, unexpired cohort member with
+current consent. No duplicate or conflicting active membership was observed.
+
+The next step is protected and human-only: the accountable operator must set
+`COACH_FACT_CONTEXT_ENABLED` to exact `true` in Publishing production-secret
+settings, wait for the normal configuration lifecycle, and read back that
+configuration plus production health. The process gate must not be treated as
+enabled until that verification passes; no live request is yet authorized.
+
+FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — PROCESS GATE REQUIRES AUTHORIZED HUMAN ACTION

@@ -563,3 +563,52 @@ independently attest to unrelated external operator actions outside those
 records.
 
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — GLOBAL ROLLOUT GATE REMAINS ABSENT
+
+## 21. Post-global-rollout read-back checkpoint
+
+**Verification date:** 2026-08-23
+**Verification method:** Production read-only database replica, deployment
+metadata, and the public dark-route behavior. No production mutation was made
+by this verification.
+
+An authorized human operator reported creating the global rollout record through
+the protected Production Database My Data surface. The fresh read-back confirmed
+the complete database-side one-account configuration:
+
+```text
+global_rollout_matching_key_count=1
+global_rollout_json_boolean_true_count=1
+global_rollout_json_string_true_count=0
+global_rollout_updated_at=present
+target_coach_fact_context_v1_membership_count=1
+target_active_reviewed_unexpired_membership_count=1
+cohort_active_reviewed_unexpired_membership_count=1
+cohort_total_membership_count=1
+other_active_membership_count=0
+current_pilot_consent_count=1
+target_unexpired_nonce_count=0
+process_gate=off (POST /api/v1/coach/fact-context/respond returned 404)
+deployment=active_autoscale_with_successful_build
+percentage_rollout=none
+```
+
+The sole global row has the exact approved key
+`coach_fact_context_rollout_enabled`; its stored value is a JSON boolean
+`true`, not the string `"true"`. The expected pilot remains the sole active,
+reviewed, unexpired cohort member, with current unrevoked consent. No duplicate
+or conflicting active membership was observed.
+
+The read-back is limited to the activation-control, cohort, consent, and nonce
+records, so it cannot independently attest to unrelated external operator
+changes outside that scope. It does confirm that this session made no production
+write and that no unexpected activation-side row or nonce was observed.
+
+The database-side transition is complete. Under the governing procedure, the
+next controlled action is **human-only**: the authorized operator must use
+Publishing → Settings → Production secrets to set
+`COACH_FACT_CONTEXT_ENABLED` to the exact value `true`, wait for the normal
+configuration lifecycle, then read the secret configuration and production
+health back. Do not send a pilot request until that read-back proves all three
+gates match the approved one-account state.
+
+FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — PROCESS GATE REQUIRES AUTHORIZED HUMAN ACTION
