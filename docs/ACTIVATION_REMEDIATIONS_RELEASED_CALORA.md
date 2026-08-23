@@ -237,4 +237,35 @@ approved, reversible sequence. No public or temporary administrative endpoint,
 ad-hoc production SQL, deployment workaround, percentage rollout, or
 substitute account is approved.
 
+## 13. Post-reconciliation verification
+
+The repository was reconciled with the latest reviewed `origin/main` history
+without changing runtime remediation code. The released runtime remains
+traceable to revision `1ed2a3f67ddede61409b32f7b7ca372dc232e993`; the
+post-reconciliation source adds only reviewed governance and verification
+records.
+
+Fresh checks after reconciliation passed:
+
+| Check | Result |
+| --- | --- |
+| Repository parity | Local `main` and `origin/main` are cleanly aligned |
+| API and Calora typechecks | Pass |
+| API and Calora test suites | Pass |
+| Public API, health, and normal recipe endpoints | `200` |
+| RevenueCat v2 project and entitlement reads | `200` |
+| Entitled / anonymous / confirmed non-entitled Premium controls | `200` / `401` / `403` |
+| Approved pilot confirmation and authentication | Pass |
+| Approved pilot server-managed internal-test and activation-purpose designations | Present |
+| Approved pilot current consent | `consented_current`, document `2026-08-21` |
+| Approved pilot missing-RevenueCat-customer Premium check | Stable `403` |
+| Approved pilot Fact Context dark-route check | `404` before body handling |
+
+The production control snapshot remains deny-all: the process gate is unset,
+the enabled global-rollout count and active reviewed-cohort count are zero,
+there is one current consent for the approved pilot only, nonce count is zero,
+and eligible-account count is zero. No Fact Context provider request, cohort
+membership, rollout configuration, or client-capability change occurred during
+this verification.
+
 ACTIVATION REMEDIATION VERDICT: PASS — FIRST CONTROLLED ACTIVATION MAY RESUME
