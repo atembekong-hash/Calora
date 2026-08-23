@@ -708,3 +708,45 @@ activation attempt is authorized without fresh written approval, a fresh
 time-bounded membership approval, and a new protected operator checkpoint.
 
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — DENY-ALL ROLLBACK VERIFIED, NEW ATTEMPT REQUIRES FRESH APPROVAL
+
+## 24. Fresh-attempt authorization and preflight stop
+
+**Authorization date:** 2026-08-23
+**Scope:** One new controlled attempt using the previously approved pilot only.
+The authorization preserves the calorie/protein-only boundary and explicitly
+requires all read-only preparation to complete before any new time-bounded
+membership is created.
+
+The fresh read-only preflight reconfirmed healthy production deployment and API
+responses, effective deny-all process gate, JSON-boolean-false global rollout,
+zero cohort membership, zero eligible accounts, current pilot consent, zero
+unexpired pilot nonces, no percentage rollout, Legacy Coach availability, and
+the exact two-fact boundary. Required provider secrets were present without
+exposing their values.
+
+No new membership, global rollout change, process-gate change, authenticated
+Fact Context request, nonce, provider execution, replay request, or timestamp
+was created.
+
+The attempt stopped before the human membership checkpoint for three exact
+reasons:
+
+1. local `main` is four commits ahead of `origin/main`, so repository parity is
+   not clean;
+2. the approved pilot's existing authentication fixture cannot be reverified
+   safely from available read-only evidence without guessing a credential; and
+3. a fresh live Premium `200` check requires a separate entitled controlled
+   account, which the new one-pilot authorization forbids. The pilot's
+   authenticated Premium `403` likewise cannot be reverified until its approved
+   fixture is available in the protected operator session.
+
+The required follow-up is to reconcile repository parity and have the authorized
+operator provide the approved pilot fixture through the protected checkpoint,
+then obtain explicit authorization if a separate Premium-`200` control is still
+required. Do not generate a change reference or membership timestamps until
+those blockers are resolved.
+
+The mobile-friendly detailed record is
+[`FRESH_ACTIVATION_PREFLIGHT_CALORA.md`](./FRESH_ACTIVATION_PREFLIGHT_CALORA.md).
+
+FRESH ACTIVATION PREFLIGHT VERDICT: BLOCKED

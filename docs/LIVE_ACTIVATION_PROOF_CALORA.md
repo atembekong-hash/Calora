@@ -266,3 +266,22 @@ not be reactivated without fresh approval and a new protected operator
 checkpoint.
 
 FIRST CONTROLLED ACTIVATION VERDICT: BLOCKED — DENY-ALL ROLLBACK VERIFIED, NEW ATTEMPT REQUIRES FRESH APPROVAL
+
+## 24. Fresh-attempt preflight stop
+
+Fresh written authorization was received for one new controlled attempt, but
+the read-only preparation stopped before creating a membership or membership
+clock. Deny-all controls, deployment health, current pilot consent, nonce
+state, Legacy Coach availability, provider-secret presence, and the two-fact
+boundary were reconfirmed.
+
+The preflight is blocked because repository parity is not clean, the approved
+pilot fixture cannot be safely reverified without protected operator access, and
+a fresh Premium `200` proof requires a separate entitled account prohibited by
+the one-pilot authorization. No Fact Context request, provider execution,
+replay check, or control mutation occurred.
+
+See [`FRESH_ACTIVATION_PREFLIGHT_CALORA.md`](./FRESH_ACTIVATION_PREFLIGHT_CALORA.md)
+for the sanitized mobile-friendly preflight record.
+
+FRESH ACTIVATION PREFLIGHT VERDICT: BLOCKED
