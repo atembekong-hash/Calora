@@ -4,14 +4,62 @@ import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import { rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+const workspaceDir = path.resolve(artifactDir, "../..");
+const execFileAsync = promisify(execFile);
+
+function isFullGitSha(value) {
+  return /^[0-9a-f]{40}$/i.test(value);
+}
+
+async function git(...args) {
+  const { stdout } = await execFileAsync("git", args, { cwd: workspaceDir });
+  return stdout.trim();
+}
+
+async function getReleaseAttestation() {
+  let gitCommit;
+  let sourceTree;
+  let dirty;
+  try {
+    [gitCommit, sourceTree, dirty] = await Promise.all([
+      git("rev-parse", "HEAD"),
+      git("rev-parse", "HEAD^{tree}"),
+      // Production provenance must cover every source input. Ignoring
+      // untracked files would allow a bundled route/module outside HEAD's tree
+      // to be attested as though it belonged to the claimed revision.
+      git("status", "--porcelain", "--untracked-files=all"),
+    ]);
+  } catch (error) {
+    throw new Error("Release attestation requires a readable Git checkout.", { cause: error });
+  }
+
+  if (!isFullGitSha(gitCommit) || !isFullGitSha(sourceTree)) {
+    throw new Error("Release attestation rejected malformed Git provenance.");
+  }
+  if (process.env.NODE_ENV === "production" && dirty) {
+    throw new Error("Release attestation requires a clean production Git checkout.");
+  }
+
+  const buildTimestamp = new Date().toISOString();
+  const sourceDigest = createHash("sha256")
+    .update(`${gitCommit}\n${sourceTree}\n`, "utf8")
+    .digest("hex");
+  const releaseId = `calora-api-${gitCommit.slice(0, 12)}-${buildTimestamp.replace(/[-:.TZ]/g, "")}`;
+
+  return { gitCommit, sourceTree, sourceDigest, buildTimestamp, releaseId };
+}
 
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
+  const release = await getReleaseAttestation();
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
@@ -22,6 +70,13 @@ async function buildAll() {
     outdir: distDir,
     outExtension: { ".js": ".mjs" },
     logLevel: "info",
+    define: {
+      __RELEASE_GIT_COMMIT__: JSON.stringify(release.gitCommit),
+      __RELEASE_SOURCE_TREE__: JSON.stringify(release.sourceTree),
+      __RELEASE_SOURCE_DIGEST__: JSON.stringify(release.sourceDigest),
+      __RELEASE_BUILD_TIMESTAMP__: JSON.stringify(release.buildTimestamp),
+      __RELEASE_ID__: JSON.stringify(release.releaseId),
+    },
     // Some packages may not be bundleable, so we externalize them, we can add more here as needed.
     // Some of the packages below may not be imported or installed, but we're adding them in case they are in the future.
     // Examples of unbundleable packages:

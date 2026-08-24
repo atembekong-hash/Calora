@@ -9,4 +9,17 @@ describe("API health routes", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: "ok" });
   });
+
+  it("keeps source imports fail-closed and never exposes runtime environment as release identity", async () => {
+    process.env.RELEASE_GIT_COMMIT = "f".repeat(40);
+    process.env.RELEASE_SOURCE_DIGEST = "f".repeat(64);
+
+    const response = await request(app).get("/api/version");
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({ message: "Release identity is unavailable." });
+    expect(response.headers["cache-control"]).toBe("no-store");
+    delete process.env.RELEASE_GIT_COMMIT;
+    delete process.env.RELEASE_SOURCE_DIGEST;
+  });
 });
