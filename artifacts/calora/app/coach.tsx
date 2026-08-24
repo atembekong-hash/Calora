@@ -249,8 +249,19 @@ export default function CoachScreen() {
         adapterInput,
       );
 
-      if (result.kind === 'stale' || result.kind === 'unavailable') {
-        // Epoch advanced or Fact Context failed cleanly; do not show response.
+      if (result.kind === 'stale') {
+        // Epoch advanced; a newer state now owns the visible conversation.
+        return;
+      }
+      if (result.kind === 'unavailable') {
+        // Fact Context is deliberately terminal while its restricted server
+        // gates are closed. Explain that state instead of making Send appear
+        // to do nothing; never fall back to Legacy Coach.
+        setTurns((current) => [...current, {
+          id: `unavailable-${Date.now()}`,
+          role: 'assistant',
+          content: 'Coach is not available for this account right now. Nothing was changed. Your local Progress data is still available.',
+        }]);
         return;
       }
 
