@@ -267,6 +267,54 @@ describe("dark Coach Fact Context path", () => {
     expect(verifyBearerToken).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ["consent is revoked", () => hasCurrentCoachFactConsent.mockResolvedValueOnce(true).mockResolvedValueOnce(false)],
+    ["cohort eligibility is removed", () => getCoachFactRolloutDecision.mockResolvedValueOnce({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" }).mockResolvedValueOnce({ cohortEligible: false, legacyFallbackEnabled: false, reason: "cohort_deny" })],
+    ["a future legacy fallback state appears", () => getCoachFactRolloutDecision.mockResolvedValueOnce({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" }).mockResolvedValueOnce({ cohortEligible: true, legacyFallbackEnabled: true, reason: "cohort_eligible" })],
+  ])("discards provider output when %s after dispatch", async (_label, revoke) => {
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({
+      message: "provider output", observations: [], actions: [], safetyState: "normal",
+      limitations: [], contextCoverage: { usedSections: [], missingSections: [] }, requestNonce: nonce,
+    }) } }] } as never);
+    revoke();
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+
+    expect(response.status).toBe(404);
+    expect(response.body).not.toMatchObject({ message: "provider output" });
+    expect(openai.chat.completions.create).toHaveBeenCalledOnce();
+  });
+
+  it("discards provider output when the process gate is disabled while pending", async () => {
+    vi.mocked(openai.chat.completions.create).mockImplementationOnce((() => {
+      delete process.env.COACH_FACT_CONTEXT_ENABLED;
+      return Promise.resolve({ choices: [{ message: { content: JSON.stringify({
+        message: "provider output", observations: [], actions: [], safetyState: "normal",
+        limitations: [], contextCoverage: { usedSections: [], missingSections: [] }, requestNonce: nonce,
+      }) } }] } as never);
+    }) as never);
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+
+    expect(response.status).toBe(404);
+    expect(response.body).not.toMatchObject({ message: "provider output" });
+  });
+
+  it("normalizes a completion-time control-plane error to fail-closed unavailable", async () => {
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({
+      message: "provider output", observations: [], actions: [], safetyState: "normal",
+      limitations: [], contextCoverage: { usedSections: [], missingSections: [] }, requestNonce: nonce,
+    }) } }] } as never);
+    getCoachFactRolloutDecision
+      .mockResolvedValueOnce({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" })
+      .mockRejectedValueOnce(new Error("control plane unavailable"));
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+
+    expect(response.status).toBe(404);
+    expect(response.body).not.toMatchObject({ message: "provider output" });
+  });
+
   it("accepts the real mobile calorie/protein Fact Context contract without formatting drift", async () => {
     // Keep both artifacts' TypeScript roots isolated while exercising the
     // actual mobile builder at runtime through Vite's module loader.

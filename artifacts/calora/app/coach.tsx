@@ -3,10 +3,9 @@ import {
   CoachAction,
   CoachMessage,
   CoachResponse,
-  useRespondCoach,
 } from '@workspace/api-client-react';
 import { router } from 'expo-router';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   ActivityIndicator,
@@ -20,8 +19,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BRAND } from '@/lib/brand';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
-import { buildCoachContext } from '@/lib/coachContext';
-import { filterForgottenSources } from '@/lib/livingMemory';
 import { useCalora } from '@/context/CaloraContext';
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
@@ -160,7 +157,6 @@ export default function CoachScreen() {
   } = useCalora();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const respondCoach = useRespondCoach();
   const coachSendAdapter = useCoachSendAdapter();
   // Track hydration generation: bumps whenever hydrated goes false→true or
   // hydrationError changes (covers retries and clear-data resets).
@@ -183,31 +179,15 @@ export default function CoachScreen() {
 
   const [composer, setComposer] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [turns, setTurns] = useState<DisplayTurn[]>(() => coachMessages.map((message, index) => ({
     id: `saved-${index}`,
     role: message.role,
     content: message.content,
   })));
 
-  const remembered = useMemo(() => filterForgottenSources(livingMemory, { logs, waterLogs, moodLogs, activityLogs, plannerMeals }), [activityLogs, livingMemory, logs, moodLogs, plannerMeals, waterLogs]);
-  const context = useMemo(() => buildCoachContext({
-    profile,
-    logs: remembered.logs,
-    waterLogs: remembered.waterLogs,
-    moodLogs: remembered.moodLogs,
-    activityLogs: remembered.activityLogs,
-    weights,
-    plannerMeals: remembered.plannerMeals,
-    shoppingItems,
-    savedMeals,
-    localRecipes,
-    savedRecipeIds,
-    foodMemories,
-    repeatPatterns,
-  }), [activityLogs, foodMemories, localRecipes, moodLogs, plannerMeals, profile, remembered, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, waterLogs, weights]);
-
   const sendMessage = async (value = composer.trim()) => {
-    if (!value || respondCoach.isPending) return;
+    if (!value || isSending) return;
     const userMessage: CoachMessage = { role: 'user', content: value.slice(0, 3000) };
     // Capture current messages synchronously before any await so we use the
     // state at send-time, not whatever React committed after re-renders.
@@ -259,17 +239,13 @@ export default function CoachScreen() {
       facts: frozenFacts,
     };
 
+    setIsSending(true);
     try {
       const result = await coachSendAdapter.sendWithArchitecture(
         nextMessages,
-        // Legacy send delegate — called only when architecture is 'legacy'.
-        () => respondCoach.mutateAsync({
-          data: {
-            context,
-            messages: nextMessages,
-            currentScreen: 'progress-coach',
-          },
-        }),
+        // Retained only for the adapter's transitional type contract. The
+        // adapter deliberately never invokes a Legacy Coach provider delegate.
+        async () => { throw new Error('Legacy Coach is retired.'); },
         adapterInput,
       );
 
@@ -278,19 +254,14 @@ export default function CoachScreen() {
         return;
       }
 
-      // Both 'legacy_response' and 'fact_context_response' carry a message.
+      // Only Fact Context responses can contain a provider result.
       const message = result.response.message;
       const assistantMessage: CoachMessage = { role: 'assistant', content: message };
       setCoachMessages([...nextMessages, assistantMessage].slice(-12));
-      // For legacy responses we can attach the full CoachResponse to the turn
-      // (used by EvidenceCard). Fact Context responses have a different shape
-      // and are not passed as `response` to avoid type mismatches.
-      const legacyResponse = result.kind === 'legacy_response' ? result.response : undefined;
       setTurns((current) => [...current, {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         content: message,
-        response: legacyResponse,
       }]);
     } catch {
       setTurns((current) => [...current, {
@@ -298,6 +269,8 @@ export default function CoachScreen() {
         role: 'assistant',
         content: 'I couldn\u2019t reach Coach just now. Nothing was changed. Your local Progress data is still available.',
       }]);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -391,7 +364,7 @@ export default function CoachScreen() {
                 )}
               </Animated.View>
             ))}
-            {respondCoach.isPending && (
+            {isSending && (
               <View style={[styles.loadingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Reading your {BRAND.name} context…</Text>
@@ -416,14 +389,14 @@ export default function CoachScreen() {
             onChangeText={setComposer}
             onSubmitEditing={() => void sendMessage()}
             returnKeyType="send"
-            editable={!respondCoach.isPending}
+            editable={!isSending}
             placeholder="Ask about your nutrition…"
             placeholderTextColor={colors.mutedForeground}
             accessibilityLabel={`Ask ${BRAND.name} Coach`}
             style={[styles.composer, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
           />
-          <Pressable accessibilityLabel="Send Coach message" testID="coach-send" onPress={() => void sendMessage()} disabled={!composer.trim() || respondCoach.isPending} style={[styles.sendButton, { backgroundColor: composer.trim() && !respondCoach.isPending ? colors.primary : colors.muted }]}>
-            <Feather name="arrow-up" size={18} color={composer.trim() && !respondCoach.isPending ? colors.primaryForeground : colors.mutedForeground} />
+          <Pressable accessibilityLabel="Send Coach message" testID="coach-send" onPress={() => void sendMessage()} disabled={!composer.trim() || isSending} style={[styles.sendButton, { backgroundColor: composer.trim() && !isSending ? colors.primary : colors.muted }]}>
+            <Feather name="arrow-up" size={18} color={composer.trim() && !isSending ? colors.primaryForeground : colors.mutedForeground} />
           </Pressable>
         </View>
       )}

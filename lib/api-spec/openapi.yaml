@@ -467,32 +467,6 @@ paths:
           description: Invalid planner input
         "502":
           description: Planner provider unavailable
-  /v1/coach/respond:
-    post:
-      operationId: respondCoach
-      tags: [coach]
-      summary: Respond to a context-aware nutrition coaching request
-      description: |
-        Interprets a bounded, user-controlled Calora context snapshot and
-        returns structured guidance with evidence and allowlisted destinations.
-        Coach responses do not mutate diary, planner, or profile data.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CoachRespondInput"
-      responses:
-        "200":
-          description: Structured coach response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CoachResponse"
-        "400":
-          description: Invalid coach input
-        "502":
-          description: Coach provider unavailable
   /v1/coach/fact-context/respond:
     post:
       operationId: respondCoachFactContext

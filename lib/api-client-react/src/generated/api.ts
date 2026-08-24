@@ -27,8 +27,6 @@ import type {
   CoachFactConsentStatus,
   CoachFactContextRequest,
   CoachFactContextResponse,
-  CoachRespondInput,
-  CoachResponse,
   DeletionRequest,
   DiaryEntry,
   DiaryEntryInput,
@@ -1630,80 +1628,6 @@ export const useGeneratePlanner = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getGeneratePlannerMutationOptions(options));
-    }
-
-export const getRespondCoachUrl = () => {
-
-
-
-
-  return `/api/v1/coach/respond`
-}
-
-/**
- * Interprets a bounded, user-controlled Calora context snapshot and
- * returns structured guidance with evidence and allowlisted destinations.
- * Coach responses do not mutate diary, planner, or profile data.
- * @summary Respond to a context-aware nutrition coaching request
- */
-export const respondCoach = async (coachRespondInput: CoachRespondInput, options?: Parameters<typeof customFetch>[1]): Promise<CoachResponse> => {
-
-  return customFetch<CoachResponse>(getRespondCoachUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(coachRespondInput)
-  }
-);}
-
-
-
-
-
-export const getRespondCoachMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondCoach>>, TError,{data: BodyType<CoachRespondInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof respondCoach>>, TError,{data: BodyType<CoachRespondInput>}, TContext> => {
-
-const mutationKey = ['respondCoach'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof respondCoach>>, {data: BodyType<CoachRespondInput>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  respondCoach(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RespondCoachMutationResult = NonNullable<Awaited<ReturnType<typeof respondCoach>>>
-    export type RespondCoachMutationBody = BodyType<CoachRespondInput>
-    export type RespondCoachMutationError = ErrorType<void>
-
-    /**
- * @summary Respond to a context-aware nutrition coaching request
- */
-export const useRespondCoach = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondCoach>>, TError,{data: BodyType<CoachRespondInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof respondCoach>>,
-        TError,
-        {data: BodyType<CoachRespondInput>},
-        TContext
-      > => {
-      return useMutation(getRespondCoachMutationOptions(options));
     }
 
 export const getRespondCoachFactContextUrl = () => {

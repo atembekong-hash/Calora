@@ -6,9 +6,8 @@
  *  - Maintains a stable CoachFactActivationCoordinator instance per component mount.
  *  - Maintains a stable CoachLifecycleEpoch that tracks account/hydration/consent axes.
  *  - Exposes `sendWithArchitecture`: exactly one architecture is selected per send.
- *    When the dark client gate denies Fact Context, the legacy path is used and no
- *    second request is ever issued. A Fact Context branch never falls back to legacy
- *    context after egress begins — it fails cleanly with `unavailable`.
+ *    Any selection outside Fact Context is terminally unavailable. The retired
+ *    Legacy Coach endpoint cannot be selected as a fallback provider path.
  *  - Exposes `invalidateEpoch` as a public rollback hook callable from outside the hook.
  */
 
@@ -35,7 +34,6 @@ export type CoachSendAdapterInput = {
 };
 
 export type CoachSendResult =
-  | { kind: 'legacy_response'; response: CoachResponse }
   | { kind: 'fact_context_response'; response: CoachFactContextResponse }
   | { kind: 'unavailable'; reason: string }
   | { kind: 'stale'; reason: 'epoch_advanced' };
@@ -43,12 +41,12 @@ export type CoachSendResult =
 export type CoachSendAdapterHook = {
   /**
    * Select exactly one architecture and execute a single request. The caller
-   * supplies the legacy send function so the adapter can delegate without
-   * importing respondCoach directly.
+   * accepts a retired legacy-send parameter for source compatibility; it is
+   * deliberately never invoked.
    *
    * Contract:
-   *  - If the dark gate denies Fact Context → calls `legacySend` exactly once,
-   *    returns `{ kind: 'legacy_response', response }`.
+   *  - If the Fact Context client gate denies a request → returns unavailable
+   *    without invoking a legacy provider route.
    *  - If the dark gate approves and consent is met → attempts Fact Context;
    *    NEVER falls back to legacy context, never sends two requests.
    *  - If the epoch advances before the response settles → `{ kind: 'stale' }`.
@@ -118,19 +116,11 @@ export function createCoachSendAdapter(): CoachSendAdapterWithCleanup {
     }
 
     if (selection.kind === 'legacy') {
-      // Legacy path: exactly one request, no Fact Context egress possible.
-      let response: CoachResponse;
-      try {
-        response = await legacySend();
-      } catch (err) {
-        // Re-throw so the caller's catch block shows the error UI.
-        throw err;
-      }
-      // Settle using live epoch state, not captured input only.
-      if (!epoch.isValid(captured)) {
-        return { kind: 'stale', reason: 'epoch_advanced' };
-      }
-      return { kind: 'legacy_response', response };
+      // Legacy Coach is retired as an execution architecture. Keep this branch
+      // explicit so a future feature-flag or coordinator fallback cannot
+      // silently restore a second provider route.
+      void legacySend;
+      return { kind: 'unavailable', reason: 'legacy_coach_retired' };
     }
 
     if (selection.kind === 'unavailable') {

@@ -29,7 +29,7 @@ describe('API client networking', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(customFetch('/api/v1/coach/respond', { method: 'POST' })).rejects.toThrow(
+    await expect(customFetch('/api/v1/coach/fact-context/respond', { method: 'POST' })).rejects.toThrow(
       'Calora API base URL is not configured',
     );
     expect(fetchMock).not.toHaveBeenCalled();

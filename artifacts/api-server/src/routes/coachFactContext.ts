@@ -108,6 +108,28 @@ function serverGateEnabled() {
   return process.env.COACH_FACT_CONTEXT_ENABLED === "true";
 }
 
+/**
+ * Revalidates every authorization predicate that permitted provider execution.
+ * A completed provider response is never returned if any source becomes
+ * unavailable, revoked, or future-configured for legacy fallback while pending.
+ */
+async function authorizationStillCurrent(req: Parameters<typeof verifyBearerToken>[0], expectedUser: { id: string; email: string | null }) {
+  if (!serverGateEnabled()) return false;
+  try {
+    const currentUser = await verifyBearerToken(req);
+    if (
+      !currentUser ||
+      currentUser.id !== expectedUser.id ||
+      !currentUser.coachFactAccount?.eligible
+    ) return false;
+    const rollout = await getCoachFactRolloutDecision(expectedUser.id);
+    if (!rollout.cohortEligible || rollout.legacyFallbackEnabled) return false;
+    return await hasCurrentCoachFactConsent(expectedUser.id, currentUser.email);
+  } catch {
+    return false;
+  }
+}
+
 type VerifiedRateLimitDecision = {
   allowed: boolean;
   retryAfterSecs: number;
@@ -572,22 +594,7 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
     const content = completion.choices[0]?.message?.content;
     if (!content) throw new Error("empty provider response");
     const safe = validateDarkCoachClaims(parseJson(content), factContext);
-    // Re-check gate: a rollback, cohort removal, or consent revoke that
-    // occurred while the provider was pending must discard the completion.
-    let currentUser;
-    try {
-      currentUser = await verifyBearerToken(req);
-    } catch {
-      currentUser = null;
-    }
-    if (
-      !serverGateEnabled() ||
-      !currentUser ||
-      currentUser.id !== user.id ||
-      !currentUser.coachFactAccount?.eligible ||
-      !(await getCoachFactRolloutDecision(user.id)).cohortEligible ||
-      !(await hasCurrentCoachFactConsent(user.id, user.email))
-    ) {
+    if (!(await authorizationStillCurrent(req, user))) {
       res.status(404).json({ message: "Coach Fact Context is unavailable." });
       return;
     }
