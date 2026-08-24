@@ -19,18 +19,19 @@ per-transition verification, and deny-all rollback procedure in the operator
 runbook. The agent/review environment must not attempt activation; until that
 human approval and execution occur, preserve deny-all.
 
-## Release attestation limitation
+## Release attestation boundary
 
-Deployment metadata can confirm that a production build succeeded and the
-published route behavior can be probed, but it may not expose a source revision
-or immutable build hash. Treat those signals as behavioral evidence, not a
-proof that a specific reviewed source revision is the one serving production.
+A production build records Git commit/tree provenance and a derived SHA-256
+source digest into the running API, then exposes only that fixed release record
+for an exact source-to-runtime comparison. Production builds reject any dirty
+or untracked source input.
 
-**Why:** A successful deployment alone cannot independently bind a security
-review to the exact production artifact when the publishing control plane omits
-a revision identifier and has no corresponding build logs.
+**Why:** Deployment-health status alone cannot bind a security review to a
+specific source revision; build-time provenance makes the current trusted
+build-and-runtime boundary independently comparable.
 
-**How to apply:** Before authorizing a sensitive rollout, require an approved
-operator-provided release attestation or an immutable build/revision record.
-Without it, keep deny-all and report the activation preflight as blocked even
-when all observable route and database gates are closed.
+**How to apply:** Before a sensitive rollout, compare the live release record
+with the reviewed Git commit, tree, and source digest, and require a healthy
+deployment plus the deny-all preflight. This does not protect against an actor
+who can replace the final artifact after a trusted build; that stronger threat
+model requires an external signed artifact provenance system.
