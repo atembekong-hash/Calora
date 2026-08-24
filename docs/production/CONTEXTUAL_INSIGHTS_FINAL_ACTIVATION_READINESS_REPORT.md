@@ -2,172 +2,137 @@
 
 ## Final production activation preflight verdict
 
-**BLOCKED**
+**BLOCKED — RELEASE NOT YET PUBLISHED**
 
-Task #502 is not cleared to resume. No pilot, Coach Fact Context rollout,
-cohort membership, nonce, consent, provider, or production configuration was
-changed during this review.
+The unsupported provider-attestation dependency has been removed from Calora's
+controlled-pilot release boundary. Production remains deny-all because the
+current reviewed release has not yet been published; no pilot activation is
+authorized by this report.
 
-## Current source identity
+## Supported release-verification model
 
-| Field | Value |
-| --- | --- |
-| Git commit | `f29eb7dd603fe445dcd5a980db6b845743c92438` |
-| Git tree | `41441ed9bbdc57b0211b598b2918dc387f5af541` |
+The production release boundary now requires:
 
-The local production build probe correctly also requires a clean Git checkout.
-It stopped because the newly uploaded mission brief is untracked in the
-ordinary workspace. This is a local preflight guard, not the production
-activation blocker; it prevents a non-reviewable workspace from being treated
-as a production source release.
+1. a clean reviewed Git checkout;
+2. a production build explicitly bound to that exact reviewed commit;
+3. compiled commit, tree, digest, timestamp, and release ID in `/api/version`;
+4. canonical HTTPS checks for `/api/version` and `/api/healthz`; and
+5. an exact comparison of the reviewed source identity with the live compiled
+   identity before any runtime activation control is changed.
 
-## Deployed runtime identity
+The production build fails closed when
+`RELEASE_SENSITIVE_ACTIVATION_REQUESTED=true` is not paired with
+`RELEASE_SENSITIVE_ACTIVATION_COMMIT` equal to its exact clean source commit.
 
-The canonical production HTTPS origin returned HTTP 200 from `GET /api/version`
-with `Cache-Control: no-store`.
+Provider-signed final-package provenance remains optional defense in depth
+against a stronger post-build artifact-replacement threat model. It is no
+longer required for Calora's supported single-pilot activation path.
 
-| Field | Value |
-| --- | --- |
-| Git commit | `0dd2f5ab9755ddd8a4482b39292200da8df4801a` |
-| Git tree | `2bce932145cef18a3d50a4fe5b84df4297e6b5fd` |
-| Source digest | `481f82d9a34cd1da953961e752d08333eba651a89ec79a8c3e122b053ddf212e` |
-| Release ID | `calora-api-0dd2f5ab9755-20260824043415112` |
-| Build timestamp | `2026-08-24T04:34:15.112Z` |
+## Current source and live runtime
 
-## Source, build, and runtime equivalence
+| Identity | Git commit | Git tree | Source digest |
+| --- | --- | --- | --- |
+| Current checked source before this release-preparation change | `47a6f0c804c67847b39b1c90c42f9c1d04d35ae6` | `6cfedff9a0cc30fe81b7424a7234e4a27eba5cd1` | `fed575cb86038550398e16b2e2e97b0595f5e29af2db42677a8b340859bc7072` |
+| Current live production | `0dd2f5ab9755ddd8a4482b39292200da8df4801a` | `2bce932145cef18a3d50a4fe5b84df4297e6b5fd` | `481f82d9a34cd1da953961e752d08333eba651a89ec79a8c3e122b053ddf212e` |
 
-**Result: NO**
+**Source = live runtime: NO.**
 
-The current source commit/tree differs from the live production commit/tree.
-No signed release manifest, detached signature, pinned release signer,
-provider-signed final-package attestation, deployment identity, or externally
-retained verifier record is available in this workspace to prove a trusted
-build between them.
+The live API returned HTTP 200 from `/api/version` with the production identity
+above and HTTP 200 from `/api/healthz`. The new identity verifier:
 
-`/api/version` is a runtime cross-check only; it is not a substitute for
-signed final-package evidence.
+- passed when supplied the currently deployed identity; and
+- failed closed when supplied the newer source identity.
 
-## Release-attestation architecture examined
+This is the expected result before the normal Publish action.
 
-The existing production build configuration requires protected production
-controls for a release-attested build:
+## Implementation completed
 
-- build-only Ed25519 signing key;
-- separately enrolled signer fingerprint;
-- deployment-control-plane final artifact staging directory; and
-- append-only evidence location outside the deployable workspace.
+- Removed the mandatory provider-attestation and external-signing dependency
+  from the production build eligibility path.
+- Added a build-time reviewed-commit binding for a sensitive release.
+- Added `verify:release-identity`, which checks canonical HTTPS, rejects
+  redirects, verifies health, and compares live compiled metadata exactly with
+  the reviewed commit/tree/digest.
+- Kept provider-package attestation tools available as optional future
+  hardening.
+- Updated the production artifact configuration and operator runbook for the
+  supported Replit Publishing workflow.
+- Preserved all Coach authorization, consent, cohort, rollout, rate-limit,
+  nonce/replay, and Legacy Coach protections.
 
-For a sensitive release, it additionally requires a provider-issued,
-Ed25519-signed immutable record bound to the exact final package, provider
-deployment ID, canonical HTTPS origin, and independently pinned provider
-trust anchor.
-
-The release verifier already validates signatures, pinned trust anchors,
-final-package digest, deployment ID, canonical origin, HTTPS/TLS behavior,
-live `/api/version`, live health, and exclusive verifier-evidence retention.
-
-## Required versus optional controls
-
-### Required for this application’s current production activation boundary
-
-- A clean, reviewed source checkout.
-- A protected build context for the existing signing controls.
-- An atomic provider-owned stage → attest → deploy flow that issues evidence
-  for the final deployable package before that package is published.
-- External immutable retention of the manifest, signatures/public keys, provider
-  record, and verifier result.
-- Independent verifier confirmation that source, trusted build, deployment, and
-  live runtime match exactly.
-
-### Defense in depth or future hardening
-
-- Additional, unrelated release hardening beyond the verifier’s current
-  signature, digest, origin, and provider-identity checks.
-
-No optional hardening is being used as the reason for this blocked verdict.
-
-## Tests actually executed
+## Tests executed
 
 | Check | Result |
 | --- | --- |
-| Provider package attestation and release verifier tests | 13 passed |
-| Coach Fact Context targeted tests | 13 passed across 3 test files |
-| Production build guard | stopped safely on untracked local input before any production build |
+| Provider package attestation and legacy release-verifier tests | 13 passed |
+| Coach Fact Context regression suite | 71 passed |
+| API TypeScript typecheck | passed |
+| API development build | passed |
+| Runtime identity verifier against current live release | passed |
+| Runtime identity verifier against newer source versus older live release | failed closed as expected |
+| API workflow restart | healthy |
 
-The release-verifier tests validate the verifier’s fail-closed behavior. They
-do not attest the current live deployment without the protected external
-evidence described above.
+## Production controls and runtime state
 
-## Production health and control state
-
-| Check | Result |
+| Control | Result |
 | --- | --- |
-| Active deployment / successful build | yes |
-| `GET /api/healthz` | HTTP 200, `{"status":"ok"}` |
-| Legacy Coach request | `POST /api/v1/coach/respond` returned 404 |
-| Fact Context request | `POST /api/v1/coach/fact-context/respond` returned 404 |
+| Production health | HTTP 200 |
+| Legacy Coach route | HTTP 404 |
+| Fact Context route | HTTP 404 |
 | Global Fact Context rollout | `false` |
 | Active reviewed pilot memberships | `0` |
 | Active Fact Context nonces | `0` |
+| Unauthorized provider execution observed | none |
 | Pilot activation | none |
 
-Production logs for the reviewed interval show health/version checks and both
-Coach routes returning 404. They show no successful Fact Context provider
-execution, activation, or Legacy Coach bypass.
-
-## Single blocker
-
-**The current Replit Publishing service has no configured or documented
-provider-owned atomic stage → attest → deploy capability that can produce and
-retain the signed final-package evidence required by the application’s existing
-production build boundary.**
-
-This is a real trust requirement: a normal Publish action can build and deploy,
-but cannot establish that the provider-attested final package is the same
-artifact later serving at the production origin.
+Production logs for the reviewed interval show the legacy and Fact Context
+routes returning 404 and no successful provider execution.
 
 ## Exact human action required
 
-1. Do **not** click Publish or change a production secret yet.
-2. In the project, open **Publishing → Adjust settings** only to confirm the
-   available production configuration surface; there is no ordinary owner
-   control that creates the required atomic provider attestation.
-3. Request a protected release workflow from Replit’s Publishing/platform
-   operator with this exact requirement:
+1. Ensure this release-preparation change is in a clean reviewed source
+   checkout. Do not publish with an untracked prompt, uncommitted change, or
+   unrelated source modification; the production build will stop safely.
+2. Open **Publishing → Adjust settings → Production secrets**.
+3. Set `RELEASE_SENSITIVE_ACTIVATION_REQUESTED` to exactly `true`.
+4. Set `RELEASE_SENSITIVE_ACTIVATION_COMMIT` to the exact 40-character Git
+   commit of the clean reviewed release being published.
+5. Leave `COACH_FACT_CONTEXT_ENABLED` absent or set to a value other than
+   `true`.
+6. Click **Publish**. Do not change the database rollout flag, cohort, consent,
+   nonce, or provider settings.
+7. After the deployment reports healthy, provide the published release identity
+   to the agent. The agent will run `verify:release-identity`, verify the
+   deny-all production state, and then provide the separate one-pilot preflight.
 
-   “Provision a provider-owned atomic stage→attest→deploy workflow for this
-   project. It must generate an immutable, Ed25519-signed final-package
-   attestation bound to the provider deployment ID and canonical production
-   HTTPS origin, and externally retain the signed release manifest, provider
-   record, and exclusive verifier evidence.”
+Do not paste credentials, signing keys, session tokens, pilot identities, or
+other private values into chat or source control.
 
-4. Do not paste a private key, production secret, credential, pilot identity,
-   manifest value, or provider evidence into chat or source control.
-5. After Replit confirms the workflow is provisioned, provide only the
-   supported protected evidence location and the operator-approved procedure.
-   The agent can then revalidate the clean source, run the verifier, check live
-   identity and health, and reconfirm the deny-all controls.
+## Rollback procedure
 
-## Activation and rollback procedure
+If the new deployment is unhealthy or its live identity does not exactly match
+the reviewed release, stop before any activation control is changed and restore
+the last healthy deployment through Publishing.
 
-No activation procedure is authorized while the preflight is blocked.
+If a later separately authorized activation needs immediate rollback:
 
-The current safe rollback posture is already active:
-
-- leave the process gate off;
-- leave the database rollout value `false`;
-- keep zero active reviewed pilot members; and
-- keep the legacy and Fact Context routes unavailable.
-
-If a later authorized activation ever produces an unexpected result, restore
-that same deny-all posture first, then verify the route responses, rollout
-value, cohort count, nonce count, and production health before any further
-request.
+1. set `COACH_FACT_CONTEXT_ENABLED` to a value other than `true` or remove it;
+2. confirm the global rollout value is `false`;
+3. confirm active reviewed pilot membership count is `0`;
+4. confirm the Fact Context route returns 404; and
+5. verify production health.
 
 ## Files changed
 
+- `artifacts/api-server/build.mjs`
+- `artifacts/api-server/.replit-artifact/artifact.toml`
+- `artifacts/api-server/package.json`
+- `artifacts/api-server/src/routes/coachFactContext.ts`
+- `scripts/verify-api-runtime-identity.mjs`
+- `docs/COACH_FACT_CONTEXT_OPERATOR_CONTROL_PLANE.md`
 - `docs/production/CONTEXTUAL_INSIGHTS_FINAL_ACTIVATION_READINESS_REPORT.md`
 
 ## Production changes made
 
-None.
+None. Production release, process gate, rollout, cohort, consent, nonce, and
+provider state remain unchanged.

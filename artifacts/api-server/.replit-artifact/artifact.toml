@@ -19,25 +19,12 @@ args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
 
 [services.production.build.env]
 NODE_ENV = "production"
-# The following are protected Publishing production secrets, intentionally not
-# stored in this artifact definition: RELEASE_ATTESTATION_SIGNING_KEY,
-# RELEASE_ATTESTATION_SIGNING_KEY_FINGERPRINT,
-# RELEASE_ATTESTATION_ARTIFACT_DIR, and RELEASE_ATTESTATION_MANIFEST_DIR.
-# The signer fingerprint only enrolls the build signer; the activation verifier
-# uses a separately controlled approval-trust pin. build.mjs fails closed until
-# the operator supplies all four.
-# A sensitive release additionally requires a provider-issued, Ed25519-signed
-# final-package attestation retained outside the workspace. The protected
-# publishing pipeline must stage the exact package first, then supply:
-# RELEASE_SENSITIVE_ACTIVATION_REQUESTED=true,
-# RELEASE_PROVIDER_ATTESTATION_FILE, RELEASE_PROVIDER_ATTESTATION_SIGNATURE_FILE,
-# RELEASE_PROVIDER_ATTESTATION_PUBLIC_KEY_FILE,
-# RELEASE_PROVIDER_TRUSTED_PUBLIC_KEY_SHA256,
-# RELEASE_PROVIDER_DEPLOYMENT_ID, and RELEASE_PROVIDER_TARGET_ORIGIN.
-# Normal releases omit RELEASE_SENSITIVE_ACTIVATION_REQUESTED. A requested
-# release produces verification-ready provenance for a production rehearsal,
-# but the sensitive path remains compiled deny-all until a provider-owned,
-# atomic stage→attest→deploy activation contract is separately established.
+# A sensitive release is built only when an authorized owner sets both:
+# RELEASE_SENSITIVE_ACTIVATION_REQUESTED=true and
+# RELEASE_SENSITIVE_ACTIVATION_COMMIT=<the exact reviewed 40-character Git SHA>.
+# build.mjs fails closed unless that SHA matches the clean production checkout.
+# After publishing, verify the compiled /api/version identity over canonical
+# HTTPS before enabling any separate runtime authorization control.
 
 [services.production.run]
 # we don't run through pnpm to make startup faster in production

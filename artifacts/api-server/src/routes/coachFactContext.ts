@@ -107,10 +107,9 @@ const riskPatterns: RegExp[] = [
 ];
 
 function serverGateEnabled() {
-  // This production constant is compiled by build.mjs. A Publishing secret
-  // alone must never activate a sensitive provider path without independently
-  // retained final-package evidence. Development and tests retain the existing
-  // explicit env gate for rehearsals only.
+  // This production constant is compiled by build.mjs only when the build
+  // explicitly names its exact clean reviewed commit. A runtime secret alone
+  // cannot make an already-built release eligible.
   const productionReleaseAuthorized =
     typeof __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__ === "boolean" &&
     __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__ === true;

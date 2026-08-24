@@ -262,6 +262,12 @@ async function buildAll() {
   if (sensitiveActivationRequested && process.env.NODE_ENV !== "production") {
     throw new Error("Sensitive release activation may only be requested in a production build.");
   }
+  const reviewedCommit = process.env.RELEASE_SENSITIVE_ACTIVATION_COMMIT?.toLowerCase();
+  if (sensitiveActivationRequested && reviewedCommit !== release.gitCommit.toLowerCase()) {
+    throw new Error(
+      "Sensitive release activation requires RELEASE_SENSITIVE_ACTIVATION_COMMIT to exactly match the clean reviewed Git commit.",
+    );
+  }
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     platform: "node",
@@ -276,11 +282,11 @@ async function buildAll() {
       __RELEASE_SOURCE_DIGEST__: JSON.stringify(release.sourceDigest),
       __RELEASE_BUILD_TIMESTAMP__: JSON.stringify(release.buildTimestamp),
       __RELEASE_ID__: JSON.stringify(release.releaseId),
-       // This repository can verify and retain provider-issued package evidence
-       // for a rehearsal, but the configured Publishing service has no atomic
-       // provider stage→attest→deploy contract yet. A mutable build request must
-       // never enable the sensitive route; keep production traffic deny-all.
-       __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__: "false",
+        // A sensitive release is eligible only when its production build is
+        // explicitly bound to the clean reviewed source commit. Runtime access
+        // remains independently deny-all until every process, rollout, cohort,
+        // account, consent, rate-limit, and nonce predicate succeeds.
+        __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__: JSON.stringify(sensitiveActivationRequested),
     },
     // Some packages may not be bundleable, so we externalize them, we can add more here as needed.
     // Some of the packages below may not be imported or installed, but we're adding them in case they are in the future.
@@ -381,10 +387,10 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
-  // This stays outside dist so replacing a deployed artifact cannot replace its
-  // signed evidence at the same time. Production fails closed without an
-  // externally retained signing location and key.
-  await writeSignedExternalManifest(release, distDir);
+  // Provider-signed final-package provenance remains optional defense in depth.
+  // The supported production boundary is the clean reviewed source compiled
+  // into this bundle and independently compared with the canonical live
+  // /api/version identity before any runtime gate may be enabled.
 }
 
 buildAll().catch((err) => {
