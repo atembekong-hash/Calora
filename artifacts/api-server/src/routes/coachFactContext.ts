@@ -414,9 +414,22 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
     return;
   }
 
-  const user = await verifyBearerToken(req);
+  let user;
+  try {
+    user = await verifyBearerToken(req);
+  } catch {
+    res.status(503).json({ message: "Coach Fact Context account status could not be verified." });
+    return;
+  }
   if (!user) {
     res.status(401).json({ message: "Please sign in to chat with Coach." });
+    return;
+  }
+  // The dedicated-pilot predicate is computed from Supabase's server-owned
+  // account record. It must be decided before consent, cohort, nonce, rate
+  // limit, risk, or any provider-capable work.
+  if (!user.coachFactAccount?.eligible) {
+    res.status(403).json({ message: "Coach Fact Context is unavailable for this account." });
     return;
   }
 
@@ -561,8 +574,17 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
     const safe = validateDarkCoachClaims(parseJson(content), factContext);
     // Re-check gate: a rollback, cohort removal, or consent revoke that
     // occurred while the provider was pending must discard the completion.
+    let currentUser;
+    try {
+      currentUser = await verifyBearerToken(req);
+    } catch {
+      currentUser = null;
+    }
     if (
       !serverGateEnabled() ||
+      !currentUser ||
+      currentUser.id !== user.id ||
+      !currentUser.coachFactAccount?.eligible ||
       !(await getCoachFactRolloutDecision(user.id)).cohortEligible ||
       !(await hasCurrentCoachFactConsent(user.id, user.email))
     ) {

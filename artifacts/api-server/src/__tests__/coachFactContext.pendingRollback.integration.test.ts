@@ -178,7 +178,11 @@ describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context pending rollback re
     const externalId = syntheticId(label);
     await prepareEligibleIdentity(externalId);
     process.env.COACH_FACT_CONTEXT_ENABLED = "true";
-    verifyBearerToken.mockResolvedValue({ id: externalId, email: null });
+    verifyBearerToken.mockResolvedValue({
+      id: externalId,
+      email: null,
+      coachFactAccount: { eligible: true, reason: "eligible" },
+    });
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
 
     let releaseProvider: ((value: ReturnType<typeof validProviderCompletion>) => void) | undefined;

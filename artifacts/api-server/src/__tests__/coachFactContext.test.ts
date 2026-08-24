@@ -91,7 +91,7 @@ describe("dark Coach Fact Context path", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.COACH_FACT_CONTEXT_ENABLED = "true";
-    verifyBearerToken.mockResolvedValue({ id: "user-a" });
+    verifyBearerToken.mockResolvedValue({ id: "user-a", coachFactAccount: { eligible: true, reason: "eligible" } });
     hasCurrentCoachFactConsent.mockResolvedValue(true);
     getCoachFactRolloutDecision.mockReturnValue({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" });
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
@@ -141,6 +141,40 @@ describe("dark Coach Fact Context path", () => {
     expect((await request(server).post("/v1/coach/fact-context/respond").send(body())).status).toBe(404);
     getCoachFactRolloutDecision.mockReturnValueOnce({ cohortEligible: true, legacyFallbackEnabled: true, reason: "cohort_eligible" });
     expect((await request(server).post("/v1/coach/fact-context/respond").send(body())).status).toBe(404);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["lacks internal_qa", "not_dedicated_pilot"],
+    ["lacks coach_fact_context_v1_pilot", "not_dedicated_pilot"],
+    ["has both markers false", "not_dedicated_pilot"],
+    ["has malformed markers", "missing_or_malformed_metadata"],
+    ["is banned", "banned"],
+    ["is suspended or disabled", "indeterminate_ban_status"],
+    ["has unavailable account status", "missing_or_malformed_metadata"],
+  ])("denies %s before consent, cohort, nonce, rate limiting, or provider execution", async (_label, reason) => {
+    verifyBearerToken.mockResolvedValueOnce({
+      id: "user-a",
+      coachFactAccount: { eligible: false, reason },
+    });
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+
+    expect(response.status).toBe(403);
+    expect(hasCurrentCoachFactConsent).not.toHaveBeenCalled();
+    expect(getCoachFactRolloutDecision).not.toHaveBeenCalled();
+    expect(dbExecuteMock).not.toHaveBeenCalled();
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("fails closed before nonce or provider access when identity verification throws", async () => {
+    verifyBearerToken.mockRejectedValueOnce(new Error("identity service unavailable"));
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+
+    expect(response.status).toBe(503);
+    expect(dbExecuteMock).not.toHaveBeenCalled();
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 
@@ -215,6 +249,22 @@ describe("dark Coach Fact Context path", () => {
     expect(response.body.observations).toHaveLength(1);
     expect(openai.chat.completions.create).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(vi.mocked(openai.chat.completions.create).mock.calls[0])).not.toMatch(/dailySummaries|recentEntries|profile|food name/i);
+  });
+
+  it("discards a provider completion when the dedicated-pilot account is revoked while pending", async () => {
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({
+      message: "ok", observations: [], actions: [], safetyState: "normal",
+      limitations: [], contextCoverage: { usedSections: [], missingSections: [] }, requestNonce: nonce,
+    }) } }] } as never);
+    verifyBearerToken
+      .mockResolvedValueOnce({ id: "user-a", coachFactAccount: { eligible: true, reason: "eligible" } })
+      .mockResolvedValueOnce({ id: "user-a", coachFactAccount: { eligible: false, reason: "banned" } });
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+
+    expect(response.status).toBe(404);
+    expect(openai.chat.completions.create).toHaveBeenCalledOnce();
+    expect(verifyBearerToken).toHaveBeenCalledTimes(2);
   });
 
   it("accepts the real mobile calorie/protein Fact Context contract without formatting drift", async () => {
@@ -384,7 +434,7 @@ describe("adversarial timestamp validation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.COACH_FACT_CONTEXT_ENABLED = "true";
-    verifyBearerToken.mockResolvedValue({ id: "user-a" });
+    verifyBearerToken.mockResolvedValue({ id: "user-a", coachFactAccount: { eligible: true, reason: "eligible" } });
     hasCurrentCoachFactConsent.mockResolvedValue(true);
     getCoachFactRolloutDecision.mockReturnValue({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" });
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
@@ -448,7 +498,7 @@ describe("server-owned cohort rollout via endpoint integration", () => {
     appInstance.use(coachFactContextRouter);
     vi.clearAllMocks();
     process.env.COACH_FACT_CONTEXT_ENABLED = "true";
-    verifyBearerToken.mockResolvedValue({ id: "user-b" });
+    verifyBearerToken.mockResolvedValue({ id: "user-b", coachFactAccount: { eligible: true, reason: "eligible" } });
     hasCurrentCoachFactConsent.mockResolvedValue(true);
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
     dbExecuteMock.mockResolvedValue({ rowCount: 1 });
@@ -474,7 +524,7 @@ describe("server-owned cohort rollout via endpoint integration", () => {
     appInstance.use(coachFactContextRouter);
     vi.clearAllMocks();
     process.env.COACH_FACT_CONTEXT_ENABLED = "true";
-    verifyBearerToken.mockResolvedValue({ id: "user-c" });
+    verifyBearerToken.mockResolvedValue({ id: "user-c", coachFactAccount: { eligible: true, reason: "eligible" } });
     hasCurrentCoachFactConsent.mockResolvedValue(true);
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
     dbExecuteMock.mockResolvedValue({ rowCount: 1 });
@@ -493,7 +543,7 @@ describe("idempotency / replay prevention (nonce claim)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.COACH_FACT_CONTEXT_ENABLED = "true";
-    verifyBearerToken.mockResolvedValue({ id: "user-a" });
+    verifyBearerToken.mockResolvedValue({ id: "user-a", coachFactAccount: { eligible: true, reason: "eligible" } });
     hasCurrentCoachFactConsent.mockResolvedValue(true);
     getCoachFactRolloutDecision.mockReturnValue({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" });
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
@@ -559,7 +609,7 @@ describe("request body and text budget enforcement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.COACH_FACT_CONTEXT_ENABLED = "true";
-    verifyBearerToken.mockResolvedValue({ id: "user-a" });
+    verifyBearerToken.mockResolvedValue({ id: "user-a", coachFactAccount: { eligible: true, reason: "eligible" } });
     hasCurrentCoachFactConsent.mockResolvedValue(true);
     getCoachFactRolloutDecision.mockReturnValue({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" });
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
@@ -632,7 +682,7 @@ describe("recursive strict field validation — fact.values and fact.limitations
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.COACH_FACT_CONTEXT_ENABLED = "true";
-    verifyBearerToken.mockResolvedValue({ id: "user-a" });
+    verifyBearerToken.mockResolvedValue({ id: "user-a", coachFactAccount: { eligible: true, reason: "eligible" } });
     hasCurrentCoachFactConsent.mockResolvedValue(true);
     getCoachFactRolloutDecision.mockReturnValue({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" });
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
