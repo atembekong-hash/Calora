@@ -15,7 +15,10 @@ export const intelligenceFeatureFlags = {
   'intelligence.insights.progress_weight_trend': false,
   'intelligence.insights.progress_nutrition_coverage': false,
   'intelligence.insights.progress_macro_record_coverage': false,
-  'intelligence.coach.fact_context': false,
+  // The explicit consent surface is available before the dark server path.
+  // Provider access remains independently deny-all until every server gate is
+  // authorized for the reviewed pilot.
+  'intelligence.coach.fact_context': true,
   'intelligence.evidence.display': false,
   'intelligence.observability': false,
   'intelligence.feedback': false,
