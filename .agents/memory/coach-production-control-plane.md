@@ -68,3 +68,19 @@ path cannot supply that evidence atomically.
 **How to apply:** Use the provider verifier only when such external evidence is
 actually available and a release requires that stronger assurance. Do not make
 its absence block the normal commit-bound runtime-identity release check.
+
+## Development workflow guard
+
+The API development workflow must not be used with a sensitive release
+activation request. Its build guard rejects that combination because release
+activation is production-only; keep the development service deny-all instead of
+overriding the guard.
+
+**Why:** A stale activation request can make an otherwise healthy development
+workflow fail before the server starts, and bypassing that check would blur the
+boundary between local verification and production authorization.
+
+**How to apply:** If the development API workflow fails with the
+production-only activation error, clear the stale request through the approved
+environment control plane and restart it; do not change Coach rollout flags or
+call activation endpoints as a workaround.
