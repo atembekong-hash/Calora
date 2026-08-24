@@ -35,3 +35,30 @@ with the reviewed Git commit, tree, and source digest, and require a healthy
 deployment plus the deny-all preflight. This does not protect against an actor
 who can replace the final artifact after a trusted build; that stronger threat
 model requires an external signed artifact provenance system.
+
+## External artifact provenance
+
+Production releases create an Ed25519-signed canonical manifest outside the API
+artifact. It binds commit, source tree, derived source digest, and a
+content-addressed digest list for the final deployment staging directory
+(including all external runtime modules). The signing key, final artifact
+directory, and manifest retention location are required production build inputs,
+not runtime settings. The production artifact directory and manifest directory
+must be absolute paths; the manifest directory is resolved and must remain
+outside the deployable workspace. Activation verification requires a deployment-control-plane (or
+independently acquired) artifact digest, verifies the detached signature with a
+trusted public key, and then uses `/api/version` only as an additional
+cross-check.
+
+**Why:** An attacker who replaces a final artifact can also forge its
+self-reported `/api/version` data. Only a digest observed outside that process
+and compared to externally retained signed provenance detects that replacement.
+
+**How to apply:** Before any sensitive activation, retain the manifest,
+signature, and trusted public key in immutable operator evidence; obtain the
+candidate deployment digest from its control plane or immutable package store;
+run `pnpm --filter @workspace/api-server verify:release -- ...` with the
+manifest, signature, public key, independently pinned public-key fingerprint,
+trusted digest, and HTTPS live origin. Hold
+activation on a missing control-plane digest, failed signature, digest mismatch,
+or endpoint mismatch.

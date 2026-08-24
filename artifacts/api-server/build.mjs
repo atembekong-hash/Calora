@@ -3,8 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
-import { createHash } from "node:crypto";
+import { mkdir, readdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -14,6 +14,7 @@ globalThis.require = createRequire(import.meta.url);
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceDir = path.resolve(artifactDir, "../..");
 const execFileAsync = promisify(execFile);
+const MANIFEST_SCHEMA_VERSION = "calora.artifact-provenance.v1";
 
 function isFullGitSha(value) {
   return /^[0-9a-f]{40}$/i.test(value);
@@ -55,6 +56,119 @@ async function getReleaseAttestation() {
   const releaseId = `calora-api-${gitCommit.slice(0, 12)}-${buildTimestamp.replace(/[-:.TZ]/g, "")}`;
 
   return { gitCommit, sourceTree, sourceDigest, buildTimestamp, releaseId };
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) =>
+      `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+async function digestDirectory(directory) {
+  const files = [];
+  async function visit(relativePath = "") {
+    const entries = await readdir(path.join(directory, relativePath), { withFileTypes: true });
+    for (const entry of entries) {
+      const child = path.join(relativePath, entry.name);
+      if (entry.isDirectory()) {
+        await visit(child);
+      } else if (entry.isFile()) {
+        files.push(child);
+      } else {
+        throw new Error(`Release artifact contains unsupported entry: ${child}`);
+      }
+    }
+  }
+  await visit();
+  files.sort();
+
+  const hash = createHash("sha256");
+  const artifactFiles = [];
+  for (const relativePath of files) {
+    const absolutePath = path.join(directory, relativePath);
+    const [contents, info] = await Promise.all([readFile(absolutePath), stat(absolutePath)]);
+    const normalizedPath = relativePath.split(path.sep).join("/");
+    const digest = createHash("sha256").update(contents).digest("hex");
+    artifactFiles.push({ path: normalizedPath, sha256: digest, size: info.size });
+    hash.update(normalizedPath, "utf8");
+    hash.update("\0");
+    hash.update(String(info.size), "utf8");
+    hash.update("\0");
+    hash.update(contents);
+  }
+  return { sha256: hash.digest("hex"), files: artifactFiles };
+}
+
+async function writeSignedExternalManifest(release, distDir) {
+  const manifestDir = process.env.RELEASE_ATTESTATION_MANIFEST_DIR;
+  const signingKey = process.env.RELEASE_ATTESTATION_SIGNING_KEY;
+  const finalArtifactDir = process.env.RELEASE_ATTESTATION_ARTIFACT_DIR;
+  const isProduction = process.env.NODE_ENV === "production";
+  if (!manifestDir || !signingKey || (isProduction && !finalArtifactDir)) {
+    if (isProduction) {
+      throw new Error(
+        "Production release attestation requires RELEASE_ATTESTATION_MANIFEST_DIR, RELEASE_ATTESTATION_SIGNING_KEY, and RELEASE_ATTESTATION_ARTIFACT_DIR.",
+      );
+    }
+    return;
+  }
+
+  if (!path.isAbsolute(manifestDir)) {
+    throw new Error("Release attestation manifest directory must be an absolute path outside the deployable workspace.");
+  }
+  if (isProduction && !path.isAbsolute(finalArtifactDir)) {
+    throw new Error("Production release attestation artifact directory must be an absolute final deployment staging path.");
+  }
+  await mkdir(manifestDir, { recursive: true });
+  const [outputDir, canonicalWorkspaceDir, artifactRoot] = await Promise.all([
+    realpath(manifestDir),
+    realpath(workspaceDir),
+    realpath(finalArtifactDir || distDir),
+  ]);
+  if (!path.relative(canonicalWorkspaceDir, outputDir).startsWith("..")) {
+    throw new Error("Release attestation manifest directory must resolve outside the deployable workspace.");
+  }
+  const artifact = await digestDirectory(artifactRoot);
+  const privateKey = createPrivateKey(signingKey);
+  if (privateKey.asymmetricKeyType !== "ed25519") {
+    throw new Error("Release attestation signing key must be an Ed25519 private key.");
+  }
+  const publicKey = createPublicKey(privateKey).export({ type: "spki", format: "pem" });
+  const signingKeyFingerprint = createHash("sha256")
+    .update(createPublicKey(privateKey).export({ type: "spki", format: "der" }))
+    .digest("hex");
+  const manifest = {
+    schemaVersion: MANIFEST_SCHEMA_VERSION,
+    releaseId: release.releaseId,
+    issuedAt: release.buildTimestamp,
+    signingKeyFingerprint,
+    artifact: {
+      // Production requires the deployment staging directory, including every
+      // external runtime module. A dist-only digest is insufficient when Node
+      // resolves native/external packages from the final deployment artifact.
+      format: "calora-api-deployment-artifact-directory.v1",
+      path: process.env.RELEASE_ATTESTATION_ARTIFACT_NAME || "deployment-artifact",
+      sha256: artifact.sha256,
+      files: artifact.files,
+    },
+    source: {
+      gitCommit: release.gitCommit,
+      sourceTree: release.sourceTree,
+      sourceDigest: release.sourceDigest,
+    },
+  };
+  const canonicalManifest = canonicalJson(manifest);
+  const signature = sign(null, Buffer.from(canonicalManifest, "utf8"), privateKey).toString("base64");
+  await Promise.all([
+    writeFile(path.join(outputDir, `${release.releaseId}.manifest.json`), `${canonicalManifest}\n`, "utf8"),
+    writeFile(path.join(outputDir, `${release.releaseId}.manifest.sig`), `${signature}\n`, "utf8"),
+    writeFile(path.join(outputDir, `${release.releaseId}.public-key.pem`), publicKey, "utf8"),
+  ]);
 }
 
 async function buildAll() {
@@ -176,6 +290,10 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+  // This stays outside dist so replacing a deployed artifact cannot replace its
+  // signed evidence at the same time. Production fails closed without an
+  // externally retained signing location and key.
+  await writeSignedExternalManifest(release, distDir);
 }
 
 buildAll().catch((err) => {
