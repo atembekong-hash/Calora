@@ -1,0 +1,94 @@
+MISSION: PREPARE THE SELECTED OWNER ACCOUNT AS THE SINGLE FACT CONTEXT PILOT
+
+The approved pilot account is:
+
+vvault14@gmail.com
+
+Proceed narrowly and conservatively.
+
+1. Resolve this exact email address against the current production Supabase Auth environment.
+
+2. Confirm before changing anything that:
+   - exactly one Auth account matches vvault14@gmail.com;
+   - the account is active;
+   - the account is not banned, suspended, disabled, deleted, or otherwise restricted;
+   - its authenticated user ID is unambiguous.
+
+3. If and only if all checks pass, apply the two required server-owned pilot metadata markers to THIS ACCOUNT ONLY:
+
+internal_qa = true
+coach_fact_context_v1_pilot = true
+
+Preserve all unrelated existing metadata.
+
+4. Do not modify any other user account.
+
+5. DO NOT activate Fact Context.
+
+Keep all activation controls deny-all:
+
+- COACH_FACT_CONTEXT_ENABLED must remain disabled/off.
+- Global Fact Context rollout must remain false.
+- Active reviewed cohort membership must remain 0.
+- Active Fact Context nonces must remain 0.
+- Do not create a cohort membership yet.
+- Do not invoke the AI/provider.
+- Do not touch RevenueCat.
+- Do not alter provider configuration.
+- Do not change unrelated production data.
+- Do not publish or redeploy unless strictly required for this metadata operation. It should not be required.
+
+6. After applying the metadata, independently read the account back from the authoritative server-side source and prove:
+
+- email = vvault14@gmail.com
+- account active = YES
+- account unbanned = YES
+- internal_qa === true
+- coach_fact_context_v1_pilot === true
+- exactly one account now satisfies the dedicated-pilot metadata predicate
+- global rollout = false
+- active reviewed pilot memberships = 0
+- active Fact Context nonces = 0
+- no provider execution occurred
+
+7. Do NOT manufacture or automatically grant Fact Context consent.
+
+Consent must be completed by the user through the normal Calora in-app consent flow after this task succeeds.
+
+8. If the account cannot be resolved uniquely, metadata cannot be safely updated, or any unexpected condition appears, FAIL CLOSED and make no mutation.
+
+9. Save a permanent report file at:
+
+docs/contextual-insights/OWNER_PILOT_ACCOUNT_PREPARATION_REPORT.md
+
+The report must contain:
+- exact task performed;
+- selected pilot email;
+- non-sensitive account verification result;
+- metadata state before and after;
+- confirmation that unrelated metadata was preserved;
+- eligible dedicated-pilot count;
+- rollout state;
+- cohort count;
+- nonce count;
+- confirmation that no provider execution occurred;
+- every production mutation made;
+- remaining human action;
+- final PASS or FAIL verdict.
+
+Do not expose passwords, tokens, secrets, service-role keys, or sensitive authentication material in the report or chat.
+
+At completion return ONLY:
+
+OWNER PILOT PREPARATION: PASS or FAIL
+PILOT EMAIL: vvault14@gmail.com
+ACCOUNT ACTIVE: YES or NO
+ACCOUNT UNBANNED: YES or NO
+INTERNAL_QA MARKER: VALID or INVALID
+FACT CONTEXT PILOT MARKER: VALID or INVALID
+ELIGIBLE DEDICATED PILOTS: <number>
+FACT CONTEXT ROLLOUT: OFF or ON
+ACTIVE COHORT MEMBERSHIPS: <number>
+ACTIVE NONCES: <number>
+NEXT HUMAN ACTION: <one concise instruction>
+REPORT FILE: docs/contextual-insights/OWNER_PILOT_ACCOUNT_PREPARATION_REPORT.md
