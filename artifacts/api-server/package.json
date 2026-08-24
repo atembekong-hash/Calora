@@ -7,7 +7,7 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "verify:release": "node ../../scripts/verify-api-release.mjs",
-    "test:release-attestation": "node --test ../../scripts/provider-package-attestation.test.mjs",
+    "test:release-attestation": "node --test ../../scripts/provider-package-attestation.test.mjs ../../scripts/verify-api-release.test.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
