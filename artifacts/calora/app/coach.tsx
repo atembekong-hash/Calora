@@ -308,7 +308,7 @@ export default function CoachScreen() {
       >
         <View style={styles.headerCopy}>
           <Text style={[styles.eyebrow, { color: colors.primary }]}>{BRAND.name.toUpperCase()} INTELLIGENCE</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Your food, wellness, and planning context in one place.</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A calm, focused read on your current nutrition.</Text>
         </View>
         {isIntelligenceFeatureEnabled('intelligence.coach.fact_context') && (
           <CoachFactContextConsentPanel colors={colors} />
@@ -319,12 +319,12 @@ export default function CoachScreen() {
             <View style={[styles.coachMark, { backgroundColor: 'rgba(157,215,189,0.16)' }]}>
               <Feather name="zap" size={24} color={colors.heroMuted} />
             </View>
-            <Text style={[styles.consentTitle, { color: colors.onHero }]}>A more personal read</Text>
+            <Text style={[styles.consentTitle, { color: colors.onHero }]}>A focused nutrition read</Text>
             <Text style={[styles.consentBody, { color: colors.heroMuted }]}>
-              Coach can use the nutrition, hydration, mood, activity, weight, Food Memory, and planning information saved in {BRAND.name} to help you decide what to do next.
+              Coach can use your logged calories and protein to help you make a thoughtful next choice. It does not use your mood, hydration, weight, plans, or Food Memory in this conversation.
             </Text>
             <View style={styles.scopeRow}>
-              {['Meals & macros', 'Wellness signals', 'Plans & memories'].map((item) => (
+              {['Calories logged', 'Protein logged', 'Your question'].map((item) => (
                 <View key={item} style={[styles.scopePill, { backgroundColor: 'rgba(157,215,189,0.14)' }]}>
                   <Feather name="check" size={11} color={colors.heroMuted} />
                   <Text style={[styles.scopeText, { color: colors.heroMuted }]}>{item}</Text>

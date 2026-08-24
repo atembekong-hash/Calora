@@ -1,0 +1,144 @@
+MISSION: CONTEXTUAL INSIGHTS FINAL GAP AUDIT + IMPLEMENTATION
+
+Your goal is to finish the Contextual Insights / Fact Context system with the least possible token usage and the fewest possible tasks.
+
+Do not restart broad audits.
+Do not create new architecture unless required.
+Do not generate long chat explanations.
+Do not create follow-up tasks unless there is a genuine blocker that prevents completion.
+
+STEP 1: Determine current implementation state
+
+Inspect the current codebase and identify exactly which Contextual Insights capabilities are already implemented and which are still missing or incomplete.
+
+Focus only on user-facing Contextual Insights behavior across:
+
+- Dashboard / Today
+- Planner
+- Recipes
+- Progress
+- Calora Coach
+- Any shared contextual intelligence engine
+- Context generation
+- Insight generation
+- Recommendation logic
+- Trigger logic
+- Personalization
+- Cross-feature context sharing
+- Safety and consent boundaries
+- Fallback behavior
+- Persistence where required
+- Mobile presentation and UX
+
+Do not re-audit release provenance, deployment signing, production attestation, Git history, or unrelated infrastructure unless one of those issues directly prevents Contextual Insights from functioning.
+
+STEP 2: Produce a strict gap list
+
+Classify every relevant capability as:
+
+COMPLETE
+PARTIAL
+MISSING
+BLOCKED
+
+For every PARTIAL or MISSING item, identify the exact code path or component that needs work.
+
+Then immediately proceed to implementation.
+
+STEP 3: Finish the missing implementation
+
+Implement all safe, code-level missing Contextual Insights work that can be completed now.
+
+Requirements:
+
+- Preserve the existing architecture where sound.
+- Reuse existing contextual engine infrastructure.
+- Do not duplicate systems.
+- Do not create parallel intelligence pipelines.
+- Keep the Contextual Engine separate from the Calora Coach personality layer.
+- The contextual engine should provide signals and recommendations across the app.
+- Calora Coach may consume those signals but should remain its own conversational experience.
+- Keep the UI calm, compact, useful, and low-noise.
+- Insights must feel contextual rather than random.
+- Avoid repetitive recommendations.
+- Avoid showing insights when confidence or relevance is weak.
+- Prefer useful silence over low-quality insight spam.
+- Preserve user control over actions.
+- Do not automatically alter logged food, plans, goals, recipes, or account data without explicit user action.
+
+STEP 4: Validate only what changed
+
+Run targeted tests and typechecks for the Contextual Insights code you changed.
+
+Also verify:
+
+- no obvious regression in Dashboard
+- no obvious regression in Planner
+- no obvious regression in Recipes
+- no obvious regression in Progress
+- no obvious regression in Coach
+- no duplicate insight generation
+- no broken fallback to legacy behavior
+- no infinite loops or repeated network calls
+- no excessive provider calls
+- no uncontrolled token usage
+- no insight generation for clearly irrelevant states
+
+Do not launch another workspace-wide forensic audit unless a targeted test exposes a serious cross-system failure.
+
+STEP 5: Determine completion percentage
+
+At the end, estimate the Contextual Insights implementation status as a percentage based on actual working capability, not code volume.
+
+Report:
+
+- percentage complete
+- what is fully working
+- what remains
+- whether remaining work is required for launch or can be postponed
+
+STEP 6: SAVE THE FULL REPORT TO A FILE
+
+Create and save a permanent report at:
+
+docs/contextual-insights/CONTEXTUAL_INSIGHTS_FINAL_COMPLETION_REPORT.md
+
+The file must contain:
+
+- current architecture summary
+- complete feature inventory
+- COMPLETE / PARTIAL / MISSING / BLOCKED matrix
+- changes made
+- files modified
+- tests executed
+- test results
+- remaining issues
+- estimated completion percentage
+- launch-critical remaining work
+- optional post-launch improvements
+- final recommendation
+
+Do not place secrets, tokens, passwords, private account identifiers, or protected credentials in the report.
+
+CHAT RESPONSE RULE
+
+Do not paste the full report into chat.
+
+At completion, respond with only:
+
+CONTEXTUAL INSIGHTS STATUS: [X]% COMPLETE
+
+IMPLEMENTED NOW:
+[maximum 5 short bullets]
+
+REMAINING:
+[maximum 5 short bullets]
+
+LAUNCH BLOCKER: YES / NO
+
+REPORT FILE:
+docs/contextual-insights/CONTEXTUAL_INSIGHTS_FINAL_COMPLETION_REPORT.md
+
+If no meaningful Contextual Insights work remains, state that clearly and stop.
+
+The objective is completion, not another investigation cycle.
