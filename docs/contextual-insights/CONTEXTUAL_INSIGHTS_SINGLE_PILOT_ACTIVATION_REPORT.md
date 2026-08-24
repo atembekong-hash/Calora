@@ -66,3 +66,41 @@ pre-existing deny-all state remained in place:
 The only anomaly was dedicated-pilot preflight failure. The required
 single-account active-and-unbanned eligibility condition was not proven, so the
 activation stopped before mutation.
+
+## Dedicated-pilot blocker diagnosis
+
+| Predicate | Result |
+| --- | --- |
+| Intended dedicated pilot identified | no |
+| Documented QA account exists in production Auth | no |
+| Account active | no eligible account to evaluate |
+| Account unbanned | no eligible account to evaluate |
+| Required server-owned pilot metadata valid | no |
+| Current consent valid for an identified pilot | no |
+| Pilot identity matches a consent record | no |
+| Production environment match | yes |
+| Duplicate or conflicting pilot metadata records | no |
+
+### Root cause
+
+The configured production environment contains the pilot password secret but no
+pilot email or other identity configuration. The existing provisioning source
+identifies `qa@calora.dev` as the intended QA account, but that account does not
+exist in the configured Supabase Auth project.
+
+The Auth project has 13 accounts, with zero accounts carrying
+`internal_qa=true`, zero carrying
+`coach_fact_context_v1_pilot=true`, and zero carrying both required
+server-owned markers. There are two current unrevoked Fact Context consent
+records for two accounts, but neither can be safely associated with an intended
+pilot because no dedicated pilot identity or pilot metadata exists.
+
+No account was created, modified, marked as a pilot, added to a cohort, or
+granted consent. The rollout, process gate, and deny-all state remain unchanged.
+
+### Required human action
+
+Identify the one already approved Supabase account to use as the dedicated
+pilot, have that user complete current Fact Context consent through the product,
+and provide authorization to apply the two exact server-owned pilot markers to
+that identified account. Do not supply a password or token in chat.
