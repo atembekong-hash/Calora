@@ -24,24 +24,66 @@ function signedText(value, privateKey) {
   return { text, signature: sign(null, Buffer.from(text.trim()), privateKey).toString("base64") };
 }
 
-async function createFixture() {
+function createSelfSignedCertificate(certificateDirectory, commonName = "localhost") {
+  execFileSync("openssl", [
+    "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+    "-keyout", path.join(certificateDirectory, "key.pem"),
+    "-out", path.join(certificateDirectory, "cert.pem"),
+    "-subj", `/CN=${commonName}`,
+  ], { stdio: "ignore" });
+}
+
+function createExpiredCertificate(certificateDirectory) {
+  const rootKey = path.join(certificateDirectory, "root-key.pem");
+  const rootCert = path.join(certificateDirectory, "root-cert.pem");
+  const leafKey = path.join(certificateDirectory, "key.pem");
+  const leafRequest = path.join(certificateDirectory, "leaf.csr");
+  const database = path.join(certificateDirectory, "index.txt");
+  const serial = path.join(certificateDirectory, "serial");
+  const newCertificates = path.join(certificateDirectory, "new-certs");
+  const config = path.join(certificateDirectory, "openssl.cnf");
+  execFileSync("openssl", [
+    "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "365",
+    "-keyout", rootKey, "-out", rootCert, "-subj", "/CN=Calora test root",
+  ], { stdio: "ignore" });
+  execFileSync("openssl", [
+    "req", "-newkey", "rsa:2048", "-nodes",
+    "-keyout", leafKey, "-out", leafRequest, "-subj", "/CN=localhost",
+  ], { stdio: "ignore" });
+  execFileSync("mkdir", ["-p", newCertificates]);
+  execFileSync("sh", ["-c", `: > "${database}"; echo 1000 > "${serial}"`]);
+  execFileSync("sh", ["-c", `cat > "${config}" <<'EOF'
+[ ca ]
+default_ca = CA_default
+[ CA_default ]
+database = ${database}
+serial = ${serial}
+new_certs_dir = ${newCertificates}
+default_md = sha256
+policy = policy_any
+[ policy_any ]
+commonName = supplied
+EOF`]);
+  execFileSync("openssl", [
+    "ca", "-batch", "-config", config, "-cert", rootCert, "-keyfile", rootKey,
+    "-in", leafRequest, "-out", path.join(certificateDirectory, "cert.pem"),
+    "-startdate", "20200101000000Z", "-enddate", "20210101000000Z",
+  ], { stdio: "ignore" });
+  return rootCert;
+}
+
+async function createFixture({ hostname = "localhost", certificate = createSelfSignedCertificate } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "calora-release-verifier-"));
   const certificateDirectory = path.join(root, "certificate");
   const evidenceDirectory = path.join(root, "approval-records");
   const inputDirectory = path.join(root, "signed-input");
   await Promise.all([
-    writeFile(path.join(root, "openssl.cnf"), ""),
     (async () => {
       const { mkdir } = await import("node:fs/promises");
       await Promise.all([mkdir(certificateDirectory), mkdir(evidenceDirectory), mkdir(inputDirectory)]);
     })(),
   ]);
-  execFileSync("openssl", [
-    "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
-    "-keyout", path.join(certificateDirectory, "key.pem"),
-    "-out", path.join(certificateDirectory, "cert.pem"),
-    "-subj", "/CN=localhost",
-  ], { stdio: "ignore" });
+  const trustCertificate = certificate(certificateDirectory);
 
   const [key, cert] = await Promise.all([
     readFile(path.join(certificateDirectory, "key.pem")),
@@ -72,7 +114,7 @@ async function createFixture() {
     response.writeHead(404).end();
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const targetOrigin = `https://localhost:${server.address().port}`;
+  const targetOrigin = `https://${hostname}:${server.address().port}`;
   const { privateKey: providerPrivateKey, publicKey: providerPublicKey } = generateKeyPairSync("ed25519");
   const providerPublicKeyText = providerPublicKey.export({ type: "spki", format: "pem" });
   const providerAttestation = {
@@ -125,12 +167,20 @@ async function createFixture() {
   ]);
   return {
     root, evidenceDirectory, files, releaseFingerprint, providerFingerprint, targetOrigin,
+    trustCertificate: trustCertificate ?? path.join(certificateDirectory, "cert.pem"),
     setMode(nextMode) { mode = nextMode; },
     close: () => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())),
   };
 }
 
-function run({ evidencePath, deploymentId = "deploy-123", targetOrigin = fixture.targetOrigin } = {}) {
+function run({
+  evidencePath,
+  deploymentId = "deploy-123",
+  targetOrigin = fixture.targetOrigin,
+  liveUrl = fixture.targetOrigin,
+  productionTls = false,
+  trustCertificate,
+} = {}) {
   const args = [
     verifier, "--manifest", fixture.files.manifest, "--signature", fixture.files.signature,
     "--public-key", fixture.files.publicKey, "--trusted-public-key-sha256", fixture.releaseFingerprint,
@@ -138,11 +188,22 @@ function run({ evidencePath, deploymentId = "deploy-123", targetOrigin = fixture
     "--provider-public-key", fixture.files.providerPublicKey,
     "--trusted-provider-public-key-sha256", fixture.providerFingerprint,
     "--provider-deployment-id", deploymentId, "--target-origin", targetOrigin,
-    "--live-url", fixture.targetOrigin, "--evidence-file", evidencePath,
+    "--live-url", liveUrl, "--evidence-file", evidencePath,
   ];
   return new Promise((resolve, reject) => {
+    const env = { ...process.env };
+    if (productionTls) {
+      delete env.NODE_TLS_REJECT_UNAUTHORIZED;
+      if (trustCertificate) {
+        env.NODE_EXTRA_CA_CERTS = trustCertificate;
+      } else {
+        delete env.NODE_EXTRA_CA_CERTS;
+      }
+    } else {
+      env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    }
     const child = spawn(process.execPath, args, {
-      env: { ...process.env, NODE_TLS_REJECT_UNAUTHORIZED: "0" },
+      env,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -178,6 +239,52 @@ describe("verify-api-release CLI", () => {
     assert.equal(record.liveChecks.healthStatus, 200);
     assert.equal(output.evidence.recordPath, evidencePath);
     assert.equal(record.verified, true);
+  });
+
+  it("accepts a valid certificate trusted by the production invocation", async () => {
+    const evidencePath = path.join(fixture.evidenceDirectory, "trusted.json");
+    const result = await run({
+      evidencePath,
+      productionTls: true,
+      trustCertificate: fixture.trustCertificate,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(await readFile(evidencePath, "utf8")).verified, true);
+  });
+
+  it("fails closed without a trusted certificate before writing approval evidence", async () => {
+    const evidencePath = path.join(fixture.evidenceDirectory, "untrusted.json");
+    await assertNoApproval(await run({ evidencePath, productionTls: true }), evidencePath);
+  });
+
+  it("fails closed for expired and hostname-mismatched certificates before writing approval evidence", async () => {
+    const expired = await createFixture({ certificate: createExpiredCertificate });
+    const mismatch = await createFixture({ hostname: "127.0.0.1" });
+    const originalFixture = fixture;
+    try {
+      const expiredEvidence = path.join(expired.evidenceDirectory, "expired.json");
+      fixture = expired;
+      await assertNoApproval(await run({
+        evidencePath: expiredEvidence,
+        productionTls: true,
+        trustCertificate: expired.trustCertificate,
+      }), expiredEvidence);
+
+      const mismatchEvidence = path.join(mismatch.evidenceDirectory, "hostname-mismatch.json");
+      fixture = mismatch;
+      await assertNoApproval(await run({
+        evidencePath: mismatchEvidence,
+        productionTls: true,
+        trustCertificate: mismatch.trustCertificate,
+      }), mismatchEvidence);
+    } finally {
+      await Promise.all([expired.close(), mismatch.close()]);
+      await Promise.all([
+        rm(expired.root, { recursive: true, force: true }),
+        rm(mismatch.root, { recursive: true, force: true }),
+      ]);
+      fixture = originalFixture;
+    }
   });
 
   it("blocks tampered manifests and mismatched provider deployment identity or origin before approval", async () => {
