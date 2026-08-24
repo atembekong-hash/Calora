@@ -1,0 +1,110 @@
+MISSION: CONTROLLED SINGLE-PILOT CONTEXTUAL INSIGHTS ACTIVATION
+
+The production release has now passed final verification:
+
+DEPLOYED RELEASE VERIFIED: YES
+SOURCE = LIVE RUNTIME: YES
+PRODUCTION HEALTH: PASS
+CONTEXTUAL INSIGHTS READY FOR ACTIVATION: YES
+BLOCKER: NONE
+
+Proceed with the controlled single-pilot activation of Contextual Insights.
+
+Use only the already reviewed dedicated pilot account.
+
+Required safeguards:
+
+1. Reconfirm immediately before mutation that:
+   - deployed release identity is still the verified release;
+   - production health passes;
+   - Fact Context rollout is currently false;
+   - active pilot cohort membership is currently 0;
+   - active nonces are currently 0;
+   - the dedicated pilot account is confirmed, unbanned, active, and has the required pilot metadata;
+   - valid current consent exists.
+
+2. Activate only the dedicated pilot. Do not expose Contextual Insights to any unrelated account.
+
+3. Use the established production authorization architecture. Do not bypass the process gate, cohort authorization, consent, account-status checks, nonce protections, rate limiting, or any other existing safeguard.
+
+4. Perform activation in the safest established order:
+   - create exactly one reviewed membership for the verified pilot in `coach_fact_context_v1`;
+   - verify the cohort contains exactly that one eligible pilot;
+   - enable the Fact Context master rollout control;
+   - verify unrelated accounts remain ineligible;
+   - enable `COACH_FACT_CONTEXT_ENABLED` last;
+   - publish/restart only if required by the production configuration mechanism.
+
+5. Immediately run post-activation verification.
+
+Prove:
+   - production health PASS;
+   - deployed release identity unchanged;
+   - process gate ON;
+   - Fact Context rollout ON;
+   - exactly 1 active reviewed pilot;
+   - exactly 1 eligible account;
+   - no unrelated account is eligible;
+   - pilot consent remains current;
+   - pilot account remains active and unbanned;
+   - no legacy Coach bypass exists;
+   - no unexpected provider requests occurred;
+   - no RevenueCat state was changed;
+   - rollback remains immediately available.
+
+6. Perform one controlled end-to-end Fact Context request using only the dedicated pilot account.
+
+Confirm:
+   - authentication succeeds;
+   - authorization succeeds only for the pilot;
+   - permitted Fact Context is constructed correctly;
+   - nonce protection works;
+   - rate protection works;
+   - provider execution occurs only after every authorization gate;
+   - response returns successfully;
+   - post-provider authorization recheck passes;
+   - no legacy fallback occurs.
+
+7. Run one negative authorization check proving a non-pilot account cannot access the Fact Context provider path. Do not modify that unrelated account.
+
+FAIL CLOSED:
+If any identity, consent, cohort, rollout, account-status, deployment, provider, nonce, authorization, or safety verification becomes ambiguous or fails, immediately restore deny-all and stop.
+
+Do not broaden rollout.
+
+Do not activate additional users.
+
+Do not redesign or refactor unrelated systems.
+
+Do not run another broad audit.
+
+REPORT REQUIREMENT:
+Create and save the complete activation report at:
+
+docs/contextual-insights/CONTEXTUAL_INSIGHTS_SINGLE_PILOT_ACTIVATION_REPORT.md
+
+The file must include:
+- exact actions performed;
+- before and after control state;
+- pilot eligibility evidence;
+- activation sequence;
+- production release identity;
+- end-to-end test evidence;
+- negative non-pilot test result;
+- provider execution evidence;
+- rollback verification;
+- any errors or anomalies;
+- final activation verdict.
+
+At completion return ONLY:
+
+SINGLE-PILOT ACTIVATION: PASS/FAIL
+PRODUCTION HEALTH: PASS/FAIL
+ACTIVE PILOTS: <number>
+ELIGIBLE ACCOUNTS: <number>
+PILOT END-TO-END FACT CONTEXT: PASS/FAIL
+NON-PILOT ACCESS DENIED: YES/NO
+LEGACY FALLBACK: NONE/DETECTED
+ROLLBACK READY: YES/NO
+BLOCKER: NONE/<exact blocker>
+REPORT FILE: <path>
