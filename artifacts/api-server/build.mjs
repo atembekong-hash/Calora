@@ -108,14 +108,21 @@ async function writeSignedExternalManifest(release, distDir) {
   const manifestDir = process.env.RELEASE_ATTESTATION_MANIFEST_DIR;
   const signingKey = process.env.RELEASE_ATTESTATION_SIGNING_KEY;
   const finalArtifactDir = process.env.RELEASE_ATTESTATION_ARTIFACT_DIR;
+  // This build-time enrollment check detects an accidental signing-key swap.
+  // The activation verifier must obtain its trusted fingerprint from the
+  // separately controlled approval trust record, not from this environment.
+  const expectedSigningKeyFingerprint = process.env.RELEASE_ATTESTATION_SIGNING_KEY_FINGERPRINT?.toLowerCase();
   const isProduction = process.env.NODE_ENV === "production";
-  if (!manifestDir || !signingKey || (isProduction && !finalArtifactDir)) {
+  if (!manifestDir || !signingKey || (isProduction && (!finalArtifactDir || !expectedSigningKeyFingerprint))) {
     if (isProduction) {
       throw new Error(
-        "Production release attestation requires RELEASE_ATTESTATION_MANIFEST_DIR, RELEASE_ATTESTATION_SIGNING_KEY, and RELEASE_ATTESTATION_ARTIFACT_DIR.",
+        "Production release attestation requires RELEASE_ATTESTATION_MANIFEST_DIR, RELEASE_ATTESTATION_SIGNING_KEY, RELEASE_ATTESTATION_SIGNING_KEY_FINGERPRINT, and RELEASE_ATTESTATION_ARTIFACT_DIR.",
       );
     }
     return;
+  }
+  if (expectedSigningKeyFingerprint && !/^[0-9a-f]{64}$/.test(expectedSigningKeyFingerprint)) {
+    throw new Error("Release attestation signing key fingerprint must be a SHA-256 value.");
   }
 
   if (!path.isAbsolute(manifestDir)) {
@@ -124,7 +131,10 @@ async function writeSignedExternalManifest(release, distDir) {
   if (isProduction && !path.isAbsolute(finalArtifactDir)) {
     throw new Error("Production release attestation artifact directory must be an absolute final deployment staging path.");
   }
-  await mkdir(manifestDir, { recursive: true });
+  // An immutable retention mount must be provisioned by the deployment control
+  // plane. Creating a new production directory here could silently redirect
+  // evidence to an unreviewed, mutable filesystem location.
+  if (!isProduction) await mkdir(manifestDir, { recursive: true });
   const [outputDir, canonicalWorkspaceDir, artifactRoot] = await Promise.all([
     realpath(manifestDir),
     realpath(workspaceDir),
@@ -132,6 +142,9 @@ async function writeSignedExternalManifest(release, distDir) {
   ]);
   if (!path.relative(canonicalWorkspaceDir, outputDir).startsWith("..")) {
     throw new Error("Release attestation manifest directory must resolve outside the deployable workspace.");
+  }
+  if (isProduction && !path.relative(canonicalWorkspaceDir, artifactRoot).startsWith("..")) {
+    throw new Error("Release attestation artifact directory must resolve outside the deployable workspace.");
   }
   const artifact = await digestDirectory(artifactRoot);
   const privateKey = createPrivateKey(signingKey);
@@ -142,6 +155,9 @@ async function writeSignedExternalManifest(release, distDir) {
   const signingKeyFingerprint = createHash("sha256")
     .update(createPublicKey(privateKey).export({ type: "spki", format: "der" }))
     .digest("hex");
+  if (expectedSigningKeyFingerprint && signingKeyFingerprint !== expectedSigningKeyFingerprint) {
+    throw new Error("Release attestation signing key does not match the independently pinned fingerprint.");
+  }
   const manifest = {
     schemaVersion: MANIFEST_SCHEMA_VERSION,
     releaseId: release.releaseId,
@@ -164,10 +180,14 @@ async function writeSignedExternalManifest(release, distDir) {
   };
   const canonicalManifest = canonicalJson(manifest);
   const signature = sign(null, Buffer.from(canonicalManifest, "utf8"), privateKey).toString("base64");
+  const manifestPath = path.join(outputDir, `${release.releaseId}.manifest.json`);
+  const signaturePath = path.join(outputDir, `${release.releaseId}.manifest.sig`);
+  const publicKeyPath = path.join(outputDir, `${release.releaseId}.public-key.pem`);
+  // Immutable evidence must never be replaced by a repeated build invocation.
   await Promise.all([
-    writeFile(path.join(outputDir, `${release.releaseId}.manifest.json`), `${canonicalManifest}\n`, "utf8"),
-    writeFile(path.join(outputDir, `${release.releaseId}.manifest.sig`), `${signature}\n`, "utf8"),
-    writeFile(path.join(outputDir, `${release.releaseId}.public-key.pem`), publicKey, "utf8"),
+    writeFile(manifestPath, `${canonicalManifest}\n`, { encoding: "utf8", flag: "wx" }),
+    writeFile(signaturePath, `${signature}\n`, { encoding: "utf8", flag: "wx" }),
+    writeFile(publicKeyPath, publicKey, { encoding: "utf8", flag: "wx" }),
   ]);
 }
 
@@ -190,6 +210,10 @@ async function buildAll() {
       __RELEASE_SOURCE_DIGEST__: JSON.stringify(release.sourceDigest),
       __RELEASE_BUILD_TIMESTAMP__: JSON.stringify(release.buildTimestamp),
       __RELEASE_ID__: JSON.stringify(release.releaseId),
+      // The configured publishing path cannot prove a final staged package
+      // independently of this process. Keep sensitive traffic compiled deny-all
+      // until an external activation authorization can be bound to that proof.
+      __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__: "false",
     },
     // Some packages may not be bundleable, so we externalize them, we can add more here as needed.
     // Some of the packages below may not be imported or installed, but we're adding them in case they are in the future.

@@ -9,6 +9,8 @@ import { checkRateLimit } from "../lib/rate-limit.js";
 import { hasCurrentCoachFactConsent } from "../lib/coach-fact-consent.js";
 import { getCoachFactRolloutDecision } from "../lib/coach-fact-rollout.js";
 
+declare const __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__: boolean;
+
 const router: IRouter = Router();
 const COACH_MODEL = "gpt-5.6-terra";
 
@@ -105,7 +107,17 @@ const riskPatterns: RegExp[] = [
 ];
 
 function serverGateEnabled() {
-  return process.env.COACH_FACT_CONTEXT_ENABLED === "true";
+  // This production constant is compiled by build.mjs. A Publishing secret
+  // alone must never activate a sensitive provider path without independently
+  // retained final-package evidence. Development and tests retain the existing
+  // explicit env gate for rehearsals only.
+  const productionReleaseAuthorized =
+    typeof __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__ === "boolean" &&
+    __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__ === true;
+  return (
+    process.env.COACH_FACT_CONTEXT_ENABLED === "true" &&
+    (process.env.NODE_ENV !== "production" || productionReleaseAuthorized)
+  );
 }
 
 /**

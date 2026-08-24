@@ -107,6 +107,20 @@ describe("dark Coach Fact Context path", () => {
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 
+  it("keeps the sensitive path deny-all in a production process even when its env gate is set", async () => {
+    const priorNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+      expect(response.status).toBe(404);
+      expect(verifyBearerToken).not.toHaveBeenCalled();
+      expect(openai.chat.completions.create).not.toHaveBeenCalled();
+    } finally {
+      if (priorNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = priorNodeEnv;
+    }
+  });
+
   it("rejects raw/legacy fields, unknown facts, expiry, and mixed payloads", async () => {
     for (const invalid of [
       { ...body(), context: { dailySummaries: [] } },

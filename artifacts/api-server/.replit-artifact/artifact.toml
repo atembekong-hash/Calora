@@ -19,6 +19,13 @@ args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
 
 [services.production.build.env]
 NODE_ENV = "production"
+# The following are protected Publishing production secrets, intentionally not
+# stored in this artifact definition: RELEASE_ATTESTATION_SIGNING_KEY,
+# RELEASE_ATTESTATION_SIGNING_KEY_FINGERPRINT,
+# RELEASE_ATTESTATION_ARTIFACT_DIR, and RELEASE_ATTESTATION_MANIFEST_DIR.
+# The signer fingerprint only enrolls the build signer; the activation verifier
+# uses a separately controlled approval-trust pin. build.mjs fails closed until
+# the operator supplies all four.
 
 [services.production.run]
 # we don't run through pnpm to make startup faster in production

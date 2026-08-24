@@ -80,9 +80,87 @@ unchanged, and the production health/Premium controls are current.
 
 If the database editor shows an unknown, malformed, extra, expired, or
 unreviewed Coach Fact Context row, stop. Restore the deny-all state in
-Section 6 before seeking a new written authorization.
+Section 7 before seeking a new written authorization.
 
-## 4. Controlled one-account enablement
+## 4. Release attestation gate
+
+This gate comes **before any sensitive control mutation**. It binds the reviewed
+source to the package observed by the deployment control plane; `/api/version`
+is only a cross-check and never a source of trusted package identity.
+
+**Current enforcement state:** the production API is compiled deny-all for Coach
+Fact Context. Setting `COACH_FACT_CONTEXT_ENABLED=true` cannot activate this
+sensitive path while the configured publishing service lacks a provider-managed
+final-package staging and digest contract. This is intentional; do not attempt
+to bypass it with an environment variable, deployment edit, or alternate
+writer.
+
+1. In **Publishing → Settings → Production secrets**, an authorized operator
+   must provision these build-only controls before publishing. Do not store their
+   values in this repository, a deployment command, or the application runtime:
+   - `RELEASE_ATTESTATION_SIGNING_KEY`: dedicated Ed25519 private key, readable
+     only by the protected production build context;
+   - `RELEASE_ATTESTATION_SIGNING_KEY_FINGERPRINT`: build-enrollment SHA-256
+     SPKI fingerprint for that exact signer;
+   - `RELEASE_ATTESTATION_ARTIFACT_DIR`: the absolute final deployment staging
+     directory supplied by the deployment control plane; and
+   - `RELEASE_ATTESTATION_MANIFEST_DIR`: an existing absolute, append-only
+     evidence location outside the deployable workspace.
+2. Publish only after the production build has succeeded. A missing control,
+   non-Ed25519 key, fingerprint mismatch, relative path, workspace path, absent
+   retention mount, or attempt to replace retained evidence is a release stop.
+3. Before starting a sensitive release, confirm that the publishing path stages
+   the **final deployable package** in `RELEASE_ATTESTATION_ARTIFACT_DIR` before
+   `build.mjs` signs it, and that its deployment control plane or immutable
+   package registry exposes the same canonical package-content SHA-256 used by
+   the manifest. If the publishing provider packages only after the build or
+   cannot independently expose this digest, it cannot support this sensitive
+   activation: stop deny-all rather than substituting a dist directory, build
+   log, or `/api/version`.
+4. Obtain the candidate package SHA-256 from that deployment control plane or
+   immutable package registry. Never use an API response, a build log, or a
+   digest copied from the manifest as this value. Record the control-plane
+   surface, deployment identifier, UTC retrieval time, and digest in the
+   protected change record.
+5. Obtain the activation verifier's trusted public-key SHA-256 from the
+   access-controlled rollout approval trust record, held separately from
+   Publishing production secrets and the build signer. A signer rotation needs
+   written reviewer approval and an updated trust record before publishing.
+   Never take this verification pin from
+   `RELEASE_ATTESTATION_SIGNING_KEY_FINGERPRINT` or any mutable build setting.
+6. Obtain the manifest, detached signature, and public key from the immutable
+   retention location. Before any gate is changed, run the verifier against the
+   separately pinned fingerprint, control-plane digest, and production HTTPS
+   origin. Use an externally retained, new evidence path for its result:
+
+   ```sh
+   pnpm --filter @workspace/api-server run verify:release -- \
+     --manifest /protected/retention/<release>.manifest.json \
+     --signature /protected/retention/<release>.manifest.sig \
+     --public-key /protected/retention/<release>.public-key.pem \
+     --trusted-public-key-sha256 "<pin-from-separate-approval-trust-record>" \
+     --trusted-deployment-digest "<digest-from-deployment-control-plane>" \
+     --live-url "https://<published-api-origin>" \
+     --evidence-file /protected/approval-records/<change>/<release>.verification.json
+   ```
+
+   The verifier must report `verified: true`, verify the detached signature and
+   the pinned signer, match the trusted package digest, and receive successful
+   HTTPS `/api/version` and `/api/healthz` checks. A failure, redirect, stale
+   deployment, missing evidence, or mismatch is `BLOCKED — RELEASE ATTESTATION
+   NOT ESTABLISHED`; leave all sensitive controls deny-all.
+7. Attach the immutable manifest, signature, public key, verifier evidence
+   record, deployment-control-plane digest evidence, and approval reference to
+   the access-controlled rollout approval. Do not attach the private key,
+   secrets, account identifiers, credentials, or Coach content.
+
+## 5. Controlled one-account enablement
+
+This section remains a future procedure only. It is unavailable while the
+current compiled production release is deny-all. It may be used only after a
+separately reviewed deployment-control-plane integration provides the final
+package proof required by Section 4 and a new release binds that proof to an
+activation authorization.
 
 Each step requires a read-back verification and a corresponding evidence entry
 before the next step. The invariant is **zero or one** active reviewed,
@@ -126,7 +204,7 @@ perform the single bounded request and replay check. Any unexpected HTTP
 response, eligibility count, pending deployment, or unverified transition is a
 stop condition and requires immediate rollback.
 
-## 5. Transition verification
+## 6. Transition verification
 
 The public endpoint is not an operator writer and must never be treated as one.
 The database values are the authority for the global gate and cohort; production
@@ -159,7 +237,7 @@ At the end of the approved check, verify that no unapproved cohort member was
 created. The idempotency record is structural metadata only; it must never be
 used as an audit log or include Coach content.
 
-## 6. Immediate deny-all rollback
+## 7. Immediate deny-all rollback
 
 Rollback needs no code change and must be performed through the same supported
 operator surfaces. It is always permitted, including when an activation
@@ -191,10 +269,10 @@ gate first; it stops the route before request authentication and data handling.
 Continue the remaining two steps as soon as the supported surfaces are
 available.
 
-## 7. Approval checkpoint
+## 8. Approval checkpoint
 
 The accountable production operator and authorizing reviewer must explicitly
-mark the protected change record **approved** before Step 4 starts, and
+mark the protected change record **approved** before Section 5 starts, and
 **rolled back and verified** after Section 6 completes. A repository merge,
 this runbook, or an agent session cannot substitute for that human
 authorization.

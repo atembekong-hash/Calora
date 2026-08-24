@@ -8,15 +8,18 @@
  * about its own identity.
  */
 import { createHash, createPublicKey, verify } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { readFile, realpath, writeFile } from "node:fs/promises";
 
 const SHA256 = /^[0-9a-f]{64}$/i;
 const FULL_SHA = /^[0-9a-f]{40}$/i;
+const workspaceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function usage(message) {
   if (message) console.error(`Error: ${message}\n`);
   console.error(
-    "Usage: node scripts/verify-api-release.mjs --manifest <file> --signature <file> --public-key <file> --trusted-public-key-sha256 <sha256> --trusted-deployment-digest <sha256> --live-url <https-url>",
+    "Usage: node scripts/verify-api-release.mjs --manifest <file> --signature <file> --public-key <file> --trusted-public-key-sha256 <sha256> --trusted-deployment-digest <sha256> --live-url <https-url> --evidence-file <absolute-external-file>",
   );
   process.exit(2);
 }
@@ -58,9 +61,13 @@ async function main() {
   const trustedPublicKeyFingerprint = argument("--trusted-public-key-sha256").toLowerCase();
   const trustedDeploymentDigest = argument("--trusted-deployment-digest").toLowerCase();
   const liveUrl = argument("--live-url").replace(/\/$/, "");
+  const evidencePath = argument("--evidence-file");
   if (!SHA256.test(trustedPublicKeyFingerprint)) usage("Trusted public key fingerprint must be SHA-256.");
   if (!SHA256.test(trustedDeploymentDigest)) usage("Trusted deployment digest must be SHA-256.");
   if (!liveUrl.startsWith("https://")) usage("Live URL must use HTTPS.");
+  if (evidencePath && !path.isAbsolute(evidencePath)) {
+    usage("Evidence file must be an absolute path in the protected external approval record.");
+  }
 
   const [manifestText, signature, publicKey] = await Promise.all([
     readFile(manifestPath, "utf8"),
@@ -119,13 +126,45 @@ async function main() {
     if (version[key] !== expected) throw new Error(`Live version ${key} does not match the signed manifest.`);
   }
 
-  console.log(JSON.stringify({
+  const result = {
     verified: true,
+    verifiedAt: new Date().toISOString(),
     releaseId: manifest.releaseId,
     artifactSha256: manifest.artifact.sha256,
     gitCommit: manifest.source.gitCommit,
     sourceTree: manifest.source.sourceTree,
-  }));
+    sourceDigest: manifest.source.sourceDigest,
+    signerPublicKeySha256: actualPublicKeyFingerprint,
+    liveUrl,
+    liveChecks: {
+      versionStatus: versionResponse.status,
+      healthStatus: healthResponse.status,
+    },
+    evidence: {
+      manifestPath: path.resolve(manifestPath),
+      manifestSha256: createHash("sha256").update(manifestText, "utf8").digest("hex"),
+      signaturePath: path.resolve(signaturePath),
+      signatureSha256: createHash("sha256").update(signature, "utf8").digest("hex"),
+      publicKeyPath: path.resolve(publicKeyPath),
+      publicKeySha256: createHash("sha256").update(publicKey, "utf8").digest("hex"),
+      trustedDeploymentDigest,
+    },
+  };
+  if (evidencePath) {
+    const [canonicalWorkspaceDir, evidenceDirectory] = await Promise.all([
+      realpath(workspaceDir),
+      realpath(path.dirname(evidencePath)),
+    ]);
+    if (!path.relative(canonicalWorkspaceDir, evidenceDirectory).startsWith("..")) {
+      throw new Error("Evidence file must resolve outside the deployable workspace.");
+    }
+    await writeFile(evidencePath, `${canonicalJson(result)}\n`, {
+      encoding: "utf8",
+      flag: "wx",
+    });
+    result.evidence.recordPath = evidencePath;
+  }
+  console.log(JSON.stringify(result));
 }
 
 main().catch((error) => {

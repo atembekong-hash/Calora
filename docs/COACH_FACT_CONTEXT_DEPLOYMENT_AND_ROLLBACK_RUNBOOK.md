@@ -54,9 +54,16 @@ per-transition read-backs, and immediate deny-all rollback sequence.
    Required results are the composite primary key `(user_id, purpose)`, the
    `ON DELETE CASCADE` foreign key to `calora_users`, and the two-state check.
    Also verify the operational config, cohort, and idempotency tables exist.
-4. Deploy the mobile client only after the API is compatible. The current
+4. Before considering any sensitive traffic, complete the independent release
+   attestation gate in
+   [`COACH_FACT_CONTEXT_OPERATOR_CONTROL_PLANE.md`](./COACH_FACT_CONTEXT_OPERATOR_CONTROL_PLANE.md).
+   It requires a protected build signer and pinned fingerprint, an immutable
+   external manifest, a deployment-control-plane package digest, verifier
+   success against the HTTPS API, and retained approval evidence. A passing
+   `/api/version` alone is never sufficient.
+5. Deploy the mobile client only after the API is compatible. The current
    client remains dark, so mixed app versions continue to choose Legacy Coach.
-5. Reconfirm the four steady-state controls above after the deployment. An
+6. Reconfirm the four steady-state controls above after the deployment. An
    absent config row is intentional deny-all behavior.
 
 ## Controlled synthetic rehearsal

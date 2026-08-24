@@ -62,3 +62,16 @@ manifest, signature, public key, independently pinned public-key fingerprint,
 trusted digest, and HTTPS live origin. Hold
 activation on a missing control-plane digest, failed signature, digest mismatch,
 or endpoint mismatch.
+
+The configured artifact publishing path does not currently stage the final
+package before `build.mjs` runs or expose a matching independent package-content
+digest. It must therefore remain ineligible for sensitive activation until a
+deployment control plane provides both capabilities and immutable evidence
+retention.
+
+**Why:** A manifest over a pre-existing arbitrary directory, or a digest
+reported only by the application, cannot detect a final-package replacement.
+
+**How to apply:** Do not substitute `dist`, a build log, or `/api/version` for
+the final-package staging-and-digest contract. Preserve deny-all and require a
+provider-managed staging, digest, and retention integration first.
