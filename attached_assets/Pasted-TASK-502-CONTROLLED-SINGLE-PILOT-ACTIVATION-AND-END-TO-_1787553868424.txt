@@ -1,0 +1,182 @@
+TASK #502 — CONTROLLED SINGLE-PILOT ACTIVATION AND END-TO-END PRODUCTION VERIFICATION
+
+Mission:
+
+Proceed from the successfully completed release-attestation gate into the first controlled single-pilot activation of Calora Coach Fact Context.
+
+This is a security-sensitive production operation. Treat the currently attested production release as the immutable baseline.
+
+Before changing anything, independently verify that the production revision currently serving traffic is still the exact attested release. Recheck the live /api/version identity against the validated Git commit, Git tree, SHA-256 source digest, build timestamp, and release ID.
+
+If production-relevant source has changed, the deployed revision differs, provenance cannot be verified, or any required control is ambiguous, STOP. Republish if appropriate, rerun the release-attestation preflight, and do not activate the pilot until it passes.
+
+If the attestation remains valid, perform a controlled activation for EXACTLY ONE authorized pilot account.
+
+Activation requirements:
+
+1. Verify the selected pilot account from authoritative server-side Supabase identity data.
+
+2. Confirm the account is active, not deleted, banned, suspended, disabled, tombstoned, or otherwise restricted.
+
+3. Confirm all dedicated-pilot and administrative eligibility requirements.
+
+4. Confirm the correct current Fact Context consent purpose, version, state, and authorization.
+
+5. Create or verify the reviewed pilot cohort membership using the intended production mechanism.
+
+6. Enable only the minimum production controls required for this single-pilot test.
+
+7. Do not weaken, remove, bypass, mock, or temporarily disable any security gate.
+
+8. Do not create a legacy Coach bypass.
+
+9. Do not expose Fact Context to any account other than the explicitly authorized pilot.
+
+10. Verify server-side enforcement rather than trusting client-side visibility or feature flags.
+
+After activation, execute a complete real production validation.
+
+Prove:
+
+- The authorized pilot can reach the intended Coach Fact Context path.
+- A valid Fact Context request reaches the provider only after every required gate succeeds.
+- Authentication is derived from the bearer token and authoritative Supabase identity.
+- Client-forged account identifiers or metadata cannot alter authorization.
+- Consent is enforced server-side.
+- Cohort membership is enforced server-side.
+- Global rollout controls are enforced.
+- Dedicated-pilot eligibility is enforced.
+- Administrative/account status restrictions remain enforced.
+- Nonce protection works and replay attempts fail.
+- Rate limiting remains effective.
+- Schema and semantic Fact Context validation remain effective.
+- Sensitive/risk controls remain effective.
+- Post-provider authorization rechecks remain effective.
+- Revoking consent immediately prevents subsequent access.
+- Removing pilot cohort membership immediately prevents subsequent access.
+- Disabling the rollout immediately prevents subsequent access.
+- Disabling the process gate immediately prevents subsequent access.
+- Account suspension, ban, deletion, or other ineligible state fails closed.
+- Unauthorized users remain unable to invoke Fact Context.
+- No legacy endpoint provides an alternate provider path that defeats the intended pilot boundary.
+- No other Calora account becomes eligible because of this activation.
+
+Explicitly test at least:
+
+A. Authorized pilot + all gates valid.
+B. Unauthenticated request.
+C. Invalid/expired bearer token.
+D. Authenticated non-pilot user.
+E. Forged user/account identifiers.
+F. Missing consent.
+G. Revoked consent.
+H. Missing cohort membership.
+I. Expired cohort membership.
+J. Global rollout disabled.
+K. Process gate disabled.
+L. Duplicate/replayed nonce.
+M. Invalid Fact Context payload.
+N. Suspended/disabled account.
+O. Deleted/banned account.
+P. Authorization state changed while provider processing is occurring.
+Q. Direct invocation of legacy Coach routes.
+R. Attempts to bypass the client and call production APIs directly.
+
+For every negative case, prove that execution fails closed and that no unauthorized provider completion is returned.
+
+Inspect production logs during the controlled test. Confirm that logs provide enough evidence to trace authorization decisions without leaking tokens, secrets, sensitive user data, provider credentials, or unnecessary Fact Context contents.
+
+Measure the production blast radius after activation.
+
+Explicitly report:
+
+- active reviewed pilot memberships
+- active Fact Context nonces
+- rollout state
+- process-gate state
+- accounts currently eligible
+- successful Fact Context executions
+- rejected Fact Context attempts
+- legacy Coach provider executions
+- unexpected provider executions
+- authorization failures
+- relevant production errors
+
+The intended eligible population at this stage is exactly ONE account.
+
+If evidence suggests more than one account can access the pilot, immediately fail closed and investigate before continuing.
+
+Do not broaden the rollout.
+
+Do not activate a second user.
+
+Do not convert this into a percentage rollout.
+
+Do not alter RevenueCat/subscription behavior unless the existing architecture explicitly requires it for this pilot and its correctness has been independently verified.
+
+After successful testing, leave production in the safest state consistent with the controlled single-pilot objective. Document exactly which gates remain enabled and why.
+
+Run the complete relevant regression suite after all production-control work. Include Coach/Fact Context regressions, API tests, typechecking, security tests, authorization tests, negative-path tests, and diff validation.
+
+Perform a final independent review of the resulting state rather than relying solely on the implementation path used to create it.
+
+REPORT FILE REQUIREMENT:
+
+Create and save a complete permanent report in the repository:
+
+docs/production/TASK_502_SINGLE_PILOT_ACTIVATION_REPORT.md
+
+The report must contain:
+
+- Executive verdict: PASS, BLOCKED, or ROLLED BACK
+- Exact production release identity
+- Git commit and Git tree
+- SHA-256 source digest
+- Release ID
+- Build timestamp
+- Pilot activation procedure
+- Controls changed
+- Controls deliberately left unchanged
+- Pilot eligibility evidence
+- Consent evidence
+- Cohort evidence
+- Production runtime evidence
+- Every positive and negative test executed
+- Expected versus actual result for each test
+- Provider-execution evidence
+- Authorization and bypass testing
+- Nonce/replay testing
+- Post-provider recheck testing
+- Production log findings
+- Regression results
+- Production blast-radius measurement
+- Final production control state
+- Any code/config/database changes
+- Files modified
+- Tests added or modified
+- Remaining risks
+- Unresolved uncertainties
+- Rollback procedure
+- Final recommendation for the next rollout stage
+
+Never place secrets, bearer tokens, API keys, raw credentials, or sensitive personal information in the report.
+
+Commit the report with the task.
+
+Do not declare PASS merely because tests pass.
+
+PASS requires evidence that the attested production release is running, exactly one authorized pilot is eligible, that pilot can successfully use the intended Fact Context path, unauthorized accounts remain denied, every critical gate fails closed, no alternate Coach provider path bypasses the controls, and the resulting production state has been independently verified.
+
+If any of those claims cannot be proved, the verdict must be BLOCKED.
+
+If activation creates an unsafe or uncertain production state, immediately restore the last known safe deny-all state and issue ROLLED BACK.
+
+Continue autonomously through investigation, execution, validation, remediation of defects introduced or exposed by this task, regression testing, independent verification, report creation, and final evidence collection.
+
+Do not stop at an intermediate finding.
+
+Do not ask for approval for ordinary investigative or corrective steps within this mission.
+
+Do not broaden production exposure beyond the explicitly authorized single pilot under any circumstances.
+
+At completion, return only the concise verdict, the exact report file path, the production release identity tested, whether exactly one pilot is active, the final production control state, and any blocker that requires human action.
