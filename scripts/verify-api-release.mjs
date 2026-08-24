@@ -11,15 +11,19 @@ import { createHash, createPublicKey, verify } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFile, realpath, writeFile } from "node:fs/promises";
+import {
+  canonicalJson,
+  SHA256,
+  verifyProviderPackageAttestation,
+} from "./lib/provider-package-attestation.mjs";
 
-const SHA256 = /^[0-9a-f]{64}$/i;
 const FULL_SHA = /^[0-9a-f]{40}$/i;
 const workspaceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function usage(message) {
   if (message) console.error(`Error: ${message}\n`);
   console.error(
-    "Usage: node scripts/verify-api-release.mjs --manifest <file> --signature <file> --public-key <file> --trusted-public-key-sha256 <sha256> --trusted-deployment-digest <sha256> --live-url <https-url> --evidence-file <absolute-external-file>",
+    "Usage: node scripts/verify-api-release.mjs --manifest <file> --signature <file> --public-key <file> --trusted-public-key-sha256 <sha256> --provider-attestation <file> --provider-signature <file> --provider-public-key <file> --trusted-provider-public-key-sha256 <sha256> --provider-deployment-id <id> --target-origin <https-url> --live-url <https-url> --evidence-file <absolute-external-file>",
   );
   process.exit(2);
 }
@@ -28,15 +32,6 @@ function argument(name) {
   const index = process.argv.indexOf(name);
   if (index < 0 || !process.argv[index + 1]) usage(`Missing ${name}.`);
   return process.argv[index + 1];
-}
-
-function canonicalJson(value) {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (value && typeof value === "object") {
-    return `{${Object.keys(value).sort().map((key) =>
-      `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
-  }
-  return JSON.stringify(value);
 }
 
 function validManifest(manifest) {
@@ -51,7 +46,15 @@ function validManifest(manifest) {
     SHA256.test(manifest.artifact?.sha256 ?? "") &&
     manifest.artifact?.format === "calora-api-deployment-artifact-directory.v1" &&
     SHA256.test(manifest.signingKeyFingerprint ?? "") &&
-    Array.isArray(manifest.artifact?.files);
+    Array.isArray(manifest.artifact?.files) &&
+    manifest.sensitiveActivationEligible === true &&
+    typeof manifest.providerPackageAttestation?.attestationId === "string" &&
+    typeof manifest.providerPackageAttestation?.provider === "string" &&
+    typeof manifest.providerPackageAttestation?.deployment?.id === "string" &&
+    typeof manifest.providerPackageAttestation?.deployment?.targetOrigin === "string" &&
+    SHA256.test(manifest.providerPackageAttestation?.attestationSha256 ?? "") &&
+    SHA256.test(manifest.providerPackageAttestation?.signatureSha256 ?? "") &&
+    SHA256.test(manifest.providerPackageAttestation?.signerPublicKeySha256 ?? "");
 }
 
 async function main() {
@@ -59,20 +62,31 @@ async function main() {
   const signaturePath = argument("--signature");
   const publicKeyPath = argument("--public-key");
   const trustedPublicKeyFingerprint = argument("--trusted-public-key-sha256").toLowerCase();
-  const trustedDeploymentDigest = argument("--trusted-deployment-digest").toLowerCase();
+  const providerAttestationPath = argument("--provider-attestation");
+  const providerSignaturePath = argument("--provider-signature");
+  const providerPublicKeyPath = argument("--provider-public-key");
+  const trustedProviderPublicKeyFingerprint = argument("--trusted-provider-public-key-sha256").toLowerCase();
+  const providerDeploymentId = argument("--provider-deployment-id");
+  const targetOrigin = argument("--target-origin").replace(/\/$/, "");
   const liveUrl = argument("--live-url").replace(/\/$/, "");
   const evidencePath = argument("--evidence-file");
   if (!SHA256.test(trustedPublicKeyFingerprint)) usage("Trusted public key fingerprint must be SHA-256.");
-  if (!SHA256.test(trustedDeploymentDigest)) usage("Trusted deployment digest must be SHA-256.");
+  if (!SHA256.test(trustedProviderPublicKeyFingerprint)) usage("Trusted provider public-key fingerprint must be SHA-256.");
+  if (!targetOrigin.startsWith("https://") || new URL(targetOrigin).origin !== targetOrigin) {
+    usage("Target origin must be a canonical HTTPS origin.");
+  }
   if (!liveUrl.startsWith("https://")) usage("Live URL must use HTTPS.");
   if (evidencePath && !path.isAbsolute(evidencePath)) {
     usage("Evidence file must be an absolute path in the protected external approval record.");
   }
 
-  const [manifestText, signature, publicKey] = await Promise.all([
+  const [manifestText, signature, publicKey, providerAttestationText, providerSignature, providerPublicKey] = await Promise.all([
     readFile(manifestPath, "utf8"),
     readFile(signaturePath, "utf8"),
     readFile(publicKeyPath, "utf8"),
+    readFile(providerAttestationPath, "utf8"),
+    readFile(providerSignaturePath, "utf8"),
+    readFile(providerPublicKeyPath, "utf8"),
   ]);
   const manifest = JSON.parse(manifestText);
   if (!validManifest(manifest)) throw new Error("Manifest has an invalid or unsupported shape.");
@@ -96,11 +110,32 @@ async function main() {
   if (!verify(null, Buffer.from(canonicalManifest, "utf8"), parsedPublicKey, Buffer.from(signature.trim(), "base64"))) {
     throw new Error("External manifest signature is invalid.");
   }
-  if (manifest.artifact.sha256.toLowerCase() !== trustedDeploymentDigest) {
-    throw new Error("Trusted deployment artifact digest does not match the signed manifest.");
+  const providerVerification = verifyProviderPackageAttestation({
+    attestationText: providerAttestationText,
+    signature: providerSignature,
+    publicKey: providerPublicKey,
+    trustedPublicKeyFingerprint: trustedProviderPublicKeyFingerprint,
+    expectedPackageSha256: manifest.artifact.sha256,
+    expectedDeploymentId: providerDeploymentId,
+    expectedTargetOrigin: targetOrigin,
+  });
+  const manifestProvider = manifest.providerPackageAttestation;
+  if (
+    providerVerification.attestation.attestationId !== manifestProvider.attestationId ||
+    providerVerification.attestation.provider !== manifestProvider.provider ||
+    providerVerification.attestationSha256 !== manifestProvider.attestationSha256 ||
+    providerVerification.signatureSha256 !== manifestProvider.signatureSha256 ||
+    providerVerification.signerPublicKeySha256 !== manifestProvider.signerPublicKeySha256 ||
+    providerVerification.attestation.deployment.id !== manifestProvider.deployment.id ||
+    providerVerification.attestation.deployment.targetOrigin !== manifestProvider.deployment.targetOrigin
+  ) {
+    throw new Error("Signed release manifest is not bound to the pinned provider package attestation.");
   }
 
   const liveOrigin = new URL(liveUrl).origin;
+  if (liveOrigin !== targetOrigin) {
+    throw new Error("Live URL origin does not match the provider-attested target origin.");
+  }
   const fetchLive = async (path) => {
     const response = await fetch(`${liveUrl}${path}`, {
       cache: "no-store",
@@ -147,7 +182,16 @@ async function main() {
       signatureSha256: createHash("sha256").update(signature, "utf8").digest("hex"),
       publicKeyPath: path.resolve(publicKeyPath),
       publicKeySha256: createHash("sha256").update(publicKey, "utf8").digest("hex"),
-      trustedDeploymentDigest,
+      providerAttestationPath: path.resolve(providerAttestationPath),
+      providerAttestationSha256: providerVerification.attestationSha256,
+      providerSignaturePath: path.resolve(providerSignaturePath),
+      providerSignatureSha256: providerVerification.signatureSha256,
+      providerPublicKeyPath: path.resolve(providerPublicKeyPath),
+      providerPublicKeySha256: providerVerification.publicKeySha256,
+      providerSignerPublicKeySha256: providerVerification.signerPublicKeySha256,
+      providerDeploymentId,
+      targetOrigin,
+      providerImmutableRecordUri: providerVerification.attestation.immutableRecord.uri,
     },
   };
   if (evidencePath) {

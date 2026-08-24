@@ -7,6 +7,10 @@ import { mkdir, readdir, readFile, realpath, rm, stat, writeFile } from "node:fs
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import {
+  canonicalJson,
+  verifyProviderPackageAttestation,
+} from "../../scripts/lib/provider-package-attestation.mjs";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -58,17 +62,6 @@ async function getReleaseAttestation() {
   return { gitCommit, sourceTree, sourceDigest, buildTimestamp, releaseId };
 }
 
-function canonicalJson(value) {
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(",")}]`;
-  }
-  if (value && typeof value === "object") {
-    return `{${Object.keys(value).sort().map((key) =>
-      `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
-
 async function digestDirectory(directory) {
   const files = [];
   async function visit(relativePath = "") {
@@ -102,6 +95,61 @@ async function digestDirectory(directory) {
     hash.update(contents);
   }
   return { sha256: hash.digest("hex"), files: artifactFiles };
+}
+
+async function verifyStagedProviderPackage(release, artifact) {
+  const requested = process.env.RELEASE_SENSITIVE_ACTIVATION_REQUESTED === "true";
+  if (!requested) return null;
+  if (process.env.NODE_ENV !== "production") {
+    throw new Error("Sensitive release activation may only be requested in a production build.");
+  }
+  const fields = [
+    "RELEASE_PROVIDER_ATTESTATION_FILE",
+    "RELEASE_PROVIDER_ATTESTATION_SIGNATURE_FILE",
+    "RELEASE_PROVIDER_ATTESTATION_PUBLIC_KEY_FILE",
+    "RELEASE_PROVIDER_TRUSTED_PUBLIC_KEY_SHA256",
+    "RELEASE_PROVIDER_DEPLOYMENT_ID",
+    "RELEASE_PROVIDER_TARGET_ORIGIN",
+  ];
+  for (const field of fields) {
+    if (!process.env[field]) throw new Error(`Sensitive release activation requires ${field}.`);
+  }
+  const fileFields = fields.slice(0, 3);
+  for (const field of fileFields) {
+    if (!path.isAbsolute(process.env[field])) {
+      throw new Error(`${field} must be an absolute provider-retained path outside the workspace.`);
+    }
+  }
+  const [attestationPath, signaturePath, publicKeyPath] = fileFields.map((field) => process.env[field]);
+  const [canonicalWorkspaceDir, ...directories] = await Promise.all([
+    realpath(workspaceDir),
+    ...[attestationPath, signaturePath, publicKeyPath].map((file) => realpath(path.dirname(file))),
+  ]);
+  if (directories.some((directory) => !path.relative(canonicalWorkspaceDir, directory).startsWith(".."))) {
+    throw new Error("Provider attestation evidence must resolve outside the deployable workspace.");
+  }
+  const [attestationText, signature, publicKey] = await Promise.all([
+    readFile(attestationPath, "utf8"),
+    readFile(signaturePath, "utf8"),
+    readFile(publicKeyPath, "utf8"),
+  ]);
+  const verified = verifyProviderPackageAttestation({
+    attestationText,
+    signature,
+    publicKey,
+    trustedPublicKeyFingerprint: process.env.RELEASE_PROVIDER_TRUSTED_PUBLIC_KEY_SHA256,
+    expectedPackageSha256: artifact.sha256,
+    expectedDeploymentId: process.env.RELEASE_PROVIDER_DEPLOYMENT_ID,
+    expectedTargetOrigin: process.env.RELEASE_PROVIDER_TARGET_ORIGIN,
+  });
+  return {
+    ...verified,
+    evidence: {
+      attestationPath,
+      signaturePath,
+      publicKeyPath,
+    },
+  };
 }
 
 async function writeSignedExternalManifest(release, distDir) {
@@ -147,6 +195,7 @@ async function writeSignedExternalManifest(release, distDir) {
     throw new Error("Release attestation artifact directory must resolve outside the deployable workspace.");
   }
   const artifact = await digestDirectory(artifactRoot);
+  const providerPackage = await verifyStagedProviderPackage(release, artifact);
   const privateKey = createPrivateKey(signingKey);
   if (privateKey.asymmetricKeyType !== "ed25519") {
     throw new Error("Release attestation signing key must be an Ed25519 private key.");
@@ -177,6 +226,19 @@ async function writeSignedExternalManifest(release, distDir) {
       sourceTree: release.sourceTree,
       sourceDigest: release.sourceDigest,
     },
+    sensitiveActivationEligible: providerPackage !== null,
+    ...(providerPackage ? {
+      providerPackageAttestation: {
+        attestationId: providerPackage.attestation.attestationId,
+        provider: providerPackage.attestation.provider,
+        deployment: providerPackage.attestation.deployment,
+        immutableRecord: providerPackage.attestation.immutableRecord,
+        issuedAt: providerPackage.attestation.issuedAt,
+        attestationSha256: providerPackage.attestationSha256,
+        signatureSha256: providerPackage.signatureSha256,
+        signerPublicKeySha256: providerPackage.signerPublicKeySha256,
+      },
+    } : {}),
   };
   const canonicalManifest = canonicalJson(manifest);
   const signature = sign(null, Buffer.from(canonicalManifest, "utf8"), privateKey).toString("base64");
@@ -196,6 +258,10 @@ async function buildAll() {
   const release = await getReleaseAttestation();
   await rm(distDir, { recursive: true, force: true });
 
+  const sensitiveActivationRequested = process.env.RELEASE_SENSITIVE_ACTIVATION_REQUESTED === "true";
+  if (sensitiveActivationRequested && process.env.NODE_ENV !== "production") {
+    throw new Error("Sensitive release activation may only be requested in a production build.");
+  }
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     platform: "node",
@@ -210,10 +276,11 @@ async function buildAll() {
       __RELEASE_SOURCE_DIGEST__: JSON.stringify(release.sourceDigest),
       __RELEASE_BUILD_TIMESTAMP__: JSON.stringify(release.buildTimestamp),
       __RELEASE_ID__: JSON.stringify(release.releaseId),
-      // The configured publishing path cannot prove a final staged package
-      // independently of this process. Keep sensitive traffic compiled deny-all
-      // until an external activation authorization can be bound to that proof.
-      __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__: "false",
+       // This repository can verify and retain provider-issued package evidence
+       // for a rehearsal, but the configured Publishing service has no atomic
+       // provider stage→attest→deploy contract yet. A mutable build request must
+       // never enable the sensitive route; keep production traffic deny-all.
+       __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__: "false",
     },
     // Some packages may not be bundleable, so we externalize them, we can add more here as needed.
     // Some of the packages below may not be imported or installed, but we're adding them in case they are in the future.

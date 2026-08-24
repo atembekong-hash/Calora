@@ -26,6 +26,18 @@ NODE_ENV = "production"
 # The signer fingerprint only enrolls the build signer; the activation verifier
 # uses a separately controlled approval-trust pin. build.mjs fails closed until
 # the operator supplies all four.
+# A sensitive release additionally requires a provider-issued, Ed25519-signed
+# final-package attestation retained outside the workspace. The protected
+# publishing pipeline must stage the exact package first, then supply:
+# RELEASE_SENSITIVE_ACTIVATION_REQUESTED=true,
+# RELEASE_PROVIDER_ATTESTATION_FILE, RELEASE_PROVIDER_ATTESTATION_SIGNATURE_FILE,
+# RELEASE_PROVIDER_ATTESTATION_PUBLIC_KEY_FILE,
+# RELEASE_PROVIDER_TRUSTED_PUBLIC_KEY_SHA256,
+# RELEASE_PROVIDER_DEPLOYMENT_ID, and RELEASE_PROVIDER_TARGET_ORIGIN.
+# Normal releases omit RELEASE_SENSITIVE_ACTIVATION_REQUESTED. A requested
+# release produces verification-ready provenance for a production rehearsal,
+# but the sensitive path remains compiled deny-all until a provider-owned,
+# atomic stage→attest→deploy activation contract is separately established.
 
 [services.production.run]
 # we don't run through pnpm to make startup faster in production

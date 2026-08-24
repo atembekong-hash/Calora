@@ -88,12 +88,13 @@ This gate comes **before any sensitive control mutation**. It binds the reviewed
 source to the package observed by the deployment control plane; `/api/version`
 is only a cross-check and never a source of trusted package identity.
 
-**Current enforcement state:** the production API is compiled deny-all for Coach
-Fact Context. Setting `COACH_FACT_CONTEXT_ENABLED=true` cannot activate this
-sensitive path while the configured publishing service lacks a provider-managed
-final-package staging and digest contract. This is intentional; do not attempt
-to bypass it with an environment variable, deployment edit, or alternate
-writer.
+**Current enforcement state:** all production releases remain compiled deny-all
+for Coach Fact Context. The protected build and activation verifier can now
+validate provider-issued package evidence and retain a rehearsal record, but the
+configured Publishing service does not yet provide the required atomic provider
+stage→attest→deploy activation contract. Setting
+`COACH_FACT_CONTEXT_ENABLED=true` alone cannot activate this path. Do not
+substitute an environment variable, deployment edit, or alternate writer.
 
 1. In **Publishing → Settings → Production secrets**, an authorized operator
    must provision these build-only controls before publishing. Do not store their
@@ -109,26 +110,29 @@ writer.
 2. Publish only after the production build has succeeded. A missing control,
    non-Ed25519 key, fingerprint mismatch, relative path, workspace path, absent
    retention mount, or attempt to replace retained evidence is a release stop.
-3. Before starting a sensitive release, confirm that the publishing path stages
-   the **final deployable package** in `RELEASE_ATTESTATION_ARTIFACT_DIR` before
-   `build.mjs` signs it, and that its deployment control plane or immutable
-   package registry exposes the same canonical package-content SHA-256 used by
-   the manifest. If the publishing provider packages only after the build or
-   cannot independently expose this digest, it cannot support this sensitive
-   activation: stop deny-all rather than substituting a dist directory, build
-   log, or `/api/version`.
-4. Obtain the candidate package SHA-256 from that deployment control plane or
-   immutable package registry. Never use an API response, a build log, or a
-   digest copied from the manifest as this value. Record the control-plane
-   surface, deployment identifier, UTC retrieval time, and digest in the
-   protected change record.
-5. Obtain the activation verifier's trusted public-key SHA-256 from the
+3. For a **sensitive** release only, set
+    `RELEASE_SENSITIVE_ACTIVATION_REQUESTED=true` in the protected production
+    build context and provide the provider-retained absolute paths
+    `RELEASE_PROVIDER_ATTESTATION_FILE`,
+    `RELEASE_PROVIDER_ATTESTATION_SIGNATURE_FILE`, and
+    `RELEASE_PROVIDER_ATTESTATION_PUBLIC_KEY_FILE`, plus
+    `RELEASE_PROVIDER_TRUSTED_PUBLIC_KEY_SHA256`,
+    `RELEASE_PROVIDER_DEPLOYMENT_ID`, and `RELEASE_PROVIDER_TARGET_ORIGIN`.
+    The provider record must be canonical JSON with a detached Ed25519
+    signature and immutable record URL. It must name the deployment identity,
+    exact HTTPS target origin, and canonical SHA-256 of the **final deployable
+    package** staged in `RELEASE_ATTESTATION_ARTIFACT_DIR`. The build checks
+    all of these values before it can compile the sensitive release eligible.
+    If the provider packages only after the build or cannot issue this signed
+    immutable record, stop deny-all rather than substituting a dist directory,
+    build log, generic JSON, command-line digest, or `/api/version`.
+4. Obtain the activation verifier's trusted release-signer public-key SHA-256 from the
    access-controlled rollout approval trust record, held separately from
    Publishing production secrets and the build signer. A signer rotation needs
    written reviewer approval and an updated trust record before publishing.
    Never take this verification pin from
    `RELEASE_ATTESTATION_SIGNING_KEY_FINGERPRINT` or any mutable build setting.
-6. Obtain the manifest, detached signature, and public key from the immutable
+5. Obtain the manifest, detached signature, and public key from the immutable
    retention location. Before any gate is changed, run the verifier against the
    separately pinned fingerprint, control-plane digest, and production HTTPS
    origin. Use an externally retained, new evidence path for its result:
@@ -139,18 +143,33 @@ writer.
      --signature /protected/retention/<release>.manifest.sig \
      --public-key /protected/retention/<release>.public-key.pem \
      --trusted-public-key-sha256 "<pin-from-separate-approval-trust-record>" \
-     --trusted-deployment-digest "<digest-from-deployment-control-plane>" \
+      --provider-attestation /protected/provider-records/<deployment>.json \
+      --provider-signature /protected/provider-records/<deployment>.sig \
+      --provider-public-key /protected/provider-records/provider-public-key.pem \
+      --trusted-provider-public-key-sha256 "<provider-pin-from-separate-approval-trust-record>" \
+      --provider-deployment-id "<provider-deployment-id>" \
+      --target-origin "https://<published-api-origin>" \
      --live-url "https://<published-api-origin>" \
      --evidence-file /protected/approval-records/<change>/<release>.verification.json
    ```
 
    The verifier must report `verified: true`, verify the detached signature and
-   the pinned signer, match the trusted package digest, and receive successful
-   HTTPS `/api/version` and `/api/healthz` checks. A failure, redirect, stale
-   deployment, missing evidence, or mismatch is `BLOCKED — RELEASE ATTESTATION
-   NOT ESTABLISHED`; leave all sensitive controls deny-all.
-7. Attach the immutable manifest, signature, public key, verifier evidence
-   record, deployment-control-plane digest evidence, and approval reference to
+    the pinned release signer **and the pinned provider trust anchor**, prove the
+    same immutable provider record was bound to the signed release, match its
+    final-package SHA-256, deployment identity, and target origin, and receive
+    successful HTTPS `/api/version` and `/api/healthz` checks. This establishes
+    immutable rehearsal evidence only; it does not override the compiled
+    deny-all route. A failure,
+    redirect, stale deployment, missing evidence, or mismatch is `BLOCKED —
+    RELEASE ATTESTATION NOT ESTABLISHED`; leave all sensitive controls deny-all.
+6. **Production rehearsal:** run the verifier and write its new
+    `--evidence-file` in the external approval record while
+    `COACH_FACT_CONTEXT_ENABLED` remains absent or not exactly `true` and the
+    database rollout gate remains false. Confirm `verified: true`, retain the
+    resulting exclusive-create evidence file, and record that no sensitive gate
+    was changed. This rehearsal is required evidence, not activation authority.
+7. Attach the immutable manifest, signature, public key, provider attestation,
+    provider signature/key, verifier evidence record, and approval reference to
    the access-controlled rollout approval. Do not attach the private key,
    secrets, account identifiers, credentials, or Coach content.
 
