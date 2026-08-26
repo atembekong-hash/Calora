@@ -17,13 +17,16 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.etiendem.caloraapp",
       "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
       "associatedDomains": [
         "applinks:calorie-coach-pie35449.replit.app"
       ]
     },
     "android": {
       "package": "com.etiendem.caloraapp",
-      "versionCode": 23,
+      "versionCode": 24,
       "minSdkVersion": 26,
       "permissions": [
         "android.permission.health.READ_STEPS",
