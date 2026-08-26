@@ -25,6 +25,7 @@ import { db, aiCaptureSessionsTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 import { normalizeImageMetadata } from "../lib/image-metadata.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
@@ -346,52 +347,56 @@ router.post("/v1/sync", async (req, res) => {
           // Raw SQL is required because the partial unique index
           // (WHERE client_id IS NOT NULL) cannot be named as a Drizzle
           // conflict target.
-          await db.execute(sql`
-            INSERT INTO calora_diary_entries
-              (user_id, client_id, capture_session_id, entry_date, meal, name, serving,
-               calories, protein_g, carbs_g, fat_g, provenance,
-               confidence, notes, image_url, image_source, client_updated_at)
-            VALUES
-              (${userId}::uuid, ${v.clientId}, ${verifiedCaptureSessionId}::uuid,
-               ${v.entryDate}::date, ${v.meal},
-               ${v.name}, ${v.serving},
-               ${String(v.calories)}::numeric, ${String(v.proteinG)}::numeric,
-               ${String(v.carbsG)}::numeric, ${String(v.fatG)}::numeric,
-               ${v.provenance}, ${v.confidence}::integer,
-               ${v.notes}, ${v.imageUrl}, ${v.imageSource}, now())
-            ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL
-            DO UPDATE SET
-              entry_date          = EXCLUDED.entry_date,
-              meal                = EXCLUDED.meal,
-              name                = EXCLUDED.name,
-              serving             = EXCLUDED.serving,
-              calories            = EXCLUDED.calories,
-              protein_g           = EXCLUDED.protein_g,
-              carbs_g             = EXCLUDED.carbs_g,
-              fat_g               = EXCLUDED.fat_g,
-              provenance          = EXCLUDED.provenance,
-              confidence          = EXCLUDED.confidence,
-              notes               = EXCLUDED.notes,
-              image_url           = EXCLUDED.image_url,
-              image_source        = EXCLUDED.image_source,
-              capture_session_id  = COALESCE(EXCLUDED.capture_session_id, calora_diary_entries.capture_session_id),
-              client_updated_at   = EXCLUDED.client_updated_at,
-              updated_at          = now()
-          `);
+          // The diary write and its idempotency ledger entry must be durable
+          // together. In particular, a ledger failure must not leave an entry
+          // that a retry would treat as already processed (or vice versa).
+          await db.transaction(async (tx) => {
+            await tx.execute(sql`
+              INSERT INTO calora_diary_entries
+                (user_id, client_id, capture_session_id, entry_date, meal, name, serving,
+                 calories, protein_g, carbs_g, fat_g, provenance,
+                 confidence, notes, image_url, image_source, client_updated_at)
+              VALUES
+                (${userId}::uuid, ${v.clientId}, ${verifiedCaptureSessionId}::uuid,
+                 ${v.entryDate}::date, ${v.meal},
+                 ${v.name}, ${v.serving},
+                 ${String(v.calories)}::numeric, ${String(v.proteinG)}::numeric,
+                 ${String(v.carbsG)}::numeric, ${String(v.fatG)}::numeric,
+                 ${v.provenance}, ${v.confidence}::integer,
+                 ${v.notes}, ${v.imageUrl}, ${v.imageSource}, now())
+              ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL
+              DO UPDATE SET
+                entry_date          = EXCLUDED.entry_date,
+                meal                = EXCLUDED.meal,
+                name                = EXCLUDED.name,
+                serving             = EXCLUDED.serving,
+                calories            = EXCLUDED.calories,
+                protein_g           = EXCLUDED.protein_g,
+                carbs_g             = EXCLUDED.carbs_g,
+                fat_g               = EXCLUDED.fat_g,
+                provenance          = EXCLUDED.provenance,
+                confidence          = EXCLUDED.confidence,
+                notes               = EXCLUDED.notes,
+                image_url           = EXCLUDED.image_url,
+                image_source        = EXCLUDED.image_source,
+                capture_session_id  = COALESCE(EXCLUDED.capture_session_id, calora_diary_entries.capture_session_id),
+                client_updated_at   = EXCLUDED.client_updated_at,
+                updated_at          = now()
+            `);
 
-          // Record the accepted mutation for cross-session deduplication.
-          // ON CONFLICT DO NOTHING means a second sync of the same mutationId
-          // (after an app restart) never creates a duplicate log entry.
-          await db.execute(sql`
-            INSERT INTO calora_sync_mutations
-              (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
-            VALUES
-              (${mutation.mutationId}::uuid, ${userId}::uuid,
-               ${mutation.entity}, ${mutation.operation},
-               ${JSON.stringify(mutation.payload)}::jsonb,
-               ${mutation.clientUpdatedAt}::timestamptz, now())
-            ON CONFLICT (mutation_id) DO NOTHING
-          `);
+            // ON CONFLICT DO NOTHING means a second sync of the same
+            // mutationId (after an app restart) never creates a duplicate log.
+            await tx.execute(sql`
+              INSERT INTO calora_sync_mutations
+                (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
+              VALUES
+                (${mutation.mutationId}::uuid, ${userId}::uuid,
+                 ${mutation.entity}, ${mutation.operation},
+                 ${JSON.stringify(mutation.payload)}::jsonb,
+                 ${mutation.clientUpdatedAt}::timestamptz, now())
+              ON CONFLICT (mutation_id) DO NOTHING
+            `);
+          });
 
           accepted.push(mutation.mutationId);
         } else if (mutation.operation === "delete") {
@@ -406,23 +411,25 @@ router.post("/v1/sync", async (req, res) => {
 
           // Scoped delete: the WHERE clause ensures one user can never
           // remove another user's diary row even if they guess a client_id.
-          await db.execute(sql`
-            DELETE FROM calora_diary_entries
-            WHERE user_id = ${userId}::uuid
-              AND client_id = ${clientId}
-          `);
+          await db.transaction(async (tx) => {
+            await tx.execute(sql`
+              DELETE FROM calora_diary_entries
+              WHERE user_id = ${userId}::uuid
+                AND client_id = ${clientId}
+            `);
 
-          // Record the delete mutation for auditability across sessions.
-          await db.execute(sql`
-            INSERT INTO calora_sync_mutations
-              (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
-            VALUES
-              (${mutation.mutationId}::uuid, ${userId}::uuid,
-               ${mutation.entity}, ${mutation.operation},
-               ${JSON.stringify(mutation.payload)}::jsonb,
-               ${mutation.clientUpdatedAt}::timestamptz, now())
-            ON CONFLICT (mutation_id) DO NOTHING
-          `);
+            // Record the delete mutation for auditability across sessions.
+            await tx.execute(sql`
+              INSERT INTO calora_sync_mutations
+                (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
+              VALUES
+                (${mutation.mutationId}::uuid, ${userId}::uuid,
+                 ${mutation.entity}, ${mutation.operation},
+                 ${JSON.stringify(mutation.payload)}::jsonb,
+                 ${mutation.clientUpdatedAt}::timestamptz, now())
+              ON CONFLICT (mutation_id) DO NOTHING
+            `);
+          });
 
           accepted.push(mutation.mutationId);
         } else {
@@ -434,17 +441,17 @@ router.post("/v1/sync", async (req, res) => {
           });
         }
       } catch (err) {
-        console.error("[sync] mutation failed", {
+        logger.error({
           mutationId: mutation.mutationId,
           err,
-        });
+        }, "Sync mutation failed");
         conflicts.push({ mutationId: mutation.mutationId, reason: "server_error" });
       }
     }
 
     res.json({ accepted, conflicts, nextCursor: "" });
   } catch (err) {
-    console.error("[sync] request failed", err);
+    logger.error({ err }, "Sync request failed");
     res
       .status(503)
       .json({ message: "Sync is unavailable right now. Please try again later." });

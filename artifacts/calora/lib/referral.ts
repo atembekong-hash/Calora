@@ -2,7 +2,7 @@
  * Referral helpers — pending invite code storage and reward activation state.
  *
  * A code arriving via the caloraapp://invite/<code> deep link (or the
- * mycaloraapp.com/invite/<code> universal link) is stored locally until the
+ * calorie-coach-pie35449.replit.app/invite/<code> universal link) is stored locally until the
  * user signs in and redeems it. Activation ("first saved meal") is
  * tracked per user so the activate endpoint is only retried until it settles.
  */

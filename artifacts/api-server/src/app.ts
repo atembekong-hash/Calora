@@ -1,9 +1,14 @@
-import express, { type Express } from "express";
+import express, {
+  type ErrorRequestHandler,
+  type Express,
+  type RequestHandler,
+} from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import universalLinksRouter from "./routes/universal-links";
 import { logger } from "./lib/logger";
+import { isCorsOriginAllowed } from "./lib/cors-policy";
 
 const app: Express = express();
 
@@ -33,7 +38,24 @@ app.use(
     },
   }),
 );
-app.use(cors());
+const rejectDisallowedBrowserOrigin: RequestHandler = (req, res, next) => {
+  const origin = req.get("origin");
+  if (!isCorsOriginAllowed(origin)) {
+    req.log.warn({ origin }, "Rejected browser request from disallowed origin");
+    res.status(403).json({ message: "Origin is not allowed." });
+    return;
+  }
+  next();
+};
+
+app.use(rejectDisallowedBrowserOrigin);
+app.use(
+  cors({
+    origin(origin, callback) {
+      callback(null, isCorsOriginAllowed(origin));
+    },
+  }),
+);
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -42,5 +64,21 @@ app.use(express.urlencoded({ extended: true }));
 app.use(universalLinksRouter);
 
 app.use("/api", router);
+
+const handleUnhandledRequestError: ErrorRequestHandler = (
+  err,
+  req,
+  res,
+  next,
+) => {
+  req.log.error({ err }, "Unhandled request error");
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+  res.status(500).json({ message: "An unexpected server error occurred." });
+};
+
+app.use(handleUnhandledRequestError);
 
 export default app;

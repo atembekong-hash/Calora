@@ -22,11 +22,13 @@ import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { grantPromoDays } from "../lib/revenuecat.js";
 import { assertAccountWritable, AccountDeletionInProgressError } from "../lib/account-deletion-state.js";
 import { hasSavedDiaryEntry } from "../lib/referral-qualification.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
 const REWARD_DAYS = 30;
-const INVITE_BASE_URL = "https://mycaloraapp.com/invite";
+const INVITE_BASE_URL =
+  "https://calorie-coach-pie35449.replit.app/invite";
 
 /** Unambiguous alphabet (no 0/O/1/I) for human-readable invite codes. */
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -122,7 +124,7 @@ router.get("/v1/referral", async (req, res) => {
       res.status(423).json({ message: "Account deletion is in progress." });
       return;
     }
-    console.error("[referral] summary failed:", err);
+    logger.error({ err }, "Referral summary failed");
     res.status(503).json({ message: "Referrals are unavailable right now. Please try again later." });
   }
 });
@@ -191,7 +193,7 @@ router.post("/v1/referral/redeem", async (req, res) => {
       res.status(423).json({ message: "Account deletion is in progress." });
       return;
     }
-    console.error("[referral] redeem failed:", err);
+    logger.error({ err }, "Referral redemption failed");
     res.status(503).json({ message: "Referrals are unavailable right now. Please try again later." });
   }
 });
@@ -290,7 +292,7 @@ router.post("/v1/referral/activate", async (req, res) => {
           await grantPromoDays(user.id, REWARD_DAYS);
           referredRewarded = true;
         } catch (err) {
-          console.error("[referral] referred grant failed for %s:", user.id, err);
+          logger.error({ err }, "Referred-user promotional grant failed");
           await db
             .update(referralRedemptionsTable)
             .set({ referredRewardedAt: null, status: "pending" })
@@ -326,7 +328,7 @@ router.post("/v1/referral/activate", async (req, res) => {
           .returning();
         claimedReferrerReward = rowsClaimed.length > 0;
       } catch (err) {
-        console.error("[referral] referrer reward claim failed for %s:", redemption.referrerUserId, err);
+        logger.error({ err }, "Referrer reward claim failed");
       }
 
       if (claimedReferrerReward) {
@@ -335,7 +337,7 @@ router.post("/v1/referral/activate", async (req, res) => {
           referrerRewarded = true;
         } catch (err) {
           // Release the claim so a later activation can retry the grant.
-          console.error("[referral] referrer grant failed for %s:", redemption.referrerUserId, err);
+          logger.error({ err }, "Referrer promotional grant failed");
           await db
             .update(referralRedemptionsTable)
             .set({ referrerRewardedAt: null })
@@ -355,7 +357,7 @@ router.post("/v1/referral/activate", async (req, res) => {
       res.status(423).json({ message: "Account deletion is in progress." });
       return;
     }
-    console.error("[referral] activate failed:", err);
+    logger.error({ err }, "Referral activation failed");
     res.status(503).json({ message: "Referrals are unavailable right now. Please try again later." });
   }
 });

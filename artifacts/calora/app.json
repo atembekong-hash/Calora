@@ -18,7 +18,7 @@
       "bundleIdentifier": "com.etiendem.caloraapp",
       "buildNumber": "1",
       "associatedDomains": [
-        "applinks:mycaloraapp.com"
+        "applinks:calorie-coach-pie35449.replit.app"
       ]
     },
     "android": {
@@ -38,7 +38,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "mycaloraapp.com",
+              "host": "calorie-coach-pie35449.replit.app",
               "pathPrefix": "/invite"
             }
           ],
@@ -64,7 +64,7 @@
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": "https://calorie-coach-pie35449.replit.app/"
         }
       ],
       "expo-font",

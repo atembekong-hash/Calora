@@ -82,9 +82,7 @@ const existing = users.find((u) => u.email === QA_EMAIL);
 
 if (existing) {
   const confirmed = existing.email_confirmed_at ? "✓ confirmed" : "✗ not confirmed";
-  console.log(`QA account already exists (${confirmed}):`);
-  console.log(`  Email:  ${QA_EMAIL}`);
-  console.log(`  ID:     ${existing.id}`);
+  console.log(`QA account already exists (${confirmed}).`);
   if (!existing.email_confirmed_at) {
     console.log("\nNote: account is not yet confirmed. Re-run this script to confirm it.");
     // Re-confirm by updating the user
@@ -97,11 +95,8 @@ if (existing) {
     else console.error("Could not confirm the account:", await res.text());
   }
 } else {
-  const created = await createUser(QA_EMAIL, password);
-  console.log("QA account created and confirmed:");
-  console.log(`  Email:    ${QA_EMAIL}`);
-  console.log(`  ID:       ${created.id}`);
-  console.log(`  Password: <CALORA_SIGNUP_TEST_PASSWORD>`);
+  await createUser(QA_EMAIL, password);
+  console.log("QA account created and confirmed.");
 }
 
 console.log("\nNext steps:");

@@ -48,6 +48,7 @@
       "environment": "production",
       "autoIncrement": true,
       "env": {
+        "EXPO_PUBLIC_API_URL": "https://calorie-coach-pie35449.replit.app",
         "EXPO_PUBLIC_SUPABASE_URL": "https://pzdulhkpwbrbrgskwwwe.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_-3cvYunhb4ov7hJej3DAzg_WadMe74u",
         "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY": "goog_oKaaAvrzOkZTXaWVRIkYSbvrOQq",

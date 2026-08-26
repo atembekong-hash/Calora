@@ -1,16 +1,17 @@
-# Universal / App Links for mycaloraapp.com/invite/<code>
+# Universal / App Links for the current published Calora origin
 
-Invite links in the referral share message use `https://mycaloraapp.com/invite/<CODE>`.
+Invite links in the referral share message use
+`https://calorie-coach-pie35449.replit.app/invite/<CODE>`.
 For those links to open the app directly (instead of the browser), two pieces are needed:
 
 1. **App configuration** — already done in `artifacts/calora/app.json`:
-   - iOS: `ios.associatedDomains: ["applinks:mycaloraapp.com"]`
-   - Android: `android.intentFilters` with `autoVerify: true` for `https://mycaloraapp.com/invite`
+   - iOS: `ios.associatedDomains: ["applinks:calorie-coach-pie35449.replit.app"]`
+   - Android: `android.intentFilters` with `autoVerify: true` for `https://calorie-coach-pie35449.replit.app/invite`
    - The route `app/invite/[code].tsx` handles the link via expo-router
      (path `/invite/<code>` maps to it automatically).
    - These take effect in the next EAS build (they are native config, not OTA-updatable).
 
-2. **Files hosted on mycaloraapp.com** — served dynamically by the API server
+2. **Files hosted on the published Calora origin** — served dynamically by the API server
    (`artifacts/api-server/src/routes/universal-links.ts`):
 
    | Path | Notes |
@@ -70,7 +71,7 @@ pnpm --filter @workspace/api-server test
 
 ### Browser / no-app path (primary concern for this route)
 
-1. Open `https://mycaloraapp.com/invite/TESTCODE` in a **desktop** browser.
+1. Open `https://calorie-coach-pie35449.replit.app/invite/TESTCODE` in a **desktop** browser.
    - Expected: landing card with the 🥗 logo, "TESTCODE" badge, "Open in
      Calora" button, and App Store / Google Play buttons.
    - No JS errors in the browser console (desktop UA skips the deep-link
@@ -82,24 +83,29 @@ pnpm --filter @workspace/api-server test
      `caloraapp://` scheme (harmlessly fails) before settling on the landing
      page.  Store buttons are the manual fallback.
 
-3. Visit `https://mycaloraapp.com/invite` (no code).
+3. Visit `https://calorie-coach-pie35449.replit.app/invite` (no code).
    - Expected: the same card without a code badge; no JS errors.
 
 ### Deep-link path (device with app installed)
 
-Tap `https://mycaloraapp.com/invite/TESTCODE` from Notes or Gmail on a device
+Tap `https://calorie-coach-pie35449.replit.app/invite/TESTCODE` from Notes or Gmail on a device
 with the app installed — the OS should hand off to the app's
 `app/invite/[code].tsx` screen.
+
+The host declarations are native configuration. Direct OS handoff requires a
+new signed iOS/Android build containing this host; it cannot be enabled through
+an OTA JavaScript update. Older builds still reach the browser fallback, whose
+**Open in Calora** button uses the `caloraapp://` custom scheme.
 
 ### Universal-link verification files
 
 - iOS: after installing a build with associated domains, run
-  `swcutil dl -d mycaloraapp.com` on macOS, or test with
-  `https://app-site-association.cdn-apple.com/a/v1/mycaloraapp.com`.
+  `swcutil dl -d calorie-coach-pie35449.replit.app` on macOS, or test with
+  `https://app-site-association.cdn-apple.com/a/v1/calorie-coach-pie35449.replit.app`.
   Apple caches AASA via its CDN; changes can take up to ~24 h to propagate.
 - Android: `adb shell pm get-app-links com.etiendem.caloraapp` should show
-  `mycaloraapp.com: verified`. Google's checker:
-  `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://mycaloraapp.com&relation=delegate_permission/common.handle_all_urls`
+  `calorie-coach-pie35449.replit.app: verified`. Google's checker:
+  `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://calorie-coach-pie35449.replit.app&relation=delegate_permission/common.handle_all_urls`
 
 ## Fallback for users without the app
 

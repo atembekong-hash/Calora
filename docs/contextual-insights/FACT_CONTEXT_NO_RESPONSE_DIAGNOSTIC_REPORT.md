@@ -115,6 +115,11 @@ with Legacy Coach.
 - Backend republish required: **No**.
 - New mobile build required: **No**.
 
+These answers apply only to the Fact Context no-response incident documented
+here. Later production-hardening changes to native associated-domain and app-link
+configuration require a new signed mobile build before direct HTTPS invite
+handoff can be certified.
+
 ## Remaining Blocker
 
 The approved pilot must provide real, current in-app consent. Even after that

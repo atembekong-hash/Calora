@@ -26,6 +26,7 @@ import { db, aiCaptureCandidatesTable, aiCaptureSessionsTable, diaryEntriesTable
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 import { normalizeImageMetadata } from "../lib/image-metadata.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
@@ -328,7 +329,7 @@ router.post("/v1/diary/first-log", async (req, res) => {
 
     res.json({ synced: true, alreadyExisted: false });
   } catch (err) {
-    console.error("[diary] first-log sync failed:", err);
+    logger.error({ err }, "First diary log sync failed");
     res.status(503).json({ message: "Diary sync is unavailable right now. Please try again later." });
   }
 });

@@ -20,8 +20,10 @@ import { randomUUID } from 'node:crypto';
 // execute() resolves immediately with empty rows so we can assert on the
 // number and order of calls without managing async queues.
 
-const { executeCalls, dbMock } = vi.hoisted(() => {
+const { executeCalls, transactions, failNextTransactionLedgerWrite, dbMock } = vi.hoisted(() => {
   const executeCalls: unknown[] = [];
+  const transactions: Array<{ statements: unknown[]; committed: boolean }> = [];
+  const failNextTransactionLedgerWrite = { value: false };
 
   function makeSelectChain(rows: unknown[] = []) {
     const chain: Record<string, unknown> = {};
@@ -38,6 +40,28 @@ const { executeCalls, dbMock } = vi.hoisted(() => {
       executeCalls.push(stmt);
       return Promise.resolve({ rows: [] });
     },
+    transaction: async (fn: (tx: { execute: (stmt: unknown) => Promise<{ rows: unknown[] }> }) => Promise<unknown>) => {
+      const transaction = { statements: [] as unknown[], committed: false };
+      transactions.push(transaction);
+      const tx = {
+        execute: (stmt: unknown) => {
+          transaction.statements.push(stmt);
+          if (failNextTransactionLedgerWrite.value && transaction.statements.length === 2) {
+            failNextTransactionLedgerWrite.value = false;
+            return Promise.reject(new Error('sync mutation ledger insert failed'));
+          }
+          return Promise.resolve({ rows: [] });
+        },
+      };
+      try {
+        const result = await fn(tx);
+        transaction.committed = true;
+        executeCalls.push(...transaction.statements);
+        return result;
+      } catch (error) {
+        throw error;
+      }
+    },
     select: () => makeSelectChain([]),
     insert: () => {
       const chain: Record<string, unknown> = {};
@@ -51,7 +75,12 @@ const { executeCalls, dbMock } = vi.hoisted(() => {
     },
   };
 
-  return { executeCalls, dbMock };
+  return {
+    executeCalls,
+    transactions,
+    failNextTransactionLedgerWrite,
+    dbMock,
+  };
 });
 
 vi.mock('@workspace/db', () => ({
@@ -149,6 +178,8 @@ describe('POST /v1/sync', () => {
     app = buildApp();
     verifyBearerToken.mockReset();
     executeCalls.length = 0;
+    transactions.length = 0;
+    failNextTransactionLedgerWrite.value = false;
   });
 
   // ── Auth ─────────────────────────────────────────────────────────────────
@@ -237,6 +268,27 @@ describe('POST /v1/sync', () => {
     expect(executeCalls).toHaveLength(2);
   });
 
+  it('rolls back an upsert when recording its idempotency ledger entry fails', async () => {
+    verifyBearerToken.mockResolvedValue(USER);
+    failNextTransactionLedgerWrite.value = true;
+
+    const mutation = validUpsert({}, randomUUID());
+    const res = await request(app).post('/v1/sync').send(body([mutation]));
+
+    expect(res.status).toBe(200);
+    expect(res.body.accepted).toEqual([]);
+    expect(res.body.conflicts).toEqual([
+      { mutationId: mutation.mutationId, reason: 'server_error' },
+    ]);
+    expect(transactions).toEqual([
+      { statements: expect.any(Array), committed: false },
+    ]);
+    expect(transactions[0].statements).toHaveLength(2);
+    // The mocked transaction publishes writes only on commit, mirroring the
+    // database guarantee that the diary write is rolled back with the ledger.
+    expect(executeCalls).toHaveLength(0);
+  });
+
   it('rejects an upsert with an invalid meal value', async () => {
     verifyBearerToken.mockResolvedValue(USER);
 
@@ -314,6 +366,25 @@ describe('POST /v1/sync', () => {
     expect(res.body.conflicts).toHaveLength(0);
     // One DELETE + one sync_mutations insert.
     expect(executeCalls).toHaveLength(2);
+  });
+
+  it('rolls back a delete when recording its idempotency ledger entry fails', async () => {
+    verifyBearerToken.mockResolvedValue(USER);
+    failNextTransactionLedgerWrite.value = true;
+
+    const mutation = validDelete();
+    const res = await request(app).post('/v1/sync').send(body([mutation]));
+
+    expect(res.status).toBe(200);
+    expect(res.body.accepted).toEqual([]);
+    expect(res.body.conflicts).toEqual([
+      { mutationId: mutation.mutationId, reason: 'server_error' },
+    ]);
+    expect(transactions).toEqual([
+      { statements: expect.any(Array), committed: false },
+    ]);
+    expect(transactions[0].statements).toHaveLength(2);
+    expect(executeCalls).toHaveLength(0);
   });
 
   it('rejects a delete mutation with a missing clientId', async () => {

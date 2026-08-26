@@ -8,6 +8,7 @@ import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import { safeImageUrl, safeImageSource } from "../lib/image-metadata.js";
+import { logger } from "../lib/logger.js";
 
 // ---------------------------------------------------------------------------
 // DB-backed rate limiter for POST /v1/capture/analyze
@@ -97,7 +98,7 @@ async function persistCaptureSession(
     );
     return sessionId;
   } catch (err) {
-    console.error("[capture] failed to persist capture session:", err);
+    logger.error({ err }, "Failed to persist capture session");
     return null;
   }
 }

@@ -20,6 +20,7 @@
  */
 
 import { pool } from "@workspace/db";
+import { logger } from "./logger.js";
 
 export type RateLimitResult = {
   allowed: boolean;
@@ -68,11 +69,17 @@ export async function checkRateLimit(
   } catch (err) {
     if (options?.failClosed) {
       // Fail closed — anonymous paid-AI paths must never run unmetered.
-      console.error("[rate-limit] DB check failed, DENYING request (fail-closed):", err);
+      logger.error(
+        { err },
+        "Rate-limit database check failed; request denied fail-closed",
+      );
       return { allowed: false, retryAfterSecs: 30, degraded: true };
     }
     // Fail open — a DB outage should not block legitimate authenticated users.
-    console.error("[rate-limit] DB check failed, allowing request:", err);
+    logger.error(
+      { err },
+      "Rate-limit database check failed; verified request allowed fail-open",
+    );
     return { allowed: true, retryAfterSecs: 0, degraded: true };
   }
 }
