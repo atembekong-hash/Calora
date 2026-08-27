@@ -26,14 +26,14 @@
 
 | Purpose | URL |
 |---|---|
-| Main website | https://mycaloraapp.com |
-| Privacy Policy | https://mycaloraapp.com/privacy |
-| Terms of Use | https://mycaloraapp.com/terms |
-| Help & Support | https://mycaloraapp.com/support |
-| Contact | https://mycaloraapp.com/contact |
-| Account Deletion | https://mycaloraapp.com/delete-account |
-| Subscription Info | https://mycaloraapp.com/subscriptions |
-| Help Center | https://mycaloraapp.com/help |
+| Main website | https://calorie-coach-pie35449.replit.app |
+| Privacy Policy | https://calorie-coach-pie35449.replit.app/privacy |
+| Terms of Use | https://calorie-coach-pie35449.replit.app/terms |
+| Help & Support | https://calorie-coach-pie35449.replit.app/support |
+| Contact | https://calorie-coach-pie35449.replit.app/contact |
+| Account Deletion | https://calorie-coach-pie35449.replit.app/delete-account |
+| Subscription Info | https://calorie-coach-pie35449.replit.app/subscriptions |
+| Help Center | https://calorie-coach-pie35449.replit.app/help |
 | Provisional API hostname | https://api.mycaloraapp.com *(not yet live — see §11)* |
 
 > **IMPORTANT:** `https://api.mycaloraapp.com` is the preferred production API hostname but is not yet configured.
@@ -47,14 +47,14 @@
 | Role | Address |
 |---|---|
 | Customer support | support@mycaloraapp.com |
-| Billing | billing@mycaloraapp.com |
-| Privacy | privacy@mycaloraapp.com |
-| Security | security@mycaloraapp.com |
-| Legal | legal@mycaloraapp.com |
-| General contact | contact@mycaloraapp.com |
-| Transactional sender | noreply@mycaloraapp.com |
+| Billing | support@mycaloraapp.com |
+| Privacy | support@mycaloraapp.com |
+| Security | support@mycaloraapp.com |
+| Legal | support@mycaloraapp.com |
+| General contact | support@mycaloraapp.com |
+| Transactional sender | support@mycaloraapp.com |
 
-> **Status:** All email addresses require external DNS and email-provider configuration before launch. None are currently active.
+> **Status:** `support@mycaloraapp.com` is the monitored customer channel for support, privacy, billing, legal, security, and general contact requests.
 
 ---
 
@@ -113,10 +113,10 @@ RevenueCat client integration and repository seed configuration exist. Productio
 
 | Document | URL | Status |
 |---|---|---|
-| Privacy Policy | https://mycaloraapp.com/privacy | 🚫 PAGE NOT YET LIVE — **external launch blocker** |
-| Terms of Use | https://mycaloraapp.com/terms | 🚫 PAGE NOT YET LIVE — **external launch blocker** |
-| Subscription Info | https://mycaloraapp.com/subscriptions | 🚫 PAGE NOT YET LIVE — **external launch blocker** |
-| Account Deletion | https://mycaloraapp.com/delete-account | 🚫 PAGE NOT YET LIVE — **external launch blocker** |
+| Privacy Policy | https://calorie-coach-pie35449.replit.app/privacy | ✅ Published at the confirmed public origin |
+| Terms of Use | https://calorie-coach-pie35449.replit.app/terms | ✅ Published at the confirmed public origin |
+| Subscription Info | https://calorie-coach-pie35449.replit.app/subscriptions | ✅ Published at the confirmed public origin |
+| Account Deletion | https://calorie-coach-pie35449.replit.app/delete-account | ✅ Published at the confirmed public origin |
 
 > Required by Apple App Store, Google Play, and applicable data protection regulations before public distribution.
 
@@ -235,10 +235,10 @@ iOS build numbers and Android versionCode values must increase monotonically. Do
 
 | Item | Status |
 |---|---|
-| Domain DNS (`mycaloraapp.com`) | REQUIRES OWNER ACTION |
-| Email aliases (all `@mycaloraapp.com`) | REQUIRES OWNER ACTION |
-| Privacy Policy page hosted at `/privacy` | REQUIRES OWNER ACTION — **launch blocker** |
-| Terms of Use page hosted at `/terms` | REQUIRES OWNER ACTION — **launch blocker** |
+| Custom domain DNS (`mycaloraapp.com`) | OPTIONAL — public legal/support URLs use the confirmed Replit production origin |
+| Monitored support inbox (`support@mycaloraapp.com`) | ✅ CONFIRMED |
+| Privacy Policy page hosted at `/privacy` | ✅ Published on the confirmed public origin |
+| Terms of Use page hosted at `/terms` | ✅ Published on the confirmed public origin |
 | App Store Connect — app record + bundle ID registration | REQUIRES STORE CONFIGURATION |
 | Apple Developer — Sign in with Apple (if added) | REQUIRES CREDENTIAL |
 | Google Play Console — app record + package ID registration | REQUIRES STORE CONFIGURATION |

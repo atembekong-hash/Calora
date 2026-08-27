@@ -7,10 +7,12 @@ id = "3B4_FFSkEVBkAeYMFRJ2e"
 [[services]]
 localPort = 8080
 name = "API Server"
-paths = ["/api", "/.well-known", "/invite"]
+paths = ["/api", "/.well-known", "/invite", "/", "/privacy", "/terms", "/support", "/contact", "/delete-account", "/subscriptions", "/help"]
 
 [services.development]
-run = "pnpm --filter @workspace/api-server run dev"
+# Production release-control secrets can be available workspace-wide; they must
+# never enable a sensitive release path during local development.
+run = "unset RELEASE_SENSITIVE_ACTIVATION_REQUESTED RELEASE_SENSITIVE_ACTIVATION_COMMIT; pnpm --filter @workspace/api-server run dev"
 
 [services.production]
 

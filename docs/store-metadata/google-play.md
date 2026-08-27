@@ -58,8 +58,8 @@ Nutrition values, AI analysis, and photo estimates are starting points for your 
 | Field | Value |
 |---|---|
 | Email | support@mycaloraapp.com |
-| Website | https://mycaloraapp.com |
-| Privacy Policy | https://mycaloraapp.com/privacy |
+| Website | https://calorie-coach-pie35449.replit.app |
+| Privacy Policy | https://calorie-coach-pie35449.replit.app/privacy |
 
 ---
 

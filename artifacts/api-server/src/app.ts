@@ -7,6 +7,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import universalLinksRouter from "./routes/universal-links";
+import publicPagesRouter from "./routes/public-pages";
 import { logger } from "./lib/logger";
 import { isCorsOriginAllowed } from "./lib/cors-policy";
 
@@ -62,6 +63,7 @@ app.use(express.urlencoded({ extended: true }));
 // Universal / App Links verification and invite fallback — must be at root
 // (not under /api) so the OS can reach /.well-known/* without a redirect.
 app.use(universalLinksRouter);
+app.use(publicPagesRouter);
 
 app.use("/api", router);
 
