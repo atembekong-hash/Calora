@@ -23,30 +23,30 @@ export const BRAND = {
   /** Premium subscription tier display name. */
   premiumName: 'CaloraApp Pro',
   /** Production domain (no protocol). */
-  domain: 'mycaloraapp.com',
+  domain: 'calorie-coach-pie35449.replit.app',
 } as const;
 
-/** Official URLs. All pages below mycaloraapp.com require external hosting before launch. */
+/** Public legal and support URLs hosted on the confirmed production origin. */
 export const URLS = {
-  main: 'https://mycaloraapp.com',
-  privacy: 'https://mycaloraapp.com/privacy',
-  terms: 'https://mycaloraapp.com/terms',
-  support: 'https://mycaloraapp.com/support',
-  contact: 'https://mycaloraapp.com/contact',
-  deleteAccount: 'https://mycaloraapp.com/delete-account',
-  subscriptions: 'https://mycaloraapp.com/subscriptions',
-  help: 'https://mycaloraapp.com/help',
+  main: 'https://calorie-coach-pie35449.replit.app/api/legal/',
+  privacy: 'https://calorie-coach-pie35449.replit.app/api/legal/privacy',
+  terms: 'https://calorie-coach-pie35449.replit.app/api/legal/terms',
+  support: 'https://calorie-coach-pie35449.replit.app/api/legal/support',
+  contact: 'https://calorie-coach-pie35449.replit.app/api/legal/contact',
+  deleteAccount: 'https://calorie-coach-pie35449.replit.app/api/legal/delete-account',
+  subscriptions: 'https://calorie-coach-pie35449.replit.app/api/legal/subscriptions',
+  help: 'https://calorie-coach-pie35449.replit.app/api/legal/help',
 } as const;
 
-/** Official contact addresses. These inboxes require external DNS/email-provider setup before launch. */
+/** Monitored customer channel, also used for privacy, billing, and legal requests. */
 export const EMAILS = {
   support: 'support@mycaloraapp.com',
-  billing: 'billing@mycaloraapp.com',
-  privacy: 'privacy@mycaloraapp.com',
-  security: 'security@mycaloraapp.com',
-  legal: 'legal@mycaloraapp.com',
-  contact: 'contact@mycaloraapp.com',
-  noreply: 'noreply@mycaloraapp.com',
+  billing: 'support@mycaloraapp.com',
+  privacy: 'support@mycaloraapp.com',
+  security: 'support@mycaloraapp.com',
+  legal: 'support@mycaloraapp.com',
+  contact: 'support@mycaloraapp.com',
+  noreply: 'support@mycaloraapp.com',
 } as const;
 
 /**

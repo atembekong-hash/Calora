@@ -8,6 +8,7 @@
     "build": "node ./build.mjs",
     "verify:release": "node ../../scripts/verify-api-release.mjs",
     "verify:release-identity": "node ../../scripts/verify-api-runtime-identity.mjs",
+    "verify:public-release": "node ./scripts/verify-public-release.mjs",
     "test:release-attestation": "node --test ../../scripts/provider-package-attestation.test.mjs ../../scripts/verify-api-release.test.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",

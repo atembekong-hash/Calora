@@ -26,14 +26,14 @@
 
 | Purpose | URL |
 |---|---|
-| Main website | https://mycaloraapp.com |
-| Privacy Policy | https://mycaloraapp.com/privacy |
-| Terms of Use | https://mycaloraapp.com/terms |
-| Help & Support | https://mycaloraapp.com/support |
-| Contact | https://mycaloraapp.com/contact |
-| Account Deletion | https://mycaloraapp.com/delete-account |
-| Subscription Info | https://mycaloraapp.com/subscriptions |
-| Help Center | https://mycaloraapp.com/help |
+| Main website | https://calorie-coach-pie35449.replit.app/api/legal/ |
+| Privacy Policy | https://calorie-coach-pie35449.replit.app/api/legal/privacy |
+| Terms of Use | https://calorie-coach-pie35449.replit.app/api/legal/terms |
+| Help & Support | https://calorie-coach-pie35449.replit.app/api/legal/support |
+| Contact | https://calorie-coach-pie35449.replit.app/api/legal/contact |
+| Account Deletion | https://calorie-coach-pie35449.replit.app/api/legal/delete-account |
+| Subscription Info | https://calorie-coach-pie35449.replit.app/api/legal/subscriptions |
+| Help Center | https://calorie-coach-pie35449.replit.app/api/legal/help |
 | Provisional API hostname | https://api.mycaloraapp.com *(not yet live — see §11)* |
 
 > **IMPORTANT:** `https://api.mycaloraapp.com` is the preferred production API hostname but is not yet configured.
@@ -47,14 +47,14 @@
 | Role | Address |
 |---|---|
 | Customer support | support@mycaloraapp.com |
-| Billing | billing@mycaloraapp.com |
-| Privacy | privacy@mycaloraapp.com |
-| Security | security@mycaloraapp.com |
-| Legal | legal@mycaloraapp.com |
-| General contact | contact@mycaloraapp.com |
-| Transactional sender | noreply@mycaloraapp.com |
+| Billing | support@mycaloraapp.com |
+| Privacy | support@mycaloraapp.com |
+| Security | support@mycaloraapp.com |
+| Legal | support@mycaloraapp.com |
+| General contact | support@mycaloraapp.com |
+| Transactional sender | support@mycaloraapp.com |
 
-> **Status:** All email addresses require external DNS and email-provider configuration before launch. None are currently active.
+> **Status:** `support@mycaloraapp.com` is the monitored customer channel for support, privacy, billing, legal, security, and general contact requests.
 
 ---
 
@@ -113,10 +113,10 @@ RevenueCat client integration and repository seed configuration exist. Productio
 
 | Document | URL | Status |
 |---|---|---|
-| Privacy Policy | https://mycaloraapp.com/privacy | 🚫 PAGE NOT YET LIVE — **external launch blocker** |
-| Terms of Use | https://mycaloraapp.com/terms | 🚫 PAGE NOT YET LIVE — **external launch blocker** |
-| Subscription Info | https://mycaloraapp.com/subscriptions | 🚫 PAGE NOT YET LIVE — **external launch blocker** |
-| Account Deletion | https://mycaloraapp.com/delete-account | 🚫 PAGE NOT YET LIVE — **external launch blocker** |
+| Privacy Policy | https://calorie-coach-pie35449.replit.app/api/legal/privacy | Route implemented; verify after the task merge and production publish |
+| Terms of Use | https://calorie-coach-pie35449.replit.app/api/legal/terms | Route implemented; verify after the task merge and production publish |
+| Subscription Info | https://calorie-coach-pie35449.replit.app/api/legal/subscriptions | Route implemented; verify after the task merge and production publish |
+| Account Deletion | https://calorie-coach-pie35449.replit.app/api/legal/delete-account | Route implemented; verify after the task merge and production publish |
 
 > Required by Apple App Store, Google Play, and applicable data protection regulations before public distribution.
 
@@ -134,23 +134,23 @@ CaloraApp Coach must not present itself as a doctor, registered dietitian, diagn
 
 ## 9. Privacy Data Inventory
 
-### Locally Stored (on device only — AsyncStorage `@calora/local-state-v2`)
+### Stored locally first (AsyncStorage `@calora/local-state-v2`)
 
 | Data Type | Collected | Stored | Transmitted | To Whom | Purpose | Deletion |
 |---|---|---|---|---|---|---|
-| Display name | Yes | Local | No | — | Personalization | Delete local data |
-| Age, height, weight, goal weight | Yes | Local | No | — | Calorie target calculation | Delete local data |
-| Calorie goal, macro goal | Yes | Local | No | — | Diary tracking | Delete local data |
-| Food diary (logs, timestamps) | Yes | Local | No | — | Nutrition tracking | Delete local data |
+| Display name | Yes | Local | Bounded context on requested AI features | OpenAI via Replit proxy | Personalization | Delete local data |
+| Age, height, weight, goal weight | Yes | Local | Bounded context on requested AI features | OpenAI via Replit proxy | Calorie target and personalized guidance | Delete local data |
+| Calorie goal, macro goal | Yes | Local | Bounded context on requested AI features | OpenAI via Replit proxy | Diary tracking and personalized guidance | Delete local data |
+| Food diary (logs, timestamps) | Yes | Local and, when signed in, Calora backend | Yes for authenticated sync; bounded context for requested Coach features | Calora backend; OpenAI via Replit proxy when requested | Nutrition tracking, sync, contextual guidance | Delete account and local data |
 | Saved meals | Yes | Local | No | — | Quick logging | Delete local data |
 | Meal plans (planner) | Yes | Local | No | — | Meal planning | Delete local data |
-| Weight entries | Yes | Local | No | — | Progress tracking | Delete local data |
+| Weight entries | Yes | Local | Bounded context on requested AI features | OpenAI via Replit proxy | Progress tracking and personalized guidance | Delete local data |
 | Water, mood, wellness entries | Yes | Local | No | — | Wellness tracking | Delete local data |
 | Living memory observations | Yes | Local | No | — | Pattern personalization | Delete local data |
 | Theme / font / unit preferences | Yes | Local | No | — | Personalization | Delete local data |
 | Reminder preferences | Yes | Local | No | — | Scheduling | Delete local data |
 
-### Transmitted to API Server (ephemeral, not persisted with user identity)
+### Account, sync, AI, and provider processing
 
 | Data Type | Transmitted | To Whom | Purpose | Retention |
 |---|---|---|---|---|
@@ -160,18 +160,19 @@ CaloraApp Coach must not present itself as a doctor, registered dietitian, diagn
 | Coach conversation messages | Yes | OpenAI (via Replit proxy) | AI guidance | Not retained server-side |
 | User profile context (Coach) | Yes (bounded) | OpenAI (via Replit proxy) | Personalized guidance | Not retained server-side |
 | Planner preferences | Yes | OpenAI (via Replit proxy) | Meal plan generation | Not retained server-side |
+| Email address and account ID | Yes when a user creates or signs into an account | Supabase Auth and Calora backend | Authentication, account ownership, account deletion | Retained while the account is active and as legally required |
+| Authenticated diary entries | Yes while signed in | Calora backend | Cross-session diary sync | Retained while the account is active; removed through account deletion |
+| Subscription/customer status | Yes when billing features are used | RevenueCat and Apple/Google | Purchase, entitlement, restore, and referral-reward handling | Controlled by the store and RevenueCat retention policies |
+| Health activity and weight | Read only after explicit device permission | Apple Health / Health Connect and on-device Calora state | Progress and calorie context | Stored locally by Calora; not uploaded by the diary sync route |
 
 ### Not Collected
 
-- Email address (no auth)
-- Account ID (no auth)
 - Precise or approximate location
-- Device identifiers
 - Analytics
 - Crash diagnostics
 - Push notification tokens (notifications are local-only, scheduled on-device)
-- Health platform data (HealthKit/Health Connect UI placeholder exists; no data is actually read)
-- Subscription/purchase data (RevenueCat not yet integrated)
+- Contacts
+- Full payment-card details
 
 ---
 
@@ -184,7 +185,9 @@ CaloraApp Coach must not present itself as a doctor, registered dietitian, diagn
 | Open Food Facts | Barcode lookup | None (public API) | Barcode strings | ✅ Integrated |
 | USDA FoodData Central | Barcode fallback | `USDA_FOODDATA_API_KEY` (server-side) | Barcode/food queries | ✅ Integrated (DEMO_KEY fallback) |
 | Replit (hosting) | Development hosting, preview | Platform | App code | ✅ Development |
-| RevenueCat | In-app subscriptions | Not yet configured | Purchase events | ❌ Not integrated |
+| Supabase Auth | Email/password and Google authentication | Public project URL/key in the client; privileged operations server-side | Email, account ID, auth/session data | ✅ Integrated |
+| RevenueCat | In-app subscriptions and referral entitlements | Public platform SDK keys in the client; secret server credentials in Replit | Customer ID, purchase and entitlement events | ✅ Integrated; native store purchase verification still required before submission |
+| Apple Health / Health Connect | Optional health activity and weight import | Native permission grants | User-selected steps, active energy, workouts, and body weight | ✅ Integrated; accessed only after permission |
 | Push notifications | Local reminders | None | Nothing (on-device only) | ⚠️ On-device only; no push token registered |
 
 ---
@@ -212,7 +215,7 @@ See `docs/store-metadata/app-store.md` and `docs/store-metadata/google-play.md`.
 
 ## 13. Authentication Review
 
-No authentication system is currently implemented. The app is local-first with no user accounts, email, Google Sign-In, or Sign in with Apple. No OAuth client IDs, redirect URIs, or Firebase configuration exists.
+CaloraApp supports Supabase email/password and Google authentication. Signed-in users receive authenticated diary sync, referral, and account-deletion functionality. Authentication is optional for local-first use, and synced records remain scoped to the authenticated account.
 
 Required before launch if authentication is added: Google Cloud OAuth consent screen, Apple Developer Sign in with Apple, bundle ID registration in respective consoles.
 
@@ -235,10 +238,10 @@ iOS build numbers and Android versionCode values must increase monotonically. Do
 
 | Item | Status |
 |---|---|
-| Domain DNS (`mycaloraapp.com`) | REQUIRES OWNER ACTION |
-| Email aliases (all `@mycaloraapp.com`) | REQUIRES OWNER ACTION |
-| Privacy Policy page hosted at `/privacy` | REQUIRES OWNER ACTION — **launch blocker** |
-| Terms of Use page hosted at `/terms` | REQUIRES OWNER ACTION — **launch blocker** |
+| Custom domain DNS (`mycaloraapp.com`) | OPTIONAL — public legal/support URLs use the confirmed Replit production origin |
+| Monitored support inbox (`support@mycaloraapp.com`) | ✅ CONFIRMED |
+| Privacy Policy page hosted at `/privacy` | ✅ Published on the confirmed public origin |
+| Terms of Use page hosted at `/terms` | ✅ Published on the confirmed public origin |
 | App Store Connect — app record + bundle ID registration | REQUIRES STORE CONFIGURATION |
 | Apple Developer — Sign in with Apple (if added) | REQUIRES CREDENTIAL |
 | Google Play Console — app record + package ID registration | REQUIRES STORE CONFIGURATION |

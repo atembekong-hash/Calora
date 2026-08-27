@@ -35,3 +35,4 @@
 - [Restricted Phase 2A boundary](restricted-phase-2a-boundary.md) — future contextual insights must remain transient, deterministic, and account-isolated until stronger controls are proven.
 - [Coach Fact Context replay policy](coach-fact-context-replay-policy.md) — TTL-bounded duplicate dark requests need no nonce ledger unless product requires exactly-once egress or audit semantics.
 - [Coach production control plane](coach-production-control-plane.md) — this environment can verify production state but cannot execute the approved rollout-control mutations.
+- [Publishing task branches](publishing-task-branches.md) — publishing during an isolated in-progress task can repeatedly deploy the unchanged base tree; merge first and verify live source identity.

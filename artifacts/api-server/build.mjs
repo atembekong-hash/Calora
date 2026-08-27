@@ -256,6 +256,9 @@ async function writeSignedExternalManifest(release, distDir) {
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   const release = await getReleaseAttestation();
+  console.info(
+    `[release-source] commit=${release.gitCommit} tree=${release.sourceTree} release=${release.releaseId}`,
+  );
   await rm(distDir, { recursive: true, force: true });
 
   const sensitiveActivationRequested = process.env.RELEASE_SENSITIVE_ACTIVATION_REQUESTED === "true";

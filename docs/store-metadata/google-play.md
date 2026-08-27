@@ -47,7 +47,7 @@ AI COACH
 Ask CaloraApp Coach about your nutrition patterns, meals, or goals. Coach uses your actual diary data to give contextual, evidence-aware guidance — not generic advice.
 
 PRIVACY BY DESIGN
-Your diary, profile, and food memories stay on your device. No cloud sync happens without your consent. Export or delete everything from Settings at any time.
+CaloraApp is local-first. If you sign in, diary entries sync to your Calora account; AI features send only the information needed for the feature you request. You can export local data or permanently delete your account from Settings.
 
 Nutrition values, AI analysis, and photo estimates are starting points for your review — not exact measurements or medical advice.
 
@@ -58,8 +58,8 @@ Nutrition values, AI analysis, and photo estimates are starting points for your 
 | Field | Value |
 |---|---|
 | Email | support@mycaloraapp.com |
-| Website | https://mycaloraapp.com |
-| Privacy Policy | https://mycaloraapp.com/privacy |
+| Website | https://calorie-coach-pie35449.replit.app/api/legal/ |
+| Privacy Policy | https://calorie-coach-pie35449.replit.app/api/legal/privacy |
 
 ---
 
@@ -69,12 +69,16 @@ See `docs/CALORAAPP_PRODUCT_METADATA.md` § Privacy Data Inventory for the full 
 
 **Data collected and shared with third parties:**
 - Food descriptions and photos are sent to an AI provider (OpenAI via proxy) for food recognition and coach responses. Images are not retained after analysis.
+- Email/account identity is processed by Supabase Auth.
+- Subscription/customer status is processed by RevenueCat and Google Play.
+- Health activity and weight are read only after the user grants Health Connect permission.
 
 **Data collected and NOT shared:**
-- All diary, profile, weight, and wellness data stays on-device.
+- Authenticated diary entries sync to Calora's account-scoped backend.
+- Profile, local wellness data, and imported health data otherwise remain in Calora's on-device state except when bounded context is submitted for a requested AI feature.
 
 **Data not collected:**
-- Location, contacts, financial information, identifiers (no auth system).
+- Precise or approximate location, contacts, full payment-card details, advertising data, analytics, and crash diagnostics.
 
 > Google Play Data Safety declarations must be completed in the Play Console based on the final production data audit before submission.
 

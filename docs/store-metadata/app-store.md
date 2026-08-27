@@ -49,7 +49,7 @@ Track your weight over time alongside your nutrition. See how your habits are sh
 Ask CaloraApp Coach about your nutrition patterns, meals, or goals. Coach uses your actual diary data to give contextual, evidence-aware guidance — not generic advice.
 
 **Privacy by Design**
-Your diary, profile, and food memories stay on your device. No cloud sync happens without your consent. Export or delete everything from Settings at any time.
+CaloraApp is local-first. If you sign in, diary entries sync to your Calora account; AI features send only the information needed for the feature you request. You can export local data or permanently delete your account from Settings.
 
 ---
 *Nutrition values, AI analysis, and photo estimates are starting points for your review — not exact measurements or medical advice.*
@@ -64,15 +64,15 @@ calorie,nutrition,macro,food diary,meal tracker,AI,health,weight loss,meal plan,
 
 ## Support URL
 
-https://mycaloraapp.com/support
+https://calorie-coach-pie35449.replit.app/api/legal/support
 
 ## Marketing URL
 
-https://mycaloraapp.com
+https://calorie-coach-pie35449.replit.app/api/legal/
 
 ## Privacy Policy URL
 
-https://mycaloraapp.com/privacy
+https://calorie-coach-pie35449.replit.app/api/legal/privacy
 
 ---
 
@@ -101,15 +101,19 @@ Initial release of CaloraApp — AI-powered calorie and nutrition tracking for i
 
 See `docs/CALORAAPP_PRODUCT_METADATA.md` § Privacy Data Inventory for the full data audit.
 
-**Data Not Linked to You:**
-- Usage data (if analytics added in future — not currently collected)
+**Data Linked to You:**
+- Contact info: email address for account authentication
+- User content: authenticated diary entries and content submitted to requested AI features
+- Purchases: subscription and entitlement status through RevenueCat and the App Store
+- Health & fitness: steps, active energy, workouts, and body weight only when the user grants Apple Health permission
+- Identifiers: Calora/Supabase account ID and RevenueCat customer identity
 
-**Data Not Collected** (current state):
+**Data Not Collected:**
 - Location
-- Contact info
-- Health & fitness (HealthKit not yet connected)
-- Financial info (RevenueCat not yet integrated)
-- Identifiers
+- Contacts
+- Full payment-card details
+- Advertising data
+- Product analytics
 - Diagnostics
 
 > These declarations must be completed in App Store Connect based on the final production data audit before submission.

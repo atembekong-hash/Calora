@@ -11,6 +11,7 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -24,7 +25,7 @@ import { router } from 'expo-router';
 import { useCalora } from '@/context/CaloraContext';
 import { AppHeader } from '@/components/AppChrome';
 import { useAuth } from '@/context/AuthContext';
-import { BRAND } from '@/lib/brand';
+import { BRAND, URLS } from '@/lib/brand';
 import { getPendingInviteCode } from '@/lib/referral';
 
 export default function SignUpScreen() {
@@ -209,7 +210,25 @@ export default function SignUpScreen() {
 
         {/* Terms note */}
         <Text style={[styles.termsText, { color: colors.mutedForeground }]}>
-          By creating an account you agree to our Terms of Use and Privacy Policy.
+          By creating an account you agree to our{' '}
+          <Text
+            accessibilityRole="link"
+            accessibilityLabel="Open Terms of Use"
+            onPress={() => { void Linking.openURL(URLS.terms); }}
+            style={[styles.termsLink, { color: colors.primary }]}
+          >
+            Terms of Use
+          </Text>
+          {' '}and{' '}
+          <Text
+            accessibilityRole="link"
+            accessibilityLabel="Open Privacy Policy"
+            onPress={() => { void Linking.openURL(URLS.privacy); }}
+            style={[styles.termsLink, { color: colors.primary }]}
+          >
+            Privacy Policy
+          </Text>
+          .
         </Text>
 
         {/* Sign in link */}
@@ -245,6 +264,7 @@ const styles = StyleSheet.create({
   primaryButton: { borderRadius: 14, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', minHeight: 52, marginBottom: 16 },
   primaryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 15 },
   termsText: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, textAlign: 'center', marginBottom: 24 },
+  termsLink: { fontFamily: 'Inter_600SemiBold', textDecorationLine: 'underline' },
   footerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   footerText: { fontFamily: 'Inter_400Regular', fontSize: 14 },
   footerLink: { fontFamily: 'Inter_700Bold', fontSize: 14 },
