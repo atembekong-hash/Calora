@@ -66,6 +66,8 @@ Nutrition values, AI analysis, and photo estimates are starting points for your 
 ## Data Safety (Google Play Data Safety)
 
 See `docs/CALORAAPP_PRODUCT_METADATA.md` § Privacy Data Inventory for the full data audit.
+Use `docs/store-metadata/google-play-submission-checklist.md` as the
+field-by-field Console worksheet for the final signed build.
 
 **Data collected and shared with third parties:**
 - Food descriptions and photos are sent to an AI provider (OpenAI via proxy) for food recognition and coach responses. Images are not retained after analysis.
@@ -103,4 +105,5 @@ See `docs/CALORAAPP_PRODUCT_METADATA.md` § Privacy Data Inventory for the full 
 
 Required dimensions: 1024 × 500 px
 Content: CaloraApp wordmark + tagline "Eat Smarter. Live Better." on brand-consistent background.
-Status: **REQUIRES OWNER ACTION** — asset not yet created.
+Asset: `docs/store-assets/google-play-feature-graphic.png`
+Status: **READY FOR UPLOAD** — verified 1024 × 500 sRGB PNG.
