@@ -1,3 +1,9 @@
+> **SUPERSEDED FOR FUTURE SIGNED BUILDS (2026-08-27):** The release source in this
+> report predates the Premium revalidation and broad consent-gated Coach repairs.
+> Use `CALORA_PRODUCTION_READINESS_2026-08-27_COACH_CONSENT_ANDROID_APK.md` and
+> immutable ref `origin/calora-rc-2026-08-27-coach-consent-apk` instead. This
+> historical report remains only as evidence for its earlier candidate.
+
 # Final Calora Release Candidate Freeze Report
 
 **Freeze date:** 2026-08-27  
