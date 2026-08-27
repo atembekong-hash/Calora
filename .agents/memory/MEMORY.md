@@ -36,3 +36,4 @@
 - [Coach Fact Context replay policy](coach-fact-context-replay-policy.md) — TTL-bounded duplicate dark requests need no nonce ledger unless product requires exactly-once egress or audit semantics.
 - [Coach production control plane](coach-production-control-plane.md) — this environment can verify production state but cannot execute the approved rollout-control mutations.
 - [Publishing task isolation](publishing-task-isolation.md) — Publishing snapshots applied main, not an active task copy; historical-tree releases need an explicit owner decision.
+- [Spatial surface contrast](spatial-surface-contrast.md) — shared depth wrappers must preserve semantic background/foreground pairs, not just layout styles.

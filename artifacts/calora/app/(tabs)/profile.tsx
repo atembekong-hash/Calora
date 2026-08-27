@@ -22,7 +22,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { copyProfilePhoto, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import * as Sharing from 'expo-sharing';
 import { deriveExportHasData, makeExportHandler } from '@/lib/exportUiHandler';
 import { SettingRowPressable } from '@/components/SettingRowPressable';
@@ -32,6 +32,7 @@ import { AppHeader } from '@/components/AppChrome';
 import { SwipeableTabList } from '@/components/SwipeableTabList';
 import { ReferralCard } from '@/components/ReferralCard';
 import { REVENUECAT_ENTITLEMENT_IDENTIFIER, useSubscription } from '@/lib/revenuecat';
+import { enterMotion } from '@/lib/motion';
 
 // ─── Static config ────────────────────────────────────────────────────────────
 
@@ -411,7 +412,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
 
         {/* ── Profile card ── */}
-        <Animated.View entering={FadeInDown.springify().damping(20).delay(0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
+        <Animated.View entering={enterMotion('screen', 0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
           <View style={[styles.largeAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}>
             {profilePhotoUri
               ? <Image source={{ uri: profilePhotoUri }} style={{ width: 47, height: 47 }} contentFit="cover" />
@@ -458,7 +459,7 @@ export default function ProfileScreen() {
 
         <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
         {/* ── Appearance ── */}
-        <Animated.View entering={FadeInDown.springify().damping(20).delay(80)}>
+        <Animated.View entering={enterMotion('screen', 1)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
         <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Choose how {BRAND.name} should feel at any hour.</Text>
         <View style={[styles.segmentedControl, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -475,7 +476,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Text size */}
-        <Animated.View entering={FadeInDown.springify().damping(20).delay(140)}>
+        <Animated.View entering={enterMotion('screen', 2)}>
         <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 10 }]}>
           <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}>
             <Feather name="type" size={16} color={colors.primary} />
@@ -520,7 +521,7 @@ export default function ProfileScreen() {
 
         <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
         {/* ── Reminders ── */}
-        <Animated.View entering={FadeInDown.springify().damping(20).delay(200)}>
+        <Animated.View entering={enterMotion('screen', 3)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 4, marginBottom: 4 }]}>Reminders</Text>
         <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>On-device nudges for water intake, meals, and your daily goal.</Text>
 
@@ -1210,7 +1211,7 @@ function makeStyles(f: number) {
   sectionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 4, marginBottom: 12 },
 
   // Segmented controls (theme + units)
-  segmentedControl: { flexDirection: 'row', gap: 5, borderWidth: 1, padding: 5, borderRadius: 16, marginBottom: 12 },
+  segmentedControl: { flexDirection: 'row', gap: 5, borderWidth: StyleSheet.hairlineWidth, padding: 5, borderRadius: 16, marginBottom: 12 },
   segmentedOption: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderRadius: 11, paddingVertical: 10 },
   segmentedLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
 
@@ -1245,7 +1246,7 @@ function makeStyles(f: number) {
   planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 11, marginTop: 20 },
   betaPill: { borderRadius: 7, paddingHorizontal: 7, paddingVertical: 5 },
   betaText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1 },
-  planCard: { borderWidth: 1.5, borderRadius: 22, padding: 16 },
+  planCard: { borderWidth: 1, borderRadius: 22, padding: 16 },
   planEyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, letterSpacing: 1.1, marginBottom: 8 },
   planChoices: { gap: 8 },
   planChoice: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 15, padding: 11, gap: 9 },
@@ -1276,18 +1277,18 @@ function makeStyles(f: number) {
   emptySavedCopy: { flex: 1 },
   emptySavedTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f, marginBottom: 3 },
   savedList: { gap: 8 },
-  savedItem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 17, padding: 11 },
+  savedItem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: StyleSheet.hairlineWidth, borderRadius: 17, padding: 11 },
   deleteMealButton: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 
   // Living memory
-  memoryShortcut: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 12, marginBottom: 8 },
+  memoryShortcut: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 17, padding: 12, marginBottom: 8 },
 
   // Trust & privacy
   connectionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 17, padding: 12, marginBottom: 8 },
   connectionIcon: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   connectButton: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
   connectButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 12, marginBottom: 8 },
+  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 17, padding: 12, marginBottom: 8 },
   settingIcon: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   settingTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   settingBody: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 4 },

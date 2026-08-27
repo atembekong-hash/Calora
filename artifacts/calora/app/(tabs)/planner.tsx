@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
+import { Surface } from '@/components/Surface';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
@@ -60,7 +61,8 @@ function MealCard({
   isLogged: boolean;
 }) {
   return (
-    <View style={[styles.mealCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <Surface tier="flat" radius="lg" style={[styles.mealCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+{/*@ts-ignore*/}
       <Image
         source={[
           ...(meal.image ? [{ uri: meal.image }] : []),
@@ -98,7 +100,7 @@ function MealCard({
             {editMode && <Pressable accessibilityLabel={`Edit ${meal.name}`} onPress={onEdit} style={[styles.editMealButton, { borderColor: colors.primary }]}><Feather name="edit-2" size={12} color={colors.primary} /><Text style={[styles.editMealButtonText, { color: colors.primary }]}>Edit</Text></Pressable>}
         </View>
       </View>
-    </View>
+    </Surface>
   );
 }
 
@@ -127,7 +129,8 @@ function PlannerFocusCard({
       ? 'Start a calmer day'
       : `${remainingSlots} meal ${remainingSlots === 1 ? 'slot' : 'slots'} still open`;
   return (
-    <View style={[styles.focusCard, { backgroundColor: colors.hero }]}>
+    <Surface tier="raised" radius="xl" style={[styles.focusCard, { backgroundColor: colors.hero }]}>
+{/*@ts-ignore*/}
       <View style={styles.focusTop}>
         <View style={styles.focusCopy}>
           <Text style={[styles.focusEyebrow, { color: colors.heroMuted }]}>{copy.toUpperCase()}</Text>
@@ -143,7 +146,7 @@ function PlannerFocusCard({
           <Text style={[styles.focusPrimaryText, { color: colors.primaryForeground }]}>{allLogged ? 'View today' : meal ? 'Log next meal' : 'Add a meal'}</Text>
         </ScalePressable>
       </View>
-    </View>
+    </Surface>
   );
 }
 
@@ -157,7 +160,8 @@ function SummaryBar({ meals, target, colors }: { meals: PlannerMeal[]; target: n
   const dailyCalories = meals.length ? totals.calories / 7 : 0;
   const goalProgress = Math.min(dailyCalories / target, 1);
   return (
-    <View style={[styles.summaryCard, { backgroundColor: colors.hero }]}>
+    <Surface tier="flat" radius="xl" style={[styles.summaryCard, { backgroundColor: colors.hero }]}>
+{/*@ts-ignore*/}
       <View style={styles.summaryTop}>
         <View>
           <Text style={[styles.summaryEyebrow, { color: colors.heroMuted }]}>WEEKLY NUTRITION</Text>
@@ -171,7 +175,7 @@ function SummaryBar({ meals, target, colors }: { meals: PlannerMeal[]; target: n
         <View><Text style={[styles.summaryMacroValue, { color: colors.onHero }]}>{formatGrams(totals.carbs / 7)}</Text><Text style={[styles.summaryMacroLabel, { color: colors.heroMuted }]}>carbs / day</Text></View>
         <View><Text style={[styles.summaryMacroValue, { color: colors.onHero }]}>{formatGrams(totals.fat / 7)}</Text><Text style={[styles.summaryMacroLabel, { color: colors.heroMuted }]}>fat / day</Text></View>
       </View>
-    </View>
+    </Surface>
   );
 }
 
@@ -1342,7 +1346,7 @@ function makeStyles(f: number) {
    todayDateLink: { minHeight: 58, borderRadius: 16, borderWidth: 1, paddingHorizontal: 13, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
    todayDateLabel: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
    todayDateMeta: { fontFamily: 'Inter_400Regular', fontSize: 9.5 * f, marginTop: 3 },
-   focusCard: { borderRadius: 22, padding: 17, marginBottom: 10, overflow: 'hidden' },
+   focusCard: { padding: 17, marginBottom: 10, overflow: 'hidden' },
    focusTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
    focusCopy: { flex: 1 },
    focusEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8.5 * f, letterSpacing: 1.15, marginBottom: 5 },
@@ -1400,7 +1404,7 @@ function makeStyles(f: number) {
    dayCoverage: { flexDirection: 'row', gap: 2, marginTop: 5 },
    coverageDot: { width: 4, height: 4, borderRadius: 2 },
    todayTag: { fontFamily: 'Inter_700Bold', fontSize: 7 * f, marginTop: 2 },
-  summaryCard: { borderRadius: 21, padding: 16, marginBottom: 12 },
+  summaryCard: { padding: 16, marginBottom: 12 },
   summaryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   summaryEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1 },
   summaryTitle: { fontFamily: 'Inter_700Bold', fontSize: 20 * f, marginTop: 4 },
@@ -1441,7 +1445,7 @@ function makeStyles(f: number) {
    daySubheading: { fontFamily: 'Inter_400Regular', fontSize: 9.5 * f, marginTop: 3 },
   dayTotal: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
   mealList: { gap: 9 },
-   mealCard: { borderRadius: 18, borderWidth: 1, overflow: 'hidden', flexDirection: 'row', minHeight: 122 },
+   mealCard: { overflow: 'hidden', flexDirection: 'row', minHeight: 122 },
    mealImage: { width: 108, minHeight: 122, alignSelf: 'stretch' },
   mealCardBody: { flex: 1, padding: 12 },
   mealCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

@@ -6,10 +6,12 @@ import * as Haptics from 'expo-haptics';
 import React from 'react';
 import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { motion } from '@/constants/tokens';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -42,9 +44,8 @@ export function ScalePressable({
     transform: [
       {
         scale: withSpring(pressed.value ? scale : 1, {
-          damping: 18,
-          stiffness: 300,
-          mass: 0.6,
+          ...motion.micro.spring,
+          reduceMotion: ReduceMotion.System,
         }),
       },
     ],

@@ -6,7 +6,7 @@ import {
 } from '@workspace/api-client-react';
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import {
   ActivityIndicator,
   Modal,
@@ -31,6 +31,7 @@ import {
 } from '@/lib/intelligence';
 import type { IntelligenceFact } from '@/lib/intelligence';
 import { dateKey } from '@/lib/dates';
+import { enterMotion } from '@/lib/motion';
 
 type DisplayTurn = {
   id: string;
@@ -361,7 +362,7 @@ export default function CoachScreen() {
               </View>
             )}
             {turns.map((turn) => (
-              <Animated.View key={turn.id} entering={FadeInDown.springify().damping(16).duration(380)} style={turn.role === 'user' ? styles.userTurn : styles.assistantTurn}>
+              <Animated.View key={turn.id} entering={enterMotion('component')} style={turn.role === 'user' ? styles.userTurn : styles.assistantTurn}>
                 <View style={[styles.messageBubble, turn.role === 'user'
                   ? { backgroundColor: colors.primary }
                   : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
@@ -522,7 +523,7 @@ const styles = StyleSheet.create({
   consentNote: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, marginTop: 18 },
   primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 13, paddingVertical: 13, marginTop: 20 },
   primaryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
-  briefCard: { borderWidth: 1, borderRadius: 22, padding: 17, marginBottom: 20 },
+  briefCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 17, marginBottom: 20 },
   briefIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   briefEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1 },
   briefTitle: { fontFamily: 'Inter_700Bold', fontSize: 19, marginTop: 6 },
@@ -531,7 +532,7 @@ const styles = StyleSheet.create({
   assistantTurn: { alignItems: 'stretch', marginBottom: 18 },
   messageBubble: { maxWidth: '92%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12 },
   messageText: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
-  evidenceCard: { borderWidth: 1, borderRadius: 18, padding: 13, marginTop: 9 },
+  evidenceCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 13, marginTop: 9 },
   evidenceHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 4 },
   evidenceIcon: { width: 29, height: 29, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   evidenceTitle: { fontFamily: 'Inter_700Bold', fontSize: 11 },

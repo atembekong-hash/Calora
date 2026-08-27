@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ActivityIndicator, AppState, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
+import { Surface } from '@/components/Surface';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -83,7 +84,7 @@ function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160,
   const provenance = recipeProvenance(recipe);
   const fitsGoal = remainingCalories !== undefined && remainingCalories > 0 && recipe.calories != null && recipe.calories > 0 && recipe.calories <= remainingCalories;
   return (
-    <View style={[styles.recipeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <Surface tier="flat" radius="lg" style={styles.recipeCard}>
       <View>
         <Pressable
           accessibilityRole="button"
@@ -107,7 +108,7 @@ function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160,
           <Feather name="bookmark" size={16} color={saved ? colors.primaryForeground : colors.foreground} />
         </Pressable>
       </View>
-    </View>
+    </Surface>
   );
 }
 
@@ -128,7 +129,7 @@ function UpcomingRecipeSection({
     ? 'This space will bring richer recipe sources into the same trusted Calora flow—without changing what you already use in Discover.'
     : 'Soon you’ll be able to turn your ingredients, goals, and meal plan into a few thoughtful recipe ideas.';
   return (
-    <View style={[styles.upcomingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <Surface tier="raised" radius="xl" style={styles.upcomingCard}>
       <View style={[styles.upcomingIcon, { backgroundColor: colors.accent }]}>
         <Feather name={premium ? 'award' : 'star'} size={20} color={colors.accentForeground} />
       </View>
@@ -139,7 +140,7 @@ function UpcomingRecipeSection({
         <Feather name="compass" size={14} color={colors.foreground} />
         <Text style={[styles.upcomingActionText, { color: colors.foreground }]}>Browse Discover</Text>
       </ScalePressable>
-    </View>
+    </Surface>
   );
 }
 
@@ -584,7 +585,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                 <Text style={[styles.detailSubtitle, { color: colors.mutedForeground }]}>{detail.area ? `${detail.area} cuisine` : 'A recipe for your collection'}{detail.category ? ` · ${detail.category}` : ''}</Text>
 
                 {/* Nutrition strip — values scale with servingCount */}
-                <View style={[styles.nutritionStrip, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Surface tier="flat" radius="lg" style={styles.nutritionStrip}>
                   {(isFetchingDetail && !detail.calories) || nutritionPending ? (
                     <View style={styles.nutritionLoading}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>{nutritionPending ? 'Estimating nutrition…' : 'Estimating nutrition…'}</Text></View>
                   ) : nutritionUnavailable || premiumNutritionUnavailable ? (
@@ -601,7 +602,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
                       <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{scaledFat ? `${approxPrefix}${scaledFat}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
                     </>
                   )}
-                </View>
+                </Surface>
 
                 {/* Feature 1: Serving stepper */}
                 <View style={[styles.servingRow, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
@@ -700,6 +701,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
           )}
         </View>
       </View>
+    </Modal>
 
       {/* Plan picker sheet */}
       <Modal visible={planVisible} transparent animationType="slide" onRequestClose={() => setPlanVisible(false)}>
@@ -772,8 +774,6 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
           </View>
         </View>
       </Modal>
-
-    </Modal>
     {/* Feature 4: Shopping list sheet — rendered OUTSIDE the outer recipe modal
         to avoid React Native Web portal stacking issues. When nested inside the
         outer Modal, the outer modal's backdrop View creates a stacking context
@@ -1079,7 +1079,7 @@ function makeStyles(f: number) {
    sectionTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 14, marginHorizontal: 20, marginTop: 7, padding: 3, gap: 2 },
    sectionTab: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
    sectionTabText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-   upcomingCard: { borderWidth: 1, borderRadius: 22, padding: 21, alignItems: 'center', marginTop: 13 },
+   upcomingCard: { padding: 21, alignItems: 'center', marginTop: 13 },
    upcomingIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
    upcomingEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1, textAlign: 'center' },
    upcomingTitle: { fontFamily: 'Inter_700Bold', fontSize: 21 * f, letterSpacing: -0.4, textAlign: 'center', marginTop: 7 },
@@ -1123,7 +1123,7 @@ function makeStyles(f: number) {
   horizontalCards: { gap: 11, paddingBottom: 25 },
   recipeGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   recipeGridCard: { width: '48.35%' },
-  recipeCard: { borderWidth: 1, borderRadius: 19, overflow: 'hidden', flex: 1 },
+  recipeCard: { overflow: 'hidden', flex: 1 },
   recipeImage: { width: '100%', backgroundColor: '#1d4539' },
   imageFallback: { alignItems: 'center', justifyContent: 'center' },
   imageFallbackCopy: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -1186,7 +1186,7 @@ function makeStyles(f: number) {
   detailEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.2, marginTop: 17 },
   detailTitle: { fontFamily: 'Inter_700Bold', fontSize: 25 * f, letterSpacing: -0.6, marginTop: 6 },
   detailSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, marginTop: 6 },
-  nutritionStrip: { flexDirection: 'row', justifyContent: 'space-between', borderWidth: 1, borderRadius: 16, padding: 13, marginTop: 17 },
+  nutritionStrip: { flexDirection: 'row', justifyContent: 'space-between', padding: 13, marginTop: 17 },
   nutritionValue: { fontFamily: 'Inter_700Bold', fontSize: 16 * f },
   nutritionLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 3 },
   notice: { flexDirection: 'row', gap: 9, borderRadius: 14, padding: 12, marginTop: 12 },

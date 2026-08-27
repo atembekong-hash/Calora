@@ -5,12 +5,19 @@ import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { motion } from '@/constants/tokens';
 
 function AnimatedTabIcon({ focused, children }: { focused: boolean; children: React.ReactNode }) {
   const scale = useSharedValue(1);
   useEffect(() => {
-    scale.value = withSpring(focused ? 1.18 : 1, { damping: 14, stiffness: 220, mass: 0.7 });
+    scale.value = withSpring(focused ? 1.18 : 1, {
+      ...motion.micro.spring,
+      damping: 14,
+      stiffness: 220,
+      mass: 0.7,
+      reduceMotion: ReduceMotion.System,
+    });
   }, [focused, scale]);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return <Animated.View style={animStyle}>{children}</Animated.View>;
@@ -91,7 +98,7 @@ function ClassicTabLayout() {
               onLongPress={props.onLongPress}
               style={[styles.scanTabButton, props.style]}
             >
-              <View style={[styles.scanTabCircle, { backgroundColor: colors.primary }]}>
+              <View style={[styles.scanTabCircle, { backgroundColor: colors.primary, borderColor: colors.background }]}>
                 <Feather name="camera" size={24} color={colors.primaryForeground} />
               </View>
               <Text style={[styles.scanTabLabel, { color: colors.primary }]}>Scan</Text>
@@ -141,11 +148,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 5,
-    borderColor: '#f7f8f3',
-    shadowColor: '#143f34',
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
+    shadowColor: '#17231f',
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 7,
   },
   scanTabLabel: {
