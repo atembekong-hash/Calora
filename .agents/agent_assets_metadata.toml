@@ -22,3 +22,17 @@ mtime_ms = 1787405790692
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/fea511eb-1476-45b3-b0ee-195f913fdaf8/f33531ef-b5fd-4f56-ad7b-b569036ab90f"
 storage_version_token = "1787406348806553"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "maW81KmExsWv0tiVQ_Xa5"
+uri = "file://docs/store-assets/google-play-feature-graphic.png"
+type = "image"
+title = "CaloraApp Google Play Feature Graphic"
+description = "Upload-ready 1024 × 500 sRGB PNG for the Google Play store listing."
+logical_id = "fe3eb6e8-8d8f-48a8-9e33-65e6b9da0ed8"
+content_hash = "sha256:00c9866df2848a4003121e3a8658fedb6bbd69a73cf9da2de3786931fb41309f"
+size = 645006
+mtime_ms = 1787817558875
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/fe3eb6e8-8d8f-48a8-9e33-65e6b9da0ed8/46799c52-046c-4b11-9280-a23bb60ccf68"
+storage_version_token = "1787817626788469"
+content_type = "image/png"
