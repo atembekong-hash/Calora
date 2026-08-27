@@ -36,3 +36,17 @@ mtime_ms = 1787817558875
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/fe3eb6e8-8d8f-48a8-9e33-65e6b9da0ed8/46799c52-046c-4b11-9280-a23bb60ccf68"
 storage_version_token = "1787817626788469"
 content_type = "image/png"
+
+[[outputs]]
+id = "u2-BvgnK-Il14RwlyEhD4"
+uri = "file://CALORA_PRODUCTION_READINESS_2026-08-27_COACH_CONSENT_ANDROID_APK.md"
+type = "text"
+title = "Calora Production Readiness Report"
+description = "Forty-section evidence report for Premium recipe continuity, consent-gated Coach, and Android APK release readiness."
+logical_id = "35836d6f-7261-4200-911a-db84dac99d7f"
+content_hash = "sha256:71bcdb84d1f699598ce0d7aecae36b797fd47e18ae74dfae3a4778b22e00490d"
+size = 21891
+mtime_ms = 1787839789604
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/35836d6f-7261-4200-911a-db84dac99d7f/48066db7-6907-4c7d-ba7f-0ab62435389e"
+storage_version_token = "1787839846412737"
+content_type = "text/markdown"
