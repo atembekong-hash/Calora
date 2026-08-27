@@ -163,7 +163,7 @@ describe("dark Coach Fact Context path", () => {
     ["is banned", "banned"],
     ["is suspended or disabled", "indeterminate_ban_status"],
     ["has unavailable account status", "missing_or_malformed_metadata"],
-  ])("denies %s before consent, cohort, nonce, rate limiting, or provider execution", async (_label, reason) => {
+  ])("denies %s before consent, rollout, nonce, rate limiting, or provider execution", async (_label, reason) => {
     verifyBearerToken.mockResolvedValueOnce({
       id: "user-a",
       coachFactAccount: { eligible: false, reason },
@@ -262,7 +262,7 @@ describe("dark Coach Fact Context path", () => {
     expect(JSON.stringify(vi.mocked(openai.chat.completions.create).mock.calls[0])).not.toMatch(/dailySummaries|recentEntries|profile|food name/i);
   });
 
-  it("discards a provider completion when the dedicated-pilot account is revoked while pending", async () => {
+  it("discards a provider completion when account eligibility is revoked while pending", async () => {
     vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({
       message: "ok", observations: [], actions: [], safetyState: "normal",
       limitations: [], contextCoverage: { usedSections: [], missingSections: [] }, requestNonce: nonce,
@@ -280,7 +280,7 @@ describe("dark Coach Fact Context path", () => {
 
   it.each([
     ["consent is revoked", () => hasCurrentCoachFactConsent.mockResolvedValueOnce(true).mockResolvedValueOnce(false)],
-    ["cohort eligibility is removed", () => getCoachFactRolloutDecision.mockResolvedValueOnce({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" }).mockResolvedValueOnce({ cohortEligible: false, legacyFallbackEnabled: false, reason: "cohort_deny" })],
+    ["global rollout is disabled", () => getCoachFactRolloutDecision.mockResolvedValueOnce({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" }).mockResolvedValueOnce({ cohortEligible: false, legacyFallbackEnabled: false, reason: "dark_default_deny" })],
     ["a future legacy fallback state appears", () => getCoachFactRolloutDecision.mockResolvedValueOnce({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" }).mockResolvedValueOnce({ cohortEligible: true, legacyFallbackEnabled: true, reason: "cohort_eligible" })],
   ])("discards provider output when %s after dispatch", async (_label, revoke) => {
     vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({
@@ -362,6 +362,13 @@ describe("dark Coach Fact Context path", () => {
     });
     expect(response.status).toBe(200);
     expect(openai.chat.completions.create).toHaveBeenCalledOnce();
+    const providerRequest = vi.mocked(openai.chat.completions.create).mock.calls[0]?.[0] as {
+      messages?: Array<{ role?: string; content?: string }>;
+    };
+    const systemPrompt = providerRequest.messages?.find((message) => message.role === "system")?.content ?? "";
+    expect(systemPrompt).toContain("copy one Approved Fact Context fact.statement verbatim");
+    expect(systemPrompt).toContain("put only that fact.key in observation.factKeys");
+    expect(systemPrompt).toContain("Copy the Approved Fact Context requestNonce exactly");
   });
 
   it("accepts a real mobile insufficient context with all defined missing-data reasons", async () => {
@@ -550,7 +557,7 @@ describe("adversarial timestamp validation", () => {
   });
 });
 
-describe("server-owned cohort rollout via endpoint integration", () => {
+describe("server-owned global rollout via endpoint integration", () => {
   it("returns 404 when mocked rollout simulates eligibility revocation", async () => {
     const appInstance = express();
     appInstance.use(express.json());
@@ -570,14 +577,14 @@ describe("server-owned cohort rollout via endpoint integration", () => {
     const firstRes = await request(appInstance).post("/v1/coach/fact-context/respond").send(body());
     expect(firstRes.status).not.toBe(404);
 
-    getCoachFactRolloutDecision.mockReturnValueOnce({ cohortEligible: false, legacyFallbackEnabled: false, reason: "cohort_deny" });
+    getCoachFactRolloutDecision.mockReturnValueOnce({ cohortEligible: false, legacyFallbackEnabled: false, reason: "dark_default_deny" });
     const secondRes = await request(appInstance).post("/v1/coach/fact-context/respond").send(body());
     expect(secondRes.status).toBe(404);
     expect(vi.mocked(openai.chat.completions.create)).toHaveBeenCalledTimes(1);
     delete process.env.COACH_FACT_CONTEXT_ENABLED;
   });
 
-  it("returns 404 when rollout simulates expired membership", async () => {
+  it("returns 404 while the global rollout switch is disabled", async () => {
     const appInstance = express();
     appInstance.use(express.json());
     appInstance.use(coachFactContextRouter);
@@ -588,7 +595,7 @@ describe("server-owned cohort rollout via endpoint integration", () => {
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
     dbExecuteMock.mockResolvedValue({ rowCount: 1 });
 
-    getCoachFactRolloutDecision.mockReturnValueOnce({ cohortEligible: false, legacyFallbackEnabled: false, reason: "cohort_expired" });
+    getCoachFactRolloutDecision.mockReturnValueOnce({ cohortEligible: false, legacyFallbackEnabled: false, reason: "dark_default_deny" });
     const res = await request(appInstance).post("/v1/coach/fact-context/respond").send(body());
     expect(res.status).toBe(404);
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
