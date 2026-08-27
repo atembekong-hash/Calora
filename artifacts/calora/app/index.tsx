@@ -136,8 +136,15 @@ export default function OnboardingScreen() {
                     text: 'Clear everything',
                     style: 'destructive',
                     onPress: async () => {
-                      await clearAllData();
-                      retryHydration();
+                      try {
+                        await clearAllData();
+                        retryHydration();
+                      } catch {
+                        Alert.alert(
+                          'Clear failed',
+                          'Your local data was not fully deleted. Nothing else was changed. Please try again.',
+                        );
+                      }
                     },
                   },
                 ],

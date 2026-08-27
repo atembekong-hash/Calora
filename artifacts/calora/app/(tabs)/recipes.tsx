@@ -8,8 +8,8 @@ import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
-import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getRecipe, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getPremiumRecipe, getRecipe, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
@@ -29,6 +29,7 @@ import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
 import { hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
+import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -285,19 +286,39 @@ function PremiumCatalogue({ colors, onOpen, onSave, savedPremiumRecipes, onLoadM
     loadingMoreRef.current = false;
   }, [search, category]);
   const hasLoadedRecipes = loadedForUserId === userId && loadedRecipes.length > 0;
+  const knownSavedRecipes = useMemo(
+    () => [...savedPremiumRecipes, ...loadedRecipes, ...(data?.status === 'available' ? data.recipes : [])],
+    [data, loadedRecipes, savedPremiumRecipes],
+  );
+  const missingSavedIds = useMemo(
+    () => missingSavedPremiumRecipeIds(savedRecipeIds, knownSavedRecipes),
+    [knownSavedRecipes, savedRecipeIds],
+  );
+  const missingSavedQueries = useQueries({
+    queries: missingSavedIds.map((sourceId) => ({
+      queryKey: premiumRecipeDetailQueryKey(userId, getGetPremiumRecipeQueryKey(sourceId)),
+      queryFn: () => getPremiumRecipe(sourceId),
+      enabled: Boolean(userId && data?.status === 'available' && !accessDenied),
+      staleTime: 1000 * 60 * 10,
+      retry: false,
+    })),
+  });
+  const fetchedSavedRecipes = missingSavedQueries
+    .filter((savedQuery) => savedQuery.isSuccess && !savedQuery.error && savedQuery.data)
+    .map((savedQuery) => savedQuery.data as PremiumRecipe);
   if (!session) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in to browse Premium recipes</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Premium recipe sources are available to signed-in members only.</Text><Pressable accessibilityLabel="Sign in to access Premium recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text></Pressable></View>;
-  if (accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="award" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{accessDeniedStatus === 401 ? 'Sign in to browse Premium recipes' : 'Premium membership required'}</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{accessDeniedStatus === 401 ? 'Your session has ended. Sign in again to access Premium recipes.' : 'An active Calora Premium membership is required to browse these recipes.'}</Text></View>;
+  if (accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="award" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{accessDeniedStatus === 401 ? 'Sign in to browse Premium recipes' : 'Premium membership required'}</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{accessDeniedStatus === 401 ? 'Your session has ended. Sign in again to access Premium recipes.' : 'An active Calora Premium membership is required to browse these recipes.'}</Text><Pressable accessibilityLabel={accessDeniedStatus === 401 ? 'Sign in to access Premium recipes' : 'View Premium membership options'} onPress={() => accessDeniedStatus === 401 ? router.push('/auth/sign-in') : router.push({ pathname: '/(tabs)/profile', params: { tab: 'membership' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>{accessDeniedStatus === 401 ? 'Sign in' : 'View membership options'}</Text></Pressable></View>;
   // A new offset has its own React Query key. Do not replace an existing grid
   // with the initial loader/error state while that page is resolving: collapsing
   // the parent ScrollView content makes React Native clamp its scroll offset.
-  if (query.isError && !accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Try again shortly. Discover remains available.</Text><Pressable onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
+  if (query.isError && !accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Try again shortly. Discover remains available.</Text><Pressable accessibilityLabel="Retry loading Premium recipes" onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
   if (!currentAccess) return <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Checking Premium access…</Text></View>;
-  if (data?.status === 'error' && !hasLoadedRecipes) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'Try again shortly. Discover remains available.'}</Text><Pressable onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
+  if (data?.status === 'error' && !hasLoadedRecipes) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'Try again shortly. Discover remains available.'}</Text><Pressable accessibilityLabel="Retry loading Premium recipes" onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
    if (data?.status === 'restricted') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are not available</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'This recipe provider is not enabled for this account yet. Discover remains available.'}</Text></View>;
   if (data?.status === 'unavailable') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="link-2" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium source not connected</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message}</Text></View>;
   const recipes = loadedRecipes;
-  const savedRecipes = savedPremiumRecipes.filter((recipe) => savedRecipeIds.includes(recipe.id));
-  return <><View style={styles.premiumToolbar}><View style={[styles.searchBox, { flex: 1, backgroundColor: colors.card, borderColor: colors.input }]}><Feather name="search" size={17} color={colors.mutedForeground} /><TextInput value={search} onChangeText={setSearch} placeholder="Search Premium recipes" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} /></View><Pressable accessibilityLabel="Open Premium recipe filters" onPress={() => setFilterVisible(true)} style={[styles.filterButton, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.foreground} /></Pressable></View><Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>{data?.provider} · provider-supplied recipe information</Text>{savedRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved Premium recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your Premium shortlist, ready when you are.</Text></View></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedRecipes.map((recipe) => <View key={recipe.id} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved imageHeight={160} onPress={() => onOpen(recipe)} onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }} /></View>)}</ScrollView></>}{recipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Premium recipes found</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Try a different search or filter.</Text></View> : <Animated.View entering={FadeInDown.springify().damping(20)} style={styles.recipeGrid}>{recipes.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => onOpen(recipe)} onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }} /></View>)}</Animated.View>}<Modal visible={filterVisible} transparent animationType="slide" onRequestClose={() => setFilterVisible(false)}><View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}><View style={[styles.createSheet, { backgroundColor: colors.background }]}><Text style={[styles.detailTitle, { color: colors.foreground }]}>Premium filters</Text><Text style={[styles.inputLabel, { color: colors.mutedForeground, marginTop: 16 }]}>Category</Text><TextInput value={category} onChangeText={setCategory} placeholder="e.g. Dinner" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} /><Pressable onPress={() => setFilterVisible(false)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Apply filters</Text></Pressable></View></View></Modal></>;
+  const savedRecipes = mergeSavedPremiumRecipes(savedRecipeIds, knownSavedRecipes, fetchedSavedRecipes);
+  return <><View style={styles.premiumToolbar}><View style={[styles.searchBox, { flex: 1, backgroundColor: colors.card, borderColor: colors.input }]}><Feather name="search" size={17} color={colors.mutedForeground} /><TextInput accessibilityLabel="Search Premium recipes" value={search} onChangeText={setSearch} placeholder="Search Premium recipes" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} /></View><Pressable accessibilityLabel="Open Premium recipe filters" onPress={() => setFilterVisible(true)} style={[styles.filterButton, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.foreground} /></Pressable></View><Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>{data?.provider} · provider-supplied recipe information</Text>{savedRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved Premium recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your Premium shortlist, ready when you are.</Text></View></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedRecipes.map((recipe) => <View key={recipe.id} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved imageHeight={160} onPress={() => onOpen(recipe)} onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }} /></View>)}</ScrollView></>}{recipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Premium recipes found</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{search || category ? 'Try a different search or filter.' : 'No Premium recipes are available from the provider right now.'}</Text></View> : <Animated.View entering={FadeInDown.springify().damping(20)} style={styles.recipeGrid}>{recipes.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => onOpen(recipe)} onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }} /></View>)}</Animated.View>}<Modal visible={filterVisible} transparent animationType="slide" onRequestClose={() => setFilterVisible(false)}><View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}><View accessibilityViewIsModal style={[styles.createSheet, { backgroundColor: colors.background }]}><Text style={[styles.detailTitle, { color: colors.foreground }]}>Premium filters</Text><Text style={[styles.inputLabel, { color: colors.mutedForeground, marginTop: 16 }]}>Category</Text><TextInput accessibilityLabel="Premium recipe category filter" value={category} onChangeText={setCategory} placeholder="e.g. Dinner" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} /><Pressable accessibilityLabel="Apply Premium recipe filters" onPress={() => setFilterVisible(false)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Apply filters</Text></Pressable></View></View></Modal></>;
 }
 
 function ReviewComponent({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (c: FoodMemoryComponent) => void }) {
@@ -379,8 +400,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   useEffect(() => {
     if (!premiumDetailDenied) return;
     queryClient.removeQueries({ queryKey: premiumDetailKey, exact: true });
-    onClose();
-  }, [onClose, premiumDetailDenied, premiumDetailKey, queryClient]);
+  }, [premiumDetailDenied, premiumDetailKey, queryClient]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active' && premium) void premiumDetailQuery.refetch();
@@ -412,6 +432,51 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
   const [planDay, setPlanDay] = useState(() => recipeSlotTarget?.day ?? plannerViewedDay ?? dateKey());
   const [planMealType, setPlanMealType] = useState<PlannerMeal['meal']>(() => recipeSlotTarget?.mealType ?? 'Dinner');
   const reviewDraft = reviewDraftId ? (foodDrafts.find((d) => d.id === reviewDraftId) ?? null) : null;
+
+  if (premiumDetailDenied) {
+    return (
+      <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.52)', justifyContent: 'center', padding: 24 }]}>
+          <View accessibilityViewIsModal style={[styles.createSheet, { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, borderRadius: 22 }]}>
+            <View style={[styles.accessMessageIcon, { backgroundColor: colors.accent }]}>
+              <Feather name={premiumDetailErrorStatus === 401 ? 'log-in' : 'award'} size={20} color={colors.primary} />
+            </View>
+            <Text style={[styles.detailTitle, { color: colors.foreground }]}>
+              {premiumDetailErrorStatus === 401 ? 'Sign in again' : 'Premium access required'}
+            </Text>
+            <Text style={[styles.accessMessageBody, { color: colors.mutedForeground }]}>
+              {premiumDetailErrorStatus === 401
+                ? 'Your session ended while this recipe was open.'
+                : 'This recipe requires an active Calora Premium membership.'}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={premiumDetailErrorStatus === 401 ? 'Sign in again' : 'View Premium membership options'}
+              onPress={() => {
+                onClose();
+                premiumDetailErrorStatus === 401
+                  ? router.push('/auth/sign-in')
+                  : router.push({ pathname: '/(tabs)/profile', params: { tab: 'membership' } });
+              }}
+              style={[styles.primaryAction, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>
+                {premiumDetailErrorStatus === 401 ? 'Sign in' : 'View membership'}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close Premium access message"
+              onPress={onClose}
+              style={[styles.secondaryAction, { borderColor: colors.border }]}
+            >
+              <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Not now</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   if (!detail) return null;
   const canLog = Boolean(detail.calories && detail.calories > 0);
@@ -1186,6 +1251,8 @@ function makeStyles(f: number) {
   detailEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.2, marginTop: 17 },
   detailTitle: { fontFamily: 'Inter_700Bold', fontSize: 25 * f, letterSpacing: -0.6, marginTop: 6 },
   detailSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, marginTop: 6 },
+  accessMessageIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  accessMessageBody: { fontFamily: 'Inter_400Regular', fontSize: 13 * f, lineHeight: 19 * f, marginTop: 8 },
   nutritionStrip: { flexDirection: 'row', justifyContent: 'space-between', padding: 13, marginTop: 17 },
   nutritionValue: { fontFamily: 'Inter_700Bold', fontSize: 16 * f },
   nutritionLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 3 },

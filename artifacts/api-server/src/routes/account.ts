@@ -179,8 +179,8 @@ router.delete("/v1/account", async (req, res): Promise<void> => {
       res.status(202).json({ message: "Account deletion is already in progress. It will continue securely." });
       return;
     }
-  } catch {
-    req.log.error("Account deletion operation failed");
+  } catch (error) {
+    req.log.error({ err: error }, "Account deletion operation failed");
     res.status(502).json({ message: "Account deletion failed on the server. Please try again or contact support." });
     return;
   }

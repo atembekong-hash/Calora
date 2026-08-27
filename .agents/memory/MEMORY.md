@@ -29,6 +29,7 @@
 - [FatSecret static egress](fatsecret-static-egress.md) — FatSecret Premier calls must leave from an allowlisted static IP; enable the gateway only after that route is verified.
 - [RevenueCat Test Store price replacements](revenuecat-test-store-price-replacements.md) — Test Store price changes require replacement products; archive historical products when deletion is blocked.
 - [RevenueCat v2 entitlement checks](revenuecat-v2-entitlement-checks.md) — entitlement authorization must use v2 active-entitlement records when the connector does not authorize legacy v1 subscribers.
+- [RevenueCat customer erasure scope](revenuecat-customer-erasure-scope.md) — existing-customer deletion stays pending until the provider grants customer read/write permission.
 - [Managed database support objects](managed-database-support-objects.md) — Drizzle table pushes do not establish PostgreSQL functions or triggers; production propagation must be proven separately.
 - [Supabase Auth boundary](supabase-auth-boundary.md) — Calora’s configured Supabase project currently provides Auth, while Calora domain data remains in managed PostgreSQL.
 - [PostgreSQL tenant isolation](postgres-tenant-isolation.md) — current API predicates are tested, but the shared superuser pool cannot enforce database tenant isolation.
@@ -37,3 +38,4 @@
 - [Coach production control plane](coach-production-control-plane.md) — this environment can verify production state but cannot execute the approved rollout-control mutations.
 - [Publishing task isolation](publishing-task-isolation.md) — Publishing snapshots applied main, not an active task copy; historical-tree releases need an explicit owner decision.
 - [Spatial surface contrast](spatial-surface-contrast.md) — shared depth wrappers must preserve semantic background/foreground pairs, not just layout styles.
+- [Detached background tasks](detached-background-tasks.md) — timer, recovery, and startup promises need a logged rejection boundary so transient failures cannot terminate the API.

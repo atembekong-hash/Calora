@@ -8,7 +8,7 @@ vi.mock("@replit/connectors-sdk", () => ({
   },
 }));
 
-import { hasActivePremiumEntitlement } from "../lib/revenuecat";
+import { deleteRevenueCatSubscriber, hasActivePremiumEntitlement } from "../lib/revenuecat";
 
 const originalProjectId = process.env.REVENUECAT_PROJECT_ID;
 
@@ -83,6 +83,62 @@ describe("hasActivePremiumEntitlement", () => {
 
     await expect(hasActivePremiumEntitlement("premium-user")).rejects.toThrow(
       "RevenueCat subscriber lookup failed (503)",
+    );
+  });
+});
+
+describe("deleteRevenueCatSubscriber", () => {
+  it("deletes the customer through the connector-authorized v2 API", async () => {
+    proxyMock
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await expect(deleteRevenueCatSubscriber("customer/123")).resolves.toBeUndefined();
+    expect(proxyMock).toHaveBeenNthCalledWith(
+      1,
+      "revenuecat",
+      "/v2/projects/project-123/customers/customer%2F123",
+      { method: "GET" },
+    );
+    expect(proxyMock).toHaveBeenNthCalledWith(
+      2,
+      "revenuecat",
+      "/v2/projects/project-123/customers/customer%2F123",
+      { method: "DELETE" },
+    );
+  });
+
+  it("treats a missing customer as already erased", async () => {
+    proxyMock.mockResolvedValueOnce(jsonResponse({ message: "Customer not found" }, 404));
+
+    await expect(deleteRevenueCatSubscriber("missing-user")).resolves.toBeUndefined();
+    expect(proxyMock).toHaveBeenCalledOnce();
+  });
+
+  it("fails explicitly when the project is not configured", async () => {
+    delete process.env.REVENUECAT_PROJECT_ID;
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat project ID is not configured",
+    );
+    expect(proxyMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces provider failures without reporting erasure", async () => {
+    proxyMock.mockResolvedValueOnce(jsonResponse({ message: "unavailable" }, 503));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat customer lookup failed (503)",
+    );
+  });
+
+  it("does not report erasure when an existing customer cannot be deleted", async () => {
+    proxyMock
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
+      .mockResolvedValueOnce(jsonResponse({ message: "forbidden" }, 403));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat customer deletion failed (403)",
     );
   });
 });

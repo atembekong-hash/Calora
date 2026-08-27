@@ -21,9 +21,13 @@ export default function InviteScreen() {
 
   useEffect(() => {
     if (isLoading) return;
-    (async () => {
+    void (async () => {
       if (typeof code === 'string' && code.length > 0) {
-        await setPendingInviteCode(code);
+        try {
+          await setPendingInviteCode(code);
+        } catch {
+          // Keep this transient route navigable if device storage is unavailable.
+        }
       }
       if (user) {
         router.replace('/(tabs)/profile');

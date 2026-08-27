@@ -446,6 +446,56 @@ describe('real CaloraProvider — clearProfilePhoto() clears the URI and deletes
   });
 });
 
+describe('real CaloraProvider — clearAllData() deletes the profile photo file', () => {
+  it('deletes the account-scoped photo before completing the local clear', async () => {
+    _asyncStore[STORAGE_KEY] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      onboardingComplete: true,
+      profile: ACCOUNT_PROFILE,
+      profilePhotoUri: STORED_PHOTO_URI,
+    });
+    _fsGetInfoResult.exists = true;
+
+    const { deleteAsync } = await import('expo-file-system/legacy');
+    const { result } = await renderAndAwaitHydration();
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      await result.current.clearAllData();
+    });
+
+    expect(deleteAsync).toHaveBeenCalledWith(
+      '/test/docs/calora-profile-photo.jpg',
+      { idempotent: true },
+    );
+    expect(result.current.profilePhotoUri).toBeNull();
+  });
+
+  it('rejects without clearing state when the photo file cannot be deleted', async () => {
+    _asyncStore[STORAGE_KEY] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      onboardingComplete: true,
+      profile: ACCOUNT_PROFILE,
+      profilePhotoUri: STORED_PHOTO_URI,
+    });
+    _fsGetInfoResult.exists = true;
+
+    const { deleteAsync } = await import('expo-file-system/legacy');
+    (deleteAsync as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('permission denied'));
+    const { result } = await renderAndAwaitHydration();
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    await act(async () => {
+      await expect(result.current.clearAllData()).rejects.toThrow(
+        'Could not delete the local profile photo.',
+      );
+    });
+    expect(result.current.profile).toEqual(ACCOUNT_PROFILE);
+    expect(result.current.profilePhotoUri).toBe(STORED_PHOTO_URI);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // 4. Full cross-session guarantee
 //

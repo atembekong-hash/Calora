@@ -311,8 +311,6 @@ function WeightLineChart({
   const [chartWidth, setChartWidth] = useState(SPARK_W);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
-  const tooltipOpacity = useSharedValue(0);
-  const tooltipScale = useSharedValue(0.82);
   // Scroll-hint gradient opacities — start scrolled to end, so left edge is visible.
   const leftGradientOpacity = useSharedValue(1);
   const rightGradientOpacity = useSharedValue(0);
@@ -397,11 +395,6 @@ function WeightLineChart({
     fillOpacity: fillOpacity.value,
   }));
 
-  const tooltipAnimStyle = useAnimatedStyle(() => ({
-    opacity: tooltipOpacity.value,
-    transform: [{ scale: tooltipScale.value }],
-  }));
-
   const leftGradientStyle = useAnimatedStyle(() => ({ opacity: leftGradientOpacity.value }));
   const rightGradientStyle = useAnimatedStyle(() => ({ opacity: rightGradientOpacity.value }));
 
@@ -435,34 +428,25 @@ function WeightLineChart({
         clearTimeout(dismissTimerRef.current);
         dismissTimerRef.current = null;
       }
-      tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
-        if (finished) runOnJS(clearSelection)();
-      });
-      tooltipScale.value = withTiming(0.82, { duration: 150 });
+      clearSelection();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingDeleteId]);
 
-  const handleDotPress = (i: number) => {
+  const handleDotPress = (i: number, withHaptic = true) => {
     selectedEntryIdRef.current = entries[i]?.id;
-    Haptics.selectionAsync();
+    if (withHaptic) Haptics.selectionAsync();
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
-    // Reset animation values so re-tapping the same dot re-springs in cleanly
-    tooltipOpacity.value = 0;
-    tooltipScale.value = 0.82;
     setSelectedIdx(i);
-    tooltipOpacity.value = withSpring(1, { damping: 14, stiffness: 220 });
-    tooltipScale.value = withSpring(1, { damping: 14, stiffness: 220 });
-    dismissTimerRef.current = setTimeout(() => {
-      dismissTimerRef.current = null;
-      // runOnJS ensures clearSelection only fires when THIS animation actually
-      // completes — a new tap cancels the withTiming so `finished` is false
-      // and clearSelection is never called for the old selection.
-      tooltipOpacity.value = withTiming(0, { duration: 180 }, (finished) => {
-        if (finished) runOnJS(clearSelection)();
-      });
-      tooltipScale.value = withTiming(0.82, { duration: 180 });
-    }, 2000);
+    // Interactive tooltips must not disappear while a keyboard or assistive-
+    // technology user is moving focus toward Edit/Delete. Read-only tooltips
+    // still dismiss automatically to keep the chart unobstructed.
+    if (!onRequestEdit && !onRequestDelete) {
+      dismissTimerRef.current = setTimeout(() => {
+        dismissTimerRef.current = null;
+        clearSelection();
+      }, 2000);
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -534,6 +518,7 @@ function WeightLineChart({
         <Pressable
           key={i}
           onPress={() => handleDotPress(i)}
+          onFocus={() => handleDotPress(i, false)}
           style={{
             position: 'absolute',
             left: pt.x * xScale - DOT_HIT / 2,
@@ -548,7 +533,7 @@ function WeightLineChart({
 
       {/* Tooltip callout */}
       {selectedIdx !== null && (
-        <Animated.View
+        <View
           pointerEvents="box-none"
           style={[
             styles.weightTooltip,
@@ -561,7 +546,6 @@ function WeightLineChart({
               ),
               top: Math.max(pts[selectedIdx].y - TOOLTIP_H - 8, 2),
             },
-            tooltipAnimStyle,
           ]}
         >
           {(() => {
@@ -599,10 +583,7 @@ function WeightLineChart({
                           Haptics.selectionAsync();
                           // Dismiss tooltip
                           if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
-                          tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
-                            if (finished) runOnJS(clearSelection)();
-                          });
-                          tooltipScale.value = withTiming(0.82, { duration: 150 });
+                          clearSelection();
                           onRequestEdit({ id: entry.id, kg: entry.kg, date: entry.date });
                         }}
                         hitSlop={10}
@@ -621,10 +602,7 @@ function WeightLineChart({
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                           // Dismiss tooltip
                           if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
-                          tooltipOpacity.value = withTiming(0, { duration: 150 }, (finished) => {
-                            if (finished) runOnJS(clearSelection)();
-                          });
-                          tooltipScale.value = withTiming(0.82, { duration: 150 });
+                          clearSelection();
                           onRequestDelete({ id: entry.id, kg: entry.kg, date: entry.date });
                         }}
                         hitSlop={10}
@@ -640,7 +618,7 @@ function WeightLineChart({
               </>
             );
           })()}
-        </Animated.View>
+        </View>
       )}
 
       {/* date labels under each dot — expanded mode only.
@@ -1824,21 +1802,66 @@ export default function InsightsScreen() {
             )}
           </View>
           {weights.length - (pendingDelete ? 1 : 0) >= 3 ? (
-            <Pressable
-              onPress={() => { Haptics.selectionAsync(); setShowExpandedChart(true); }}
-              accessibilityLabel="Expand weight chart"
-              accessibilityRole="button"
-              style={{ position: 'relative' }}
-            >
+            <View style={{ position: 'relative' }}>
               <WeightLineChart entries={weights.filter((w) => w.id !== pendingDelete?.id).slice(-7)} colors={colors} onRequestDelete={handleRequestDelete} onRequestEdit={handleRequestEdit} pendingDeleteId={pendingDelete?.id} />
-              {/* Expand affordance icon */}
-              <View style={[styles.chartExpandHint, { backgroundColor: colors.muted }]} pointerEvents="none">
+              <Pressable
+                onPress={() => { Haptics.selectionAsync(); setShowExpandedChart(true); }}
+                accessibilityLabel="Expand weight chart"
+                accessibilityRole="button"
+                hitSlop={8}
+                style={[styles.chartExpandHint, { backgroundColor: colors.muted }]}
+              >
                 <Feather name="maximize-2" size={11} color={colors.mutedForeground} />
-              </View>
-            </Pressable>
+              </Pressable>
+            </View>
           ) : (
             <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length - (pendingDelete ? 1 : 0) > 1 ? '50%' : '0%' }]} /></View>
           )}
+          {weights.length > 0 ? (
+            <View style={[styles.weightEntryList, { borderTopColor: colors.border }]}>
+              <Text style={[styles.weightEntryListTitle, { color: colors.mutedForeground }]}>RECENT WEIGH-INS</Text>
+              {weights
+                .filter((entry) => entry.id !== pendingDelete?.id)
+                .slice(-3)
+                .reverse()
+                .map((entry) => {
+                  const dateLabel = new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  });
+                  return (
+                    <View key={entry.id ?? `${entry.date}-${entry.kg}`} style={styles.weightEntryRow}>
+                      <View style={styles.weightEntrySummary}>
+                        <Text style={[styles.weightEntryValue, { color: colors.foreground }]}>{entry.kg.toFixed(1)} kg</Text>
+                        <Text style={[styles.weightEntryDate, { color: colors.mutedForeground }]}>{dateLabel}</Text>
+                      </View>
+                      {entry.id ? (
+                        <View style={styles.weightEntryActions}>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Edit weigh-in ${dateLabel}`}
+                            hitSlop={8}
+                            onPress={() => handleRequestEdit({ id: entry.id!, kg: entry.kg, date: entry.date })}
+                            style={[styles.weightEntryAction, { backgroundColor: colors.muted }]}
+                          >
+                            <Feather name="edit-2" size={14} color={colors.mutedForeground} />
+                          </Pressable>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Delete weigh-in ${dateLabel}`}
+                            hitSlop={8}
+                            onPress={() => handleRequestDelete({ id: entry.id!, kg: entry.kg, date: entry.date })}
+                            style={[styles.weightEntryAction, { backgroundColor: colors.muted }]}
+                          >
+                            <Feather name="trash-2" size={14} color={colors.destructive} />
+                          </Pressable>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+            </View>
+          ) : null}
           {showGoalCelebration && showGoalProgress ? (
             <View style={styles.celebrationWrapper}>
               <ConfettiBurst active={showGoalCelebration} />
@@ -2240,6 +2263,14 @@ function makeStyles(f: number) {
   weightSparkLabels: { flexDirection: 'row', marginTop: 5, paddingHorizontal: 2 },
   weightSparkLabel: { fontFamily: 'Inter_400Regular', fontSize: 8 * f },
   weightSparkDateRange: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 4, textAlign: 'center', opacity: 0.6 },
+  weightEntryList: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 14, paddingTop: 12, gap: 8 },
+  weightEntryListTitle: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1 },
+  weightEntryRow: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  weightEntrySummary: { flex: 1, minWidth: 0 },
+  weightEntryValue: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
+  weightEntryDate: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 2 },
+  weightEntryActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  weightEntryAction: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   weightExpandedDateRow: { position: 'relative', height: 18, marginTop: 6 },
   weightExpandedDateLabel: { position: 'absolute', fontFamily: 'Inter_400Regular', fontSize: 9 * f, opacity: 0.72, transform: [{ translateX: -18 }] },
   weightTooltip: { position: 'absolute', width: 148, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, zIndex: 20 },

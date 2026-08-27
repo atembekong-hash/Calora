@@ -8,7 +8,7 @@ import { BRAND, EMAILS, URLS } from '@/lib/brand';
 import { formatQuantity } from '@/lib/formatters';
 import { formatGrams, formatWhole } from '@/lib/formatters';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { type DietPreference, type Goal, SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
 import {
   cancelHydrationReminders,
@@ -61,6 +61,7 @@ const PROFILE_TABS = ['you', 'membership', 'account'] as const;
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const { user } = useAuth();
   const {
     colors, themePreference, setThemePreference,
@@ -135,7 +136,12 @@ export default function ProfileScreen() {
   // Info sheets (food data / no ads / help)
   const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help' | 'health'>(null);
   const [healthBusy, setHealthBusy] = useState(false);
-  const [profileTab, setProfileTab] = useState<ProfileTab>('you');
+  const [profileTab, setProfileTab] = useState<ProfileTab>(tab === 'membership' || tab === 'account' ? tab : 'you');
+
+  useEffect(() => {
+    if (tab !== 'membership' && tab !== 'account' && tab !== 'you') return;
+    setProfileTab(tab);
+  }, [tab]);
 
   // ─── OS reminder status sync ───────────────────────────────────────────────
   useEffect(() => {
@@ -285,7 +291,12 @@ export default function ProfileScreen() {
   const handleConfirmDelete = async () => {
     if (confirmingRef.current) return;
     confirmingRef.current = true;
-    try { await clearAllData(); setPrivacyModal(null); }
+    try {
+      await clearAllData();
+      setPrivacyModal(null);
+    } catch {
+      Alert.alert('Delete failed', 'Your local data was not fully deleted. Nothing else was changed. Please try again.');
+    }
     finally { confirmingRef.current = false; }
   };
 

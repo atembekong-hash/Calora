@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
 import { recoverPendingAccountDeletions } from "./routes/account";
+import { runSafeBackgroundTask } from "./lib/safe-background-task";
 
 const rawPort = process.env["PORT"];
 
@@ -59,9 +60,15 @@ async function cleanupExpiredRateLimitRows(): Promise<void> {
   }
 }
 
-void recoverPendingAccountDeletions();
+const runAccountDeletionRecovery = () =>
+  runSafeBackgroundTask(
+    recoverPendingAccountDeletions,
+    (err) => logger.error({ err }, "Account deletion recovery failed"),
+  );
+
+void runAccountDeletionRecovery();
 const accountRecoveryTimer = setInterval(
-  () => void recoverPendingAccountDeletions(),
+  () => void runAccountDeletionRecovery(),
   ACCOUNT_DELETION_RECOVERY_INTERVAL_MS,
 );
 accountRecoveryTimer.unref();

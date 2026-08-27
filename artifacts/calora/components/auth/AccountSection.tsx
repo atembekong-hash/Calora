@@ -72,9 +72,12 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
   const { session, signOut } = useAuth();
 
   const [signOutLoading, setSignOutLoading] = useState(false);
+  const [signOutConfirm, setSignOutConfirm] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const f = fontScale;
 
@@ -86,30 +89,28 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleSignOut = useCallback(async () => {
-    Alert.alert(
-      'Sign out?',
-      `Your local health data stays safely separated from other accounts on this device.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign out',
-          style: 'destructive',
-          onPress: async () => {
-            setSignOutLoading(true);
-            try {
-              await clearProfilePhoto();
-              await signOut();
-            } finally {
-              setSignOutLoading(false);
-            }
-          },
-        },
-      ],
-    );
+    setSignOutLoading(true);
+    setSignOutError('');
+    try {
+      // Profile photos are stored under an account-scoped path, so a local
+      // filesystem failure must not trap the user in an authenticated session.
+      await clearProfilePhoto().catch(() => undefined);
+      const { error } = await signOut();
+      if (error) {
+        setSignOutError(error.message || 'Could not sign out. Please try again.');
+        return;
+      }
+      setSignOutConfirm(false);
+    } catch (error) {
+      setSignOutError(error instanceof Error ? error.message : 'Could not sign out. Please try again.');
+    } finally {
+      setSignOutLoading(false);
+    }
   }, [signOut, clearProfilePhoto]);
 
   const handleOpenDeleteModal = useCallback(() => {
     setDeleteConfirmText('');
+    setDeleteError('');
     setDeleteModal(true);
   }, []);
 
@@ -119,6 +120,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
     if (!session) return;
 
     setDeleteLoading(true);
+    setDeleteError('');
     try {
       // Call the server-side endpoint which uses the service-role key to
       // permanently remove the Supabase Auth user record. The user's JWT is
@@ -162,7 +164,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Something went wrong. Please try again.';
-      Alert.alert('Deletion failed', message);
+      setDeleteError(message);
     } finally {
       setDeleteLoading(false);
     }
@@ -180,10 +182,10 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
           </View>
           <View style={styles.signInTextGroup}>
             <Text style={[styles.signInTitle, { color: colors.foreground, fontSize: 15 * f }]}>
-              Sync across devices
+              Use your Calora account
             </Text>
             <Text style={[styles.signInBody, { color: colors.mutedForeground, fontSize: 12 * f }]}>
-              Sign in to back up your diary and progress securely.
+              Sign in for account features, referrals, and Premium access.
             </Text>
           </View>
           <Pressable
@@ -235,7 +237,10 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
         {/* Sign out row */}
         <Pressable
           accessibilityLabel="Sign out"
-          onPress={handleSignOut}
+          onPress={() => {
+            setSignOutError('');
+            setSignOutConfirm(true);
+          }}
           disabled={signOutLoading}
           style={styles.accountAction}
         >
@@ -268,7 +273,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
         onRequestClose={() => { if (!deleteLoading) setDeleteModal(false); }}
       >
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
-          <View style={[styles.modalCard, { backgroundColor: colors.background }]}>
+          <View accessibilityViewIsModal style={[styles.modalCard, { backgroundColor: colors.background }]}>
             {/* Icon */}
             <View style={[styles.modalIcon, { backgroundColor: `${colors.destructive}18` }]}>
               <Feather name="alert-triangle" size={24} color={colors.destructive} />
@@ -301,6 +306,13 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
               ]}
             />
 
+            {deleteError ? (
+              <View accessibilityLiveRegion="polite" style={[styles.deleteError, { backgroundColor: `${colors.destructive}14` }]}>
+                <Feather name="alert-circle" size={15} color={colors.destructive} />
+                <Text style={[styles.deleteErrorText, { color: colors.destructive }]}>{deleteError}</Text>
+              </View>
+            ) : null}
+
             <Pressable
               accessibilityLabel="Confirm account deletion"
               onPress={handleConfirmDelete}
@@ -323,6 +335,51 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
               disabled={deleteLoading}
               onPress={() => setDeleteModal(false)}
               style={[styles.cancelButton, { backgroundColor: colors.muted, opacity: deleteLoading ? 0.5 : 1 }]}
+            >
+              <Text style={[styles.cancelButtonText, { color: colors.foreground }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={signOutConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!signOutLoading) setSignOutConfirm(false); }}
+      >
+        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
+          <View accessibilityViewIsModal style={[styles.modalCard, { backgroundColor: colors.background }]}>
+            <View style={[styles.modalIcon, { backgroundColor: colors.accent }]}>
+              <Feather name="log-out" size={24} color={colors.accentForeground} />
+            </View>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Sign out?</Text>
+            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>
+              Your local health data stays safely separated from other accounts on this device.
+            </Text>
+            {signOutError ? (
+              <View accessibilityLiveRegion="polite" style={[styles.deleteError, { backgroundColor: `${colors.destructive}14` }]}>
+                <Feather name="alert-circle" size={15} color={colors.destructive} />
+                <Text style={[styles.deleteErrorText, { color: colors.destructive }]}>{signOutError}</Text>
+              </View>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Confirm sign out"
+              onPress={() => { void handleSignOut(); }}
+              disabled={signOutLoading}
+              style={[styles.deleteButton, { backgroundColor: colors.destructive, opacity: signOutLoading ? 0.4 : 1 }]}
+            >
+              {signOutLoading
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={styles.deleteButtonText}>Sign out</Text>}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel sign out"
+              disabled={signOutLoading}
+              onPress={() => setSignOutConfirm(false)}
+              style={[styles.cancelButton, { backgroundColor: colors.muted, opacity: signOutLoading ? 0.5 : 1 }]}
             >
               <Text style={[styles.cancelButtonText, { color: colors.foreground }]}>Cancel</Text>
             </Pressable>
@@ -460,6 +517,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     letterSpacing: 2,
   },
+  deleteError: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
+  deleteErrorText: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 11, lineHeight: 16 },
   deleteButton: {
     width: '100%',
     borderRadius: radius.md,

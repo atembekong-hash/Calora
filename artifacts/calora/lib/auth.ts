@@ -166,7 +166,10 @@ export async function resendVerificationEmail(email: string) {
 }
 
 export async function signOut() {
-  return supabase.auth.signOut();
+  // Normal sign-out is device-scoped. This matches the UI promise, avoids
+  // unexpectedly signing the user out everywhere, and does not depend on a
+  // network round trip before the local session can be cleared.
+  return supabase.auth.signOut({ scope: 'local' });
 }
 
 export async function getSession() {

@@ -118,13 +118,33 @@ export async function grantPromoDays(appUserId: string, days: number): Promise<D
 
 /** Removes the RevenueCat subscriber record associated with a deleted account. */
 export async function deleteRevenueCatSubscriber(appUserId: string): Promise<void> {
+  const projectId = process.env.REVENUECAT_PROJECT_ID;
+  if (!projectId) {
+    throw new Error("RevenueCat project ID is not configured");
+  }
+
+  const customerPath = `/v2/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(appUserId)}`;
+  const lookupResponse = await connectors.proxy(
+    "revenuecat",
+    customerPath,
+    { method: "GET" },
+  );
+  // RevenueCat does not create a customer until an account reaches billing.
+  // A verified absence means there is no provider record to erase.
+  if (lookupResponse.status === 404) {
+    return;
+  }
+  if (!lookupResponse.ok) {
+    throw new Error(`RevenueCat customer lookup failed (${lookupResponse.status})`);
+  }
+
   const response = await connectors.proxy(
     "revenuecat",
-    `/v1/subscribers/${encodeURIComponent(appUserId)}`,
+    customerPath,
     { method: "DELETE" },
   );
-  // A missing subscriber is already deleted and therefore satisfies erasure.
+  // A missing customer is already deleted and therefore satisfies erasure.
   if (!response.ok && response.status !== 404) {
-    throw new Error(`RevenueCat subscriber deletion failed (${response.status})`);
+    throw new Error(`RevenueCat customer deletion failed (${response.status})`);
   }
 }

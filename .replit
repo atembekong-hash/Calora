@@ -33,3 +33,15 @@ REVENUECAT_GOOGLE_PLAY_STORE_APP_ID = "app3202103015"
 REVENUECAT_PROJECT_ID = "proj9890aae2"
 REVENUECAT_TEST_STORE_APP_ID = "app48c13d884c"
 COACH_FACT_CONTEXT_ENABLED = "false"
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 25115
+externalPort = 80

@@ -10,7 +10,7 @@ CaloraApp now has an additive spatial design foundation and a broader dimensiona
 
 The implementation is intentionally not a rewrite. Existing routes, event handlers, state mutation paths, backend contracts, authentication, persistence, nutrition rules, provenance, RevenueCat, health, referrals, Coach safety, Fact Context boundaries, and destructive confirmations were not changed.
 
-The visual modernization scope passes. The Scan review sheet was verified in both light and dark themes using Playwright-only request interception after the unchanged live analysis endpoint returned `502`. That backend reliability issue is isolated in follow-up task 523 and does not originate in this UI diff.
+The visual modernization scope passes. The Scan review sheet was first verified in both light and dark themes using Playwright-only request interception. A later deep release audit repaired the managed AI integration configuration and request options, after which the real Scan and recipe-generation endpoints both returned `200`.
 
 ## Delivered design foundation
 
@@ -130,7 +130,7 @@ The recovery and visual baseline is recorded in:
 
 - `docs/calora-spatial-ui-baseline.md`
 
-No backend, database, schema, migration, legal, subscription, health, referral, or production rollout files were modified.
+The original spatial task did not modify backend, database, schema, legal, subscription, health, referral, or production rollout behavior. A later deep release audit added narrow API reliability fixes without schema or migration changes.
 
 ## Verification evidence
 
@@ -139,7 +139,7 @@ No backend, database, schema, migration, legal, subscription, health, referral, 
 - TypeScript: **PASS**
 - Vitest: **PASS**
   - 61 test files
-  - 971 tests
+  - 973 tests
 - Static server security tests: **PASS**
   - 6 tests
 - `git diff --check`: **PASS**
@@ -176,6 +176,8 @@ Passed:
 - Recipes discovery and creation-card containment
 - Scan review candidate and total-card containment
 - Scan review sheet in light and dark themes using test-only request interception
+- Real text Scan review with a live `200` analysis response
+- Real recipe concept generation with a live `200` response and five concepts
 - Reduced-motion browser context with immediate onboarding navigation
 
 Evidence IDs from the browser run:
@@ -195,6 +197,13 @@ Evidence IDs from the browser run:
 - Dark Scan review sheet: `rk8141`
 - Light Scan review sheet: `jk9ndv`
 - Reduced-motion onboarding: `c6dd7w`
+- Live Scan review sheet: `8145yr`
+- Progress weight interaction: `tcrggu`
+- Expanded weight chart: `mo9ggh`
+- Stable weight-row editing: `7941uc`
+- Weight deletion and Undo: `254qjn`
+- Expanded chart with separate row actions: `0sqpmf`
+- Clean post-test Weight state: `9rzrdv`
 
 Workspace screenshot evidence:
 
@@ -202,14 +211,65 @@ Workspace screenshot evidence:
 - `docs/evidence/calora-baseline-large.jpg`
 - `docs/evidence/calora-modernized-onboarding-large.jpg`
 - `docs/evidence/calora-modernized-final-mobile.jpg`
+- `docs/evidence/calora-deep-audit-final.jpg`
+
+### Post-completion deep release audit
+
+The 2026-08-27 release-candidate audit additionally passed:
+
+- Complete Calora typecheck
+- 63 Calora test files and 977 tests
+- 6 static-server security tests
+- 30 API test files passed, 1 intentionally skipped; 367 tests passed, 4 intentionally skipped
+- 13 release-attestation tests
+- API build
+- Production-style iOS and Android bundle generation
+- `git diff --check`
+- Fresh Expo workflow restart
+- Fresh-browser Weight Edit, Cancel, Delete, Undo, expanded-chart, and cleanup flows
+- Browser console check with no nested-button, hydration, unhandled-rejection, or unexpected runtime errors
+
+The audit corrected a process-crashing detached recovery rejection, fail-closed local photo deletion, destructive-flow rejection handling, a password-update rejection leak, invite persistence rejection handling, no-history Restaurant back navigation, managed OpenAI configuration and request options, web-invalid nested chart controls, timed chart action accessibility, and unsupported cross-device-sync claims.
+
+### Premium Recipes and Calora Coach focused audit
+
+The focused authenticated and signed-out browser pass additionally verified:
+
+- Real non-Premium `403` recovery and direct Membership navigation
+- Premium catalogue/provider attribution, filters, empty/provider-unavailable states, Retry recovery, detail access-loss recovery, and local recipe actions
+- Query-aware Premium search behavior, including an empty result for a nonsense query and restoration after clearing it
+- Saved Premium reconstruction after remount, including protected detail retrieval for saved IDs outside the current page/filter
+- Coach consent boundaries, unavailable recovery, successful evidence/action rendering, allowlisted Progress navigation, history restoration, safe-risk fallback, and both reset-confirmation flows
+- Compact 320 × 568 dark-mode Coach layout without horizontal overflow
+- Cross-platform Profile sign-out confirmation with device-scoped local session clearing
+- Cross-platform destructive modal isolation and visible failure feedback
+
+The Coach response path remains restricted to validated Fact Context responses and allowlisted actions. No broad free-text metadata or client-authoritative safety bypass was introduced.
+
+### Account deletion operational boundary
+
+The account-deletion saga now uses RevenueCat v2 customer lookup/deletion and fails closed:
+
+- A verified customer lookup `404` is treated as no provider record.
+- Lookup authorization/service failures and deletion failures remain retryable failures.
+- An existing customer is never reported erased unless the provider deletion succeeds.
+
+The available RevenueCat OAuth connection can read customers but does not offer `customer_information:customers:read_write`, which RevenueCat requires for v2 customer deletion. An existing disposable QA customer therefore remains checkpointed at the RevenueCat stage with `retry_required`; its Calora application row and Supabase Auth identity were removed, and the browser session/local test data were cleared.
+
+This is an external release blocker for complete account erasure of users with billing history. Resolve the provider permission or establish an approved equivalent erasure process before declaring that path release-ready.
 
 ## Non-blocking external validation
 
 ### Scan review sheet
 
-The initial text-description test submitted “one medium banana.” The unchanged API route returned `502`, so no live analysis draft reached the app. A second browser run intercepted only that request with a schema-valid success fixture and exercised the real review UI end to end. Candidate containment, the deep-green review total, readable nutrition values, Approve, and Not this meal all passed in light and dark themes; the tester selected Not this meal, so no diary data was written.
+The initial text-description test submitted “one medium banana.” The API route returned `502` because the managed OpenAI base URL was malformed. The integration was reprovisioned without exposing credentials. Recipe GPT-5 calls were also updated from the unsupported legacy `max_tokens` option to `max_completion_tokens`.
 
-The live endpoint failure remains a separate backend reliability issue in follow-up task 523.
+Post-fix live checks on 2026-08-27:
+
+- `POST /api/v1/capture/analyze`: `200`, one candidate and one component for “one medium banana”
+- `POST /api/v1/recipes/guest-concepts`: `200`, five generated concept cards
+
+The browser then exercised the real Scan review UI, confirmed candidate editing and readable totals, and selected Not this meal so no diary data was written. Subsequent guest recipe attempts correctly returned `429` after the deliberate test quota was exhausted.
 
 ### Signed-device validation
 
@@ -226,3 +286,5 @@ The modernization is safe to continue from a code and browser-preview standpoint
 - No production-sensitive boundary was changed.
 
 The authorized visual modernization result is **PASS**. Live capture-provider recovery and native-only signed-device smoke testing remain separate operational validation work and do not require changes to this UI diff.
+
+The Premium Recipes and Calora Coach code/browser audit is also **PASS** with no remaining P0/P1 code defect found by the final independent review. Complete account erasure for users with an existing RevenueCat customer remains blocked by the external customer read/write permission described above.

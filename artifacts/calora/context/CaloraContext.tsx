@@ -1079,7 +1079,8 @@ export function CaloraProvider({
     profilePhotoUri,
     setProfilePhotoUri: setProfilePhotoUriState,
     clearProfilePhoto: async () => {
-      await deleteProfilePhoto(FileSystem, accountId);
+      const result = await deleteProfilePhoto(FileSystem, accountId);
+      if (!result.ok) throw new Error('Could not delete the local profile photo.');
       setProfilePhotoUriState(null);
     },
     mealReminders,
@@ -1132,6 +1133,10 @@ export function CaloraProvider({
         CoachFactRequestLifecycle.invalidateAll();
         invalidateAllCoachLifecycleEpochs('clear_data');
         await coachFactConsentCache.clear(accountId ?? null);
+        const photoDeleteResult = await deleteProfilePhoto(FileSystem, accountId);
+        if (!photoDeleteResult.ok) {
+          throw new Error('Could not delete the local profile photo.');
+        }
         await performClearAllData({
         pm: pm.current,
         emptyLivingMemory: emptyLivingMemory(),

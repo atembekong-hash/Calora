@@ -106,7 +106,7 @@ export default function SignUpScreen() {
 
         <Text style={[styles.heading, { color: colors.foreground }]}>Create your account</Text>
         <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
-          Start syncing your {BRAND.name} data securely across all your devices.
+          Sign in to use {BRAND.name} account features, referrals, and Premium access.
         </Text>
 
         {/* Pending invite code notice */}

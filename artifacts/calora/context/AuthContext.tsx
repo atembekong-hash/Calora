@@ -155,7 +155,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (newPassword: string) => {
       const result = doUpdatePassword(newPassword);
       // Clear recovery state after the password is updated
-      result.then(({ error }) => { if (!error) setIsPasswordRecovery(false); });
+      void result.then(
+        ({ error }) => { if (!error) setIsPasswordRecovery(false); },
+        () => undefined,
+      );
       return result;
     },
     [],

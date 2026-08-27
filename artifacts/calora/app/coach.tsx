@@ -1,11 +1,11 @@
 import { Feather } from '@expo/vector-icons';
 import {
   CoachAction,
+  CoachFactContextResponse,
   CoachMessage,
-  CoachResponse,
 } from '@workspace/api-client-react';
 import { router } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Animated from 'react-native-reanimated';
 import {
   ActivityIndicator,
@@ -37,7 +37,8 @@ type DisplayTurn = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  response?: CoachResponse;
+  response?: CoachFactContextResponse;
+  announce?: boolean;
 };
 
 const starterPrompts = [
@@ -67,7 +68,7 @@ function navigateToAction(action: CoachAction) {
   if (action.destination === 'profile') router.navigate('/(tabs)/profile');
 }
 
-function EvidenceCard({ response, colors }: { response: CoachResponse; colors: ReturnType<typeof useCalora>['colors'] }) {
+function EvidenceCard({ response, colors }: { response: CoachFactContextResponse; colors: ReturnType<typeof useCalora>['colors'] }) {
   if (!response.observations.length && !response.limitations.length) return null;
   return (
     <View style={[styles.evidenceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -101,6 +102,7 @@ function EvidenceCard({ response, colors }: { response: CoachResponse; colors: R
 function ActionCard({ action, colors }: { action: CoachAction; colors: ReturnType<typeof useCalora>['colors'] }) {
   return (
     <Pressable
+      accessibilityRole="button"
       accessibilityLabel={action.label}
       testID={`coach-action-${action.destination}`}
       onPress={() => navigateToAction(action)}
@@ -180,12 +182,26 @@ export default function CoachScreen() {
 
   const [composer, setComposer] = useState('');
   const [menuVisible, setMenuVisible] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState<'new' | 'history' | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [turns, setTurns] = useState<DisplayTurn[]>(() => coachMessages.map((message, index) => ({
     id: `saved-${index}`,
     role: message.role,
     content: message.content,
   })));
+  const loadedHistoryGenerationRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const generationKey = `${user?.id ?? 'guest'}:${hydrationGeneration}`;
+    if (loadedHistoryGenerationRef.current === generationKey) return;
+    loadedHistoryGenerationRef.current = generationKey;
+    setTurns(coachMessages.map((message, index) => ({
+      id: `saved-${generationKey}-${index}`,
+      role: message.role,
+      content: message.content,
+    })));
+  }, [coachMessages, hydrated, hydrationGeneration, user?.id]);
 
   const sendMessage = async (value = composer.trim()) => {
     if (!value || isSending) return;
@@ -262,6 +278,7 @@ export default function CoachScreen() {
           id: `unavailable-${Date.now()}`,
           role: 'assistant',
           content: 'Coach is not available for this account right now. Nothing was changed. Your local Progress data is still available.',
+          announce: true,
         }]);
         return;
       }
@@ -274,12 +291,15 @@ export default function CoachScreen() {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         content: message,
+        response: result.response,
+        announce: true,
       }]);
     } catch {
       setTurns((current) => [...current, {
         id: `error-${Date.now()}`,
         role: 'assistant',
         content: 'I couldn\u2019t reach Coach just now. Nothing was changed. Your local Progress data is still available.',
+        announce: true,
       }]);
     } finally {
       setIsSending(false);
@@ -296,6 +316,11 @@ export default function CoachScreen() {
     setTurns([]);
     setComposer('');
     setMenuVisible(false);
+  };
+
+  const requestClearConversation = (mode: 'new' | 'history') => {
+    setMenuVisible(false);
+    setResetConfirm(mode);
   };
 
   return (
@@ -363,7 +388,7 @@ export default function CoachScreen() {
             )}
             {turns.map((turn) => (
               <Animated.View key={turn.id} entering={enterMotion('component')} style={turn.role === 'user' ? styles.userTurn : styles.assistantTurn}>
-                <View style={[styles.messageBubble, turn.role === 'user'
+                <View accessibilityLiveRegion={turn.announce ? 'polite' : 'none'} style={[styles.messageBubble, turn.role === 'user'
                   ? { backgroundColor: colors.primary }
                   : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
                   <Text style={[styles.messageText, { color: turn.role === 'user' ? colors.primaryForeground : colors.foreground }]}>{turn.content}</Text>
@@ -377,7 +402,7 @@ export default function CoachScreen() {
               </Animated.View>
             ))}
             {isSending && (
-              <View style={[styles.loadingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View accessibilityLiveRegion="polite" style={[styles.loadingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Reading your {BRAND.name} context…</Text>
               </View>
@@ -426,7 +451,7 @@ export default function CoachScreen() {
             onPress={() => setMenuVisible(false)}
             style={styles.menuBackdrop}
           />
-          <View style={[styles.menuSheet, { backgroundColor: colors.background, paddingTop: insets.top + 14, paddingBottom: insets.bottom + 14 }]}>
+          <View accessibilityViewIsModal style={[styles.menuSheet, { backgroundColor: colors.background, paddingTop: insets.top + 14, paddingBottom: insets.bottom + 14 }]}>
             <View style={styles.menuHeader}>
               <View style={styles.menuTitleGroup}>
                 <View style={[styles.menuTitleIcon, { backgroundColor: colors.accent }]}>
@@ -450,13 +475,13 @@ export default function CoachScreen() {
             {coachConsentAccepted ? (
               <>
                 <Pressable
-                  accessibilityLabel="Start a new Coach chat"
+                  accessibilityLabel="Clear this Coach chat and start a new one"
                   testID="coach-new-chat"
-                  onPress={clearConversation}
+                  onPress={() => requestClearConversation('new')}
                   style={({ pressed }) => [styles.newChatButton, { backgroundColor: colors.primary, opacity: pressed ? 0.72 : 1 }]}
                 >
                   <Feather name="plus" size={16} color={colors.primaryForeground} />
-                  <Text style={[styles.newChatText, { color: colors.primaryForeground }]}>New chat</Text>
+                  <Text style={[styles.newChatText, { color: colors.primaryForeground }]}>Clear & start new</Text>
                 </Pressable>
 
                 <Text style={[styles.historyLabel, { color: colors.mutedForeground }]}>THIS CHAT</Text>
@@ -486,7 +511,7 @@ export default function CoachScreen() {
                   <Pressable
                     accessibilityLabel="Clear Coach chat history"
                     testID="coach-clear-history"
-                    onPress={clearConversation}
+                    onPress={() => requestClearConversation('history')}
                     style={({ pressed }) => [styles.clearHistoryButton, { borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}
                   >
                     <Feather name="trash-2" size={14} color={colors.mutedForeground} />
@@ -501,6 +526,50 @@ export default function CoachScreen() {
                 <Text style={[styles.emptyHistoryBody, { color: colors.mutedForeground }]}>Continue to Coach to save and revisit conversations on this device.</Text>
               </View>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={resetConfirm !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setResetConfirm(null)}
+      >
+        <View style={[styles.confirmBackdrop, { backgroundColor: 'rgba(0,0,0,0.52)' }]}>
+          <View accessibilityViewIsModal style={[styles.confirmCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <View style={[styles.confirmIcon, { backgroundColor: colors.accent }]}>
+              <Feather name="trash-2" size={20} color={colors.destructive} />
+            </View>
+            <Text style={[styles.confirmTitle, { color: colors.foreground }]}>
+              {resetConfirm === 'new' ? 'Clear this chat and start again?' : 'Clear Coach chat history?'}
+            </Text>
+            <Text style={[styles.confirmBody, { color: colors.mutedForeground }]}>
+              This removes the current Coach conversation from this device. This cannot be undone.
+            </Text>
+            <View style={styles.confirmActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancel clearing Coach chat"
+                onPress={() => setResetConfirm(null)}
+                style={[styles.confirmButton, { backgroundColor: colors.muted }]}
+              >
+                <Text style={[styles.confirmButtonText, { color: colors.foreground }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={resetConfirm === 'new' ? 'Confirm clear and start new Coach chat' : 'Confirm clear Coach chat history'}
+                onPress={() => {
+                  setResetConfirm(null);
+                  clearConversation();
+                }}
+                style={[styles.confirmButton, { backgroundColor: colors.destructive }]}
+              >
+                <Text style={[styles.confirmButtonText, { color: colors.destructiveForeground }]}>
+                  {resetConfirm === 'new' ? 'Clear & start new' : 'Clear history'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -577,4 +646,12 @@ const styles = StyleSheet.create({
   emptyHistoryBody: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 5 },
   clearHistoryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderRadius: 13, paddingVertical: 12, marginTop: 14 },
   clearHistoryText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  confirmBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  confirmCard: { width: '100%', maxWidth: 420, borderWidth: 1, borderRadius: 22, padding: 20, gap: 12 },
+  confirmIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  confirmTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, letterSpacing: -0.3 },
+  confirmBody: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
+  confirmActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  confirmButton: { flex: 1, minHeight: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  confirmButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12, textAlign: 'center' },
 });

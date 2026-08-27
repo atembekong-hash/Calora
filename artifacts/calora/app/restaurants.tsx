@@ -136,6 +136,14 @@ export default function RestaurantsScreen() {
     });
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(tabs)');
+  };
+
   const statusMessage = searchResult.data?.status !== 'available'
     ? searchResult.data?.message
     : null;
@@ -143,7 +151,7 @@ export default function RestaurantsScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <Pressable accessibilityLabel="Back from restaurant search" onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.muted }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back from restaurant search" onPress={handleBack} style={[styles.backButton, { backgroundColor: colors.muted }]}>
           <Feather name="arrow-left" size={19} color={colors.foreground} />
         </Pressable>
         <View style={{ flex: 1 }}>
