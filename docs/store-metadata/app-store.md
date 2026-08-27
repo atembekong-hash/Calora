@@ -64,15 +64,15 @@ calorie,nutrition,macro,food diary,meal tracker,AI,health,weight loss,meal plan,
 
 ## Support URL
 
-https://calorie-coach-pie35449.replit.app/support
+https://calorie-coach-pie35449.replit.app/api/legal/support
 
 ## Marketing URL
 
-https://calorie-coach-pie35449.replit.app
+https://calorie-coach-pie35449.replit.app/api/legal/
 
 ## Privacy Policy URL
 
-https://calorie-coach-pie35449.replit.app/privacy
+https://calorie-coach-pie35449.replit.app/api/legal/privacy
 
 ---
 

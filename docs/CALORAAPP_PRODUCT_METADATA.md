@@ -26,14 +26,14 @@
 
 | Purpose | URL |
 |---|---|
-| Main website | https://calorie-coach-pie35449.replit.app |
-| Privacy Policy | https://calorie-coach-pie35449.replit.app/privacy |
-| Terms of Use | https://calorie-coach-pie35449.replit.app/terms |
-| Help & Support | https://calorie-coach-pie35449.replit.app/support |
-| Contact | https://calorie-coach-pie35449.replit.app/contact |
-| Account Deletion | https://calorie-coach-pie35449.replit.app/delete-account |
-| Subscription Info | https://calorie-coach-pie35449.replit.app/subscriptions |
-| Help Center | https://calorie-coach-pie35449.replit.app/help |
+| Main website | https://calorie-coach-pie35449.replit.app/api/legal/ |
+| Privacy Policy | https://calorie-coach-pie35449.replit.app/api/legal/privacy |
+| Terms of Use | https://calorie-coach-pie35449.replit.app/api/legal/terms |
+| Help & Support | https://calorie-coach-pie35449.replit.app/api/legal/support |
+| Contact | https://calorie-coach-pie35449.replit.app/api/legal/contact |
+| Account Deletion | https://calorie-coach-pie35449.replit.app/api/legal/delete-account |
+| Subscription Info | https://calorie-coach-pie35449.replit.app/api/legal/subscriptions |
+| Help Center | https://calorie-coach-pie35449.replit.app/api/legal/help |
 | Provisional API hostname | https://api.mycaloraapp.com *(not yet live — see §11)* |
 
 > **IMPORTANT:** `https://api.mycaloraapp.com` is the preferred production API hostname but is not yet configured.
@@ -113,10 +113,10 @@ RevenueCat client integration and repository seed configuration exist. Productio
 
 | Document | URL | Status |
 |---|---|---|
-| Privacy Policy | https://calorie-coach-pie35449.replit.app/privacy | ✅ Published at the confirmed public origin |
-| Terms of Use | https://calorie-coach-pie35449.replit.app/terms | ✅ Published at the confirmed public origin |
-| Subscription Info | https://calorie-coach-pie35449.replit.app/subscriptions | ✅ Published at the confirmed public origin |
-| Account Deletion | https://calorie-coach-pie35449.replit.app/delete-account | ✅ Published at the confirmed public origin |
+| Privacy Policy | https://calorie-coach-pie35449.replit.app/api/legal/privacy | ✅ Published at the confirmed public origin |
+| Terms of Use | https://calorie-coach-pie35449.replit.app/api/legal/terms | ✅ Published at the confirmed public origin |
+| Subscription Info | https://calorie-coach-pie35449.replit.app/api/legal/subscriptions | ✅ Published at the confirmed public origin |
+| Account Deletion | https://calorie-coach-pie35449.replit.app/api/legal/delete-account | ✅ Published at the confirmed public origin |
 
 > Required by Apple App Store, Google Play, and applicable data protection regulations before public distribution.
 

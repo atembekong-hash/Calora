@@ -6,6 +6,7 @@ import publicPagesRouter from "../routes/public-pages";
 function makeApp() {
   const app = express();
   app.use(publicPagesRouter);
+  app.use("/api/legal", publicPagesRouter);
   return app;
 }
 
@@ -27,6 +28,14 @@ describe("public Calora pages", () => {
     expect(response.headers["x-robots-tag"]).toBe("index, follow");
     expect(response.text).toContain(heading);
     expect(response.text).toContain("https://calorie-coach-pie35449.replit.app");
+  });
+
+  it("also serves the API-prefixed production paths", async () => {
+    for (const path of ["/api/legal/", "/api/legal/privacy", "/api/legal/terms", "/api/legal/support", "/api/legal/subscriptions", "/api/legal/delete-account"]) {
+      const response = await request(app).get(path);
+      expect(response.status).toBe(200);
+      expect(response.headers["content-type"]).toMatch(/text\/html/);
+    }
   });
 
   it("publishes the monitored support channel for support, privacy, and billing", async () => {
@@ -53,9 +62,9 @@ describe("public Calora pages", () => {
       request(app).get("/contact"),
     ]);
     expect(help.status).toBe(308);
-    expect(help.headers.location).toBe("/support");
+    expect(help.headers.location).toBe("support");
     expect(contact.status).toBe(308);
-    expect(contact.headers.location).toBe("/support");
+    expect(contact.headers.location).toBe("support");
   });
 
   it("does not publish the retired custom-domain URL", async () => {

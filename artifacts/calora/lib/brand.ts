@@ -28,14 +28,14 @@ export const BRAND = {
 
 /** Public legal and support URLs hosted on the confirmed production origin. */
 export const URLS = {
-  main: 'https://calorie-coach-pie35449.replit.app',
-  privacy: 'https://calorie-coach-pie35449.replit.app/privacy',
-  terms: 'https://calorie-coach-pie35449.replit.app/terms',
-  support: 'https://calorie-coach-pie35449.replit.app/support',
-  contact: 'https://calorie-coach-pie35449.replit.app/contact',
-  deleteAccount: 'https://calorie-coach-pie35449.replit.app/delete-account',
-  subscriptions: 'https://calorie-coach-pie35449.replit.app/subscriptions',
-  help: 'https://calorie-coach-pie35449.replit.app/help',
+  main: 'https://calorie-coach-pie35449.replit.app/api/legal/',
+  privacy: 'https://calorie-coach-pie35449.replit.app/api/legal/privacy',
+  terms: 'https://calorie-coach-pie35449.replit.app/api/legal/terms',
+  support: 'https://calorie-coach-pie35449.replit.app/api/legal/support',
+  contact: 'https://calorie-coach-pie35449.replit.app/api/legal/contact',
+  deleteAccount: 'https://calorie-coach-pie35449.replit.app/api/legal/delete-account',
+  subscriptions: 'https://calorie-coach-pie35449.replit.app/api/legal/subscriptions',
+  help: 'https://calorie-coach-pie35449.replit.app/api/legal/help',
 } as const;
 
 /** Monitored customer channel, also used for privacy, billing, and legal requests. */

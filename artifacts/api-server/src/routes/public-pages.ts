@@ -10,6 +10,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 
 const router: IRouter = Router();
 const ORIGIN = (process.env["PUBLIC_WEB_ORIGIN"] ?? "https://calorie-coach-pie35449.replit.app").replace(/\/+$/, "");
+const PUBLIC_PREFIX = "/api/legal";
 const SUPPORT_EMAIL = "support@mycaloraapp.com";
 const EFFECTIVE_DATE = "August 27, 2026";
 
@@ -23,7 +24,7 @@ const escapeHtml = (value: string): string =>
   } as Record<string, string>)[character] ?? character);
 
 const link = (path: string, label: string): string =>
-  `<a href="${ORIGIN}${path}">${label}</a>`;
+  `<a href="${ORIGIN}${PUBLIC_PREFIX}${path}">${label}</a>`;
 
 const layout = (title: string, description: string, body: string): string => `<!doctype html>
 <html lang="en">
@@ -31,7 +32,7 @@ const layout = (title: string, description: string, body: string): string => `<!
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="${escapeHtml(description)}">
-  <link rel="canonical" href="${ORIGIN}${pathForTitle(title)}">
+  <link rel="canonical" href="${ORIGIN}${PUBLIC_PREFIX}${pathForTitle(title)}">
   <title>${escapeHtml(title)} · CaloraApp</title>
   <style>
     :root { color-scheme: light; --ink:#20251f; --muted:#667064; --line:#dce5d9; --paper:#fbfcf8; --card:#fff; --green:#2e6b4f; --green-dark:#214d39; --cream:#eef5e9; }
@@ -46,7 +47,7 @@ const layout = (title: string, description: string, body: string): string => `<!
   </style>
 </head>
 <body>
-  <header><div class="nav"><a class="brand" href="${ORIGIN}/">CaloraApp</a><nav>
+  <header><div class="nav"><a class="brand" href="${ORIGIN}${PUBLIC_PREFIX}/">CaloraApp</a><nav>
     ${link("/privacy", "Privacy")} ${link("/terms", "Terms")} ${link("/subscriptions", "Subscriptions")} ${link("/support", "Support")}
   </nav></div></header>
   <main>${body}</main>
@@ -142,7 +143,7 @@ router.get("/support", (_req: Request, res: Response) => sendPage("Help & Suppor
   <h2>Quick links</h2><p>${link("/privacy", "Privacy Policy")} · ${link("/terms", "Terms of Use")} · ${link("/subscriptions", "Subscription Information")} · ${link("/delete-account", "Account Deletion")}</p>
 `, res));
 
-router.get("/contact", (_req: Request, res: Response) => res.redirect(308, "/support"));
-router.get("/help", (_req: Request, res: Response) => res.redirect(308, "/support"));
+router.get("/contact", (_req: Request, res: Response) => res.redirect(308, "support"));
+router.get("/help", (_req: Request, res: Response) => res.redirect(308, "support"));
 
 export default router;
