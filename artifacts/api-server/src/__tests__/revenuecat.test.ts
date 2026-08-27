@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const proxyMock = vi.hoisted(() => vi.fn());
+const fetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@replit/connectors-sdk", () => ({
   ReplitConnectors: class {
@@ -11,6 +12,7 @@ vi.mock("@replit/connectors-sdk", () => ({
 import { deleteRevenueCatSubscriber, hasActivePremiumEntitlement } from "../lib/revenuecat";
 
 const originalProjectId = process.env.REVENUECAT_PROJECT_ID;
+const originalSecretApiKey = process.env.REVENUECAT_SECRET_API_KEY;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -21,12 +23,18 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 beforeEach(() => {
   process.env.REVENUECAT_PROJECT_ID = "project-123";
+  process.env.REVENUECAT_SECRET_API_KEY = "test-server-secret";
   proxyMock.mockReset();
+  fetchMock.mockReset();
+  vi.stubGlobal("fetch", fetchMock);
 });
 
 afterEach(() => {
   if (originalProjectId === undefined) delete process.env.REVENUECAT_PROJECT_ID;
   else process.env.REVENUECAT_PROJECT_ID = originalProjectId;
+  if (originalSecretApiKey === undefined) delete process.env.REVENUECAT_SECRET_API_KEY;
+  else process.env.REVENUECAT_SECRET_API_KEY = originalSecretApiKey;
+  vi.unstubAllGlobals();
 });
 
 describe("hasActivePremiumEntitlement", () => {
@@ -88,31 +96,39 @@ describe("hasActivePremiumEntitlement", () => {
 });
 
 describe("deleteRevenueCatSubscriber", () => {
-  it("deletes the customer through the connector-authorized v2 API", async () => {
-    proxyMock
+  it("deletes through the server-authorized v2 API and verifies absence", async () => {
+    fetchMock
       .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(jsonResponse({ message: "Customer not found" }, 404));
 
-    await expect(deleteRevenueCatSubscriber("customer/123")).resolves.toBeUndefined();
-    expect(proxyMock).toHaveBeenNthCalledWith(
+    await expect(deleteRevenueCatSubscriber("customer-123")).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      "revenuecat",
-      "/v2/projects/project-123/customers/customer%2F123",
-      { method: "GET" },
+      "https://api.revenuecat.com/v2/projects/project-123/customers/customer-123",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({ Authorization: "Bearer test-server-secret" }),
+      }),
     );
-    expect(proxyMock).toHaveBeenNthCalledWith(
+    expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "revenuecat",
-      "/v2/projects/project-123/customers/customer%2F123",
-      { method: "DELETE" },
+      "https://api.revenuecat.com/v2/projects/project-123/customers/customer-123",
+      expect.objectContaining({ method: "DELETE" }),
     );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "https://api.revenuecat.com/v2/projects/project-123/customers/customer-123",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(proxyMock).not.toHaveBeenCalled();
   });
 
   it("treats a missing customer as already erased", async () => {
-    proxyMock.mockResolvedValueOnce(jsonResponse({ message: "Customer not found" }, 404));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ message: "Customer not found" }, 404));
 
     await expect(deleteRevenueCatSubscriber("missing-user")).resolves.toBeUndefined();
-    expect(proxyMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("fails explicitly when the project is not configured", async () => {
@@ -121,24 +137,125 @@ describe("deleteRevenueCatSubscriber", () => {
     await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
       "RevenueCat project ID is not configured",
     );
-    expect(proxyMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("surfaces provider failures without reporting erasure", async () => {
-    proxyMock.mockResolvedValueOnce(jsonResponse({ message: "unavailable" }, 503));
+  it("fails explicitly when the server erasure credential is not configured", async () => {
+    delete process.env.REVENUECAT_SECRET_API_KEY;
 
     await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer lookup failed (503)",
+      "RevenueCat customer erasure credential is not configured",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 403, 503])("surfaces lookup status %s without reporting erasure", async (status) => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ message: "unavailable" }, status));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      `RevenueCat customer lookup failed (${status})`,
     );
   });
 
+  it("surfaces lookup network failures without reporting erasure", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("network unavailable"));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat customer lookup request failed",
+    );
+  });
+
+  it("surfaces lookup timeouts without reporting erasure", async () => {
+    fetchMock.mockRejectedValueOnce(new DOMException("timed out", "TimeoutError"));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat customer lookup timed out",
+    );
+  });
+
+  it("rejects malformed lookup JSON without attempting deletion", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("not-json", {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat customer lookup returned a malformed response",
+    );
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a lookup response for a different customer", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: "different-customer" }));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat customer lookup returned a malformed response",
+    );
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it("does not report erasure when an existing customer cannot be deleted", async () => {
-    proxyMock
+    fetchMock
       .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
       .mockResolvedValueOnce(jsonResponse({ message: "forbidden" }, 403));
 
     await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
       "RevenueCat customer deletion failed (403)",
+    );
+  });
+
+  it("does not treat a deletion 404 as verified erasure after finding an existing customer", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
+      .mockResolvedValueOnce(jsonResponse({ message: "not found" }, 404));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat customer deletion failed (404)",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not report erasure when the deletion request fails on the network", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
+      .mockRejectedValueOnce(new TypeError("network unavailable"));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat customer deletion request failed",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not report erasure when the deletion request times out", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
+      .mockRejectedValueOnce(new DOMException("timed out", "TimeoutError"));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat customer deletion timed out",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not report erasure when post-deletion lookup still finds the customer", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat customer verification failed (customer still exists)",
+    );
+  });
+
+  it("does not report erasure when post-deletion verification fails", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(jsonResponse({ message: "unavailable" }, 503));
+
+    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
+      "RevenueCat customer verification failed (503)",
     );
   });
 });

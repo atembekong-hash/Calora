@@ -13,6 +13,8 @@
 import { ReplitConnectors } from "@replit/connectors-sdk";
 
 const ENTITLEMENT_ID = "caloraapp_pro";
+const REVENUECAT_V2_ORIGIN = "https://api.revenuecat.com";
+const REVENUECAT_ERASURE_TIMEOUT_MS = 10_000;
 
 const connectors = new ReplitConnectors();
 
@@ -116,7 +118,52 @@ export async function grantPromoDays(appUserId: string, days: number): Promise<D
   return new Date(endTimeMs);
 }
 
-/** Removes the RevenueCat subscriber record associated with a deleted account. */
+type RevenueCatCustomerResponse = {
+  id?: unknown;
+};
+
+async function revenueCatErasureRequest(
+  path: string,
+  method: "GET" | "DELETE",
+  operation: string,
+): Promise<Response> {
+  const secretApiKey = process.env.REVENUECAT_SECRET_API_KEY;
+  if (!secretApiKey) {
+    throw new Error("RevenueCat customer erasure credential is not configured");
+  }
+
+  try {
+    return await fetch(`${REVENUECAT_V2_ORIGIN}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${secretApiKey}`,
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(REVENUECAT_ERASURE_TIMEOUT_MS),
+    });
+  } catch (error) {
+    const timedOut = error instanceof Error
+      && (error.name === "AbortError" || error.name === "TimeoutError");
+    throw new Error(`RevenueCat customer ${operation} ${timedOut ? "timed out" : "request failed"}`);
+  }
+}
+
+async function verifyExistingRevenueCatCustomer(
+  response: Response,
+  expectedCustomerId: string,
+): Promise<void> {
+  let body: RevenueCatCustomerResponse;
+  try {
+    body = await response.json() as RevenueCatCustomerResponse;
+  } catch {
+    throw new Error("RevenueCat customer lookup returned a malformed response");
+  }
+  if (!body || typeof body !== "object" || body.id !== expectedCustomerId) {
+    throw new Error("RevenueCat customer lookup returned a malformed response");
+  }
+}
+
+/** Removes and positively verifies absence of the RevenueCat customer for a deleted account. */
 export async function deleteRevenueCatSubscriber(appUserId: string): Promise<void> {
   const projectId = process.env.REVENUECAT_PROJECT_ID;
   if (!projectId) {
@@ -124,11 +171,7 @@ export async function deleteRevenueCatSubscriber(appUserId: string): Promise<voi
   }
 
   const customerPath = `/v2/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(appUserId)}`;
-  const lookupResponse = await connectors.proxy(
-    "revenuecat",
-    customerPath,
-    { method: "GET" },
-  );
+  const lookupResponse = await revenueCatErasureRequest(customerPath, "GET", "lookup");
   // RevenueCat does not create a customer until an account reaches billing.
   // A verified absence means there is no provider record to erase.
   if (lookupResponse.status === 404) {
@@ -137,14 +180,21 @@ export async function deleteRevenueCatSubscriber(appUserId: string): Promise<voi
   if (!lookupResponse.ok) {
     throw new Error(`RevenueCat customer lookup failed (${lookupResponse.status})`);
   }
+  await verifyExistingRevenueCatCustomer(lookupResponse, appUserId);
 
-  const response = await connectors.proxy(
-    "revenuecat",
-    customerPath,
-    { method: "DELETE" },
-  );
-  // A missing customer is already deleted and therefore satisfies erasure.
-  if (!response.ok && response.status !== 404) {
-    throw new Error(`RevenueCat customer deletion failed (${response.status})`);
+  const deletionResponse = await revenueCatErasureRequest(customerPath, "DELETE", "deletion");
+  if (!deletionResponse.ok) {
+    throw new Error(`RevenueCat customer deletion failed (${deletionResponse.status})`);
   }
+
+  // Never advance the deletion saga from provider erasure on DELETE alone.
+  // A second lookup must positively verify that the customer is now absent.
+  const verificationResponse = await revenueCatErasureRequest(customerPath, "GET", "verification");
+  if (verificationResponse.status === 404) {
+    return;
+  }
+  if (!verificationResponse.ok) {
+    throw new Error(`RevenueCat customer verification failed (${verificationResponse.status})`);
+  }
+  throw new Error("RevenueCat customer verification failed (customer still exists)");
 }
