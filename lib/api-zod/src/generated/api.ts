@@ -457,12 +457,69 @@ export const SyncOutboxBody = zod.object({
 })).max(syncOutboxBodyMutationsMax)
 })
 
+export const syncOutboxResponseRecordsItemClientIdMax = 128;
+
+export const syncOutboxResponseRecordsItemCaloriesMin = 0;
+
+export const syncOutboxResponseRecordsItemProteinGMin = 0;
+
+export const syncOutboxResponseRecordsItemCarbsGMin = 0;
+
+export const syncOutboxResponseRecordsItemFatGMin = 0;
+
+export const syncOutboxResponseRecordsItemConfidenceMin = 0;
+export const syncOutboxResponseRecordsItemConfidenceMax = 100;
+
+export const syncOutboxResponseRecordsItemTimeMax = 40;
+
+export const syncOutboxResponseRecordsItemFiberMin = 0;
+
+export const syncOutboxResponseRecordsItemSugarMin = 0;
+
+export const syncOutboxResponseRecordsItemSodiumMin = 0;
+
+export const syncOutboxResponseRecordsItemPreparationMax = 500;
+
+export const syncOutboxResponseRecordsItemMemoryIdMax = 128;
+
+export const syncOutboxResponseRecordsItemPlannerMealIdMax = 128;
+
+export const syncOutboxResponseRecordsItemSourceRecipeIdMax = 128;
+
+
+
 export const SyncOutboxResponse = zod.object({
   "accepted": zod.array(zod.string().uuid()),
   "conflicts": zod.array(zod.object({
   "mutationId": zod.string().uuid(),
-  "reason": zod.enum(['stale_write', 'validation_failed', 'unauthorized']),
+  "reason": zod.enum(['stale_write', 'validation_failed', 'unauthorized', 'unsupported_entity', 'unsupported_operation', 'invalid_mutation_id', 'server_error']),
   "serverRecord": zod.record(zod.string(), zod.unknown()).nullish()
+})),
+  "records": zod.array(zod.object({
+  "clientId": zod.string().min(1).max(syncOutboxResponseRecordsItemClientIdMax),
+  "captureSessionId": zod.string().uuid().nullish(),
+  "entryDate": zod.coerce.date(),
+  "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']),
+  "name": zod.string(),
+  "serving": zod.string(),
+  "calories": zod.number().min(syncOutboxResponseRecordsItemCaloriesMin),
+  "proteinG": zod.number().min(syncOutboxResponseRecordsItemProteinGMin),
+  "carbsG": zod.number().min(syncOutboxResponseRecordsItemCarbsGMin),
+  "fatG": zod.number().min(syncOutboxResponseRecordsItemFatGMin),
+  "provenance": zod.enum(['USDA verified', 'Brand verified', 'Barcode verified', 'Photo estimate', 'Manual', 'Recipe']),
+  "confidence": zod.number().int().min(syncOutboxResponseRecordsItemConfidenceMin).max(syncOutboxResponseRecordsItemConfidenceMax),
+  "notes": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "imageSource": zod.string().nullish(),
+  "time": zod.string().max(syncOutboxResponseRecordsItemTimeMax).optional(),
+  "fiber": zod.number().min(syncOutboxResponseRecordsItemFiberMin).optional(),
+  "sugar": zod.number().min(syncOutboxResponseRecordsItemSugarMin).optional(),
+  "sodium": zod.number().min(syncOutboxResponseRecordsItemSodiumMin).optional(),
+  "preparation": zod.string().max(syncOutboxResponseRecordsItemPreparationMax).optional(),
+  "memoryId": zod.string().max(syncOutboxResponseRecordsItemMemoryIdMax).optional(),
+  "plannerMealId": zod.string().max(syncOutboxResponseRecordsItemPlannerMealIdMax).optional(),
+  "sourceRecipeId": zod.string().max(syncOutboxResponseRecordsItemSourceRecipeIdMax).optional(),
+  "clientUpdatedAt": zod.coerce.date()
 })),
   "nextCursor": zod.string()
 })

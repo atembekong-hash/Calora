@@ -46,11 +46,13 @@ const { executeCalls, transactions, failNextTransactionLedgerWrite, dbMock } = v
       const tx = {
         execute: (stmt: unknown) => {
           transaction.statements.push(stmt);
-          if (failNextTransactionLedgerWrite.value && transaction.statements.length === 2) {
+          if (failNextTransactionLedgerWrite.value && transaction.statements.length === 1) {
             failNextTransactionLedgerWrite.value = false;
             return Promise.reject(new Error('sync mutation ledger insert failed'));
           }
-          return Promise.resolve({ rows: [] });
+          return Promise.resolve({
+            rows: transaction.statements.length === 1 ? [{ status: 'apply' }] : [],
+          });
         },
       };
       try {
@@ -283,7 +285,7 @@ describe('POST /v1/sync', () => {
     expect(transactions).toEqual([
       { statements: expect.any(Array), committed: false },
     ]);
-    expect(transactions[0].statements).toHaveLength(2);
+    expect(transactions[0].statements).toHaveLength(1);
     // The mocked transaction publishes writes only on commit, mirroring the
     // database guarantee that the diary write is rolled back with the ledger.
     expect(executeCalls).toHaveLength(0);
@@ -383,7 +385,7 @@ describe('POST /v1/sync', () => {
     expect(transactions).toEqual([
       { statements: expect.any(Array), committed: false },
     ]);
-    expect(transactions[0].statements).toHaveLength(2);
+    expect(transactions[0].statements).toHaveLength(1);
     expect(executeCalls).toHaveLength(0);
   });
 

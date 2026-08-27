@@ -1099,10 +1099,10 @@ export default function ProfileScreen() {
             {infoModal === 'food-data' && (
               <>
                 {[
-                  { icon: 'smartphone' as const, title: 'Stays on your device', body: 'Your diary, profile, and food memories live in your phone\'s local storage — not on a remote server.' },
+                  { icon: 'smartphone' as const, title: user ? 'Diary continuity' : 'Stays on your device', body: user ? 'Signed-in diary entries are stored locally for offline use and securely synced to your account so they can be restored on another device.' : 'While signed out, your diary, profile, and food memories stay in this device\'s local storage.' },
                   { icon: 'download' as const, title: 'You can export any time', body: `Use Export your data to get a complete portable JSON copy of everything ${BRAND.name} has stored.` },
                   { icon: 'trash-2' as const, title: 'You can delete any time', body: 'Delete local data permanently removes every byte from this device immediately.' },
-                  { icon: 'lock' as const, title: 'No cloud sync without consent', body: 'Sync is opt-in and never happens silently. You always see the sync state in your diary footer.' },
+                  { icon: 'lock' as const, title: 'Account-scoped sync', body: user ? 'Only your authenticated account can download or change its synced diary. Local edits retry after your connection returns.' : 'Sign in only when you want account-backed diary continuity across devices.' },
                 ].map((item) => (
                   <View key={item.title} style={[styles.infoRow, { borderColor: colors.border }]}>
                     <View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name={item.icon} size={15} color={colors.accentForeground} /></View>

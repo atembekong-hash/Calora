@@ -21,7 +21,7 @@
 import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { db, aiCaptureSessionsTable, usersTable } from "@workspace/db";
+import { db, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 import { normalizeImageMetadata } from "../lib/image-metadata.js";
@@ -84,7 +84,40 @@ type DiaryUpsertPayload = {
   imageUrl: string | null;
   /** Optional short image-source label; forced NULL when imageUrl is NULL. */
   imageSource: string | null;
+  syncMetadata: {
+    time?: string;
+    fiber?: number;
+    sugar?: number;
+    sodium?: number;
+    preparation?: string;
+    memoryId?: string;
+    plannerMealId?: string;
+    sourceRecipeId?: string;
+  };
 };
+
+const SYNC_METADATA_STRING_LIMITS = {
+  time: 40,
+  preparation: 500,
+  memoryId: 128,
+  plannerMealId: 128,
+  sourceRecipeId: 128,
+} as const;
+
+function parseSyncMetadata(payload: Record<string, unknown>): DiaryUpsertPayload["syncMetadata"] {
+  const metadata: DiaryUpsertPayload["syncMetadata"] = {};
+  for (const [key, limit] of Object.entries(SYNC_METADATA_STRING_LIMITS)) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim()) {
+      metadata[key as keyof typeof SYNC_METADATA_STRING_LIMITS] = value.trim().slice(0, limit);
+    }
+  }
+  for (const key of ["fiber", "sugar", "sodium"] as const) {
+    const value = nonNeg(payload[key]);
+    if (value !== null) metadata[key] = value;
+  }
+  return metadata;
+}
 
 function parseDiaryUpsert(
   payload: Record<string, unknown>,
@@ -182,6 +215,7 @@ function parseDiaryUpsert(
       notes,
       imageUrl,
       imageSource,
+      syncMetadata: parseSyncMetadata(payload),
     },
   };
 }
@@ -222,8 +256,11 @@ function parseRequest(
       return { ok: false, message: "entity is required" };
     if (typeof mut.operation !== "string")
       return { ok: false, message: "operation is required" };
-    if (typeof mut.clientUpdatedAt !== "string")
-      return { ok: false, message: "clientUpdatedAt is required" };
+    if (
+      typeof mut.clientUpdatedAt !== "string" ||
+      Number.isNaN(Date.parse(mut.clientUpdatedAt))
+    )
+      return { ok: false, message: "clientUpdatedAt must be a valid date-time" };
     if (
       !mut.payload ||
       typeof mut.payload !== "object" ||
@@ -251,6 +288,115 @@ function isUuid(s: string): boolean {
   return UUID_RE.test(s);
 }
 
+function serializeDiaryRecord(row: typeof diaryEntriesTable.$inferSelect) {
+  return {
+    clientId: row.clientId,
+    captureSessionId: row.captureSessionId,
+    entryDate: row.entryDate,
+    meal: row.meal,
+    name: row.name,
+    serving: row.serving,
+    calories: Number(row.calories),
+    proteinG: Number(row.proteinG),
+    carbsG: Number(row.carbsG),
+    fatG: Number(row.fatG),
+    provenance: row.provenance,
+    confidence: row.confidence,
+    notes: row.notes,
+    imageUrl: row.imageUrl,
+    imageSource: row.imageSource,
+    ...row.syncMetadata,
+    clientUpdatedAt: row.clientUpdatedAt.toISOString(),
+  };
+}
+
+type MutationClaim = "apply" | "accepted" | "stale";
+
+/**
+ * Atomically claims the newest mutation for one account-owned client record.
+ * The durable ledger doubles as the delete tombstone store, so an old offline
+ * upsert cannot resurrect a record deleted on another device.
+ */
+async function claimDiaryMutation(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  userId: string,
+  mutation: RawMutation,
+  clientId: string,
+): Promise<MutationClaim> {
+  const result = await tx.execute(sql`
+    WITH locked AS MATERIALIZED (
+      SELECT pg_advisory_xact_lock(
+        hashtextextended(${`${userId}:${clientId}`}, 0)
+      )
+    ),
+    inserted AS (
+      INSERT INTO calora_sync_mutations
+        (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
+      SELECT
+        ${mutation.mutationId}::uuid, ${userId}::uuid,
+        ${mutation.entity}, ${mutation.operation},
+        ${JSON.stringify(mutation.payload)}::jsonb,
+        ${mutation.clientUpdatedAt}::timestamptz, now()
+      FROM locked
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM calora_sync_mutations prior
+        WHERE prior.user_id = ${userId}::uuid
+          AND prior.entity = 'diaryEntry'
+          AND prior.payload->>'clientId' = ${clientId}
+          AND (
+            prior.client_updated_at > ${mutation.clientUpdatedAt}::timestamptz
+            OR (
+              prior.client_updated_at = ${mutation.clientUpdatedAt}::timestamptz
+              AND prior.mutation_id::text > ${mutation.mutationId}
+            )
+          )
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM calora_diary_entries current_entry
+        WHERE current_entry.user_id = ${userId}::uuid
+          AND current_entry.client_id = ${clientId}
+          AND current_entry.client_updated_at > ${mutation.clientUpdatedAt}::timestamptz
+      )
+      ON CONFLICT (mutation_id) DO NOTHING
+      RETURNING mutation_id
+    )
+    SELECT 'apply'::text AS status
+    WHERE EXISTS (SELECT 1 FROM inserted)
+    UNION ALL
+    SELECT 'accepted'::text AS status
+    WHERE NOT EXISTS (SELECT 1 FROM inserted)
+      AND EXISTS (
+        SELECT 1
+        FROM calora_sync_mutations existing
+        WHERE existing.mutation_id = ${mutation.mutationId}::uuid
+          AND existing.user_id = ${userId}::uuid
+          AND existing.entity = ${mutation.entity}
+          AND existing.operation = ${mutation.operation}
+          AND existing.client_updated_at = ${mutation.clientUpdatedAt}::timestamptz
+          AND existing.payload->>'clientId' = ${clientId}
+          AND NOT EXISTS (
+            SELECT 1
+            FROM calora_sync_mutations newer
+            WHERE newer.user_id = ${userId}::uuid
+              AND newer.entity = 'diaryEntry'
+              AND newer.payload->>'clientId' = ${clientId}
+              AND (
+                newer.client_updated_at > existing.client_updated_at
+                OR (
+                  newer.client_updated_at = existing.client_updated_at
+                  AND newer.mutation_id::text > existing.mutation_id::text
+                )
+              )
+          )
+      )
+    LIMIT 1
+  `);
+  const status = result.rows[0]?.status;
+  return status === "apply" || status === "accepted" ? status : "stale";
+}
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 router.post("/v1/sync", async (req, res) => {
@@ -268,11 +414,6 @@ router.post("/v1/sync", async (req, res) => {
     }
 
     const { mutations } = parsed;
-    if (mutations.length === 0) {
-      res.json({ accepted: [], conflicts: [], nextCursor: "" });
-      return;
-    }
-
     const userId = await ensureUserRow(user.id, user.email);
 
     const accepted: string[] = [];
@@ -351,11 +492,15 @@ router.post("/v1/sync", async (req, res) => {
           // together. In particular, a ledger failure must not leave an entry
           // that a retry would treat as already processed (or vice versa).
           await db.transaction(async (tx) => {
+            const claim = await claimDiaryMutation(tx, userId, mutation, v.clientId);
+            if (claim === "stale") return "stale";
+            if (claim === "accepted") return "accepted";
+
             await tx.execute(sql`
               INSERT INTO calora_diary_entries
                 (user_id, client_id, capture_session_id, entry_date, meal, name, serving,
                  calories, protein_g, carbs_g, fat_g, provenance,
-                 confidence, notes, image_url, image_source, client_updated_at)
+                 confidence, notes, image_url, image_source, sync_metadata, client_updated_at)
               VALUES
                 (${userId}::uuid, ${v.clientId}, ${verifiedCaptureSessionId}::uuid,
                  ${v.entryDate}::date, ${v.meal},
@@ -363,7 +508,8 @@ router.post("/v1/sync", async (req, res) => {
                  ${String(v.calories)}::numeric, ${String(v.proteinG)}::numeric,
                  ${String(v.carbsG)}::numeric, ${String(v.fatG)}::numeric,
                  ${v.provenance}, ${v.confidence}::integer,
-                 ${v.notes}, ${v.imageUrl}, ${v.imageSource}, now())
+                  ${v.notes}, ${v.imageUrl}, ${v.imageSource}, ${JSON.stringify(v.syncMetadata)}::jsonb,
+                  ${mutation.clientUpdatedAt}::timestamptz)
               ON CONFLICT (user_id, client_id) WHERE client_id IS NOT NULL
               DO UPDATE SET
                 entry_date          = EXCLUDED.entry_date,
@@ -379,29 +525,22 @@ router.post("/v1/sync", async (req, res) => {
                 notes               = EXCLUDED.notes,
                 image_url           = EXCLUDED.image_url,
                 image_source        = EXCLUDED.image_source,
+                sync_metadata       = EXCLUDED.sync_metadata,
                 capture_session_id  = COALESCE(EXCLUDED.capture_session_id, calora_diary_entries.capture_session_id),
                 client_updated_at   = EXCLUDED.client_updated_at,
                 updated_at          = now()
             `);
-
-            // ON CONFLICT DO NOTHING means a second sync of the same
-            // mutationId (after an app restart) never creates a duplicate log.
-            await tx.execute(sql`
-              INSERT INTO calora_sync_mutations
-                (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
-              VALUES
-                (${mutation.mutationId}::uuid, ${userId}::uuid,
-                 ${mutation.entity}, ${mutation.operation},
-                 ${JSON.stringify(mutation.payload)}::jsonb,
-                 ${mutation.clientUpdatedAt}::timestamptz, now())
-              ON CONFLICT (mutation_id) DO NOTHING
-            `);
+            return "apply";
+          }).then((claim) => {
+            if (claim === "stale") {
+              conflicts.push({ mutationId: mutation.mutationId, reason: "stale_write" });
+            } else {
+              accepted.push(mutation.mutationId);
+            }
           });
-
-          accepted.push(mutation.mutationId);
         } else if (mutation.operation === "delete") {
           const clientId = mutation.payload.clientId;
-          if (typeof clientId !== "string" || clientId.length < 1) {
+          if (typeof clientId !== "string" || clientId.length < 1 || clientId.length > 128) {
             conflicts.push({
               mutationId: mutation.mutationId,
               reason: "validation_failed",
@@ -412,26 +551,23 @@ router.post("/v1/sync", async (req, res) => {
           // Scoped delete: the WHERE clause ensures one user can never
           // remove another user's diary row even if they guess a client_id.
           await db.transaction(async (tx) => {
+            const claim = await claimDiaryMutation(tx, userId, mutation, clientId);
+            if (claim === "stale") return "stale";
+            if (claim === "accepted") return "accepted";
+
             await tx.execute(sql`
               DELETE FROM calora_diary_entries
               WHERE user_id = ${userId}::uuid
                 AND client_id = ${clientId}
             `);
-
-            // Record the delete mutation for auditability across sessions.
-            await tx.execute(sql`
-              INSERT INTO calora_sync_mutations
-                (mutation_id, user_id, entity, operation, payload, client_updated_at, processed_at)
-              VALUES
-                (${mutation.mutationId}::uuid, ${userId}::uuid,
-                 ${mutation.entity}, ${mutation.operation},
-                 ${JSON.stringify(mutation.payload)}::jsonb,
-                 ${mutation.clientUpdatedAt}::timestamptz, now())
-              ON CONFLICT (mutation_id) DO NOTHING
-            `);
+            return "apply";
+          }).then((claim) => {
+            if (claim === "stale") {
+              conflicts.push({ mutationId: mutation.mutationId, reason: "stale_write" });
+            } else {
+              accepted.push(mutation.mutationId);
+            }
           });
-
-          accepted.push(mutation.mutationId);
         } else {
           // Unknown diary operation: report as conflict rather than silently
           // discarding the mutation.
@@ -449,7 +585,18 @@ router.post("/v1/sync", async (req, res) => {
       }
     }
 
-    res.json({ accepted, conflicts, nextCursor: "" });
+    const records = await db
+      .select()
+      .from(diaryEntriesTable)
+      .where(eq(diaryEntriesTable.userId, userId));
+    res.json({
+      accepted,
+      conflicts,
+      records: records
+        .filter((row) => row.clientId !== null)
+        .map(serializeDiaryRecord),
+      nextCursor: "",
+    });
   } catch (err) {
     logger.error({ err }, "Sync request failed");
     res

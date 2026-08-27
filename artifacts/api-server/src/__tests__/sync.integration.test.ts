@@ -266,4 +266,114 @@ describe.skipIf(!HAS_DB)('diary sync idempotency (real schema)', () => {
     // sync_mutations must record the delete mutation only once.
     expect(await syncMutationRowCount(del.mutationId)).toBe(1);
   });
+
+  it('reconciles create, restore, edit, conflict, retry, and delete across two devices', async () => {
+    actAsTestUser();
+    const created = validUpsertMutation({
+      time: '7:35 AM',
+      fiber: 8,
+      sugar: 4,
+      sodium: 210,
+      preparation: 'Warm with oat milk',
+      memoryId: 'memory-oats',
+      plannerMealId: 'planner-oats',
+      sourceRecipeId: 'recipe-oats',
+    });
+    const clientId = created.payload.clientId as string;
+    clientIds.push(clientId);
+    mutationIds.push(created.mutationId);
+
+    // Device A creates while online.
+    const createResponse = await request(app)
+      .post('/v1/sync')
+      .send({ deviceId: 'device-a', mutations: [created] });
+    expect(createResponse.body.accepted).toContain(created.mutationId);
+    expect(createResponse.body.records).toContainEqual(
+      expect.objectContaining({
+        clientId,
+        name: 'Oatmeal',
+        time: '7:35 AM',
+        fiber: 8,
+        sugar: 4,
+        sodium: 210,
+        preparation: 'Warm with oat milk',
+        memoryId: 'memory-oats',
+        plannerMealId: 'planner-oats',
+        sourceRecipeId: 'recipe-oats',
+      }),
+    );
+
+    // Fresh device B has no local mutations and restores the account diary.
+    const freshRestore = await request(app)
+      .post('/v1/sync')
+      .send({ deviceId: 'device-b', mutations: [] });
+    expect(freshRestore.body.records).toContainEqual(
+      expect.objectContaining({ clientId, name: 'Oatmeal' }),
+    );
+
+    // Device B edits with a newer timestamp.
+    const edit = {
+      ...validUpsertMutation({ clientId, name: 'Oatmeal with berries' }),
+      clientUpdatedAt: '2026-08-11T10:05:00Z',
+    };
+    mutationIds.push(edit.mutationId);
+    const editResponse = await request(app)
+      .post('/v1/sync')
+      .send({ deviceId: 'device-b', mutations: [edit] });
+    expect(editResponse.body.accepted).toContain(edit.mutationId);
+    expect(editResponse.body.records.find((record: { clientId: string }) => record.clientId === clientId)?.name)
+      .toBe('Oatmeal with berries');
+
+    // An older concurrent Device A edit loses deterministically.
+    const staleEdit = {
+      ...validUpsertMutation({ clientId, name: 'Older device edit' }),
+      clientUpdatedAt: '2026-08-11T10:03:00Z',
+    };
+    mutationIds.push(staleEdit.mutationId);
+    const conflictResponse = await request(app)
+      .post('/v1/sync')
+      .send({ deviceId: 'device-a', mutations: [staleEdit] });
+    expect(conflictResponse.body.conflicts).toContainEqual({
+      mutationId: staleEdit.mutationId,
+      reason: 'stale_write',
+    });
+    expect(conflictResponse.body.records.find((record: { clientId: string }) => record.clientId === clientId)?.name)
+      .toBe('Oatmeal with berries');
+
+    // Retrying the accepted Device B edit is idempotently accepted.
+    const retryResponse = await request(app)
+      .post('/v1/sync')
+      .send({ deviceId: 'device-b', mutations: [edit] });
+    expect(retryResponse.body.accepted).toContain(edit.mutationId);
+    expect(await diaryRowCount(clientId)).toBe(1);
+
+    // Device A's newer delete becomes a tombstone; B restores the deletion.
+    const deletion = {
+      ...deleteMutation(clientId),
+      clientUpdatedAt: '2026-08-11T10:10:00Z',
+    };
+    mutationIds.push(deletion.mutationId);
+    const deleteResponse = await request(app)
+      .post('/v1/sync')
+      .send({ deviceId: 'device-a', mutations: [deletion] });
+    expect(deleteResponse.body.accepted).toContain(deletion.mutationId);
+    expect(deleteResponse.body.records.some((record: { clientId: string }) => record.clientId === clientId))
+      .toBe(false);
+
+    const restoreDeletion = await request(app)
+      .post('/v1/sync')
+      .send({ deviceId: 'device-b', mutations: [] });
+    expect(restoreDeletion.body.records.some((record: { clientId: string }) => record.clientId === clientId))
+      .toBe(false);
+
+    // Device B cannot resurrect the deleted row with its older offline edit.
+    const staleRetry = await request(app)
+      .post('/v1/sync')
+      .send({ deviceId: 'device-b', mutations: [edit] });
+    expect(staleRetry.body.conflicts).toContainEqual({
+      mutationId: edit.mutationId,
+      reason: 'stale_write',
+    });
+    expect(await diaryRowCount(clientId)).toBe(0);
+  });
 });

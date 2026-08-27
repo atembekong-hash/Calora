@@ -69,6 +69,7 @@ function makeLog(overrides: Partial<{
   imageUrl: string;
   imageSource: 'provider' | 'recipe' | 'planner';
   nutritionSnapshot: { calories: number; proteinG: number; carbsG: number; fatG: number; capturedAt: string } | undefined;
+  syncUpdatedAt: string;
 }> = {}) {
   return {
     id: 'log-1',
@@ -84,6 +85,28 @@ function makeLog(overrides: Partial<{
     source: 'Manual' as FoodSource,
     confidence: 90,
     nutritionSnapshot: undefined,
+    ...overrides,
+  };
+}
+
+function makeServerRecord(overrides: Record<string, unknown> = {}) {
+  return {
+    clientId: 'log-1',
+    captureSessionId: null,
+    entryDate: '2025-01-15',
+    meal: 'Lunch',
+    name: 'Chicken breast',
+    serving: '100 g',
+    calories: 165,
+    proteinG: 31,
+    carbsG: 0,
+    fatG: 3.6,
+    provenance: 'Manual',
+    confidence: 90,
+    notes: null,
+    imageUrl: null,
+    imageSource: null,
+    clientUpdatedAt: '2026-08-27T10:00:00.000Z',
     ...overrides,
   };
 }
@@ -366,6 +389,127 @@ describe('syncDiaryLogs: image metadata', () => {
     const secondPayload = mockSyncOutbox.mock.calls[1][0].mutations[0].payload;
     expect(secondPayload.imageUrl).toBe('https://images.openfoodfacts.org/chicken.jpg');
     expect(secondPayload.imageSource).toBe('provider');
+  });
+
+  it('uses a new mutation id for a later edit of the same diary record', async () => {
+    const { syncDiaryLogs } = await freshDiarySync();
+    mockSyncOutbox.mockImplementation(async (request: { mutations: Array<{ mutationId: string }> }) => ({
+      accepted: request.mutations.map((mutation) => mutation.mutationId),
+      conflicts: [],
+      records: [],
+      nextCursor: '',
+    }));
+    const original = makeLog({ id: 'log-edit-id', syncUpdatedAt: '2026-08-27T10:00:00.000Z' });
+    const edited = {
+      ...original,
+      time: '6:45 PM',
+      serving: '140 g',
+      protein: 42,
+      notes: 'Serving-only style edit',
+      syncUpdatedAt: '2026-08-27T10:01:00.000Z',
+    };
+
+    await syncDiaryLogs([original]);
+    await syncDiaryLogs([edited]);
+
+    const firstId = mockSyncOutbox.mock.calls[0][0].mutations[0].mutationId;
+    const secondId = mockSyncOutbox.mock.calls[1][0].mutations[0].mutationId;
+    expect(secondId).not.toBe(firstId);
+  });
+});
+
+describe('reconcileDiaryState: cross-device restore and merge', () => {
+  beforeEach(() => {
+    for (const k of Object.keys(store)) delete store[k];
+    mockSyncOutbox.mockReset();
+  });
+
+  it('restores the server diary into a fresh install with no local logs', async () => {
+    const { reconcileDiaryState } = await freshDiarySync();
+    mockSyncOutbox.mockResolvedValue({
+      accepted: [],
+      conflicts: [],
+      records: [makeServerRecord({
+        clientId: 'restored-log',
+        name: 'Restored oats',
+        time: '7:35 AM',
+        fiber: 8,
+        sugar: 4,
+        sodium: 210,
+        preparation: 'Warm with oat milk',
+        memoryId: 'memory-oats',
+        plannerMealId: 'planner-oats',
+        sourceRecipeId: 'recipe-oats',
+      })],
+      nextCursor: '',
+    });
+
+    const restored = await reconcileDiaryState([]);
+
+    expect(restored).toEqual([
+      expect.objectContaining({
+        id: 'restored-log',
+        name: 'Restored oats',
+        time: '7:35 AM',
+        fiber: 8,
+        sugar: 4,
+        sodium: 210,
+        preparation: 'Warm with oat milk',
+        memoryId: 'memory-oats',
+        plannerMealId: 'planner-oats',
+        sourceRecipeId: 'recipe-oats',
+        syncUpdatedAt: '2026-08-27T10:00:00.000Z',
+      }),
+    ]);
+  });
+
+  it('keeps a newer offline edit when its upload fails, then retries it', async () => {
+    const { reconcileDiaryState } = await freshDiarySync();
+    const local = makeLog({
+      id: 'offline-edit',
+      name: 'Newest local name',
+      syncUpdatedAt: '2026-08-27T10:05:00.000Z',
+    });
+    mockSyncOutbox
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({
+        accepted: [],
+        conflicts: [],
+        records: [makeServerRecord({
+          clientId: 'offline-edit',
+          name: 'Older server name',
+          clientUpdatedAt: '2026-08-27T10:00:00.000Z',
+        })],
+        nextCursor: '',
+      });
+
+    const merged = await reconcileDiaryState([local]);
+
+    expect(merged.find((log) => log.id === 'offline-edit')?.name).toBe('Newest local name');
+    expect(mockSyncOutbox).toHaveBeenCalledTimes(2);
+  });
+
+  it('removes an unchanged local record after another device deletes it', async () => {
+    const { reconcileDiaryState } = await freshDiarySync();
+    const local = makeLog({
+      id: 'remote-delete',
+      syncUpdatedAt: '2026-08-27T10:00:00.000Z',
+    });
+    const record = makeServerRecord({ clientId: 'remote-delete' });
+    mockSyncOutbox
+      .mockImplementationOnce(async (request: { mutations: Array<{ mutationId: string }> }) => ({
+        accepted: request.mutations.map((mutation) => mutation.mutationId),
+        conflicts: [],
+        records: [record],
+        nextCursor: '',
+      }))
+      .mockResolvedValueOnce({ accepted: [], conflicts: [], records: [record], nextCursor: '' })
+      .mockResolvedValueOnce({ accepted: [], conflicts: [], records: [], nextCursor: '' });
+
+    const firstMerge = await reconcileDiaryState([local]);
+    const afterRemoteDelete = await reconcileDiaryState(firstMerge);
+
+    expect(afterRemoteDelete.some((log) => log.id === 'remote-delete')).toBe(false);
   });
 });
 

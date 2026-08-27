@@ -127,6 +127,12 @@ describe.skipIf(!HAS_DB)("tenant isolation (real schema)", () => {
     actAs(userB);
     const savedAsB = await request(app).post("/v1/sync").send(syncBody([mutationB]));
     expect(savedAsB.status).toBe(200);
+    expect(savedAsB.body.records).toContainEqual(
+      expect.objectContaining({ clientId, name: "User B replacement attempt" }),
+    );
+    expect(savedAsB.body.records).not.toContainEqual(
+      expect.objectContaining({ clientId, name: DIARY_BODY.name }),
+    );
 
     const owners = await pool.query<{ external_id: string; name: string }>(
       `SELECT u.external_id, d.name
@@ -145,7 +151,7 @@ describe.skipIf(!HAS_DB)("tenant isolation (real schema)", () => {
       mutationId: randomUUID(),
       entity: "diaryEntry",
       operation: "delete",
-      clientUpdatedAt: DIARY_BODY.clientUpdatedAt,
+      clientUpdatedAt: "2026-08-20T08:01:00.000Z",
       payload: { clientId },
     };
     actAs(userB);

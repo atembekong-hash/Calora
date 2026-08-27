@@ -262,6 +262,10 @@ export const SyncConflictReason = {
   stale_write: 'stale_write',
   validation_failed: 'validation_failed',
   unauthorized: 'unauthorized',
+  unsupported_entity: 'unsupported_entity',
+  unsupported_operation: 'unsupported_operation',
+  invalid_mutation_id: 'invalid_mutation_id',
+  server_error: 'server_error',
 } as const;
 
 export type SyncConflictServerRecord = { [key: string]: unknown } | null;
@@ -272,9 +276,79 @@ export interface SyncConflict {
   serverRecord?: SyncConflictServerRecord;
 }
 
+export type SyncDiaryRecordMeal = typeof SyncDiaryRecordMeal[keyof typeof SyncDiaryRecordMeal];
+
+
+export const SyncDiaryRecordMeal = {
+  Breakfast: 'Breakfast',
+  Lunch: 'Lunch',
+  Dinner: 'Dinner',
+  Snack: 'Snack',
+} as const;
+
+export type SyncDiaryRecordProvenance = typeof SyncDiaryRecordProvenance[keyof typeof SyncDiaryRecordProvenance];
+
+
+export const SyncDiaryRecordProvenance = {
+  USDA_verified: 'USDA verified',
+  Brand_verified: 'Brand verified',
+  Barcode_verified: 'Barcode verified',
+  Photo_estimate: 'Photo estimate',
+  Manual: 'Manual',
+  Recipe: 'Recipe',
+} as const;
+
+export interface SyncDiaryRecord {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  clientId: string;
+  captureSessionId?: string | null;
+  entryDate: string;
+  meal: SyncDiaryRecordMeal;
+  name: string;
+  serving: string;
+  /** @minimum 0 */
+  calories: number;
+  /** @minimum 0 */
+  proteinG: number;
+  /** @minimum 0 */
+  carbsG: number;
+  /** @minimum 0 */
+  fatG: number;
+  provenance: SyncDiaryRecordProvenance;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  confidence: number;
+  notes?: string | null;
+  imageUrl?: string | null;
+  imageSource?: string | null;
+  /** @maxLength 40 */
+  time?: string;
+  /** @minimum 0 */
+  fiber?: number;
+  /** @minimum 0 */
+  sugar?: number;
+  /** @minimum 0 */
+  sodium?: number;
+  /** @maxLength 500 */
+  preparation?: string;
+  /** @maxLength 128 */
+  memoryId?: string;
+  /** @maxLength 128 */
+  plannerMealId?: string;
+  /** @maxLength 128 */
+  sourceRecipeId?: string;
+  clientUpdatedAt: string;
+}
+
 export interface SyncResponse {
   accepted: string[];
   conflicts: SyncConflict[];
+  records: SyncDiaryRecord[];
   nextCursor: string;
 }
 

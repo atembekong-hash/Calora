@@ -20,24 +20,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useCalora } from '@/context/CaloraContext';
 import {
-  loadSyncedIds,
-  ensureSigsLoaded,
-  syncDiaryLogs,
-  syncDiaryDeletes,
   isStarterLog,
+  diaryLogSignature,
+  reconcileDiaryState,
   setDiarySyncAccountScope,
 } from '@/lib/diarySync';
 
 export function useDiarySync() {
   const { user, session } = useAuth();
-  const { logs, hydrated } = useCalora();
-
-  /**
-   * The set of log IDs that have been confirmed by the server at any point.
-   * Loaded from the persisted AsyncStorage key on mount and kept current as
-   * syncs succeed or deletes are sent.
-   */
-  const syncedIdsRef = useRef<Set<string>>(new Set());
+  const { logs, hydrated, applySyncedDiaryLogs } = useCalora();
   const initializedRef = useRef(false);
 
   // Load the persisted synced-ID set and content signatures once per account.
@@ -45,19 +36,8 @@ export function useDiarySync() {
   // entries that were already accepted by the server with identical content,
   // avoiding a full re-batch of hundreds of historical entries.
   useEffect(() => {
-    let active = true;
     setDiarySyncAccountScope(user?.id);
-    Promise.all([loadSyncedIds(), ensureSigsLoaded()])
-      .then(([ids]) => {
-        if (!active) return;
-        syncedIdsRef.current = ids;
-        initializedRef.current = true;
-      })
-      .catch(() => {
-        if (!active) return;
-        initializedRef.current = true;
-      });
-    return () => { active = false; };
+    initializedRef.current = true;
   }, [user?.id]);
 
   // A stable key that changes when any log is added, removed, or edited.
@@ -66,7 +46,7 @@ export function useDiarySync() {
   // without depending on the full array reference.
   const logsKey = logs
     .filter((l) => !isStarterLog(l))
-    .map((l) => `${l.id}:${l.date}:${l.meal}:${l.name}:${Math.round(l.calories)}:${l.imageUrl ?? ''}:${l.imageSource ?? ''}`)
+    .map((l) => `${l.id}:${diaryLogSignature(l)}`)
     .join('|');
 
   // Always reflects the latest logsKey so the in-flight run can detect drift
@@ -90,33 +70,27 @@ export function useDiarySync() {
     const accessTokenAtStart = session.access_token;
     syncInProgressRef.current = true;
 
-    const currentNonStarterIds = new Set(
-      logs.filter((l) => !isStarterLog(l)).map((l) => l.id),
-    );
-
-    // IDs that were synced before but are no longer in the local diary.
-    const removedIds = [...syncedIdsRef.current].filter(
-      (id) => !currentNonStarterIds.has(id),
-    );
-
     let active = true;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const run = async () => {
       try {
-        // Delete before upserting so a re-added entry with the same clientId
-        // doesn't get deleted by a racing delete mutation.
-        if (removedIds.length > 0) {
-          await syncDiaryDeletes(removedIds, accessTokenAtStart);
-          if (!active) return;
-          // Refresh synced set after deletes.
-          const updated = await loadSyncedIds();
-          syncedIdsRef.current = updated;
-        }
-
-        const newSyncedIds = await syncDiaryLogs(logs, accessTokenAtStart);
+        const mergedLogs = await reconcileDiaryState(logs, accessTokenAtStart);
         if (!active) return;
-        syncedIdsRef.current = newSyncedIds;
+        const mergedKey = mergedLogs
+          .filter((l) => !isStarterLog(l))
+          .map((l) => `${l.id}:${diaryLogSignature(l)}`)
+          .join('|');
+        if (mergedKey !== logsKeyAtStart) applySyncedDiaryLogs(mergedLogs);
       } catch (err) {
         console.warn('[diary-sync] background sync failed', err);
+        // Connectivity can return without any diary state change. Schedule a
+        // bounded retry so offline mutations and fresh-install restores resume
+        // automatically instead of waiting for another user edit.
+        if (active) {
+          retryTimer = setTimeout(() => {
+            if (active) setSyncGeneration((g) => g + 1);
+          }, 5_000);
+        }
       } finally {
         syncInProgressRef.current = false;
 
@@ -133,7 +107,10 @@ export function useDiarySync() {
     };
 
     void run();
-    return () => { active = false; };
+    return () => {
+      active = false;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   // Re-run when auth state changes, the diary content changes (add/edit/delete),
   // or a follow-up sync was queued because a change arrived mid-flight.
   // eslint-disable-next-line react-hooks/exhaustive-deps

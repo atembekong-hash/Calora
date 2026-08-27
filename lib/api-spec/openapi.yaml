@@ -843,14 +843,43 @@ components:
       required: [mutationId, reason]
       properties:
         mutationId: { type: string, format: uuid }
-        reason: { type: string, enum: [stale_write, validation_failed, unauthorized] }
+        reason: { type: string, enum: [stale_write, validation_failed, unauthorized, unsupported_entity, unsupported_operation, invalid_mutation_id, server_error] }
         serverRecord: { type: object, nullable: true, additionalProperties: true }
+    SyncDiaryRecord:
+      type: object
+      required: [clientId, entryDate, meal, name, serving, calories, proteinG, carbsG, fatG, provenance, confidence, clientUpdatedAt]
+      properties:
+        clientId: { type: string, minLength: 1, maxLength: 128 }
+        captureSessionId: { type: string, format: uuid, nullable: true }
+        entryDate: { type: string, format: date }
+        meal: { type: string, enum: [Breakfast, Lunch, Dinner, Snack] }
+        name: { type: string }
+        serving: { type: string }
+        calories: { type: number, minimum: 0 }
+        proteinG: { type: number, minimum: 0 }
+        carbsG: { type: number, minimum: 0 }
+        fatG: { type: number, minimum: 0 }
+        provenance: { type: string, enum: [USDA verified, Brand verified, Barcode verified, Photo estimate, Manual, Recipe] }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        notes: { type: string, nullable: true }
+        imageUrl: { type: string, nullable: true }
+        imageSource: { type: string, nullable: true }
+        time: { type: string, maxLength: 40 }
+        fiber: { type: number, minimum: 0 }
+        sugar: { type: number, minimum: 0 }
+        sodium: { type: number, minimum: 0 }
+        preparation: { type: string, maxLength: 500 }
+        memoryId: { type: string, maxLength: 128 }
+        plannerMealId: { type: string, maxLength: 128 }
+        sourceRecipeId: { type: string, maxLength: 128 }
+        clientUpdatedAt: { type: string, format: date-time }
     SyncResponse:
       type: object
-      required: [accepted, conflicts, nextCursor]
+      required: [accepted, conflicts, records, nextCursor]
       properties:
         accepted: { type: array, items: { type: string, format: uuid } }
         conflicts: { type: array, items: { $ref: "#/components/schemas/SyncConflict" } }
+        records: { type: array, items: { $ref: "#/components/schemas/SyncDiaryRecord" } }
         nextCursor: { type: string }
     ExportRequest:
       type: object

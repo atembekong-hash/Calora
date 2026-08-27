@@ -13,4 +13,8 @@ export const SyncConflictReason = {
   stale_write: 'stale_write',
   validation_failed: 'validation_failed',
   unauthorized: 'unauthorized',
+  unsupported_entity: 'unsupported_entity',
+  unsupported_operation: 'unsupported_operation',
+  invalid_mutation_id: 'invalid_mutation_id',
+  server_error: 'server_error',
 } as const;

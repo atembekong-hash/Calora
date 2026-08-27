@@ -74,6 +74,7 @@ import {
   normalizeFoodImageUrl,
   type FoodImageSource,
 } from '@/lib/foodImageMetadata';
+import { recordDiaryDelete } from '@/lib/diarySync';
 export type { PlannerPreferences, PlanTypeId } from '@/lib/planType';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
@@ -84,6 +85,8 @@ export type FoodSource = 'USDA verified' | 'Brand verified' | 'Barcode verified'
 
 export type FoodLog = {
   id: string;
+  /** Stable last-write timestamp used by cross-device diary reconciliation. */
+  syncUpdatedAt?: string;
   /**
    * Server-issued capture session id (UUID) inherited from a capture-backed
    * draft. Only logs carrying this can anchor the referral first-log sync.
@@ -250,6 +253,7 @@ type CaloraContextValue = {
   colors: typeof colors.light;
   syncState: SyncState;
   pendingMutations: OutboxMutation[];
+  applySyncedDiaryLogs: (logs: FoodLog[]) => void;
   healthConnected: boolean;
   healthConnection: HealthConnection;
   hydrationReminders: HydrationReminderPrefs;
@@ -846,6 +850,7 @@ export function CaloraProvider({
       const nextLog = normalizeLogImageMetadata({
         ...log,
         id,
+        syncUpdatedAt: capturedAt,
         nutritionSnapshot,
       });
       const component: FoodMemoryComponent = {
@@ -903,7 +908,8 @@ export function CaloraProvider({
     },
     updateLog: (id, patch) => {
       const existing = logsRef.current.find((log) => log.id === id);
-       const updated = existing ? normalizeLogImageMetadata({ ...existing, ...patch }) : null;
+       const syncUpdatedAt = new Date().toISOString();
+       const updated = existing ? normalizeLogImageMetadata({ ...existing, ...patch, syncUpdatedAt }) : null;
       if (updated) {
         setLivingMemory((memory) => upsertMealObservation(
           removeMealObservation(memory, id),
@@ -912,18 +918,30 @@ export function CaloraProvider({
           updated.meal,
         ));
       }
-      logsRef.current = logsRef.current.map((log) => log.id === id ? normalizeLogImageMetadata({ ...log, ...patch }) : log);
-      setLogs((current) => current.map((log) => log.id === id ? normalizeLogImageMetadata({ ...log, ...patch }) : log));
+      logsRef.current = logsRef.current.map((log) => log.id === id ? normalizeLogImageMetadata({ ...log, ...patch, syncUpdatedAt }) : log);
+      setLogs((current) => current.map((log) => log.id === id ? normalizeLogImageMetadata({ ...log, ...patch, syncUpdatedAt }) : log));
       queueMutation('diaryEntry', 'upsert');
       if (postLogSourceIdRef.current === id) clearPostLogInsight();
     },
     removeLog: (id) => {
+      recordDiaryDelete(id, new Date().toISOString());
       logsRef.current = logsRef.current.filter((log) => log.id !== id);
       setLogs((current) => current.filter((log) => log.id !== id));
       setFoodMemories((current) => current.filter((memory) => memory.diaryLogId !== id));
       setLivingMemory((current) => removeMealObservation(current, id));
       queueMutation('diaryEntry', 'delete');
       if (postLogSourceIdRef.current === id) clearPostLogInsight();
+    },
+    applySyncedDiaryLogs: (nextLogs) => {
+      logsRef.current = nextLogs;
+      setLogs(nextLogs);
+      setLivingMemory((current) => mergeLivingMemory(current, buildLivingMemory({
+        logs: nextLogs,
+        waterLogs,
+        moodLogs,
+        activityLogs,
+        plannerMeals,
+      })));
     },
     createFoodMemoryDraft: (analysis, date = dateKey(), meal = 'Snack') => {
       const draft = captureAnalysisToDraft(analysis, date, meal);
@@ -965,6 +983,7 @@ export function CaloraProvider({
       const logId = makeId('log');
       const acceptedAt = new Date().toISOString();
       const { log, memory } = buildAcceptResult(draft, logId, acceptedAt);
+      (log as FoodLog).syncUpdatedAt = acceptedAt;
       const beforeLogs = logsRef.current;
       const nextLogs = [...beforeLogs, log];
       logsRef.current = nextLogs;

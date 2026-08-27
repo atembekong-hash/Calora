@@ -2,8 +2,8 @@
  * Background diary sync for cross-device backup.
  *
  * Calora remains local-first: an unsuccessful sync never blocks a meal from
- * appearing locally. This module pushes confirmed diary logs to the server
- * in the background using the authenticated POST /v1/sync endpoint.
+ * appearing locally. This module pushes confirmed diary mutations and pulls
+ * the authenticated account's merged diary through POST /v1/sync.
  *
  * ── Idempotency ─────────────────────────────────────────────────────────────
  * The server upserts on (user_id, client_id), so re-sending the same log is
@@ -52,6 +52,7 @@ const SYNCED_SIGS_KEY = '@calora/synced-diary-sigs';
  * preventing stale outbox entries from accumulating indefinitely.
  */
 const PERMANENTLY_REJECTED_KEY = '@calora/permanently-rejected-keys';
+const PENDING_DELETES_KEY = '@calora/pending-diary-deletes';
 let activeAccountScope = 'guest';
 let accountScopeGeneration = 0;
 
@@ -75,6 +76,8 @@ export function setDiarySyncAccountScope(accountId?: string | null): void {
   transientFailureCounts.clear();
   sessionQuarantinedKeys.clear();
   logMutationIds.clear();
+  pendingDeletes.clear();
+  pendingDeletesLoaded = false;
   upsertInFlight = false;
   deleteInFlight = false;
 }
@@ -353,6 +356,8 @@ function getMutationId(logId: string): string {
 
 let upsertInFlight = false;
 let deleteInFlight = false;
+const pendingDeletes = new Map<string, { mutationId: string; clientUpdatedAt: string }>();
+let pendingDeletesLoaded = false;
 
 /** Signatures of logs whose current content was already accepted. */
 const syncedSignatures = new Map<string, string>();
@@ -363,33 +368,44 @@ export function isStarterLog(log: FoodLog): boolean {
   return log.id.startsWith('starter-');
 }
 
-function signature(log: FoodLog): string {
-  return [
-    log.date,
-    log.meal,
-    log.name,
-    log.serving,
-    log.calories,
-    log.protein,
-    log.carbs,
-    log.fat,
-    log.source,
-    log.confidence,
-    log.notes ?? '',
-    log.imageUrl ?? '',
-    log.imageSource ?? '',
-  ].join('|');
+export function diaryLogSignature(log: FoodLog): string {
+  return JSON.stringify({
+    captureSessionId: log.captureSessionId ?? null,
+    date: log.date,
+    time: log.time,
+    meal: log.meal,
+    name: log.name,
+    serving: log.serving,
+    calories: log.calories,
+    protein: log.protein,
+    carbs: log.carbs,
+    fat: log.fat,
+    fiber: log.fiber ?? null,
+    sugar: log.sugar ?? null,
+    sodium: log.sodium ?? null,
+    source: log.source,
+    confidence: log.confidence,
+    notes: log.notes ?? null,
+    imageUrl: log.imageUrl ?? null,
+    imageSource: log.imageSource ?? null,
+    preparation: log.preparation ?? null,
+    memoryId: log.memoryId ?? null,
+    plannerMealId: log.plannerMealId ?? null,
+    sourceRecipeId: log.sourceRecipeId ?? null,
+    syncUpdatedAt: log.syncUpdatedAt ?? log.nutritionSnapshot?.capturedAt ?? '',
+  });
 }
 
 function toUpsertMutation(log: FoodLog) {
   return {
-    mutationId: getMutationId(log.id),
+    mutationId: getMutationId(`${log.id}:${diaryLogSignature(log)}`),
     entity: 'diaryEntry' as const,
     operation: 'upsert' as const,
     clientUpdatedAt:
-      log.nutritionSnapshot?.capturedAt ?? new Date().toISOString(),
+      log.syncUpdatedAt ?? log.nutritionSnapshot?.capturedAt ?? new Date(0).toISOString(),
     payload: {
       clientId: log.id,
+      captureSessionId: log.captureSessionId ?? null,
       entryDate: log.date,
       meal: log.meal,
       name: log.name,
@@ -403,17 +419,127 @@ function toUpsertMutation(log: FoodLog) {
       notes: log.notes ?? null,
       imageUrl: log.imageUrl ?? null,
       imageSource: log.imageSource ?? null,
+      time: log.time,
+      fiber: log.fiber,
+      sugar: log.sugar,
+      sodium: log.sodium,
+      preparation: log.preparation,
+      memoryId: log.memoryId,
+      plannerMealId: log.plannerMealId,
+      sourceRecipeId: log.sourceRecipeId,
     },
   };
 }
 
-function toDeleteMutation(logId: string) {
+function toDeleteMutation(logId: string, deletion: { mutationId: string; clientUpdatedAt: string }) {
   return {
-    mutationId: getMutationId(`del:${logId}`),
+    mutationId: deletion.mutationId,
     entity: 'diaryEntry' as const,
     operation: 'delete' as const,
-    clientUpdatedAt: new Date().toISOString(),
+    clientUpdatedAt: deletion.clientUpdatedAt,
     payload: { clientId: logId },
+  };
+}
+
+async function ensurePendingDeletesLoaded(): Promise<void> {
+  if (pendingDeletesLoaded) return;
+  const generation = accountScopeGeneration;
+  const key = scopedKey(PENDING_DELETES_KEY);
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    if (generation !== accountScopeGeneration) return;
+    if (raw) {
+      for (const [id, value] of JSON.parse(raw) as Array<[string, { mutationId: string; clientUpdatedAt: string }]>) {
+        pendingDeletes.set(id, value);
+      }
+    }
+  } catch {
+    if (generation !== accountScopeGeneration) return;
+    // A missing/corrupt tombstone queue is retried from current local state.
+  }
+  if (generation === accountScopeGeneration) pendingDeletesLoaded = true;
+}
+
+async function persistPendingDeletes(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(scopedKey(PENDING_DELETES_KEY), JSON.stringify([...pendingDeletes]));
+  } catch {
+    // In-memory tombstones still protect the current session.
+  }
+}
+
+/** Capture delete time immediately, rather than when connectivity returns. */
+export function recordDiaryDelete(logId: string, clientUpdatedAt = new Date().toISOString()): void {
+  if (!pendingDeletes.has(logId)) {
+    pendingDeletes.set(logId, { mutationId: generateUUID(), clientUpdatedAt });
+    void persistPendingDeletes();
+  }
+}
+
+type ServerDiaryRecord = {
+  clientId: string;
+  captureSessionId?: string | null;
+  entryDate: string;
+  meal: FoodLog['meal'];
+  name: string;
+  serving: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  provenance: FoodLog['source'];
+  confidence: number;
+  notes?: string | null;
+  imageUrl?: string | null;
+  imageSource?: string | null;
+  time?: string;
+  fiber?: number;
+  sugar?: number;
+  sodium?: number;
+  preparation?: string;
+  memoryId?: string;
+  plannerMealId?: string;
+  sourceRecipeId?: string;
+  clientUpdatedAt: string;
+};
+
+function fromServerRecord(record: ServerDiaryRecord): FoodLog {
+  const imageSource =
+    record.imageSource === 'provider' || record.imageSource === 'recipe' || record.imageSource === 'planner'
+      ? record.imageSource
+      : undefined;
+  return {
+    id: record.clientId,
+    captureSessionId: record.captureSessionId ?? undefined,
+    syncUpdatedAt: record.clientUpdatedAt,
+    date: record.entryDate,
+    time: record.time ?? '12:00 PM',
+    meal: record.meal,
+    name: record.name,
+    serving: record.serving,
+    calories: record.calories,
+    protein: record.proteinG,
+    carbs: record.carbsG,
+    fat: record.fatG,
+    source: record.provenance,
+    confidence: record.confidence,
+    notes: record.notes ?? undefined,
+    imageUrl: record.imageUrl ?? undefined,
+    imageSource,
+    fiber: record.fiber,
+    sugar: record.sugar,
+    sodium: record.sodium,
+    preparation: record.preparation,
+    memoryId: record.memoryId,
+    plannerMealId: record.plannerMealId,
+    sourceRecipeId: record.sourceRecipeId,
+    nutritionSnapshot: {
+      calories: record.calories,
+      proteinG: record.proteinG,
+      carbsG: record.carbsG,
+      fatG: record.fatG,
+      capturedAt: record.clientUpdatedAt,
+    },
   };
 }
 
@@ -447,7 +573,7 @@ export async function syncDiaryLogs(logs: FoodLog[], accessToken = ''): Promise<
     // Skip session-quarantined entries — too many transient failures this
     // launch; they will be retried after the next app restart.
     if (sessionQuarantinedKeys.has(log.id)) return false;
-    return syncedSignatures.get(log.id) !== signature(log);
+    return syncedSignatures.get(log.id) !== diaryLogSignature(log);
   });
 
   if (pending.length === 0) return syncedIds;
@@ -461,7 +587,7 @@ export async function syncDiaryLogs(logs: FoodLog[], accessToken = ''): Promise<
       // log ID for each mutation UUID in the response.
       const mutationIdToKey = new Map<string, string>();
       for (const log of batch) {
-        mutationIdToKey.set(getMutationId(log.id), log.id);
+        mutationIdToKey.set(getMutationId(`${log.id}:${diaryLogSignature(log)}`), log.id);
       }
 
       try {
@@ -476,8 +602,8 @@ export async function syncDiaryLogs(logs: FoodLog[], accessToken = ''): Promise<
 
         const acceptedSet = new Set(response.accepted);
         for (const log of batch) {
-          if (acceptedSet.has(getMutationId(log.id))) {
-            syncedSignatures.set(log.id, signature(log));
+          if (acceptedSet.has(getMutationId(`${log.id}:${diaryLogSignature(log)}`))) {
+            syncedSignatures.set(log.id, diaryLogSignature(log));
             syncedIds.add(log.id);
             // Clear any session quarantine / transient counters so the entry
             // is treated as clean going forward.
@@ -519,6 +645,7 @@ export async function syncDiaryDeletes(deletedIds: string[], accessToken = ''): 
   const scopeAtStart = accountScopeGeneration;
   if (deleteInFlight || deletedIds.length === 0) return;
 
+  await ensurePendingDeletesLoaded();
   const syncedIds = await loadSyncedIds();
   const rejectedKeys = await loadPermanentlyRejectedKeys();
   if (scopeAtStart !== accountScopeGeneration) return;
@@ -532,6 +659,8 @@ export async function syncDiaryDeletes(deletedIds: string[], accessToken = ''): 
       !sessionQuarantinedKeys.has(`del:${id}`),
   );
   if (toDelete.length === 0) return;
+  for (const id of toDelete) recordDiaryDelete(id);
+  await persistPendingDeletes();
 
   deleteInFlight = true;
   try {
@@ -542,14 +671,14 @@ export async function syncDiaryDeletes(deletedIds: string[], accessToken = ''): 
       // del-key for each mutation UUID in the response.
       const mutationIdToKey = new Map<string, string>();
       for (const id of batch) {
-        mutationIdToKey.set(getMutationId(`del:${id}`), `del:${id}`);
+        mutationIdToKey.set(pendingDeletes.get(id)!.mutationId, `del:${id}`);
       }
 
       try {
         if (scopeAtStart !== accountScopeGeneration) return;
         const response = await syncOutbox({
           deviceId: 'calora-mobile',
-          mutations: batch.map(toDeleteMutation),
+          mutations: batch.map((id) => toDeleteMutation(id, pendingDeletes.get(id)!)),
         }, { headers: { Authorization: `Bearer ${accessToken}` } });
         if (scopeAtStart !== accountScopeGeneration) return;
 
@@ -558,16 +687,32 @@ export async function syncDiaryDeletes(deletedIds: string[], accessToken = ''): 
           await processSyncConflicts(response.conflicts, mutationIdToKey);
         }
 
-        // Remove from synced set whether or not the server confirmed:
-        // the server DELETE is idempotent (row-not-found is fine).
+        const settledIds = new Set<string>();
+        const accepted = new Set(response.accepted);
         for (const id of batch) {
+          const deletion = pendingDeletes.get(id);
+          if (deletion && accepted.has(deletion.mutationId)) settledIds.add(id);
+        }
+        for (const conflict of response.conflicts ?? []) {
+          if (conflict.reason !== 'server_error') {
+            const key = mutationIdToKey.get(conflict.mutationId);
+            if (key?.startsWith('del:')) settledIds.add(key.slice(4));
+          }
+        }
+
+        // Accepted and deterministically stale deletes are settled. A stale
+        // delete means a newer server edit won and will be restored on pull.
+        for (const id of batch) {
+          if (!settledIds.has(id)) continue;
           syncedIds.delete(id);
           syncedSignatures.delete(id);
           logMutationIds.delete(id);
+          pendingDeletes.delete(id);
           clearTransientState(`del:${id}`);
         }
         await persistSyncedIds();
         await persistSyncedSignatures();
+        await persistPendingDeletes();
       } catch (err) {
         console.warn('[diary-sync] delete batch failed', err);
       }
@@ -580,6 +725,61 @@ export async function syncDiaryDeletes(deletedIds: string[], accessToken = ''): 
       await pruneSignatures(syncedIds);
     }
   }
+}
+
+/**
+ * Push local changes, settle deletes, then pull the complete account diary.
+ * Server records win unless this device still has a strictly newer unsent edit.
+ */
+export async function reconcileDiaryState(
+  logs: FoodLog[],
+  accessToken = '',
+): Promise<FoodLog[]> {
+  await ensureSigsLoaded();
+  await ensurePendingDeletesLoaded();
+  const previouslySynced = new Set(await loadSyncedIds());
+  const localRealLogs = logs.filter((log) => !isStarterLog(log));
+  const localIds = new Set(localRealLogs.map((log) => log.id));
+  const removedIds = [...previouslySynced].filter((id) => !localIds.has(id));
+
+  for (const id of removedIds) recordDiaryDelete(id);
+  if (removedIds.length > 0) await syncDiaryDeletes(removedIds, accessToken);
+  await syncDiaryLogs(localRealLogs, accessToken);
+
+  const response = await syncOutbox(
+    { deviceId: 'calora-mobile', mutations: [] },
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  const remoteLogs = ((response.records ?? []) as ServerDiaryRecord[]).map(fromServerRecord);
+  const remoteById = new Map(remoteLogs.map((log) => [log.id, log]));
+  const merged = new Map<string, FoodLog>();
+
+  for (const local of localRealLogs) {
+    const remote = remoteById.get(local.id);
+    if (remote) {
+      const localTime = Date.parse(local.syncUpdatedAt ?? local.nutritionSnapshot?.capturedAt ?? '');
+      const remoteTime = Date.parse(remote.syncUpdatedAt ?? '');
+      const localStillPending =
+        syncedSignatures.get(local.id) !== diaryLogSignature(local) &&
+        Number.isFinite(localTime) &&
+        localTime > remoteTime;
+      merged.set(local.id, localStillPending ? local : remote);
+      remoteById.delete(local.id);
+    } else if (syncedSignatures.get(local.id) !== diaryLogSignature(local)) {
+      // New/edited local data whose upload failed remains visible and retries.
+      merged.set(local.id, local);
+    }
+  }
+  for (const remote of remoteById.values()) merged.set(remote.id, remote);
+
+  _syncedIdSet = new Set(remoteLogs.map((log) => log.id));
+  syncedSignatures.clear();
+  for (const remote of remoteLogs) syncedSignatures.set(remote.id, diaryLogSignature(remote));
+  await persistSyncedIds();
+  await persistSyncedSignatures();
+
+  const starter = logs.filter(isStarterLog);
+  return [...starter, ...merged.values()];
 }
 
 /** Delegates to the batch path for a single log. */

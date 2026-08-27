@@ -109,6 +109,20 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
    * (e.g. "Open Food Facts", "user_photo"). NULL when imageUrl is NULL.
    */
   imageSource: text("image_source"),
+  /**
+   * Allowlisted client-only diary details that must survive account restore
+   * without expanding the relational nutrition/query surface.
+   */
+  syncMetadata: jsonb("sync_metadata").$type<{
+    time?: string;
+    fiber?: number;
+    sugar?: number;
+    sodium?: number;
+    preparation?: string;
+    memoryId?: string;
+    plannerMealId?: string;
+    sourceRecipeId?: string;
+  }>().default({}).notNull(),
   clientUpdatedAt: timestamp("client_updated_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

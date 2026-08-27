@@ -6,9 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { SyncConflict } from './syncConflict';
+import type { SyncDiaryRecord } from './syncDiaryRecord';
 
 export interface SyncResponse {
   accepted: string[];
   conflicts: SyncConflict[];
+  records: SyncDiaryRecord[];
   nextCursor: string;
 }
