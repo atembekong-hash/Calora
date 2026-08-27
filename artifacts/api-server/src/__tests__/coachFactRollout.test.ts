@@ -1,5 +1,5 @@
 /**
- * Unit tests for the server-owned, DB-backed cohort gate.
+ * Unit tests for the server-owned, DB-backed global Coach gate.
  *
  * The async DB paths are tested here by mocking @workspace/db so we can
  * exercise all branches without a real database connection.
@@ -37,18 +37,11 @@ import {
   COACH_FACT_CONTEXT_CONFIG_KEY,
 } from "../lib/coach-fact-rollout.js";
 
-// Helpers to drive the two sequential DB queries (config then membership).
 function mockConfigEnabled() {
   return { value: true };
 }
-function mockConfigDisabled() {
-  return undefined; // absent row
-}
-function mockMemberRow(expiresAt: Date | null, reviewedAt: Date | null) {
-  return { id: "row-1", expiresAt, reviewedAt };
-}
 
-describe("server-owned cohort rollout mechanism", () => {
+describe("server-owned global Coach rollout mechanism", () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
   it("the active cohort is always empty — DB is authoritative, not an in-memory set", () => {
@@ -86,77 +79,18 @@ describe("server-owned cohort rollout mechanism", () => {
     expect(dbSelectMock).toHaveBeenCalledTimes(1);
   });
 
-  it("deny — server_config enabled but cohort membership row absent", async () => {
-    dbSelectMock
-      .mockResolvedValueOnce([mockConfigEnabled()]) // config
-      .mockResolvedValueOnce([]);                   // no member row
-    const d = await getCoachFactRolloutDecision("user-c");
-    expect(d.cohortEligible).toBe(false);
-    expect(d.reason).toBe("cohort_deny");
-    expect(dbSelectMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("deny — membership row has reviewedAt = null (unreviewed row)", async () => {
-    dbSelectMock
-      .mockResolvedValueOnce([mockConfigEnabled()])
-      .mockResolvedValueOnce([mockMemberRow(null, null)]); // reviewedAt null
-    const d = await getCoachFactRolloutDecision("user-d");
-    expect(d.cohortEligible).toBe(false);
-    expect(d.reason).toBe("cohort_unreviewed");
-  });
-
-  it("deny — membership row has expiresAt in the past (expired)", async () => {
-    const pastDate = new Date(Date.now() - 1000);
-    dbSelectMock
-      .mockResolvedValueOnce([mockConfigEnabled()])
-      .mockResolvedValueOnce([mockMemberRow(pastDate, new Date())]);
-    const d = await getCoachFactRolloutDecision("user-e");
-    expect(d.cohortEligible).toBe(false);
-    expect(d.reason).toBe("cohort_expired");
-  });
-
-  it("deny — expiresAt is exactly now (boundary: not strictly in the future)", async () => {
-    const exactly = new Date(Date.now());
-    dbSelectMock
-      .mockResolvedValueOnce([mockConfigEnabled()])
-      .mockResolvedValueOnce([mockMemberRow(exactly, new Date())]);
-    const d = await getCoachFactRolloutDecision("user-f");
-    expect(d.cohortEligible).toBe(false);
-    expect(d.reason).toBe("cohort_expired");
-  });
-
-  it("allow — config enabled, membership present, reviewedAt set, expiresAt null (no expiry)", async () => {
-    dbSelectMock
-      .mockResolvedValueOnce([mockConfigEnabled()])
-      .mockResolvedValueOnce([mockMemberRow(null, new Date())]); // no expiry, reviewed
-    const d = await getCoachFactRolloutDecision("user-g");
+  it("allow — config enabled without any per-user cohort lookup", async () => {
+    dbSelectMock.mockResolvedValueOnce([mockConfigEnabled()]);
+    const d = await getCoachFactRolloutDecision("ordinary-user");
     expect(d.cohortEligible).toBe(true);
     expect(d.legacyFallbackEnabled).toBe(false);
     expect(d.reason).toBe("cohort_eligible");
-  });
-
-  it("allow — config enabled, membership present, reviewedAt set, expiresAt strictly in the future", async () => {
-    const futureDate = new Date(Date.now() + 86_400_000); // +1 day
-    dbSelectMock
-      .mockResolvedValueOnce([mockConfigEnabled()])
-      .mockResolvedValueOnce([mockMemberRow(futureDate, new Date())]);
-    const d = await getCoachFactRolloutDecision("user-h");
-    expect(d.cohortEligible).toBe(true);
-    expect(d.reason).toBe("cohort_eligible");
+    expect(dbSelectMock).toHaveBeenCalledTimes(1);
   });
 
   it("fail-closed — DB throws on config query ⟹ deny without error propagation", async () => {
     dbSelectMock.mockRejectedValueOnce(new Error("connection reset"));
     const d = await getCoachFactRolloutDecision("user-i");
-    expect(d.cohortEligible).toBe(false);
-    expect(d.reason).toBe("dark_default_deny");
-  });
-
-  it("fail-closed — DB throws on membership query ⟹ deny without error propagation", async () => {
-    dbSelectMock
-      .mockResolvedValueOnce([mockConfigEnabled()])
-      .mockRejectedValueOnce(new Error("timeout"));
-    const d = await getCoachFactRolloutDecision("user-j");
     expect(d.cohortEligible).toBe(false);
     expect(d.reason).toBe("dark_default_deny");
   });

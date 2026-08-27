@@ -159,10 +159,7 @@ describe("dark Coach Fact Context path", () => {
   });
 
   it.each([
-    ["lacks internal_qa", "not_dedicated_pilot"],
-    ["lacks coach_fact_context_v1_pilot", "not_dedicated_pilot"],
-    ["has both markers false", "not_dedicated_pilot"],
-    ["has malformed markers", "missing_or_malformed_metadata"],
+    ["has malformed server-owned metadata", "missing_or_malformed_metadata"],
     ["is banned", "banned"],
     ["is suspended or disabled", "indeterminate_ban_status"],
     ["has unavailable account status", "missing_or_malformed_metadata"],

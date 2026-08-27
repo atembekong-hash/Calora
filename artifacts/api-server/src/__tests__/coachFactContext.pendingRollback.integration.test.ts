@@ -4,7 +4,6 @@ import request from "supertest";
 import { eq } from "drizzle-orm";
 import {
   coachFactContextIdempotencyTable,
-  cohortMembershipsTable,
   db,
   pool,
   serverConfigTable,
@@ -38,7 +37,6 @@ const VERIFIED_DEVELOPMENT_TARGET = {
   postgresSystemIdentifier: "7670770438921318420",
 } as const;
 const CONFIG_KEY = "coach_fact_context_rollout_enabled";
-const COHORT = "coach_fact_context_v1";
 const createdExternalIds: string[] = [];
 let priorConfig: { exists: boolean; value?: unknown } | undefined;
 let priorServerGate: string | undefined;
@@ -88,7 +86,7 @@ function body(nonce: string) {
   };
 }
 
-function validProviderCompletion() {
+function validProviderCompletion(requestNonce: string) {
   return {
     choices: [{
       message: {
@@ -99,7 +97,7 @@ function validProviderCompletion() {
           safetyState: "normal",
           limitations: [],
           contextCoverage: { usedSections: [], missingSections: [] },
-          requestNonce: "f".repeat(24),
+          requestNonce,
         }),
       },
     }],
@@ -119,13 +117,6 @@ async function prepareEligibleIdentity(externalId: string) {
   await acceptCoachFactConsent(externalId, null);
   await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: true })
     .onConflictDoUpdate({ target: serverConfigTable.key, set: { value: true, updatedAt: new Date() } });
-  await db.insert(cohortMembershipsTable).values({
-    cohortName: COHORT,
-    externalUserId: externalId,
-    addedBy: "synthetic-pending-rehearsal",
-    reviewedAt: new Date(),
-    expiresAt: new Date(Date.now() + 10 * 60_000),
-  });
 }
 
 async function cleanupSyntheticState() {
@@ -133,8 +124,6 @@ async function cleanupSyntheticState() {
     const externalId = createdExternalIds.pop()!;
     await db.delete(coachFactContextIdempotencyTable)
       .where(eq(coachFactContextIdempotencyTable.externalUserId, externalId));
-    await db.delete(cohortMembershipsTable)
-      .where(eq(cohortMembershipsTable.externalUserId, externalId));
     await db.delete(usersTable).where(eq(usersTable.externalId, externalId));
   }
   if (priorConfig !== undefined) {
@@ -193,13 +182,14 @@ describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context pending rollback re
       providerEntered?.();
     }) as never);
 
+    const requestNonce = Math.random().toString(16).slice(2).padEnd(24, "a").slice(0, 24);
     const pendingResponse = request(app()).post("/v1/coach/fact-context/respond")
-      .send(body(Math.random().toString(16).slice(2).padEnd(24, "a").slice(0, 24)));
+      .send(body(requestNonce));
     const responsePromise = pendingResponse.then((response) => response);
     await providerEnteredPromise;
 
     await rollback(externalId);
-    releaseProvider?.(validProviderCompletion());
+    releaseProvider?.(validProviderCompletion(requestNonce));
     const response = await responsePromise;
 
     expect(response.status).toBe(404);
@@ -207,10 +197,27 @@ describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context pending rollback re
     expect(vi.mocked(openai.chat.completions.create)).toHaveBeenCalledTimes(1);
   }
 
-  it("discards a pending completion after cohort removal", async () => {
-    await runPendingCase("cohort", async (externalId) => {
-      await db.delete(cohortMembershipsTable).where(eq(cohortMembershipsTable.externalUserId, externalId));
+  it("allows an ordinary consented account without a cohort membership", async () => {
+    vi.clearAllMocks();
+    const externalId = syntheticId("ordinary");
+    await prepareEligibleIdentity(externalId);
+    process.env.COACH_FACT_CONTEXT_ENABLED = "true";
+    verifyBearerToken.mockResolvedValue({
+      id: externalId,
+      email: null,
+      coachFactAccount: { eligible: true, reason: "eligible" },
     });
+    checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+    const requestNonce = "f".repeat(24);
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce(validProviderCompletion(requestNonce) as never);
+
+    const response = await request(app()).post("/v1/coach/fact-context/respond")
+      .send(body(requestNonce));
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe("Here is a neutral summary based only on the currently approved records.");
+    expect(response.body.message).not.toBe("ok");
+    expect(vi.mocked(openai.chat.completions.create)).toHaveBeenCalledTimes(1);
   });
 
   it("discards a pending completion after global rollout disablement", async () => {

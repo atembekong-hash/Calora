@@ -30,7 +30,6 @@ export type CoachFactAccountEligibility = {
   reason:
     | "eligible"
     | "missing_or_malformed_metadata"
-    | "not_dedicated_pilot"
     | "deleted"
     | "banned"
     | "administratively_prohibited"
@@ -53,9 +52,9 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Determines whether a Supabase account is approved for the dark Fact Context
- * path. Only Supabase app_metadata is read: it is server/admin-owned, unlike
- * user_metadata, and neither marker is accepted from a client request.
+ * Determines whether a Supabase account is safe to use the consent-gated Fact
+ * Context path. Supabase app_metadata is server/admin-owned, unlike
+ * user_metadata, and is used only to enforce administrative prohibitions.
  *
  * The supplied Supabase user object is returned by auth.getUser(token), not
  * decoded from the client-provided JWT. Missing or malformed metadata/status
@@ -102,12 +101,6 @@ export function getCoachFactAccountEligibility(user: {
     if (user.app_metadata.status !== "active") {
       return { eligible: false, reason: "administratively_prohibited" };
     }
-  }
-  if (
-    user.app_metadata.internal_qa !== true ||
-    user.app_metadata.coach_fact_context_v1_pilot !== true
-  ) {
-    return { eligible: false, reason: "not_dedicated_pilot" };
   }
   return { eligible: true, reason: "eligible" };
 }

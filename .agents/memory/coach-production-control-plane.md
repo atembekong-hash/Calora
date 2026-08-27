@@ -6,18 +6,19 @@ description: Supported production access boundary for the controlled Coach Fact 
 The project review environment can read production metadata and aggregate state,
 but the approved human operator path is Replit's Publishing production-secret
 settings for the process gate and Production Database My Data for the global
-rollout and reviewed cohort membership.
+rollout switch.
 
 **Why:** The first controlled activation requires auditable, reversible
 production controls. Public/admin endpoints, ad-hoc production SQL, scripts,
 and deployment workarounds are not approved substitutes for that operator-only
 control plane.
 
-**How to apply:** A future live one-account activation must be performed by an
-authorized production operator following the protected approval/evidence,
-per-transition verification, and deny-all rollback procedure in the operator
-runbook. The agent/review environment must not attempt activation; until that
-human approval and execution occur, preserve deny-all.
+**How to apply:** The approved broad activation for active signed-in users with
+current purpose-scoped consent must be performed by an authorized production
+operator following the protected approval/evidence, per-transition verification,
+and deny-all rollback procedure in the operator runbook. The agent/review
+environment must not attempt activation; until that human execution occurs,
+preserve deny-all.
 
 ## Release attestation boundary
 
@@ -38,7 +39,7 @@ model requires an external signed artifact provenance system.
 
 ## Supported release identity
 
-Calora's controlled-pilot boundary uses a clean reviewed checkout, a
+Calora's consent-gated Coach boundary uses a clean reviewed checkout, a
 build-time binding to the reviewed Git commit, and exact canonical-HTTPS
 comparison of compiled `/api/version` commit/tree/source-digest metadata plus
 health before any runtime gate may be changed. The build compiles eligibility
