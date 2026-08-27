@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { hasCurrentPremiumAccess } from "../premiumRecipeAccess";
+import {
+  canDisplayPremiumCatalogue,
+  hasCurrentPremiumAccess,
+} from "../premiumRecipeAccess";
 
 describe("Premium recipe display authorization", () => {
   it("hides a populated catalogue while a same-user entitlement revalidation is pending or denied", () => {
@@ -25,5 +28,27 @@ describe("Premium recipe display authorization", () => {
       isFetchedAfterMount: true,
       isFetching: false,
     })).toBe(true);
+  });
+
+  it("keeps an already verified same-account catalogue visible during revalidation", () => {
+    expect(canDisplayPremiumCatalogue({
+      hasCurrentAccess: false,
+      isFetching: true,
+      hasVerifiedCurrentAccount: true,
+    })).toBe(true);
+  });
+
+  it("does not reveal an unverified or different-account catalogue", () => {
+    expect(canDisplayPremiumCatalogue({
+      hasCurrentAccess: false,
+      isFetching: true,
+      hasVerifiedCurrentAccount: false,
+    })).toBe(false);
+
+    expect(canDisplayPremiumCatalogue({
+      hasCurrentAccess: false,
+      isFetching: false,
+      hasVerifiedCurrentAccount: true,
+    })).toBe(false);
   });
 });

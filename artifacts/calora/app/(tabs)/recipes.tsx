@@ -28,7 +28,7 @@ import { requestGeneratedRecipe, requestRecipeConcepts } from '@/lib/recipeGener
 import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
-import { hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
+import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
@@ -248,7 +248,13 @@ function PremiumCatalogue({ colors, onOpen, onSave, savedPremiumRecipes, onLoadM
   // A cached response only describes a past entitlement. Never render it until
   // a request mounted for this screen has verified current server access.
   const currentAccess = hasCurrentPremiumAccess(query);
-  const data = currentAccess ? query.data : undefined;
+  const hasVerifiedCurrentAccount = loadedForUserId === userId;
+  const canDisplayCatalogue = canDisplayPremiumCatalogue({
+    hasCurrentAccess: currentAccess,
+    isFetching: query.isFetching,
+    hasVerifiedCurrentAccount,
+  });
+  const data = canDisplayCatalogue ? query.data : undefined;
   useEffect(() => {
     if (!accessDenied) return;
     queryClient.removeQueries({ queryKey: premiumQueryKey, exact: true });
@@ -312,7 +318,7 @@ function PremiumCatalogue({ colors, onOpen, onSave, savedPremiumRecipes, onLoadM
   // with the initial loader/error state while that page is resolving: collapsing
   // the parent ScrollView content makes React Native clamp its scroll offset.
   if (query.isError && !accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Try again shortly. Discover remains available.</Text><Pressable accessibilityLabel="Retry loading Premium recipes" onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
-  if (!currentAccess) return <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Checking Premium access…</Text></View>;
+  if (!canDisplayCatalogue) return <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Checking Premium access…</Text></View>;
   if (data?.status === 'error' && !hasLoadedRecipes) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'Try again shortly. Discover remains available.'}</Text><Pressable accessibilityLabel="Retry loading Premium recipes" onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
    if (data?.status === 'restricted') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium recipes are not available</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'This recipe provider is not enabled for this account yet. Discover remains available.'}</Text></View>;
   if (data?.status === 'unavailable') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="link-2" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Premium source not connected</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message}</Text></View>;
