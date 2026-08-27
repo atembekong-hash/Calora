@@ -40,3 +40,4 @@
 - [Spatial surface contrast](spatial-surface-contrast.md) — shared depth wrappers must preserve semantic background/foreground pairs, not just layout styles.
 - [Detached background tasks](detached-background-tasks.md) — timer, recovery, and startup promises need a logged rejection boundary so transient failures cannot terminate the API.
 - [Project-reference typechecks](project-reference-typechecks.md) — rebuild workspace library declarations before diagnosing downstream row-type errors.
+- [Calora release freeze](calora-release-candidate-freeze.md) — signed builds must use the exact candidate named in the final freeze report, not a later workspace state.
