@@ -737,7 +737,7 @@ function CalorieGauge({
   //   and keeps its own 20px padding → inner = windowWidth - 40
   //   gauge fills the full inner card width (Eaten/Burned move below)
   const cardInnerW = windowWidth - 40;
-  const gaugeW     = Math.min(cardInnerW, 310);
+  const gaugeW     = Math.min(cardInnerW, 340);
   const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE;
 
   // Animate the fill arc via strokeDashoffset
