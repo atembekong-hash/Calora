@@ -63,6 +63,7 @@ app.use(express.urlencoded({ extended: true }));
 // Universal / App Links verification and invite fallback — must be at root
 // (not under /api) so the OS can reach /.well-known/* without a redirect.
 app.use(universalLinksRouter);
+app.use(publicPagesRouter);
 // The API artifact owns /api in production. Mounting the public pages below a
 // legal namespace avoids shadowing the API's existing /api liveness response.
 app.use("/api/legal", publicPagesRouter);

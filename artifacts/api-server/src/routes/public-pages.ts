@@ -143,7 +143,7 @@ router.get("/support", (_req: Request, res: Response) => sendPage("Help & Suppor
   <h2>Quick links</h2><p>${link("/privacy", "Privacy Policy")} · ${link("/terms", "Terms of Use")} · ${link("/subscriptions", "Subscription Information")} · ${link("/delete-account", "Account Deletion")}</p>
 `, res));
 
-router.get("/contact", (_req: Request, res: Response) => res.redirect(308, `${PUBLIC_PREFIX}/support`));
-router.get("/help", (_req: Request, res: Response) => res.redirect(308, `${PUBLIC_PREFIX}/support`));
+router.get("/contact", (_req: Request, res: Response) => res.redirect(308, "support"));
+router.get("/help", (_req: Request, res: Response) => res.redirect(308, "support"));
 
 export default router;

@@ -7,7 +7,7 @@ id = "3B4_FFSkEVBkAeYMFRJ2e"
 [[services]]
 localPort = 8080
 name = "API Server"
-paths = ["/api", "/api/legal", "/.well-known", "/invite"]
+paths = ["/api", "/api/legal", "/.well-known", "/invite", "/", "/privacy", "/terms", "/support", "/contact", "/delete-account", "/subscriptions", "/help"]
 
 [services.development]
 # Production release-control secrets can be available workspace-wide; they must

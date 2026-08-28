@@ -113,10 +113,10 @@ RevenueCat client integration and repository seed configuration exist. Productio
 
 | Document | URL | Status |
 |---|---|---|
-| Privacy Policy | https://calorie-coach-pie35449.replit.app/api/legal/privacy | Route implemented; verify after the task merge and production publish |
-| Terms of Use | https://calorie-coach-pie35449.replit.app/api/legal/terms | Route implemented; verify after the task merge and production publish |
-| Subscription Info | https://calorie-coach-pie35449.replit.app/api/legal/subscriptions | Route implemented; verify after the task merge and production publish |
-| Account Deletion | https://calorie-coach-pie35449.replit.app/api/legal/delete-account | Route implemented; verify after the task merge and production publish |
+| Privacy Policy | https://calorie-coach-pie35449.replit.app/api/legal/privacy | ✅ Published at the confirmed public origin |
+| Terms of Use | https://calorie-coach-pie35449.replit.app/api/legal/terms | ✅ Published at the confirmed public origin |
+| Subscription Info | https://calorie-coach-pie35449.replit.app/api/legal/subscriptions | ✅ Published at the confirmed public origin |
+| Account Deletion | https://calorie-coach-pie35449.replit.app/api/legal/delete-account | ✅ Published at the confirmed public origin |
 
 > Required by Apple App Store, Google Play, and applicable data protection regulations before public distribution.
 
