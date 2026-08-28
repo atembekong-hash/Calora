@@ -1154,7 +1154,7 @@ function makeStyles(f: number) {
   homeHeaderCoachIcon: { width: 40, height: 40, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   homeHeaderCoachText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 11 * f, letterSpacing: 0.1 },
   homeHeaderDate: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 0.5, textAlign: 'right', maxWidth: 146, textTransform: 'uppercase' },
-   homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 26 * f, letterSpacing: -0.8 },
+   homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 22 * f, letterSpacing: -0.6 },
   homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 14 * f, marginTop: 6 },
   scrollContent: { paddingHorizontal: 20 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
