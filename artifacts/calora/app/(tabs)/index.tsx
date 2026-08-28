@@ -363,16 +363,12 @@ function WellnessCards({
   colors,
   mealsLogged,
   mealNames,
-  mood,
   onAddMeal,
-  onMood,
 }: {
   colors: ReturnType<typeof useCalora>['colors'];
   mealsLogged: number;
   mealNames: string[];
-  mood?: Mood;
   onAddMeal: () => void;
-  onMood: (mood: Mood) => void;
 }) {
   return (
     <View style={styles.wellnessSection}>
@@ -389,26 +385,38 @@ function WellnessCards({
           </ScalePressable>
         </View>
       </View>
+    </View>
+  );
+}
 
-      <View style={[styles.moodCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={styles.moodHeading}>
-          <View>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>How are you feeling?</Text>
-            <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{mood ? `Logged as ${moodOptions.find((item) => item.value === mood)?.label.toLowerCase()}.` : 'A quick check-in, whenever it feels useful.'}</Text>
-          </View>
-          <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="mood" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
+function MoodCard({
+  colors,
+  mood,
+  onMood,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  mood?: Mood;
+  onMood: (mood: Mood) => void;
+}) {
+  return (
+    <View style={[styles.moodCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.moodHeading}>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>How are you feeling?</Text>
+          <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{mood ? `Logged as ${moodOptions.find((item) => item.value === mood)?.label.toLowerCase()}.` : 'A quick check-in, whenever it feels useful.'}</Text>
         </View>
-        <View style={styles.moodOptions}>
-          {moodOptions.map((item) => {
-            const selected = mood === item.value;
-            return (
-              <ScalePressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} scale={0.98} haptic="none" style={[styles.moodOption, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}>
-                <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
-                <Text style={[styles.moodOptionText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
-              </ScalePressable>
-            );
-          })}
-        </View>
+        <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="mood" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
+      </View>
+      <View style={styles.moodOptions}>
+        {moodOptions.map((item) => {
+          const selected = mood === item.value;
+          return (
+            <ScalePressable key={item.value} accessibilityLabel={`Log mood ${item.label}`} testID={`mood-${item.value}`} onPress={() => onMood(item.value)} scale={0.98} haptic="none" style={[styles.moodOption, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}>
+              <Feather name={item.icon} size={15} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+              <Text style={[styles.moodOptionText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{item.label}</Text>
+            </ScalePressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -1140,6 +1148,12 @@ export default function HomeScreen() {
           <AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={Math.round(target * 0.3 / 9)} color={colors.fat} colors={colors} />
         </View>
 
+        <MoodCard
+          colors={colors}
+          mood={moodLogs[selectedDate]}
+          onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
+        />
+
         <View style={styles.mealHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text>
@@ -1203,9 +1217,7 @@ export default function HomeScreen() {
           colors={colors}
           mealsLogged={mealsLogged}
           mealNames={mealNames}
-          mood={moodLogs[selectedDate]}
           onAddMeal={openAdd}
-          onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
         />
 
         <View style={styles.recipeSection}>
