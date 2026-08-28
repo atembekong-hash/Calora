@@ -14,7 +14,7 @@ import { BRAND } from '@/lib/brand';
 import { formatGrams, formatWhole } from '@/lib/formatters';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
-import { SwipeableTabList } from '@/components/SwipeableTabList';
+import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { router } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
@@ -686,6 +686,7 @@ function WeightLineChart({
     <View style={styles.weightSparkline} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
       {isScrollable ? (
         <View style={{ position: 'relative' }}>
+          <SwipeGestureExclusion>
           <ScrollView
             ref={scrollViewRef}
             horizontal
@@ -704,6 +705,7 @@ function WeightLineChart({
           >
             {chartContent}
           </ScrollView>
+          </SwipeGestureExclusion>
           {/* Scroll-hint fades — both always rendered, opacity animated with ease-in-out.
               Right edge visible when more content lies to the right; left edge once scrolled to end. */}
           <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 48 }, leftGradientStyle]}>
@@ -1485,6 +1487,13 @@ export default function InsightsScreen() {
             );
           })}
         </SwipeableTabList>
+        <SwipeableSectionPager
+          items={PROGRESS_VIEWS}
+          activeItem={progressView}
+          onChange={setProgressView}
+          accessibilityLabel="Progress section content"
+          testID="progress-section-content"
+        >
         <Text style={[styles.progressTabSubtitle, { color: colors.mutedForeground }]}>
           {{ overview: 'Your weekly rhythm and today’s optional context.', trends: 'Calorie, nutrient, and weekly patterns in one place.', weight: 'Your weigh-ins, goal, and history tools.' }[progressView]}
         </Text>
@@ -1936,6 +1945,7 @@ export default function InsightsScreen() {
           <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
         </View>
         </View>
+        </SwipeableSectionPager>
       </Animated.ScrollView>
       <Modal visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)}>
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>

@@ -42,3 +42,4 @@
 - [Project-reference typechecks](project-reference-typechecks.md) — rebuild workspace library declarations before diagnosing downstream row-type errors.
 - [Calora release freeze](calora-release-candidate-freeze.md) — signed builds must use the exact candidate named in the final freeze report, not a later workspace state.
 - [Managed artifact merge conflicts](managed-artifact-merge-conflicts.md) — reconcile artifact configuration through validated replacement before merging divergent Git histories.
+- [Nested gesture arbitration](nested-gesture-arbitration.md) — parent paging must explicitly yield each pointer sequence begun inside a nested horizontal control.

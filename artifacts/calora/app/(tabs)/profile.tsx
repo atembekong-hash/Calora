@@ -29,7 +29,7 @@ import { SettingRowPressable } from '@/components/SettingRowPressable';
 import { AccountSection } from '@/components/auth/AccountSection';
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
-import { SwipeableTabList } from '@/components/SwipeableTabList';
+import { SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { ReferralCard } from '@/components/ReferralCard';
 import { REVENUECAT_ENTITLEMENT_IDENTIFIER, useSubscription } from '@/lib/revenuecat';
 import { enterMotion } from '@/lib/motion';
@@ -464,6 +464,13 @@ export default function ProfileScreen() {
           })}
         </SwipeableTabList>
 
+        <SwipeableSectionPager
+          items={PROFILE_TABS}
+          activeItem={profileTab}
+          onChange={setProfileTab}
+          accessibilityLabel="Profile section content"
+          testID="profile-section-content"
+        >
         <Text style={[styles.tabSubtitle, { color: colors.mutedForeground }]}>
           {{ you: 'Personalize Calora and set your reminders.', membership: 'Plans, rewards, and the tools you return to.', account: 'Your data, health connection, account, and help.' }[profileTab]}
         </Text>
@@ -894,6 +901,7 @@ export default function ProfileScreen() {
         ))}
         <Text style={[styles.version, { color: colors.mutedForeground }]}>{BRAND.copyright} · {BRAND.name} 1.0 · Made for steadier days</Text>
         </View>
+        </SwipeableSectionPager>
       </ScrollView>
 
       {/* ── Billing modal ── */}

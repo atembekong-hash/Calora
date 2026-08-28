@@ -19,7 +19,7 @@ import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { AppHeader } from '@/components/AppChrome';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
-import { SwipeableTabList } from '@/components/SwipeableTabList';
+import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 
@@ -774,6 +774,13 @@ export default function PlannerScreen() {
           })}
         </SwipeableTabList>
 
+        <SwipeableSectionPager
+          items={PLANNER_WORKSPACES}
+          activeItem={workspace}
+          onChange={setWorkspace}
+          accessibilityLabel="Plan workspace content"
+          testID="planner-workspace-content"
+        >
         {workspace === 'today' && <>
           <PlannerFocusCard meal={nextMeal} allLogged={allSelectedMealsLogged} selectedMeals={selectedMeals} target={profile?.calorieTarget ?? 2000} colors={colors} onPrimary={openPrimaryPlanAction} />
           <Pressable accessibilityLabel="Choose another day from your week" onPress={() => setWorkspace('week')} style={[styles.todayDateLink, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -915,9 +922,10 @@ export default function PlannerScreen() {
 
         {workspace === 'shopping' && <>
            <View style={[styles.shoppingWorkspaceHeader, { backgroundColor: colors.card, borderColor: colors.border }]}><View><Text style={[styles.programEyebrow, { color: colors.primary }]}>THIS WEEK</Text><Text style={[styles.shoppingWorkspaceTitle, { color: colors.foreground }]}>{uncheckedShopping ? `${uncheckedShopping} items left` : 'Everything is checked off'}</Text><Text style={[styles.shoppingWorkspaceMeta, { color: colors.mutedForeground }]}>{visibleShoppingItems.length} ingredients from {plannedWeek.length} planned meals</Text></View><View style={[styles.shoppingWorkspaceIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="shopping" size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View></View>
-          {shoppingDays.length > 1 && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shopFilterContent}>{[null, ...shoppingDays].map((day) => { const active = shoppingDayFilter === day; const label = day ? dayFormatter.format(parseDate(day)) : 'All'; return <Pressable key={day ?? 'all'} accessibilityRole="tab" accessibilityState={{ selected: active }} accessibilityLabel={`Show ${label} shopping items`} onPress={() => setShoppingDayFilter(day)} style={[styles.shopDayPill, { borderColor: active ? colors.primary : colors.input, backgroundColor: active ? colors.primary : colors.muted }]}><Text style={[styles.shopDayPillText, { color: active ? colors.primaryForeground : colors.foreground }]}>{label}</Text></Pressable>; })}</ScrollView>}
+          {shoppingDays.length > 1 && <SwipeGestureExclusion><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shopFilterContent}>{[null, ...shoppingDays].map((day) => { const active = shoppingDayFilter === day; const label = day ? dayFormatter.format(parseDate(day)) : 'All'; return <Pressable key={day ?? 'all'} accessibilityRole="tab" accessibilityState={{ selected: active }} accessibilityLabel={`Show ${label} shopping items`} onPress={() => setShoppingDayFilter(day)} style={[styles.shopDayPill, { borderColor: active ? colors.primary : colors.input, backgroundColor: active ? colors.primary : colors.muted }]}><Text style={[styles.shopDayPillText, { color: active ? colors.primaryForeground : colors.foreground }]}>{label}</Text></Pressable>; })}</ScrollView></SwipeGestureExclusion>}
           <View style={[styles.shoppingListCard, { backgroundColor: colors.card, borderColor: colors.border }]}>{filteredShoppingItems.map((item) => <Pressable key={item.id} accessibilityLabel={`${item.checked ? 'Uncheck' : 'Check'} ${item.name}`} onPress={() => toggleShoppingItemByName(item.name)} style={[styles.shoppingRow, { borderBottomColor: colors.border }]}><View style={[styles.checkbox, { borderColor: item.checked ? colors.success : colors.input, backgroundColor: item.checked ? colors.success : 'transparent' }]}>{item.checked && <Feather name="check" size={13} color={colors.primaryForeground} />}</View><View style={{ flex: 1 }}><Text style={[styles.shoppingName, { color: item.checked ? colors.mutedForeground : colors.foreground, textDecorationLine: item.checked ? 'line-through' : 'none' }]}>{item.name}</Text>{!!formatShoppingDays(item.days) && <Text style={[styles.shoppingDays, { color: item.checked ? colors.mutedForeground : colors.primary }]}>{formatShoppingDays(item.days)}</Text>}</View><Text style={[styles.shoppingQuantity, { color: colors.mutedForeground }]}>{item.quantity}×</Text></Pressable>)}{filteredShoppingItems.length === 0 && <View style={styles.shoppingEmpty}><Feather name="shopping-bag" size={20} color={colors.mutedForeground} /><Text style={[styles.shoppingWorkspaceTitle, { color: colors.foreground }]}>Nothing to pick up yet</Text><Text style={[styles.shoppingWorkspaceMeta, { color: colors.mutedForeground }]}>Ingredients appear after you plan meals.</Text><Pressable onPress={() => setWorkspace('week')} style={[styles.emptyShoppingButton, { backgroundColor: colors.accent }]}><Text style={[styles.emptyShoppingButtonText, { color: colors.accentForeground }]}>Go to week</Text></Pressable></View>}</View>
         </>}
+        </SwipeableSectionPager>
       </ScrollView>
        <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal || undoMoveMeal || undoSwapMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undoMoveMeal ? undoMove : undoSwapMeal ? undoSwap : undefined} countdownDuration={undoMeal || undoMoveMeal || undoSwapMeal ? 6000 : undefined} />
       <Modal visible={detail !== null} transparent animationType="slide" onRequestClose={() => { dismissPlannerReview(); setDetail(null); }}>
