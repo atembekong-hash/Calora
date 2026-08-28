@@ -17,8 +17,8 @@ The redesign intentionally does **not** replace ordinary navigation, settings, a
 - **Shopping list** — dimensional grocery bag used in the Planner shopping workspace header.
 - **Calora Coach** — dimensional intelligence orb/spark used in Home, Scan’s Coach shortcut, Coach consent/brief/history surfaces.
 - **Today wellness surfaces** — dimensional rhythm, water, mood, progress, and calendar variants used for Daily Rhythm, hydration, mood, Today’s Insight, and the dynamic daily action.
-- **Today quick logging** — Photo log, Search foods, Quick add, and Restaurants are now icon-only 3D controls in one horizontal row beneath the calorie card instead of four widget cards.
-  - Photo log goes directly to the Scan screen, Search foods opens the verified-food search flow, Quick add opens focused manual entry, and Restaurants opens the restaurant search screen.
+- **Today quick logging** — Photo log, Search foods, and Restaurants are now icon-only 3D controls in one horizontal row beneath the calorie card instead of four widget cards.
+  - Photo log goes directly to the Scan screen, Search foods opens the verified-food search flow, and Restaurants opens the restaurant search screen. Manual entry remains available from the Add Food flow.
 
 ## Files modified
 

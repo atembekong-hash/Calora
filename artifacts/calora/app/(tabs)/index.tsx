@@ -1074,7 +1074,6 @@ export default function HomeScreen() {
           <View style={styles.quickActions}>
             <IconButton feature="camera" label="Photo log" onPress={openPhotoLog} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.warning} iconHighlightColor={colors.primaryForeground} />
             <IconButton feature="food" label="Search foods" onPress={() => openAdd('search')} colors={colors} iconPrimaryColor={colors.success} iconAccentColor={colors.protein} iconHighlightColor={colors.card} />
-            <IconButton feature="food" label="Quick add" onPress={() => openAdd('manual')} colors={colors} iconPrimaryColor={colors.carbs} iconAccentColor={colors.primary} iconHighlightColor={colors.card} />
             <IconButton feature="restaurant" label="Restaurants" onPress={openRestaurants} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.success} iconHighlightColor={colors.card} />
           </View>
         </View>
