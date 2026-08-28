@@ -28,6 +28,7 @@ import { requestGeneratedRecipe, requestRecipeConcepts } from '@/lib/recipeGener
 import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
+import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
 import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 
@@ -243,7 +244,7 @@ function PremiumCatalogue({ colors, onOpen, onSave, savedPremiumRecipes, onLoadM
   // returns to the foreground. Do not refetch on every browser focus or on a
   // timer while the user is browsing: those background transitions can briefly
   // replace the verified response and make the catalogue appear to disappear.
-  const query = useListPremiumRecipes(premiumParams, { query: { queryKey: premiumQueryKey, enabled: Boolean(userId), staleTime: 5 * 60_000, refetchOnMount: 'always', refetchOnWindowFocus: false, refetchOnReconnect: false } });
+  const query = useListPremiumRecipes(premiumParams, { query: { queryKey: premiumQueryKey, enabled: Boolean(userId), ...PREMIUM_RECIPE_REFRESH_POLICY } });
   const queryErrorStatus = httpStatus(query.error);
   const accessDeniedStatus = queryErrorStatus === 401 || queryErrorStatus === 403
     ? queryErrorStatus
@@ -404,7 +405,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
     },
   });
   const premiumDetailKey = premiumRecipeDetailQueryKey(session?.user.id, getGetPremiumRecipeQueryKey(premiumSourceId));
-  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: premiumDetailKey, enabled: Boolean(premiumSourceId && session?.user.id), staleTime: 5 * 60_000, refetchOnMount: 'always', refetchOnWindowFocus: false, refetchOnReconnect: false } });
+  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: premiumDetailKey, enabled: Boolean(premiumSourceId && session?.user.id), ...PREMIUM_RECIPE_REFRESH_POLICY } });
   const premiumDetailErrorStatus = httpStatus(premiumDetailQuery.error);
   const premiumDetailDenied = premiumDetailErrorStatus === 401 || premiumDetailErrorStatus === 403;
   useEffect(() => {
