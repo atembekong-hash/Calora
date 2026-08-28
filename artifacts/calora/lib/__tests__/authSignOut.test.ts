@@ -6,6 +6,11 @@ vi.mock('expo-web-browser', () => ({
   openAuthSessionAsync: vi.fn(),
 }));
 
+vi.mock('expo-crypto', () => ({
+  digestStringAsync: vi.fn(),
+  CryptoDigestAlgorithm: { SHA256: 'sha256' },
+}));
+
 vi.mock('../supabase', () => ({
   supabase: {
     auth: {

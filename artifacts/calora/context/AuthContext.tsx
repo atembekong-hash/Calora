@@ -35,6 +35,7 @@ import {
   updatePassword as doUpdatePassword,
   resendVerificationEmail as doResendVerification,
   signOut as doSignOut,
+  clearSettledOAuthCodeExchanges,
 } from '@/lib/auth';
 import type { AuthError, AuthResult } from '@/lib/auth';
 
@@ -84,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   const signingIn = useRef(false);
+  const activeUserId = useRef<string | null>(null);
 
   // -------------------------------------------------------------------------
   // Session bootstrap
@@ -102,6 +104,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, newSession: Session | null) => {
+        const nextUserId = newSession?.user?.id ?? null;
+        if (
+          event === 'SIGNED_OUT'
+          || (activeUserId.current && nextUserId && activeUserId.current !== nextUserId)
+        ) {
+          clearSettledOAuthCodeExchanges();
+        }
+        activeUserId.current = nextUserId;
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setIsLoading(false);

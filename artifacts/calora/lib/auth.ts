@@ -3,6 +3,7 @@
  */
 
 import * as WebBrowser from 'expo-web-browser';
+import * as Crypto from 'expo-crypto';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
@@ -28,6 +29,144 @@ export type AuthResult =
   | { success: false; error: AuthError };
 
 export type AuthStatusCallback = (message: string) => void;
+
+const OAUTH_CODE_SUCCESS_TTL_MS = 60_000;
+const MAX_OAUTH_CODE_EXCHANGES = 8;
+
+type PendingOAuthCodeExchange = {
+  kind: 'pending';
+  startedAt: number;
+  result: Promise<AuthResult>;
+};
+
+type SettledOAuthCodeExchange = {
+  kind: 'success';
+  userId: string;
+  settledAt: number;
+  expiresAt: number;
+  evictionTimer: ReturnType<typeof setTimeout>;
+};
+
+type OAuthCodeExchange = PendingOAuthCodeExchange | SettledOAuthCodeExchange;
+const oauthCodeExchanges = new Map<string, OAuthCodeExchange>();
+
+function removeOAuthCodeExchange(key: string, expected?: OAuthCodeExchange) {
+  const current = oauthCodeExchanges.get(key);
+  if (!current || (expected && current !== expected)) return;
+  if (current.kind === 'success') clearTimeout(current.evictionTimer);
+  oauthCodeExchanges.delete(key);
+}
+
+function pruneExpiredOAuthCodeExchanges(now: number) {
+  for (const [key, exchange] of oauthCodeExchanges) {
+    if (exchange.kind === 'success' && exchange.expiresAt <= now) {
+      removeOAuthCodeExchange(key, exchange);
+    }
+  }
+}
+
+function reserveOAuthCodeExchangeSlot(): boolean {
+  if (oauthCodeExchanges.size < MAX_OAUTH_CODE_EXCHANGES) return true;
+
+  const oldestSuccess = [...oauthCodeExchanges.entries()]
+    .filter((entry): entry is [string, SettledOAuthCodeExchange] => entry[1].kind === 'success')
+    .sort((a, b) => a[1].settledAt - b[1].settledAt)[0];
+  if (oldestSuccess) removeOAuthCodeExchange(oldestSuccess[0], oldestSuccess[1]);
+
+  return oauthCodeExchanges.size < MAX_OAUTH_CODE_EXCHANGES;
+}
+
+export function clearSettledOAuthCodeExchanges() {
+  for (const [key, exchange] of oauthCodeExchanges) {
+    if (exchange.kind === 'success') removeOAuthCodeExchange(key, exchange);
+  }
+}
+
+async function getOAuthCodeKey(code: string): Promise<string> {
+  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, code);
+}
+
+async function replaySettledOAuthSuccess(
+  key: string,
+  exchange: SettledOAuthCodeExchange,
+): Promise<AuthResult> {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    const session = data.session;
+    if (!error && session?.user?.id === exchange.userId) {
+      return { success: true, session };
+    }
+  } catch {
+    // A stale replay must fail closed without changing the current session.
+  }
+
+  removeOAuthCodeExchange(key, exchange);
+  return {
+    success: false,
+    error: { code: 'token', message: 'This sign-in callback is no longer current. Please try again.' },
+  };
+}
+
+async function exchangeOAuthCodeOnce(code: string, onStatus?: AuthStatusCallback): Promise<AuthResult> {
+  const key = await getOAuthCodeKey(code);
+  const now = Date.now();
+  pruneExpiredOAuthCodeExchanges(now);
+
+  const existing = oauthCodeExchanges.get(key);
+  if (existing?.kind === 'pending') return existing.result;
+  if (existing?.kind === 'success') return replaySettledOAuthSuccess(key, existing);
+
+  if (!reserveOAuthCodeExchangeSlot()) {
+    return {
+      success: false,
+      error: { code: 'provider', message: 'Too many sign-in attempts are already in progress.' },
+    };
+  }
+
+  const result = (async (): Promise<AuthResult> => {
+    onStatus?.('Exchanging code\u2026');
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) return { success: false, error: { code: 'token', message: error.message } };
+      if (data?.session) return { success: true, session: data.session };
+      return { success: false, error: { code: 'token', message: 'Sign-in could not be completed.' } };
+    } catch (err) {
+      return classifyError(err);
+    }
+  })();
+
+  const pending: PendingOAuthCodeExchange = {
+    kind: 'pending',
+    startedAt: now,
+    result,
+  };
+  oauthCodeExchanges.set(key, pending);
+
+  void result.then((authResult) => {
+    if (oauthCodeExchanges.get(key) !== pending) return;
+    const userId = authResult.success ? authResult.session.user?.id : null;
+    if (!userId) {
+      removeOAuthCodeExchange(key, pending);
+      return;
+    }
+
+    const settledAt = Date.now();
+    const settled: SettledOAuthCodeExchange = {
+      kind: 'success',
+      userId,
+      settledAt,
+      expiresAt: settledAt + OAUTH_CODE_SUCCESS_TTL_MS,
+      evictionTimer: setTimeout(() => {
+        removeOAuthCodeExchange(key, settled);
+      }, OAUTH_CODE_SUCCESS_TTL_MS),
+    };
+    oauthCodeExchanges.set(key, settled);
+  }, () => {
+    removeOAuthCodeExchange(key, pending);
+  });
+
+  return result;
+}
 
 /**
  * Deliberately small client-side gate for forms. The provider remains the
@@ -96,10 +235,7 @@ export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusC
     // Case 1: PKCE Flow (Authorization Code)
     // Used by Google OAuth and modern email links.
     if (code) {
-      onStatus?.('Exchanging code\u2026');
-      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-      if (exchangeError) return { success: false, error: { code: 'token', message: exchangeError.message } };
-      if (data?.session) return { success: true, session: data.session };
+      return exchangeOAuthCodeOnce(code, onStatus);
     }
 
     // Case 2: Implicit Flow Fallback (Access Token)
@@ -169,6 +305,7 @@ export async function signOut() {
   // Normal sign-out is device-scoped. This matches the UI promise, avoids
   // unexpectedly signing the user out everywhere, and does not depend on a
   // network round trip before the local session can be cleared.
+  clearSettledOAuthCodeExchanges();
   return supabase.auth.signOut({ scope: 'local' });
 }
 
