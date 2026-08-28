@@ -90,19 +90,16 @@ function IconButton({ feature, label, onPress, colors, primary = false }: { feat
       testID={`quick-${label.toLowerCase().replaceAll(' ', '-')}`}
       onPress={onPress}
       haptic="none"
-      style={[styles.quickAction, primary && styles.quickActionPrimary, { backgroundColor: primary ? colors.primary : colors.card, borderColor: primary ? colors.primary : colors.border }]}
+      style={styles.quickAction}
     >
-      <View style={[styles.quickIcon, { backgroundColor: primary ? colors.primaryForeground : colors.accent }]}>
-        <CaloraFeatureIcon
-          name={feature}
-          size={29}
-          primaryColor={primary ? colors.primary : colors.primary}
-          accentColor={primary ? colors.primary : colors.accentForeground}
-          foregroundColor={primary ? colors.primary : colors.foreground}
-          highlightColor={primary ? colors.primaryForeground : colors.accentForeground}
-        />
-      </View>
-      <Text style={[styles.quickLabel, { color: primary ? colors.primaryForeground : colors.foreground }]}>{label}</Text>
+      <CaloraFeatureIcon
+        name={feature}
+        size={48}
+        primaryColor={colors.primary}
+        accentColor={primary ? colors.primary : colors.accentForeground}
+        foregroundColor={colors.foreground}
+        highlightColor={primary ? colors.primaryForeground : colors.card}
+      />
     </ScalePressable>
   );
 }
@@ -1014,11 +1011,7 @@ export default function HomeScreen() {
           </ScalePressable>
         </View>
 
-        <View style={styles.quickLogSection}>
-          <View style={styles.quickLogHeading}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Log food</Text>
-            <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Choose the quickest way to add to {isToday(selectedDate) ? 'today' : formatShortDate(selectedDate)}.</Text>
-          </View>
+        <View style={styles.quickLogSection} accessibilityLabel="Quick food logging actions">
           <View style={styles.quickActions}>
             <IconButton feature="camera" label="Photo log" onPress={openAdd} colors={colors} primary />
             <IconButton feature="food" label="Search foods" onPress={openAdd} colors={colors} />
@@ -1204,13 +1197,9 @@ function makeStyles(f: number) {
   livingRhythmTrackLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, textTransform: 'uppercase', letterSpacing: 0.8 },
   livingRhythmTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
   livingRhythmFill: { height: 8, borderRadius: 4 },
-   quickLogSection: { marginBottom: 28 },
-   quickLogHeading: { marginBottom: 16 },
-   quickActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  quickAction: { flexGrow: 1, flexBasis: '46%', minHeight: 96, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 14, justifyContent: 'space-between', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
-   quickActionPrimary: { shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 5 },
-  quickIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  quickLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f },
+    quickLogSection: { marginBottom: 28 },
+    quickActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', gap: 12 },
+    quickAction: { flex: 1, minWidth: 0, minHeight: 58, alignItems: 'center', justifyContent: 'center' },
   recipeWidget: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, padding: 16, marginBottom: 28, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
    recipeSection: { marginTop: 4 },
    recipeSectionEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.2, marginBottom: 10, textTransform: 'uppercase' },
