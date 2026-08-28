@@ -83,7 +83,23 @@ const formatDateLabel = (key: string) => new Intl.DateTimeFormat('en-US', { week
 const isToday = (key: string) => key === dateKey(new Date());
 const formatShortDate = (key: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(dateFromKey(key));
 
-function IconButton({ feature, label, onPress, colors, primary = false }: { feature: CaloraFeatureIconName; label: string; onPress: () => void; colors: ReturnType<typeof useCalora>['colors']; primary?: boolean }) {
+function IconButton({
+  feature,
+  label,
+  onPress,
+  colors,
+  iconPrimaryColor,
+  iconAccentColor,
+  iconHighlightColor,
+}: {
+  feature: CaloraFeatureIconName;
+  label: string;
+  onPress: () => void;
+  colors: ReturnType<typeof useCalora>['colors'];
+  iconPrimaryColor: string;
+  iconAccentColor: string;
+  iconHighlightColor: string;
+}) {
   return (
     <ScalePressable
       accessibilityLabel={label}
@@ -95,11 +111,12 @@ function IconButton({ feature, label, onPress, colors, primary = false }: { feat
       <CaloraFeatureIcon
         name={feature}
         size={48}
-        primaryColor={colors.primary}
-        accentColor={primary ? colors.primary : colors.accentForeground}
+        primaryColor={iconPrimaryColor}
+        accentColor={iconAccentColor}
         foregroundColor={colors.foreground}
-        highlightColor={primary ? colors.primaryForeground : colors.card}
+        highlightColor={iconHighlightColor}
       />
+      <Text style={[styles.quickActionLabel, { color: colors.foreground }]}>{label}</Text>
     </ScalePressable>
   );
 }
@@ -1013,10 +1030,10 @@ export default function HomeScreen() {
 
         <View style={styles.quickLogSection} accessibilityLabel="Quick food logging actions">
           <View style={styles.quickActions}>
-            <IconButton feature="camera" label="Photo log" onPress={openAdd} colors={colors} primary />
-            <IconButton feature="food" label="Search foods" onPress={openAdd} colors={colors} />
-            <IconButton feature="food" label="Quick add" onPress={openAdd} colors={colors} />
-            <IconButton feature="restaurant" label="Restaurants" onPress={openRestaurants} colors={colors} />
+            <IconButton feature="camera" label="Photo log" onPress={openAdd} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.warning} iconHighlightColor={colors.primaryForeground} />
+            <IconButton feature="food" label="Search foods" onPress={openAdd} colors={colors} iconPrimaryColor={colors.success} iconAccentColor={colors.protein} iconHighlightColor={colors.card} />
+            <IconButton feature="food" label="Quick add" onPress={openAdd} colors={colors} iconPrimaryColor={colors.carbs} iconAccentColor={colors.primary} iconHighlightColor={colors.card} />
+            <IconButton feature="restaurant" label="Restaurants" onPress={openRestaurants} colors={colors} iconPrimaryColor={colors.primary} iconAccentColor={colors.success} iconHighlightColor={colors.card} />
           </View>
         </View>
 
@@ -1199,7 +1216,8 @@ function makeStyles(f: number) {
   livingRhythmFill: { height: 8, borderRadius: 4 },
     quickLogSection: { marginBottom: 28 },
     quickActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', gap: 12 },
-    quickAction: { flex: 1, minWidth: 0, minHeight: 58, alignItems: 'center', justifyContent: 'center' },
+    quickAction: { flex: 1, minWidth: 0, minHeight: 76, alignItems: 'center', justifyContent: 'center', gap: 4 },
+    quickActionLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, textAlign: 'center' },
   recipeWidget: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, padding: 16, marginBottom: 28, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
    recipeSection: { marginTop: 4 },
    recipeSectionEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.2, marginBottom: 10, textTransform: 'uppercase' },
