@@ -20,6 +20,7 @@ The redesign intentionally does **not** replace ordinary navigation, settings, a
 - **Today quick logging** — Photo log, Search foods, and Restaurants are now icon-only 3D controls in one horizontal row beneath the calorie card instead of four widget cards.
   - Photo log goes directly to the Scan screen, Search foods opens the verified-food search flow, and Restaurants opens the restaurant search screen. Manual entry remains available from the Add Food flow.
 - **Today water placement** — the Water widget now appears directly above the Today’s log section, while Meals logged and mood remain in the later wellness area.
+- The Water widget’s eight progress indicators are cup-shaped SVGs with animated filled and empty states.
 
 ## Files modified
 

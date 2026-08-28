@@ -450,7 +450,17 @@ function AnimatedWaterSlot({ filled, muted }: { filled: boolean; muted: string }
     prevFilled.current = filled;
   }, [filled, scale]);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  return <Animated.View style={[styles.waterSlot, { backgroundColor: filled ? '#8db8ed' : muted }, animStyle]} />;
+  const cupStroke = filled ? '#6f9fe0' : muted;
+  const cupFill = filled ? '#8db8ed' : 'transparent';
+  return (
+    <Animated.View style={[styles.waterSlot, animStyle]}>
+      <Svg width={24} height={28} viewBox="0 0 24 28">
+        <Path d="M4 5h16l-1.5 18H5.5L4 5Z" fill={cupFill} stroke={cupStroke} strokeWidth={1.5} strokeLinejoin="round" />
+        <Path d="M3 4h18" stroke={cupStroke} strokeWidth={2} strokeLinecap="round" />
+        <Path d="M7 13h10l-.8 8H7.8L7 13Z" fill={filled ? '#b9d7ff' : 'transparent'} opacity={0.72} />
+      </Svg>
+    </Animated.View>
+  );
 }
 
 function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typeof useCalora>['colors']; onEdit: () => void }) {
@@ -1304,7 +1314,7 @@ function makeStyles(f: number) {
   wellnessValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 22 * f, letterSpacing: -0.5 },
   wellnessUnit: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, letterSpacing: 0 },
   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 28, marginTop: 12, marginBottom: 14 },
-  waterSlot: { flex: 1, height: 20, borderRadius: 5 },
+  waterSlot: { flex: 1, height: 28, alignItems: 'center', justifyContent: 'flex-end' },
   mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 14, minHeight: 18 },
   wellnessAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 10, marginTop: 'auto' },
   wellnessActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
