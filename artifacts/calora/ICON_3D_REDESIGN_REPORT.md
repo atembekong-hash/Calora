@@ -16,13 +16,14 @@ The redesign intentionally does **not** replace ordinary navigation, settings, a
 - **Recipes** — dimensional cookbook used in the Home recipe badge and Recipes screen badge.
 - **Shopping list** — dimensional grocery bag used in the Planner shopping workspace header.
 - **Calora Coach** — dimensional intelligence orb/spark used in Home, Scan’s Coach shortcut, Coach consent/brief/history surfaces.
+- **Today wellness surfaces** — dimensional rhythm, water, mood, progress, and calendar variants used for Daily Rhythm, hydration, mood, Today’s Insight, and the dynamic daily action.
 
 ## Files modified
 
 - `artifacts/calora/components/CaloraFeatureIcon.tsx`
   - New shared SVG-based feature icon component and icon-name type.
 - `artifacts/calora/app/(tabs)/index.tsx`
-  - Home quick actions, food capture controls, recipe badge, and Coach entrance.
+  - Home quick actions, food capture controls, recipe badge, Coach entrance, and Today-tab rhythm, water, meals, mood, insight, dynamic action, saved-meal, and capture-state icons.
 - `artifacts/calora/app/(tabs)/scan.tsx`
   - Camera permission, capture controls, barcode/food modes, voice controls, restaurant action, and Coach shortcut.
 - `artifacts/calora/app/restaurants.tsx`
@@ -48,6 +49,7 @@ The redesign intentionally does **not** replace ordinary navigation, settings, a
   - Coach
 - Compact icon legibility and contrast were checked in the rendered mobile layouts.
 - Dark-theme contrast was reviewed against the existing Calora dark color tokens; the icon component receives theme colors rather than hardcoded light-only fills.
+- Full-height Today-tab mobile preview was checked across the primary Today sections and the fixed bottom navigation.
 
 ## Remaining issues
 
