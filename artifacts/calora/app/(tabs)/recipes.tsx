@@ -239,7 +239,11 @@ function PremiumCatalogue({ colors, onOpen, onSave, savedPremiumRecipes, onLoadM
   const premiumParams = { query: search || undefined, category: category || undefined, limit: RECIPE_PAGE_SIZE, offset };
   const userId = session?.user.id ?? null;
   const premiumQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(premiumParams));
-  const query = useListPremiumRecipes(premiumParams, { query: { queryKey: premiumQueryKey, enabled: Boolean(userId), staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchInterval: 60_000 } });
+  // Premium access is revalidated when this section mounts and when the app
+  // returns to the foreground. Do not refetch on every browser focus or on a
+  // timer while the user is browsing: those background transitions can briefly
+  // replace the verified response and make the catalogue appear to disappear.
+  const query = useListPremiumRecipes(premiumParams, { query: { queryKey: premiumQueryKey, enabled: Boolean(userId), staleTime: 5 * 60_000, refetchOnMount: 'always', refetchOnWindowFocus: false, refetchOnReconnect: false } });
   const queryErrorStatus = httpStatus(query.error);
   const accessDeniedStatus = queryErrorStatus === 401 || queryErrorStatus === 403
     ? queryErrorStatus
@@ -400,7 +404,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned }: { recipe: Recipe | Ca
     },
   });
   const premiumDetailKey = premiumRecipeDetailQueryKey(session?.user.id, getGetPremiumRecipeQueryKey(premiumSourceId));
-  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: premiumDetailKey, enabled: Boolean(premiumSourceId && session?.user.id), staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: 'always', refetchInterval: 60_000 } });
+  const premiumDetailQuery = useGetPremiumRecipe(premiumSourceId, { query: { queryKey: premiumDetailKey, enabled: Boolean(premiumSourceId && session?.user.id), staleTime: 5 * 60_000, refetchOnMount: 'always', refetchOnWindowFocus: false, refetchOnReconnect: false } });
   const premiumDetailErrorStatus = httpStatus(premiumDetailQuery.error);
   const premiumDetailDenied = premiumDetailErrorStatus === 401 || premiumDetailErrorStatus === 403;
   useEffect(() => {
