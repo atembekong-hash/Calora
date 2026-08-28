@@ -1126,6 +1126,23 @@ export default function HomeScreen() {
           }}
         />
 
+        {todayInsight ? (
+          <Surface tier="flat" radius="lg" testID="today-contextual-insight"
+            accessibilityRole="summary"
+            accessibilityLabel={`Today insight: ${todayInsight.title}. ${todayInsight.message}`}
+            style={[styles.todayInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+             <View style={[styles.todayInsightIcon, { backgroundColor: colors.accent }]}>
+               <CaloraFeatureIcon name="rhythm" size={27} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
+            </View>
+            <View style={styles.todayInsightCopy}>
+              <Text style={[styles.todayInsightEyebrow, { color: colors.mutedForeground }]}>TODAY'S INSIGHT</Text>
+              <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{todayInsight.title}</Text>
+              <Text style={[styles.todayInsightMessage, { color: colors.mutedForeground }]}>{todayInsight.message}</Text>
+            </View>
+          </Surface>
+        ) : null}
+
         <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.sectionHeader}>
             <View>
@@ -1185,23 +1202,6 @@ export default function HomeScreen() {
           <Feather name="check-circle" size={15} color={colors.success} />
           <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved on this device · waiting for a connection' : syncState === 'local' ? 'Saved on this device · ready to sync' : syncState === 'offline' ? 'Loading your local diary…' : 'Core foods are sourced from verified nutrition data.'}</Text>
         </View>
-
-        {todayInsight ? (
-          <Surface tier="flat" radius="lg" testID="today-contextual-insight"
-            accessibilityRole="summary"
-            accessibilityLabel={`Today insight: ${todayInsight.title}. ${todayInsight.message}`}
-            style={[styles.todayInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
-             <View style={[styles.todayInsightIcon, { backgroundColor: colors.accent }]}>
-               <CaloraFeatureIcon name="rhythm" size={27} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
-            </View>
-            <View style={styles.todayInsightCopy}>
-              <Text style={[styles.todayInsightEyebrow, { color: colors.mutedForeground }]}>TODAY'S INSIGHT</Text>
-              <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{todayInsight.title}</Text>
-              <Text style={[styles.todayInsightMessage, { color: colors.mutedForeground }]}>{todayInsight.message}</Text>
-            </View>
-          </Surface>
-        ) : null}
 
         <PlannerPeek selectedDate={selectedDate} />
 
