@@ -1087,6 +1087,27 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        <WaterCard
+          colors={colors}
+          waterOunces={selectedWater}
+          waterConfirmed={waterConfirmed}
+          onAddWater={() => {
+            // isWaterConfirmed is the synchronous authority for the 1.5-second
+            // window. The React state remains responsible for the visual
+            // confirmation, but cannot alone protect against a double tap in
+            // the same render frame.
+            if (isWaterConfirmed()) {
+              setWaterConfirmed(true);
+              return;
+            }
+            addWater(selectedDate, 8);
+            setSaveNotice('Water check-in added for this day.');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            recordWaterConfirmation();
+            setWaterConfirmed(true);
+          }}
+        />
+
         <View style={styles.mealHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text>
@@ -1118,27 +1139,6 @@ export default function HomeScreen() {
           <Feather name="check-circle" size={15} color={colors.success} />
           <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved on this device · waiting for a connection' : syncState === 'local' ? 'Saved on this device · ready to sync' : syncState === 'offline' ? 'Loading your local diary…' : 'Core foods are sourced from verified nutrition data.'}</Text>
         </View>
-
-        <WaterCard
-          colors={colors}
-          waterOunces={selectedWater}
-          waterConfirmed={waterConfirmed}
-          onAddWater={() => {
-            // isWaterConfirmed is the synchronous authority for the 1.5-second
-            // window. The React state remains responsible for the visual
-            // confirmation, but cannot alone protect against a double tap in
-            // the same render frame.
-            if (isWaterConfirmed()) {
-              setWaterConfirmed(true);
-              return;
-            }
-            addWater(selectedDate, 8);
-            setSaveNotice('Water check-in added for this day.');
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            recordWaterConfirmation();
-            setWaterConfirmed(true);
-          }}
-        />
 
         {todayInsight ? (
           <Surface tier="flat" radius="lg" testID="today-contextual-insight"
