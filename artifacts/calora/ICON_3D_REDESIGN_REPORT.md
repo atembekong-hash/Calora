@@ -19,6 +19,7 @@ The redesign intentionally does **not** replace ordinary navigation, settings, a
 - **Today wellness surfaces** — dimensional rhythm, water, mood, progress, and calendar variants used for Daily Rhythm, hydration, mood, Today’s Insight, and the dynamic daily action.
 - **Today quick logging** — Photo log, Search foods, and Restaurants are now icon-only 3D controls in one horizontal row beneath the calorie card instead of four widget cards.
   - Photo log goes directly to the Scan screen, Search foods opens the verified-food search flow, and Restaurants opens the restaurant search screen. Manual entry remains available from the Add Food flow.
+- **Today water placement** — the Water widget now appears directly after the Today’s log section, while Meals logged and mood remain in the later wellness area.
 
 ## Files modified
 

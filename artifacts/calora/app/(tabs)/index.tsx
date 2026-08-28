@@ -315,59 +315,68 @@ const moodOptions: Array<{ value: Mood; label: string; icon: keyof typeof Feathe
   { value: 'stressed', label: 'Stressed', icon: 'activity' },
 ];
 
-function WellnessCards({
+function WaterCard({
   colors,
   waterOunces,
-  mealsLogged,
-  mealNames,
-  mood,
   waterConfirmed,
   onAddWater,
-  onAddMeal,
-  onMood,
 }: {
   colors: ReturnType<typeof useCalora>['colors'];
   waterOunces: number;
-  mealsLogged: number;
-  mealNames: string[];
-  mood?: Mood;
-  /** Shared confirmation state owned by HomeScreen — true during the 1.5 s window. */
   waterConfirmed: boolean;
   onAddWater: () => void;
-  onAddMeal: () => void;
-  onMood: (mood: Mood) => void;
 }) {
   const waterGoal = 64;
   const filledGlasses = Math.min(Math.ceil(waterOunces / 8), waterGoal / 8);
 
   return (
+    <View style={styles.wellnessSection} accessibilityLabel="Water tracking">
+      <View style={[styles.wellnessCard, { flex: 0, width: '100%', backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.wellnessCardHeader}>
+          <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="water" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
+          <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Water</Text>
+        </View>
+        <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{waterOunces} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ {waterGoal} fl oz</Text></Text>
+        <View style={styles.waterSlots}>
+          {Array.from({ length: 8 }, (_, index) => (
+            <AnimatedWaterSlot key={index} filled={index < filledGlasses} muted={colors.muted} />
+          ))}
+        </View>
+        <ScalePressable
+          accessibilityLabel={waterConfirmed ? 'Water added' : 'Log 8 fluid ounces of water'}
+          testID="log-water-button"
+          disabled={waterConfirmed}
+          onPress={onAddWater}
+          haptic="none"
+          scale={0.96}
+          style={[styles.wellnessAction, { backgroundColor: colors.accent, opacity: waterConfirmed ? 0.72 : 1 }]}
+        >
+          <Feather name={waterConfirmed ? 'check' : 'plus'} size={13} color={colors.accentForeground} />
+          <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>{waterConfirmed ? 'Added ✓' : '8 fl oz'}</Text>
+        </ScalePressable>
+      </View>
+    </View>
+  );
+}
+
+function WellnessCards({
+  colors,
+  mealsLogged,
+  mealNames,
+  mood,
+  onAddMeal,
+  onMood,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  mealsLogged: number;
+  mealNames: string[];
+  mood?: Mood;
+  onAddMeal: () => void;
+  onMood: (mood: Mood) => void;
+}) {
+  return (
     <View style={styles.wellnessSection}>
       <View style={styles.wellnessRow}>
-        <View style={[styles.wellnessCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.wellnessCardHeader}>
-            <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="water" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
-            <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Water</Text>
-          </View>
-          <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{waterOunces} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ {waterGoal} fl oz</Text></Text>
-          <View style={styles.waterSlots}>
-            {Array.from({ length: 8 }, (_, index) => (
-              <AnimatedWaterSlot key={index} filled={index < filledGlasses} muted={colors.muted} />
-            ))}
-          </View>
-            <ScalePressable
-              accessibilityLabel={waterConfirmed ? 'Water added' : 'Log 8 fluid ounces of water'}
-              testID="log-water-button"
-              disabled={waterConfirmed}
-              onPress={onAddWater}
-              haptic="none"
-              scale={0.96}
-              style={[styles.wellnessAction, { backgroundColor: colors.accent, opacity: waterConfirmed ? 0.72 : 1 }]}
-            >
-              <Feather name={waterConfirmed ? 'check' : 'plus'} size={13} color={colors.accentForeground} />
-              <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>{waterConfirmed ? 'Added ✓' : '8 fl oz'}</Text>
-            </ScalePressable>
-        </View>
-
         <View style={[styles.wellnessCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.wellnessCardHeader}>
             <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="food" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
@@ -1110,6 +1119,27 @@ export default function HomeScreen() {
           <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved on this device · waiting for a connection' : syncState === 'local' ? 'Saved on this device · ready to sync' : syncState === 'offline' ? 'Loading your local diary…' : 'Core foods are sourced from verified nutrition data.'}</Text>
         </View>
 
+        <WaterCard
+          colors={colors}
+          waterOunces={selectedWater}
+          waterConfirmed={waterConfirmed}
+          onAddWater={() => {
+            // isWaterConfirmed is the synchronous authority for the 1.5-second
+            // window. The React state remains responsible for the visual
+            // confirmation, but cannot alone protect against a double tap in
+            // the same render frame.
+            if (isWaterConfirmed()) {
+              setWaterConfirmed(true);
+              return;
+            }
+            addWater(selectedDate, 8);
+            setSaveNotice('Water check-in added for this day.');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            recordWaterConfirmation();
+            setWaterConfirmed(true);
+          }}
+        />
+
         {todayInsight ? (
           <Surface tier="flat" radius="lg" testID="today-contextual-insight"
             accessibilityRole="summary"
@@ -1139,26 +1169,9 @@ export default function HomeScreen() {
 
         <WellnessCards
           colors={colors}
-          waterOunces={selectedWater}
           mealsLogged={mealsLogged}
           mealNames={mealNames}
           mood={moodLogs[selectedDate]}
-          waterConfirmed={waterConfirmed}
-          onAddWater={() => {
-            // isWaterConfirmed is the synchronous authority for the 1.5-second
-            // window. The React state remains responsible for the visual
-            // confirmation, but cannot alone protect against a double tap in
-            // the same render frame.
-            if (isWaterConfirmed()) {
-              setWaterConfirmed(true);
-              return;
-            }
-            addWater(selectedDate, 8);
-            setSaveNotice('Water check-in added for this day.');
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            recordWaterConfirmation();
-            setWaterConfirmed(true);
-          }}
           onAddMeal={openAdd}
           onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
         />
