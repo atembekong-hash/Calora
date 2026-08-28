@@ -959,13 +959,13 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={[styles.dateNav, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 11 }]}>
-          <Pressable accessibilityLabel="Previous diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() - 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={17} color={colors.foreground} /></Pressable>
-          <View style={{ alignItems: 'center' }}><Text style={[styles.dateNavLabel, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today' : formatShortDate(selectedDate)}</Text><Text style={[styles.dateNavSub, { color: colors.mutedForeground }]}>Viewing {selectedDate}</Text></View>
-          <Pressable accessibilityLabel="Next diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() + 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={17} color={colors.foreground} /></Pressable>
-        </View>
-
         <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.heroDateNav, { borderBottomColor: colors.border }]}>
+            <Pressable accessibilityLabel="Previous diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() - 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={17} color={colors.foreground} /></Pressable>
+            <View style={{ alignItems: 'center' }}><Text style={[styles.dateNavLabel, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today' : formatShortDate(selectedDate)}</Text><Text style={[styles.dateNavSub, { color: colors.mutedForeground }]}>Viewing {selectedDate}</Text></View>
+            <Pressable accessibilityLabel="Next diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() + 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={17} color={colors.foreground} /></Pressable>
+          </View>
+
           {/* Dominant calorie gauge */}
           <CalorieGauge consumed={selectedTotals.calories} burned={activeEnergy} target={target} colors={colors} />
 
@@ -1244,7 +1244,7 @@ function makeStyles(f: number) {
   moodOptions: { flexDirection: 'row', gap: 8 },
   moodOption: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 2, gap: 4 },
   moodOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
-  dateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, padding: 10, marginBottom: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  heroDateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, marginBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth },
   dateNavButton: { width: 38, height: 38, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   dateNavLabel: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   dateNavSub: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 2 },
