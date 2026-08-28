@@ -1032,9 +1032,9 @@ export function CaloraProvider({
       queueMutation('weight', 'upsert');
     },
     addWater: (date, ounces = 8) => {
-      if (!Number.isFinite(ounces) || ounces <= 0) return;
+      if (!Number.isFinite(ounces) || ounces === 0) return;
       setWaterLogs((current) => ({ ...current, [date]: Math.max(0, (current[date] ?? 0) + ounces) }));
-      setLivingMemory((current) => upsertWaterObservation(current, date, (current.waterObservations[date]?.ounces ?? waterLogs[date] ?? 0) + ounces));
+      setLivingMemory((current) => upsertWaterObservation(current, date, Math.max(0, (current.waterObservations[date]?.ounces ?? waterLogs[date] ?? 0) + ounces)));
       queueMutation('settings', 'upsert');
     },
     setMood: (date, mood) => {

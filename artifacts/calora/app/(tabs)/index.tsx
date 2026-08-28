@@ -321,40 +321,61 @@ function WaterCard({
   waterOunces,
   waterConfirmed,
   onAddWater,
+  onSubtractWater,
 }: {
   colors: ReturnType<typeof useCalora>['colors'];
   waterOunces: number;
   waterConfirmed: boolean;
   onAddWater: () => void;
+  onSubtractWater: () => void;
 }) {
   const waterGoal = 64;
-  const filledGlasses = Math.min(Math.ceil(waterOunces / 8), waterGoal / 8);
+  const normalizedWater = Math.max(0, waterOunces);
+  const filledGlasses = Math.min(Math.ceil(normalizedWater / 8), waterGoal / 8);
+  const cupsLogged = Math.floor(normalizedWater / 8);
 
   return (
-    <View style={styles.wellnessSection} accessibilityLabel="Water tracking">
+    <View style={styles.wellnessSection} accessibilityLabel={`Water tracking: ${normalizedWater} fluid ounces, ${cupsLogged} cups logged`}>
       <View style={[styles.wellnessCard, { flex: 0, width: '100%', backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.wellnessCardHeader}>
           <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="water" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
           <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Water</Text>
         </View>
-        <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{waterOunces} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ {waterGoal} fl oz</Text></Text>
+        <View style={styles.waterSummary}>
+          <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{normalizedWater} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ {waterGoal} fl oz</Text></Text>
+          <Text style={[styles.waterCupsLogged, { color: colors.mutedForeground }]}>{cupsLogged} cups logged</Text>
+        </View>
         <View style={styles.waterSlots}>
           {Array.from({ length: 8 }, (_, index) => (
             <AnimatedWaterSlot key={index} filled={index < filledGlasses} muted={colors.muted} />
           ))}
         </View>
-        <ScalePressable
-          accessibilityLabel={waterConfirmed ? 'Water added' : 'Log 8 fluid ounces of water'}
-          testID="log-water-button"
-          disabled={waterConfirmed}
-          onPress={onAddWater}
-          haptic="none"
-          scale={0.96}
-          style={[styles.wellnessAction, { backgroundColor: colors.accent, opacity: waterConfirmed ? 0.72 : 1 }]}
-        >
-          <Feather name={waterConfirmed ? 'check' : 'plus'} size={13} color={colors.accentForeground} />
-          <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>{waterConfirmed ? 'Added ✓' : '8 fl oz'}</Text>
-        </ScalePressable>
+        <View style={styles.waterAdjustActions}>
+          <ScalePressable
+            accessibilityLabel={normalizedWater > 0 ? 'Subtract 8 fluid ounces of water' : 'Subtract water disabled at zero'}
+            testID="subtract-water-button"
+            disabled={normalizedWater === 0}
+            onPress={onSubtractWater}
+            haptic="none"
+            scale={0.96}
+            style={[styles.waterAdjustButton, { backgroundColor: colors.muted, borderColor: colors.border, opacity: normalizedWater === 0 ? 0.45 : 1 }]}
+          >
+            <Feather name="minus" size={15} color={colors.foreground} />
+            <Text style={[styles.wellnessActionText, { color: colors.foreground }]}>8 fl oz</Text>
+          </ScalePressable>
+          <ScalePressable
+            accessibilityLabel={waterConfirmed ? 'Water added' : 'Add 8 fluid ounces of water'}
+            testID="log-water-button"
+            disabled={waterConfirmed}
+            onPress={onAddWater}
+            haptic="none"
+            scale={0.96}
+            style={[styles.waterAdjustButton, { backgroundColor: colors.accent, borderColor: colors.accent, opacity: waterConfirmed ? 0.72 : 1 }]}
+          >
+            <Feather name="plus" size={15} color={colors.accentForeground} />
+            <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>{waterConfirmed ? 'Added ✓' : '8 fl oz'}</Text>
+          </ScalePressable>
+        </View>
       </View>
     </View>
   );
@@ -1125,6 +1146,12 @@ export default function HomeScreen() {
             recordWaterConfirmation();
             setWaterConfirmed(true);
           }}
+          onSubtractWater={() => {
+            if (selectedWater <= 0) return;
+            addWater(selectedDate, -8);
+            setSaveNotice('8 fl oz removed from this day.');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
         />
 
         {todayInsight ? (
@@ -1328,9 +1355,13 @@ function makeStyles(f: number) {
   wellnessUnit: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, letterSpacing: 0 },
   waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 28, marginTop: 12, marginBottom: 14 },
   waterSlot: { flex: 1, height: 28, alignItems: 'center', justifyContent: 'flex-end' },
+  waterSummary: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
+  waterCupsLogged: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 14, minHeight: 18 },
   wellnessAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 10, marginTop: 'auto' },
   wellnessActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+  waterAdjustActions: { flexDirection: 'row', gap: 8, marginTop: 'auto' },
+  waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: 10 },
   moodCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
   moodHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
   moodOptions: { flexDirection: 'row', gap: 8 },
