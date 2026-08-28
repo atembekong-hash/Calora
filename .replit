@@ -37,6 +37,9 @@ REVENUECAT_TEST_STORE_APP_ID = "app48c13d884c"
 COACH_FACT_CONTEXT_ENABLED = "true"
 RELEASE_SENSITIVE_ACTIVATION_COMMIT = "7a1fe8e3acd276570b542a05a2bd62edd3da3727"
 
+[userenv.development]
+COACH_FACT_CONTEXT_ENABLED = "true"
+
 [[ports]]
 localPort = 8080
 externalPort = 8080
