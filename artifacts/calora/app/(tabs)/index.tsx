@@ -1118,6 +1118,28 @@ export default function HomeScreen() {
           }}
         />
 
+        <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Macro balance</Text>
+              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your detailed nutrition view for this day.</Text>
+            </View>
+            <ScalePressable
+              accessibilityLabel="Edit nutrition goals"
+              accessibilityRole="button"
+              onPress={() => router.navigate('/(tabs)/profile')}
+              scale={0.9}
+              haptic="none"
+              style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="sliders" size={17} color={colors.mutedForeground} />
+            </ScalePressable>
+          </View>
+          <AnimatedMacroBar label="Protein" value={selectedTotals.protein} target={Math.round(target * 0.26 / 4)} color={colors.protein} colors={colors} />
+          <AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={Math.round(target * 0.44 / 4)} color={colors.carbs} colors={colors} />
+          <AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={Math.round(target * 0.3 / 9)} color={colors.fat} colors={colors} />
+        </View>
+
         <View style={styles.mealHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text>
@@ -1185,28 +1207,6 @@ export default function HomeScreen() {
           onAddMeal={openAdd}
           onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
         />
-
-        <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Macro balance</Text>
-              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your detailed nutrition view for this day.</Text>
-            </View>
-            <ScalePressable
-              accessibilityLabel="Edit nutrition goals"
-              accessibilityRole="button"
-              onPress={() => router.navigate('/(tabs)/profile')}
-              scale={0.9}
-              haptic="none"
-              style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}
-            >
-              <Feather name="sliders" size={17} color={colors.mutedForeground} />
-            </ScalePressable>
-          </View>
-          <AnimatedMacroBar label="Protein" value={selectedTotals.protein} target={Math.round(target * 0.26 / 4)} color={colors.protein} colors={colors} />
-          <AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={Math.round(target * 0.44 / 4)} color={colors.carbs} colors={colors} />
-          <AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={Math.round(target * 0.3 / 9)} color={colors.fat} colors={colors} />
-        </View>
 
         <View style={styles.recipeSection}>
           <Text style={[styles.recipeSectionEyebrow, { color: colors.mutedForeground }]}>FOR LATER</Text>
