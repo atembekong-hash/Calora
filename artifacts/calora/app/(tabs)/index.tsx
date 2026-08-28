@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
+import { CaloraFeatureIcon, type CaloraFeatureIconName } from '@/components/CaloraFeatureIcon';
 import { AppHeader } from '@/components/AppChrome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -82,7 +83,7 @@ const formatDateLabel = (key: string) => new Intl.DateTimeFormat('en-US', { week
 const isToday = (key: string) => key === dateKey(new Date());
 const formatShortDate = (key: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(dateFromKey(key));
 
-function IconButton({ icon, label, onPress, colors, primary = false }: { icon: keyof typeof Feather.glyphMap; label: string; onPress: () => void; colors: ReturnType<typeof useCalora>['colors']; primary?: boolean }) {
+function IconButton({ feature, label, onPress, colors, primary = false }: { feature: CaloraFeatureIconName; label: string; onPress: () => void; colors: ReturnType<typeof useCalora>['colors']; primary?: boolean }) {
   return (
     <ScalePressable
       accessibilityLabel={label}
@@ -92,7 +93,14 @@ function IconButton({ icon, label, onPress, colors, primary = false }: { icon: k
       style={[styles.quickAction, primary && styles.quickActionPrimary, { backgroundColor: primary ? colors.primary : colors.card, borderColor: primary ? colors.primary : colors.border }]}
     >
       <View style={[styles.quickIcon, { backgroundColor: primary ? colors.primaryForeground : colors.accent }]}>
-        <Feather name={icon} size={20} color={primary ? colors.primary : colors.accentForeground} />
+        <CaloraFeatureIcon
+          name={feature}
+          size={29}
+          primaryColor={primary ? colors.primary : colors.primary}
+          accentColor={primary ? colors.primary : colors.accentForeground}
+          foregroundColor={primary ? colors.primary : colors.foreground}
+          highlightColor={primary ? colors.primaryForeground : colors.accentForeground}
+        />
       </View>
       <Text style={[styles.quickLabel, { color: primary ? colors.primaryForeground : colors.foreground }]}>{label}</Text>
     </ScalePressable>
@@ -231,7 +239,7 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
             <ScalePressable accessibilityLabel="Next dashboard recipe" onPress={() => snapToRecipe(activeRecipe + 1)} scale={0.95} haptic="none" style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={15} color={colors.foreground} /></ScalePressable>
           </View>}
           <View style={[styles.recipeWidgetBadge, { backgroundColor: colors.accent }]}>
-            <Feather name="book-open" size={13} color={colors.accentForeground} />
+             <CaloraFeatureIcon name="recipes" size={21} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.accentForeground} />
             <Text style={[styles.recipeWidgetBadgeText, { color: colors.accentForeground }]}>RECIPES</Text>
           </View>
         </View>
@@ -572,7 +580,7 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
             </ScalePressable>
           </View>
           <ScalePressable accessibilityLabel="Log from photo" testID="photo-log-button" onPress={photoLog} scale={0.96} haptic="light" style={[styles.photoButton, { backgroundColor: colors.hero }]}>
-            <Feather name="camera" size={20} color={colors.heroMuted} />
+            <CaloraFeatureIcon name="camera" size={31} primaryColor={colors.primary} accentColor={colors.heroMuted} foregroundColor={colors.foreground} highlightColor={colors.onHero} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.photoTitle, { color: colors.onHero }]}>Log from a photo</Text>
               <Text style={[styles.photoSubtitle, { color: colors.heroMuted }]}>Review an estimate before it counts</Text>
@@ -581,8 +589,8 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
           </ScalePressable>
           <View style={[styles.captureModes, { backgroundColor: colors.muted }]}>
             <ScalePressable accessibilityLabel="Text food logging" onPress={() => setCaptureMode('search')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'search' && { backgroundColor: colors.card }]}><Feather name="edit-3" size={14} color={captureMode === 'search' ? colors.primary : colors.mutedForeground} /><Text style={[styles.captureModeText, { color: captureMode === 'search' ? colors.foreground : colors.mutedForeground }]}>Text</Text></ScalePressable>
-            <ScalePressable accessibilityLabel="Voice food logging" onPress={() => setCaptureMode('voice')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'voice' && { backgroundColor: colors.card }]}><Feather name="mic" size={14} color={captureMode === 'voice' ? colors.primary : colors.mutedForeground} /><Text style={[styles.captureModeText, { color: captureMode === 'voice' ? colors.foreground : colors.mutedForeground }]}>Voice</Text></ScalePressable>
-            <ScalePressable accessibilityLabel="Barcode food logging" onPress={() => setCaptureMode('barcode')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'barcode' && { backgroundColor: colors.card }]}><Feather name="maximize" size={14} color={captureMode === 'barcode' ? colors.primary : colors.mutedForeground} /><Text style={[styles.captureModeText, { color: captureMode === 'barcode' ? colors.foreground : colors.mutedForeground }]}>Barcode</Text></ScalePressable>
+            <ScalePressable accessibilityLabel="Voice food logging" onPress={() => setCaptureMode('voice')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'voice' && { backgroundColor: colors.card }]}><CaloraFeatureIcon name="voice" size={22} primaryColor={captureMode === 'voice' ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.captureModeText, { color: captureMode === 'voice' ? colors.foreground : colors.mutedForeground }]}>Voice</Text></ScalePressable>
+            <ScalePressable accessibilityLabel="Barcode food logging" onPress={() => setCaptureMode('barcode')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'barcode' && { backgroundColor: colors.card }]}><CaloraFeatureIcon name="barcode" size={22} primaryColor={captureMode === 'barcode' ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.captureModeText, { color: captureMode === 'barcode' ? colors.foreground : colors.mutedForeground }]}>Barcode</Text></ScalePressable>
           </View>
           {captureMode !== 'search' && <View style={[styles.unavailableCard, { backgroundColor: colors.accent }]}>
             <Feather name={captureMode === 'voice' ? 'mic-off' : 'camera-off'} size={20} color={colors.accentForeground} />
@@ -931,7 +939,7 @@ export default function HomeScreen() {
               haptic="light"
               style={[styles.homeHeaderCoachIcon, { backgroundColor: colors.primary, borderColor: colors.primary }]}
             >
-              <Feather name="zap" size={16} color={colors.primaryForeground} />
+              <CaloraFeatureIcon name="coach" size={24} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.primary} highlightColor={colors.primaryForeground} />
             </ScalePressable>
             <Pressable
               accessibilityLabel="Profile shortcut"
@@ -1012,10 +1020,10 @@ export default function HomeScreen() {
             <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Choose the quickest way to add to {isToday(selectedDate) ? 'today' : formatShortDate(selectedDate)}.</Text>
           </View>
           <View style={styles.quickActions}>
-            <IconButton icon="camera" label="Photo log" onPress={openAdd} colors={colors} primary />
-            <IconButton icon="search" label="Search foods" onPress={openAdd} colors={colors} />
-            <IconButton icon="edit-3" label="Quick add" onPress={openAdd} colors={colors} />
-            <IconButton icon="coffee" label="Restaurants" onPress={openRestaurants} colors={colors} />
+            <IconButton feature="camera" label="Photo log" onPress={openAdd} colors={colors} primary />
+            <IconButton feature="food" label="Search foods" onPress={openAdd} colors={colors} />
+            <IconButton feature="food" label="Quick add" onPress={openAdd} colors={colors} />
+            <IconButton feature="restaurant" label="Restaurants" onPress={openRestaurants} colors={colors} />
           </View>
         </View>
 

@@ -15,6 +15,7 @@ import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
 import { formatCalories, formatGrams, formatQuantity, formatWhole } from '@/lib/formatters';
 import { AppHeader } from '@/components/AppChrome';
+import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { applySlotReplace, getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
@@ -1095,7 +1096,7 @@ export default function RecipesScreen() {
           <View style={styles.recipeHeaderContent}>
             <View style={styles.recipeHeaderTop}>
               <View style={styles.recipeHeaderBadge}>
-                <Feather name="book-open" size={12} color="#d4eadc" />
+             <CaloraFeatureIcon name="recipes" size={20} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.onHero} highlightColor={colors.onHero} />
                 <Text style={styles.recipeHeaderBadgeText}>THE {BRAND.name.toUpperCase()} COOKBOOK</Text>
               </View>
             </View>

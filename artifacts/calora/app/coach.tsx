@@ -22,6 +22,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { useCalora } from '@/context/CaloraContext';
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
+import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { CoachFactContextConsentPanel } from '@/components/CoachFactContextConsentPanel';
 import {
   isIntelligenceFeatureEnabled,
@@ -354,7 +355,7 @@ export default function CoachScreen() {
         {!coachConsentAccepted ? (
           <View style={[styles.consentCard, { backgroundColor: colors.hero }]}>
             <View style={[styles.coachMark, { backgroundColor: 'rgba(157,215,189,0.16)' }]}>
-              <Feather name="zap" size={24} color={colors.heroMuted} />
+              <CaloraFeatureIcon name="coach" size={36} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.heroMuted} highlightColor={colors.onHero} />
             </View>
             <Text style={[styles.consentTitle, { color: colors.onHero }]}>A focused nutrition read</Text>
             <Text style={[styles.consentBody, { color: colors.heroMuted }]}>
@@ -378,8 +379,8 @@ export default function CoachScreen() {
           <>
             {turns.length === 0 && (
               <View style={[styles.briefCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.briefIcon, { backgroundColor: colors.accent }]}>
-                  <Feather name="activity" size={20} color={colors.accentForeground} />
+                  <View style={[styles.briefIcon, { backgroundColor: colors.accent }]}>
+                    <CaloraFeatureIcon name="coach" size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
                 </View>
                 <Text style={[styles.briefEyebrow, { color: colors.primary }]}>YOUR WEEKLY READ</Text>
                 <Text style={[styles.briefTitle, { color: colors.foreground }]}>Let’s make the signal useful.</Text>
@@ -490,7 +491,7 @@ export default function CoachScreen() {
                     {coachMessages.slice(-8).map((message, index) => (
                       <View key={`${message.role}-${index}`} style={[styles.historyRow, index > 0 && { borderTopColor: colors.border, borderTopWidth: 1 }]}>
                         <View style={[styles.historyRole, { backgroundColor: message.role === 'user' ? colors.primary : colors.accent }]}>
-                          <Feather name={message.role === 'user' ? 'user' : 'zap'} size={11} color={message.role === 'user' ? colors.primaryForeground : colors.accentForeground} />
+                          {message.role === 'user' ? <Feather name="user" size={11} color={colors.primaryForeground} /> : <CaloraFeatureIcon name="coach" size={18} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />}
                         </View>
                         <View style={styles.historyCopy}>
                           <Text style={[styles.historyRoleText, { color: colors.mutedForeground }]}>{message.role === 'user' ? 'You' : BRAND.name + ' Coach'}</Text>

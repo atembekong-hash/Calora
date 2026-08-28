@@ -25,6 +25,7 @@ import { type MealType, useCalora } from '@/context/CaloraContext';
 import { dateKey } from '@/lib/dates';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { restaurantFoodReviewState } from '@/lib/restaurantFoodReview';
+import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 
 const popularChains = ["McDonald's", 'Burger King', "Wendy's", 'Chipotle'];
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -167,7 +168,7 @@ export default function RestaurantsScreen() {
       >
         <View style={[styles.introCard, { backgroundColor: colors.hero }]}>
           <View style={[styles.introIcon, { backgroundColor: colors.accent }]}>
-            <Feather name="coffee" size={21} color={colors.accentForeground} />
+            <CaloraFeatureIcon name="restaurant" size={31} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.onHero} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.introTitle, { color: colors.onHero }]}>Find a branded menu item</Text>
