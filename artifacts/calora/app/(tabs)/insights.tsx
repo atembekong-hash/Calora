@@ -203,7 +203,7 @@ function GoalCelebrationBanner({ colors, targetKg, onDismiss }: { colors: Return
       </Animated.View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.celebrationTitle, { color: '#1b5e38' }]}>Goal reached!</Text>
-        <Text style={[styles.celebrationBody, { color: '#3a7d57' }]}>You hit {targetKg.toFixed(0)} kg. Keep going — consistency is the real win.</Text>
+        <Text style={[styles.celebrationBody, { color: '#3a7d57' }]}>You hit {targetKg.toFixed(0)} kg. Consistency counts.</Text>
       </View>
       <Pressable
         onPress={handleDismiss}
@@ -874,7 +874,7 @@ function WeightChartModal({
                     : '';
                 return (
                   <Text style={[styles.chartModalSubtitle, { color: colors.mutedForeground }]}>
-                    {visibleEntries.length} weigh-ins{dateRange} · tap any point for details
+                    {visibleEntries.length} weigh-ins{dateRange} · tap a point
                   </Text>
                 );
               })()}
@@ -1050,7 +1050,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
       <View style={styles.sectionHeader}>
         <View>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weekly patterns</Text>
-          <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>A gentle read on your last seven days.</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your last seven days.</Text>
         </View>
         <View style={[styles.patternBadge, { backgroundColor: colors.accent }]}>
           <Feather name="trending-up" size={12} color={colors.accentForeground} />
@@ -1078,7 +1078,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
         <View style={styles.patternLegendItem}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>logged days</Text></View>
       </View>
       <View style={[styles.moodLegend, { borderTopColor: colors.border }]}>
-        <Text style={[styles.moodLegendLabel, { color: colors.mutedForeground }]}>Mood dot</Text>
+        <Text style={[styles.moodLegendLabel, { color: colors.mutedForeground }]}>Mood</Text>
         <View style={styles.moodLegendItems}>
           {([ ['energized', '#e5ad55'], ['good', '#5dba7d'], ['okay', '#7394f2'], ['low', '#9875c7'], ['stressed', '#ef6b4f'] ] as [string, string][]).map(([label, color]) => (
             <View key={label} style={styles.patternLegendItem}>
@@ -1093,7 +1093,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
         <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageCalories ? averageCalories.toLocaleString() : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. kcal</Text></View>
         <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageActivityMinutes ? `${averageActivityMinutes} min` : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. active min</Text></View>
       </View>
-      <Text style={[styles.patternNote, { color: colors.mutedForeground }]}>No entry is a negative score. Keep building a picture that feels useful to you.</Text>
+      <Text style={[styles.patternNote, { color: colors.mutedForeground }]}>No entry is a negative score. Build a useful picture.</Text>
     </View>
   );
 }
@@ -1455,7 +1455,7 @@ export default function InsightsScreen() {
             <View style={styles.heroTitleRow}>
               <Text style={styles.heroTitle}>Patterns, not pressure</Text>
             </View>
-            <Text style={styles.heroSubtitle}>Use the signal to make tomorrow easier.</Text>
+            <Text style={styles.heroSubtitle}>Make tomorrow easier.</Text>
           </View>
         </View>
 
@@ -1495,7 +1495,7 @@ export default function InsightsScreen() {
           testID="progress-section-content"
         >
         <Text style={[styles.progressTabSubtitle, { color: colors.mutedForeground }]}>
-          {{ overview: 'Your weekly rhythm and today’s optional context.', trends: 'Calorie, nutrient, and weekly patterns in one place.', weight: 'Your weigh-ins, goal, and history tools.' }[progressView]}
+          {{ overview: 'Your week and today.', trends: 'Calories, nutrients, and patterns.', weight: 'Weigh-ins, goals, and history.' }[progressView]}
         </Text>
 
         <View style={progressView === 'overview' ? undefined : styles.hiddenSection}>
@@ -1543,7 +1543,7 @@ export default function InsightsScreen() {
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Logging rhythm</Text>
-                <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Small signals add up over a week.</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your week at a glance.</Text>
               </View>
               <View style={[styles.rhythmBadge, { backgroundColor: colors.accent }]}>
                 <Feather name="calendar" size={12} color={colors.accentForeground} />
@@ -1568,7 +1568,7 @@ export default function InsightsScreen() {
         <View style={styles.sectionHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This week</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Calories against your {formatWhole(target)} kcal target</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Against your {formatWhole(target)} kcal target</Text>
           </View>
           <View accessibilityLabel="Insights show the last 7 days" style={[styles.rangeButton, { backgroundColor: colors.muted }]}>
             <Text style={[styles.rangeText, { color: colors.foreground }]}>7D</Text>
@@ -1601,7 +1601,7 @@ export default function InsightsScreen() {
         <View style={styles.sectionHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Nutrient balance</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Today’s logged foods, with estimates clearly labeled.</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Today’s foods; estimates are labeled.</Text>
           </View>
         </View>
         <AnimatedReveal delay={420}>
@@ -1781,7 +1781,7 @@ export default function InsightsScreen() {
 
         <View style={progressView === 'weight' ? undefined : styles.hiddenSection}>
         <View style={styles.weightHeader}>
-          <View style={styles.weightTitleGroup}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your trend matters more than a single day</Text></View>
+          <View style={styles.weightTitleGroup}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Trends matter more than one day.</Text></View>
           <View style={styles.weightHeaderButtons}>
             <ScalePressable
               accessibilityLabel="Edit weight goal"
@@ -1801,7 +1801,7 @@ export default function InsightsScreen() {
           <View style={styles.weightTopRow}>
             <View>
               <Text style={[styles.weightValue, { color: colors.foreground }]}>{latestWeight.toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>kg</Text></Text>
-              <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length - (pendingDelete ? 1 : 0) > 1 ? `${weights.length - (pendingDelete ? 1 : 0)} weigh-ins recorded locally` : 'Optional · add a few weigh-ins to unlock trend guidance'}</Text>
+              <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length - (pendingDelete ? 1 : 0) > 1 ? `${weights.length - (pendingDelete ? 1 : 0)} weigh-ins recorded locally` : 'Optional · add weigh-ins to see a trend'}</Text>
             </View>
             {weights.length - (pendingDelete ? 1 : 0) >= 3 && (
               <View style={[styles.weightDeltaBadge, { backgroundColor: weightDelta <= 0 ? '#e6f6ec' : '#fff3e0' }]}>
@@ -1932,7 +1932,7 @@ export default function InsightsScreen() {
           <View style={[styles.trustIcon, { backgroundColor: colors.accent }]}><Feather name="database" size={18} color={colors.accentForeground} /></View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.trustTitle, { color: colors.foreground }]}>Verified core database</Text>
-            <Text style={[styles.trustBody, { color: colors.mutedForeground }]}>USDA and labeled foods are separated from estimates and manual entries.</Text>
+            <Text style={[styles.trustBody, { color: colors.mutedForeground }]}>USDA and labeled foods are separate from estimates and manual entries.</Text>
           </View>
           <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
         </View>
@@ -1940,7 +1940,7 @@ export default function InsightsScreen() {
           <View style={[styles.trustIcon, { backgroundColor: '#fff0df' }]}><Feather name="zap" size={18} color={colors.warning} /></View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.trustTitle, { color: colors.foreground }]}>Low-friction logging</Text>
-            <Text style={[styles.trustBody, { color: colors.mutedForeground }]}>Every meal can start with one tap, then you stay in control of the estimate.</Text>
+            <Text style={[styles.trustBody, { color: colors.mutedForeground }]}>Start with one tap; you control the estimate.</Text>
           </View>
           <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
         </View>
@@ -1951,7 +1951,7 @@ export default function InsightsScreen() {
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
           <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
-            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>A single weigh-in is just a data point. {BRAND.name} looks for a trend.</Text>
+            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>One weigh-in is a data point. {BRAND.name} looks for trends.</Text>
             <TextInput
               value={weightInput}
               onChangeText={(value) => { setWeightInput(value); if (weightError) setWeightError(''); }}
@@ -1985,7 +1985,7 @@ export default function InsightsScreen() {
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
           <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Weight goal</Text>
-            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>Enter your target weight. This updates your goal progress without changing any logged data.</Text>
+            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>Set a target weight. Logged data will not change.</Text>
             <TextInput
               value={goalInput}
               onChangeText={setGoalInput}

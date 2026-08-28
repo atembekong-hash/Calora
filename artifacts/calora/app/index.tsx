@@ -71,7 +71,7 @@ export default function OnboardingScreen() {
         </View>
         <Text style={[styles.loadingBrand, { color: colors.foreground }]}>{BRAND.name}</Text>
         <ActivityIndicator color={colors.primary} style={{ marginTop: 18 }} />
-        <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading your local rhythm…</Text>
+        <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading your data…</Text>
       </View>
     );
   }
@@ -88,7 +88,7 @@ export default function OnboardingScreen() {
           <Feather name={isParseError ? 'alert-triangle' : 'refresh-cw'} size={20} color={isParseError ? colors.destructive : colors.primary} />
         </View>
         <Text style={[styles.errorTitle, { color: colors.foreground }]}>
-          {isParseError ? 'Your data looks corrupted.' : 'Storage temporarily unavailable.'}
+          {isParseError ? 'Your data can’t be read.' : 'Storage is unavailable.'}
         </Text>
         <Text style={[styles.errorText, { color: colors.mutedForeground }]}>{hydrationError}</Text>
         {showExport && (
@@ -173,17 +173,16 @@ export default function OnboardingScreen() {
 
         {step === 0 && (
           <View>
-            <Text style={[styles.eyebrow, { color: colors.primary }]}>A STEADIER WAY TO TRACK</Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>Make food data feel human.</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>{BRAND.name} keeps the numbers useful and the experience gentle. Start with your goal, then we'll shape the day around you.</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>Food tracking, made simpler.</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>Set your goal and get a plan that fits your day.</Text>
             <View style={styles.welcomeVisual}>
               <Image source={require('../assets/images/calora-onboarding-visual.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
-              <View style={styles.welcomeVisualOverlay}><Feather name="sunrise" size={13} color="#d4eadc" /><Text style={styles.welcomeVisualText}>START WITH TRUST</Text></View>
+               <View style={styles.welcomeVisualOverlay}><Feather name="sunrise" size={13} color="#d4eadc" /></View>
             </View>
             <View style={[styles.welcomeCard, { backgroundColor: colors.hero }]}>
               <View style={[styles.welcomeIcon, { backgroundColor: 'rgba(157,215,189,0.16)' }]}><Feather name="shield" size={22} color={colors.heroMuted} /></View>
-              <Text style={[styles.welcomeTitle, { color: colors.onHero }]}>Trust is a feature.</Text>
-              <Text style={[styles.welcomeBody, { color: colors.heroMuted }]}>Every food shows where its numbers came from. Estimates stay estimates until you approve them.</Text>
+               <Text style={[styles.welcomeTitle, { color: colors.onHero }]}>Clear food data.</Text>
+               <Text style={[styles.welcomeBody, { color: colors.heroMuted }]}>See where numbers come from. Review estimates before you log them.</Text>
             </View>
             <Text style={[styles.smallNote, { color: colors.mutedForeground }]}>No ads. No shame. No medical advice.</Text>
           </View>
@@ -191,9 +190,8 @@ export default function OnboardingScreen() {
 
         {step === 1 && (
           <View>
-            <Text style={[styles.eyebrow, { color: colors.primary }]}>YOUR DIRECTION</Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>What are you working toward?</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>There’s no wrong answer. You can change this whenever your life changes.</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>What’s your goal?</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>You can change it anytime.</Text>
             <View style={styles.optionList}>{goals.map((item) => {
               const selected = goal === item.key;
               return <Pressable key={item.key} onPress={() => setGoal(item.key)} style={[styles.option, { backgroundColor: selected ? colors.accent : colors.card, borderColor: selected ? colors.primary : colors.border }]}>
@@ -207,9 +205,8 @@ export default function OnboardingScreen() {
 
         {step === 2 && (
           <View>
-            <Text style={[styles.eyebrow, { color: colors.primary }]}>A LITTLE CONTEXT</Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>Make your target yours.</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>These numbers create a starting point, not a verdict. {BRAND.name} will learn from your real trend over time.</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>Set your starting target.</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>These details create a starting estimate, not a medical recommendation.</Text>
             <View style={styles.formGrid}>
               <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>What should we call you?</Text><TextInput value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
               {[['Age', age, setAge], ['Height (cm)', height, setHeight], ['Current weight (kg)', weight, setWeight], ['Goal weight (kg)', targetWeight, setTargetWeight]].map(([label, value, setter]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput value={value as string} onChangeText={setter as (value: string) => void} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}
@@ -220,9 +217,8 @@ export default function OnboardingScreen() {
 
         {step === 3 && (
           <View>
-            <Text style={[styles.eyebrow, { color: colors.primary }]}>YOUR RHYTHM</Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>How much movement is normal for you?</Text>
-            <Text style={[styles.body, { color: colors.mutedForeground }]}>We’ll use this only to make the first estimate more useful.</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>How active are you?</Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>This helps make your first estimate more useful.</Text>
             <View style={styles.optionList}>{activities.map((item) => {
               const selected = activity === item.key;
               return <Pressable key={item.key} onPress={() => setActivity(item.key)} style={[styles.option, { backgroundColor: selected ? colors.accent : colors.card, borderColor: selected ? colors.primary : colors.border }]}>
@@ -237,15 +233,13 @@ export default function OnboardingScreen() {
 
         {step === 4 && (
           <View>
-            <Text style={[styles.eyebrow, { color: colors.primary }]}>YOUR DATA, YOUR CHOICE</Text>
-            <Text style={[styles.title, { color: colors.foreground }]}>Start with clarity.</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>Review before you start.</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>{BRAND.name} is a wellness tool, not a doctor. Your data stays local in this preview and can be exported or deleted from settings.</Text>
             <Pressable onPress={() => setConsent(!consent)} style={[styles.consentCard, { backgroundColor: consent ? colors.accent : colors.card, borderColor: consent ? colors.primary : colors.border }]}>
               <View style={[styles.consentCheck, { backgroundColor: consent ? colors.primary : colors.muted }]}><Feather name={consent ? 'check' : 'shield'} size={17} color={consent ? colors.primaryForeground : colors.mutedForeground} /></View>
               <View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: colors.foreground }]}>I understand and agree</Text><Text style={[styles.optionBody, { color: colors.mutedForeground }]}>I’ll review AI estimates before logging them and understand calorie targets are starting estimates.</Text></View>
             </Pressable>
             <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.summaryEyebrow, { color: colors.mutedForeground }]}>YOUR STARTING POINT</Text>
               <Text style={[styles.summaryCalories, { color: colors.foreground }]}>{formatWhole(calorieTarget)} <Text style={[styles.summaryUnit, { color: colors.mutedForeground }]}>kcal/day</Text></Text>
               <Text style={[styles.summaryBody, { color: colors.mutedForeground }]}>{goal === 'lose' ? 'A gentle deficit' : goal === 'gain' ? 'A supportive surplus' : 'A steady maintenance target'} · {diet}</Text>
             </View>
@@ -282,12 +276,10 @@ const styles = StyleSheet.create({
   stepText: { fontFamily: 'Inter_500Medium', fontSize: 11, marginLeft: 'auto' },
   progressTrack: { height: 5, borderRadius: 3, overflow: 'hidden', marginBottom: 46 },
   progressFill: { height: 5, borderRadius: 3 },
-  eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1.4, marginBottom: 12 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 31, lineHeight: 36, letterSpacing: -1, maxWidth: 340 },
   body: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 21, marginTop: 12, maxWidth: 340 },
   welcomeVisual: { height: 128, borderRadius: 22, overflow: 'hidden', marginTop: 25, backgroundColor: '#1b3022' },
   welcomeVisualOverlay: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 6, padding: 13, backgroundColor: 'rgba(18,34,24,0.22)' },
-  welcomeVisualText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.2 },
   welcomeCard: { borderRadius: 24, padding: 20, marginTop: 38 },
   welcomeIcon: { width: 43, height: 43, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   welcomeTitle: { fontFamily: 'Inter_700Bold', fontSize: 19, marginBottom: 8 },
@@ -312,7 +304,6 @@ const styles = StyleSheet.create({
   consentCard: { flexDirection: 'row', gap: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 14, marginTop: 27 },
   consentCheck: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   summaryCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 18, marginTop: 16 },
-  summaryEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.2 },
   summaryCalories: { fontFamily: 'Inter_700Bold', fontSize: 29, marginTop: 8 },
   summaryUnit: { fontFamily: 'Inter_400Regular', fontSize: 13 },
   summaryBody: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 5 },

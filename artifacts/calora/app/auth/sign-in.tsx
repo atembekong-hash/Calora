@@ -131,7 +131,7 @@ export default function SignInScreen() {
 
         <Text style={[styles.heading, { color: colors.foreground }]}>Welcome back</Text>
         <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
-          Sign in to {BRAND.name} to sync your progress across devices.
+          Sign in to sync your progress.
         </Text>
 
         {/* ── Google ── */}
@@ -251,7 +251,7 @@ export default function SignInScreen() {
         {/* Create account */}
         <View style={styles.footerRow}>
           <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-            New to {BRAND.name}?{'  '}
+            New here?{'  '}
           </Text>
           <Pressable
             onPress={() => router.push('/auth/sign-up' as any)}

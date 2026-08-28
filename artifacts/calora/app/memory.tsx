@@ -259,17 +259,16 @@ export default function LivingMemoryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerCopy}>
-          <Text style={[styles.eyebrow, { color: colors.primary }]}>LOCAL-FIRST</Text>
-          <Text style={[styles.title, { color: colors.foreground }]}>What {BRAND.name} remembers</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>Memory</Text>
         </View>
 
         <View style={[styles.introCard, { backgroundColor: colors.hero }]}>
           <View style={[styles.introIcon, { backgroundColor: colors.accent }]}>
             <Feather name="shield" size={20} color={colors.accentForeground} />
           </View>
-          <Text style={[styles.introTitle, { color: colors.onHero }]}>You stay in control</Text>
+          <Text style={[styles.introTitle, { color: colors.onHero }]}>You’re in control</Text>
           <Text style={[styles.introBody, { color: colors.heroMuted }]}>
-            These are small, confirmed signals from your {BRAND.name} activity. They stay on this device and are never a score or diagnosis.
+            Confirmed signals from your {BRAND.name} activity stay on this device. They are never a score or diagnosis.
           </Text>
         </View>
 
@@ -280,7 +279,7 @@ export default function LivingMemoryScreen() {
             </View>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Nothing remembered yet</Text>
             <Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>
-              As you log meals or check in, confirmed signals will appear here for you to review.
+              Confirmed meals and check-ins appear here.
             </Text>
           </View>
         ) : (
@@ -291,7 +290,7 @@ export default function LivingMemoryScreen() {
                   <Feather name="clock" size={14} color={colors.mutedForeground} />
                   <Text style={[styles.staleNoticeText, { color: colors.mutedForeground }]}>
                     {allStale
-                      ? 'These signals are older than a month — review or forget them if they no longer feel relevant.'
+                      ? 'These signals are older than a month. Review or forget them if no longer relevant.'
                       : `${staleCount} signal${staleCount === 1 ? '' : 's'} older than 30 days.`}
                   </Text>
                 </View>
@@ -307,7 +306,7 @@ export default function LivingMemoryScreen() {
               </View>
             )}
 
-            <MemorySection title="Diary signals" caption="Meal timing and type from confirmed diary entries." colors={colors}>
+            <MemorySection title="Diary signals" caption="Confirmed diary entries." colors={colors}>
               {buildDiaryRows(livingMemory)
                 .filter((row) => !(pendingForget?.kind === 'meal' && pendingForget.id === row.id))
                 .map((row) => {
@@ -329,7 +328,7 @@ export default function LivingMemoryScreen() {
                 })}
             </MemorySection>
 
-            <MemorySection title="Wellness check-ins" caption="Optional water, mood, and activity signals." colors={colors}>
+            <MemorySection title="Wellness check-ins" caption="Water, mood, and activity signals." colors={colors}>
               {buildWellnessRows(livingMemory)
                 .filter((row) => !(pendingForget && row.kind === pendingForget.kind && row.date === pendingForget.id))
                 .map((row) => {
@@ -343,7 +342,7 @@ export default function LivingMemoryScreen() {
                 })}
             </MemorySection>
 
-            <MemorySection title="Planning signals" caption="Meals you assigned yourself, not starter suggestions." colors={colors}>
+            <MemorySection title="Planning signals" caption="Meals you assigned, not starter suggestions." colors={colors}>
               {buildPlannerRows(livingMemory)
                 .filter((row) => !(pendingForget?.kind === 'planner' && pendingForget.id === row.id))
                 .map((row) => {
@@ -368,7 +367,7 @@ export default function LivingMemoryScreen() {
         <View style={[styles.footerNote, { backgroundColor: colors.muted }]}>
           <Feather name="info" size={14} color={colors.mutedForeground} />
           <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-            Forgetting a signal does not delete your original diary, wellness, or plan record. Editing that source later can make it appear here again.
+            Forgetting a signal does not delete its original diary, wellness, or plan record. Editing that record can show it here again.
           </Text>
         </View>
       </ScrollView>
@@ -402,7 +401,7 @@ export default function LivingMemoryScreen() {
         <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
           <View style={[styles.editSheet, { backgroundColor: colors.background }]}>
             <Text style={[styles.editTitle, { color: colors.foreground }]}>Correct this signal</Text>
-            <Text style={[styles.editBody, { color: colors.mutedForeground }]}>This updates the original diary entry and keeps its nutrition snapshot unchanged.</Text>
+              <Text style={[styles.editBody, { color: colors.mutedForeground }]}>Updates the original diary entry; its nutrition snapshot stays unchanged.</Text>
             <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>DATE · YYYY-MM-DD</Text>
             <TextInput accessibilityLabel="Memory date" value={editDate} onChangeText={setEditDate} placeholder="2026-08-06" placeholderTextColor={colors.mutedForeground} style={[styles.dateInput, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground }]} />
             <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>MEAL TYPE</Text>
@@ -488,7 +487,6 @@ function MemorySection({ title, caption, colors, children }: { title: string; ca
 const styles = StyleSheet.create({
   page: { flex: 1 },
   headerCopy: { marginBottom: 18 },
-  eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.3, marginBottom: 4 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 25, letterSpacing: -0.7 },
   introCard: { borderRadius: 22, padding: 17, marginBottom: 24 },
   introIcon: { width: 39, height: 39, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },

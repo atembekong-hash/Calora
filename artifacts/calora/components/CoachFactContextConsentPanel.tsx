@@ -9,8 +9,8 @@ import { useAuth } from '@/context/AuthContext';
 import { coachFactConsentCache, CoachFactRequestLifecycle } from '@/lib/intelligence';
 
 /**
- * This component is rendered only by the still-disabled Fact Context flag.
- * It is intentionally separate from the legacy Coach disclosure and sends no
+ * This component is rendered only while this sharing option is disabled.
+ * It is intentionally separate from the existing Coach disclosure and sends no
  * nutrition context, messages, or routing instructions.
  */
 export function CoachFactContextConsentPanel({ colors }: { colors: {
@@ -36,10 +36,10 @@ export function CoachFactContextConsentPanel({ colors }: { colors: {
     try {
       const status = await accept.mutateAsync({ data: { purpose: 'coach_fact_context_v1', documentVersion: '2026-08-21' } });
       await coachFactConsentCache.write(accountId, status);
-      setMessage('Your summarized Fact Context choice was saved. This dark feature is not active yet.');
+       setMessage('Your choice was saved. This option is not available yet.');
       await statusQuery.refetch();
     } catch {
-      setMessage('Your choice could not be saved. Summarized Fact Context sharing remains off.');
+       setMessage('Your choice could not be saved. Sharing stays off.');
     }
   };
 
@@ -50,10 +50,10 @@ export function CoachFactContextConsentPanel({ colors }: { colors: {
       const status = await revoke.mutateAsync();
       CoachFactRequestLifecycle.invalidateAll();
       await coachFactConsentCache.write(accountId, status);
-      setMessage('Summarized Fact Context sharing is off for future requests.');
+       setMessage('Summarized sharing is off for future requests.');
       await statusQuery.refetch();
     } catch {
-      setMessage('Your sharing choice could not be changed. Summarized Fact Context sharing remains unavailable.');
+       setMessage('Your choice could not be changed. Sharing remains unavailable.');
     }
   };
 
@@ -61,34 +61,34 @@ export function CoachFactContextConsentPanel({ colors }: { colors: {
   const busy = accept.isPending || revoke.isPending || statusQuery.isLoading;
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.foreground }]}>Use summarized daily logging with Coach?</Text>
+       <Text style={[styles.title, { color: colors.foreground }]}>Share a daily summary with Coach?</Text>
       <Text style={[styles.body, { color: colors.mutedForeground }]}>
-        With your permission, Calora can send a small summary of your current logged daily calories, protein, meal distribution, and logging completeness to Coach.
+         With permission, Calora can send Coach a summary of today’s calories, protein, meal distribution, and logging completeness.
       </Text>
       <Text style={[styles.body, { color: colors.mutedForeground }]}>
-        This does not include food names, notes, photos, recipes, raw timelines, account identifiers, or your full history. Coach is not medical care.
+         It never includes food names, notes, photos, recipes, raw timelines, account IDs, or your full history. Coach is not medical care.
       </Text>
       {status === 'consented_current' ? (
         <Pressable
-          accessibilityLabel="Turn off summarized Fact Context sharing"
+          accessibilityLabel="Turn off daily summary sharing"
           disabled={busy}
           onPress={() => void revokeSharing()}
           style={[styles.button, { borderColor: colors.destructive, opacity: busy ? 0.55 : 1 }]}
         >
-          {busy ? <ActivityIndicator color={colors.destructive} /> : <Text style={[styles.revokeText, { color: colors.destructive }]}>Turn off summarized sharing</Text>}
+          {busy ? <ActivityIndicator color={colors.destructive} /> : <Text style={[styles.revokeText, { color: colors.destructive }]}>Turn off sharing</Text>}
         </Pressable>
       ) : (
         <Pressable
-          accessibilityLabel="Allow summarized Fact Context sharing"
+          accessibilityLabel="Allow daily summary sharing"
           disabled={busy || !accountId}
           onPress={() => void acceptSharing()}
           style={[styles.button, { backgroundColor: colors.primary, opacity: busy || !accountId ? 0.55 : 1 }]}
         >
-          {busy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.allowText, { color: colors.primaryForeground }]}>Allow summarized Fact Context</Text>}
+          {busy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.allowText, { color: colors.primaryForeground }]}>Allow daily summary</Text>}
         </Pressable>
       )}
       <Text accessibilityLiveRegion="polite" style={[styles.status, { color: colors.mutedForeground }]}>
-        {message ?? (statusQuery.isError ? 'Unable to confirm status. Sharing remains off.' : 'This capability remains unavailable until a separately approved rollout.')}
+         {message ?? (statusQuery.isError ? 'Unable to confirm status. Sharing stays off.' : 'This option is unavailable until it is approved.')}
       </Text>
     </View>
   );

@@ -124,24 +124,24 @@ function IconButton({
 
 const routineStageCopy: Record<ReturnType<typeof useCalora>['livingState']['routineStage'], { title: string; body: string }> = {
   first_day: {
-    title: 'A first step is enough',
-    body: 'One real entry gives your rhythm somewhere to begin.',
+    title: 'Start with one entry',
+    body: 'One entry starts your rhythm.',
   },
   building: {
-    title: 'Building a useful picture',
-    body: 'Small signals are starting to show what fits your day.',
+    title: 'Building your picture',
+    body: 'Small signals show what fits your day.',
   },
   emerging: {
-    title: 'A rhythm is emerging',
-    body: `Your recent entries are giving ${BRAND.name} more context to work with.`,
+    title: 'Your rhythm is emerging',
+    body: `Recent entries give ${BRAND.name} more context.`,
   },
   consistent: {
-    title: 'A steady routine is taking shape',
-    body: 'Your recent history is becoming easier to read.',
+    title: 'Your routine is taking shape',
+    body: 'Your recent history is easier to read.',
   },
   returning: {
-    title: 'A gentle return',
-    body: 'Your earlier history is still here. Start from where you are.',
+    title: 'Welcome back',
+    body: 'Your earlier history is here. Start where you are.',
   },
 };
 
@@ -185,7 +185,6 @@ function LivingRhythmCard({
           <CaloraFeatureIcon name="rhythm" size={27} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.livingRhythmEyebrow, { color: colors.mutedForeground }]}>{isToday(selectedDate) ? "TODAY'S RHYTHM" : 'DAILY RHYTHM'}</Text>
           <Text style={[styles.livingRhythmTitle, { color: colors.foreground }]}>{copy.title}</Text>
         </View>
         <View style={[styles.livingRhythmStage, { backgroundColor: colors.muted }]}>
@@ -245,8 +244,7 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
     <View style={[styles.recipeWidget, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.recipeWidgetHeader}>
         <View>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>A little inspiration</Text>
-          <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Swipe for something worth making</Text>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Recipes</Text>
         </View>
         <View style={styles.recipeWidgetHeaderActions}>
           {recipes.length > 1 && <View style={styles.recipeWidgetNav}>
@@ -260,7 +258,7 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
         </View>
       </View>
       {isLoading ? (
-        <View style={styles.recipeWidgetLoading}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding a meal for today…</Text></View>
+        <View style={styles.recipeWidgetLoading}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes…</Text></View>
       ) : (
         <FlatList
           ref={carouselRef}
@@ -303,7 +301,6 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
           )}
         />
       )}
-      {!isLoading && recipes.length > 1 && <View style={styles.recipeWidgetHint}><Feather name="more-horizontal" size={16} color={colors.mutedForeground} /><Text style={[styles.recipeWidgetHintText, { color: colors.mutedForeground }]}>Swipe or use the arrows to explore</Text></View>}
     </View>
   );
 }
@@ -541,7 +538,7 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
         <View style={[styles.editCard, { backgroundColor: colors.background }]}>
           <View style={styles.modalHandle} />
           <View style={styles.modalHeading}>
-            <View><Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit entry</Text><Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>Correct anything before it shapes your trend.</Text></View>
+            <View><Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit entry</Text><Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>Corrections update your trend.</Text></View>
             <ScalePressable accessibilityLabel="Close edit entry" onPress={onClose} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></ScalePressable>
           </View>
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Food name</Text>
@@ -652,7 +649,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
             <View style={styles.modalHeading}>
               <View>
                 <Text style={[styles.modalTitle, { color: colors.foreground }]}>{initialMode === 'manual' ? 'Quick add to' : 'Add to'} {isToday(entryDate) ? 'today' : formatShortDate(entryDate)}</Text>
-                <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>{initialMode === 'manual' ? 'Enter a food and calories, then keep moving.' : 'Fast now. Precise when it matters.'}</Text>
+                <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>{initialMode === 'manual' ? 'Enter a food and calories.' : 'Choose a food or add one manually.'}</Text>
               </View>
               <ScalePressable accessibilityLabel="Close add food" onPress={onClose} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
                 <Feather name="x" size={18} color={colors.foreground} />
@@ -662,8 +659,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
               <View style={[styles.quickAddFocus, { backgroundColor: colors.accent }]}>
                 <CaloraFeatureIcon name="food" size={38} primaryColor={colors.carbs} accentColor={colors.primary} foregroundColor={colors.foreground} highlightColor={colors.card} />
                 <Text style={[styles.quickAddFocusTitle, { color: colors.foreground }]}>Add a food manually</Text>
-                <Text style={[styles.quickAddFocusBody, { color: colors.mutedForeground }]}>Use this for anything that is not in the verified shortlist.</Text>
-                <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>MANUAL QUICK ADD</Text>
+                <Text style={[styles.quickAddFocusBody, { color: colors.mutedForeground }]}>For foods outside the verified list.</Text>
                 <View style={styles.manualRow}>
                   <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
                   <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
@@ -690,11 +686,11 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
                 </View>
                 {captureMode !== 'search' && <View style={[styles.unavailableCard, { backgroundColor: colors.accent }]}>
                   <CaloraFeatureIcon name={captureMode === 'voice' ? 'voice' : 'barcode'} size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
-                  <View style={{ flex: 1 }}><Text style={[styles.unavailableTitle, { color: colors.foreground }]}>{captureMode === 'voice' ? 'Voice capture needs permission' : 'Barcode scanning needs camera access'}</Text><Text style={[styles.unavailableBody, { color: colors.mutedForeground }]}>{captureMode === 'voice' ? `In the native build, ${BRAND.name} will request microphone access and turn your words into a reviewable draft.` : `In the native build, ${BRAND.name} will request camera access and look up a verified product by barcode.`}</Text></View>
+                   <View style={{ flex: 1 }}><Text style={[styles.unavailableTitle, { color: colors.foreground }]}>{captureMode === 'voice' ? 'Voice needs microphone access' : 'Barcode scanning needs camera access'}</Text><Text style={[styles.unavailableBody, { color: colors.mutedForeground }]}>{captureMode === 'voice' ? `${BRAND.name} turns your words into a reviewable draft.` : `${BRAND.name} looks up a verified product by barcode.`}</Text></View>
                   <Pressable accessibilityLabel="Use text logging instead" onPress={() => setCaptureMode('search')}><Text style={[styles.useText, { color: colors.primary }]}>Use text</Text></Pressable>
                 </View>}
                 {savedMeals.length > 0 && <View>
-                  <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 2 }]}>SAVED MEALS & RECIPES</Text>
+                   <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 2 }]}>SAVED</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedMealRow}>
                     {savedMeals.map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add saved ${meal.name}`} onPress={() => chooseSavedMeal(meal)} scale={0.98} haptic="none" style={[styles.savedMealChip, { backgroundColor: colors.accent, borderColor: colors.border }]}><CaloraFeatureIcon name={meal.kind === 'recipe' ? 'recipes' : 'food'} size={22} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /><View><Text style={[styles.savedMealName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.savedMealMeta, { color: colors.mutedForeground }]}>{formatWhole(meal.calories)} kcal · {meal.kind}</Text></View></ScalePressable>)}
                   </ScrollView>
@@ -703,7 +699,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
                   <Feather name="search" size={18} color={colors.mutedForeground} />
                   <TextInput value={search} onChangeText={setSearch} placeholder="Search verified foods" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />
                 </View>
-                <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>VERIFIED SHORTLIST</Text>
+                 <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>VERIFIED</Text>
                 <ScrollView style={{ maxHeight: 210 }} showsVerticalScrollIndicator={false}>
                   {filtered.map((food) => (
                     <ScalePressable key={food.name} onPress={() => chooseFood(food)} scale={0.98} haptic="none" style={[styles.foodSuggestion, { borderBottomColor: colors.border }]}>
@@ -718,7 +714,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
                     </ScalePressable>
                   ))}
                 </ScrollView>
-                <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 14 }]}>MANUAL QUICK ADD</Text>
+                 <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 14 }]}>MANUAL</Text>
                 <View style={styles.manualRow}>
                   <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
                   <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
@@ -1064,7 +1060,7 @@ export default function HomeScreen() {
           <LinearGradient colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
-               <View style={styles.homeHeaderBadge}><CaloraFeatureIcon name="rhythm" size={20} primaryColor="#d4eadc" accentColor="#9dd7bd" foregroundColor="#143f34" highlightColor="#f7fff9" /><Text style={styles.homeHeaderBadgeText}>DAILY RHYTHM</Text></View>
+                <View style={styles.homeHeaderBadge}><CaloraFeatureIcon name="rhythm" size={20} primaryColor="#d4eadc" accentColor="#9dd7bd" foregroundColor="#143f34" highlightColor="#f7fff9" /></View>
               <Text style={styles.homeHeaderDate}>{formatDateLabel(selectedDate)}</Text>
             </View>
             <Text style={styles.homeHeaderTitle}>{livingState.greeting}, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
@@ -1154,28 +1150,11 @@ export default function HomeScreen() {
           }}
         />
 
-        {todayInsight ? (
-          <Surface tier="flat" radius="lg" testID="today-contextual-insight"
-            accessibilityRole="summary"
-            accessibilityLabel={`Today insight: ${todayInsight.title}. ${todayInsight.message}`}
-            style={[styles.todayInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
-             <View style={[styles.todayInsightIcon, { backgroundColor: colors.accent }]}>
-               <CaloraFeatureIcon name="rhythm" size={27} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
-            </View>
-            <View style={styles.todayInsightCopy}>
-              <Text style={[styles.todayInsightEyebrow, { color: colors.mutedForeground }]}>TODAY'S INSIGHT</Text>
-              <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{todayInsight.title}</Text>
-              <Text style={[styles.todayInsightMessage, { color: colors.mutedForeground }]}>{todayInsight.message}</Text>
-            </View>
-          </Surface>
-        ) : null}
-
         <View style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.sectionHeader}>
             <View>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Macro balance</Text>
-              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your detailed nutrition view for this day.</Text>
+              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Nutrition for this day.</Text>
             </View>
             <ScalePressable
               accessibilityLabel="Edit nutrition goals"
@@ -1202,7 +1181,7 @@ export default function HomeScreen() {
         <View style={styles.mealHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text>
-            <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Tap an entry to edit · {selectedLogs.length} logged</Text>
+            <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{selectedLogs.length} logged · Tap to edit</Text>
           </View>
           <ScalePressable onPress={() => openAdd()} accessibilityLabel="Add meal" scale={0.96} haptic="none" style={[styles.addMealButton, { backgroundColor: colors.primary }]}>
             <Feather name="plus" size={16} color={colors.primaryForeground} />
@@ -1210,7 +1189,7 @@ export default function HomeScreen() {
           </ScalePressable>
         </View>
         <View style={[styles.logCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {!selectedLogs.length && <View style={styles.emptyDiary}><View style={styles.emptyDiaryVisual}><Image source={require('../../assets/images/calora-home-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} /><LinearGradient colors={['rgba(18,34,24,0.1)', 'rgba(18,34,24,0.68)']} style={StyleSheet.absoluteFillObject} /><View style={styles.emptyDiaryVisualLabel}><Feather name="sunrise" size={12} color="#d4eadc" /><Text style={styles.emptyDiaryVisualText}>MAKE SPACE FOR A MEAL</Text></View></View><Feather name="calendar" size={22} color={colors.mutedForeground} /><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>Nothing logged yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal for this day and it will stay here offline.</Text></View>}
+          {!selectedLogs.length && <View style={styles.emptyDiary}><View style={styles.emptyDiaryVisual}><Image source={require('../../assets/images/calora-home-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} /><LinearGradient colors={['rgba(18,34,24,0.1)', 'rgba(18,34,24,0.68)']} style={StyleSheet.absoluteFillObject} /></View><Feather name="calendar" size={22} color={colors.mutedForeground} /><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>No meals yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal. It stays here offline.</Text></View>}
           {mealOrder.map((meal) => {
             const mealLogs = selectedLogs.filter((log) => log.meal === meal);
             if (!mealLogs.length) return null;
@@ -1228,8 +1207,24 @@ export default function HomeScreen() {
         </View>
         <View style={styles.footerNote}>
           <Feather name="check-circle" size={15} color={colors.success} />
-          <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved on this device · waiting for a connection' : syncState === 'local' ? 'Saved on this device · ready to sync' : syncState === 'offline' ? 'Loading your local diary…' : 'Core foods are sourced from verified nutrition data.'}</Text>
+          <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved on this device · waiting to sync' : syncState === 'local' ? 'Saved on this device · ready to sync' : syncState === 'offline' ? 'Loading local diary…' : 'Core foods use verified nutrition data.'}</Text>
         </View>
+
+        {todayInsight ? (
+          <Surface tier="flat" radius="lg" testID="today-contextual-insight"
+            accessibilityRole="summary"
+            accessibilityLabel={`Today insight: ${todayInsight.title}. ${todayInsight.message}`}
+            style={[styles.todayInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <View style={[styles.todayInsightIcon, { backgroundColor: colors.accent }]}>
+              <CaloraFeatureIcon name="rhythm" size={27} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
+            </View>
+            <View style={styles.todayInsightCopy}>
+              <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{todayInsight.title}</Text>
+              <Text style={[styles.todayInsightMessage, { color: colors.mutedForeground }]}>{todayInsight.message}</Text>
+            </View>
+          </Surface>
+        ) : null}
 
         <PlannerPeek selectedDate={selectedDate} />
 
@@ -1249,7 +1244,6 @@ export default function HomeScreen() {
         />
 
         <View style={styles.recipeSection}>
-          <Text style={[styles.recipeSectionEyebrow, { color: colors.mutedForeground }]}>FOR LATER</Text>
           <RecipeSwipeWidget colors={colors} onOpen={(recipe) => router.navigate({ pathname: '/(tabs)/recipes', params: { recipeId: recipe.id } })} />
         </View>
       </ScrollView>
@@ -1268,7 +1262,6 @@ function makeStyles(f: number) {
   homeHeaderTop: { position: 'absolute', top: 16, left: 20, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   homeHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   homeHeaderBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.3)' },
-  homeHeaderBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.1, textTransform: 'uppercase' },
   homeHeaderThemeToggle: { width: 40, height: 40, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   homeHeaderAvatar: { width: 40, height: 40, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
   homeHeaderAvatarText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 16 * f },
@@ -1289,7 +1282,6 @@ function makeStyles(f: number) {
    todayInsightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 16, marginTop: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
    todayInsightIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
    todayInsightCopy: { flex: 1, minWidth: 0 },
-   todayInsightEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.2, marginBottom: 4, textTransform: 'uppercase' },
    todayInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, lineHeight: 20 * f },
    todayInsightMessage: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, lineHeight: 19 * f, marginTop: 4 },
    fuelSnapshot: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 16, marginTop: 6 },
@@ -1302,7 +1294,6 @@ function makeStyles(f: number) {
   livingRhythmCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, padding: 20, marginBottom: 24, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   livingRhythmHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   livingRhythmIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  livingRhythmEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.2, marginBottom: 4, textTransform: 'uppercase' },
   livingRhythmTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 18 * f, letterSpacing: -0.3 },
   livingRhythmStage: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },
   livingRhythmStageText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, textTransform: 'capitalize' },
@@ -1324,7 +1315,6 @@ function makeStyles(f: number) {
     quickActionLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, textAlign: 'center' },
   recipeWidget: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, padding: 16, marginBottom: 28, shadowColor: '#17231f', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
    recipeSection: { marginTop: 4 },
-   recipeSectionEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.2, marginBottom: 10, textTransform: 'uppercase' },
   recipeWidgetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 },
   recipeWidgetHeaderActions: { alignItems: 'flex-end', gap: 8 },
   recipeWidgetNav: { flexDirection: 'row', gap: 6 },
@@ -1341,8 +1331,6 @@ function makeStyles(f: number) {
   recipeWidgetMeta: { color: '#d4eadc', fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   recipeWidgetAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   recipeWidgetActionText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  recipeWidgetHint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10 },
-  recipeWidgetHintText: { fontFamily: 'Inter_500Medium', fontSize: 11 * f },
   recipeWidgetLoading: { height: 180, alignItems: 'center', justifyContent: 'center', gap: 10 },
   loadingText: { fontFamily: 'Inter_500Medium', fontSize: 12 * f },
   wellnessSection: { gap: 14, marginBottom: 28 },
@@ -1398,8 +1386,6 @@ function makeStyles(f: number) {
   kcalLabel: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginLeft: -8, marginTop: 20 },
   emptyDiary: { alignItems: 'center', paddingVertical: 28, gap: 6 },
    emptyDiaryVisual: { width: '100%', height: 74, borderRadius: 16, overflow: 'hidden', marginBottom: 10 },
-   emptyDiaryVisualLabel: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 12 },
-   emptyDiaryVisualText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, textTransform: 'uppercase' },
   emptyDiaryTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, marginTop: 4 },
   emptyDiaryBody: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, textAlign: 'center', maxWidth: 240 },
   footerNote: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 20 },

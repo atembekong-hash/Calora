@@ -71,19 +71,19 @@ export default function VerifyEmailScreen() {
         <Text style={[styles.body, { color: colors.mutedForeground }]}>
           We sent a confirmation link to{'\n'}
           <Text style={{ fontFamily: 'Inter_600SemiBold', color: colors.foreground }}>{email}</Text>
-          {'\n\n'}Tap the link to activate your {BRAND.name} account. The link expires in 24 hours.
+           {'\n\n'}Use the link to activate your account. It expires in 24 hours.
         </Text>
       ) : (
         <Text style={[styles.body, { color: colors.mutedForeground }]}>
-          We sent a confirmation link to your email. Tap it to activate your {BRAND.name} account.
+           We sent a confirmation link to your email. Use it to activate your account.
         </Text>
       )}
 
       {/* Tips */}
       {[
-        { icon: 'inbox' as const, text: "Check your spam or junk folder if you don\u2019t see it." },
-        { icon: 'smartphone' as const, text: 'Tapping the link on your phone will open the app automatically.' },
-        { icon: 'lock' as const, text: 'The link is single-use and expires in 24 hours.' },
+         { icon: 'inbox' as const, text: "Check spam or junk if you don\u2019t see it." },
+         { icon: 'smartphone' as const, text: 'Open the link on your phone to return to the app.' },
+         { icon: 'lock' as const, text: 'The link works once and expires in 24 hours.' },
       ].map((tip) => (
         <View key={tip.text} style={[styles.tipRow, { backgroundColor: colors.muted }]}>
           <Feather name={tip.icon} size={14} color={colors.mutedForeground} />
@@ -93,11 +93,11 @@ export default function VerifyEmailScreen() {
 
       {/* Resend */}
       <View style={[styles.resendCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.resendLabel, { color: colors.foreground }]}>Didn't get the email?</Text>
+           <Text style={[styles.resendLabel, { color: colors.foreground }]}>Didn’t get it?</Text>
         {resendDone ? (
           <View style={styles.resendSuccess}>
             <Feather name="check-circle" size={16} color={colors.success} />
-            <Text style={[styles.resendSuccessText, { color: colors.success }]}>Sent! Check your inbox.</Text>
+             <Text style={[styles.resendSuccessText, { color: colors.success }]}>Sent. Check your inbox.</Text>
           </View>
         ) : (
           <>

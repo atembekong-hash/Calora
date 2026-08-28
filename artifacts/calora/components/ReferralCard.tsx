@@ -49,7 +49,7 @@ export function ReferralCard({ fontScale }: Props) {
           <Text style={[styles.title, { color: colors.foreground }]}>Invite friends</Text>
         </View>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          Invite a friend. When they join and log their first meal, you both get 30 days of Calora Pro.
+          You both get 30 days of Pro when they join and log a meal.
         </Text>
       </View>
     );
@@ -61,7 +61,7 @@ export function ReferralCard({ fontScale }: Props) {
     if (!data) return;
     try {
       await Share.share({
-        message: `Join me on CaloraApp — smarter nutrition tracking. Use my invite code ${data.code} and we both get ${data.rewardDays} days of Pro: ${data.inviteUrl}`,
+        message: `Join me on CaloraApp. Use ${data.code} and we both get ${data.rewardDays} Pro days: ${data.inviteUrl}`,
       });
     } catch {
       // User dismissed the share sheet — nothing to do.
@@ -96,14 +96,14 @@ export function ReferralCard({ fontScale }: Props) {
         <Text style={[styles.title, { color: colors.foreground }]}>Invite friends</Text>
       </View>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          Invite a friend. When they join and log their first meal, you both get {data?.rewardDays ?? 30} days of Calora Pro.
+          You both get {data?.rewardDays ?? 30} Pro days when they join and log a meal.
       </Text>
 
       {referralQuery.isLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginVertical: 14 }} />
       ) : referralQuery.isError ? (
         <Text style={[styles.subtitle, { color: colors.destructive }]}>
-          Referrals are unavailable right now. Pull to refresh or try again later.
+          Referrals are unavailable. Try again later.
         </Text>
       ) : data ? (
         <>
@@ -161,11 +161,11 @@ export function ReferralCard({ fontScale }: Props) {
             </View>
           ) : data.redemption.status === 'pending' ? (
             <Text style={[styles.pendingNote, { color: colors.mutedForeground }]} testID="referral-pending-note">
-              Invite code {data.redemption.code} applied — log your first meal to unlock your {data.rewardDays} days of Pro.
+              {data.redemption.code} applied — log a meal to unlock {data.rewardDays} Pro days.
             </Text>
           ) : (
             <Text style={[styles.pendingNote, { color: colors.primary }]} testID="referral-rewarded-note">
-              Invite reward unlocked — enjoy your Pro access!
+              Invite reward unlocked — Pro is ready.
             </Text>
           )}
 

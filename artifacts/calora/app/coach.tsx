@@ -278,7 +278,7 @@ export default function CoachScreen() {
         setTurns((current) => [...current, {
           id: `unavailable-${Date.now()}`,
           role: 'assistant',
-          content: 'Coach is not available for this account right now. Nothing was changed. Your local Progress data is still available.',
+          content: 'Coach isn’t available right now. Nothing changed. Your local Progress data is still available.',
           announce: true,
         }]);
         return;
@@ -299,7 +299,7 @@ export default function CoachScreen() {
       setTurns((current) => [...current, {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: 'I couldn\u2019t reach Coach just now. Nothing was changed. Your local Progress data is still available.',
+        content: 'I couldn\u2019t reach Coach. Nothing changed. Your local Progress data is still available.',
         announce: true,
       }]);
     } finally {
@@ -345,8 +345,7 @@ export default function CoachScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerCopy}>
-          <Text style={[styles.eyebrow, { color: colors.primary }]}>{BRAND.name.toUpperCase()} INTELLIGENCE</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A calm, focused read on your current nutrition.</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A focused view of your nutrition.</Text>
         </View>
         {isIntelligenceFeatureEnabled('intelligence.coach.fact_context') && (
           <CoachFactContextConsentPanel colors={colors} />
@@ -357,9 +356,9 @@ export default function CoachScreen() {
             <View style={[styles.coachMark, { backgroundColor: 'rgba(157,215,189,0.16)' }]}>
               <CaloraFeatureIcon name="coach" size={36} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.heroMuted} highlightColor={colors.onHero} />
             </View>
-            <Text style={[styles.consentTitle, { color: colors.onHero }]}>A focused nutrition read</Text>
+            <Text style={[styles.consentTitle, { color: colors.onHero }]}>Nutrition, in context</Text>
             <Text style={[styles.consentBody, { color: colors.heroMuted }]}>
-              Coach can use your logged calories and protein to help you make a thoughtful next choice. It does not use your mood, hydration, weight, plans, or Food Memory in this conversation.
+              Coach uses your logged calories, protein, and question. It does not use mood, hydration, weight, plans, or Food Memory.
             </Text>
             <View style={styles.scopeRow}>
               {['Calories logged', 'Protein logged', 'Your question'].map((item) => (
@@ -369,7 +368,7 @@ export default function CoachScreen() {
                 </View>
               ))}
             </View>
-            <Text style={[styles.consentNote, { color: colors.heroMuted }]}>Your request is sent to {BRAND.name}'s AI service. Coach does not replace medical care and never changes your data without your confirmation.</Text>
+            <Text style={[styles.consentNote, { color: colors.heroMuted }]}>Your request goes to {BRAND.name}'s AI service. Coach is not medical care and never changes data without your confirmation.</Text>
             <Pressable accessibilityLabel={`Continue to ${BRAND.name} Coach`} testID="coach-consent-continue" onPress={startCoach} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
               <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>See my weekly read</Text>
               <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
@@ -382,9 +381,8 @@ export default function CoachScreen() {
                   <View style={[styles.briefIcon, { backgroundColor: colors.accent }]}>
                     <CaloraFeatureIcon name="coach" size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
                 </View>
-                <Text style={[styles.briefEyebrow, { color: colors.primary }]}>YOUR WEEKLY READ</Text>
-                <Text style={[styles.briefTitle, { color: colors.foreground }]}>Let’s make the signal useful.</Text>
-                <Text style={[styles.briefBody, { color: colors.mutedForeground }]}>Ask about your meals, hydration, patterns, or what to do next. Coach will show what it is using and where you can go from here.</Text>
+                <Text style={[styles.briefTitle, { color: colors.foreground }]}>What would you like to know?</Text>
+                <Text style={[styles.briefBody, { color: colors.mutedForeground }]}>Ask about meals, hydration, patterns, or what to do next. Coach shows what it uses.</Text>
               </View>
             )}
             {turns.map((turn) => (
@@ -405,10 +403,10 @@ export default function CoachScreen() {
             {isSending && (
               <View accessibilityLiveRegion="polite" style={[styles.loadingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Reading your {BRAND.name} context…</Text>
+                <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Preparing your answer…</Text>
               </View>
             )}
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>TRY ASKING</Text>
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Suggestions</Text>
             <View style={styles.promptWrap}>
               {starterPrompts.map((prompt) => (
                 <Pressable key={prompt} accessibilityLabel={`Ask Coach: ${prompt}`} onPress={() => void sendMessage(prompt)} style={[styles.promptChip, { backgroundColor: colors.muted }]}>
@@ -459,7 +457,6 @@ export default function CoachScreen() {
                   <Feather name="message-square" size={16} color={colors.accentForeground} />
                 </View>
                 <View>
-                  <Text style={[styles.menuEyebrow, { color: colors.primary }]}>{BRAND.name.toUpperCase()} COACH</Text>
                   <Text style={[styles.menuTitle, { color: colors.foreground }]}>Chat history</Text>
                 </View>
               </View>
@@ -485,7 +482,7 @@ export default function CoachScreen() {
                   <Text style={[styles.newChatText, { color: colors.primaryForeground }]}>Clear & start new</Text>
                 </Pressable>
 
-                <Text style={[styles.historyLabel, { color: colors.mutedForeground }]}>THIS CHAT</Text>
+                <Text style={[styles.historyLabel, { color: colors.mutedForeground }]}>Current chat</Text>
                 {coachMessages.length > 0 ? (
                   <View style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     {coachMessages.slice(-8).map((message, index) => (
@@ -504,7 +501,7 @@ export default function CoachScreen() {
                   <View style={[styles.emptyHistory, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <Feather name="message-circle" size={20} color={colors.mutedForeground} />
                     <Text style={[styles.emptyHistoryTitle, { color: colors.foreground }]}>No chats yet</Text>
-                    <Text style={[styles.emptyHistoryBody, { color: colors.mutedForeground }]}>Your Coach conversations will appear here on this device.</Text>
+                    <Text style={[styles.emptyHistoryBody, { color: colors.mutedForeground }]}>Coach chats appear here on this device.</Text>
                   </View>
                 )}
 
@@ -524,7 +521,7 @@ export default function CoachScreen() {
               <View style={[styles.emptyHistory, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Feather name="lock" size={20} color={colors.mutedForeground} />
                 <Text style={[styles.emptyHistoryTitle, { color: colors.foreground }]}>Chat history is private</Text>
-                <Text style={[styles.emptyHistoryBody, { color: colors.mutedForeground }]}>Continue to Coach to save and revisit conversations on this device.</Text>
+                <Text style={[styles.emptyHistoryBody, { color: colors.mutedForeground }]}>Start Coach to save chats on this device.</Text>
               </View>
             )}
           </View>
@@ -581,7 +578,6 @@ export default function CoachScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
   headerCopy: { marginBottom: 18 },
-  eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.2, marginBottom: 4 },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16 },
   consentCard: { borderRadius: 25, padding: 20 },
   coachMark: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
@@ -595,7 +591,6 @@ const styles = StyleSheet.create({
   primaryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   briefCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 17, marginBottom: 20 },
   briefIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  briefEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1 },
   briefTitle: { fontFamily: 'Inter_700Bold', fontSize: 19, marginTop: 6 },
   briefBody: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, marginTop: 7 },
   userTurn: { alignItems: 'flex-end', marginBottom: 12 },
@@ -630,7 +625,6 @@ const styles = StyleSheet.create({
   menuHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
   menuTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   menuTitleIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  menuEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8, letterSpacing: 1.15, marginBottom: 3 },
   menuTitle: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.3 },
   menuCloseButton: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   newChatButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, paddingVertical: 13, marginBottom: 25 },

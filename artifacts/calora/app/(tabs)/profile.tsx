@@ -81,8 +81,7 @@ export default function ProfileScreen() {
   const hasExportData = deriveExportHasData(profile, logs);
   const insets = useSafeAreaInsets();
 
-  // Billing — live RevenueCat offering is the price authority. Reference prices
-  // are shown only as expected US pricing when a purchasable store plan is unavailable.
+  // Billing — the live RevenueCat offering is the price authority.
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | 'confirm' | null>(null);
   const [billingNotice, setBillingNotice] = useState<string | null>(null);
@@ -419,7 +418,7 @@ export default function ProfileScreen() {
   // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <AppHeader back title="Profile & settings" />
+      <AppHeader back title="Profile" />
       <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
 
         {/* ── Profile card ── */}
@@ -472,14 +471,14 @@ export default function ProfileScreen() {
           testID="profile-section-content"
         >
         <Text style={[styles.tabSubtitle, { color: colors.mutedForeground }]}>
-          {{ you: 'Personalize Calora and set your reminders.', membership: 'Plans, rewards, and the tools you return to.', account: 'Your data, health connection, account, and help.' }[profileTab]}
+          {{ you: 'Settings and reminders.', membership: 'Plans and rewards.', account: 'Data, health, and help.' }[profileTab]}
         </Text>
 
         <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
         {/* ── Appearance ── */}
         <Animated.View entering={enterMotion('screen', 1)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
-        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Choose how {BRAND.name} should feel at any hour.</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Choose your display.</Text>
         <View style={[styles.segmentedControl, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {themes.map((theme) => {
             const selected = themePreference === theme.key;
@@ -541,7 +540,7 @@ export default function ProfileScreen() {
         {/* ── Reminders ── */}
         <Animated.View entering={enterMotion('screen', 3)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 4, marginBottom: 4 }]}>Reminders</Text>
-        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>On-device nudges for water intake, meals, and your daily goal.</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>On-device water, meal, and goal nudges.</Text>
 
         {/* Hydration */}
         <View style={[styles.reminderToggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -623,7 +622,7 @@ export default function ProfileScreen() {
 
             <View style={[styles.reminderPrivacy, { backgroundColor: colors.muted }]}>
               <Feather name="lock" size={12} color={colors.mutedForeground} />
-              <Text style={[styles.reminderPrivacyText, { color: colors.mutedForeground }]}>Reminders are scheduled on your device. No data is sent anywhere.</Text>
+              <Text style={[styles.reminderPrivacyText, { color: colors.mutedForeground }]}>Scheduled on your device. No data is sent.</Text>
             </View>
           </View>
         )}
@@ -711,12 +710,12 @@ export default function ProfileScreen() {
         <View style={styles.planHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{BRAND.premiumName}</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>The complete experience, without the noise.</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Premium features.</Text>
           </View>
           <View style={[styles.betaPill, { backgroundColor: colors.accent }]}><Text style={[styles.betaText, { color: colors.accentForeground }]}>PRO</Text></View>
         </View>
         <View style={[styles.planCard, { backgroundColor: colors.card, borderColor: colors.primary }]}>
-          <Text style={[styles.planEyebrow, { color: colors.mutedForeground }]}>CHOOSE YOUR PACE</Text>
+          <Text style={[styles.planEyebrow, { color: colors.mutedForeground }]}>CHOOSE A PLAN</Text>
           <View style={styles.planChoices}>
             <Pressable accessibilityLabel="Choose monthly plan" testID="billing-plan-monthly" onPress={() => setSelectedPlan('monthly')} style={[styles.planChoice, { borderColor: selectedPlan === 'monthly' ? colors.primary : colors.border, backgroundColor: selectedPlan === 'monthly' ? colors.accent : colors.card }]}>
               <View style={[styles.radio, { borderColor: selectedPlan === 'monthly' ? colors.primary : colors.mutedForeground }]}>
@@ -734,7 +733,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.planChoiceCopy}>
                 <Text style={[styles.planName, { color: colors.foreground }]}>Annual</Text>
-                <Text style={[styles.planHint, { color: colors.mutedForeground }]}>$3.00 / month billed annually</Text>
+                <Text style={[styles.planHint, { color: colors.mutedForeground }]}>Billed annually</Text>
               </View>
               <Text style={[styles.planPrice, { color: colors.foreground }]}>{annualPriceString ?? 'Store price unavailable'}{annualPriceString && <Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / yr</Text>}</Text>
             </Pressable>
@@ -745,11 +744,11 @@ export default function ProfileScreen() {
           </View>
           {!selectedPackage && !isSubscribed && (
             <Text style={[styles.billingNote, { color: colors.mutedForeground }]}>
-              Store pricing is unavailable, so this plan cannot be purchased yet. Expected US pricing: $4.99/month or $35.99/year.
+              Store pricing is unavailable, so this plan cannot be purchased yet.
             </Text>
           )}
           <View style={styles.featureList}>
-            {['Unlimited photo and voice logging', 'Verified food confidence and source history', 'Adaptive calorie targets and deeper insights', 'Ad-free, offline-first diary'].map((feature) => (
+            {['Photo and voice logging', 'Food sources and confidence', 'Calorie targets and insights', 'Ad-free offline diary'].map((feature) => (
               <View key={feature} style={styles.featureRow}>
                 <Feather name="check" size={15} color={colors.success} />
                 <Text style={[styles.featureText, { color: colors.foreground }]}>{feature}</Text>
@@ -762,7 +761,7 @@ export default function ProfileScreen() {
             </Text>
             {!isSubscribed && isSelectedPlanAvailable && <Feather name="arrow-right" size={16} color={colors.primaryForeground} />}
           </Pressable>
-          <Text style={[styles.billingNote, { color: colors.mutedForeground }]}>After the 7-day free trial, your selected plan renews at the same plan price unless you change or cancel it through the store. Local taxes and currency may affect the store display.</Text>
+          <Text style={[styles.billingNote, { color: colors.mutedForeground }]}>After the 7-day trial, your plan renews at its plan price unless changed or canceled in the store. Local taxes and currency may affect the store display.</Text>
           <View style={styles.billingLinks}>
             <Pressable accessibilityLabel="Restore purchases" onPress={handleRestore}><Text style={[styles.billingLink, { color: colors.primary }]}>Restore purchases</Text></Pressable>
             <View style={[styles.linkDot, { backgroundColor: colors.border }]} />
@@ -778,7 +777,7 @@ export default function ProfileScreen() {
         <View style={profileTab === 'membership' ? undefined : styles.hiddenSection}>
         {/* ── Saved meals ── */}
         <View style={styles.savedHeader}>
-          <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved meals</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Keep repeatable meals one tap away.</Text></View>
+          <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved meals</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Meals to reuse.</Text></View>
           <Pressable accessibilityLabel="Create saved meal" onPress={() => setSavedMealModal(true)} style={[styles.connectButton, { backgroundColor: colors.primary }]}>
             <Feather name="plus" size={14} color={colors.primaryForeground} />
             <Text style={[styles.connectButtonText, { color: colors.primaryForeground }]}>Create</Text>
@@ -789,8 +788,8 @@ export default function ProfileScreen() {
             <View style={[styles.emptySaved, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Image source={require('../../assets/images/calora-profile-header.jpg')} contentFit="cover" style={styles.emptySavedImage} />
               <View style={styles.emptySavedCopy}>
-                <Text style={[styles.emptySavedTitle, { color: colors.foreground }]}>Your repeatable meals</Text>
-                <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>Create one for a repeatable lunch, dinner, or recipe.</Text>
+                <Text style={[styles.emptySavedTitle, { color: colors.foreground }]}>No saved meals</Text>
+                <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>Save a meal or recipe to reuse it.</Text>
               </View>
             </View>
           )
@@ -819,14 +818,14 @@ export default function ProfileScreen() {
 
         {/* ── Living memory ── */}
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 4 }]}>Living memory</Text>
-        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Review the small, confirmed signals {BRAND.name} keeps on this device.</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Review saved signals on this device.</Text>
         <Pressable accessibilityLabel="Review living memory" testID="review-living-memory" onPress={() => router.push('/memory')} style={[styles.memoryShortcut, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name="layers" size={17} color={colors.accentForeground} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.settingTitle, { color: colors.foreground }]}>What {BRAND.name} remembers</Text>
+            <Text style={[styles.settingTitle, { color: colors.foreground }]}>Saved signals</Text>
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
               {Object.keys(livingMemory.mealObservations).length + Object.keys(livingMemory.waterObservations).length + Object.keys(livingMemory.moodObservations).length + Object.keys(livingMemory.activityObservations).length + Object.keys(livingMemory.plannerObservations).length > 0
-                ? 'Review, correct, or forget individual signals.'
+                ? 'Review, correct, or forget signals.'
                 : 'Nothing remembered yet.'}
             </Text>
           </View>
@@ -858,11 +857,11 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
         {[
-          { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Prepare a portable JSON copy · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExport, disabled: !hasExportData || isExporting, isLoading: isExporting },
+          { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Portable JSON · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExport, disabled: !hasExportData || isExporting, isLoading: isExporting },
           { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove this device\u2019s diary and profile data.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
-          { icon: 'shield' as const, title: 'Your food data stays yours', body: 'Local-first logging with export and delete controls.', onPress: () => setInfoModal('food-data'), disabled: false },
-          { icon: 'eye-off' as const, title: 'No surveillance ads', body: 'Your meals are never used to target advertisements.', onPress: () => setInfoModal('no-ads'), disabled: false },
-          { icon: 'help-circle' as const, title: 'Need a hand?', body: 'Reach a real person when something does not look right.', onPress: () => setInfoModal('help'), disabled: false },
+          { icon: 'shield' as const, title: 'Your food data', body: 'Export and delete controls.', onPress: () => setInfoModal('food-data'), disabled: false },
+          { icon: 'eye-off' as const, title: 'No ad tracking', body: 'Meals are not used for ads.', onPress: () => setInfoModal('no-ads'), disabled: false },
+          { icon: 'help-circle' as const, title: 'Help', body: 'Get support.', onPress: () => setInfoModal('help'), disabled: false },
         ].map((item) => (
           <SettingRowPressable
             key={item.title}
@@ -921,7 +920,7 @@ export default function ProfileScreen() {
                 ? `The ${selectedPlan} store plan is unavailable, so no purchase can be started. Please try again when store pricing has loaded.`
                 : billingModal === 'restore'
                   ? `This will look up your active ${BRAND.premiumName} entitlement on this device.`
-                  : 'This will open the platform subscription settings so cancellation stays one tap away.'}
+                  : 'This opens platform settings to manage or cancel your plan.'}
             </Text>
             {billingModal !== 'confirm' && (
               <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
@@ -1097,7 +1096,7 @@ export default function ProfileScreen() {
                 <Feather name={infoModal === 'food-data' ? 'shield' : infoModal === 'no-ads' ? 'eye-off' : infoModal === 'health' ? 'activity' : 'help-circle'} size={18} color={colors.accentForeground} />
               </View>
               <Text style={[styles.dialogTitle, { color: colors.foreground, flex: 1, marginLeft: 12 }]}>
-                {infoModal === 'food-data' ? 'Your food data stays yours' : infoModal === 'no-ads' ? 'No surveillance ads' : infoModal === 'health' ? 'Health data' : 'Need a hand?'}
+                {infoModal === 'food-data' ? 'Your food data' : infoModal === 'no-ads' ? 'No ad tracking' : infoModal === 'health' ? 'Health data' : 'Help'}
               </Text>
               <Pressable accessibilityLabel="Close" onPress={() => setInfoModal(null)} hitSlop={10}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
@@ -1107,10 +1106,10 @@ export default function ProfileScreen() {
             {infoModal === 'food-data' && (
               <>
                 {[
-                  { icon: 'smartphone' as const, title: user ? 'Diary continuity' : 'Stays on your device', body: user ? 'Signed-in diary entries are stored locally for offline use and securely synced to your account so they can be restored on another device.' : 'While signed out, your diary, profile, and food memories stay in this device\'s local storage.' },
-                  { icon: 'download' as const, title: 'You can export any time', body: `Use Export your data to get a complete portable JSON copy of everything ${BRAND.name} has stored.` },
-                  { icon: 'trash-2' as const, title: 'You can delete any time', body: 'Delete local data permanently removes every byte from this device immediately.' },
-                  { icon: 'lock' as const, title: 'Account-scoped sync', body: user ? 'Only your authenticated account can download or change its synced diary. Local edits retry after your connection returns.' : 'Sign in only when you want account-backed diary continuity across devices.' },
+                  { icon: 'smartphone' as const, title: user ? 'Diary sync' : 'On this device', body: user ? 'Diary entries stay local for offline use and sync securely to your account for another device.' : 'Your diary, profile, and food memories stay in this device\'s local storage.' },
+                  { icon: 'download' as const, title: 'Export data', body: `Get a portable JSON copy of everything ${BRAND.name} stores.` },
+                  { icon: 'trash-2' as const, title: 'Delete data', body: 'Delete local data permanently removes it from this device.' },
+                  { icon: 'lock' as const, title: 'Account sync', body: user ? 'Only your authenticated account can access its synced diary. Local edits retry when connected.' : 'Sign in for account-backed diary continuity across devices.' },
                 ].map((item) => (
                   <View key={item.title} style={[styles.infoRow, { borderColor: colors.border }]}>
                     <View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name={item.icon} size={15} color={colors.accentForeground} /></View>
@@ -1126,10 +1125,10 @@ export default function ProfileScreen() {
             {infoModal === 'no-ads' && (
               <>
                 {[
-                  { icon: 'eye-off' as const, title: 'No ad tracking', body: `${BRAND.name} does not share your food data, location, or behavior with ad networks.` },
-                  { icon: 'bar-chart-2' as const, title: 'No behavioral profiling', body: 'Your meal patterns are used only to personalize your experience — never to build a profile for sale.' },
-                  { icon: 'dollar-sign' as const, title: 'Revenue from subscriptions only', body: `${BRAND.name} is funded by ${BRAND.premiumName} subscriptions. There is no ad-supported tier.` },
-                  { icon: 'check-circle' as const, title: 'Built on trust', body: 'If that ever changes, we will ask for your explicit consent before anything new is collected.' },
+                  { icon: 'eye-off' as const, title: 'No ad tracking', body: `${BRAND.name} does not share food, location, or behavior with ad networks.` },
+                  { icon: 'bar-chart-2' as const, title: 'No profiling for sale', body: 'Meal patterns only personalize your experience.' },
+                  { icon: 'dollar-sign' as const, title: 'Subscription funded', body: `${BRAND.name} has no ad-supported tier.` },
+                  { icon: 'check-circle' as const, title: 'Your consent', body: 'We will ask before collecting anything new.' },
                 ].map((item) => (
                   <View key={item.title} style={[styles.infoRow, { borderColor: colors.border }]}>
                     <View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name={item.icon} size={15} color={colors.accentForeground} /></View>

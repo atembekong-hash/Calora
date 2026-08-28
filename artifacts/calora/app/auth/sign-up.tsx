@@ -106,7 +106,7 @@ export default function SignUpScreen() {
 
         <Text style={[styles.heading, { color: colors.foreground }]}>Create your account</Text>
         <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
-          Sign in to use {BRAND.name} account features, referrals, and Premium access.
+          Create an account for referrals and Premium access.
         </Text>
 
         {/* Pending invite code notice */}
@@ -114,7 +114,7 @@ export default function SignUpScreen() {
           <View style={[styles.inviteNotice, { backgroundColor: colors.muted, borderColor: colors.border }]}>
             <Feather name="gift" size={13} color={colors.primary} />
             <Text style={[styles.inviteNoticeText, { color: colors.foreground }]}>
-              Invite code <Text style={{ fontFamily: 'Inter_700Bold' }}>{pendingCode}</Text> will be applied after sign-up.
+              Invite code <Text style={{ fontFamily: 'Inter_700Bold' }}>{pendingCode}</Text> will be applied after you create your account.
             </Text>
           </View>
         ) : null}
@@ -181,7 +181,7 @@ export default function SignUpScreen() {
         <View style={[styles.hintRow, { backgroundColor: colors.muted }]}>
           <Feather name="shield" size={13} color={colors.mutedForeground} />
           <Text style={[styles.hintText, { color: colors.mutedForeground }]}>
-            Use 8+ characters. Your data stays encrypted.
+             Use at least 8 characters. Your data stays encrypted.
           </Text>
         </View>
 

@@ -39,17 +39,6 @@ function todayKey(): string {
   return `${y}-${m}-${day}`;
 }
 
-function formatWeekStart(weekStart: string): string {
-  try {
-    const [year, month, day] = weekStart.split('-').map(Number);
-    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(
-      new Date(year, month - 1, day),
-    );
-  } catch {
-    return weekStart;
-  }
-}
-
 // ─── Component ────────────────────────────────────────────────────────────
 
 interface PlannerPeekProps {
@@ -58,7 +47,7 @@ interface PlannerPeekProps {
 }
 
 export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
-  const { plannerMeals, plannerWeekStart, colors, fontScale: f } = useCalora();
+  const { plannerMeals, colors, fontScale: f } = useCalora();
 
   const todayMeals = useMemo(
     () => (plannerMeals ?? []).filter((m) => m.day === selectedDate),
@@ -85,7 +74,7 @@ export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
               {selectedDate === todayKey() ? "PLANNED FOR TODAY" : "PLANNED FOR THIS DAY"}
             </Text>
             <Text style={[styles.title, { color: colors.foreground }]}>
-              {todayMeals.length === 1 ? '1 meal planned — not logged' : `${todayMeals.length} meals planned — not logged`}
+              {todayMeals.length === 1 ? '1 planned · not logged' : `${todayMeals.length} planned · not logged`}
             </Text>
           </View>
         </View>
@@ -135,24 +124,13 @@ export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
           );
         })}
 
-        {/* Trailing CTA chip */}
-        <ScalePressable
-          accessibilityLabel="Open planner"
-          onPress={goToPlanner}
-          scale={0.97}
-          haptic="none"
-          style={[styles.chip, styles.planChip, { backgroundColor: colors.muted, borderColor: colors.border }]}
-        >
-          <Feather name="calendar" size={14} color={colors.primary} />
-          <Text style={[styles.planChipText, { color: colors.primary }]}>Open plan</Text>
-        </ScalePressable>
       </ScrollView>
 
       {/* Footer */}
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
         <Feather name="check-circle" size={12} color={colors.success} />
         <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-          Week of {formatWeekStart(plannerWeekStart)} · planned meals are not counted until you log them
+          Planned meals count only when logged.
         </Text>
       </View>
     </View>
@@ -249,17 +227,6 @@ function makeStyles(f: number) {
     chipKcal: {
       fontFamily: 'Inter_400Regular',
       fontSize: 10 * f,
-    },
-    planChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      minWidth: 100,
-    },
-    planChipText: {
-      fontFamily: 'Inter_600SemiBold',
-      fontSize: 11 * f,
     },
     footer: {
       flexDirection: 'row',

@@ -58,8 +58,8 @@ function PermissionState({ colors, onRequest }: { colors: ReturnType<typeof useC
   return (
     <View style={styles.centerState}>
       <View style={[styles.permissionIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="camera" size={42} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.accentForeground} /></View>
-      <Text style={[styles.centerTitle, { color: colors.foreground }]}>Camera access keeps logging easy</Text>
-      <Text style={[styles.centerBody, { color: colors.mutedForeground }]}>Allow camera access to scan barcodes and recognize any food or meal. {BRAND.name} will always show a review before logging.</Text>
+      <Text style={[styles.centerTitle, { color: colors.foreground }]}>Allow camera access</Text>
+      <Text style={[styles.centerBody, { color: colors.mutedForeground }]}>Scan barcodes and food. {BRAND.name} shows a review before logging.</Text>
       <Pressable accessibilityLabel="Allow camera access" onPress={onRequest} style={[styles.primaryButton, { backgroundColor: colors.primary }]}><Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Allow camera access</Text></Pressable>
     </View>
   );
@@ -115,7 +115,7 @@ export default function ScanScreen() {
       mode: 'food',
       status: 'review',
       title: reviewDraft.title,
-      reviewMessage: 'Review this meal before adding it. You can adjust servings or remove anything you did not eat.',
+      reviewMessage: 'Review before adding. Adjust servings or remove anything you did not eat.',
       provider: reviewDraft.sourceLabel,
       candidates: [],
     });
@@ -155,18 +155,18 @@ export default function ScanScreen() {
 
   const startVoiceCapture = async () => {
     if (Platform.OS === 'web') {
-      setAltCaptureBanner('Voice recording works in the CaloraApp mobile build. You can type your meal description here instead.');
+      setAltCaptureBanner('Voice recording is available in the mobile app. Type your meal instead.');
       setTextEntryKind('voice');
       setShowTextEntry(true);
       return;
     }
     if (!cameraRef.current) {
-      setAltCaptureBanner('Open the camera first, then try recording your meal description again.');
+      setAltCaptureBanner('Open the camera, then try voice again.');
       return;
     }
     const granted = microphonePermission?.granted || (await requestMicrophonePermission()).granted;
     if (!granted) {
-      setAltCaptureBanner('Microphone access was not allowed. You can enable it in device settings or type your meal description instead.');
+      setAltCaptureBanner('Microphone access was not allowed. Enable it in settings or type your meal.');
       setTextEntryKind('voice');
       setShowTextEntry(true);
       return;
@@ -188,13 +188,13 @@ export default function ScanScreen() {
         setTextEntry(next.transcript);
         setTextEntryKind('voice');
         setShowTextEntry(true);
-        setAltCaptureBanner('Transcript ready. Edit anything that was misheard, then estimate nutrition.');
+        setAltCaptureBanner('Transcript ready. Edit it, then estimate nutrition.');
         setHasScanned(false);
       }
     } catch (error) {
       setVoiceRecording(false);
       setHasScanned(false);
-      setAltCaptureBanner(error instanceof Error ? `${error.message} You can type your meal description instead.` : 'Recording failed. You can type your meal description instead.');
+      setAltCaptureBanner(error instanceof Error ? `${error.message} Type your meal instead.` : 'Recording failed. Type your meal instead.');
     }
   };
 
@@ -210,12 +210,12 @@ export default function ScanScreen() {
   const onReceiptPress = () => {
     setReceiptCapture(true);
     setShowTextEntry(false);
-    setAltCaptureBanner('Receipt mode is ready. Keep the item lines flat and readable, then use the camera or Library.');
+    setAltCaptureBanner('Keep receipt lines flat and readable, then use the camera or Library.');
   };
 
   const chooseReceiptFromLibrary = () => {
     if (Platform.OS === 'web') {
-      setAltCaptureBanner('Receipt import is available in the CaloraApp mobile build. On web, type your meal description instead.');
+      setAltCaptureBanner('Receipt import is available in the mobile app. On web, type your meal.');
       return;
     }
     setReceiptCapture(true);
@@ -317,7 +317,7 @@ export default function ScanScreen() {
       />
       <ScrollView contentContainerStyle={{ paddingTop: 18, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View style={{ flex: 1, marginRight: 12 }}><Text style={[styles.eyebrow, { color: colors.primary }]}>{BRAND.name.toUpperCase()} SMART CAPTURE</Text><Text style={[styles.title, { color: colors.foreground }]}>Scan, then breathe.</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Barcodes and food photos in one calm, reviewable flow.</Text></View>
+          <View style={{ flex: 1, marginRight: 12 }}><Text style={[styles.title, { color: colors.foreground }]}>Scan food</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Barcodes and photos, reviewed before logging.</Text></View>
           <View style={styles.scanHeaderRight}>
             <View style={[styles.liveBadge, { backgroundColor: colors.accent }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.liveText, { color: colors.accentForeground }]}>LIVE</Text></View>
           </View>
@@ -326,7 +326,7 @@ export default function ScanScreen() {
           <>
             <PermissionState colors={colors} onRequest={() => { void requestPermission(); }} />
             <View style={[styles.permissionAlternatives, { borderColor: colors.border, backgroundColor: colors.card }]}>
-              <Text style={[styles.altCaptureHeading, { color: colors.mutedForeground }]}>LOG WITHOUT CAMERA</Text>
+              <Text style={[styles.altCaptureHeading, { color: colors.mutedForeground }]}>WITHOUT CAMERA</Text>
               <View style={styles.altCaptureRow}>
                 <Pressable accessibilityLabel="Type food description" onPress={() => { setShowTextEntry((v) => !v); setTextEntryKind('text'); setAltCaptureBanner(null); }} style={[styles.altCaptureButton, showTextEntry && { backgroundColor: colors.muted }, { borderColor: colors.border }]}><Feather name="edit-3" size={18} color={showTextEntry ? colors.primary : colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: showTextEntry ? colors.foreground : colors.mutedForeground }]}>Type it</Text></Pressable>
                 <Pressable accessibilityLabel="Voice log" onPress={onVoicePress} style={[styles.altCaptureButton, { borderColor: colors.border }]}><CaloraFeatureIcon name="voice" size={25} primaryColor={colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.altCaptureLabel, { color: colors.mutedForeground }]}>Voice</Text></Pressable>
@@ -360,7 +360,7 @@ export default function ScanScreen() {
             </View>
             <View style={[styles.trustCard, { backgroundColor: colors.hero }]}><Feather name="shield" size={17} color={colors.heroMuted} /><View style={{ flex: 1 }}><Text style={[styles.trustTitle, { color: colors.onHero }]}>Review before it counts</Text><Text style={[styles.trustBody, { color: colors.heroMuted }]}>Barcode matches use nutrition sources. Food photos are estimates. Nothing reaches your diary until you approve it.</Text></View></View>
             <View style={styles.altCaptureSection}>
-              <Text style={[styles.altCaptureHeading, { color: colors.mutedForeground }]}>MORE WAYS TO LOG</Text>
+              <Text style={[styles.altCaptureHeading, { color: colors.mutedForeground }]}>OTHER WAYS TO LOG</Text>
               <View style={styles.altCaptureRow}>
                 <Pressable accessibilityLabel="Type food description" onPress={() => { setShowTextEntry((v) => !v); setTextEntryKind('text'); setReceiptCapture(false); setAltCaptureBanner(null); }} style={[styles.altCaptureButton, showTextEntry && { backgroundColor: colors.card }, { borderColor: colors.border }]}><Feather name="edit-3" size={18} color={showTextEntry ? colors.primary : colors.mutedForeground} /><Text style={[styles.altCaptureLabel, { color: showTextEntry ? colors.foreground : colors.mutedForeground }]}>Type it</Text></Pressable>
                 <Pressable accessibilityLabel={voiceRecording ? 'Stop voice recording' : 'Voice log'} onPress={onVoicePress} style={[styles.altCaptureButton, voiceRecording && { backgroundColor: colors.accent }, { borderColor: colors.border }]}>{voiceRecording ? <Feather name="square" size={18} color={colors.accentForeground} /> : <CaloraFeatureIcon name="voice" size={25} primaryColor={colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} />}<Text style={[styles.altCaptureLabel, { color: voiceRecording ? colors.foreground : colors.mutedForeground }]}>{voiceRecording ? 'Stop' : 'Voice'}</Text></Pressable>
@@ -397,7 +397,6 @@ const styles = StyleSheet.create({
   scanHeaderRight: { alignItems: 'flex-end', gap: 10 },
   coachHeaderButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, paddingHorizontal: 11, paddingVertical: 9, borderWidth: 1, shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   coachHeaderButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.1 },
-  eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1.3, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.8 },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, maxWidth: 245, marginTop: 7 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 6, marginTop: 6 },

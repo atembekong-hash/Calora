@@ -185,7 +185,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
               Use your Calora account
             </Text>
             <Text style={[styles.signInBody, { color: colors.mutedForeground, fontSize: 12 * f }]}>
-              Sign in for account features, referrals, and Premium access.
+              Sign in for referrals and Premium.
             </Text>
           </View>
           <Pressable
@@ -225,10 +225,6 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
                 {providerLabel(provider!)}
               </Text>
             </View>
-          </View>
-          <View style={[styles.activeBadge, { backgroundColor: colors.accent }]}>
-            <Feather name="check-circle" size={13} color={colors.accentForeground} />
-            <Text style={[styles.activeBadgeText, { color: colors.accentForeground, fontSize: 10 * f }]}>Active</Text>
           </View>
         </View>
 
@@ -449,15 +445,6 @@ const styles = StyleSheet.create({
   accountEmail: { fontFamily: 'Inter_600SemiBold' },
   providerRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   providerText: { fontFamily: 'Inter_400Regular' },
-  activeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  activeBadgeText: { fontFamily: 'Inter_700Bold', letterSpacing: 0.3 },
   cardDivider: { height: StyleSheet.hairlineWidth, marginHorizontal: spacing.lg },
   accountAction: {
     flexDirection: 'row',

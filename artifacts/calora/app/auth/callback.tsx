@@ -17,7 +17,7 @@ export default function AuthCallbackScreen() {
   const linkingUrl = useURL();
   const params = useLocalSearchParams();
   const { isPasswordRecovery } = useAuth();
-  const [statusMessage, setStatusMessage] = useState('Completing sign-in\u2026');
+   const [statusMessage, setStatusMessage] = useState('Signing you in…');
   const processed = useRef(false);
   const recoveryRef = useRef(isPasswordRecovery);
 
@@ -73,7 +73,7 @@ export default function AuthCallbackScreen() {
           }, REDIRECT_DELAY_MS);
         }
       } catch (err) {
-        setStatusMessage('Something went wrong. Please try again.');
+         setStatusMessage('Sign-in failed. Please try again.');
         setTimeout(() => router.replace('/'), REDIRECT_DELAY_MS);
       }
     }
@@ -85,7 +85,7 @@ export default function AuthCallbackScreen() {
     const timer = setTimeout(() => {
       if (!processed.current) {
         processed.current = true;
-        setStatusMessage('No sign-in data was found.');
+         setStatusMessage('No sign-in information was found.');
         setTimeout(() => router.replace('/'), REDIRECT_DELAY_MS);
       }
     }, URL_TIMEOUT_MS);

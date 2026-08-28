@@ -81,12 +81,12 @@ export default function ForgotPasswordScreen() {
             <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
               We sent a reset link to{'\n'}
               <Text style={{ fontFamily: 'Inter_600SemiBold', color: colors.foreground }}>{email.trim()}</Text>
-              {'\n\n'}Tap the link in the email to set a new password. It expires in 1 hour.
+               {'\n\n'}Use the link to set a new password. It expires in 1 hour.
             </Text>
             <View style={[styles.infoBox, { backgroundColor: colors.muted }]}>
               <Feather name="info" size={14} color={colors.mutedForeground} />
               <Text style={[styles.infoText, { color: colors.mutedForeground }]}>
-                If you don't see it, check your spam folder.
+                 Check spam if you don’t see it.
               </Text>
             </View>
             <Pressable
@@ -115,7 +115,7 @@ export default function ForgotPasswordScreen() {
             </View>
             <Text style={[styles.heading, { color: colors.foreground }]}>Reset your password</Text>
             <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
-              Enter the email address for your {BRAND.name} account and we'll send you a reset link.
+               Enter your account email and we’ll send a reset link.
             </Text>
 
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>EMAIL</Text>
@@ -155,7 +155,7 @@ export default function ForgotPasswordScreen() {
             </Pressable>
 
             <View style={styles.footerRow}>
-              <Text style={[styles.footerText, { color: colors.mutedForeground }]}>Remember it?{'  '}</Text>
+               <Text style={[styles.footerText, { color: colors.mutedForeground }]}>Remembered it?{'  '}</Text>
               <Pressable onPress={() => router.back()} accessibilityLabel="Back to sign in">
                 <Text style={[styles.footerLink, { color: colors.primary }]}>Sign in</Text>
               </Pressable>

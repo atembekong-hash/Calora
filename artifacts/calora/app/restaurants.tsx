@@ -156,7 +156,6 @@ export default function RestaurantsScreen() {
           <Feather name="arrow-left" size={19} color={colors.foreground} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.eyebrow, { color: colors.primary }]}>BRANDED FOOD SEARCH</Text>
           <Text style={[styles.title, { color: colors.foreground }]}>Restaurants</Text>
         </View>
       </View>
@@ -171,8 +170,8 @@ export default function RestaurantsScreen() {
             <CaloraFeatureIcon name="restaurant" size={31} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.onHero} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.introTitle, { color: colors.onHero }]}>Find a branded menu item</Text>
-            <Text style={[styles.introBody, { color: colors.heroMuted }]}>Search provider-backed foods, check the serving nutrition, then review before adding it to your diary.</Text>
+            <Text style={[styles.introTitle, { color: colors.onHero }]}>Find a menu item</Text>
+            <Text style={[styles.introBody, { color: colors.heroMuted }]}>Check serving nutrition, then review before adding it to your diary.</Text>
           </View>
         </View>
 
@@ -195,7 +194,7 @@ export default function RestaurantsScreen() {
           ) : null}
         </View>
 
-        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>POPULAR SEARCHES</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>POPULAR</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chainRow}>
           {popularChains.map((chain) => (
             <Pressable
@@ -215,13 +214,13 @@ export default function RestaurantsScreen() {
           <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.stateIcon, { backgroundColor: colors.accent }]}><Feather name="lock" size={20} color={colors.accentForeground} /></View>
             <Text style={[styles.stateTitle, { color: colors.foreground }]}>Sign in to search restaurants</Text>
-            <Text style={[styles.stateBody, { color: colors.mutedForeground }]}>Provider searches are tied to your Calora account so usage stays secure and reliable.</Text>
+            <Text style={[styles.stateBody, { color: colors.mutedForeground }]}>Sign in to use provider search.</Text>
             <Pressable accessibilityLabel="Sign in for restaurant search" onPress={() => router.push('/auth/sign-in')} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
               <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Sign in</Text>
             </Pressable>
           </View>
         ) : searchResult.isFetching ? (
-          <View style={styles.centerState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Searching branded foods…</Text></View>
+          <View style={styles.centerState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Searching…</Text></View>
         ) : searchResult.isError ? (
           <View style={[styles.stateCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.stateTitle, { color: colors.foreground }]}>Search could not connect</Text>
@@ -235,12 +234,12 @@ export default function RestaurantsScreen() {
         ) : searchQuery.length < 2 ? (
           <View style={styles.startState}>
             <Feather name="search" size={24} color={colors.mutedForeground} />
-            <Text style={[styles.startText, { color: colors.mutedForeground }]}>Search a restaurant, brand, or menu item.</Text>
+            <Text style={[styles.startText, { color: colors.mutedForeground }]}>Search a restaurant or menu item.</Text>
           </View>
         ) : searchResult.data?.foods.length === 0 ? (
           <View style={styles.startState}>
             <Feather name="inbox" size={24} color={colors.mutedForeground} />
-            <Text style={[styles.startText, { color: colors.mutedForeground }]}>No branded items found. Try the restaurant name plus the item.</Text>
+            <Text style={[styles.startText, { color: colors.mutedForeground }]}>No items found. Try the restaurant and item name.</Text>
           </View>
         ) : (
           <View style={styles.results}>
@@ -275,7 +274,7 @@ export default function RestaurantsScreen() {
 
         <View style={styles.attribution}>
           <Feather name="shield" size={13} color={colors.mutedForeground} />
-          <Text style={[styles.attributionText, { color: colors.mutedForeground }]}>Nutrition data supplied by FatSecret. Search results may not represent a restaurant’s complete official menu.</Text>
+          <Text style={[styles.attributionText, { color: colors.mutedForeground }]}>Nutrition data supplied by FatSecret. Results may not include a restaurant’s complete official menu.</Text>
         </View>
       </ScrollView>
 
@@ -335,9 +334,9 @@ export default function RestaurantsScreen() {
                   <Feather name={reviewState === 'ready' ? 'check-circle' : reviewState === 'loading' ? 'clock' : 'alert-circle'} size={15} color={colors.mutedForeground} />
                   <Text style={[styles.providerNoteText, { color: colors.mutedForeground }]}>
                     {reviewState === 'ready'
-                      ? `Nutrition supplied by ${detailResult.data?.sourceProvider}. You’ll review the portion before it counts.`
+                      ? `Nutrition supplied by ${detailResult.data?.sourceProvider}. Review the portion before it counts.`
                       : reviewState === 'loading'
-                        ? 'Checking the provider serving details before this item can be reviewed.'
+                        ? 'Checking serving details before review.'
                         : reviewState === 'error'
                           ? 'Serving details are unavailable right now. This item has not been added.'
                           : 'Nutrition is not available for this serving, so it cannot be logged yet.'}
@@ -374,7 +373,6 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 14 },
   backButton: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1.2, marginBottom: 4 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 28, letterSpacing: -0.8 },
   content: { paddingHorizontal: 20 },
   introCard: { borderRadius: 22, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' },

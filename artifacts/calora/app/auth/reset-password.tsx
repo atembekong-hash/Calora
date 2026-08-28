@@ -93,7 +93,7 @@ export default function ResetPasswordScreen() {
             </View>
             <Text style={[styles.heading, { color: colors.foreground }]}>Password updated</Text>
             <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
-              You're all set. Taking you to the app…
+               Password updated. Opening the app…
             </Text>
             <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />
           </View>
@@ -105,7 +105,7 @@ export default function ResetPasswordScreen() {
             </View>
             <Text style={[styles.heading, { color: colors.foreground }]}>Link has expired</Text>
             <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
-              Password-reset links are only valid for 1 hour. Please request a new one.
+               Reset links expire after 1 hour. Request a new one.
             </Text>
             <Pressable
               onPress={() => router.replace('/auth/forgot-password' as any)}
@@ -125,7 +125,7 @@ export default function ResetPasswordScreen() {
             </View>
             <Text style={[styles.heading, { color: colors.foreground }]}>Set new password</Text>
             <Text style={[styles.subheading, { color: colors.mutedForeground }]}>
-              Choose a strong password for your account.
+               Choose a new password for your account.
             </Text>
 
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>NEW PASSWORD</Text>
