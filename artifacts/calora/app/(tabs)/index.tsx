@@ -57,6 +57,7 @@ const GAUGE_R   = 90;
 const GAUGE_STROKE = 13;
 const GAUGE_START  = 135; // °from positive x-axis (SVG y-down, clockwise)
 const GAUGE_SWEEP  = 270;
+const GAUGE_HEIGHT_SCALE = 0.8;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
 const _gaugePt = (deg: number) => ({
   x: GAUGE_CX + GAUGE_R * Math.cos((deg * Math.PI) / 180),
@@ -737,7 +738,7 @@ function CalorieGauge({
   //   gauge fills the full inner card width (Eaten/Burned move below)
   const cardInnerW = windowWidth - 80;
   const gaugeW     = Math.min(cardInnerW, 310);
-  const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW);
+  const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE;
 
   // Animate the fill arc via strokeDashoffset
   const dashOffset = useSharedValue(GAUGE_ARC_LEN);
