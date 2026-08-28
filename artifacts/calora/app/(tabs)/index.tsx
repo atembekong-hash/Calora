@@ -167,7 +167,7 @@ function LivingRhythmCard({
     >
       <View style={styles.livingRhythmHeader}>
         <View style={[styles.livingRhythmIcon, { backgroundColor: colors.accent }]}>
-          <Feather name="activity" size={16} color={colors.accentForeground} />
+          <CaloraFeatureIcon name="rhythm" size={27} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.livingRhythmEyebrow, { color: colors.mutedForeground }]}>{isToday(selectedDate) ? "TODAY'S RHYTHM" : 'DAILY RHYTHM'}</Text>
@@ -331,7 +331,7 @@ function WellnessCards({
       <View style={styles.wellnessRow}>
         <View style={[styles.wellnessCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.wellnessCardHeader}>
-            <View style={[styles.wellnessIcon, { backgroundColor: '#e5f1ff' }]}><Feather name="droplet" size={15} color="#5d8edb" /></View>
+            <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="water" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
             <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Water</Text>
           </View>
           <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{waterOunces} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ {waterGoal} fl oz</Text></Text>
@@ -356,7 +356,7 @@ function WellnessCards({
 
         <View style={[styles.wellnessCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.wellnessCardHeader}>
-            <View style={[styles.wellnessIcon, { backgroundColor: '#fff0dc' }]}><Feather name="check-circle" size={15} color="#d7954e" /></View>
+            <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="food" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
             <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Meals logged</Text>
           </View>
           <Text style={[styles.wellnessValue, { color: colors.foreground }]}>{mealsLogged} <Text style={[styles.wellnessUnit, { color: colors.mutedForeground }]}>/ 4 today</Text></Text>
@@ -373,7 +373,7 @@ function WellnessCards({
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>How are you feeling?</Text>
             <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{mood ? `Logged as ${moodOptions.find((item) => item.value === mood)?.label.toLowerCase()}.` : 'A quick check-in, whenever it feels useful.'}</Text>
           </View>
-          <View style={[styles.wellnessIcon, { backgroundColor: '#f2eafd' }]}><Feather name="heart" size={15} color="#9875c7" /></View>
+          <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="mood" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
         </View>
         <View style={styles.moodOptions}>
           {moodOptions.map((item) => {
@@ -592,15 +592,15 @@ function AddFoodModal({ visible, onClose, entryDate }: { visible: boolean; onClo
             <ScalePressable accessibilityLabel="Voice food logging" onPress={() => setCaptureMode('voice')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'voice' && { backgroundColor: colors.card }]}><CaloraFeatureIcon name="voice" size={22} primaryColor={captureMode === 'voice' ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.captureModeText, { color: captureMode === 'voice' ? colors.foreground : colors.mutedForeground }]}>Voice</Text></ScalePressable>
             <ScalePressable accessibilityLabel="Barcode food logging" onPress={() => setCaptureMode('barcode')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'barcode' && { backgroundColor: colors.card }]}><CaloraFeatureIcon name="barcode" size={22} primaryColor={captureMode === 'barcode' ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.captureModeText, { color: captureMode === 'barcode' ? colors.foreground : colors.mutedForeground }]}>Barcode</Text></ScalePressable>
           </View>
-          {captureMode !== 'search' && <View style={[styles.unavailableCard, { backgroundColor: colors.accent }]}>
-            <Feather name={captureMode === 'voice' ? 'mic-off' : 'camera-off'} size={20} color={colors.accentForeground} />
+           {captureMode !== 'search' && <View style={[styles.unavailableCard, { backgroundColor: colors.accent }]}>
+             <CaloraFeatureIcon name={captureMode === 'voice' ? 'voice' : 'barcode'} size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
             <View style={{ flex: 1 }}><Text style={[styles.unavailableTitle, { color: colors.foreground }]}>{captureMode === 'voice' ? 'Voice capture needs permission' : 'Barcode scanning needs camera access'}</Text><Text style={[styles.unavailableBody, { color: colors.mutedForeground }]}>{captureMode === 'voice' ? `In the native build, ${BRAND.name} will request microphone access and turn your words into a reviewable draft.` : `In the native build, ${BRAND.name} will request camera access and look up a verified product by barcode.`}</Text></View>
             <Pressable accessibilityLabel="Use text logging instead" onPress={() => setCaptureMode('search')}><Text style={[styles.useText, { color: colors.primary }]}>Use text</Text></Pressable>
           </View>}
           {savedMeals.length > 0 && <View>
             <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 2 }]}>SAVED MEALS & RECIPES</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedMealRow}>
-              {savedMeals.map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add saved ${meal.name}`} onPress={() => chooseSavedMeal(meal)} scale={0.98} haptic="none" style={[styles.savedMealChip, { backgroundColor: colors.accent, borderColor: colors.border }]}><Feather name={meal.kind === 'recipe' ? 'book-open' : 'bookmark'} size={13} color={colors.accentForeground} /><View><Text style={[styles.savedMealName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.savedMealMeta, { color: colors.mutedForeground }]}>{formatWhole(meal.calories)} kcal · {meal.kind}</Text></View></ScalePressable>)}
+               {savedMeals.map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add saved ${meal.name}`} onPress={() => chooseSavedMeal(meal)} scale={0.98} haptic="none" style={[styles.savedMealChip, { backgroundColor: colors.accent, borderColor: colors.border }]}><CaloraFeatureIcon name={meal.kind === 'recipe' ? 'recipes' : 'food'} size={22} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /><View><Text style={[styles.savedMealName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.savedMealMeta, { color: colors.mutedForeground }]}>{formatWhole(meal.calories)} kcal · {meal.kind}</Text></View></ScalePressable>)}
             </ScrollView>
           </View>}
           <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input }]}>
@@ -910,13 +910,13 @@ export default function HomeScreen() {
     return () => clearTimeout(id);
   }, [waterConfirmed]);
 
-  const livingActionIcon = livingState.action.kind === 'add_water'
-    ? 'droplet'
+  const livingActionFeature: CaloraFeatureIconName = livingState.action.kind === 'add_water'
+    ? 'water'
     : livingState.action.kind === 'view_progress'
-      ? 'bar-chart-2'
+      ? 'progress'
       : livingState.action.kind === 'open_planner'
         ? 'calendar'
-        : 'plus';
+        : 'food';
 
   useEffect(() => {
     if (!saveNotice) return;
@@ -959,7 +959,7 @@ export default function HomeScreen() {
           <LinearGradient colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
-              <View style={styles.homeHeaderBadge}><Feather name="sunrise" size={12} color="#d4eadc" /><Text style={styles.homeHeaderBadgeText}>DAILY RHYTHM</Text></View>
+               <View style={styles.homeHeaderBadge}><CaloraFeatureIcon name="rhythm" size={20} primaryColor="#d4eadc" accentColor="#9dd7bd" foregroundColor="#143f34" highlightColor="#f7fff9" /><Text style={styles.homeHeaderBadgeText}>DAILY RHYTHM</Text></View>
               <Text style={styles.homeHeaderDate}>{formatDateLabel(selectedDate)}</Text>
             </View>
             <Text style={styles.homeHeaderTitle}>{livingState.greeting}, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
@@ -1006,7 +1006,7 @@ export default function HomeScreen() {
             haptic="none"
             style={[styles.livingAction, isProgressAction && styles.livingActionSecondary, { backgroundColor: isProgressAction ? colors.muted : colors.primary, borderColor: isProgressAction ? colors.border : colors.primary, opacity: waterConfirmed ? 0.72 : 1 }]}
           >
-            <Feather name={waterConfirmed ? 'check' : livingActionIcon} size={16} color={isProgressAction ? colors.foreground : colors.primaryForeground} />
+             {waterConfirmed ? <Feather name="check" size={16} color={isProgressAction ? colors.foreground : colors.primaryForeground} /> : <CaloraFeatureIcon name={livingActionFeature} size={25} primaryColor={isProgressAction ? colors.foreground : colors.primaryForeground} accentColor={colors.accent} foregroundColor={isProgressAction ? colors.foreground : colors.primary} highlightColor={isProgressAction ? colors.card : colors.primaryForeground} />}
             <Text style={[styles.livingActionText, { color: isProgressAction ? colors.foreground : colors.primaryForeground }]}>
               {waterConfirmed ? 'Added ✓' : livingState.action.label}
             </Text>
@@ -1065,8 +1065,8 @@ export default function HomeScreen() {
             accessibilityLabel={`Today insight: ${todayInsight.title}. ${todayInsight.message}`}
             style={[styles.todayInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
-            <View style={[styles.todayInsightIcon, { backgroundColor: colors.accent }]}>
-              <Feather name="sun" size={16} color={colors.accentForeground} />
+             <View style={[styles.todayInsightIcon, { backgroundColor: colors.accent }]}>
+               <CaloraFeatureIcon name="rhythm" size={27} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
             </View>
             <View style={styles.todayInsightCopy}>
               <Text style={[styles.todayInsightEyebrow, { color: colors.mutedForeground }]}>TODAY'S INSIGHT</Text>

@@ -19,7 +19,12 @@ export type CaloraFeatureIconName =
   | 'restaurant'
   | 'recipes'
   | 'shopping'
-  | 'coach';
+  | 'coach'
+  | 'rhythm'
+  | 'water'
+  | 'mood'
+  | 'progress'
+  | 'calendar';
 
 type Props = {
   name: CaloraFeatureIconName;
@@ -155,6 +160,59 @@ export function CaloraFeatureIcon({
           <Path d="m29 5 1.4 3.6L34 10l-3.6 1.4L29 15l-1.4-3.6L24 10l3.6-1.4L29 5Z" fill={accentColor} />
           <Circle cx="10" cy="10" r="2" fill={highlightColor} opacity={0.8} />
           <Path d="M10 28a11 11 0 0 0 18 0" stroke={accentColor} strokeOpacity={0.72} strokeWidth="1.6" strokeLinecap="round" />
+        </G>
+      )}
+
+      {name === 'rhythm' && (
+        <G>
+          <Ellipse cx="20" cy="33" rx="14" ry="2.7" fill={foregroundColor} opacity={0.14} />
+          <Path d="M7 25c1.8-8.2 6.1-13.3 13-16 6.9 2.7 11.2 7.8 13 16-4.2 3.2-8.5 4.8-13 4.8S11.2 28.2 7 25Z" fill={`url(#${ids.main})`} />
+          <Path d="M20 9v19M20 18c-3.5-3.2-6.5-3.8-9.4-3.4M20 22c3.4-3.3 6.5-4-9.4-3.5" stroke={highlightColor} strokeOpacity={0.52} strokeWidth="1.45" strokeLinecap="round" />
+          <Path d="M20 28c-4.6-5.6-7.3-10.7-7.7-15.5M20 28c4.6-5.6 7.3-10.7 7.7-15.5" stroke={accentColor} strokeOpacity={0.78} strokeWidth="2" strokeLinecap="round" />
+          <Circle cx="20" cy="8" r="2.7" fill={accentColor} />
+          <Path d="M20 3v2M15.5 5l1.3 1.3M24.5 5l-1.3 1.3" stroke={highlightColor} strokeOpacity={0.78} strokeWidth="1.3" strokeLinecap="round" />
+        </G>
+      )}
+
+      {name === 'water' && (
+        <G>
+          <Ellipse cx="20" cy="33" rx="12" ry="2.5" fill={foregroundColor} opacity={0.14} />
+          <Path d="M20 5C16.5 10 10 16.5 10 23a10 10 0 0 0 20 0c0-6.5-6.5-13-10-18Z" fill={`url(#${ids.main})`} />
+          <Path d="M20 8.5c-2.2 3.6-6.3 8.1-6.3 13.1a6.3 6.3 0 0 0 6.3 6.3c1.2 0 2.4-.3 3.3-.9-3.3-1.8-5.1-4.5-5.1-8.1 0-3.4 1.2-6.8 1.8-10.4Z" fill={highlightColor} opacity={0.26} />
+          <Path d="M14.7 24.8a5.7 5.7 0 0 0 4.6 3" stroke={highlightColor} strokeOpacity={0.72} strokeWidth="1.7" strokeLinecap="round" />
+          <Circle cx="25.5" cy="17.5" r="1.6" fill={highlightColor} opacity={0.72} />
+        </G>
+      )}
+
+      {name === 'mood' && (
+        <G>
+          <Ellipse cx="20" cy="33" rx="13" ry="2.6" fill={foregroundColor} opacity={0.14} />
+          <Path d="M20 31S7.5 23.4 7.5 14.8A6.6 6.6 0 0 1 20 12a6.6 6.6 0 0 1 12.5 2.8C32.5 23.4 20 31 20 31Z" fill={`url(#${ids.main})`} />
+          <Path d="M20 28.3S10.8 22 10.8 15.5a4.1 4.1 0 0 1 7.8-1.8 1.5 1.5 0 0 0 2.8 0 4.1 4.1 0 0 1 7.8 1.8c0 6.5-9.2 12.8-9.2 12.8Z" fill={`url(#${ids.accent})`} opacity={0.8} />
+          <Path d="M14.2 16.3c1.1-1.2 2.3-1.4 3.7-.6M22.1 15.7c1.4-.8 2.6-.6 3.7.6" stroke={highlightColor} strokeOpacity={0.75} strokeWidth="1.4" strokeLinecap="round" />
+          <Path d="M15.5 21c2.7 2.3 6.3 2.3 9 0" stroke={highlightColor} strokeOpacity={0.78} strokeWidth="1.6" strokeLinecap="round" />
+        </G>
+      )}
+
+      {name === 'progress' && (
+        <G>
+          <Ellipse cx="20" cy="33" rx="14" ry="2.7" fill={foregroundColor} opacity={0.14} />
+          <Rect x="7" y="8" width="26" height="23" rx="6" fill={`url(#${ids.main})`} />
+          <Path d="M12 25V20M18 25v-9M24 25v-6M30 25v-13" stroke={highlightColor} strokeOpacity={0.86} strokeWidth="3" strokeLinecap="round" />
+          <Path d="m11 16 5-4 5 2 8-7" stroke={`url(#${ids.accent})`} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          <Circle cx="29" cy="7" r="2.2" fill={accentColor} />
+          <Path d="M11 11h4" stroke={highlightColor} strokeOpacity={0.62} strokeWidth="1.5" strokeLinecap="round" />
+        </G>
+      )}
+
+      {name === 'calendar' && (
+        <G>
+          <Ellipse cx="20" cy="33" rx="13" ry="2.6" fill={foregroundColor} opacity={0.14} />
+          <Rect x="7" y="9" width="26" height="23" rx="5.5" fill={`url(#${ids.main})`} />
+          <Rect x="7" y="9" width="26" height="7" rx="5.5" fill={`url(#${ids.accent})`} />
+          <Path d="M13 6v6M27 6v6" stroke={highlightColor} strokeWidth="2.5" strokeLinecap="round" />
+          <Path d="M12 21h3M18.5 21h3M25 21h3M12 26h3M18.5 26h3" stroke={highlightColor} strokeOpacity={0.76} strokeWidth="2" strokeLinecap="round" />
+          <Path d="M11 13h18" stroke={foregroundColor} strokeOpacity={0.18} strokeWidth="1.4" />
         </G>
       )}
     </Svg>
