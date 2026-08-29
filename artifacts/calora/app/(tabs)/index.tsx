@@ -337,7 +337,7 @@ function WaterCard({
 
   return (
     <View style={styles.wellnessSection} accessibilityLabel={`Water tracking: ${normalizedWater} fluid ounces, ${cupsLogged} cups logged`}>
-      <View style={[styles.wellnessCard, { flex: 0, width: '100%', backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.wellnessCard, { flex: 0, width: '100%', minHeight: 246, backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.wellnessCardHeader}>
           <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="water" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
           <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Water</Text>
@@ -1363,7 +1363,7 @@ function makeStyles(f: number) {
   mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 14, minHeight: 18 },
   wellnessAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 10, marginTop: 'auto' },
   wellnessActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  waterAdjustActions: { gap: 8, marginTop: 'auto' },
+  waterAdjustActions: { gap: 8, marginTop: 8 },
   waterQuickActions: { flexDirection: 'row', gap: 8 },
   waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: 10 },
   moodCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
