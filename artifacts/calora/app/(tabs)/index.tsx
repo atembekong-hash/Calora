@@ -236,6 +236,13 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
     setActiveRecipe(next);
     carouselRef.current?.scrollToIndex({ index: next, animated: true });
   };
+  useEffect(() => {
+    if (recipes.length <= 1) return;
+    const timer = setTimeout(() => {
+      snapToRecipe(activeRecipe >= recipes.length - 1 ? 0 : activeRecipe + 1);
+    }, 7000);
+    return () => clearTimeout(timer);
+  }, [activeRecipe, recipes.length]);
 
   if (isError || (!isLoading && recipes.length === 0)) return null;
 
