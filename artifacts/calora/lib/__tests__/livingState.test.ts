@@ -230,6 +230,27 @@ describe('deriveLivingState', () => {
     expect(state.action.label).toBe('Find a meal');
   });
 
+  it('uses a custom protein target for the afternoon protein threshold', () => {
+    const state = deriveLivingState({
+      profile: { ...profile, proteinTargetGrams: 30 },
+      logs: [
+        log('2026-08-06', 'Breakfast'),
+        log('2026-08-06', 'Lunch'),
+      ],
+      waterLogs: { '2026-08-06': 32 },
+      moodLogs: {},
+      activityLogs: {},
+      repeatPatterns: [],
+      plannerMeals: [],
+      onboardingComplete: true,
+      now: new Date('2026-08-06T15:30:00.000Z'),
+    });
+
+    expect(state.signal.proteinToday).toBe(40);
+    expect(state.focus).not.toBe('protein');
+    expect(state.action.label).not.toBe('Find a meal');
+  });
+
   it('uses timePeriod from now.getHours at each boundary', () => {
     const base = {
       profile,

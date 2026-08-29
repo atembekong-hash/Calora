@@ -44,3 +44,4 @@
 - [Managed artifact merge conflicts](managed-artifact-merge-conflicts.md) — reconcile artifact configuration through validated replacement before merging divergent Git histories.
 - [Nested gesture arbitration](nested-gesture-arbitration.md) — parent paging must explicitly yield each pointer sequence begun inside a nested horizontal control.
 - [Mobile PKCE callback arbitration](mobile-pkce-callback-arbitration.md) — WebBrowser and router may deliver one OAuth callback twice; exchange codes through a shared single-flight boundary.
+- [Independent macro targets](independent-macro-targets.md) — saved macro grams are independent; legacy profiles retain the original calorie-ratio defaults.

@@ -34,7 +34,12 @@ import { PlannerPeek } from '@/components/PlannerPeek';
 import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 import { formatGrams, formatQuantity, formatWhole } from '@/lib/formatters';
 import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
-import { getMacroTargets, type MacroTargets } from '@/lib/nutritionGoals';
+import {
+  getMacroTargets,
+  validateMacroGoalInput,
+  type MacroGoalInput,
+  type MacroTargets,
+} from '@/lib/nutritionGoals';
 import {
   clearWaterConfirmation,
   getWaterConfirmationRemaining,
@@ -558,8 +563,8 @@ function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typ
   );
 }
 
-type MacroGoalKey = 'calories' | 'protein' | 'carbs' | 'fat';
-type MacroGoalDraft = Record<MacroGoalKey, string>;
+type MacroGoalKey = keyof MacroGoalInput;
+type MacroGoalDraft = MacroGoalInput;
 
 const macroGoalFields: Array<{ key: MacroGoalKey; label: string; unit: string; placeholder: string }> = [
   { key: 'calories', label: 'Calories', unit: 'kcal / day', placeholder: '2000' },
@@ -592,31 +597,13 @@ function MacroGoalsModal({
 
   const handleSave = () => {
     if (!draft) return;
-    const values = {
-      calories: Number(draft.calories),
-      protein: Number(draft.protein),
-      carbs: Number(draft.carbs),
-      fat: Number(draft.fat),
-    };
-    if (Object.values(values).some((value) => !Number.isFinite(value) || value <= 0)) {
-      setError('Enter a positive value for calories and each macro.');
-      return;
-    }
-    if (values.calories < 500 || values.calories > 9999) {
-      setError('Calories must be between 500 and 9,999 per day.');
-      return;
-    }
-    if (values.protein > 500 || values.carbs > 1000 || values.fat > 300) {
-      setError('Check the macro values: protein, carbs, and fat are above the supported daily range.');
+    const result = validateMacroGoalInput(draft);
+    if (!result.ok) {
+      setError(result.message);
       return;
     }
 
-    onSave({
-      calories: Math.round(values.calories),
-      protein: Math.round(values.protein),
-      carbs: Math.round(values.carbs),
-      fat: Math.round(values.fat),
-    });
+    onSave(result.values);
     setError('');
   };
 
@@ -1056,6 +1043,7 @@ export default function HomeScreen() {
     logs, colors, profile, syncState, waterLogs, moodLogs, addWater, setMood,
     livingState, fontScale, profilePhotoUri, healthConnection, weights,
     activityLogs, activityMinutesLogs, plannerMeals, shoppingItems, localRecipes, hydrated,
+    updateProfile,
   } = useCalora();
   const insets = useSafeAreaInsets();
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
@@ -1067,7 +1055,10 @@ export default function HomeScreen() {
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [waterConfirmed, setWaterConfirmed] = useState(false);
   const [waterConfirmedAmount, setWaterConfirmedAmount] = useState<number | null>(null);
-  const target = profile?.calorieTarget ?? 2000;
+  const [macroGoalsVisible, setMacroGoalsVisible] = useState(false);
+  const [macroGoalDraft, setMacroGoalDraft] = useState<MacroGoalDraft | null>(null);
+  const macroTargets = useMemo(() => getMacroTargets(profile), [profile]);
+  const target = macroTargets.calories;
   const selectedLogs = logs.filter((log) => log.date === selectedDate || (!log.date && isToday(selectedDate)));
   const selectedTotals = useMemo(() => selectedLogs.reduce((sum, log) => ({
     calories: sum.calories + log.calories,
@@ -1136,6 +1127,28 @@ export default function HomeScreen() {
   const openRestaurants = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({ pathname: '/restaurants', params: { date: selectedDate } });
+  };
+  const openMacroGoals = () => {
+    setMacroGoalDraft({
+      calories: String(macroTargets.calories),
+      protein: String(macroTargets.protein),
+      carbs: String(macroTargets.carbs),
+      fat: String(macroTargets.fat),
+    });
+    setMacroGoalsVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  const saveMacroGoals = (values: MacroTargets) => {
+    updateProfile({
+      calorieTarget: values.calories,
+      proteinTargetGrams: values.protein,
+      carbsTargetGrams: values.carbs,
+      fatTargetGrams: values.fat,
+    });
+    setMacroGoalsVisible(false);
+    setMacroGoalDraft(null);
+    setSaveNotice('Nutrition goals saved locally.');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const handleLivingAction = () => {
@@ -1342,7 +1355,8 @@ export default function HomeScreen() {
             <ScalePressable
               accessibilityLabel="Edit nutrition goals"
               accessibilityRole="button"
-              onPress={() => router.navigate('/(tabs)/profile')}
+              testID="edit-macro-goals"
+              onPress={openMacroGoals}
               scale={0.9}
               haptic="none"
               style={[styles.sectionHeaderAction, { backgroundColor: colors.muted }]}
@@ -1350,9 +1364,9 @@ export default function HomeScreen() {
               <Feather name="sliders" size={17} color={colors.mutedForeground} />
             </ScalePressable>
           </View>
-          <AnimatedMacroBar label="Protein" value={selectedTotals.protein} target={Math.round(target * 0.26 / 4)} color={colors.protein} colors={colors} />
-          <AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={Math.round(target * 0.44 / 4)} color={colors.carbs} colors={colors} />
-          <AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={Math.round(target * 0.3 / 9)} color={colors.fat} colors={colors} />
+          <AnimatedMacroBar label="Protein" value={selectedTotals.protein} target={macroTargets.protein} color={colors.protein} colors={colors} />
+          <AnimatedMacroBar label="Carbs" value={selectedTotals.carbs} target={macroTargets.carbs} color={colors.carbs} colors={colors} />
+          <AnimatedMacroBar label="Fat" value={selectedTotals.fat} target={macroTargets.fat} color={colors.fat} colors={colors} />
         </View>
 
         <MoodCard
@@ -1430,6 +1444,17 @@ export default function HomeScreen() {
       </ScrollView>
       <AddFoodModal visible={showAdd} entryDate={selectedDate} initialMode={addFoodMode} onClose={() => setShowAdd(false)} />
       <EditLogModal log={editingLog} onClose={() => setEditingLog(null)} />
+      <MacroGoalsModal
+        visible={macroGoalsVisible}
+        draft={macroGoalDraft}
+        colors={colors}
+        onChange={setMacroGoalDraft}
+        onClose={() => {
+          setMacroGoalsVisible(false);
+          setMacroGoalDraft(null);
+        }}
+        onSave={saveMacroGoals}
+      />
       <LocalSaveNotice visible={Boolean(saveNotice)} message={saveNotice ?? ''} colors={colors} />
     </View>
   );
@@ -1549,6 +1574,17 @@ function makeStyles(f: number) {
   macroValue: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f },
   macroTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   macroFill: { height: 7, borderRadius: 4 },
+  macroGoalScrollContent: { paddingBottom: 28 },
+  macroGoalIntro: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 16, padding: 14, marginBottom: 18 },
+  macroGoalIntroText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 11 * f, lineHeight: 16 * f },
+  macroGoalFields: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  macroGoalField: { flexGrow: 1, flexBasis: '45%', minWidth: 140 },
+  macroGoalInputWrap: { height: 50, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 12 },
+  macroGoalInput: { flex: 1, minWidth: 0, height: '100%', fontFamily: 'Inter_700Bold', fontSize: 15 * f },
+  macroGoalUnit: { fontFamily: 'Inter_500Medium', fontSize: 9 * f },
+  macroGoalError: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f, lineHeight: 17 * f, marginTop: 14 },
+  macroGoalCancel: { alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: 6 },
+  macroGoalCancelText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   mealHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 6 },
   addMealButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7 },
   addMealText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },

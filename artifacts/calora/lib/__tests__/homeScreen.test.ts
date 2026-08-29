@@ -310,4 +310,26 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('formatQuantity(value, 1)');
     expect(source).toContain('formatQuantity(selectedTotals.protein, 1)');
   });
+
+  it('opens a direct independent macro-goal editor from Macro balance', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('testID="edit-macro-goals"');
+    expect(source).toContain('testID="save-macro-goals"');
+    expect(source).toContain('testID="cancel-macro-goals"');
+    expect(source).toContain('onPress={openMacroGoals}');
+    expect(source).toContain('proteinTargetGrams: values.protein');
+    expect(source).toContain('carbsTargetGrams: values.carbs');
+    expect(source).toContain('fatTargetGrams: values.fat');
+    const macroSection = source.slice(
+      source.indexOf('>Macro balance</Text>'),
+      source.indexOf('<MoodCard', source.indexOf('>Macro balance</Text>')),
+    );
+    expect(macroSection).not.toContain("router.navigate('/(tabs)/profile')");
+  });
 });
