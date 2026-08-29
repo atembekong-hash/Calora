@@ -74,7 +74,7 @@ export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
               {selectedDate === todayKey() ? "PLANNED FOR TODAY" : "PLANNED FOR THIS DAY"}
             </Text>
             <Text style={[styles.title, { color: colors.foreground }]}>
-              {todayMeals.length === 1 ? '1 planned · not logged' : `${todayMeals.length} planned · not logged`}
+              {todayMeals.length === 1 ? '1 planned' : `${todayMeals.length} planned`}
             </Text>
           </View>
         </View>
@@ -126,13 +126,6 @@ export function PlannerPeek({ selectedDate }: PlannerPeekProps) {
 
       </ScrollView>
 
-      {/* Footer */}
-      <View style={[styles.footer, { borderTopColor: colors.border }]}>
-        <Feather name="check-circle" size={12} color={colors.success} />
-        <Text style={[styles.footerText, { color: colors.mutedForeground }]}>
-          Planned meals count only when logged.
-        </Text>
-      </View>
     </View>
   );
 }
@@ -144,7 +137,7 @@ function makeStyles(f: number) {
     card: {
       borderWidth: 1,
       borderRadius: 22,
-      paddingTop: 15,
+      paddingTop: 12,
       marginBottom: 16,
       overflow: 'hidden',
     },
@@ -152,31 +145,31 @@ function makeStyles(f: number) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 15,
-      marginBottom: 12,
+      paddingHorizontal: 13,
+      marginBottom: 9,
     },
     headerLeft: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: 8,
       flex: 1,
     },
     iconWrap: {
-      width: 32,
-      height: 32,
-      borderRadius: 11,
+      width: 28,
+      height: 28,
+      borderRadius: 10,
       alignItems: 'center',
       justifyContent: 'center',
     },
     eyebrow: {
       fontFamily: 'Inter_700Bold',
-      fontSize: 9 * f,
-      letterSpacing: 1.1,
+      fontSize: 8 * f,
+      letterSpacing: 1,
       marginBottom: 2,
     },
     title: {
       fontFamily: 'Inter_700Bold',
-      fontSize: 14 * f,
+      fontSize: 13 * f,
       letterSpacing: -0.2,
     },
     seeAll: {
@@ -184,26 +177,26 @@ function makeStyles(f: number) {
       alignItems: 'center',
       gap: 4,
       borderRadius: 10,
-      paddingHorizontal: 10,
-      paddingVertical: 7,
+      paddingHorizontal: 9,
+      paddingVertical: 6,
     },
     seeAllText: {
       fontFamily: 'Inter_600SemiBold',
-      fontSize: 11 * f,
+      fontSize: 10 * f,
     },
     chipsRow: {
       flexDirection: 'row',
-      gap: 8,
-      paddingHorizontal: 15,
-      paddingBottom: 12,
+      gap: 7,
+      paddingHorizontal: 13,
+      paddingBottom: 9,
     },
     chip: {
       borderWidth: 1,
-      borderRadius: 16,
-      padding: 10,
-      minWidth: 130,
-      maxWidth: 180,
-      gap: 5,
+      borderRadius: 14,
+      padding: 8,
+      minWidth: 118,
+      maxWidth: 165,
+      gap: 4,
     },
     chipBadge: {
       flexDirection: 'row',
@@ -211,35 +204,22 @@ function makeStyles(f: number) {
       gap: 4,
       borderRadius: 6,
       alignSelf: 'flex-start',
-      paddingHorizontal: 6,
-      paddingVertical: 3,
+      paddingHorizontal: 5,
+      paddingVertical: 2,
     },
     chipMealType: {
       fontFamily: 'Inter_700Bold',
-      fontSize: 9 * f,
-      letterSpacing: 0.3,
+      fontSize: 8 * f,
+      letterSpacing: 0.2,
     },
     chipName: {
       fontFamily: 'Inter_600SemiBold',
-      fontSize: 12 * f,
+      fontSize: 11 * f,
       letterSpacing: -0.1,
     },
     chipKcal: {
       fontFamily: 'Inter_400Regular',
-      fontSize: 10 * f,
-    },
-    footer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 15,
-      paddingVertical: 9,
-      borderTopWidth: 1,
-    },
-    footerText: {
-      fontFamily: 'Inter_400Regular',
-      fontSize: 10 * f,
-      flex: 1,
+      fontSize: 9 * f,
     },
   });
 }
