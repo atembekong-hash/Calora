@@ -46,3 +46,4 @@
 - [Mobile PKCE callback arbitration](mobile-pkce-callback-arbitration.md) — WebBrowser and router may deliver one OAuth callback twice; exchange codes through a shared single-flight boundary.
 - [Independent macro targets](independent-macro-targets.md) — saved macro grams are independent; legacy profiles retain the original calorie-ratio defaults.
 - [Recipe creator mode ownership](recipe-creator-mode-ownership.md) — visible Create inputs must affect the request, and mode-specific choices never leak into another mode.
+- [Structured recipe generation budget](structured-recipe-generation-budget.md) — output-token limits must fit the complete five-concept JSON schema or valid responses can truncate.

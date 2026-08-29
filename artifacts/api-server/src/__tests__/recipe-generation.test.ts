@@ -150,6 +150,7 @@ describe("AI recipe creation endpoints", () => {
     expect(response.body.concepts).toHaveLength(3);
     expect(response.body.concepts[0]).toMatchObject({ title: "Lemony lentil bowl", estimatedMinutes: 28 });
     expect(mockOpenAiCreate).toHaveBeenCalledTimes(1);
+    expect(mockOpenAiCreate.mock.calls[0][0].max_completion_tokens).toBe(1_000);
     const requestPayload = JSON.parse(mockOpenAiCreate.mock.calls[0][0].messages[1].content);
     expect(requestPayload).toMatchObject({ servings: 2, maxMinutes: 30 });
   });
