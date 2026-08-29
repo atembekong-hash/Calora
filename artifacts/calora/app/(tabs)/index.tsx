@@ -506,10 +506,6 @@ function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typ
         <Text style={[styles.mealName, { color: colors.foreground }]} numberOfLines={1}>{log.name}</Text>
         <View style={styles.mealMeta}>
           <Text style={[styles.mealType, { color: colors.mutedForeground }]}>{log.meal} · {log.time}</Text>
-          <View style={[styles.verifiedPill, { backgroundColor: colors.accent }]}>
-            <Feather name="check" size={10} color={colors.accentForeground} />
-            <Text style={[styles.verifiedText, { color: colors.accentForeground }]}>{log.confidence}% verified</Text>
-          </View>
         </View>
       </View>
       <Text style={[styles.mealCalories, { color: colors.foreground }]}>{formatWhole(log.calories)}</Text>
@@ -1194,10 +1190,9 @@ export default function HomeScreen() {
         <View style={styles.mealHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text>
-            <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{selectedLogs.length} logged · Tap to edit</Text>
           </View>
           <ScalePressable onPress={() => openAdd()} accessibilityLabel="Add meal" scale={0.96} haptic="none" style={[styles.addMealButton, { backgroundColor: colors.primary }]}>
-            <Feather name="plus" size={16} color={colors.primaryForeground} />
+            <Feather name="plus" size={14} color={colors.primaryForeground} />
             <Text style={[styles.addMealText, { color: colors.primaryForeground }]}>Add</Text>
           </ScalePressable>
         </View>
@@ -1384,9 +1379,9 @@ function makeStyles(f: number) {
   macroValue: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f },
   macroTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
   macroFill: { height: 8, borderRadius: 4 },
-  mealHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 14 },
-  addMealButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
-  addMealText: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
+  mealHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 6 },
+  addMealButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7 },
+  addMealText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   logCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
   mealGroup: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, letterSpacing: 1.2, marginTop: 16, marginBottom: 4, textTransform: 'uppercase' },
   mealRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
@@ -1394,8 +1389,6 @@ function makeStyles(f: number) {
   mealName: { fontFamily: 'Inter_600SemiBold', fontSize: 14 * f },
   mealMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   mealType: { fontFamily: 'Inter_500Medium', fontSize: 11 * f },
-  verifiedPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 4 },
-  verifiedText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
   mealCalories: { fontFamily: 'Inter_800ExtraBold', fontSize: 16 * f },
   kcalLabel: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginLeft: -8, marginTop: 20 },
   emptyDiary: { alignItems: 'center', paddingVertical: 28, gap: 6 },
