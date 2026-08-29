@@ -1003,7 +1003,7 @@ function CalorieGauge({
         <View style={[gaugeStyles.textOverlay, { top: overlayTop }]}>
           <Text style={[gaugeStyles.remainingLabel, { color: colors.mutedForeground }]}>Remaining</Text>
           <Text
-            style={[gaugeStyles.remainingNumber, { color: colors.foreground }]}
+            style={[gaugeStyles.remainingNumber, { color: colors.strongForeground }]}
             adjustsFontSizeToFit
             numberOfLines={1}
           >

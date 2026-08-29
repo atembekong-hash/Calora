@@ -328,6 +328,17 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('const ringLeft   = (gaugeW - ringW) / 2');
   });
 
+  it('uses stronger contrast for the central remaining-calorie figure only', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('gaugeStyles.remainingNumber, { color: colors.strongForeground }');
+  });
+
   it('mounts a single secondary Today insight between the diary footer and planner', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
