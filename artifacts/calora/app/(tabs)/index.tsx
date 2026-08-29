@@ -409,7 +409,6 @@ function WaterCard({
                 <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>{waterConfirmed && waterConfirmedAmount === ounces ? 'Added ✓' : `${ounces} fl oz`}</Text>
               </ScalePressable>
             ))}
-          </View>
           <ScalePressable
             accessibilityLabel={normalizedWater > 0 ? 'Subtract 8 fluid ounces of water' : 'Subtract water disabled at zero'}
             testID="subtract-water-button"
@@ -422,6 +421,7 @@ function WaterCard({
             <Feather name="minus" size={15} color={colors.foreground} />
             <Text style={[styles.wellnessActionText, { color: colors.foreground }]}>8 fl oz</Text>
           </ScalePressable>
+          </View>
         </View>
       </View>
     </View>
