@@ -220,7 +220,7 @@ export function deriveLivingState(input: LivingStateInput): LivingState {
     action = { kind: 'add_water', label: 'Add 8 fl oz' };
   } else if (reflectionReady) {
     focus = 'reflection';
-    headline = routineStage === 'consistent' ? 'Your routine is becoming easier to read.' : 'Your day has a clear shape.';
+    headline = routineStage === 'consistent' ? 'Your routine is clearer.' : 'Your day is taking shape.';
     message = 'One step at a time.';
     reason = moodDaysLast7 > 0 || activeDaysLast7 > 0
       ? 'Nutrition, wellness, and routine signals are starting to sit together.'
