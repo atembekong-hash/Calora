@@ -314,6 +314,20 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).not.toContain('livingState.headline');
   });
 
+  it('enlarges only the calorie ring into the space above it', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('const CALORIE_RING_SCALE = 1.2');
+    expect(source).toContain('style={[gaugeStyles.ringLayer');
+    expect(source).toContain('const ringTop    = gaugeH - ringH');
+    expect(source).toContain('const ringLeft   = (gaugeW - ringW) / 2');
+  });
+
   it('mounts a single secondary Today insight between the diary footer and planner', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');

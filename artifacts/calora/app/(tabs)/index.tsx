@@ -68,6 +68,7 @@ const GAUGE_START  = 135; // °from positive x-axis (SVG y-down, clockwise)
 const GAUGE_SWEEP  = 270;
 const GAUGE_HEIGHT_SCALE = 0.72;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
+const CALORIE_RING_SCALE = 1.2;
 const _gaugePt = (deg: number) => ({
   x: GAUGE_CX + GAUGE_R * Math.cos((deg * Math.PI) / 180),
   y: GAUGE_CY + GAUGE_R * Math.sin((deg * Math.PI) / 180),
@@ -942,6 +943,10 @@ function CalorieGauge({
   const cardInnerW = windowWidth - 60;
   const gaugeW     = Math.min(cardInnerW, 340);
   const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE;
+  const ringW      = gaugeW * CALORIE_RING_SCALE;
+  const ringH      = gaugeH * CALORIE_RING_SCALE;
+  const ringLeft   = (gaugeW - ringW) / 2;
+  const ringTop    = gaugeH - ringH;
 
   // Animate the fill arc via strokeDashoffset
   const dashOffset = useSharedValue(GAUGE_ARC_LEN);
@@ -963,34 +968,36 @@ function CalorieGauge({
   // Arc inner bottom in VB ≈ 175.  Eye height ≈ 140.5 VB.
   // Text block ≈ 90 screen-px → half-height anchored to eye centre (VB ≈ 105).
   // A gap of 32 VB units from the inner top lands the stack at eye centre.
-  const overlayTop = ((GAUGE_CY - GAUGE_R + GAUGE_STROKE / 2 + 32) / GAUGE_VBH) * gaugeH;
+  const overlayTop = ((GAUGE_CY - GAUGE_R + GAUGE_STROKE / 2 + 32) / GAUGE_VBH) * gaugeH * CALORIE_RING_SCALE + ringTop;
 
   return (
     <View style={gaugeStyles.container}>
       {/* ── Full-width SVG arc + centred text ── */}
       <View style={[gaugeStyles.arcWrap, { width: gaugeW, height: gaugeH }]}>
-        <Svg width={gaugeW} height={gaugeH} viewBox={`0 0 ${GAUGE_VBW} ${GAUGE_VBH}`}>
-          {/* Track — full 270° muted arc */}
-          <Path
-            d={GAUGE_TRACK_D}
-            stroke={colors.border}
-            strokeWidth={GAUGE_STROKE}
-            fill="none"
-            strokeLinecap="round"
-          />
-          {/* Fill — animated progress arc */}
-          {progress > 0 && (
-            <AnimatedPath
-              animatedProps={fillProps}
+        <View pointerEvents="none" style={[gaugeStyles.ringLayer, { width: ringW, height: ringH, left: ringLeft, top: ringTop }]}>
+          <Svg width={ringW} height={ringH} viewBox={`0 0 ${GAUGE_VBW} ${GAUGE_VBH}`}>
+            {/* Track — full 270° muted arc */}
+            <Path
               d={GAUGE_TRACK_D}
-              stroke={fillColor}
+              stroke={colors.border}
               strokeWidth={GAUGE_STROKE}
               fill="none"
               strokeLinecap="round"
-              strokeDasharray={GAUGE_ARC_LEN}
             />
-          )}
-        </Svg>
+            {/* Fill — animated progress arc */}
+            {progress > 0 && (
+              <AnimatedPath
+                animatedProps={fillProps}
+                d={GAUGE_TRACK_D}
+                stroke={fillColor}
+                strokeWidth={GAUGE_STROKE}
+                fill="none"
+                strokeLinecap="round"
+                strokeDasharray={GAUGE_ARC_LEN}
+              />
+            )}
+          </Svg>
+        </View>
 
         {/* Text precisely centred in the horseshoe eye */}
         <View style={[gaugeStyles.textOverlay, { top: overlayTop }]}>
@@ -1033,6 +1040,7 @@ function makeGaugeStyles(f: number) {
   return StyleSheet.create({
   container: { marginTop: 14, marginBottom: 4, alignItems: 'center' },
   arcWrap:   { position: 'relative' as const },
+  ringLayer: { position: 'absolute' as const },
   textOverlay: {
     position: 'absolute' as const,
     left: 0,
