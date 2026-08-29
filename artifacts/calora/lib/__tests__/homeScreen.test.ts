@@ -301,6 +301,19 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(addAction).toBeGreaterThan(logCardHeader);
   });
 
+  it('keeps the top greeting elevated without the removed bottom insight line', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('paddingBottom: 26');
+    expect(source).not.toContain('styles.heroInsight');
+    expect(source).not.toContain('livingState.headline');
+  });
+
   it('mounts a single secondary Today insight between the diary footer and planner', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
