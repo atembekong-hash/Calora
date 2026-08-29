@@ -221,7 +221,7 @@ export function deriveLivingState(input: LivingStateInput): LivingState {
   } else if (reflectionReady) {
     focus = 'reflection';
     headline = routineStage === 'consistent' ? 'Your routine is becoming easier to read.' : 'Your day has a clear shape.';
-    message = 'You have enough context to notice what felt useful today.';
+    message = 'One step at a time.';
     reason = moodDaysLast7 > 0 || activeDaysLast7 > 0
       ? 'Nutrition, wellness, and routine signals are starting to sit together.'
       : 'A little more history will make future reflections more personal.';
