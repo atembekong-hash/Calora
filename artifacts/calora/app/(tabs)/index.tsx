@@ -511,7 +511,7 @@ function AnimatedMacroBar({ label, value, target, color, colors }: { label: stri
     <View style={styles.macroBlock}>
       <View style={styles.macroHeader}>
         <Text style={[styles.macroLabel, { color: colors.mutedForeground }]}>{label}</Text>
-        <Text style={[styles.macroValue, { color: colors.foreground }]}>{formatQuantity(value, 1)}g <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>/ {formatQuantity(target, 1)}g</Text></Text>
+        <Text testID={`macro-target-${label.toLowerCase()}`} style={[styles.macroValue, { color: colors.foreground }]}>{formatQuantity(value, 1)}g <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>/ {formatQuantity(target, 1)}g</Text></Text>
       </View>
       <View style={[styles.macroTrack, { backgroundColor: colors.muted }]} onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}>
         <Animated.View style={[styles.macroFill, { backgroundColor: color }, animStyle]} />

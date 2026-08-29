@@ -1,0 +1,90 @@
+appId: com.etiendem.caloraapp
+---
+# Run this same flow once on a booted iOS simulator and once on a booted Android
+# emulator or signed device. It deliberately starts with clean local state so
+# every expected target below is deterministic.
+- launchApp:
+    clearState: true
+- assertVisible: "Food tracking, made simpler."
+- tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "I understand and agree"
+- tapOn: "Enter CaloraApp"
+- assertVisible: "Macro balance"
+
+# Establish known targets, then verify the rendered Macro balance targets update.
+- tapOn:
+    id: "edit-macro-goals"
+- assertVisible: "Nutrition goals"
+- tapOn:
+    id: "macro-goal-calories"
+- eraseText
+- inputText: "2100"
+- tapOn:
+    id: "macro-goal-protein"
+- eraseText
+- inputText: "125"
+- tapOn:
+    id: "macro-goal-carbs"
+- eraseText
+- inputText: "240"
+- tapOn:
+    id: "macro-goal-fat"
+- eraseText
+- inputText: "70"
+- tapOn:
+    id: "save-macro-goals"
+- assertVisible: "/ 125g"
+- assertVisible: "/ 240g"
+- assertVisible: "/ 70g"
+
+# Cancel must discard an unsaved edit.
+- tapOn:
+    id: "edit-macro-goals"
+- tapOn:
+    id: "macro-goal-protein"
+- eraseText
+- inputText: "199"
+- tapOn:
+    id: "cancel-macro-goals"
+- assertVisible: "Macro balance"
+- tapOn:
+    id: "edit-macro-goals"
+- assertVisible: "125"
+
+# Invalid values stay inline. Correct the invalid field, leave the final input
+# focused, and save without dismissing the native keyboard first.
+- tapOn:
+    id: "macro-goal-protein"
+- eraseText
+- inputText: "0"
+- tapOn:
+    id: "save-macro-goals"
+- assertVisible: "Enter a positive value for calories and each macro."
+- tapOn:
+    id: "macro-goal-protein"
+- eraseText
+- inputText: "126"
+- tapOn:
+    id: "macro-goal-fat"
+- eraseText
+- inputText: "72"
+- assertVisible:
+    id: "save-macro-goals"
+- tapOn:
+    id: "save-macro-goals"
+- assertVisible: "/ 126g"
+- assertVisible: "/ 72g"
+
+# A process relaunch must retain locally saved targets.
+- stopApp
+- launchApp
+- assertVisible: "Macro balance"
+- tapOn:
+    id: "edit-macro-goals"
+- assertVisible: "2100"
+- assertVisible: "126"
+- assertVisible: "240"
+- assertVisible: "72"
