@@ -8,6 +8,7 @@ import {
   AccessibilityInfo,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -598,7 +599,12 @@ function MacroGoalsModal({
 
   useEffect(() => {
     if (visible && error) {
-      AccessibilityInfo.announceForAccessibility(error);
+      // iOS does not implement accessibilityLiveRegion. Queue the explicit
+      // announcement behind the save-control feedback so VoiceOver does not
+      // lose the error while focus remains in the editor.
+      if (Platform.OS === 'ios') {
+        AccessibilityInfo.announceForAccessibilityWithOptions(error, { queue: true });
+      }
     }
   }, [error, visible]);
 
@@ -670,7 +676,7 @@ function MacroGoalsModal({
 
             {!!error && (
               <Text
-                accessibilityLiveRegion="assertive"
+                accessibilityLiveRegion={Platform.OS === 'android' ? 'assertive' : 'none'}
                 accessibilityRole="alert"
                 style={[styles.macroGoalError, { color: colors.destructive }]}
               >

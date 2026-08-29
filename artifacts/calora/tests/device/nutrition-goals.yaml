@@ -92,6 +92,12 @@ appId: com.etiendem.caloraapp
 # - "Fat: <consumed> grams consumed of 72 gram target."
 # The consumed number depends on the diary state; each refreshed target must
 # match the value just saved, without requiring the visual progress bar.
+# With this clean-state flow, consumed grams are zero. These assertions also
+# verify that the native accessibility nodes expose the full row summaries
+# that VoiceOver and TalkBack should speak when swiped into focus.
+- assertVisible: "Protein: 0 grams consumed of 126 gram target."
+- assertVisible: "Carbs: 0 grams consumed of 240 gram target."
+- assertVisible: "Fat: 0 grams consumed of 72 gram target."
 
 # A process relaunch must retain locally saved targets.
 - stopApp
