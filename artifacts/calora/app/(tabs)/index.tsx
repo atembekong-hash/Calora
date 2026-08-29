@@ -1578,7 +1578,7 @@ function makeStyles(f: number) {
   waterAdjustActions: { gap: 8, marginTop: 8 },
   waterQuickActions: { flexDirection: 'row-reverse', gap: 8 },
   waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: 10 },
-  moodCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  moodCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 18, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
   moodHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
   moodOptions: { flexDirection: 'row', gap: 8 },
   moodOption: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 2, gap: 4 },
