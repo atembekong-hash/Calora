@@ -354,7 +354,7 @@ const moodOptions: Array<{ value: Mood; label: string; icon: keyof typeof Feathe
   { value: 'stressed', label: 'Stressed', icon: 'activity' },
 ];
 
-const waterQuickAmounts = [4, 8, 16] as const;
+const waterQuickAmounts = [8] as const;
 
 function WaterCard({
   colors,
