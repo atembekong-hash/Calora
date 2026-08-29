@@ -1400,7 +1400,7 @@ function makeStyles(f: number) {
   emptyDiaryTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, marginTop: 4 },
   emptyDiaryBody: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, textAlign: 'center', maxWidth: 240 },
   footerNote: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 20 },
-  footerNoteText: { fontFamily: 'Inter_500Medium', fontSize: 12 * f },
+  footerNoteText: { fontFamily: 'Inter_500Medium', fontSize: 9 * f },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   modalCard: { maxHeight: '92%', borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12 },
   modalScrollContent: { paddingBottom: 32 },
