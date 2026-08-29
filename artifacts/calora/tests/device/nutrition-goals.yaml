@@ -56,6 +56,13 @@ appId: com.etiendem.caloraapp
 
 # Invalid values stay inline. Correct the invalid field, leave the final input
 # focused, and save without dismissing the native keyboard first.
+#
+# Native accessibility check — run this section with VoiceOver enabled on iOS,
+# then with TalkBack enabled on Android:
+# - After Save goals below, the screen reader must announce:
+#   "Enter a positive value for calories and each macro."
+# - This is an assertive live update; it must be announced even though focus
+#   remains in the Protein goal input.
 - tapOn:
     id: "macro-goal-protein"
 - eraseText
@@ -77,6 +84,14 @@ appId: com.etiendem.caloraapp
     id: "save-macro-goals"
 - assertVisible: "/ 126g"
 - assertVisible: "/ 72g"
+#
+# Native accessibility check — after the editor closes, swipe through each
+# Macro balance row. VoiceOver and TalkBack must announce a label in this form:
+# - "Protein: <consumed> grams consumed of 126 gram target."
+# - "Carbs: <consumed> grams consumed of 240 gram target."
+# - "Fat: <consumed> grams consumed of 72 gram target."
+# The consumed number depends on the diary state; each refreshed target must
+# match the value just saved, without requiring the visual progress bar.
 
 # A process relaunch must retain locally saved targets.
 - stopApp

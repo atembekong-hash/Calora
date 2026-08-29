@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AccessibilityInfo,
   FlatList,
   Modal,
   Pressable,
@@ -508,7 +509,12 @@ function AnimatedMacroBar({ label, value, target, color, colors }: { label: stri
   }, [pct, trackWidth, fillWidth]);
   const animStyle = useAnimatedStyle(() => ({ width: fillWidth.value }));
   return (
-    <View style={styles.macroBlock}>
+    <View
+      accessible
+      accessibilityRole="summary"
+      accessibilityLabel={`${label}: ${formatQuantity(value, 1)} grams consumed of ${formatQuantity(target, 1)} gram target.`}
+      style={styles.macroBlock}
+    >
       <View style={styles.macroHeader}>
         <Text style={[styles.macroLabel, { color: colors.mutedForeground }]}>{label}</Text>
         <Text testID={`macro-target-${label.toLowerCase()}`} style={[styles.macroValue, { color: colors.foreground }]}>{formatQuantity(value, 1)}g <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>/ {formatQuantity(target, 1)}g</Text></Text>
@@ -590,6 +596,12 @@ function MacroGoalsModal({
 }) {
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (visible && error) {
+      AccessibilityInfo.announceForAccessibility(error);
+    }
+  }, [error, visible]);
+
   const handleClose = () => {
     setError('');
     onClose();
@@ -656,7 +668,15 @@ function MacroGoalsModal({
               ))}
             </View>
 
-            {!!error && <Text accessibilityRole="alert" style={[styles.macroGoalError, { color: colors.destructive }]}>{error}</Text>}
+            {!!error && (
+              <Text
+                accessibilityLiveRegion="assertive"
+                accessibilityRole="alert"
+                style={[styles.macroGoalError, { color: colors.destructive }]}
+              >
+                {error}
+              </Text>
+            )}
 
             <ScalePressable accessibilityLabel="Save nutrition goals" testID="save-macro-goals" onPress={handleSave} scale={0.96} haptic="light" style={[styles.saveEntry, { backgroundColor: colors.primary }]}>
               <Text style={[styles.saveEntryText, { color: colors.primaryForeground }]}>Save goals</Text>
