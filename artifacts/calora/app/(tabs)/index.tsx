@@ -29,10 +29,12 @@ import { BRAND } from '@/lib/brand';
 import { enterMotion } from '@/lib/motion';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { PlannerPeek } from '@/components/PlannerPeek';
 import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 import { formatGrams, formatQuantity, formatWhole } from '@/lib/formatters';
 import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
+import { getMacroTargets, type MacroTargets } from '@/lib/nutritionGoals';
 import {
   clearWaterConfirmation,
   getWaterConfirmationRemaining,
@@ -553,6 +555,132 @@ function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typ
       <Text style={[styles.kcalLabel, { color: colors.mutedForeground }]}>kcal</Text>
       <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
     </ScalePressable>
+  );
+}
+
+type MacroGoalKey = 'calories' | 'protein' | 'carbs' | 'fat';
+type MacroGoalDraft = Record<MacroGoalKey, string>;
+
+const macroGoalFields: Array<{ key: MacroGoalKey; label: string; unit: string; placeholder: string }> = [
+  { key: 'calories', label: 'Calories', unit: 'kcal / day', placeholder: '2000' },
+  { key: 'protein', label: 'Protein', unit: 'g / day', placeholder: '130' },
+  { key: 'carbs', label: 'Carbs', unit: 'g / day', placeholder: '220' },
+  { key: 'fat', label: 'Fat', unit: 'g / day', placeholder: '67' },
+];
+
+function MacroGoalsModal({
+  visible,
+  draft,
+  colors,
+  onChange,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  draft: MacroGoalDraft | null;
+  colors: ReturnType<typeof useCalora>['colors'];
+  onChange: (draft: MacroGoalDraft) => void;
+  onClose: () => void;
+  onSave: (values: MacroTargets) => void;
+}) {
+  const [error, setError] = useState('');
+
+  const handleClose = () => {
+    setError('');
+    onClose();
+  };
+
+  const handleSave = () => {
+    if (!draft) return;
+    const values = {
+      calories: Number(draft.calories),
+      protein: Number(draft.protein),
+      carbs: Number(draft.carbs),
+      fat: Number(draft.fat),
+    };
+    if (Object.values(values).some((value) => !Number.isFinite(value) || value <= 0)) {
+      setError('Enter a positive value for calories and each macro.');
+      return;
+    }
+    if (values.calories < 500 || values.calories > 9999) {
+      setError('Calories must be between 500 and 9,999 per day.');
+      return;
+    }
+    if (values.protein > 500 || values.carbs > 1000 || values.fat > 300) {
+      setError('Check the macro values: protein, carbs, and fat are above the supported daily range.');
+      return;
+    }
+
+    onSave({
+      calories: Math.round(values.calories),
+      protein: Math.round(values.protein),
+      carbs: Math.round(values.carbs),
+      fat: Math.round(values.fat),
+    });
+    setError('');
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
+        <View style={[styles.modalCard, { backgroundColor: colors.background }]}>
+          <KeyboardAwareScrollViewCompat
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.macroGoalScrollContent}
+            bottomOffset={80}
+          >
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeading}>
+              <View style={{ flex: 1, paddingRight: 16 }}>
+                <Text style={[styles.modalTitle, { color: colors.foreground }]}>Nutrition goals</Text>
+                <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>Set the daily targets used in Macro balance.</Text>
+              </View>
+              <ScalePressable accessibilityLabel="Close nutrition goals" onPress={handleClose} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+                <Feather name="x" size={18} color={colors.foreground} />
+              </ScalePressable>
+            </View>
+
+            <View style={[styles.macroGoalIntro, { backgroundColor: colors.muted }]}>
+              <Feather name="sliders" size={17} color={colors.primary} />
+              <Text style={[styles.macroGoalIntroText, { color: colors.mutedForeground }]}>These targets are independent. They do not need to add up to the calorie target.</Text>
+            </View>
+
+            <View style={styles.macroGoalFields}>
+              {macroGoalFields.map((field) => (
+                <View key={field.key} style={styles.macroGoalField}>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>{field.label}</Text>
+                  <View style={[styles.macroGoalInputWrap, { backgroundColor: colors.card, borderColor: error ? colors.destructive : colors.input }]}>
+                    <TextInput
+                      accessibilityLabel={`${field.label} goal`}
+                      testID={`macro-goal-${field.key}`}
+                      value={draft?.[field.key] ?? ''}
+                      onChangeText={(value) => {
+                        setError('');
+                        if (draft) onChange({ ...draft, [field.key]: value });
+                      }}
+                      keyboardType="number-pad"
+                      placeholder={field.placeholder}
+                      placeholderTextColor={colors.mutedForeground}
+                      style={[styles.macroGoalInput, { color: colors.foreground }]}
+                    />
+                    <Text style={[styles.macroGoalUnit, { color: colors.mutedForeground }]}>{field.unit}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {!!error && <Text accessibilityRole="alert" style={[styles.macroGoalError, { color: colors.destructive }]}>{error}</Text>}
+
+            <ScalePressable accessibilityLabel="Save nutrition goals" testID="save-macro-goals" onPress={handleSave} scale={0.96} haptic="light" style={[styles.saveEntry, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.saveEntryText, { color: colors.primaryForeground }]}>Save goals</Text>
+            </ScalePressable>
+            <ScalePressable accessibilityLabel="Cancel nutrition goals" testID="cancel-macro-goals" onPress={handleClose} scale={0.98} haptic="none" style={styles.macroGoalCancel}>
+              <Text style={[styles.macroGoalCancelText, { color: colors.primary }]}>Cancel</Text>
+            </ScalePressable>
+          </KeyboardAwareScrollViewCompat>
+        </View>
+      </View>
+    </Modal>
   );
 }
 

@@ -164,6 +164,9 @@ export type Profile = {
   targetWeightKg: number;
   age: number;
   calorieTarget: number;
+  proteinTargetGrams?: number;
+  carbsTargetGrams?: number;
+  fatTargetGrams?: number;
   units?: 'metric' | 'imperial';
 };
 

@@ -9,6 +9,7 @@ import type {
 } from '@/context/CaloraContext';
 import type { RepeatPattern } from '@/lib/foodMemory';
 import { addDays, dateKey, dateList } from '@/lib/dates';
+import { getMacroTargets } from '@/lib/nutritionGoals';
 
 export type LivingTimePeriod = 'morning' | 'midday' | 'afternoon' | 'evening';
 export type RoutineStage = 'first_day' | 'building' | 'emerging' | 'consistent' | 'returning';
@@ -138,7 +139,7 @@ export function deriveLivingState(input: LivingStateInput): LivingState {
   const waterToday = input.waterLogs[currentDate] ?? 0;
   const mealsToday = mealTypesToday.size;
   const proteinToday = todayLogs.reduce((sum, log) => sum + log.protein, 0);
-  const proteinTarget = Math.round((input.profile?.calorieTarget ?? 2000) * 0.26 / 4);
+  const proteinTarget = getMacroTargets(input.profile).protein;
   const hasBreakfastToday = mealTypesToday.has('Breakfast');
   const hasLunchToday = mealTypesToday.has('Lunch');
   const hasDinnerToday = mealTypesToday.has('Dinner');
