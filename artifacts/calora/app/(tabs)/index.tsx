@@ -240,7 +240,7 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
     if (recipes.length <= 1) return;
     const timer = setTimeout(() => {
       snapToRecipe(activeRecipe >= recipes.length - 1 ? 0 : activeRecipe + 1);
-    }, 7000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [activeRecipe, recipes.length]);
 
