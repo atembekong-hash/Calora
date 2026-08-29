@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 
-const { mockOpenAiCreate, verifyBearerToken, checkRateLimit } = vi.hoisted(() => ({
+const { mockOpenAiCreate, mockOpenAiImageGenerate, verifyBearerToken, checkRateLimit } = vi.hoisted(() => ({
   mockOpenAiCreate: vi.fn(),
+  mockOpenAiImageGenerate: vi.fn(),
   verifyBearerToken: vi.fn(),
   checkRateLimit: vi.fn(),
 }));
 
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
-  openai: { chat: { completions: { create: mockOpenAiCreate } } },
+  openai: { chat: { completions: { create: mockOpenAiCreate } }, images: { generate: mockOpenAiImageGenerate } },
 }));
 
 vi.mock("@workspace/db", () => ({
@@ -49,6 +50,10 @@ describe("AI recipe creation endpoints", () => {
     vi.clearAllMocks();
     verifyBearerToken.mockResolvedValue(USER);
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ signed_url: "https://storage.example/signed" }),
+    }));
   });
 
   it("returns 429 and never calls the model when the per-account quota is exceeded", async () => {
@@ -193,5 +198,33 @@ describe("AI recipe creation endpoints", () => {
 
     expect(response.status).toBe(502);
     expect(response.body.message).toMatch(/couldn’t finish/i);
+  });
+
+  it("creates a bounded private recipe photo without forwarding account data", async () => {
+    mockOpenAiImageGenerate.mockResolvedValueOnce({ data: [{ b64_json: Buffer.from("recipe-photo").toString("base64") }] });
+
+    const response = await request(app).post("/v1/recipes/photo").send({
+      title: "Lemony lentil bowl",
+      description: "A bright, hearty dinner.",
+      profile: { email: "must-not-forward@example.com" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ imageUrl: expect.any(String), imageId: expect.any(String), imageUrlExpiresAt: expect.any(String) });
+    expect(mockOpenAiImageGenerate).toHaveBeenCalledWith(expect.objectContaining({
+      model: "gpt-image-1",
+      n: 1,
+      output_format: "png",
+    }), expect.any(Object));
+    expect(mockOpenAiImageGenerate.mock.calls[0][0].prompt).toContain("Lemony lentil bowl");
+    expect(mockOpenAiImageGenerate.mock.calls[0][0].prompt).not.toContain("must-not-forward@example.com");
+    expect(checkRateLimit).toHaveBeenCalledWith(`recipes-photo:user:${USER.id}`, 12, 3600);
+  });
+
+  it("keeps a completed recipe usable when recipe-photo generation fails", async () => {
+    mockOpenAiImageGenerate.mockRejectedValueOnce(new Error("provider unavailable"));
+    const response = await request(app).post("/v1/recipes/photo").send({ title: "Lemony lentil bowl" });
+    expect(response.status).toBe(502);
+    expect(response.body.message).toMatch(/recipe photo/i);
   });
 });

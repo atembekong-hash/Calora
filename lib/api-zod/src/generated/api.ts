@@ -573,6 +573,40 @@ export const ListRecipesResponse = zod.object({
 
 
 /**
+ * @summary Generate a private photo for a completed Calora AI recipe
+ */
+export const generateRecipePhotoBodyTitleMax = 100;
+
+export const generateRecipePhotoBodyDescriptionMax = 300;
+
+
+
+export const GenerateRecipePhotoBody = zod.object({
+  "title": zod.string().min(1).max(generateRecipePhotoBodyTitleMax),
+  "description": zod.string().max(generateRecipePhotoBodyDescriptionMax).optional()
+})
+
+export const GenerateRecipePhotoResponse = zod.object({
+  "imageId": zod.string().uuid(),
+  "imageUrl": zod.string().url(),
+  "imageUrlExpiresAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Refresh a signed display URL for a private recipe photo
+ */
+export const RefreshRecipePhotoUrlBody = zod.object({
+  "imageId": zod.string().uuid()
+})
+
+export const RefreshRecipePhotoUrlResponse = zod.object({
+  "imageUrl": zod.string().url(),
+  "imageUrlExpiresAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Get an open-source recipe detail
  */
 

@@ -281,6 +281,58 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RecipeList"
+  /v1/recipes/photo:
+    post:
+      operationId: generateRecipePhoto
+      tags: [recipes]
+      summary: Generate a private photo for a completed Calora AI recipe
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipePhotoGenerateInput"
+      responses:
+        "200":
+          description: Private photo reference and temporary display URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imageId, imageUrl, imageUrlExpiresAt]
+                properties:
+                  imageId: { type: string, format: uuid }
+                  imageUrl: { type: string, format: uri }
+                  imageUrlExpiresAt: { type: string, format: date-time }
+        "401": { description: A signed-in Calora account is required }
+        "429": { description: Recipe photo quota exceeded }
+        "502": { description: Photo generation or private storage failed }
+  /v1/recipes/photo-url:
+    post:
+      operationId: refreshRecipePhotoUrl
+      tags: [recipes]
+      summary: Refresh a signed display URL for a private recipe photo
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipePhotoUrlInput"
+      responses:
+        "200":
+          description: Temporary private display URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imageUrl, imageUrlExpiresAt]
+                properties:
+                  imageUrl: { type: string, format: uri }
+                  imageUrlExpiresAt: { type: string, format: date-time }
+        "401": { description: A signed-in Calora account is required }
+        "404": { description: Recipe photo is unavailable }
   /v1/recipes/{recipeId}:
     get:
       operationId: getRecipe
@@ -906,6 +958,17 @@ components:
             True while the server's background nutrition warm-up is still
             running.  Clients should refetch the list shortly so recipe cards
             can show calorie estimates as soon as they are available.
+    RecipePhotoGenerateInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, maxLength: 300 }
+    RecipePhotoUrlInput:
+      type: object
+      required: [imageId]
+      properties:
+        imageId: { type: string, format: uuid }
     Recipe:
       type: object
       required: [id, name, source, sourceUrl]

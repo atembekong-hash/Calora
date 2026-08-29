@@ -47,3 +47,4 @@
 - [Independent macro targets](independent-macro-targets.md) — saved macro grams are independent; legacy profiles retain the original calorie-ratio defaults.
 - [Recipe creator mode ownership](recipe-creator-mode-ownership.md) — visible Create inputs must affect the request, and mode-specific choices never leak into another mode.
 - [Structured recipe generation budget](structured-recipe-generation-budget.md) — output-token limits must fit the complete five-concept JSON schema or valid responses can truncate.
+- [OpenAPI request schema naming](openapi-request-schema-naming.md) — named component request schemas prevent generated validator/type export collisions.

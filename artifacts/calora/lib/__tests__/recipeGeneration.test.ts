@@ -24,6 +24,8 @@ import {
   requestRecipeConcepts,
   requestGuestRecipeConcepts,
   requestGeneratedRecipe,
+  requestGeneratedRecipePhoto,
+  requestGeneratedRecipePhotoUrl,
 } from '../recipeGeneration';
 
 const fetchMock = vi.fn();
@@ -170,5 +172,24 @@ describe('requestGeneratedRecipe', () => {
       message: 'Please sign in to finish a recipe.',
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('recipe photo requests', () => {
+  it('creates a recipe photo through the authenticated route', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: session('valid-token') } });
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { imageId: '6a647f11-9d1a-4248-a120-2d2a2ddf5711', imageUrl: 'https://image.example/recipe.png', imageUrlExpiresAt: '2026-01-02T00:00:00.000Z' }));
+    const result = await requestGeneratedRecipePhoto({ title: 'Lemon herb bowl', description: 'A bright bowl.' });
+    expect(result.imageUrl).toBe('https://image.example/recipe.png');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.example.com/api/v1/recipes/photo');
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer valid-token');
+  });
+
+  it('refreshes a saved private photo URL through the authenticated route', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: session('valid-token') } });
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { imageUrl: 'https://image.example/renewed.png', imageUrlExpiresAt: '2026-01-03T00:00:00.000Z' }));
+    const result = await requestGeneratedRecipePhotoUrl({ imageId: '6a647f11-9d1a-4248-a120-2d2a2ddf5711' });
+    expect(result.imageUrl).toBe('https://image.example/renewed.png');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.example.com/api/v1/recipes/photo-url');
   });
 });

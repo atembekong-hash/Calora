@@ -405,6 +405,20 @@ export interface RecipeList {
   warmupPending?: boolean;
 }
 
+export interface RecipePhotoGenerateInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  title: string;
+  /** @maxLength 300 */
+  description?: string;
+}
+
+export interface RecipePhotoUrlInput {
+  imageId: string;
+}
+
 export type PremiumRecipeListStatus = typeof PremiumRecipeListStatus[keyof typeof PremiumRecipeListStatus];
 
 
@@ -1647,6 +1661,17 @@ limit?: number;
  * @minimum 0
  */
 offset?: number;
+};
+
+export type GenerateRecipePhoto200 = {
+  imageId: string;
+  imageUrl: string;
+  imageUrlExpiresAt: string;
+};
+
+export type RefreshRecipePhotoUrl200 = {
+  imageUrl: string;
+  imageUrlExpiresAt: string;
 };
 
 export type ListPremiumRecipesParams = {

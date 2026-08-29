@@ -2,6 +2,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { db, recipeNutritionTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
+import { randomUUID } from "node:crypto";
 import { logger } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
@@ -22,6 +23,10 @@ const GUEST_RECIPE_BURST_LIMIT = 2;
 const GUEST_RECIPE_BURST_WINDOW_SECS = 60 * 10;
 const GUEST_RECIPE_DAILY_LIMIT = 5;
 const GUEST_RECIPE_DAILY_WINDOW_SECS = 60 * 60 * 24;
+const RECIPE_PHOTO_RATE_LIMIT = 12;
+const RECIPE_PHOTO_URL_TTL_SECS = 60 * 60 * 24 * 6;
+const RECIPE_PHOTO_TIMEOUT_MS = 30_000;
+const OBJECT_STORAGE_SIDECAR = "http://127.0.0.1:1106/object-storage/signed-object-url";
 
 async function enforceRecipeGenLimit(scope: string, userId: string, res: Response): Promise<boolean> {
   const rate = await checkRateLimit(`${scope}:user:${userId}`, RECIPE_GEN_RATE_LIMIT, RECIPE_GEN_RATE_WINDOW_SECS);
@@ -31,6 +36,29 @@ async function enforceRecipeGenLimit(scope: string, userId: string, res: Respons
     return false;
   }
   return true;
+}
+
+function recipePhotoObjectName(userId: string, imageId: string) {
+  return `private/recipe-photos/${userId}/${imageId}.png`;
+}
+
+async function signedRecipePhotoUrl(userId: string, imageId: string, method: "GET" | "PUT", ttlSecs: number) {
+  const bucket = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+  if (!bucket) throw new Error("Object storage is not configured");
+  const response = await fetch(OBJECT_STORAGE_SIDECAR, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      bucket_name: bucket,
+      object_name: recipePhotoObjectName(userId, imageId),
+      method,
+      expires_at: new Date(Date.now() + ttlSecs * 1000).toISOString(),
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const payload = await response.json().catch(() => ({})) as { signed_url?: unknown };
+  if (!response.ok || typeof payload.signed_url !== "string") throw new Error("Unable to sign recipe photo storage request");
+  return payload.signed_url;
 }
 
 async function enforceRecipeIpLimit(req: Request, res: Response): Promise<boolean> {
@@ -205,6 +233,83 @@ router.post("/v1/recipes/generated", async (req, res) => {
     return res.status(502).json({ message: "Calora couldn’t finish that recipe right now. Your idea is still available to retry." });
   } finally {
     clearTimeout(timer);
+  }
+});
+
+router.post("/v1/recipes/photo", async (req, res) => {
+  const user = await verifyBearerToken(req);
+  if (!user) return res.status(401).json({ message: "Please sign in to create a recipe photo." });
+  const rate = await checkRateLimit(`recipes-photo:user:${user.id}`, RECIPE_PHOTO_RATE_LIMIT, RECIPE_GEN_RATE_WINDOW_SECS);
+  if (!rate.allowed) {
+    res.setHeader("Retry-After", String(rate.retryAfterSecs));
+    return res.status(429).json({ message: "You’ve reached the recipe photo limit. Please try again later.", retryAfterSecs: rate.retryAfterSecs });
+  }
+
+  const body = requestBody(req.body);
+  const title = conceptText(body.title, 100);
+  const description = conceptText(body.description, 300);
+  if (!title) return res.status(400).json({ message: "Finish a recipe before creating its photo." });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RECIPE_PHOTO_TIMEOUT_MS);
+  try {
+    // Recipe fields have already been normalized by the complete-recipe route.
+    // Do not pass account data, diary context, or unrestricted creator prompts
+    // into an image request.
+    const prompt = `Editorial food photography of "${title}". ${description || "A freshly prepared homemade meal."} Serve the dish on a simple ceramic plate or bowl, natural window light, appetizing realistic texture, overhead three-quarter composition, no people, no hands, no words, no labels, no packaging.`;
+    const generated = await openai.images.generate({
+      model: "gpt-image-1",
+      prompt,
+      size: "1024x1024",
+      quality: "low",
+      output_format: "png",
+      n: 1,
+    }, { signal: controller.signal });
+    const encoded = generated.data?.[0]?.b64_json;
+    if (typeof encoded !== "string" || !encoded) throw new Error("Image provider returned no image");
+    const imageBytes = Buffer.from(encoded, "base64");
+    if (imageBytes.length === 0 || imageBytes.length > 15 * 1024 * 1024) throw new Error("Invalid generated image size");
+
+    const imageId = randomUUID();
+    const uploadUrl = await signedRecipePhotoUrl(user.id, imageId, "PUT", 15 * 60);
+    const upload = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "content-type": "image/png", "content-length": String(imageBytes.length) },
+      body: imageBytes,
+      signal: controller.signal,
+    });
+    if (!upload.ok) throw new Error(`Recipe photo upload failed (${upload.status})`);
+
+    const imageUrl = await signedRecipePhotoUrl(user.id, imageId, "GET", RECIPE_PHOTO_URL_TTL_SECS);
+    return res.json({
+      imageId,
+      imageUrl,
+      imageUrlExpiresAt: new Date(Date.now() + RECIPE_PHOTO_URL_TTL_SECS * 1000).toISOString(),
+    });
+  } catch (error) {
+    logger.warn({ err: error }, "Recipe photo generation failed");
+    return res.status(502).json({ message: "Calora couldn’t create that recipe photo right now. Your recipe is still saved." });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+router.post("/v1/recipes/photo-url", async (req, res) => {
+  const user = await verifyBearerToken(req);
+  if (!user) return res.status(401).json({ message: "Please sign in to view your recipe photo." });
+  const imageId = conceptText(requestBody(req.body).imageId, 64);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(imageId)) {
+    return res.status(400).json({ message: "That recipe photo reference is invalid." });
+  }
+  try {
+    const imageUrl = await signedRecipePhotoUrl(user.id, imageId, "GET", RECIPE_PHOTO_URL_TTL_SECS);
+    return res.json({
+      imageUrl,
+      imageUrlExpiresAt: new Date(Date.now() + RECIPE_PHOTO_URL_TTL_SECS * 1000).toISOString(),
+    });
+  } catch (error) {
+    logger.warn({ err: error }, "Recipe photo URL refresh failed");
+    return res.status(404).json({ message: "Recipe photo is unavailable." });
   }
 });
 

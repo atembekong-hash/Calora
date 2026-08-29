@@ -144,3 +144,27 @@ export function requestGeneratedRecipe<T>(payload: { title: string; summary: str
     fallbackMessage: 'Recipe generation is unavailable.',
   });
 }
+
+export type GeneratedRecipePhoto = {
+  imageId: string;
+  imageUrl: string;
+  imageUrlExpiresAt: string;
+};
+
+export function requestGeneratedRecipePhoto(payload: { title: string; description: string }): Promise<GeneratedRecipePhoto> {
+  return postWithAuthRetry<GeneratedRecipePhoto>({
+    path: '/api/v1/recipes/photo',
+    body: payload,
+    signInMessage: 'Please sign in to create a recipe photo.',
+    fallbackMessage: 'Recipe photo generation is unavailable.',
+  });
+}
+
+export function requestGeneratedRecipePhotoUrl(payload: { imageId: string }): Promise<Pick<GeneratedRecipePhoto, 'imageUrl' | 'imageUrlExpiresAt'>> {
+  return postWithAuthRetry<Pick<GeneratedRecipePhoto, 'imageUrl' | 'imageUrlExpiresAt'>>({
+    path: '/api/v1/recipes/photo-url',
+    body: payload,
+    signInMessage: 'Please sign in to view your recipe photo.',
+    fallbackMessage: 'Recipe photo is unavailable.',
+  });
+}

@@ -128,6 +128,10 @@ export type CaloraRecipe = {
   id: string;
   name: string;
   image?: string | null;
+  /** Private generated-photo reference. The signed display URL can be renewed safely. */
+  imageId?: string | null;
+  imageUrlExpiresAt?: string | null;
+  imageStatus?: 'pending' | 'ready' | 'failed';
   category?: string | null;
   area?: string | null;
   description?: string | null;
@@ -318,6 +322,7 @@ type CaloraContextValue = {
   setActivityMinutes: (date: string, minutes: number) => void;
   saveMeal: (meal: Omit<SavedMeal, 'id'>) => void;
   saveRecipe: (recipe: Omit<CaloraRecipe, 'id'>) => CaloraRecipe;
+  updateRecipe: (recipeId: string, patch: Partial<Omit<CaloraRecipe, 'id'>>) => void;
   toggleSavedRecipe: (recipeId: string) => void;
   setThemePreference: (preference: ThemePreference) => void;
   completeOnboarding: (profile: Profile, consentAccepted: boolean) => void;
@@ -1064,6 +1069,10 @@ export function CaloraProvider({
       setLocalRecipes((current) => [...current, saved]);
       queueMutation('savedMeal', 'upsert');
       return saved;
+    },
+    updateRecipe: (recipeId, patch) => {
+      setLocalRecipes((current) => current.map((recipe) => recipe.id === recipeId ? { ...recipe, ...patch, updatedAt: new Date().toISOString() } : recipe));
+      queueMutation('savedMeal', 'upsert');
     },
     toggleSavedRecipe: (recipeId) => {
       setSavedRecipeIds((current) => current.includes(recipeId) ? current.filter((id) => id !== recipeId) : [...current, recipeId]);

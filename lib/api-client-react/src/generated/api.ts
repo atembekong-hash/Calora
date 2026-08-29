@@ -34,6 +34,7 @@ import type {
   DiaryFirstLogInput,
   DiaryFirstLogResult,
   ExportRequest,
+  GenerateRecipePhoto200,
   HealthStatus,
   ListDiaryEntries200,
   ListDiaryEntriesParams,
@@ -49,10 +50,13 @@ import type {
   ProfileInput,
   Recipe,
   RecipeList,
+  RecipePhotoGenerateInput,
+  RecipePhotoUrlInput,
   ReferralActivateResult,
   ReferralRedeemInput,
   ReferralRedeemResult,
   ReferralSummary,
+  RefreshRecipePhotoUrl200,
   RestaurantFood,
   RestaurantFoodList,
   SearchFoods200,
@@ -1007,6 +1011,148 @@ export function useListRecipes<TData = Awaited<ReturnType<typeof listRecipes>>, 
 
 
 
+
+export const getGenerateRecipePhotoUrl = () => {
+
+
+
+
+  return `/api/v1/recipes/photo`
+}
+
+/**
+ * @summary Generate a private photo for a completed Calora AI recipe
+ */
+export const generateRecipePhoto = async (recipePhotoGenerateInput: RecipePhotoGenerateInput, options?: Parameters<typeof customFetch>[1]): Promise<GenerateRecipePhoto200> => {
+
+  return customFetch<GenerateRecipePhoto200>(getGenerateRecipePhotoUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recipePhotoGenerateInput)
+  }
+);}
+
+
+
+
+
+export const getGenerateRecipePhotoMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipePhoto>>, TError,{data: BodyType<RecipePhotoGenerateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateRecipePhoto>>, TError,{data: BodyType<RecipePhotoGenerateInput>}, TContext> => {
+
+const mutationKey = ['generateRecipePhoto'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateRecipePhoto>>, {data: BodyType<RecipePhotoGenerateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateRecipePhoto(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateRecipePhotoMutationResult = NonNullable<Awaited<ReturnType<typeof generateRecipePhoto>>>
+    export type GenerateRecipePhotoMutationBody = BodyType<RecipePhotoGenerateInput>
+    export type GenerateRecipePhotoMutationError = ErrorType<void>
+
+    /**
+ * @summary Generate a private photo for a completed Calora AI recipe
+ */
+export const useGenerateRecipePhoto = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipePhoto>>, TError,{data: BodyType<RecipePhotoGenerateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateRecipePhoto>>,
+        TError,
+        {data: BodyType<RecipePhotoGenerateInput>},
+        TContext
+      > => {
+      return useMutation(getGenerateRecipePhotoMutationOptions(options));
+    }
+
+export const getRefreshRecipePhotoUrlUrl = () => {
+
+
+
+
+  return `/api/v1/recipes/photo-url`
+}
+
+/**
+ * @summary Refresh a signed display URL for a private recipe photo
+ */
+export const refreshRecipePhotoUrl = async (recipePhotoUrlInput: RecipePhotoUrlInput, options?: Parameters<typeof customFetch>[1]): Promise<RefreshRecipePhotoUrl200> => {
+
+  return customFetch<RefreshRecipePhotoUrl200>(getRefreshRecipePhotoUrlUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recipePhotoUrlInput)
+  }
+);}
+
+
+
+
+
+export const getRefreshRecipePhotoUrlMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshRecipePhotoUrl>>, TError,{data: BodyType<RecipePhotoUrlInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshRecipePhotoUrl>>, TError,{data: BodyType<RecipePhotoUrlInput>}, TContext> => {
+
+const mutationKey = ['refreshRecipePhotoUrl'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshRecipePhotoUrl>>, {data: BodyType<RecipePhotoUrlInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  refreshRecipePhotoUrl(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshRecipePhotoUrlMutationResult = NonNullable<Awaited<ReturnType<typeof refreshRecipePhotoUrl>>>
+    export type RefreshRecipePhotoUrlMutationBody = BodyType<RecipePhotoUrlInput>
+    export type RefreshRecipePhotoUrlMutationError = ErrorType<void>
+
+    /**
+ * @summary Refresh a signed display URL for a private recipe photo
+ */
+export const useRefreshRecipePhotoUrl = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshRecipePhotoUrl>>, TError,{data: BodyType<RecipePhotoUrlInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshRecipePhotoUrl>>,
+        TError,
+        {data: BodyType<RecipePhotoUrlInput>},
+        TContext
+      > => {
+      return useMutation(getRefreshRecipePhotoUrlMutationOptions(options));
+    }
 
 export const getGetRecipeUrl = (recipeId: string,) => {
 
