@@ -1213,6 +1213,10 @@ export default function HomeScreen() {
             );
           })}
         </View>
+        <View style={styles.footerNote}>
+          <Feather name="check-circle" size={15} color={colors.success} />
+          <Text style={[styles.footerNoteText, { color: colors.mutedForeground }]}>{syncState === 'needs-connection' ? 'Saved locally · sync pending' : syncState === 'local' ? 'Saved locally · ready to sync' : syncState === 'offline' ? 'Loading local diary…' : 'Verified core nutrition.'}</Text>
+        </View>
         {todayInsight ? (
           <Surface tier="flat" radius="lg" testID="today-contextual-insight"
             accessibilityRole="summary"
@@ -1224,6 +1228,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.todayInsightCopy}>
               <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{todayInsight.title}</Text>
+              <Text style={[styles.todayInsightMessage, { color: colors.mutedForeground }]}>{todayInsight.message}</Text>
             </View>
           </Surface>
         ) : null}
@@ -1285,6 +1290,7 @@ function makeStyles(f: number) {
    todayInsightIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
    todayInsightCopy: { flex: 1, minWidth: 0 },
    todayInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, lineHeight: 20 * f },
+    todayInsightMessage: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, lineHeight: 19 * f, marginTop: 4 },
    fuelSnapshot: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 16, marginTop: 6 },
    fuelSnapshotItem: { flex: 1, alignItems: 'center' },
    fuelSnapshotValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 18 * f, letterSpacing: -0.4 },
@@ -1388,6 +1394,8 @@ function makeStyles(f: number) {
    emptyDiaryVisual: { width: '100%', height: 74, borderRadius: 16, overflow: 'hidden', marginBottom: 10 },
   emptyDiaryTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, marginTop: 4 },
   emptyDiaryBody: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, textAlign: 'center', maxWidth: 240 },
+  footerNote: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 20 },
+  footerNoteText: { fontFamily: 'Inter_500Medium', fontSize: 12 * f },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   modalCard: { maxHeight: '92%', borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12 },
   modalScrollContent: { paddingBottom: 32 },
