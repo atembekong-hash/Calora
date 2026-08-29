@@ -1401,16 +1401,14 @@ export default function HomeScreen() {
           onMood={(mood) => { setMood(selectedDate, mood); setSaveNotice('Mood check-in saved for this day.'); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
         />
 
-        <View style={styles.mealHeader}>
-          <View>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text>
-          </View>
-          <ScalePressable onPress={() => openAdd()} accessibilityLabel="Add meal" scale={0.96} haptic="none" style={[styles.addMealButton, { backgroundColor: colors.primary }]}>
-            <Feather name="plus" size={14} color={colors.primaryForeground} />
-            <Text style={[styles.addMealText, { color: colors.primaryForeground }]}>Add</Text>
-          </ScalePressable>
-        </View>
         <View style={[styles.logCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.logCardHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today’s log' : 'Diary log'}</Text>
+            <ScalePressable onPress={() => openAdd()} accessibilityLabel="Add meal" scale={0.96} haptic="none" style={[styles.addMealButton, { backgroundColor: colors.primary }]}>
+              <Feather name="plus" size={14} color={colors.primaryForeground} />
+              <Text style={[styles.addMealText, { color: colors.primaryForeground }]}>Add</Text>
+            </ScalePressable>
+          </View>
           {!selectedLogs.length && <View style={styles.emptyDiary}><View style={styles.emptyDiaryVisual}><Image source={require('../../assets/images/calora-home-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} /><LinearGradient colors={['rgba(18,34,24,0.1)', 'rgba(18,34,24,0.68)']} style={StyleSheet.absoluteFillObject} /></View><Feather name="calendar" size={22} color={colors.mutedForeground} /><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>No meals yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal. It stays here offline.</Text></View>}
           {mealOrder.map((meal) => {
             const mealLogs = selectedLogs.filter((log) => log.meal === meal);
@@ -1614,7 +1612,8 @@ function makeStyles(f: number) {
   mealHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 6 },
   addMealButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7 },
   addMealText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
-  logCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  logCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
+  logCardHeader: { minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth },
   mealGroup: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, letterSpacing: 1.2, marginTop: 16, marginBottom: 4, textTransform: 'uppercase' },
   mealRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
   mealInfo: { flex: 1, minWidth: 0 },

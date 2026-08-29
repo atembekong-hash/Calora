@@ -283,6 +283,24 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source.indexOf('<PlannerPeek')).toBeLessThan(source.indexOf('<RecipeSwipeWidget'));
   });
 
+  it('keeps the diary title and Add action inside the log card', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+    const logCardStart = source.indexOf('styles.logCard');
+    const logCardHeader = source.indexOf('styles.logCardHeader');
+    const diaryTitle = source.indexOf('{isToday(selectedDate) ? \'Today’s log\' : \'Diary log\'}');
+    const addAction = source.indexOf('accessibilityLabel="Add meal"', logCardHeader);
+
+    expect(logCardStart).toBeGreaterThan(-1);
+    expect(logCardHeader).toBeGreaterThan(logCardStart);
+    expect(diaryTitle).toBeGreaterThan(logCardHeader);
+    expect(addAction).toBeGreaterThan(logCardHeader);
+  });
+
   it('mounts a single secondary Today insight between the diary footer and planner', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
