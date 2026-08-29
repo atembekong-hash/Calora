@@ -530,7 +530,7 @@ function AnimatedWaterSlot({ filled, muted }: { filled: boolean; muted: string }
   const cupFill = filled ? '#8db8ed' : 'transparent';
   return (
     <Animated.View style={[styles.waterSlot, animStyle]}>
-      <Svg width={24} height={28} viewBox="0 0 24 28">
+      <Svg width={30} height={35} viewBox="0 0 24 28">
         <Path d="M4 5h16l-1.5 18H5.5L4 5Z" fill={cupFill} stroke={cupStroke} strokeWidth={1.5} strokeLinejoin="round" />
         <Path d="M3 4h18" stroke={cupStroke} strokeWidth={2} strokeLinecap="round" />
         <Path d="M7 13h10l-.8 8H7.8L7 13Z" fill={filled ? '#b9d7ff' : 'transparent'} opacity={0.72} />
@@ -1391,8 +1391,8 @@ function makeStyles(f: number) {
   wellnessCardTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f, flexShrink: 1 },
   wellnessValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 22 * f, letterSpacing: -0.5 },
   wellnessUnit: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, letterSpacing: 0 },
-  waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 28, marginTop: 12, marginBottom: 14 },
-  waterSlot: { flex: 1, height: 28, alignItems: 'center', justifyContent: 'flex-end' },
+  waterSlots: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 35, marginTop: 12, marginBottom: 14 },
+  waterSlot: { flex: 1, height: 35, alignItems: 'center', justifyContent: 'flex-end' },
   waterSummary: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   waterCupsLogged: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 14, minHeight: 18 },
