@@ -795,10 +795,10 @@ function CalorieGauge({
   const overGoal  = consumed > adjustedTarget;
 
   // Responsive sizing:
-  //   heroCard extends through the scrollContent's 20px H padding each side
-  //   and keeps its own 20px padding → inner = windowWidth - 40
+  //   heroCard sits 10px into the scrollContent's 20px H padding each side
+  //   and keeps its own 20px padding → inner = windowWidth - 60
   //   gauge fills the full inner card width (Eaten/Burned move below)
-  const cardInnerW = windowWidth - 40;
+  const cardInnerW = windowWidth - 60;
   const gaugeW     = Math.min(cardInnerW, 340);
   const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE;
 
@@ -1310,7 +1310,7 @@ export default function HomeScreen() {
 function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
-   homeHeader: { minHeight: 139, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -20, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
+    homeHeader: { minHeight: 139, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
     homeHeaderContent: { minHeight: 139, padding: 18, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 16, left: 20, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   homeHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -1330,7 +1330,7 @@ function makeStyles(f: number) {
   greeting: { fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8 },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: 'Inter_700Bold', fontSize: 17 * f },
-    heroCard: { borderRadius: 24, borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingVertical: 18, paddingHorizontal: 20, marginHorizontal: -20, marginBottom: 20, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#17231f', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 8 },
+    heroCard: { borderRadius: 24, borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingVertical: 18, paddingHorizontal: 20, marginHorizontal: -10, marginBottom: 20, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#17231f', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 8 },
    heroInsight: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, lineHeight: 18, marginTop: 14, opacity: 0.85 },
    todayInsightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 16, marginTop: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
    todayInsightIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
