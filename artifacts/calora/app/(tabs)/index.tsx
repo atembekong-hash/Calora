@@ -949,17 +949,11 @@ export default function HomeScreen() {
     waterLogs,
     weights,
   ]);
-  const compactTodayInsightTitle = todayInsight
-    ? ({
-        calorie_status: 'Target reached',
-        macro_balance: 'Protein trailing',
-        meal_distribution: 'Calories concentrated',
-        weight_trend: 'Weight pattern',
-        nutrition_coverage: 'Nutrition coverage',
-        macro_record_coverage: 'Macro coverage',
-        weight_baseline: 'Weight baseline',
-      } as Record<string, string>)[todayInsight.category ?? ''] ?? todayInsight.title
-    : null;
+  const todayInsightMessage = todayInsight?.message
+    ?.replace('Across your logged 28-day comparison window, ', '')
+    .replace(' local-calendar', '')
+    .replace('today’s logged calories', 'logged calories')
+    .replace('while more than half of daily calories are logged.', 'after half your calories are logged.');
 
   const openAdd = (mode: AddFoodEntryMode = 'search') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1231,14 +1225,15 @@ export default function HomeScreen() {
         {todayInsight ? (
           <Surface tier="flat" radius="lg" testID="today-contextual-insight"
             accessibilityRole="summary"
-            accessibilityLabel={`Today insight: ${compactTodayInsightTitle}`}
+            accessibilityLabel={`Today insight: ${todayInsight.title}. ${todayInsightMessage}`}
             style={[styles.todayInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
             <View style={[styles.todayInsightIcon, { backgroundColor: colors.accent }]}>
               <CaloraFeatureIcon name="rhythm" size={27} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
             </View>
             <View style={styles.todayInsightCopy}>
-              <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{compactTodayInsightTitle}</Text>
+              <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{todayInsight.title}</Text>
+              <Text style={[styles.todayInsightMessage, { color: colors.mutedForeground }]}>{todayInsightMessage}</Text>
             </View>
           </Surface>
         ) : null}
@@ -1299,8 +1294,8 @@ function makeStyles(f: number) {
    todayInsightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 16, marginTop: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
    todayInsightIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
    todayInsightCopy: { flex: 1, minWidth: 0 },
-   todayInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, lineHeight: 20 * f },
-    todayInsightMessage: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, lineHeight: 19 * f, marginTop: 4 },
+   todayInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, lineHeight: 16 * f },
+    todayInsightMessage: { fontFamily: 'Inter_500Medium', fontSize: 10.4 * f, lineHeight: 15.2 * f, marginTop: 4 },
    fuelSnapshot: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 16, marginTop: 6 },
    fuelSnapshotItem: { flex: 1, alignItems: 'center' },
    fuelSnapshotValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 18 * f, letterSpacing: -0.4 },
