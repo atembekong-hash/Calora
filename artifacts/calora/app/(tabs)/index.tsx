@@ -1224,7 +1224,6 @@ export default function HomeScreen() {
             </View>
             <View style={styles.todayInsightCopy}>
               <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{todayInsight.title}</Text>
-              <Text style={[styles.todayInsightMessage, { color: colors.mutedForeground }]}>{todayInsight.message}</Text>
             </View>
           </Surface>
         ) : null}
@@ -1286,7 +1285,6 @@ function makeStyles(f: number) {
    todayInsightIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
    todayInsightCopy: { flex: 1, minWidth: 0 },
    todayInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, lineHeight: 20 * f },
-   todayInsightMessage: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, lineHeight: 19 * f, marginTop: 4 },
    fuelSnapshot: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 16, marginTop: 6 },
    fuelSnapshotItem: { flex: 1, alignItems: 'center' },
    fuelSnapshotValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 18 * f, letterSpacing: -0.4 },
