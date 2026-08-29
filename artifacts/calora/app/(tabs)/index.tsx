@@ -57,7 +57,7 @@ const GAUGE_R   = 90;
 const GAUGE_STROKE = 13;
 const GAUGE_START  = 135; // °from positive x-axis (SVG y-down, clockwise)
 const GAUGE_SWEEP  = 270;
-const GAUGE_HEIGHT_SCALE = 0.8;
+const GAUGE_HEIGHT_SCALE = 0.72;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
 const _gaugePt = (deg: number) => ({
   x: GAUGE_CX + GAUGE_R * Math.cos((deg * Math.PI) / 180),
@@ -1269,8 +1269,8 @@ export default function HomeScreen() {
 function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
-   homeHeader: { minHeight: 154, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -20, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
-   homeHeaderContent: { minHeight: 154, padding: 20, justifyContent: 'flex-end' },
+   homeHeader: { minHeight: 139, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -20, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
+    homeHeaderContent: { minHeight: 139, padding: 18, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 16, left: 20, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   homeHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   homeHeaderBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.3)' },
@@ -1289,18 +1289,18 @@ function makeStyles(f: number) {
   greeting: { fontFamily: 'Inter_800ExtraBold', fontSize: 28 * f, letterSpacing: -0.8 },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontFamily: 'Inter_700Bold', fontSize: 17 * f },
-    heroCard: { borderRadius: 24, borderTopLeftRadius: 0, borderTopRightRadius: 0, padding: 20, marginHorizontal: -20, marginBottom: 20, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#17231f', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 8 },
-  heroInsight: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, lineHeight: 18, marginTop: 16, opacity: 0.85 },
+    heroCard: { borderRadius: 24, borderTopLeftRadius: 0, borderTopRightRadius: 0, paddingVertical: 18, paddingHorizontal: 20, marginHorizontal: -20, marginBottom: 20, borderWidth: StyleSheet.hairlineWidth, shadowColor: '#17231f', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 8 },
+   heroInsight: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, lineHeight: 18, marginTop: 14, opacity: 0.85 },
    todayInsightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 16, marginTop: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
    todayInsightIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
    todayInsightCopy: { flex: 1, minWidth: 0 },
    todayInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, lineHeight: 16 * f },
     todayInsightMessage: { fontFamily: 'Inter_500Medium', fontSize: 10.4 * f, lineHeight: 15.2 * f, marginTop: 4 },
-   fuelSnapshot: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 16, marginTop: 6 },
+    fuelSnapshot: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14, marginTop: 5 },
    fuelSnapshotItem: { flex: 1, alignItems: 'center' },
    fuelSnapshotValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 18 * f, letterSpacing: -0.4 },
    fuelSnapshotLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4, textAlign: 'center' },
-   livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 16, paddingHorizontal: 16, marginTop: 20 },
+    livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 42, borderRadius: 16, paddingHorizontal: 16, marginTop: 18 },
    livingActionSecondary: { borderWidth: StyleSheet.hairlineWidth },
   livingActionText: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   livingRhythmCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, padding: 20, marginBottom: 24, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
