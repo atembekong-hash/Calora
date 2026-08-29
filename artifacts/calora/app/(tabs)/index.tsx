@@ -313,17 +313,21 @@ const moodOptions: Array<{ value: Mood; label: string; icon: keyof typeof Feathe
   { value: 'stressed', label: 'Stressed', icon: 'activity' },
 ];
 
+const waterQuickAmounts = [4, 8, 16] as const;
+
 function WaterCard({
   colors,
   waterOunces,
   waterConfirmed,
+  waterConfirmedAmount,
   onAddWater,
   onSubtractWater,
 }: {
   colors: ReturnType<typeof useCalora>['colors'];
   waterOunces: number;
   waterConfirmed: boolean;
-  onAddWater: () => void;
+  waterConfirmedAmount: number | null;
+  onAddWater: (ounces: number) => void;
   onSubtractWater: () => void;
 }) {
   const waterGoal = 64;
@@ -348,6 +352,23 @@ function WaterCard({
           ))}
         </View>
         <View style={styles.waterAdjustActions}>
+          <View style={styles.waterQuickActions}>
+            {waterQuickAmounts.map((ounces) => (
+              <ScalePressable
+                key={ounces}
+                accessibilityLabel={waterConfirmed && waterConfirmedAmount === ounces ? 'Water added' : `Add ${ounces} fluid ounces of water`}
+                testID={ounces === 8 ? 'log-water-button' : `log-water-${ounces}-button`}
+                disabled={waterConfirmed}
+                onPress={() => onAddWater(ounces)}
+                haptic="none"
+                scale={0.96}
+                style={[styles.waterAdjustButton, { backgroundColor: colors.accent, borderColor: colors.accent, opacity: waterConfirmed ? 0.72 : 1 }]}
+              >
+                <Feather name={waterConfirmed && waterConfirmedAmount === ounces ? 'check' : 'plus'} size={15} color={colors.accentForeground} />
+                <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>{waterConfirmed && waterConfirmedAmount === ounces ? 'Added ✓' : `${ounces} fl oz`}</Text>
+              </ScalePressable>
+            ))}
+          </View>
           <ScalePressable
             accessibilityLabel={normalizedWater > 0 ? 'Subtract 8 fluid ounces of water' : 'Subtract water disabled at zero'}
             testID="subtract-water-button"
@@ -359,18 +380,6 @@ function WaterCard({
           >
             <Feather name="minus" size={15} color={colors.foreground} />
             <Text style={[styles.wellnessActionText, { color: colors.foreground }]}>8 fl oz</Text>
-          </ScalePressable>
-          <ScalePressable
-            accessibilityLabel={waterConfirmed ? 'Water added' : 'Add 8 fluid ounces of water'}
-            testID="log-water-button"
-            disabled={waterConfirmed}
-            onPress={onAddWater}
-            haptic="none"
-            scale={0.96}
-            style={[styles.waterAdjustButton, { backgroundColor: colors.accent, borderColor: colors.accent, opacity: waterConfirmed ? 0.72 : 1 }]}
-          >
-            <Feather name="plus" size={15} color={colors.accentForeground} />
-            <Text style={[styles.wellnessActionText, { color: colors.accentForeground }]}>{waterConfirmed ? 'Added ✓' : '8 fl oz'}</Text>
           </ScalePressable>
         </View>
       </View>
@@ -893,6 +902,7 @@ export default function HomeScreen() {
   const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [waterConfirmed, setWaterConfirmed] = useState(false);
+  const [waterConfirmedAmount, setWaterConfirmedAmount] = useState<number | null>(null);
   const target = profile?.calorieTarget ?? 2000;
   const selectedLogs = logs.filter((log) => log.date === selectedDate || (!log.date && isToday(selectedDate)));
   const selectedTotals = useMemo(() => selectedLogs.reduce((sum, log) => ({
@@ -976,6 +986,7 @@ export default function HomeScreen() {
       setSaveNotice('Water check-in added for this day.');
       recordWaterConfirmation();
       setWaterConfirmed(true);
+      setWaterConfirmedAmount(effect.ounces);
     } else {
       router.navigate(effect.route as Parameters<typeof router.navigate>[0]);
     }
@@ -1001,11 +1012,13 @@ export default function HomeScreen() {
     const remaining = getWaterConfirmationRemaining();
     if (remaining === 0) {
       setWaterConfirmed(false);
+      setWaterConfirmedAmount(null);
       clearWaterConfirmation();
       return;
     }
     const id = setTimeout(() => {
       setWaterConfirmed(false);
+      setWaterConfirmedAmount(null);
       clearWaterConfirmation();
     }, remaining);
     return () => clearTimeout(id);
@@ -1127,7 +1140,8 @@ export default function HomeScreen() {
           colors={colors}
           waterOunces={selectedWater}
           waterConfirmed={waterConfirmed}
-          onAddWater={() => {
+          waterConfirmedAmount={waterConfirmedAmount}
+          onAddWater={(ounces) => {
             // isWaterConfirmed is the synchronous authority for the 1.5-second
             // window. The React state remains responsible for the visual
             // confirmation, but cannot alone protect against a double tap in
@@ -1136,11 +1150,12 @@ export default function HomeScreen() {
               setWaterConfirmed(true);
               return;
             }
-            addWater(selectedDate, 8);
-            setSaveNotice('Water check-in added for this day.');
+            addWater(selectedDate, ounces);
+            setSaveNotice(`${ounces} fl oz added for this day.`);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             recordWaterConfirmation();
             setWaterConfirmed(true);
+            setWaterConfirmedAmount(ounces);
           }}
           onSubtractWater={() => {
             if (selectedWater <= 0) return;
@@ -1348,7 +1363,8 @@ function makeStyles(f: number) {
   mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 14, minHeight: 18 },
   wellnessAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 10, marginTop: 'auto' },
   wellnessActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  waterAdjustActions: { flexDirection: 'row', gap: 8, marginTop: 'auto' },
+  waterAdjustActions: { gap: 8, marginTop: 'auto' },
+  waterQuickActions: { flexDirection: 'row', gap: 8 },
   waterAdjustButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingVertical: 10 },
   moodCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 2 },
   moodHeading: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
