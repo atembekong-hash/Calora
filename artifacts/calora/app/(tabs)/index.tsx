@@ -229,17 +229,56 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
   const { data, isLoading, isError } = useListRecipes({ limit: 6, offset: 0 }, { query: { queryKey: ['dashboard-recipes'], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   const recipes = data?.recipes ?? [];
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
+  const autoScrollFrameRef = React.useRef<number | null>(null);
   const [activeRecipe, setActiveRecipe] = useState(0);
   const pageWidth = 322;
   const snapToRecipe = (nextIndex: number) => {
+    if (autoScrollFrameRef.current !== null) {
+      cancelAnimationFrame(autoScrollFrameRef.current);
+      autoScrollFrameRef.current = null;
+    }
     const next = Math.max(0, Math.min(nextIndex, recipes.length - 1));
     setActiveRecipe(next);
     carouselRef.current?.scrollToIndex({ index: next, animated: true });
   };
+  const smoothlyAdvanceToRecipe = (nextIndex: number) => {
+    const next = Math.max(0, Math.min(nextIndex, recipes.length - 1));
+    if (next === activeRecipe) return;
+    if (next === 0 && activeRecipe === recipes.length - 1) {
+      snapToRecipe(0);
+      return;
+    }
+    if (autoScrollFrameRef.current !== null) {
+      cancelAnimationFrame(autoScrollFrameRef.current);
+    }
+    const fromOffset = activeRecipe * pageWidth;
+    const toOffset = next * pageWidth;
+    const startedAt = performance.now();
+    const duration = 1200;
+    const animate = (now: number) => {
+      const progress = Math.min((now - startedAt) / duration, 1);
+      const eased = progress < 0.5
+        ? 2 * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+      carouselRef.current?.scrollToOffset({ offset: fromOffset + (toOffset - fromOffset) * eased, animated: false });
+      if (progress < 1) {
+        autoScrollFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        autoScrollFrameRef.current = null;
+        setActiveRecipe(next);
+      }
+    };
+    autoScrollFrameRef.current = requestAnimationFrame(animate);
+  };
+  useEffect(() => () => {
+    if (autoScrollFrameRef.current !== null) {
+      cancelAnimationFrame(autoScrollFrameRef.current);
+    }
+  }, []);
   useEffect(() => {
     if (recipes.length <= 1) return;
     const timer = setTimeout(() => {
-      snapToRecipe(activeRecipe >= recipes.length - 1 ? 0 : activeRecipe + 1);
+      smoothlyAdvanceToRecipe(activeRecipe >= recipes.length - 1 ? 0 : activeRecipe + 1);
     }, 5000);
     return () => clearTimeout(timer);
   }, [activeRecipe, recipes.length]);
