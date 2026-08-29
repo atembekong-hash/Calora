@@ -1169,7 +1169,6 @@ export default function HomeScreen() {
           <View style={styles.sectionHeader}>
             <View>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Macro balance</Text>
-              <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Nutrition for this day.</Text>
             </View>
             <ScalePressable
               accessibilityLabel="Edit nutrition goals"
