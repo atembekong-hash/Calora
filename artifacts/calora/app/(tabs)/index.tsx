@@ -250,10 +250,6 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
             <ScalePressable accessibilityLabel="Previous dashboard recipe" onPress={() => snapToRecipe(activeRecipe - 1)} scale={0.95} haptic="none" style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={15} color={colors.foreground} /></ScalePressable>
             <ScalePressable accessibilityLabel="Next dashboard recipe" onPress={() => snapToRecipe(activeRecipe + 1)} scale={0.95} haptic="none" style={[styles.recipeWidgetNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={15} color={colors.foreground} /></ScalePressable>
           </View>}
-          <View style={[styles.recipeWidgetBadge, { backgroundColor: colors.accent }]}>
-             <CaloraFeatureIcon name="recipes" size={21} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.accentForeground} />
-            <Text style={[styles.recipeWidgetBadgeText, { color: colors.accentForeground }]}>RECIPES</Text>
-          </View>
         </View>
       </View>
       {isLoading ? (
@@ -1329,10 +1325,8 @@ function makeStyles(f: number) {
   recipeWidgetHeaderActions: { alignItems: 'flex-end', gap: 8 },
   recipeWidgetNav: { flexDirection: 'row', gap: 6 },
   recipeWidgetNavButton: { width: 30, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  recipeWidgetBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },
-  recipeWidgetBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.0 },
   recipeWidgetPages: { },
-  recipeWidgetCard: { width: 322, height: 162, borderRadius: 18, overflow: 'hidden', position: 'relative' },
+  recipeWidgetCard: { width: 322, height: 146, borderRadius: 18, overflow: 'hidden', position: 'relative' },
   recipeWidgetImage: { ...StyleSheet.absoluteFillObject },
   recipeWidgetCopy: { flex: 1, justifyContent: 'flex-end', padding: 14 },
   recipeWidgetEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase' },
@@ -1341,7 +1335,7 @@ function makeStyles(f: number) {
   recipeWidgetMeta: { color: '#d4eadc', fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   recipeWidgetAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   recipeWidgetActionText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  recipeWidgetLoading: { height: 162, alignItems: 'center', justifyContent: 'center', gap: 9 },
+  recipeWidgetLoading: { height: 146, alignItems: 'center', justifyContent: 'center', gap: 9 },
   loadingText: { fontFamily: 'Inter_500Medium', fontSize: 12 * f },
   wellnessSection: { gap: 14, marginBottom: 28 },
   wellnessRow: { flexDirection: 'row', gap: 12 },
