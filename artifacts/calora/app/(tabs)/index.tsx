@@ -431,7 +431,6 @@ function MoodCard({
       <View style={styles.moodHeading}>
         <View>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>How are you feeling?</Text>
-          <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{mood ? `Logged as ${moodOptions.find((item) => item.value === mood)?.label.toLowerCase()}.` : 'A quick check-in, whenever it feels useful.'}</Text>
         </View>
         <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="mood" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
       </View>
