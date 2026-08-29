@@ -205,7 +205,7 @@ export function deriveLivingState(input: LivingStateInput): LivingState {
   } else if ((period === 'midday' || period === 'afternoon') && !hasLunchToday) {
     focus = 'lunch';
     headline = 'Lunch is the next useful step.';
-    message = 'Fit your day.';
+    message = 'Make today work.';
     reason = mealsToday > 0
       ? 'You already have part of the day captured, so lunch can complete the picture.'
       : 'A lunch entry will make the rest of today easier to read.';
