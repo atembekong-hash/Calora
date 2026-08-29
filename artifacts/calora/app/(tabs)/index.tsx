@@ -191,7 +191,6 @@ function LivingRhythmCard({
           <Text style={[styles.livingRhythmStageText, { color: colors.mutedForeground }]}>{livingCategoryLabel[livingState.category]}</Text>
         </View>
       </View>
-      <Text style={[styles.livingRhythmBody, { color: colors.mutedForeground }]}>{copy.body}</Text>
       <View style={styles.livingRhythmSignals}>
         <View style={styles.livingRhythmSignal}>
           <Text style={[styles.livingRhythmValue, { color: colors.foreground }]}>{mealsLogged}</Text>
@@ -1303,20 +1302,19 @@ function makeStyles(f: number) {
     livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 42, borderRadius: 16, paddingHorizontal: 16, marginTop: 18 },
    livingActionSecondary: { borderWidth: StyleSheet.hairlineWidth },
   livingActionText: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
-  livingRhythmCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: 18, paddingHorizontal: 20, marginBottom: 24, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+  livingRhythmCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: 17, paddingHorizontal: 20, marginBottom: 24, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   livingRhythmHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   livingRhythmIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  livingRhythmTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 18 * f, letterSpacing: -0.3 },
+  livingRhythmTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.3 },
   livingRhythmStage: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },
   livingRhythmStageText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, textTransform: 'capitalize' },
-  livingRhythmBody: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, lineHeight: 19, marginTop: 11, maxWidth: 300 },
-  livingRhythmSignals: { flexDirection: 'row', alignItems: 'center', marginTop: 18 },
+  livingRhythmSignals: { flexDirection: 'row', alignItems: 'center', marginTop: 17 },
   livingRhythmSignal: { flex: 1 },
   livingRhythmValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 20 * f, letterSpacing: -0.4 },
   livingRhythmUnit: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   livingRhythmLabel: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 4 },
-  livingRhythmDivider: { width: 1, height: 29, marginHorizontal: 16 },
-  livingRhythmTracks: { flexDirection: 'row', gap: 14, marginTop: 18 },
+  livingRhythmDivider: { width: 1, height: 28, marginHorizontal: 16 },
+  livingRhythmTracks: { flexDirection: 'row', gap: 14, marginTop: 17 },
   livingRhythmTrackGroup: { flex: 1, gap: 6 },
   livingRhythmTrackLabel: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, textTransform: 'uppercase', letterSpacing: 0.8 },
   livingRhythmTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
