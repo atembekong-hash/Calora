@@ -3,6 +3,23 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 describe('Recipes Discover layout contracts', () => {
+  it('gives every recipe-creation starting point a visible option tray', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("const CREATOR_STYLE_OPTIONS = ['Balanced', 'High protein', 'Vegetarian', 'Vegan', 'Quick & light']");
+    expect(source).toContain("const CREATOR_SURPRISE_OPTIONS = ['Fresh & light', 'Comforting', 'High protein', 'Pantry-friendly']");
+    expect(source).toContain("GUEST_INGREDIENT_OPTIONS = ['Eggs', 'Chicken', 'Lentils'");
+    expect(source).toContain("Choose ingredients");
+    expect(source).toContain("Start with a prompt");
+    expect(source).toContain("Pick the kind of surprise");
+    expect(source).toContain("Selected ingredients");
+    expect(source).toContain("const pantryIngredients = [ingredients, ingredientDraft].filter(Boolean).join(', ')");
+    expect(source).toContain("accessibilityLabel={`Choose ${option} prompt`}");
+  });
+
   it('reduces the Discover hero widget by 40% while preserving its content layer', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
