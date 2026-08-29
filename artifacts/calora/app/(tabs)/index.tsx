@@ -949,6 +949,17 @@ export default function HomeScreen() {
     waterLogs,
     weights,
   ]);
+  const compactTodayInsightTitle = todayInsight
+    ? ({
+        calorie_status: 'Target reached',
+        macro_balance: 'Protein trailing',
+        meal_distribution: 'Calories concentrated',
+        weight_trend: 'Weight pattern',
+        nutrition_coverage: 'Nutrition coverage',
+        macro_record_coverage: 'Macro coverage',
+        weight_baseline: 'Weight baseline',
+      } as Record<string, string>)[todayInsight.category ?? ''] ?? todayInsight.title
+    : null;
 
   const openAdd = (mode: AddFoodEntryMode = 'search') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1220,15 +1231,14 @@ export default function HomeScreen() {
         {todayInsight ? (
           <Surface tier="flat" radius="lg" testID="today-contextual-insight"
             accessibilityRole="summary"
-            accessibilityLabel={`Today insight: ${todayInsight.title}. ${todayInsight.message}`}
+            accessibilityLabel={`Today insight: ${compactTodayInsightTitle}`}
             style={[styles.todayInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
             <View style={[styles.todayInsightIcon, { backgroundColor: colors.accent }]}>
               <CaloraFeatureIcon name="rhythm" size={27} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
             </View>
             <View style={styles.todayInsightCopy}>
-              <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{todayInsight.title}</Text>
-              <Text style={[styles.todayInsightMessage, { color: colors.mutedForeground }]}>{todayInsight.message}</Text>
+              <Text style={[styles.todayInsightTitle, { color: colors.foreground }]}>{compactTodayInsightTitle}</Text>
             </View>
           </Surface>
         ) : null}
