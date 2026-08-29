@@ -378,7 +378,7 @@ function WaterCard({
 
   return (
     <View style={styles.wellnessSection} accessibilityLabel={`Water tracking: ${normalizedWater} fluid ounces, ${cupsLogged} cups logged`}>
-      <View style={[styles.wellnessCard, { flex: 0, width: '100%', minHeight: 246, backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.wellnessCard, { flex: 0, width: '100%', minHeight: 221, backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.wellnessCardHeader}>
           <View style={[styles.wellnessIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="water" size={26} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View>
           <Text style={[styles.wellnessCardTitle, { color: colors.foreground }]}>Water</Text>
