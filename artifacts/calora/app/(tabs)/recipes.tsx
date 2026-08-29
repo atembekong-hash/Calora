@@ -1067,7 +1067,7 @@ export default function RecipesScreen() {
   };
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <AppHeader title="Recipes" action={<Pressable accessibilityLabel="Create personalized recipe ideas" onPress={() => changeSection('create')}><Feather name="plus" size={21} color={colors.primary} /></Pressable>} />
+      <AppHeader title="Recipes" />
       <SwipeableTabList
         items={RECIPE_SECTIONS}
         activeItem={activeSection}

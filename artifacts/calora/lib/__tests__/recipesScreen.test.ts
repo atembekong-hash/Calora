@@ -25,4 +25,14 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('Plus filters');
     expect(source).toContain('Calora Plus membership');
   });
+
+  it('does not render a header action button', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('<AppHeader title="Recipes" />');
+    expect(source).not.toContain('Create personalized recipe ideas');
+  });
 });
