@@ -1518,7 +1518,7 @@ function makeStyles(f: number) {
    todayInsightCopy: { flex: 1, minWidth: 0 },
    todayInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, lineHeight: 16 * f },
     todayInsightMessage: { fontFamily: 'Inter_500Medium', fontSize: 10.4 * f, lineHeight: 15.2 * f, marginTop: 4 },
-     fuelSnapshot: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14, marginTop: 15 },
+     fuelSnapshot: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14, marginTop: 25 },
    fuelSnapshotItem: { flex: 1, alignItems: 'center' },
    fuelSnapshotValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 18 * f, letterSpacing: -0.4 },
    fuelSnapshotLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4, textAlign: 'center' },
