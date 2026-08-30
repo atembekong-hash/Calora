@@ -9,7 +9,7 @@ import { Surface } from '@/components/Surface';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
-import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getPremiumRecipe, getRecipe, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
+import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getPremiumRecipe, getRecipe, listPremiumRecipes, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
@@ -38,6 +38,7 @@ const RECIPE_SECTIONS = ['discover', 'premium', 'create'] as const;
 // Start the next request while several rows remain on screen. This gives the
 // network and image cache time to work before the reader reaches the end.
 const RECIPE_PREFETCH_DISTANCE = 900;
+const PREMIUM_RECIPE_PREFETCH_DISTANCE = 1600;
 
 function recipeKey(recipe: Recipe | CaloraRecipe) {
   return recipe.id;
@@ -366,6 +367,17 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     setLoadedForUserId(userId);
     loadingMoreRef.current = false;
   }, [data?.recipes, loadedForUserId, offset, userId]);
+  useEffect(() => {
+    if (!userId || accessDenied || data?.status !== 'available' || data.nextOffset == null) return;
+    const nextParams = { query: search || undefined, category: category || undefined, limit: RECIPE_PAGE_SIZE, offset: data.nextOffset };
+    const nextQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(nextParams));
+    void queryClient.prefetchQuery({
+      queryKey: nextQueryKey,
+      queryFn: ({ signal }) => listPremiumRecipes(nextParams, { signal }),
+      staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
+      retry: false,
+    }).catch(() => undefined);
+  }, [accessDenied, category, data?.nextOffset, data?.status, queryClient, search, userId]);
   useEffect(() => {
     onLoadMoreRef.current = () => {
       if (data?.nextOffset == null || query.isFetching || loadingMoreRef.current) return;
@@ -1165,7 +1177,7 @@ export default function RecipesScreen() {
   const handleRecipeScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     if (activeSection === 'premium') {
-      if (contentOffset.y + layoutMeasurement.height >= contentSize.height - RECIPE_PREFETCH_DISTANCE) premiumLoadMoreRef.current?.();
+      if (contentOffset.y + layoutMeasurement.height >= contentSize.height - PREMIUM_RECIPE_PREFETCH_DISTANCE) premiumLoadMoreRef.current?.();
       return;
     }
     if (activeSection !== 'discover') return;
