@@ -300,6 +300,22 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('setSelectedDate(dateKey(new Date()))');
   });
 
+  it('keeps the Add meal sheet reachable on native and gives the verified list room to scroll', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('styles.addFoodModalCard');
+    expect(source).toContain("maxHeight: '96%'");
+    expect(source).toContain('Math.max(insets.bottom + 28, 40)');
+    expect(source).toContain('keyboardShouldPersistTaps="handled"');
+    expect(source).toContain('style={{ maxHeight: 340 }}');
+    expect(source).toContain('nestedScrollEnabled');
+  });
+
   it('keeps the diary title and Add action inside the log card', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');

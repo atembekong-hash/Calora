@@ -869,6 +869,7 @@ type AddFoodEntryMode = 'search' | 'manual';
 
 function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: { visible: boolean; onClose: () => void; entryDate: string; initialMode?: AddFoodEntryMode }) {
   const { colors, addLog, savedMeals } = useCalora();
+  const insets = useSafeAreaInsets();
   const modalScrollRef = useRef<ScrollView>(null);
   const [search, setSearch] = useState('');
   const [customName, setCustomName] = useState('');
@@ -951,8 +952,13 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
-        <View style={[styles.modalCard, { backgroundColor: colors.background }]}>
-          <ScrollView ref={modalScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScrollContent}>
+        <View style={[styles.modalCard, styles.addFoodModalCard, { backgroundColor: colors.background }]}>
+          <ScrollView
+            ref={modalScrollRef}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={[styles.modalScrollContent, { paddingBottom: Math.max(insets.bottom + 28, 40) }]}
+          >
             <View style={styles.modalHandle} />
             <View style={styles.modalHeading}>
               <View>
@@ -1008,7 +1014,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
                   <TextInput value={search} onChangeText={setSearch} placeholder="Search verified foods" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />
                 </View>
                  <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>VERIFIED</Text>
-                <ScrollView style={{ maxHeight: 210 }} showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
                   {filtered.map((food) => (
                     <ScalePressable key={food.name} onPress={() => chooseFood(food)} scale={0.98} haptic="none" style={[styles.foodSuggestion, { borderBottomColor: colors.border }]}>
                       <View style={[styles.foodIcon, { backgroundColor: colors.accent }]}>
@@ -1812,6 +1818,7 @@ function makeStyles(f: number) {
   footerNoteText: { fontFamily: 'Inter_500Medium', fontSize: 9 * f },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   modalCard: { maxHeight: '92%', borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12 },
+  addFoodModalCard: { maxHeight: '96%' },
   modalScrollContent: { paddingBottom: 32 },
   modalHandle: { width: 42, height: 5, borderRadius: 3, backgroundColor: '#9aa69e', alignSelf: 'center', marginBottom: 20 },
   modalHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
