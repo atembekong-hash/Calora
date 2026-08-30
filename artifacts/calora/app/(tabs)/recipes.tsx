@@ -21,6 +21,7 @@ import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { applySlotReplace, getPlannerWeekStart, plannerDate, plannerMealTypes } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { BottomSheet } from '@/components/BottomSheet';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance, recipeSourceLabel } from '@/lib/recipeModel';
@@ -476,7 +477,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
    if (data?.status === 'unavailable') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="link-2" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus source not connected</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message}</Text></View>;
   const recipes = loadedRecipes;
   const savedRecipes = mergeSavedPremiumRecipes(savedRecipeIds, knownSavedRecipes, fetchedSavedRecipes);
-  return <><View style={styles.premiumToolbar}><View style={[styles.searchBox, { flex: 1, backgroundColor: colors.card, borderColor: colors.input }]}><Feather name="search" size={17} color={colors.mutedForeground} /><TextInput accessibilityLabel="Search Plus recipes" value={search} onChangeText={setSearch} placeholder="Search Plus recipes" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} /></View><Pressable accessibilityLabel="Open Plus recipe filters" onPress={() => setFilterVisible(true)} style={[styles.filterButton, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.foreground} /></Pressable></View><Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>{data?.provider} · provider-supplied recipe information</Text>{savedRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved Plus recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your Plus shortlist, ready when you are.</Text></View></View><SwipeGestureExclusion><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedRecipes.map((recipe) => <View key={recipe.id} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved imageHeight={160} onPress={() => onOpen(recipe)} onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }} /></View>)}</ScrollView></SwipeGestureExclusion></>}{recipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Plus recipes found</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{search || category ? 'Try a different search or filter.' : 'No Plus recipes are available from the provider right now.'}</Text></View> : <Animated.View entering={FadeInDown.springify().damping(20)} style={styles.recipeGrid}>{recipes.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => onOpen(recipe)} onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }} /></View>)}</Animated.View>}{query.isFetching && recipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text></View>}<Modal visible={filterVisible} transparent animationType="slide" onRequestClose={() => setFilterVisible(false)}><View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}><View accessibilityViewIsModal style={[styles.createSheet, { backgroundColor: colors.background }]}><Text style={[styles.detailTitle, { color: colors.foreground }]}>Plus filters</Text><Text style={[styles.inputLabel, { color: colors.mutedForeground, marginTop: 16 }]}>Category</Text><TextInput accessibilityLabel="Plus recipe category filter" value={category} onChangeText={setCategory} placeholder="e.g. Dinner" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} /><Pressable accessibilityLabel="Apply Plus recipe filters" onPress={() => setFilterVisible(false)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Apply filters</Text></Pressable></View></View></Modal></>;
+  return <><View style={styles.premiumToolbar}><View style={[styles.searchBox, { flex: 1, backgroundColor: colors.card, borderColor: colors.input }]}><Feather name="search" size={17} color={colors.mutedForeground} /><TextInput accessibilityLabel="Search Plus recipes" value={search} onChangeText={setSearch} placeholder="Search Plus recipes" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} /></View><Pressable accessibilityLabel="Open Plus recipe filters" onPress={() => setFilterVisible(true)} style={[styles.filterButton, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.foreground} /></Pressable></View><Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>{data?.provider} · provider-supplied recipe information</Text>{savedRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved Plus recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your Plus shortlist, ready when you are.</Text></View></View><SwipeGestureExclusion><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedRecipes.map((recipe) => <View key={recipe.id} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved imageHeight={160} onPress={() => onOpen(recipe)} onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }} /></View>)}</ScrollView></SwipeGestureExclusion></>}{recipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Plus recipes found</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{search || category ? 'Try a different search or filter.' : 'No Plus recipes are available from the provider right now.'}</Text></View> : <Animated.View entering={FadeInDown.springify().damping(20)} style={styles.recipeGrid}>{recipes.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={122} onPress={() => onOpen(recipe)} onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }} /></View>)}</Animated.View>}{query.isFetching && recipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text></View>}<BottomSheet visible={filterVisible} onRequestClose={() => setFilterVisible(false)} sheetStyle={[styles.bottomSheetContent, { backgroundColor: colors.background }]}><Text style={[styles.detailTitle, { color: colors.foreground }]}>Plus filters</Text><Text style={[styles.inputLabel, { color: colors.mutedForeground, marginTop: 16 }]}>Category</Text><TextInput accessibilityLabel="Plus recipe category filter" value={category} onChangeText={setCategory} placeholder="e.g. Dinner" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} /><Pressable accessibilityLabel="Apply Plus recipe filters" onPress={() => setFilterVisible(false)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Apply filters</Text></Pressable></BottomSheet></>;
 }
 
 function ReviewComponent({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (c: FoodMemoryComponent) => void }) {
@@ -759,9 +760,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recip
 
   return (
     <>
-    <Modal visible={recipe !== null} transparent animationType="slide" onRequestClose={handleClose}>
-      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
-        <View style={[styles.detailSheet, { backgroundColor: colors.background }]}>
+    <BottomSheet visible={recipe !== null} onRequestClose={handleClose} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
           {reviewDraft ? (
             /* Local recipe review flow — full portion/fraction editor */
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 30 }}>
@@ -923,14 +922,10 @@ function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recip
               </View>
             </ScrollView>
           )}
-        </View>
-      </View>
-    </Modal>
+    </BottomSheet>
 
       {/* Plan picker sheet */}
-      <Modal visible={planVisible} transparent animationType="slide" onRequestClose={() => setPlanVisible(false)}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
-          <View style={[styles.planSheet, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={planVisible} onRequestClose={() => setPlanVisible(false)} sheetStyle={[styles.planSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.reviewHeader}>
               <View style={{ flex: 1 }}>
@@ -952,14 +947,10 @@ function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recip
             <View style={styles.planMealRow}>{plannerMealTypes.map((type) => <Pressable key={type} accessibilityLabel={`Plan as ${type}`} onPress={() => setPlanMealType(type)} style={[styles.planMealChip, { backgroundColor: planMealType === type ? colors.accent : colors.card, borderColor: planMealType === type ? colors.accent : colors.border }]}><Text style={[styles.planMealText, { color: planMealType === type ? colors.accentForeground : colors.foreground }]}>{type}</Text></Pressable>)}</View>
             <ScalePressable accessibilityLabel="Confirm add recipe to plan" onPress={addToPlan} scale={0.96} haptic="light" style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Add to {planMealType.toLowerCase()} plan</Text></ScalePressable>
             <Pressable accessibilityLabel="Cancel add recipe to plan" onPress={() => setPlanVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
 
       {/* Feature 6: Smart diary sheet — meal type + serving count + live macro preview */}
-      <Modal visible={diaryVisible} transparent animationType="slide" onRequestClose={() => { if (!diaryLogged) setDiaryVisible(false); }}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
-          <View style={[styles.planSheet, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={diaryVisible} onRequestClose={() => { if (!diaryLogged) setDiaryVisible(false); }} sheetStyle={[styles.planSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.reviewHeader}>
               <View style={{ flex: 1 }}>
@@ -995,16 +986,12 @@ function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recip
               <Text style={[styles.primaryActionText, { color: diaryLogged ? colors.accentForeground : colors.primaryForeground }]}>{diaryLogged ? 'Added to diary!' : `Add to ${diaryMealType.toLowerCase()}`}</Text>
             </ScalePressable>
             {!diaryLogged && <Pressable accessibilityLabel="Cancel diary entry" onPress={() => setDiaryVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>}
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     {/* Feature 4: Shopping list sheet — rendered OUTSIDE the outer recipe modal
         to avoid React Native Web portal stacking issues. When nested inside the
         outer Modal, the outer modal's backdrop View creates a stacking context
         that intercepts all pointer events for the inner modal's buttons. */}
-    <Modal visible={shopVisible} transparent animationType="none" onRequestClose={() => setShopVisible(false)}>
-      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
-        <View style={[styles.planSheet, { backgroundColor: colors.background }]}>
+    <BottomSheet visible={shopVisible} animationType="none" onRequestClose={() => setShopVisible(false)} sheetStyle={[styles.planSheet, { backgroundColor: colors.background }]}>
           <View style={styles.sheetHandle} />
           <View style={styles.reviewHeader}>
             <View style={{ flex: 1 }}>
@@ -1040,9 +1027,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recip
             <Text style={[styles.primaryActionText, { color: selectedIngredients.size > 0 ? colors.primaryForeground : colors.mutedForeground }]}>Add {selectedIngredients.size} ingredient{selectedIngredients.size !== 1 ? 's' : ''}</Text>
           </Pressable>
           <Pressable accessibilityLabel="Cancel shopping list" onPress={() => setShopVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheet>
     </>
   );
 }
@@ -1089,10 +1074,9 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
     onCreated();
   };
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
+    <BottomSheet visible={visible} onRequestClose={onClose} sheetStyle={{ backgroundColor: colors.background }}>
         <KeyboardAwareScrollViewCompat
-          style={[styles.createSheet, { backgroundColor: colors.background }]}
+          style={styles.bottomSheetContent}
           contentContainerStyle={styles.createFormContent}
           bottomOffset={24}
           keyboardDismissMode="interactive"
@@ -1107,8 +1091,7 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
           <ScalePressable accessibilityLabel="Save your recipe" onPress={create} scale={0.96} haptic="light" style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Save recipe</Text></ScalePressable>
           <Pressable accessibilityLabel="Cancel recipe creation" onPress={onClose} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
         </KeyboardAwareScrollViewCompat>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -1442,8 +1425,8 @@ function makeStyles(f: number) {
   reviewTotalValue: { fontFamily: 'Inter_700Bold', fontSize: 20 * f, marginTop: 3 },
   reviewTotalMacros: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, textAlign: 'right' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
-  detailSheet: { maxHeight: '94%', borderTopLeftRadius: 27, borderTopRightRadius: 27, overflow: 'hidden' },
-  planSheet: { maxHeight: '78%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
+  detailSheet: { overflow: 'hidden' },
+  planSheet: { padding: 20 },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#b7c5bc', alignSelf: 'center', marginBottom: 12 },
   secondaryAction: { minHeight: 46, borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   secondaryActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
@@ -1482,6 +1465,7 @@ function makeStyles(f: number) {
   sourceAction: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, paddingVertical: 13 },
   sourceActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   createSheet: { borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20, paddingBottom: 28 },
+  bottomSheetContent: { padding: 20 },
   createHero: { borderWidth: 1, borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   createHeroIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   createHeroTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f },

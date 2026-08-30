@@ -11,6 +11,8 @@ import { buildDiaryRows, buildWellnessRows, buildPlannerRows } from '@/lib/memor
 import { isStaleDate, relativeTime as computeRelativeTime } from '@/lib/memoryDateHelpers';
 import { AppHeader } from '@/components/AppChrome';
 import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
+import { BottomSheet } from '@/components/BottomSheet';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 const moodLabels: Record<Mood, string> = {
@@ -397,9 +399,8 @@ export default function LivingMemoryScreen() {
         </View>
       )}
 
-      <Modal visible={editingLog !== null} transparent animationType="slide" onRequestClose={() => setEditingLog(null)}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
-          <View style={[styles.editSheet, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={editingLog !== null} onRequestClose={() => setEditingLog(null)} sheetStyle={{ backgroundColor: colors.background }}>
+          <KeyboardAwareScrollViewCompat contentContainerStyle={styles.editSheetContent}>
             <Text style={[styles.editTitle, { color: colors.foreground }]}>Correct this signal</Text>
               <Text style={[styles.editBody, { color: colors.mutedForeground }]}>Updates the original diary entry; its nutrition snapshot stays unchanged.</Text>
             <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>DATE · YYYY-MM-DD</Text>
@@ -418,9 +419,8 @@ export default function LivingMemoryScreen() {
             <Pressable accessibilityLabel="Cancel memory correction" onPress={() => setEditingLog(null)} style={styles.cancelButton}>
               <Text style={[styles.cancelButtonText, { color: colors.mutedForeground }]}>Cancel</Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+          </KeyboardAwareScrollViewCompat>
+      </BottomSheet>
       <Modal visible={showForgetAllStale} transparent animationType="fade" onRequestClose={() => setShowForgetAllStale(false)}>
         <View style={[styles.confirmBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
           <View style={[styles.confirmCard, { backgroundColor: colors.card }]}>
@@ -518,8 +518,7 @@ const styles = StyleSheet.create({
   iconAction: { width: 31, height: 31, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   footerNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 13, padding: 11, marginTop: 1 },
   footerText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
-  editSheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 30 },
+  editSheetContent: { paddingHorizontal: 20, paddingTop: 20 },
   editTitle: { fontFamily: 'Inter_700Bold', fontSize: 20 },
   editBody: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, marginTop: 7, marginBottom: 17 },
   inputLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1, marginTop: 8, marginBottom: 7 },

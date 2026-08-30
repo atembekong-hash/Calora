@@ -309,10 +309,10 @@ describe('Today dashboard — date context and display contracts', () => {
     );
 
     expect(source).toContain('styles.addFoodModalCard');
-    expect(source).toContain("maxHeight: '96%'");
-    expect(source).toContain('Math.max(insets.bottom + 28, 40)');
+    expect(source).toContain("import { BottomSheet } from '@/components/BottomSheet'");
+    expect(source).toContain('<BottomSheet');
+    expect(source).toContain('sheetStyle={[styles.modalCard, styles.addFoodModalCard');
     expect(source).toContain('keyboardShouldPersistTaps="handled"');
-    expect(source).toContain('style={{ maxHeight: 340 }}');
     expect(source).toContain('nestedScrollEnabled');
   });
 

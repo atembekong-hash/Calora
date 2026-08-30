@@ -33,6 +33,8 @@ import { SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableT
 import { ReferralCard } from '@/components/ReferralCard';
 import { REVENUECAT_ENTITLEMENT_IDENTIFIER, useSubscription } from '@/lib/revenuecat';
 import { enterMotion } from '@/lib/motion';
+import { BottomSheet } from '@/components/BottomSheet';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 
 // ─── Static config ────────────────────────────────────────────────────────────
 
@@ -991,9 +993,8 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* ── Saved meal creation modal ── */}
-      <Modal visible={savedMealModal} transparent animationType="slide" onRequestClose={() => setSavedMealModal(false)}>
-        <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
-          <View style={[styles.savedModal, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={savedMealModal} onRequestClose={() => setSavedMealModal(false)} sheetStyle={{ backgroundColor: colors.background }}>
+          <KeyboardAwareScrollViewCompat contentContainerStyle={styles.sheetContent}>
             <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Create a saved template</Text>
             <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>Add the numbers from a meal or recipe you make often. It will be stored offline and appear in the add-food sheet.</Text>
             <View style={styles.savedKindRow}>
@@ -1012,9 +1013,8 @@ export default function ProfileScreen() {
             {!!savedMealError && <Text accessibilityRole="alert" style={[styles.formError, { color: colors.destructive }]}>{savedMealError}</Text>}
             <Pressable accessibilityLabel="Save meal template" onPress={createSavedMeal} style={[styles.dialogButton, { backgroundColor: colors.primary }]}><Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Save template</Text></Pressable>
             <Pressable accessibilityLabel="Cancel saved meal" onPress={() => setSavedMealModal(false)} style={styles.dialogSecondaryButton}><Text style={[styles.dialogSecondaryText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
-          </View>
-        </View>
-      </Modal>
+          </KeyboardAwareScrollViewCompat>
+      </BottomSheet>
 
       {/* ── Saved meal deletion confirmation ── */}
       <Modal visible={savedMealPendingDelete !== null} transparent animationType="fade" onRequestClose={() => setSavedMealPendingDelete(null)}>
@@ -1038,9 +1038,8 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* ── Profile edit modal ── */}
-      <Modal visible={profileEditModal} transparent animationType="slide" onRequestClose={() => setProfileEditModal(false)}>
-        <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-          <View style={[styles.savedModal, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={profileEditModal} onRequestClose={() => setProfileEditModal(false)} overlayColor="rgba(0,0,0,0.5)" sheetStyle={{ backgroundColor: colors.background }}>
+          <KeyboardAwareScrollViewCompat contentContainerStyle={styles.sheetContent}>
             <View style={styles.editModalHeader}>
               <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Edit profile</Text>
               <Pressable accessibilityLabel="Close profile edit" onPress={() => setProfileEditModal(false)} hitSlop={10}>
@@ -1083,14 +1082,12 @@ export default function ProfileScreen() {
             <Pressable accessibilityLabel="Save profile changes" onPress={saveProfileEdit} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 20 }]}>
               <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Save changes</Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+          </KeyboardAwareScrollViewCompat>
+      </BottomSheet>
 
       {/* ── Info modals (food data / no ads / help) ── */}
-      <Modal visible={infoModal !== null} transparent animationType="slide" onRequestClose={() => setInfoModal(null)}>
-        <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-          <View style={[styles.savedModal, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={infoModal !== null} onRequestClose={() => setInfoModal(null)} overlayColor="rgba(0,0,0,0.5)" sheetStyle={{ backgroundColor: colors.background }}>
+          <ScrollView contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}>
             <View style={styles.editModalHeader}>
               <View style={[styles.dialogIcon, { backgroundColor: colors.accent, marginBottom: 0 }]}>
                 <Feather name={infoModal === 'food-data' ? 'shield' : infoModal === 'no-ads' ? 'eye-off' : infoModal === 'health' ? 'activity' : 'help-circle'} size={18} color={colors.accentForeground} />
@@ -1196,9 +1193,8 @@ export default function ProfileScreen() {
             <Pressable accessibilityLabel="Close information sheet" onPress={() => setInfoModal(null)} style={[styles.dialogButton, { backgroundColor: colors.muted, marginTop: 16 }]}>
               <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Got it</Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+          </ScrollView>
+      </BottomSheet>
     </View>
   );
 }
@@ -1327,8 +1323,8 @@ function makeStyles(f: number) {
   dialogSecondaryButton: { alignItems: 'center', paddingTop: 14 },
   dialogSecondaryText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
 
-  // Saved meal modal
-  savedModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, marginTop: 'auto', maxHeight: '92%' },
+  // Bottom sheet content; the shared frame owns anchoring, radius, size, and bottom inset.
+  sheetContent: { paddingHorizontal: 20, paddingTop: 20 },
   savedKindRow: { flexDirection: 'row', gap: 8, marginTop: 16 },
   savedKind: { flex: 1, alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingVertical: 10 },
   savedKindText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },

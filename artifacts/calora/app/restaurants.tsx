@@ -11,7 +11,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,6 +25,7 @@ import { dateKey } from '@/lib/dates';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { restaurantFoodReviewState } from '@/lib/restaurantFoodReview';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
+import { BottomSheet } from '@/components/BottomSheet';
 
 const popularChains = ["McDonald's", 'Burger King', "Wendy's", 'Chipotle'];
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -278,12 +278,10 @@ export default function RestaurantsScreen() {
         </View>
       </ScrollView>
 
-      <Modal visible={selectedFood !== null} transparent animationType="slide" onRequestClose={() => setSelectedFood(null)}>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.detailSheet, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={selectedFood !== null} onRequestClose={() => setSelectedFood(null)} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
             {detail ? (
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
+              <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.detailHeader}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.detailBrand, { color: colors.primary }]}>{detail.brandName ?? 'BRANDED FOOD'}</Text>
@@ -362,9 +360,7 @@ export default function RestaurantsScreen() {
             ) : (
               <View style={styles.centerState}><ActivityIndicator color={colors.primary} /></View>
             )}
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }
@@ -409,8 +405,7 @@ const styles = StyleSheet.create({
   resultCaloriesLabel: { fontFamily: 'Inter_500Medium', fontSize: 8 },
   attribution: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: 22, paddingHorizontal: 6 },
   attributionText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 9, lineHeight: 14 },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.46)' },
-  detailSheet: { maxHeight: '90%', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 10 },
+  detailSheet: { paddingHorizontal: 20, paddingTop: 10 },
   sheetHandle: { width: 42, height: 4, borderRadius: 2, backgroundColor: '#c7cec8', alignSelf: 'center', marginBottom: 17 },
   detailHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   detailBrand: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },

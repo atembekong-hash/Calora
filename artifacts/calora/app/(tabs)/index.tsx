@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   AccessibilityInfo,
   FlatList,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -31,6 +30,7 @@ import { BRAND } from '@/lib/brand';
 import { enterMotion } from '@/lib/motion';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { PlannerPeek } from '@/components/PlannerPeek';
 import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
@@ -135,9 +135,7 @@ function CalendarPicker({
   const days = calendarMonthDays(month);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
-        <View style={[styles.calendarCard, { backgroundColor: colors.background }]}>
+    <BottomSheet visible={visible} onRequestClose={onClose} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.calendarCard, { backgroundColor: colors.background }]}>
           <View style={styles.modalHandle} />
           <View style={styles.calendarHeading}>
             <View style={{ flex: 1 }}>
@@ -209,9 +207,7 @@ function CalendarPicker({
               <Text style={[styles.calendarTodayActionText, { color: colors.accentForeground }]}>Back to today</Text>
             </Pressable>
           )}
-        </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -748,9 +744,7 @@ function MacroGoalsModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
-        <View style={[styles.modalCard, { backgroundColor: colors.background }]}>
+    <BottomSheet visible={visible} onRequestClose={handleClose} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.modalCard, { backgroundColor: colors.background }]}>
           <KeyboardAwareScrollViewCompat
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.macroGoalScrollContent}
@@ -813,9 +807,7 @@ function MacroGoalsModal({
               <Text style={[styles.macroGoalCancelText, { color: colors.primary }]}>Cancel</Text>
             </ScalePressable>
           </KeyboardAwareScrollViewCompat>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -841,9 +833,7 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
   };
 
   return (
-    <Modal visible={log !== null} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
-        <View style={[styles.editCard, { backgroundColor: colors.background }]}>
+    <BottomSheet visible={log !== null} onRequestClose={onClose} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.editCard, { backgroundColor: colors.background }]}>
           <View style={styles.modalHandle} />
           <View style={styles.modalHeading}>
             <View><Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit entry</Text><Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>Corrections update your trend.</Text></View>
@@ -859,9 +849,7 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
           <View style={styles.mealPicker}>{mealOrder.map((item) => <ScalePressable key={item} onPress={() => setMeal(item)} scale={0.95} haptic="none" style={[styles.mealChoice, { backgroundColor: meal === item ? colors.primary : colors.card, borderColor: meal === item ? colors.primary : colors.border }]}><Text style={[styles.mealChoiceText, { color: meal === item ? colors.primaryForeground : colors.mutedForeground }]}>{item}</Text></ScalePressable>)}</View>
           <ScalePressable accessibilityLabel="Save edited entry" onPress={save} scale={0.96} haptic="light" style={[styles.saveEntry, { backgroundColor: colors.primary }]}><Text style={[styles.saveEntryText, { color: colors.primaryForeground }]}>Save changes</Text></ScalePressable>
           <ScalePressable accessibilityLabel="Delete edited entry" onPress={() => { if (log) { removeLog(log.id); onClose(); } }} scale={0.98} haptic="none" style={styles.deleteEntry}><Feather name="trash-2" size={15} color={colors.destructive} /><Text style={[styles.deleteEntryText, { color: colors.destructive }]}>Delete this entry</Text></ScalePressable>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -950,14 +938,12 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
-        <View style={[styles.modalCard, styles.addFoodModalCard, { backgroundColor: colors.background }]}>
+    <BottomSheet visible={visible} onRequestClose={onClose} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.modalCard, styles.addFoodModalCard, { backgroundColor: colors.background }]}>
           <ScrollView
             ref={modalScrollRef}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[styles.modalScrollContent, { paddingBottom: Math.max(insets.bottom + 28, 40) }]}
+            contentContainerStyle={styles.modalScrollContent}
           >
             <View style={styles.modalHandle} />
             <View style={styles.modalHeading}>
@@ -1014,7 +1000,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
                   <TextInput value={search} onChangeText={setSearch} placeholder="Search verified foods" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />
                 </View>
                  <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>VERIFIED</Text>
-                <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                <View>
                   {filtered.map((food) => (
                     <ScalePressable key={food.name} onPress={() => chooseFood(food)} scale={0.98} haptic="none" style={[styles.foodSuggestion, { borderBottomColor: colors.border }]}>
                       <View style={[styles.foodIcon, { backgroundColor: colors.accent }]}>
@@ -1027,7 +1013,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
                       <Feather name="plus" size={18} color={colors.primary} />
                     </ScalePressable>
                   ))}
-                </ScrollView>
+                </View>
                  <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 14 }]}>MANUAL</Text>
                 <View style={styles.manualRow}>
                   <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
@@ -1040,9 +1026,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
               </>
             )}
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -1760,7 +1744,7 @@ function makeStyles(f: number) {
   dateNavSub: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 2 },
    backToToday: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', gap: 6, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 7, marginTop: 10 },
    backToTodayText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-   calendarCard: { maxHeight: '92%', borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 28 },
+    calendarCard: { borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12 },
    calendarHeading: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 22 },
    calendarTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 24 * f, letterSpacing: -0.6 },
    calendarSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, marginTop: 5 },
@@ -1786,7 +1770,7 @@ function makeStyles(f: number) {
   macroValue: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f },
   macroTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
   macroFill: { height: 7, borderRadius: 4 },
-  macroGoalScrollContent: { paddingBottom: 28 },
+   macroGoalScrollContent: {},
   macroGoalIntro: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 16, padding: 14, marginBottom: 18 },
   macroGoalIntroText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 11 * f, lineHeight: 16 * f },
   macroGoalFields: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
@@ -1816,10 +1800,9 @@ function makeStyles(f: number) {
   emptyDiaryBody: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, textAlign: 'center', maxWidth: 240 },
   footerNote: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 20 },
   footerNoteText: { fontFamily: 'Inter_500Medium', fontSize: 9 * f },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
-  modalCard: { maxHeight: '92%', borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12 },
-  addFoodModalCard: { maxHeight: '96%' },
-  modalScrollContent: { paddingBottom: 32 },
+  modalCard: { borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12 },
+  addFoodModalCard: {},
+  modalScrollContent: {},
   modalHandle: { width: 42, height: 5, borderRadius: 3, backgroundColor: '#9aa69e', alignSelf: 'center', marginBottom: 20 },
   modalHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   modalTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 24 * f, letterSpacing: -0.6 },
@@ -1854,7 +1837,7 @@ function makeStyles(f: number) {
   savedMealChip: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: StyleSheet.hairlineWidth, borderRadius: 15, paddingHorizontal: 12, paddingVertical: 9, minWidth: 150 },
   savedMealName: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   savedMealMeta: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 3 },
-  editCard: { borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 32 },
+  editCard: { borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12 },
   fieldLabel: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.8 },
   editInput: { height: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 12, fontFamily: 'Inter_500Medium', fontSize: 14 * f, marginBottom: 14 },
   editFields: { flexDirection: 'row', gap: 10 },

@@ -18,6 +18,7 @@ import { formatGrams, formatPercent, formatWhole } from '@/lib/formatters';
 import { Surface } from '@/components/Surface';
 import { enterMotion } from '@/lib/motion';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
+import { BottomSheetFrame } from '@/components/BottomSheet';
 
 type ScanMode = 'auto' | 'barcode' | 'food' | 'label';
 type TextEntryKind = 'text' | 'voice';
@@ -420,14 +421,14 @@ export default function ScanScreen() {
           </>
         )}
       </ScrollView>
-       <Modal visible={analysis !== null} transparent animationType="slide" onRequestClose={dismissDraft}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
-        <Animated.View entering={enterMotion('modal')} style={[styles.resultSheet, { backgroundColor: colors.background }]}>
+        <Modal visible={analysis !== null} transparent animationType="slide" onRequestClose={dismissDraft}>
+         <BottomSheetFrame overlayColor="rgba(0,0,0,0.45)" sheetStyle={{ backgroundColor: colors.background }}>
+         <Animated.View entering={enterMotion('modal')} style={styles.resultSheet}>
             <View style={styles.sheetHandle} />
              <View style={styles.resultHeader}><View><Text style={[styles.resultEyebrow, { color: colors.primary }]}>{modeEyebrow(analysis?.mode)}</Text><Text style={[styles.resultTitle, { color: colors.foreground }]}>{analysis?.title}</Text></View><Pressable accessibilityLabel="Close scan result" onPress={dismissDraft} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable></View>
-             {analysis?.status === 'unavailable' ? <View style={[styles.unavailableResult, { backgroundColor: colors.accent }]}><Feather name="help-circle" size={19} color={colors.accentForeground} /><Text style={[styles.unavailableResultText, { color: colors.foreground }]}>{analysis.reviewMessage}</Text></View> : <><Text style={[styles.reviewMessage, { color: colors.mutedForeground }]}>{analysis?.reviewMessage}</Text>{reviewDraft?.assumptions.length ? <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}><Feather name="info" size={15} color={colors.accentForeground} /><Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' · ')}</Text></View> : null}<ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22 }}>{reviewDraft?.components.map((component) => <CandidateCard key={component.id} component={component} colors={colors} onChange={updateComponent} />)}<Surface tier="raised" radius="lg" style={[styles.totalCard, { backgroundColor: colors.hero }]}><View><Text style={[styles.totalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.totalValue, { color: colors.onHero }]}>{formatWhole(reviewDraft?.nutrition.calories)}</Text></View><Text style={[styles.totalMacro, { color: colors.heroMuted }]}>P {formatGrams(reviewDraft?.nutrition.proteinG)} · C {formatGrams(reviewDraft?.nutrition.carbsG)} · F {formatGrams(reviewDraft?.nutrition.fatG)}</Text></Surface><Pressable accessibilityLabel="Approve and add meal to diary" onPress={acceptDraft} style={[styles.addButton, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={16} color={colors.primaryForeground} /><Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>Approve and add to diary</Text></Pressable><Pressable accessibilityLabel="Discard food review" onPress={dismissDraft} style={styles.discardButton}><Text style={[styles.discardText, { color: colors.mutedForeground }]}>Not this meal</Text></Pressable></ScrollView></>}
+             {analysis?.status === 'unavailable' ? <View style={[styles.unavailableResult, { backgroundColor: colors.accent }]}><Feather name="help-circle" size={19} color={colors.accentForeground} /><Text style={[styles.unavailableResultText, { color: colors.foreground }]}>{analysis.reviewMessage}</Text></View> : <><Text style={[styles.reviewMessage, { color: colors.mutedForeground }]}>{analysis?.reviewMessage}</Text>{reviewDraft?.assumptions.length ? <View style={[styles.assumptionCard, { backgroundColor: colors.accent }]}><Feather name="info" size={15} color={colors.accentForeground} /><Text style={[styles.assumptionText, { color: colors.foreground }]}>{reviewDraft.assumptions.join(' · ')}</Text></View> : null}<ScrollView style={styles.resultScroll} showsVerticalScrollIndicator={false}>{reviewDraft?.components.map((component) => <CandidateCard key={component.id} component={component} colors={colors} onChange={updateComponent} />)}<Surface tier="raised" radius="lg" style={[styles.totalCard, { backgroundColor: colors.hero }]}><View><Text style={[styles.totalLabel, { color: colors.heroMuted }]}>REVIEW TOTAL</Text><Text style={[styles.totalValue, { color: colors.onHero }]}>{formatWhole(reviewDraft?.nutrition.calories)}</Text></View><Text style={[styles.totalMacro, { color: colors.heroMuted }]}>P {formatGrams(reviewDraft?.nutrition.proteinG)} · C {formatGrams(reviewDraft?.nutrition.carbsG)} · F {formatGrams(reviewDraft?.nutrition.fatG)}</Text></Surface><Pressable accessibilityLabel="Approve and add meal to diary" onPress={acceptDraft} style={[styles.addButton, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={16} color={colors.primaryForeground} /><Text style={[styles.addButtonText, { color: colors.primaryForeground }]}>Approve and add to diary</Text></Pressable><Pressable accessibilityLabel="Discard food review" onPress={dismissDraft} style={styles.discardButton}><Text style={[styles.discardText, { color: colors.mutedForeground }]}>Not this meal</Text></Pressable></ScrollView></>}
           </Animated.View>
-        </View>
+        </BottomSheetFrame>
       </Modal>
     </View>
   );
@@ -470,8 +471,8 @@ const styles = StyleSheet.create({
   primaryButton: { borderRadius: 14, paddingHorizontal: 18, paddingVertical: 13, marginTop: 20 },
   primaryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   permissionAlternatives: { marginHorizontal: 20, marginTop: 30, padding: 14, borderRadius: 18, borderWidth: 1 },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
-  resultSheet: { maxHeight: '90%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
+  resultSheet: { flexShrink: 1, paddingHorizontal: 20, paddingTop: 20 },
+  resultScroll: { flexShrink: 1 },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#b7c5bc', alignSelf: 'center', marginBottom: 17 },
   resultHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   resultEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1.2 },

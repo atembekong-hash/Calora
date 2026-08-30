@@ -15,6 +15,7 @@ import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStart
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { PLAN_TYPES, clearProgramApplication, findPlanType, isStarterFallbackProvider, planTypeForGeneration, programAppliedToWeek, recordGenerationOutcome, resolveGenerationRecording, selectPrimaryProgram, type PlanType, type PlanTypeId } from '@/lib/planType';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { BottomSheet } from '@/components/BottomSheet';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { AppHeader } from '@/components/AppChrome';
@@ -928,9 +929,7 @@ export default function PlannerScreen() {
         </SwipeableSectionPager>
       </ScrollView>
        <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal || undoMoveMeal || undoSwapMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undoMoveMeal ? undoMove : undoSwapMeal ? undoSwap : undefined} countdownDuration={undoMeal || undoMoveMeal || undoSwapMeal ? 6000 : undefined} />
-      <Modal visible={detail !== null} transparent animationType="slide" onRequestClose={() => { dismissPlannerReview(); setDetail(null); }}>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.detailSheet, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={detail !== null} onRequestClose={() => { dismissPlannerReview(); setDetail(null); }} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
             {detail && plannerReviewDraft ? (
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 30 }}>
@@ -997,7 +996,7 @@ export default function PlannerScreen() {
                     contentFit="cover"
                     style={styles.detailImage}
                   />
-                  <View style={styles.detailBody}>
+                  <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={styles.detailBody}>
                     <View style={styles.detailTitleRow}>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{detail.meal.toUpperCase()} · {dateFormatter.format(parseDate(detail.day))}</Text>
@@ -1018,16 +1017,12 @@ export default function PlannerScreen() {
                       <Feather name="plus" size={16} color={colors.primaryForeground} />
                       <Text style={[styles.addDiaryText, { color: colors.primaryForeground }]}>Add to diary</Text>
                     </ScalePressable>
-                  </View>
+                  </ScrollView>
                 </>
               )
             )}
-          </View>
-        </View>
-      </Modal>
-       <Modal visible={shoppingVisible} transparent animationType="slide" onRequestClose={() => { setShoppingVisible(false); setShoppingDayFilter(null); }}>
-         <View style={styles.modalBackdrop}>
-           <View style={[styles.shoppingSheet, { backgroundColor: colors.background }]}>
+      </BottomSheet>
+       <BottomSheet visible={shoppingVisible} onRequestClose={() => { setShoppingVisible(false); setShoppingDayFilter(null); }} sheetStyle={[styles.shoppingSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
              <View style={styles.shoppingHeader}>
                <View>
@@ -1086,12 +1081,8 @@ export default function PlannerScreen() {
                   <Text style={[styles.shoppingSubtitle, { color: colors.mutedForeground, textAlign: 'center', marginTop: 24 }]}>No items for this day.</Text>
                )}
              </ScrollView>
-           </View>
-         </View>
-       </Modal>
-       <Modal visible={actionMeal !== null} transparent animationType="slide" onRequestClose={() => { setActionMeal(null); setActionMode(null); }}>
-         <View style={styles.modalBackdrop}>
-           <View style={[styles.actionSheet, { backgroundColor: colors.background }]}>
+       </BottomSheet>
+       <BottomSheet visible={actionMeal !== null} onRequestClose={() => { setActionMeal(null); setActionMode(null); }} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
              {actionMeal && !actionMode && (
                <>
@@ -1148,12 +1139,8 @@ export default function PlannerScreen() {
                  </ScrollView>
                </>
              )}
-           </View>
-         </View>
-       </Modal>
-       <Modal visible={addingMealType !== null} transparent animationType="slide" onRequestClose={() => setAddingMealType(null)}>
-         <View style={styles.modalBackdrop}>
-           <View style={[styles.actionSheet, { backgroundColor: colors.background }]}>
+       </BottomSheet>
+       <BottomSheet visible={addingMealType !== null} onRequestClose={() => setAddingMealType(null)} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
               <SheetHeader eyebrow={`${dayFormatter.format(parseDate(selectedDay)).toUpperCase()} · ${addingMealType ?? ''}`} title="Add a meal" onClose={() => setAddingMealType(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a meal or add your own.</Text>
@@ -1174,12 +1161,8 @@ export default function PlannerScreen() {
              </Pressable>
                <Pressable accessibilityLabel={`Create custom ${addingMealType}`} onPress={() => openCustomMeal(addingMealType!)} style={[styles.customMealButton, { borderColor: colors.primary }]}><Feather name="edit-3" size={15} color={colors.primary} /><Text style={[styles.customMealButtonText, { color: colors.primary }]}>Custom meal</Text></Pressable>
               <Pressable accessibilityLabel={`Leave ${addingMealType} open`} onPress={() => { setAddingMealType(null); acknowledge(`${addingMealType} left open.`); }} style={styles.leaveOpenButton}><Text style={[styles.leaveOpenText, { color: colors.mutedForeground }]}>Leave open</Text></Pressable>
-           </View>
-         </View>
-       </Modal>
-       <Modal visible={replaceMeal !== null} transparent animationType="slide" onRequestClose={() => setReplaceMeal(null)}>
-         <View style={styles.modalBackdrop}>
-           <View style={[styles.actionSheet, { backgroundColor: colors.background }]}>
+       </BottomSheet>
+       <BottomSheet visible={replaceMeal !== null} onRequestClose={() => setReplaceMeal(null)} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
              <SheetHeader eyebrow="REPLACE MEAL" title={replaceMeal?.name ?? ''} onClose={() => setReplaceMeal(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a {replaceMeal?.meal.toLowerCase()} for {dateFormatter.format(parseDate(replaceMeal?.day ?? selectedDay))}.</Text>
@@ -1202,12 +1185,8 @@ export default function PlannerScreen() {
              </Pressable>
               <Pressable accessibilityLabel={`Create custom ${replaceMeal?.meal ?? 'meal'} to replace ${replaceMeal?.name ?? 'meal'}`} onPress={() => replaceMeal && openCustomMeal(replaceMeal.meal, replaceMeal)} style={[styles.customMealButton, { borderColor: colors.primary }]}><Feather name="edit-3" size={15} color={colors.primary} /><Text style={[styles.customMealButtonText, { color: colors.primary }]}>Custom meal</Text></Pressable>
              <Pressable accessibilityLabel="Cancel replace meal" onPress={() => setReplaceMeal(null)} style={styles.leaveOpenButton}><Text style={[styles.leaveOpenText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
-           </View>
-         </View>
-       </Modal>
-        <Modal visible={editMeal !== null} transparent animationType="slide" onRequestClose={() => setEditMeal(null)}>
-          <View style={styles.modalBackdrop}>
-            <View style={[styles.formSheet, { backgroundColor: colors.background }]}>
+       </BottomSheet>
+        <BottomSheet visible={editMeal !== null} onRequestClose={() => setEditMeal(null)} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <SheetHeader eyebrow="EDIT PLANNED MEAL" title={editMeal?.name ?? ''} onClose={() => setEditMeal(null)} colors={colors} />
               <KeyboardAwareScrollViewCompat
@@ -1227,13 +1206,9 @@ export default function PlannerScreen() {
                 <ScalePressable accessibilityLabel="Save planned meal edits" onPress={saveEditedMeal} disabled={!editName.trim()} scale={0.96} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, opacity: editName.trim() ? 1 : 0.5 }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Save changes</Text></ScalePressable>
                 <Pressable accessibilityLabel="Cancel planned meal edits" onPress={() => setEditMeal(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
               </KeyboardAwareScrollViewCompat>
-            </View>
-          </View>
-        </Modal>
+        </BottomSheet>
         {/* Program discovery sheet — selection is non-destructive until an explicit build action. */}
-        <Modal visible={planTypeVisible} transparent animationType="slide" onRequestClose={() => setPlanTypeVisible(false)}>
-          <View style={styles.modalBackdrop}>
-            <View style={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
+        <BottomSheet visible={planTypeVisible} onRequestClose={() => setPlanTypeVisible(false)} sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <View style={styles.planTypeSheetHeader}>
                 <View style={{ flex: 1 }}>
@@ -1275,12 +1250,8 @@ export default function PlannerScreen() {
                   );
                 })}
               </ScrollView>
-            </View>
-          </View>
-        </Modal>
-        <Modal visible={programDetail !== null} transparent animationType="slide" onRequestClose={() => setProgramDetail(null)}>
-          <View style={styles.modalBackdrop}>
-            <View style={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
+        </BottomSheet>
+        <BottomSheet visible={programDetail !== null} onRequestClose={() => setProgramDetail(null)} sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               {programDetail && <>
                 <SheetHeader eyebrow="PROGRAM DETAILS" title={programDetail.label} onClose={() => setProgramDetail(null)} colors={colors} />
@@ -1295,12 +1266,10 @@ export default function PlannerScreen() {
                 </ScalePressable>
                 <Pressable accessibilityLabel={`Rebuild this week with ${programDetail.label}`} onPress={() => { setProgramRebuildConfirm(programDetail); setProgramDetail(null); }} style={styles.programRebuildLink}><Text style={[styles.programRebuildText, { color: colors.primary }]}>Rebuild this week instead</Text></Pressable>
               </>}
-            </View>
-          </View>
-        </Modal>
+        </BottomSheet>
         <Modal visible={programRebuildConfirm !== null} transparent animationType="fade" onRequestClose={() => setProgramRebuildConfirm(null)}>
           <View style={styles.modalBackdrop}>
-            <View style={[styles.actionSheet, { backgroundColor: colors.background }]}>
+            <View style={[styles.confirmationDialog, { backgroundColor: colors.background }]}>
               {programRebuildConfirm && <>
                 <SheetHeader eyebrow="CONFIRM REFRESH" title={`Refresh with ${programRebuildConfirm.label}?`} onClose={() => setProgramRebuildConfirm(null)} colors={colors} />
                 <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Rebuild generated meals only. Added, edited, and logged meals stay unchanged.</Text>
@@ -1310,9 +1279,7 @@ export default function PlannerScreen() {
             </View>
           </View>
         </Modal>
-        <Modal visible={customMealType !== null} transparent animationType="slide" onRequestClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }}>
-          <View style={styles.modalBackdrop}>
-            <View style={[styles.formSheet, { backgroundColor: colors.background }]}>
+        <BottomSheet visible={customMealType !== null} onRequestClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <SheetHeader eyebrow={`${customMealType?.toUpperCase() ?? ''} · ${dateFormatter.format(parseDate(customMealReplaceTarget?.day ?? selectedDay))}`} title="Create a custom meal" onClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} colors={colors} />
               <KeyboardAwareScrollViewCompat
@@ -1334,9 +1301,7 @@ export default function PlannerScreen() {
                 <Pressable accessibilityLabel="Save custom meal" onPress={saveCustomMeal} disabled={!customName.trim()} style={[styles.formSaveButton, { backgroundColor: colors.primary, opacity: customName.trim() ? 1 : 0.5 }]}><Feather name="plus" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Add to plan</Text></Pressable>
                 <Pressable accessibilityLabel="Cancel custom meal" onPress={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
               </KeyboardAwareScrollViewCompat>
-            </View>
-          </View>
-        </Modal>
+        </BottomSheet>
     </View>
   );
 }
@@ -1491,8 +1456,9 @@ function makeStyles(f: number) {
   weekRangeCopy: { alignItems: 'center', gap: 3 },
   todayLink: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
-  detailSheet: { maxHeight: '88%', borderTopLeftRadius: 27, borderTopRightRadius: 27, overflow: 'hidden' },
-  actionSheet: { maxHeight: '86%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
+   detailSheet: { overflow: 'hidden' },
+   actionSheet: { padding: 20 },
+   confirmationDialog: { maxHeight: '86%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 6 },
   sheetSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16, marginBottom: 15 },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -1519,8 +1485,8 @@ function makeStyles(f: number) {
   browseRecipesText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   customMealButton: { minHeight: 43, borderRadius: 13, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 8 },
   customMealButtonText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
-  formSheet: { maxHeight: '91%', borderTopLeftRadius: 27, borderTopRightRadius: 27, paddingHorizontal: 20 },
-  formContent: { paddingBottom: 28 },
+   formSheet: { paddingHorizontal: 20 },
+   formContent: {},
   formHint: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16, marginBottom: 15 },
   inputLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, marginTop: 10, marginBottom: 6 },
   numberInputLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginBottom: 5 },
@@ -1568,7 +1534,7 @@ function makeStyles(f: number) {
   reviewTotalMacros: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, textAlign: 'right' },
   dismissButton: { alignItems: 'center', paddingVertical: 13 },
   dismissText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
-  shoppingSheet: { height: '80%', borderTopLeftRadius: 27, borderTopRightRadius: 27, paddingTop: 16, paddingHorizontal: 20, paddingBottom: 0 },
+   shoppingSheet: { flex: 1, paddingTop: 16, paddingHorizontal: 20 },
   shoppingHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   shoppingSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 8, marginBottom: 12 },
   // Filter section: a plain View wrapper that owns its own height, with no overflow clipping.
@@ -1602,7 +1568,7 @@ function makeStyles(f: number) {
   planTypeRowValue: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   planTypeRowPrompt: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   // Plan type selector modal (bottom sheet)
-  planTypeSheet: { maxHeight: '88%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
+   planTypeSheet: { padding: 20 },
   planTypeSheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 },
   planTypeSheetEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.3, marginBottom: 3 },
   planTypeSheetTitle: { fontFamily: 'Inter_700Bold', fontSize: 20 * f },

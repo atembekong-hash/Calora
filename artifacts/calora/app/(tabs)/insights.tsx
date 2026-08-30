@@ -13,6 +13,7 @@ import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
 import { formatGrams, formatWhole } from '@/lib/formatters';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { BottomSheet, BottomSheetFrame } from '@/components/BottomSheet';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { router } from 'expo-router';
@@ -795,7 +796,6 @@ function WeightChartModal({
   pendingDeleteEntry?: { id: string; kg: number; date: string } | null;
   onUndo?: () => void;
 }) {
-  const insets = useSafeAreaInsets();
   const sheetY = useSharedValue(600);
   const backdropOpacity = useSharedValue(0);
 
@@ -846,13 +846,11 @@ function WeightChartModal({
         </Animated.View>
 
         {/* Bottom sheet */}
-        <Animated.View
-          style={[
-            styles.chartModalSheet,
-            { backgroundColor: colors.background, paddingBottom: insets.bottom + 24 },
-            sheetStyle,
-          ]}
+        <BottomSheetFrame
+          overlayColor="transparent"
+          sheetStyle={[styles.chartModalSheet, { backgroundColor: colors.background }]}
         >
+        <Animated.View style={sheetStyle}>
           {/* Handle */}
           <View style={[styles.chartModalHandle, { backgroundColor: colors.muted }]} />
 
@@ -939,6 +937,7 @@ function WeightChartModal({
             </View>
           )}
         </Animated.View>
+        </BottomSheetFrame>
       </View>
     </Modal>
   );
@@ -1947,9 +1946,7 @@ export default function InsightsScreen() {
         </View>
         </SwipeableSectionPager>
       </Animated.ScrollView>
-      <Modal visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
-          <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>One weigh-in is a data point. {BRAND.name} looks for trends.</Text>
             <TextInput
@@ -1978,12 +1975,8 @@ export default function InsightsScreen() {
               setSaveNotice('Weight check-in saved locally.');
             }} scale={0.96} haptic="light" style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></ScalePressable>
             <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
-          </View>
-        </View>
-      </Modal>
-      <Modal visible={showGoalEdit} transparent animationType="slide" onRequestClose={() => setShowGoalEdit(false)}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
-          <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
+      </BottomSheet>
+      <BottomSheet visible={showGoalEdit} transparent animationType="slide" onRequestClose={() => setShowGoalEdit(false)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Weight goal</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>Set a target weight. Logged data will not change.</Text>
             <TextInput
@@ -2015,14 +2008,10 @@ export default function InsightsScreen() {
             <Pressable accessibilityLabel="Cancel goal edit" onPress={() => setShowGoalEdit(false)} style={styles.cancelWeight}>
               <Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Cancel</Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
       <LocalSaveNotice visible={Boolean(saveNotice)} message={saveNotice ?? ''} colors={colors} />
       {/* Inline edit modal — pre-filled with the selected weigh-in value */}
-      <Modal visible={editEntry !== null} transparent animationType="slide" onRequestClose={() => setEditEntry(null)}>
-        <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
-          <View style={[styles.weightModal, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={editEntry !== null} transparent animationType="slide" onRequestClose={() => setEditEntry(null)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit weigh-in</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>
               {editEntry ? `${new Date(editEntry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} · fix the value below.` : ''}
@@ -2077,9 +2066,7 @@ export default function InsightsScreen() {
             <Pressable accessibilityLabel="Cancel edit" onPress={() => setEditEntry(null)} style={styles.cancelWeight}>
               <Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Cancel</Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
       {/* Modal is always mounted so its close animation can play when weights drop below 3.
            visible becomes false immediately when the count falls, triggering the slide-out. */}
       <WeightChartModal
@@ -2244,8 +2231,7 @@ function makeStyles(f: number) {
   weightHint: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 5 },
   weightLine: { height: 7, borderRadius: 4, overflow: 'hidden', marginTop: 14 },
   weightLineFill: { height: 7, borderRadius: 4 },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
-  weightModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 30 },
+  weightModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20 },
   weightError: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, marginTop: 8 },
   modalTitle: { fontFamily: 'Inter_700Bold', fontSize: 21 * f },
   modalBody: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18, marginTop: 7 },
@@ -2308,7 +2294,7 @@ function makeStyles(f: number) {
   // ─── Expand hint icon ──────────────────────────────────────────────────────
   chartExpandHint: { position: 'absolute', top: 6, right: 2, width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center', opacity: 0.7 },
   // ─── Expanded weight chart modal ───────────────────────────────────────────
-  chartModalSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 12, shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 24, shadowOffset: { width: 0, height: -6 }, elevation: 18 },
+  chartModalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 12, shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 24, shadowOffset: { width: 0, height: -6 }, elevation: 18 },
   chartModalHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 18 },
   chartModalHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
   chartModalTitle: { fontFamily: 'Inter_700Bold', fontSize: 19 * f, letterSpacing: -0.3 },
