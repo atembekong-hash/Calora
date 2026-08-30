@@ -283,6 +283,23 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source.indexOf('<PlannerPeek')).toBeLessThan(source.indexOf('<RecipeSwipeWidget'));
   });
 
+  it('opens a calendar picker from the date selector and restores today from past dates', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('testID="open-calendar-date-picker"');
+    expect(source).toContain('testID="previous-calendar-month"');
+    expect(source).toContain('testID="next-calendar-month"');
+    expect(source).toContain('testID="back-to-today"');
+    expect(source).toContain('testID="calendar-back-to-today"');
+    expect(source).toContain('setCalendarMonth(calendarMonthKey(selectedDate))');
+    expect(source).toContain('setSelectedDate(dateKey(new Date()))');
+  });
+
   it('keeps the diary title and Add action inside the log card', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');

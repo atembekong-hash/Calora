@@ -93,6 +93,127 @@ const dateFromKey = (key: string) => {
 const formatDateLabel = (key: string) => new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(dateFromKey(key)).toUpperCase();
 const isToday = (key: string) => key === dateKey(new Date());
 const formatShortDate = (key: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(dateFromKey(key));
+const calendarMonthKey = (key: string) => key.slice(0, 7);
+const formatCalendarMonth = (key: string) => new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(dateFromKey(`${key}-01`));
+const calendarMonthDays = (key: string) => {
+  const [year, month] = key.split('-').map(Number);
+  const firstWeekday = new Date(year, month - 1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+
+  return Array.from({ length: totalCells }, (_, index) => {
+    const day = index - firstWeekday + 1;
+    return day > 0 && day <= daysInMonth
+      ? `${year}-${`${month}`.padStart(2, '0')}-${`${day}`.padStart(2, '0')}`
+      : null;
+  });
+};
+const shiftCalendarMonth = (key: string, amount: number) => {
+  const [year, month] = key.split('-').map(Number);
+  const shifted = new Date(year, month - 1 + amount, 1);
+  return `${shifted.getFullYear()}-${`${shifted.getMonth() + 1}`.padStart(2, '0')}`;
+};
+const weekdayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+function CalendarPicker({
+  visible,
+  selectedDate,
+  month,
+  colors,
+  onMonthChange,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  selectedDate: string;
+  month: string;
+  colors: ReturnType<typeof useCalora>['colors'];
+  onMonthChange: (month: string) => void;
+  onSelect: (date: string) => void;
+  onClose: () => void;
+}) {
+  const days = calendarMonthDays(month);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0,0,0,0.42)' }]}>
+        <View style={[styles.calendarCard, { backgroundColor: colors.background }]}>
+          <View style={styles.modalHandle} />
+          <View style={styles.calendarHeading}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.calendarTitle, { color: colors.foreground }]}>Choose a day</Text>
+              <Text style={[styles.calendarSubtitle, { color: colors.mutedForeground }]}>Review your ring and diary by date.</Text>
+            </View>
+            <Pressable accessibilityLabel="Close calendar" onPress={onClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+              <Feather name="x" size={18} color={colors.foreground} />
+            </Pressable>
+          </View>
+
+          <View style={styles.calendarMonthHeader}>
+            <Pressable
+              accessibilityLabel="Previous calendar month"
+              testID="previous-calendar-month"
+              onPress={() => onMonthChange(shiftCalendarMonth(month, -1))}
+              style={[styles.calendarMonthButton, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="chevron-left" size={17} color={colors.foreground} />
+            </Pressable>
+            <Text style={[styles.calendarMonthTitle, { color: colors.foreground }]}>{formatCalendarMonth(month)}</Text>
+            <Pressable
+              accessibilityLabel="Next calendar month"
+              testID="next-calendar-month"
+              onPress={() => onMonthChange(shiftCalendarMonth(month, 1))}
+              style={[styles.calendarMonthButton, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="chevron-right" size={17} color={colors.foreground} />
+            </Pressable>
+          </View>
+
+          <View style={styles.calendarWeekRow}>
+            {weekdayLabels.map((label, index) => (
+              <Text key={`${label}-${index}`} style={[styles.calendarWeekday, { color: colors.mutedForeground }]}>{label}</Text>
+            ))}
+          </View>
+          <View style={styles.calendarGrid}>
+            {days.map((day, index) => {
+              if (!day) return <View key={`empty-${index}`} style={styles.calendarDay} />;
+              const selected = day === selectedDate;
+              const today = isToday(day);
+              return (
+                <Pressable
+                  key={day}
+                  accessibilityLabel={today ? `${formatShortDate(day)}, today` : `Select ${formatShortDate(day)}`}
+                  testID={`calendar-day-${day}`}
+                  onPress={() => onSelect(day)}
+                  style={[
+                    styles.calendarDay,
+                    selected && { backgroundColor: colors.primary },
+                    !selected && today && { borderColor: colors.primary, borderWidth: 1 },
+                  ]}
+                >
+                  <Text style={[styles.calendarDayText, { color: selected ? colors.primaryForeground : colors.foreground }]}>{Number(day.slice(-2))}</Text>
+                  {today && <View style={[styles.calendarTodayDot, { backgroundColor: selected ? colors.primaryForeground : colors.primary }]} />}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {!isToday(selectedDate) && (
+            <Pressable
+              accessibilityLabel="Back to today"
+              testID="calendar-back-to-today"
+              onPress={() => onSelect(dateKey(new Date()))}
+              style={[styles.calendarTodayAction, { backgroundColor: colors.accent }]}
+            >
+              <Feather name="rotate-ccw" size={15} color={colors.accentForeground} />
+              <Text style={[styles.calendarTodayActionText, { color: colors.accentForeground }]}>Back to today</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 function IconButton({
   feature,
@@ -1085,6 +1206,8 @@ export default function HomeScreen() {
   const [showAdd, setShowAdd] = useState(false);
   const [addFoodMode, setAddFoodMode] = useState<AddFoodEntryMode>('search');
   const [selectedDate, setSelectedDate] = useState(dateKey(new Date()));
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(calendarMonthKey(dateKey(new Date())));
   const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [waterConfirmed, setWaterConfirmed] = useState(false);
@@ -1170,6 +1293,21 @@ export default function HomeScreen() {
       fat: String(macroTargets.fat),
     });
     setMacroGoalsVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  const openCalendar = () => {
+    setCalendarMonth(calendarMonthKey(selectedDate));
+    setCalendarVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  const selectCalendarDate = (date: string) => {
+    setSelectedDate(date);
+    setCalendarVisible(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  const goToToday = () => {
+    setSelectedDate(dateKey(new Date()));
+    setCalendarVisible(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   const saveMacroGoals = (values: MacroTargets) => {
@@ -1300,9 +1438,21 @@ export default function HomeScreen() {
         <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.heroDateNav, { borderBottomColor: colors.border }]}>
             <Pressable accessibilityLabel="Previous diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() - 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={17} color={colors.foreground} /></Pressable>
-            <View style={{ alignItems: 'center' }}><Text style={[styles.dateNavLabel, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today' : formatShortDate(selectedDate)}</Text><Text style={[styles.dateNavSub, { color: colors.mutedForeground }]}>Viewing {selectedDate}</Text></View>
+             <Pressable accessibilityLabel={`Open calendar for ${isToday(selectedDate) ? 'today' : formatShortDate(selectedDate)}`} testID="open-calendar-date-picker" onPress={openCalendar} style={styles.dateNavCenter}>
+               <View style={styles.dateNavCenterLine}>
+                 <Text style={[styles.dateNavLabel, { color: colors.foreground }]}>{isToday(selectedDate) ? 'Today' : formatShortDate(selectedDate)}</Text>
+                 <Feather name="calendar" size={14} color={colors.primary} />
+               </View>
+               <Text style={[styles.dateNavSub, { color: colors.mutedForeground }]}>Viewing {selectedDate}</Text>
+             </Pressable>
             <Pressable accessibilityLabel="Next diary day" onPress={() => { const date = dateFromKey(selectedDate); date.setDate(date.getDate() + 1); setSelectedDate(dateKey(date)); }} style={[styles.dateNavButton, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={17} color={colors.foreground} /></Pressable>
           </View>
+           {!isToday(selectedDate) && (
+             <Pressable accessibilityLabel="Back to today" testID="back-to-today" onPress={goToToday} style={[styles.backToToday, { backgroundColor: colors.accent }]}>
+               <Feather name="rotate-ccw" size={14} color={colors.accentForeground} />
+               <Text style={[styles.backToTodayText, { color: colors.accentForeground }]}>Back to today</Text>
+             </Pressable>
+           )}
 
           {/* Dominant calorie gauge */}
           <CalorieGauge consumed={selectedTotals.calories} burned={activeEnergy} target={target} colors={colors} />
@@ -1472,6 +1622,15 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
       <AddFoodModal visible={showAdd} entryDate={selectedDate} initialMode={addFoodMode} onClose={() => setShowAdd(false)} />
+      <CalendarPicker
+        visible={calendarVisible}
+        selectedDate={selectedDate}
+        month={calendarMonth}
+        colors={colors}
+        onMonthChange={setCalendarMonth}
+        onSelect={selectCalendarDate}
+        onClose={() => setCalendarVisible(false)}
+      />
       <EditLogModal log={editingLog} onClose={() => setEditingLog(null)} />
       <MacroGoalsModal
         visible={macroGoalsVisible}
@@ -1587,10 +1746,29 @@ function makeStyles(f: number) {
   moodOptions: { flexDirection: 'row', gap: 8 },
   moodOption: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 2, gap: 4 },
   moodOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
-  heroDateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, marginBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth },
+   heroDateNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 14, marginBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth },
+   dateNavCenter: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 3, minWidth: 150 },
+   dateNavCenterLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   dateNavButton: { width: 38, height: 38, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   dateNavLabel: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   dateNavSub: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 2 },
+   backToToday: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', gap: 6, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 7, marginTop: 10 },
+   backToTodayText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+   calendarCard: { maxHeight: '92%', borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12, paddingBottom: 28 },
+   calendarHeading: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 22 },
+   calendarTitle: { fontFamily: 'Inter_800ExtraBold', fontSize: 24 * f, letterSpacing: -0.6 },
+   calendarSubtitle: { fontFamily: 'Inter_500Medium', fontSize: 13 * f, marginTop: 5 },
+   calendarMonthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+   calendarMonthButton: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+   calendarMonthTitle: { fontFamily: 'Inter_700Bold', fontSize: 16 * f },
+   calendarWeekRow: { flexDirection: 'row', marginBottom: 8 },
+   calendarWeekday: { width: '14.2857%', textAlign: 'center', fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.5 },
+   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+   calendarDay: { width: '14.2857%', aspectRatio: 1, maxHeight: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 14, marginBottom: 3 },
+   calendarDayText: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
+   calendarTodayDot: { width: 4, height: 4, borderRadius: 2, marginTop: 3 },
+   calendarTodayAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, paddingVertical: 12, marginTop: 14 },
+   calendarTodayActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   sectionCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: 18, paddingHorizontal: 20, marginBottom: 28, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
   sectionHeaderAction: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
