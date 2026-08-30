@@ -1,6 +1,7 @@
 import type { PlannerMeal } from '@workspace/api-client-react';
 import type { ShoppingItem } from '@/context/CaloraContext';
 import { addDays, dateFromKey, dateKey } from '@/lib/dates';
+import type { PlanTypeId } from '@/lib/planType';
 
 export const plannerMealTypes: PlannerMeal['meal'][] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -418,12 +419,42 @@ export function plannerDate(weekStart: string, offset: number) {
   return addDays(weekStart, offset);
 }
 
-export function createStarterPlannerMeals(weekStart = getPlannerWeekStart()): PlannerMeal[] {
+const PLANT_BASED_MEAL_IDS = new Set([
+  'berry-oats',
+  'egg-toast',
+  'yogurt-parfait',
+  'smoothie-bowl',
+  'banana-pancakes',
+  'chia-pudding',
+  'lentil-soup',
+  'greek-salad',
+  'chickpea-bowl',
+  'stir-fry',
+  'med-pasta',
+  'apple-almond',
+  'edamame',
+  'trail-mix',
+  'hummus-veggies',
+  'banana-pb',
+]);
+
+export function plannerCatalogForProgram(programId?: PlanTypeId): PlannerMeal[] {
+  if (programId === 'plant-based-week') {
+    return plannerCatalog.filter((meal) => PLANT_BASED_MEAL_IDS.has(meal.id));
+  }
+  if (programId === 'quick-and-easy') {
+    return plannerCatalog.filter((meal) => (meal.prepMinutes ?? 0) <= 20);
+  }
+  return plannerCatalog;
+}
+
+export function createStarterPlannerMeals(weekStart = getPlannerWeekStart(), programId?: PlanTypeId): PlannerMeal[] {
+  const catalog = plannerCatalogForProgram(programId);
   const byMeal = {
-    Breakfast: plannerCatalog.filter((meal) => meal.meal === 'Breakfast'),
-    Lunch: plannerCatalog.filter((meal) => meal.meal === 'Lunch'),
-    Dinner: plannerCatalog.filter((meal) => meal.meal === 'Dinner'),
-    Snack: plannerCatalog.filter((meal) => meal.meal === 'Snack'),
+    Breakfast: catalog.filter((meal) => meal.meal === 'Breakfast'),
+    Lunch: catalog.filter((meal) => meal.meal === 'Lunch'),
+    Dinner: catalog.filter((meal) => meal.meal === 'Dinner'),
+    Snack: catalog.filter((meal) => meal.meal === 'Snack'),
   };
   return Array.from({ length: 7 }, (_, dayIndex) =>
     plannerMealTypes.map((mealType, mealIndex) => {
@@ -523,11 +554,22 @@ export function mergeGeneratedWeek(
   };
 }
 
+export function shoppingNameKey(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
+export function shoppingChecksByName(items: readonly ShoppingItem[]): Map<string, boolean> {
+  return new Map(items.map((item) => [shoppingNameKey(item.name), item.checked]));
+}
+
 export function buildShoppingItems(meals: PlannerMeal[], checkedByName = new Map<string, boolean>()): ShoppingItem[] {
+  const normalizedChecks = new Map(
+    Array.from(checkedByName.entries()).map(([name, checked]) => [shoppingNameKey(name), checked] as const),
+  );
   const quantities = new Map<string, { name: string; quantity: number; sourceMealIds: string[]; sourceDays: Set<string> }>();
   meals.forEach((meal) => meal.ingredients.forEach((ingredient) => {
     const name = ingredient.trim().replace(/\s+/g, ' ');
-    const key = name.toLocaleLowerCase();
+    const key = shoppingNameKey(name);
     const current = quantities.get(key) ?? { name, quantity: 0, sourceMealIds: [], sourceDays: new Set<string>() };
     current.quantity += 1;
     if (!current.sourceMealIds.includes(meal.id)) current.sourceMealIds.push(meal.id);
@@ -542,6 +584,6 @@ export function buildShoppingItems(meals: PlannerMeal[], checkedByName = new Map
       quantity: item.quantity,
       sourceMealIds: item.sourceMealIds,
       days: Array.from(item.sourceDays).sort(),
-      checked: checkedByName.get(key) ?? checkedByName.get(item.name) ?? false,
+       checked: normalizedChecks.get(key) ?? false,
     }));
 }

@@ -18,7 +18,7 @@ import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
 import type { HydrationReminderPrefs } from '@/lib/hydrationReminders';
 import { type MealReminderPrefs, DEFAULT_MEAL_REMINDER_PREFS } from '@/lib/mealReminders';
 import { type GoalReminderPrefs, DEFAULT_GOAL_REMINDER_PREFS } from '@/lib/goalReminder';
-import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart } from '@/data/planner';
+import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import {
   type AcceptedFoodMemory,
   type FoodMemoryCorrection,
@@ -351,6 +351,8 @@ type CaloraContextValue = {
   resetGoalCelebrationSeen: () => void;
   plannerWeekStart: string;
   plannerMeals: PlannerMeal[];
+  /** Session-only revision used to protect async planner writes from stale state. */
+  plannerRevision: number;
   plannerPreferences: import('@/lib/planType').PlannerPreferences | null;
   setPlannerPreferences: (prefs: import('@/lib/planType').PlannerPreferences | null) => void;
   /**
@@ -515,7 +517,12 @@ export function CaloraProvider({
   const [outbox, setOutbox] = useState<OutboxMutation[]>([]);
   const [plannerWeekStart, setPlannerWeekStart] = useState(getPlannerWeekStart());
   const [plannerMeals, setPlannerMealsState] = useState<PlannerMeal[]>(() => createStarterPlannerMeals());
+  const [plannerRevision, setPlannerRevision] = useState(0);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(() => buildShoppingItems(plannerMeals));
+  const shoppingItemsRef = useRef(shoppingItems);
+  useEffect(() => {
+    shoppingItemsRef.current = shoppingItems;
+  }, [shoppingItems]);
   const starterMemoryState = useMemo(() => migrateFoodMemories(undefined, starterLogs), []);
   const [foodDrafts, setFoodDrafts] = useState<FoodMemoryDraft[]>(starterMemoryState.foodDrafts);
   const [foodMemories, setFoodMemories] = useState<AcceptedFoodMemory[]>(starterMemoryState.foodMemories);
@@ -791,7 +798,7 @@ export function CaloraProvider({
       profilePhotoUri: profilePhotoUri ?? undefined,
     };
      enqueueAutosave(pm.current, state);
-  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -880,6 +887,7 @@ export function CaloraProvider({
     pendingMutations: outbox,
     plannerWeekStart,
     plannerMeals,
+    plannerRevision,
     plannerPreferences,
     setPlannerPreferences: (prefs) => {
       setPlannerPreferencesState(prefs);
@@ -1226,6 +1234,9 @@ export function CaloraProvider({
     clearAllData: async () => {
       if (clearingRef.current) return;
       clearingRef.current = true;
+       // Invalidate any planner generation before the destructive work starts,
+       // not after its async photo/storage operations complete.
+       setPlannerRevision((revision) => revision + 1);
       setIsClearing(true);
       try {
         CoachFactRequestLifecycle.invalidateAll();
@@ -1296,24 +1307,28 @@ export function CaloraProvider({
      isClearing,
      retryHydration,
      isRetrying,
-    setPlannerMeals: (weekStart, meals) => {
-      const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
-      const recipeItems = shoppingItems.filter((item) => item.recipeSource);
+     setPlannerMeals: (weekStart, meals) => {
+       const currentShoppingItems = shoppingItemsRef.current;
+       const previousChecks = shoppingChecksByName(currentShoppingItems);
+       const recipeItems = currentShoppingItems.filter((item) => item.recipeSource);
       const plannerBuilt = buildShoppingItems(meals, previousChecks);
-      const plannerNames = new Set(plannerBuilt.map((i) => i.name.toLocaleLowerCase()));
+       const plannerNames = new Set(plannerBuilt.map((i) => shoppingNameKey(i.name)));
       setPlannerWeekStart(weekStart);
       setPlannerMealsState(meals);
-      setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(r.name.toLocaleLowerCase())).map((r) => ({ ...r, checked: previousChecks.get(r.name.toLocaleLowerCase()) ?? r.checked }))]);
+       setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))]);
+       setPlannerRevision((revision) => revision + 1);
       setLivingMemory((current) => replacePlannerObservations(current, meals));
       queueMutation('settings', 'upsert');
     },
-    updatePlannerMeals: (meals) => {
-      const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
-      const recipeItems = shoppingItems.filter((item) => item.recipeSource);
+     updatePlannerMeals: (meals) => {
+       const currentShoppingItems = shoppingItemsRef.current;
+       const previousChecks = shoppingChecksByName(currentShoppingItems);
+       const recipeItems = currentShoppingItems.filter((item) => item.recipeSource);
       const plannerBuilt = buildShoppingItems(meals, previousChecks);
-      const plannerNames = new Set(plannerBuilt.map((i) => i.name.toLocaleLowerCase()));
+       const plannerNames = new Set(plannerBuilt.map((i) => shoppingNameKey(i.name)));
       setPlannerMealsState(meals);
-      setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(r.name.toLocaleLowerCase())).map((r) => ({ ...r, checked: previousChecks.get(r.name.toLocaleLowerCase()) ?? r.checked }))]);
+       setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))]);
+       setPlannerRevision((revision) => revision + 1);
       setLivingMemory((current) => replacePlannerObservations(current, meals));
       queueMutation('settings', 'upsert');
     },
@@ -1332,12 +1347,14 @@ export function CaloraProvider({
             ...plannerMeals.filter((meal) => meal.id !== mealId && !(meal.day === day && meal.meal === existing.meal)),
             { ...existing, day },
           ];
-      const previousChecks = new Map(shoppingItems.map((item) => [item.name, item.checked]));
-      const recipeItems = shoppingItems.filter((item) => item.recipeSource);
+       const currentShoppingItems = shoppingItemsRef.current;
+       const previousChecks = shoppingChecksByName(currentShoppingItems);
+       const recipeItems = currentShoppingItems.filter((item) => item.recipeSource);
       const plannerBuilt = buildShoppingItems(next, previousChecks);
-      const plannerNames = new Set(plannerBuilt.map((i) => i.name.toLocaleLowerCase()));
+       const plannerNames = new Set(plannerBuilt.map((i) => shoppingNameKey(i.name)));
       setPlannerMealsState(next);
-      setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(r.name.toLocaleLowerCase())).map((r) => ({ ...r, checked: previousChecks.get(r.name.toLocaleLowerCase()) ?? r.checked }))]);
+       setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))]);
+       setPlannerRevision((revision) => revision + 1);
       setLivingMemory((current) => replacePlannerObservations(current, next));
       queueMutation('settings', 'upsert');
     },
@@ -1346,7 +1363,8 @@ export function CaloraProvider({
       queueMutation('settings', 'upsert');
     },
     toggleShoppingItemByName: (name) => {
-      setShoppingItems((items) => items.map((item) => item.name === name ? { ...item, checked: !item.checked } : item));
+       const key = shoppingNameKey(name);
+       setShoppingItems((items) => items.map((item) => shoppingNameKey(item.name) === key ? { ...item, checked: !item.checked } : item));
       queueMutation('settings', 'upsert');
     },
     addIngredientsToShopping: (ingredients, sourceId) => {
@@ -1361,6 +1379,7 @@ export function CaloraProvider({
         });
         return next;
       });
+       setPlannerRevision((revision) => revision + 1);
       queueMutation('settings', 'upsert');
     },
      setCoachConsentAccepted: (accepted) => setCoachConsentAccepted(accepted),
@@ -1379,7 +1398,7 @@ export function CaloraProvider({
      goalCelebrationSeenTargetKg,
      markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
      resetGoalCelebrationSeen: () => setGoalCelebrationSeenTargetKg(null),
-      }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+      }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

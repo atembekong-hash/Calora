@@ -1,4 +1,4 @@
-import { useGeneratePlanner, type PlannerMeal } from '@workspace/api-client-react';
+import { ApiError, useGeneratePlanner, type PlannerMeal } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -11,7 +11,7 @@ import { useCalora } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
 import { formatCalories, formatGrams, formatWhole } from '@/lib/formatters';
 import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
-import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalog, plannerDate, plannerMealTypes } from '@/data/planner';
+import { applyIdentityReplace, applySlotReplace, buildShoppingItems, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate, plannerMealTypes, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { PLAN_TYPES, clearProgramApplication, findPlanType, isStarterFallbackProvider, planTypeForGeneration, programAppliedToWeek, recordGenerationOutcome, resolveGenerationRecording, selectPrimaryProgram, type PlanType, type PlanTypeId } from '@/lib/planType';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
@@ -41,6 +41,25 @@ function formatRange(weekStart: string) {
 function formatShoppingDays(days: string[] | undefined): string {
   if (!days || days.length === 0) return '';
   return days.map((d) => dayFormatter.format(parseDate(d))).join(' · ');
+}
+
+function parseNutritionValue(value: string, label: string): number | null {
+  if (!value.trim()) return 0;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100000) return null;
+  return parsed;
+}
+
+function plannerGenerationError(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 401) return 'Please sign in before building a week. Your current plan is unchanged.';
+    if (error.status === 429) return 'Plan building is temporarily limited. Please wait a moment and try again. Your current plan is unchanged.';
+    if (error.status === 400) return 'The planner could not use the current profile settings. Your current plan is unchanged.';
+  }
+  if (error instanceof Error && error.message.includes('timed out')) {
+    return 'Plan building took too long. Check your connection and try again. Your current plan is unchanged.';
+  }
+  return 'Could not build your week right now. Check your connection and try again. Your current plan is unchanged.';
 }
 
 function MealCard({
@@ -196,7 +215,7 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
 }
 
 export default function PlannerScreen() {
-  const { colors, profile, logs, updateLog, plannerWeekStart, plannerMeals, plannerPreferences, setPlannerPreferences, updatePlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck, fontScale } = useCalora();
+  const { colors, profile, logs, updateLog, plannerWeekStart, plannerMeals, plannerRevision, plannerPreferences, setPlannerPreferences, updatePlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck, fontScale } = useCalora();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const generatePlanner = useGeneratePlanner();
@@ -232,11 +251,13 @@ export default function PlannerScreen() {
   const [customCarbs, setCustomCarbs] = useState('');
   const [customFat, setCustomFat] = useState('');
   const [customIngredients, setCustomIngredients] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
   const [planTypeVisible, setPlanTypeVisible] = useState(false);
   const [programDetail, setProgramDetail] = useState<PlanType | null>(null);
   const [programRebuildConfirm, setProgramRebuildConfirm] = useState<PlanType | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
+  const [generationError, setGenerationError] = useState(false);
   const [weekOverviewVisible, setWeekOverviewVisible] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [undoMeal, setUndoMeal] = useState<PlannerMeal | null>(null);
@@ -244,6 +265,16 @@ export default function PlannerScreen() {
   const [undoSwapMeal, setUndoSwapMeal] = useState<{ newMeal: PlannerMeal; originalMeal: PlannerMeal } | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const generationInFlightRef = useRef(false);
+  const generationEpochRef = useRef(0);
+  const plannerMealsRef = useRef(plannerMeals);
+  const logsRef = useRef(logs);
+  const plannerRevisionRef = useRef(plannerRevision);
+  const viewWeekStartRef = useRef(viewWeekStart);
+  useEffect(() => { plannerMealsRef.current = plannerMeals; }, [plannerMeals]);
+  useEffect(() => { logsRef.current = logs; }, [logs]);
+  useEffect(() => { plannerRevisionRef.current = plannerRevision; }, [plannerRevision]);
+  useEffect(() => { viewWeekStartRef.current = viewWeekStart; }, [viewWeekStart]);
   const plannerReviewDraft = plannerReviewDraftId ? (foodDrafts.find((d) => d.id === plannerReviewDraftId) ?? null) : null;
 
   // Keep context in sync with the day the user is viewing so recipe plan-picker can default to it
@@ -327,7 +358,15 @@ export default function PlannerScreen() {
   const selectedMeals = plannerMeals.filter((meal) => meal.day === selectedDay);
   const plannedWeek = plannerMeals.filter((meal) => weekDays.includes(meal.day));
   const visibleShoppingItems = useMemo(
-    () => buildShoppingItems(plannedWeek, new Map(shoppingItems.map((item) => [item.name, item.checked]))),
+    () => {
+      const checkedByName = shoppingChecksByName(shoppingItems);
+      const plannerItems = buildShoppingItems(plannedWeek, checkedByName);
+      const plannerKeys = new Set(plannerItems.map((item) => shoppingNameKey(item.name)));
+      const recipeItems = shoppingItems
+        .filter((item) => item.recipeSource && !plannerKeys.has(shoppingNameKey(item.name)))
+        .map((item) => ({ ...item, checked: checkedByName.get(shoppingNameKey(item.name)) ?? item.checked }));
+      return [...plannerItems, ...recipeItems];
+    },
     [plannedWeek, shoppingItems],
   );
   const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
@@ -427,6 +466,7 @@ export default function PlannerScreen() {
 
   const beginEditMeal = (meal: PlannerMeal) => {
     setEditMeal(meal);
+    setFormError(null);
     setEditName(meal.name);
     setEditServing(meal.serving);
     setEditCalories(String(Math.round(meal.calories)));
@@ -436,7 +476,21 @@ export default function PlannerScreen() {
   };
 
   const saveEditedMeal = () => {
-    if (!editMeal || !editName.trim()) return;
+    if (!editMeal || !editName.trim()) {
+      setFormError('Add a meal name before saving.');
+      return;
+    }
+    const nutrition = [
+      ['calories', editCalories],
+      ['protein', editProtein],
+      ['carbs', editCarbs],
+      ['fat', editFat],
+    ].map(([label, value]) => [label, parseNutritionValue(value, label)] as const);
+    const invalid = nutrition.find(([, value]) => value === null);
+    if (invalid) {
+      setFormError(`${invalid[0][0].toUpperCase()} must be a finite number from 0 to 100,000.`);
+      return;
+    }
     // An edited program-generated meal becomes user-authored (edited- id) so an
     // explicit Program rebuild preserves it. Diary logs referencing the old id
     // are re-pointed so the "Logged" link survives the re-id.
@@ -446,16 +500,17 @@ export default function PlannerScreen() {
       id: nextId,
       name: editName.trim(),
       serving: editServing.trim() || '1 serving',
-      calories: Math.max(0, Number(editCalories) || 0),
-      proteinG: Math.max(0, Number(editProtein) || 0),
-      carbsG: Math.max(0, Number(editCarbs) || 0),
-      fatG: Math.max(0, Number(editFat) || 0),
+       calories: nutrition[0][1] ?? 0,
+       proteinG: nutrition[1][1] ?? 0,
+       carbsG: nutrition[2][1] ?? 0,
+       fatG: nutrition[3][1] ?? 0,
     } : meal);
     if (nextId !== editMeal.id) {
       logs.filter((log) => log.plannerMealId === editMeal.id).forEach((log) => updateLog(log.id, { plannerMealId: nextId }));
     }
     updatePlannerMeals(next);
     setEditMeal(null);
+    setFormError(null);
     acknowledge(`${editName.trim()} saved.`);
   };
 
@@ -471,10 +526,25 @@ export default function PlannerScreen() {
     setCustomCarbs('');
     setCustomFat('');
     setCustomIngredients('');
+    setFormError(null);
   };
 
   const saveCustomMeal = () => {
-    if (!customMealType || !customName.trim()) return;
+    if (!customMealType || !customName.trim()) {
+      setFormError('Add a meal name before saving.');
+      return;
+    }
+    const nutrition = [
+      ['calories', customCalories],
+      ['protein', customProtein],
+      ['carbs', customCarbs],
+      ['fat', customFat],
+    ].map(([label, value]) => [label, parseNutritionValue(value, label)] as const);
+    const invalid = nutrition.find(([, value]) => value === null);
+    if (invalid) {
+      setFormError(`${invalid[0][0][0].toUpperCase() + invalid[0][0].slice(1)} must be a finite number from 0 to 100,000.`);
+      return;
+    }
     const targetDay = customMealReplaceTarget?.day ?? selectedDay;
     const custom: PlannerMeal = {
       id: `custom-${Date.now()}`,
@@ -483,10 +553,10 @@ export default function PlannerScreen() {
       name: customName.trim(),
       image: '',
       serving: customServing.trim() || '1 serving',
-      calories: Math.max(0, Number(customCalories) || 0),
-      proteinG: Math.max(0, Number(customProtein) || 0),
-      carbsG: Math.max(0, Number(customCarbs) || 0),
-      fatG: Math.max(0, Number(customFat) || 0),
+       calories: nutrition[0][1] ?? 0,
+       proteinG: nutrition[1][1] ?? 0,
+       carbsG: nutrition[2][1] ?? 0,
+       fatG: nutrition[3][1] ?? 0,
       ingredients: customIngredients.split(/[,;\n]/).map((item) => item.trim()).filter(Boolean),
       description: 'A custom meal added to your plan.',
     };
@@ -498,6 +568,7 @@ export default function PlannerScreen() {
       updatePlannerMeals([...plannerMeals.filter((meal) => !(meal.day === targetDay && meal.meal === customMealType)), custom]);
     }
     setCustomMealType(null);
+    setFormError(null);
     // Cancel a pending removal undo if the custom meal fills the same slot.
     if (undoMeal && undoMeal.day === targetDay && undoMeal.meal === customMealType) {
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
@@ -601,8 +672,16 @@ export default function PlannerScreen() {
   };
 
   const generate = async (confirmedProgram?: PlanTypeId) => {
+    if (generationInFlightRef.current) return;
+    generationInFlightRef.current = true;
+    const generationEpoch = generationEpochRef.current + 1;
+    generationEpochRef.current = generationEpoch;
+    const requestedWeekStart = viewWeekStart;
+    const requestedWeekDays = Array.from({ length: 7 }, (_, index) => plannerDate(requestedWeekStart, index));
+    const requestedPlannerRevision = plannerRevisionRef.current;
     setGenerating(true);
     setGenerationMessage(null);
+    setGenerationError(false);
     // Cancel any pending undo timer before replacing the whole week so stale
     // undo state cannot silently overwrite meals in the freshly generated plan.
     if (undoTimerRef.current) {
@@ -626,13 +705,11 @@ export default function PlannerScreen() {
     // clobbered by a stale snapshot; programId is captured only for the API
     // request and the historical record.
     if (confirmedProgram) updatePlannerPreferences((prev) => selectPrimaryProgram(prev, confirmedProgram));
-    // Meals already logged to the diary must survive any rebuild.
-    const loggedMealIds = new Set(logs.map((log) => log.plannerMealId).filter((id): id is string => Boolean(id)));
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       const request = generatePlanner.mutateAsync({
         data: {
-          weekStart: viewWeekStart,
+          weekStart: requestedWeekStart,
           profile: {
             goal: plannerProfile.goal,
             activity: plannerProfile.activity,
@@ -646,9 +723,20 @@ export default function PlannerScreen() {
         timeoutId = setTimeout(() => reject(new Error('Planner request timed out')), 6500);
       });
       const result = await Promise.race([request, timeout]);
+      if (generationEpoch !== generationEpochRef.current) return;
+      // Never apply a result over a plan that changed while it was pending.
+      // This preserves intentional moves, removals, recipe inserts, custom
+      // meals, edits, and shopping changes without guessing at intent.
+      if (plannerRevisionRef.current !== requestedPlannerRevision) {
+        setGenerationError(true);
+        setGenerationMessage('Your plan changed while it was building, so your edits were kept. Build again when you are ready.');
+        return;
+      }
+      const latestMeals = plannerMealsRef.current;
+      const loggedMealIds = new Set(logsRef.current.map((log) => log.plannerMealId).filter((id): id is string => Boolean(id)));
       // Explicit rebuild replaces program-generated meals but preserves user-authored,
       // edited, and already-logged meals; ordinary builds only fill empty slots.
-      const merged = mergeGeneratedWeek(plannerMeals, result.meals, weekDays, {
+      const merged = mergeGeneratedWeek(latestMeals, result.meals, requestedWeekDays, {
         mode: confirmedProgram ? 'rebuild' : 'fill',
         protectedIds: loggedMealIds,
       });
@@ -680,44 +768,25 @@ export default function PlannerScreen() {
         // record is stale and the requested Program never shaped the week.
         updatePlannerPreferences((prev) => clearProgramApplication(prev, result.weekStart));
       }
-      setViewWeekStart(result.weekStart);
-      setSelectedDay(result.weekStart);
+      if (viewWeekStartRef.current === requestedWeekStart) {
+        setViewWeekStart(result.weekStart);
+        setSelectedDay(result.weekStart);
+      }
+      setGenerationError(false);
       setGenerationMessage(result.message);
       if (!confirmedProgram) setWeekOverviewVisible(true);
       acknowledge('Week saved.');
-    } catch {
-      const fallback = createStarterPlannerMeals(viewWeekStart);
-      // An explicit rebuild keeps rebuild semantics even offline — starter meals
-      // replace program-generated ones — so the recorded application stays accurate.
-      const fallbackMerge = mergeGeneratedWeek(plannerMeals, fallback, weekDays, {
-        mode: confirmedProgram ? 'rebuild' : 'fill',
-        protectedIds: loggedMealIds,
-      });
-      setPlannerMeals(viewWeekStart, fallbackMerge.meals);
-      const fallbackRecording = resolveGenerationRecording({
-        programId,
-        mode: confirmedProgram ? 'rebuild' : 'fill',
-        changed: fallbackMerge.insertedCount > 0 || fallbackMerge.replacedCount > 0,
-        fallback: true,
-      });
-      if (fallbackRecording === 'clear') {
-        // The rebuild replaced program-generated meals with the offline starter
-        // week: neither the old Program nor the new one shaped it, so the
-        // week's record is cleared rather than recorded inaccurately. The
-        // functional update keeps the primary switch and anything the user
-        // selected while the request was pending.
-        updatePlannerPreferences((prev) => clearProgramApplication(prev, viewWeekStart));
-      }
-      // Ordinary fill fallback: existing meals (and any existing record) are
-      // untouched, and starter-filled slots establish no Program provenance.
-      setViewWeekStart(viewWeekStart);
-      setSelectedDay(viewWeekStart);
-      setGenerationMessage('Starter week ready offline. Customize as needed.');
-      if (!confirmedProgram) setWeekOverviewVisible(true);
-      acknowledge('Starter week saved.');
+    } catch (error) {
+      // HTTP, auth, validation, timeout, and transport failures must not
+      // replace the user's current plan with fabricated success data.
+      setGenerationError(true);
+      setGenerationMessage(plannerGenerationError(error));
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
-      setGenerating(false);
+      if (generationEpoch === generationEpochRef.current) {
+        generationInFlightRef.current = false;
+        setGenerating(false);
+      }
     }
   };
 
@@ -849,7 +918,12 @@ export default function PlannerScreen() {
           </View>
            <View style={styles.weekHeaderActions}><ScalePressable accessibilityLabel="Next week" onPress={() => shiftWeek(1)} scale={0.96} haptic="none" style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={18} color={colors.foreground} /></ScalePressable><ScalePressable accessibilityLabel={editMode ? 'Done editing plan' : 'Edit plan'} onPress={() => setEditMode((value) => !value)} scale={0.96} haptic="none" style={[styles.editModeButton, { backgroundColor: editMode ? colors.primary : colors.muted }]}><Feather name={editMode ? 'check' : 'edit-2'} size={14} color={editMode ? colors.primaryForeground : colors.foreground} /><Text style={[styles.editModeText, { color: editMode ? colors.primaryForeground : colors.foreground }]}>{editMode ? 'Done' : 'Edit'}</Text></ScalePressable></View>
         </View>
-        <View style={[styles.dayRail, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={[styles.dayRail, { backgroundColor: colors.card, borderColor: colors.border }]}
+          contentContainerStyle={styles.dayRailContent}
+        >
           {weekDays.map((day) => {
             const date = parseDate(day);
             const active = day === selectedDay;
@@ -865,7 +939,7 @@ export default function PlannerScreen() {
               </ScalePressable>
             );
           })}
-        </View>
+        </ScrollView>
         <Pressable accessibilityLabel="View or change your program" onPress={() => setPlanTypeVisible(true)} style={[styles.programCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.programIcon, { backgroundColor: colors.accent }]}><Feather name="compass" size={18} color={colors.accentForeground} /></View>
           <View style={styles.programCopy}><Text style={[styles.programEyebrow, { color: colors.primary }]}>{appliedProgramForViewedWeek ? 'PROGRAM · THIS WEEK' : 'YOUR PROGRAM'}</Text><Text style={[styles.programTitle, { color: colors.foreground }]}>{appliedProgramForViewedWeek ? findPlanType(appliedProgramForViewedWeek.programId)?.label ?? appliedProgramForViewedWeek.programId : plannerPreferences ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary : 'Choose a Program'}</Text><Text style={[styles.programMeta, { color: colors.mutedForeground }]}>{appliedProgramForViewedWeek ? (appliedProgramForViewedWeek.programId === plannerPreferences?.primary ? 'Used this week.' : `Used this week · ${plannerPreferences ? `${findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary} next` : 'no Program set next'}.`) : plannerPreferences ? `${findPlanType(plannerPreferences.primary)?.subtitle ?? ''} · next build.` : 'Guides your next build.'}</Text></View>
@@ -905,7 +979,7 @@ export default function PlannerScreen() {
             </Text>
           </ScalePressable>
         </View>
-        {generationMessage && <View accessibilityLiveRegion="polite" style={[styles.generationStatus, { backgroundColor: colors.accent }]}><Feather name="check-circle" size={16} color={colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
+        {generationMessage && <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.generationStatus, { backgroundColor: generationError ? colors.muted : colors.accent, borderColor: generationError ? colors.warning : 'transparent', borderWidth: generationError ? 1 : 0 }]}><Feather name={generationError ? 'alert-circle' : 'check-circle'} size={16} color={generationError ? colors.warning : colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
           <Animated.View entering={FadeInDown.springify().damping(20).delay(60)} style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
             <View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text><Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Day planned' : `${4 - selectedMeals.length} open`}</Text></View>
             <View style={styles.weekDayActions}>
@@ -1147,7 +1221,7 @@ export default function PlannerScreen() {
               <SheetHeader eyebrow={`${dayFormatter.format(parseDate(selectedDay)).toUpperCase()} · ${addingMealType ?? ''}`} title="Add a meal" onClose={() => setAddingMealType(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a meal or add your own.</Text>
                <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.catalogList, styles.sheetBottomPadding]}>
-              {plannerCatalog.filter((meal) => meal.meal === addingMealType).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add ${meal.name} to plan`} onPress={() => addMealToPlan(meal, selectedDay, addingMealType!)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: meal.image }} contentFit="cover" style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="plus-circle" size={19} color={colors.primary} /></ScalePressable>)}
+              {plannerCatalogForProgram(plannerPreferences?.primary).filter((meal) => meal.meal === addingMealType).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add ${meal.name} to plan`} onPress={() => addMealToPlan(meal, selectedDay, addingMealType!)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: meal.image }} contentFit="cover" style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="plus-circle" size={19} color={colors.primary} /></ScalePressable>)}
              </ScrollView>
              <Pressable
                accessibilityLabel={`Browse recipes for ${addingMealType}`}
@@ -1169,7 +1243,7 @@ export default function PlannerScreen() {
              <SheetHeader eyebrow="REPLACE MEAL" title={replaceMeal?.name ?? ''} onClose={() => setReplaceMeal(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a {replaceMeal?.meal.toLowerCase()} for {dateFormatter.format(parseDate(replaceMeal?.day ?? selectedDay))}.</Text>
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.catalogList, styles.sheetBottomPadding]}>
-              {plannerCatalog.filter((meal) => meal.meal === replaceMeal?.meal && meal.id !== replaceMeal?.id).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Replace with ${meal.name}`} onPress={() => replaceMeal && replaceMealInPlan(meal, replaceMeal)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: meal.image }} contentFit="cover" style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="arrow-right" size={18} color={colors.primary} /></ScalePressable>)}
+              {plannerCatalogForProgram(plannerPreferences?.primary).filter((meal) => meal.meal === replaceMeal?.meal && meal.id !== replaceMeal?.id).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Replace with ${meal.name}`} onPress={() => replaceMeal && replaceMealInPlan(meal, replaceMeal)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: meal.image }} contentFit="cover" style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="arrow-right" size={18} color={colors.primary} /></ScalePressable>)}
              </ScrollView>
              <Pressable
                accessibilityLabel={`Browse recipes to replace ${replaceMeal?.name ?? 'meal'}`}
@@ -1205,6 +1279,7 @@ export default function PlannerScreen() {
                 <View style={styles.formNumberGrid}>
                   {([['Calories', editCalories, setEditCalories], ['Protein g', editProtein, setEditProtein], ['Carbs g', editCarbs, setEditCarbs], ['Fat g', editFat, setEditFat]] as const).map(([label, value, setter]) => <View key={label} style={styles.formNumberField}><Text style={[styles.numberInputLabel, { color: colors.mutedForeground }]}>{label}</Text><TextInput accessibilityLabel={`Edit ${label}`} value={value} onChangeText={setter} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}
                 </View>
+                 {formError && <Text accessibilityRole="alert" style={[styles.formError, { color: colors.warning }]}>{formError}</Text>}
                 <ScalePressable accessibilityLabel="Save planned meal edits" onPress={saveEditedMeal} disabled={!editName.trim()} scale={0.96} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, opacity: editName.trim() ? 1 : 0.5 }]}><Feather name="check" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Save changes</Text></ScalePressable>
                 <Pressable accessibilityLabel="Cancel planned meal edits" onPress={() => setEditMeal(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
               </KeyboardAwareScrollViewCompat>
@@ -1261,7 +1336,8 @@ export default function PlannerScreen() {
                 <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>{programDetail.description}</Text>
                 <View style={[styles.programDetailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Text style={[styles.programDetailLabel, { color: colors.primary }]}>HOW IT SHAPES YOUR PLAN</Text>
-                  <Text style={[styles.programDetailText, { color: colors.foreground }]}>Shapes meals, nutrition, recipes, replacements, and your next build.</Text>
+                  <Text style={[styles.programDetailText, { color: colors.foreground }]}>Shapes generated meals, nutrition guidance, catalog choices, and your next build.</Text>
+                  <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Recipes and custom meals you add remain yours.</Text>
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Your calorie target and dietary preferences stay in control.</Text>
                 </View>
                 <ScalePressable accessibilityLabel={`Start ${programDetail.label} next week`} onPress={() => { setPlannerPreferences(selectPrimaryProgram(plannerPreferences, programDetail.id)); setProgramDetail(null); setPlanTypeVisible(false); acknowledge(`${programDetail.label} is ready for your next build.`); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10 }]}>
@@ -1302,6 +1378,7 @@ export default function PlannerScreen() {
                 </View>
                 <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>Ingredients (optional)</Text>
                 <TextInput accessibilityLabel="Custom meal ingredients" value={customIngredients} onChangeText={setCustomIngredients} multiline placeholder="Ingredients, separated by commas" placeholderTextColor={colors.mutedForeground} style={[styles.formInput, styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} />
+                 {formError && <Text accessibilityRole="alert" style={[styles.formError, { color: colors.warning }]}>{formError}</Text>}
                 <Pressable accessibilityLabel="Save custom meal" onPress={saveCustomMeal} disabled={!customName.trim()} style={[styles.formSaveButton, { backgroundColor: colors.primary, opacity: customName.trim() ? 1 : 0.5 }]}><Feather name="plus" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Add to plan</Text></Pressable>
                 <Pressable accessibilityLabel="Cancel custom meal" onPress={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
               </KeyboardAwareScrollViewCompat>
@@ -1370,13 +1447,14 @@ function makeStyles(f: number) {
    weekOverviewEmpty: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, paddingHorizontal: 13, paddingBottom: 13 },
    weekOverviewDone: { minHeight: 45, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
    weekOverviewDoneText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
-  weekArrow: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+   weekArrow: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   weekHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   weekRange: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, letterSpacing: -0.2 },
-  editModeButton: { minHeight: 28, borderRadius: 9, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  editModeButton: { minHeight: 44, borderRadius: 11, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
   editModeText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
-   dayRail: { flexDirection: 'row', borderWidth: 1, borderRadius: 18, padding: 5, marginBottom: 16 },
-   dayCol: { flex: 1, alignItems: 'center', minHeight: 66, borderRadius: 13, paddingTop: 7, paddingBottom: 5 },
+   dayRail: { borderWidth: 1, borderRadius: 18, padding: 5, marginBottom: 16, overflow: 'hidden' },
+   dayRailContent: { flexDirection: 'row', flexGrow: 1, gap: 4 },
+   dayCol: { width: 44, alignItems: 'center', minHeight: 66, borderRadius: 13, paddingTop: 7, paddingBottom: 5 },
   dayName: { fontFamily: 'Inter_600SemiBold', fontSize: 9.5 * f, letterSpacing: 0.2 },
   dayNumber: { fontFamily: 'Inter_700Bold', fontSize: 17 * f, marginTop: 2 },
    dayCoverage: { flexDirection: 'row', gap: 2, marginTop: 5 },
@@ -1417,7 +1495,7 @@ function makeStyles(f: number) {
   generationStatusText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 },
   dayDivider: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },
    weekDayActions: { alignItems: 'flex-end', gap: 6 },
-   weekTodayHandoff: { minHeight: 27, borderRadius: 8, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 3 },
+   weekTodayHandoff: { minHeight: 44, borderRadius: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
    weekTodayHandoffText: { fontFamily: 'Inter_700Bold', fontSize: 8.5 * f },
    dayHeadingTitle: { fontFamily: 'Inter_700Bold', fontSize: 16 * f, letterSpacing: -0.2 },
    daySubheading: { fontFamily: 'Inter_400Regular', fontSize: 9.5 * f, marginTop: 3 },
@@ -1427,7 +1505,7 @@ function makeStyles(f: number) {
    mealImage: { width: 108, minHeight: 122, alignSelf: 'stretch' },
   mealCardBody: { flex: 1, padding: 12 },
   mealCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardMoreButton: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', marginRight: -5, marginTop: -4 },
+   cardMoreButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: -5, marginTop: -4 },
    mealTypeBadge: { minHeight: 21, paddingHorizontal: 7, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
    mealTypeBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.25 },
   mealCalories: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
@@ -1438,9 +1516,9 @@ function makeStyles(f: number) {
    loggedPillText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f },
    macroLine: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9 },
   macroText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
-  logMealButton: { marginLeft: 'auto', minHeight: 26, borderRadius: 9, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 3 },
+  logMealButton: { marginLeft: 'auto', minHeight: 44, borderRadius: 11, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 3 },
   logMealButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-  editMealButton: { minHeight: 26, borderRadius: 9, paddingHorizontal: 7, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 3 },
+  editMealButton: { minHeight: 44, borderRadius: 11, paddingHorizontal: 9, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 3 },
   editMealButtonText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
   emptyMeal: { minHeight: 54, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   emptyMealImage: { width: 48, height: 46, borderRadius: 10, opacity: 0.8 },
@@ -1497,6 +1575,7 @@ function makeStyles(f: number) {
   formHint: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16, marginBottom: 15 },
   inputLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, marginTop: 10, marginBottom: 6 },
   numberInputLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginBottom: 5 },
+  formError: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 * f, marginTop: 10 },
   formInput: { minHeight: 44, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
   formNumberGrid: { flexDirection: 'row', gap: 8 },
   formNumberField: { flex: 1 },

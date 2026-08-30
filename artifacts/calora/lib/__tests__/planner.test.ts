@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildShoppingItems, isProgramGeneratedMeal, mergeGeneratedWeek, plannerDate } from '@/data/planner';
+import { buildShoppingItems, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
 const meal = (id: string, ingredients: string[], day = '2026-08-06'): PlannerMeal => ({
@@ -153,6 +153,18 @@ describe('planner identity', () => {
 
     expect(first.map((item) => item.id)).toEqual(second.map((item) => item.id));
     expect(first.find((item) => item.name.toLowerCase() === 'tomato')?.quantity).toBe(2);
+  });
+
+  it('restores checked state from a differently-cased ingredient name', () => {
+    const items = buildShoppingItems([meal('meal-a', ['olive oil'])], new Map([['Olive Oil', true]]));
+    expect(items[0]?.checked).toBe(true);
+  });
+
+  it('keeps local starter choices inside hard Program rules', () => {
+    expect(plannerCatalogForProgram('plant-based-week').every((item) =>
+      ['berry-oats', 'egg-toast', 'yogurt-parfait', 'smoothie-bowl', 'banana-pancakes', 'chia-pudding', 'lentil-soup', 'greek-salad', 'chickpea-bowl', 'stir-fry', 'med-pasta', 'apple-almond', 'edamame', 'trail-mix', 'hummus-veggies', 'banana-pb'].includes(item.id),
+    )).toBe(true);
+    expect(plannerCatalogForProgram('quick-and-easy').every((item) => (item.prepMinutes ?? 0) <= 20)).toBe(true);
   });
 
   it('preserves local calendar week dates', () => {

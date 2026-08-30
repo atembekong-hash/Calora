@@ -455,6 +455,16 @@ function makeMeal(meal: CatalogMeal, day: string, index: number) {
   };
 }
 
+function catalogForPlanType(meals: CatalogMeal[], planType: string | null): CatalogMeal[] {
+  if (planType === "plant-based-week") {
+    return meals.filter((meal) => meal.diets.includes("Vegetarian") || meal.diets.includes("Vegan"));
+  }
+  if (planType === "quick-and-easy") {
+    return meals.filter((meal) => meal.prepMinutes <= 20);
+  }
+  return meals;
+}
+
 function parseSelection(content: string) {
   const clean = content.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
   return JSON.parse(clean) as { days?: Array<{ breakfast?: string; lunch?: string; dinner?: string; snack?: string }> };
@@ -486,7 +496,12 @@ router.post("/v1/planner/generate", async (req, res) => {
   const profile = parsed.data.profile;
   const planType = parsed.data.planType ?? null;
   const available = catalog.filter((meal) => meal.diets.includes(profile.diet) || profile.diet === "Everything");
-  const catalogPrompt = available.map((meal) => `${meal.id}: ${meal.name} (${meal.meal}, ${meal.calories} kcal, ${meal.proteinG}g protein, ${meal.carbsG}g carbs, ${meal.fatG}g fat, ${meal.prepMinutes} min prep)`).join("\n");
+  const programCatalog = catalogForPlanType(available, planType);
+  if (programCatalog.length === 0) {
+    res.status(400).json({ message: "No catalog meals satisfy the selected Program and dietary preference." });
+    return;
+  }
+  const catalogPrompt = programCatalog.map((meal) => `${meal.id}: ${meal.name} (${meal.meal}, ${meal.calories} kcal, ${meal.proteinG}g protein, ${meal.carbsG}g carbs, ${meal.fatG}g fat, ${meal.prepMinutes} min prep)`).join("\n");
 
   // Plan-type-specific AI guidance — each entry maps a plan type id to
   // a targeted instruction that steers meal selection from the catalog.
@@ -534,12 +549,12 @@ router.post("/v1/planner/generate", async (req, res) => {
     const content = completion.choices[0]?.message?.content;
     if (!content) throw new Error("Planner provider returned no plan");
     const selection = parseSelection(content);
-    const byId = new Map(available.map((meal) => [meal.id, meal]));
+     const byId = new Map(programCatalog.map((meal) => [meal.id, meal]));
     const fallback = {
-      breakfast: available.find((meal) => meal.meal === "Breakfast") ?? catalog[0],
-      lunch: available.find((meal) => meal.meal === "Lunch") ?? catalog[3],
-      dinner: available.find((meal) => meal.meal === "Dinner") ?? catalog[7],
-      snack: available.find((meal) => meal.meal === "Snack") ?? catalog[10],
+       breakfast: programCatalog.find((meal) => meal.meal === "Breakfast") ?? programCatalog[0],
+       lunch: programCatalog.find((meal) => meal.meal === "Lunch") ?? programCatalog[3],
+       dinner: programCatalog.find((meal) => meal.meal === "Dinner") ?? programCatalog[7],
+       snack: programCatalog.find((meal) => meal.meal === "Snack") ?? programCatalog[10],
     };
     const meals = Array.from({ length: 7 }, (_, dayIndex) => {
       const chosen = selection.days?.[dayIndex] ?? {};
@@ -557,10 +572,10 @@ router.post("/v1/planner/generate", async (req, res) => {
     // upstream model is slow or unavailable so local-first clients can proceed
     // with an editable starter week instead of receiving a transport failure.
     const fallback = {
-      breakfast: available.find((meal) => meal.meal === "Breakfast") ?? catalog[0],
-      lunch: available.find((meal) => meal.meal === "Lunch") ?? catalog[3],
-      dinner: available.find((meal) => meal.meal === "Dinner") ?? catalog[7],
-      snack: available.find((meal) => meal.meal === "Snack") ?? catalog[10],
+       breakfast: programCatalog.find((meal) => meal.meal === "Breakfast") ?? programCatalog[0],
+       lunch: programCatalog.find((meal) => meal.meal === "Lunch") ?? programCatalog[3],
+       dinner: programCatalog.find((meal) => meal.meal === "Dinner") ?? programCatalog[7],
+       snack: programCatalog.find((meal) => meal.meal === "Snack") ?? programCatalog[10],
     };
     const meals = Array.from({ length: 7 }, (_, dayIndex) => [
       makeMeal(fallback.breakfast, dateFromWeekStart(weekStart, dayIndex), 0),
