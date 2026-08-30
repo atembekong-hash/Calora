@@ -49,4 +49,3 @@
 - [Structured recipe generation budget](structured-recipe-generation-budget.md) — output-token limits must fit the complete five-concept JSON schema or valid responses can truncate.
 - [OpenAPI request schema naming](openapi-request-schema-naming.md) — named component request schemas prevent generated validator/type export collisions.
 - [Native health adapter contracts](native-health-adapter-contracts.md) — HealthKit read grants are unknowable; require measured values, explicit units, and current-day snapshots.
-- [Fitness program provider](fitness-program-provider.md) — LES MILLS is the first approved target; launch remains metadata + attributed official links until explicit content rights exist.

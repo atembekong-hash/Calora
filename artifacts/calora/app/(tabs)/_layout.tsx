@@ -107,37 +107,25 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="fitness"
-        options={{
-          title: 'Fitness',
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon focused={focused}>
-              {isIOS ? <SymbolView name="figure.run" tintColor={color} size={24} /> : <Feather name="activity" size={22} color={color} />}
-            </AnimatedTabIcon>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="more"
-        options={{
-          title: 'More',
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon focused={focused}>
-              {isIOS ? <SymbolView name="ellipsis" tintColor={color} size={24} /> : <Feather name="menu" size={22} color={color} />}
-            </AnimatedTabIcon>
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="insights"
         options={{
-          href: null,
+          title: 'Progress',
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedTabIcon focused={focused}>
+              {isIOS ? <SymbolView name="chart.bar.xaxis" tintColor={color} size={23} /> : <Feather name="bar-chart-2" size={22} color={color} />}
+            </AnimatedTabIcon>
+          ),
         }}
       />
       <Tabs.Screen
         name="planner"
         options={{
-          href: null,
+          title: 'Plan',
+          tabBarIcon: ({ color, focused }) => (
+            <AnimatedTabIcon focused={focused}>
+              {isIOS ? <SymbolView name="calendar" tintColor={color} size={23} /> : <Feather name="calendar" size={22} color={color} />}
+            </AnimatedTabIcon>
+          ),
         }}
       />
       <Tabs.Screen name="profile" options={{ href: null }} />
