@@ -1577,7 +1577,7 @@ function makeStyles(f: number) {
   waterSummary: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   waterCupsLogged: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   mealsLoggedNames: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 14, minHeight: 18 },
-  wellnessAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 10, marginTop: 'auto' },
+  wellnessAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 7, width: '72%', alignSelf: 'center', marginTop: 'auto' },
   wellnessActionText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   waterAdjustActions: { gap: 8, marginTop: 8 },
   waterQuickActions: { flexDirection: 'row-reverse', gap: 8 },
