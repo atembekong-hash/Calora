@@ -1,6 +1,6 @@
 export type HealthProvider = 'health-connect' | 'healthkit' | 'unsupported';
 export type HealthMetric = 'steps' | 'activeEnergy' | 'workouts' | 'bodyWeight';
-export type HealthAuthorization = 'notConnected' | 'authorized' | 'partial' | 'denied' | 'unavailable' | 'error';
+export type HealthAuthorization = 'notConnected' | 'requested' | 'authorized' | 'partial' | 'denied' | 'unavailable' | 'error';
 
 export type HealthWorkout = { id: string; startAt: string; endAt: string; type: string };
 export type HealthWeight = { id: string; recordedAt: string; kg: number };

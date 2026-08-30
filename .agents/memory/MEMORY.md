@@ -48,4 +48,4 @@
 - [Recipe creator mode ownership](recipe-creator-mode-ownership.md) — visible Create inputs must affect the request, and mode-specific choices never leak into another mode.
 - [Structured recipe generation budget](structured-recipe-generation-budget.md) — output-token limits must fit the complete five-concept JSON schema or valid responses can truncate.
 - [OpenAPI request schema naming](openapi-request-schema-naming.md) — named component request schemas prevent generated validator/type export collisions.
-- [Native health adapter contracts](native-health-adapter-contracts.md) — pin HealthKit energy units and numeric authorization enums; bind cached snapshots to the current local day.
+- [Native health adapter contracts](native-health-adapter-contracts.md) — HealthKit read grants are unknowable; require measured values, explicit units, and current-day snapshots.

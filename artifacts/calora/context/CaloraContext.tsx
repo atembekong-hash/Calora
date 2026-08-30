@@ -470,6 +470,12 @@ function mergeHealthWeights(current: WeightEntry[], snapshot: HealthSnapshot): W
   }, current);
 }
 
+function canSyncHealthConnection(connection: HealthConnection): boolean {
+  return connection.authorization === 'requested'
+    || connection.authorization === 'authorized'
+    || connection.authorization === 'partial';
+}
+
 export function CaloraProvider({
   children,
   accountId,
@@ -494,7 +500,7 @@ export function CaloraProvider({
   const [savedRecipeIds, setSavedRecipeIds] = useState<string[]>([]);
   const [themePreference, setThemePreference] = useState<ThemePreference>('system');
   const [healthConnection, setHealthConnection] = useState<HealthConnection>(EMPTY_HEALTH_CONNECTION);
-  const healthConnected = healthConnection.authorization === 'authorized' || healthConnection.authorization === 'partial';
+  const healthConnected = canSyncHealthConnection(healthConnection);
   const healthConnectionRef = useRef(healthConnection);
   const healthSyncPromiseRef = useRef<Promise<void> | null>(null);
   const healthSyncEpochRef = useRef(0);
@@ -670,7 +676,7 @@ export function CaloraProvider({
       }
       if (epoch !== healthSyncEpochRef.current) return;
       setHealthConnection(current);
-      if (current.authorization !== 'authorized' && current.authorization !== 'partial') return;
+      if (!canSyncHealthConnection(current)) return;
       try {
         const snapshot = await healthService.sync();
         if (epoch !== healthSyncEpochRef.current) return;
@@ -706,7 +712,7 @@ export function CaloraProvider({
       healthService.getConnection().then((conn) => {
         setHealthConnection(conn);
         // If already authorized, trigger an initial sync to refresh data.
-        if (conn.authorization === 'authorized' || conn.authorization === 'partial') {
+        if (canSyncHealthConnection(conn)) {
           syncHealth();
         }
       }).catch(() => {
@@ -725,7 +731,7 @@ export function CaloraProvider({
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (
         nextState === 'active'
-        && (healthConnectionRef.current.authorization === 'authorized' || healthConnectionRef.current.authorization === 'partial')
+        && canSyncHealthConnection(healthConnectionRef.current)
       ) {
         void syncHealth();
       }
@@ -738,7 +744,7 @@ export function CaloraProvider({
   // this covers an open app crossing midnight.
   useEffect(() => {
     if (!hydrated) return;
-    if (healthConnection.authorization !== 'authorized' && healthConnection.authorization !== 'partial') return;
+    if (!canSyncHealthConnection(healthConnection)) return;
     if (lastHealthRefreshDayRef.current === healthDayKey) return;
     lastHealthRefreshDayRef.current = healthDayKey;
     void syncHealth();
@@ -896,7 +902,7 @@ export function CaloraProvider({
       // approval get overwritten by this older connection result.
       if (connectEpoch !== healthSyncEpochRef.current) return healthConnectionRef.current;
       setHealthConnection(next);
-      if (next.authorization === 'authorized' || next.authorization === 'partial') {
+      if (canSyncHealthConnection(next)) {
         await syncHealth();
       }
       return connectEpoch === healthSyncEpochRef.current ? next : healthConnectionRef.current;

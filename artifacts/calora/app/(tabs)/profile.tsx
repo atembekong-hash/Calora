@@ -307,7 +307,7 @@ export default function ProfileScreen() {
     try {
       await connectHealth();
     } catch (err) {
-      Alert.alert('Health Connect unavailable', err instanceof Error ? err.message : 'Could not open Health Connect permissions.');
+      Alert.alert('Health access unavailable', err instanceof Error ? err.message : 'Could not open health permissions.');
     }
     finally { setHealthBusy(false); }
   };
@@ -851,7 +851,7 @@ export default function ProfileScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Health data</Text>
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
-              {healthConnection.authorization === 'partial' ? 'Partial access · local health data only' : healthConnected ? 'Connected · local health data only' : healthConnection.authorization === 'denied' ? 'Permission not granted · Calora still works locally' : healthConnection.authorization === 'unavailable' ? 'Unavailable on this device' : `Not connected · ${BRAND.name} works offline without it`}
+              {healthConnection.authorization === 'requested' ? 'Apple Health access requested · local data only' : healthConnection.authorization === 'partial' ? 'Partial access · local health data only' : healthConnected ? 'Connected · local health data only' : healthConnection.authorization === 'error' ? 'Health connection needs attention' : healthConnection.authorization === 'denied' ? 'Permission not granted · Calora still works locally' : healthConnection.authorization === 'unavailable' ? 'Unavailable on this device' : `Not connected · ${BRAND.name} works offline without it`}
             </Text>
           </View>
            <Pressable
@@ -1147,8 +1147,12 @@ export default function ProfileScreen() {
                 <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>
                   {healthConnection.authorization === 'unavailable'
                     ? 'Health data is unavailable on this device. Calora will continue to work locally without it.'
+                    : healthConnection.authorization === 'error'
+                      ? healthConnection.syncError ?? 'Health access could not be completed. Try connecting again.'
                     : healthConnection.authorization === 'denied'
                       ? 'Health access was not granted. Calora continues to work normally, and no health data has been read.'
+                    : healthConnection.authorization === 'requested'
+                      ? 'Apple does not reveal whether individual read categories were allowed. Calora shows Apple Health values only when HealthKit returns a measured result; empty or denied reads remain unavailable rather than becoming zero. To change access, open Health, tap your profile picture, then Apps and Services, and choose CaloraApp.'
                       : healthConnected
                       ? `Your ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} data stays on this device. ${healthConnection.authorization === 'partial' ? 'Some requested categories are not available.' : 'Steps, active energy, workouts, and weight can be read when you sync.'}`
                       : `Connect ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} only when you are ready. Calora reads selected data locally and never writes health records.`}
@@ -1159,12 +1163,12 @@ export default function ProfileScreen() {
                     {healthConnection.syncError ?? (healthConnection.lastSyncedAt ? `Last synced ${new Date(healthConnection.lastSyncedAt).toLocaleString()}` : 'Permission is requested only after you press Connect.')}
                   </Text>
                 </View>
-                {healthConnection.authorization !== 'unavailable' && (!healthConnected || !healthConnection.granted.includes('activeEnergy')) && (
+                {healthConnection.authorization !== 'unavailable' && !healthConnected && (
                   <Pressable accessibilityLabel="Connect health data" onPress={handleHealthConnect} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
                     {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>{healthConnected ? 'Update access' : 'Connect'}</Text>}
                   </Pressable>
                 )}
-                {healthConnected && healthConnection.granted.includes('activeEnergy') && (
+                {healthConnected && (healthConnection.provider === 'healthkit' || healthConnection.granted.includes('activeEnergy')) && (
                   <>
                     <Pressable accessibilityLabel="Sync health data now" onPress={handleHealthSync} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
                       {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Sync now</Text>}

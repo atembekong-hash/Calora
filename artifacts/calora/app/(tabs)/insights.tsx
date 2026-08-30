@@ -1102,8 +1102,14 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 export default function InsightsScreen() {
   const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected } = useCalora();
   const healthSnapshotReady = healthSnapshotIsFreshForDay(healthConnection.snapshot);
-  const healthStepsAvailable = healthSnapshotReady && healthConnection.granted.includes('steps');
-  const healthActiveEnergyAvailable = healthSnapshotReady && healthConnection.granted.includes('activeEnergy');
+  const healthStepsAvailable = healthSnapshotReady && (
+    healthConnection.granted.includes('steps')
+    || (healthConnection.provider === 'healthkit' && healthConnection.snapshot?.steps !== null)
+  );
+  const healthActiveEnergyAvailable = healthSnapshotReady && (
+    healthConnection.granted.includes('activeEnergy')
+    || (healthConnection.provider === 'healthkit' && healthConnection.snapshot?.activeEnergyKcal !== null)
+  );
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showWeight, setShowWeight] = useState(false);

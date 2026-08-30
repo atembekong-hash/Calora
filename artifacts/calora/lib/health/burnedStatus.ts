@@ -24,13 +24,18 @@ export function burnedStatusForDay(input: {
   const { isToday, connection, now = new Date() } = input;
   if (!isToday) return { kind: 'past-date', actionLabel: 'Burned unavailable for past dates' };
   if (connection.authorization === 'unavailable') return { kind: 'unavailable', actionLabel: 'Health unavailable on this device' };
+  if (connection.authorization === 'error') return { kind: 'failed', actionLabel: 'Connect Health' };
   if (connection.authorization === 'denied') return { kind: 'permission', actionLabel: 'Allow Health access' };
   if (connection.authorization === 'notConnected') return { kind: 'connect', actionLabel: 'Connect Health' };
-  if (!connection.granted.includes('activeEnergy')) return { kind: 'permission', actionLabel: 'Allow active calories' };
+  const appleReadAccessIsIndeterminate = connection.provider === 'healthkit' && connection.authorization === 'requested';
+  if (!connection.granted.includes('activeEnergy') && !appleReadAccessIsIndeterminate) return { kind: 'permission', actionLabel: 'Allow active calories' };
   if (connection.syncError) return { kind: 'failed', actionLabel: 'Sync health' };
   if (!connection.snapshot) return { kind: 'syncing', actionLabel: 'Syncing health…' };
   if (!healthSnapshotIsFreshForDay(connection.snapshot, now)) {
     return { kind: 'syncing', actionLabel: 'Syncing health…' };
   }
-  return { kind: 'ready', calories: connection.snapshot.activeEnergyKcal ?? 0 };
+  if (connection.snapshot.activeEnergyKcal === null) {
+    return { kind: 'permission', actionLabel: 'Review Apple Health access' };
+  }
+  return { kind: 'ready', calories: connection.snapshot.activeEnergyKcal };
 }

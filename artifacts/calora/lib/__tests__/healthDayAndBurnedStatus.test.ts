@@ -3,7 +3,7 @@ import { burnedStatusForDay } from '../health/burnedStatus';
 import { currentLocalDayRange } from '../health/dayRange';
 import { healthConnectActiveEnergyKcal, healthConnectDayRange } from '../health/healthService.android';
 import { AuthorizationRequestStatus } from '@kingstinct/react-native-healthkit';
-import { healthKitActiveEnergyOptions, healthKitAuthorizationForRequestStatus, healthKitDayFilter } from '../health/healthService.ios';
+import { HEALTH_KIT_BODY_WEIGHT_UNIT, healthKitActiveEnergyOptions, healthKitAuthorizationForRequestStatus, healthKitCumulativeQuantity, healthKitDayFilter } from '../health/healthService.ios';
 import type { HealthConnection } from '../health/types';
 
 const connected = (overrides: Partial<HealthConnection> = {}): HealthConnection => ({
@@ -38,9 +38,9 @@ describe('currentLocalDayRange', () => {
     expect(ios).toMatchObject({
       startDate: new Date(2026, 7, 30),
       endDate: now,
-      strictStartDate: true,
-      strictEndDate: true,
     });
+    expect('strictStartDate' in ios).toBe(false);
+    expect('strictEndDate' in ios).toBe(false);
   });
 
   it('always requests HealthKit active energy in kilocalories', () => {
@@ -62,10 +62,20 @@ describe('currentLocalDayRange', () => {
     })).toThrow('invalid active calorie total');
   });
 
-  it('recognizes HealthKit’s numeric authorized request status', () => {
+  it('keeps HealthKit request completion distinct from confirmed read access', () => {
     expect(AuthorizationRequestStatus.unnecessary).toBe(2);
-    expect(healthKitAuthorizationForRequestStatus(AuthorizationRequestStatus.unnecessary)).toBe('authorized');
+    expect(healthKitAuthorizationForRequestStatus(AuthorizationRequestStatus.unnecessary)).toBe('requested');
     expect(healthKitAuthorizationForRequestStatus(AuthorizationRequestStatus.shouldRequest)).toBe('notConnected');
+    expect(healthKitAuthorizationForRequestStatus(AuthorizationRequestStatus.unknown)).toBe('error');
+  });
+
+  it('keeps an empty HealthKit quantity distinct from a measured zero', () => {
+    expect(healthKitCumulativeQuantity(undefined)).toBeNull();
+    expect(healthKitCumulativeQuantity({})).toBeNull();
+    expect(healthKitCumulativeQuantity({ sumQuantity: { quantity: 0 } })).toBe(0);
+    expect(healthKitCumulativeQuantity({ sumQuantity: { quantity: 347.5 } })).toBe(347.5);
+    expect(() => healthKitCumulativeQuantity({ sumQuantity: { quantity: -1 } })).toThrow('invalid cumulative quantity');
+    expect(HEALTH_KIT_BODY_WEIGHT_UNIT).toBe('kg');
   });
 
   it('preserves the local calendar day across a daylight-saving transition', () => {
@@ -113,5 +123,25 @@ describe('burnedStatusForDay', () => {
         snapshot: { syncedAt: '2026-08-30T23:59:00.000Z', steps: 1200, activeEnergyKcal: 345, workouts: [], weights: [] },
       }),
     })).toEqual({ kind: 'syncing', actionLabel: 'Syncing health…' });
+  });
+
+  it('shows Apple Health only after HealthKit returns a measured quantity', () => {
+    const apple = (activeEnergyKcal: number | null): HealthConnection => ({
+      provider: 'healthkit',
+      authorization: 'requested',
+      granted: [],
+      snapshot: {
+        syncedAt: '2026-08-30T10:00:00.000Z',
+        steps: null,
+        activeEnergyKcal,
+        workouts: [],
+        weights: [],
+      },
+    });
+    const now = new Date(2026, 7, 30, 15, 42, 11);
+    expect(burnedStatusForDay({ isToday: true, now, connection: apple(null) }))
+      .toEqual({ kind: 'permission', actionLabel: 'Review Apple Health access' });
+    expect(burnedStatusForDay({ isToday: true, now, connection: apple(0) }))
+      .toEqual({ kind: 'ready', calories: 0 });
   });
 });
