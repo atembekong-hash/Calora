@@ -1522,7 +1522,7 @@ function makeStyles(f: number) {
    fuelSnapshotItem: { flex: 1, alignItems: 'center' },
    fuelSnapshotValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 18 * f, letterSpacing: -0.4 },
    fuelSnapshotLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4, textAlign: 'center' },
-    livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 36, width: '78%', alignSelf: 'center', borderRadius: 14, paddingHorizontal: 10, marginTop: 28 },
+    livingAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, minHeight: 36, width: '78%', alignSelf: 'center', borderRadius: 14, paddingHorizontal: 10, marginTop: 32 },
    livingActionSecondary: { borderWidth: StyleSheet.hairlineWidth },
   livingActionText: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   livingRhythmCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 24, paddingVertical: 17, paddingHorizontal: 20, marginBottom: 24, shadowColor: '#17231f', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
