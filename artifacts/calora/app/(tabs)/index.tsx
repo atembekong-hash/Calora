@@ -561,7 +561,7 @@ function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typ
       <View style={styles.mealInfo}>
         <Text style={[styles.mealName, { color: colors.foreground }]} numberOfLines={1}>{log.name}</Text>
         <View style={styles.mealMeta}>
-          <Text style={[styles.mealType, { color: colors.mutedForeground }]}>{log.meal} · {log.time}</Text>
+          <Text style={[styles.mealType, { color: colors.mutedForeground }]}>{log.time}</Text>
         </View>
       </View>
       <Text style={[styles.mealCalories, { color: colors.foreground }]}>{formatWhole(log.calories)}</Text>
