@@ -1,4 +1,4 @@
-import type { HealthConnection } from './types';
+import type { HealthConnection, HealthSnapshot } from './types';
 import { dateKey } from '../dates';
 
 export type BurnedStatus =
@@ -9,6 +9,12 @@ export type BurnedStatus =
   | { kind: 'syncing'; actionLabel: string }
   | { kind: 'failed'; actionLabel: string }
   | { kind: 'unavailable'; actionLabel: string };
+
+export function healthSnapshotIsFreshForDay(snapshot: HealthSnapshot | undefined, now: Date = new Date()): boolean {
+  if (!snapshot) return false;
+  const syncedAt = new Date(snapshot.syncedAt);
+  return !Number.isNaN(syncedAt.getTime()) && dateKey(syncedAt) === dateKey(now);
+}
 
 export function burnedStatusForDay(input: {
   isToday: boolean;
@@ -23,8 +29,7 @@ export function burnedStatusForDay(input: {
   if (!connection.granted.includes('activeEnergy')) return { kind: 'permission', actionLabel: 'Allow active calories' };
   if (connection.syncError) return { kind: 'failed', actionLabel: 'Sync health' };
   if (!connection.snapshot) return { kind: 'syncing', actionLabel: 'Syncing health…' };
-  const syncedAt = new Date(connection.snapshot.syncedAt);
-  if (Number.isNaN(syncedAt.getTime()) || dateKey(syncedAt) !== dateKey(now)) {
+  if (!healthSnapshotIsFreshForDay(connection.snapshot, now)) {
     return { kind: 'syncing', actionLabel: 'Syncing health…' };
   }
   return { kind: 'ready', calories: connection.snapshot.activeEnergyKcal ?? 0 };

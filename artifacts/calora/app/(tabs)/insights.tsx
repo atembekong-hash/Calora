@@ -22,6 +22,7 @@ import { dateKey } from '@/lib/dates';
 import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { celebrationGate } from '@/lib/goalCelebration';
+import { healthSnapshotIsFreshForDay } from '@/lib/health/burnedStatus';
 import {
   buildDailyIntelligenceFacts,
   createIntelligenceContext,
@@ -1100,6 +1101,9 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 
 export default function InsightsScreen() {
   const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected } = useCalora();
+  const healthSnapshotReady = healthSnapshotIsFreshForDay(healthConnection.snapshot);
+  const healthStepsAvailable = healthSnapshotReady && healthConnection.granted.includes('steps');
+  const healthActiveEnergyAvailable = healthSnapshotReady && healthConnection.granted.includes('activeEnergy');
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showWeight, setShowWeight] = useState(false);
@@ -1638,17 +1642,17 @@ export default function InsightsScreen() {
                 <Text style={[styles.signalMetricHint, { color: colors.mutedForeground }]}>{moodToday ? 'Logged today' : 'Optional check-in'}</Text>
               </View>
             </View>
-            {healthConnected && healthConnection.snapshot && (
+            {healthConnected && healthSnapshotReady && healthConnection.snapshot && (
               <View style={[styles.signalRow, { marginTop: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16 }]}>
                 <View style={styles.signalMetric}>
                   <View style={styles.signalMetricTop}><Feather name="zap" size={14} color={colors.primary} /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Steps</Text></View>
-                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthConnection.snapshot.steps?.toLocaleString() ?? 0} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>today</Text></Text>
-                  <AnimatedTrackFill percentage={Math.min(((healthConnection.snapshot.steps ?? 0) / 10000) * 100, 100)} color={colors.primary} trackColor={colors.muted} />
+                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthStepsAvailable ? healthConnection.snapshot.steps?.toLocaleString() ?? '—' : '—'} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>{healthStepsAvailable ? 'today' : 'unavailable'}</Text></Text>
+                  <AnimatedTrackFill percentage={healthStepsAvailable ? Math.min(((healthConnection.snapshot.steps ?? 0) / 10000) * 100, 100) : 0} color={colors.primary} trackColor={colors.muted} />
                 </View>
                 <View style={styles.signalMetric}>
                   <View style={styles.signalMetricTop}><Feather name="zap" size={14} color={colors.warning} /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Burned</Text></View>
-                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthConnection.snapshot.activeEnergyKcal?.toLocaleString() ?? 0} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>kcal</Text></Text>
-                  <Text style={[styles.signalMetricHint, { color: colors.mutedForeground }]}>Synced from {healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'}</Text>
+                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthActiveEnergyAvailable ? healthConnection.snapshot.activeEnergyKcal?.toLocaleString() ?? '—' : '—'} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>{healthActiveEnergyAvailable ? 'kcal' : 'unavailable'}</Text></Text>
+                  <Text style={[styles.signalMetricHint, { color: colors.mutedForeground }]}>{healthActiveEnergyAvailable ? `Synced from ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'}` : 'Allow active calories to show Burned'}</Text>
                 </View>
               </View>
             )}
