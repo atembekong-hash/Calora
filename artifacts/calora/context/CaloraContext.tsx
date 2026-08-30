@@ -111,6 +111,8 @@ export type FoodLog = {
   memoryId?: string;
   plannerMealId?: string;
   sourceRecipeId?: string;
+  /** Stable bundled identity for curated food imagery; never sent as a remote URL. */
+  imageAssetKey?: string;
   imageUrl?: string;
   imageSource?: FoodImageSource;
   nutritionSnapshot?: { calories: number; proteinG: number; carbsG: number; fatG: number; capturedAt: string };

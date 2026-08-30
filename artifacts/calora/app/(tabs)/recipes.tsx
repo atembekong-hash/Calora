@@ -57,9 +57,23 @@ function httpStatus(error: unknown): number | null {
 
 function RecipeImage({ recipe, height = 160 }: { recipe: Recipe | CaloraRecipe; height?: number }) {
   const photoPending = isLocalRecipe(recipe) && recipe.imageStatus === 'pending';
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => {
+    setImageFailed(false);
+  }, [recipe.id, recipe.image]);
   return <View style={{ height }}>
-    {recipe.image ? (
-      <Image source={{ uri: recipe.image }} contentFit="cover" transition={180} cachePolicy="memory-disk" style={[styles.recipeImage, { height }]} />
+    {recipe.image && !imageFailed ? (
+      <Image
+        source={{ uri: recipe.image }}
+        accessibilityLabel={`${recipe.name} recipe image`}
+        contentFit="cover"
+        transition={180}
+        cachePolicy="memory-disk"
+        onError={() => setImageFailed(true)}
+        placeholder={require('../../assets/images/calora-recipes-header.jpg')}
+        recyclingKey={`${recipe.id}:${recipe.image}`}
+        style={[styles.recipeImage, { height }]}
+      />
     ) : (
     <View style={[styles.recipeImage, styles.imageFallback, { height }]}>
       <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />

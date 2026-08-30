@@ -13,6 +13,8 @@ export interface PlannerMeal {
   meal: PlannerMealMeal;
   name: string;
   image: string;
+  /** Stable client asset identity for curated planner imagery. Optional for generated or custom meals. */
+  imageAssetKey?: string;
   serving: string;
   /** @minimum 0 */
   calories: number;

@@ -52,4 +52,16 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('<AppHeader title="Recipes" />');
     expect(source).not.toContain('Create personalized recipe ideas');
   });
+
+  it('recovers failed remote recipe photos without allowing recycled rows to keep stale imagery', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('const [imageFailed, setImageFailed] = useState(false)');
+    expect(source).toContain('onError={() => setImageFailed(true)}');
+    expect(source).toContain('recyclingKey={`${recipe.id}:${recipe.image}`}');
+    expect(source).toContain('setImageFailed(false)');
+  });
 });

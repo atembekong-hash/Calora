@@ -33,6 +33,25 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { PlannerPeek } from '@/components/PlannerPeek';
+
+function RecipeWidgetImage({ recipe }: { recipe: Recipe }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [recipe.id, recipe.image]);
+  return (
+    <Image
+      accessibilityLabel={`${recipe.name} recipe image`}
+      source={recipe.image && !failed ? { uri: recipe.image } : require('../../assets/images/calora-recipes-header.jpg')}
+      contentFit="cover"
+      cachePolicy="memory-disk"
+      onError={() => setFailed(true)}
+      placeholder={require('../../assets/images/calora-recipes-header.jpg')}
+      recyclingKey={`${recipe.id}:${recipe.image ?? 'fallback'}`}
+      style={styles.recipeWidgetImage}
+    />
+  );
+}
 import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 import { formatGrams, formatQuantity, formatWhole } from '@/lib/formatters';
 import { resolveLivingActionEffect } from '@/lib/livingActionHandler';
@@ -454,12 +473,7 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
           }}
           renderItem={({ item: recipe }) => (
             <View style={[styles.recipeWidgetCard, { backgroundColor: colors.hero }]}>
-              <Image
-                source={recipe.image ? { uri: recipe.image } : require('../../assets/images/calora-recipes-header.jpg')}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                style={styles.recipeWidgetImage}
-              />
+              <RecipeWidgetImage recipe={recipe} />
               <LinearGradient colors={['rgba(18,34,24,0.08)', 'rgba(18,34,24,0.88)']} style={StyleSheet.absoluteFillObject} />
               <View style={styles.recipeWidgetCopy}>
                 <Text style={styles.recipeWidgetEyebrow}>{recipe.area ? `${recipe.area.toUpperCase()} · OPEN SOURCE` : 'OPEN SOURCE RECIPE'}</Text>

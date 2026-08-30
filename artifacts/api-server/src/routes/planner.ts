@@ -35,6 +35,36 @@ type CatalogMeal = {
   description: string;
   prepMinutes: number;
   diets: PlannerProfile["diet"][];
+  imageAssetKey?: string;
+};
+
+const plannerImageKeysById: Record<string, string> = {
+  "berry-oats": "berry-oats",
+  "egg-toast": "egg-toast",
+  "yogurt-parfait": "yogurt-parfait",
+  "smoothie-bowl": "smoothie-bowl",
+  "avo-toast-egg": "smoked-salmon-rye-toast",
+  "banana-pancakes": "banana-pancakes",
+  "chia-pudding": "chia-pudding",
+  "harvest-salad": "harvest-salad",
+  "salmon-quinoa": "salmon-quinoa",
+  "lentil-soup": "lentil-soup",
+  "hummus-wrap": "turkey-hummus-wrap",
+  "greek-salad": "greek-salad",
+  "tuna-poke": "tuna-poke",
+  "chickpea-bowl": "chickpea-bowl",
+  "stir-fry": "tofu-stir-fry",
+  "med-pasta": "med-pasta",
+  "chicken-rice": "chicken-rice",
+  "thai-curry": "thai-curry",
+  "spaghetti-bol": "spaghetti-bolognese",
+  "beef-tacos": "beef-tacos",
+  "prawn-stirfry": "prawn-stirfry",
+  "apple-almond": "apple-almond",
+  "edamame": "edamame",
+  "trail-mix": "trail-mix",
+  "hummus-veggies": "hummus-veggies",
+  "banana-pb": "banana-peanut-butter",
 };
 
 const catalog: CatalogMeal[] = [
@@ -450,6 +480,7 @@ function dateFromWeekStart(weekStart: string, offset: number) {
 function makeMeal(meal: CatalogMeal, day: string, index: number) {
   return {
     ...meal,
+    imageAssetKey: meal.imageAssetKey ?? plannerImageKeysById[meal.id],
     id: `planner-${day}-${meal.id}-${index}-${randomUUID().slice(0, 6)}`,
     day,
   };

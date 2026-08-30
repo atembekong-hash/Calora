@@ -1112,6 +1112,7 @@ export const GeneratePlannerResponse = zod.object({
   "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']),
   "name": zod.string(),
   "image": zod.string().url(),
+  "imageAssetKey": zod.string().optional().describe('Stable client asset identity for curated planner imagery. Optional for generated or custom meals.'),
   "serving": zod.string(),
   "calories": zod.number().min(generatePlannerResponseMealsItemCaloriesMin),
   "proteinG": zod.number().min(generatePlannerResponseMealsItemProteinGMin),

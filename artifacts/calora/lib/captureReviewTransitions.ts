@@ -47,6 +47,7 @@ export type FoodLog = {
   memoryId?: string;
   plannerMealId?: string;
   sourceRecipeId?: string;
+  imageAssetKey?: string;
   imageUrl?: string;
   imageSource?: FoodImageSource;
   nutritionSnapshot?: {
@@ -117,6 +118,7 @@ export function buildAcceptResult(
     memoryId: draft.id,
     plannerMealId: draft.plannerMealId,
     sourceRecipeId: draft.sourceRecipeId,
+    imageAssetKey: draft.imageAssetKey,
     imageUrl: image.imageUrl,
     imageSource: image.imageSource,
     nutritionSnapshot: snapshot,

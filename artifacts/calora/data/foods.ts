@@ -1,8 +1,9 @@
 import { FoodLog, MealType } from '@/context/CaloraContext';
+import type { FoodImageKey } from '@/lib/mealImageIdentity';
 
 export type FoodSuggestion = Omit<FoodLog, 'id' | 'time' | 'date'>;
 
-export const verifiedFoods: FoodSuggestion[] = [
+const verifiedFoodDefinitions: FoodSuggestion[] = [
   {
     name: 'Greek yogurt, plain',
     serving: '170 g',
@@ -344,5 +345,33 @@ export const verifiedFoods: FoodSuggestion[] = [
     imageSource: 'provider',
   },
 ];
+
+const verifiedFoodImageKeys: Record<string, FoodImageKey> = {
+  'Greek yogurt, plain': 'greek-yogurt-plain',
+  'Salmon rice bowl': 'salmon-rice-bowl',
+  'Eggs on sourdough': 'eggs-sourdough',
+  'Avocado toast': 'avocado-toast',
+  'Overnight oats': 'overnight-oats',
+  'Berry protein smoothie': 'berry-protein-smoothie',
+  'Chicken rice bowl': 'chicken-rice-bowl',
+  'Turkey avocado wrap': 'turkey-avocado-wrap',
+  'Lentil quinoa salad': 'lentil-quinoa-salad',
+  'Tomato basil soup': 'tomato-basil-soup',
+  'Grilled chicken with vegetables': 'grilled-chicken-vegetables',
+  'Shrimp tacos': 'shrimp-tacos',
+  'Tofu vegetable stir-fry': 'tofu-vegetable-stir-fry',
+  'Whole wheat pasta primavera': 'whole-wheat-pasta-primavera',
+  'Beef and bean chili': 'beef-bean-chili',
+  'Cottage cheese and berries': 'cottage-cheese-berries',
+  'Apple with almond butter': 'apple-almond-butter',
+  'Hummus and vegetables': 'hummus-vegetables',
+  'Trail mix': 'trail-mix',
+  'Tuna cucumber crackers': 'tuna-cucumber-crackers',
+};
+
+export const verifiedFoods: FoodSuggestion[] = verifiedFoodDefinitions.map((food) => ({
+  ...food,
+  imageAssetKey: verifiedFoodImageKeys[food.name],
+}));
 
 export const mealOrder: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];

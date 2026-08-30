@@ -3,7 +3,7 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ImageStyle, type StyleProp } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,10 +23,12 @@ import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
+import { plannerImageSource } from '@/lib/mealImages';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
 const PLANNER_WORKSPACES = ['today', 'week', 'shopping'] as const;
+const PLANNER_IMAGE_FALLBACK = require('../../assets/images/calora-plan-header.jpg');
 
 function parseDate(date: string) {
   return new Date(`${date}T12:00:00`);
@@ -41,6 +43,35 @@ function formatRange(weekStart: string) {
 function formatShoppingDays(days: string[] | undefined): string {
   if (!days || days.length === 0) return '';
   return days.map((d) => dayFormatter.format(parseDate(d))).join(' · ');
+}
+
+function PlannerMealImage({
+  meal,
+  style,
+}: {
+  meal: Pick<PlannerMeal, 'id' | 'name' | 'image' | 'imageAssetKey'>;
+  style: StyleProp<ImageStyle>;
+}) {
+  const source = plannerImageSource(meal.imageAssetKey, meal.image);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [meal.image, meal.imageAssetKey]);
+
+  return (
+    <Image
+      accessibilityLabel={`${meal.name} meal image`}
+      cachePolicy="memory-disk"
+      contentFit="cover"
+      onError={() => setFailed(true)}
+      placeholder={PLANNER_IMAGE_FALLBACK}
+      recyclingKey={`${meal.id}:${meal.imageAssetKey ?? meal.image ?? 'fallback'}`}
+      source={!failed && source ? source : PLANNER_IMAGE_FALLBACK}
+      style={style}
+      transition={160}
+    />
+  );
 }
 
 function parseNutritionValue(value: string, label: string): number | null {
@@ -84,16 +115,7 @@ function MealCard({
   return (
     <Surface tier="flat" radius="lg" style={[styles.mealCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
 {/*@ts-ignore*/}
-      <Image
-        source={[
-          ...(meal.image ? [{ uri: meal.image }] : []),
-          require('../../assets/images/calora-plan-header.jpg'),
-        ]}
-        contentFit="cover"
-        transition={160}
-        cachePolicy="memory-disk"
-        style={styles.mealImage}
-      />
+      <PlannerMealImage meal={meal} style={styles.mealImage} />
       <View style={styles.mealCardBody}>
         <View style={styles.mealCardTop}>
           <View style={[styles.mealTypeBadge, { backgroundColor: colors.accent }]}>
@@ -1221,7 +1243,7 @@ export default function PlannerScreen() {
               <SheetHeader eyebrow={`${dayFormatter.format(parseDate(selectedDay)).toUpperCase()} · ${addingMealType ?? ''}`} title="Add a meal" onClose={() => setAddingMealType(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a meal or add your own.</Text>
                <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.catalogList, styles.sheetBottomPadding]}>
-              {plannerCatalogForProgram(plannerPreferences?.primary).filter((meal) => meal.meal === addingMealType).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add ${meal.name} to plan`} onPress={() => addMealToPlan(meal, selectedDay, addingMealType!)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: meal.image }} contentFit="cover" style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="plus-circle" size={19} color={colors.primary} /></ScalePressable>)}
+              {plannerCatalogForProgram(plannerPreferences?.primary).filter((meal) => meal.meal === addingMealType).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add ${meal.name} to plan`} onPress={() => addMealToPlan(meal, selectedDay, addingMealType!)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><PlannerMealImage meal={meal} style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="plus-circle" size={19} color={colors.primary} /></ScalePressable>)}
              </ScrollView>
              <Pressable
                accessibilityLabel={`Browse recipes for ${addingMealType}`}
@@ -1243,7 +1265,7 @@ export default function PlannerScreen() {
              <SheetHeader eyebrow="REPLACE MEAL" title={replaceMeal?.name ?? ''} onClose={() => setReplaceMeal(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a {replaceMeal?.meal.toLowerCase()} for {dateFormatter.format(parseDate(replaceMeal?.day ?? selectedDay))}.</Text>
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.catalogList, styles.sheetBottomPadding]}>
-              {plannerCatalogForProgram(plannerPreferences?.primary).filter((meal) => meal.meal === replaceMeal?.meal && meal.id !== replaceMeal?.id).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Replace with ${meal.name}`} onPress={() => replaceMeal && replaceMealInPlan(meal, replaceMeal)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: meal.image }} contentFit="cover" style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="arrow-right" size={18} color={colors.primary} /></ScalePressable>)}
+              {plannerCatalogForProgram(plannerPreferences?.primary).filter((meal) => meal.meal === replaceMeal?.meal && meal.id !== replaceMeal?.id).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Replace with ${meal.name}`} onPress={() => replaceMeal && replaceMealInPlan(meal, replaceMeal)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><PlannerMealImage meal={meal} style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="arrow-right" size={18} color={colors.primary} /></ScalePressable>)}
              </ScrollView>
              <Pressable
                accessibilityLabel={`Browse recipes to replace ${replaceMeal?.name ?? 'meal'}`}

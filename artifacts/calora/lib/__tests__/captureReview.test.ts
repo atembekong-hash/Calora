@@ -200,6 +200,13 @@ describe('buildAcceptResult — review approval', () => {
     expect(log.plannerMealId).toBe('planned-meal-1');
   });
 
+  it.each(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as const)('preserves local image identity for %s diary acceptance', (meal) => {
+    const draft = makeDraft({ meal, plannerMealId: `planned-${meal}`, imageAssetKey: 'berry-oats' });
+    const { log, memory } = buildAcceptResult(draft, nextId('log'), LATER);
+    expect(log.imageAssetKey).toBe('berry-oats');
+    expect(memory.imageAssetKey).toBe('berry-oats');
+  });
+
   it('memory.status is "accepted"', () => {
     const draft = makeDraft();
     const { memory } = buildAcceptResult(draft, nextId('log'), LATER);

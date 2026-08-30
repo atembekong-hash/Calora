@@ -71,6 +71,12 @@ describe("POST /v1/planner/generate", () => {
     expect(response.status).toBe(200);
     expect(response.body.meals).toHaveLength(28);
     expect(response.body.provider).toMatch(/starter planner/i);
+    expect(response.body.meals.every((meal: { imageAssetKey?: string }) => Boolean(meal.imageAssetKey))).toBe(true);
+    expect(new Set(response.body.meals.map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBe(4);
+    expect(new Set(response.body.meals.filter((meal: { meal: string }) => meal.meal === "Breakfast").map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBe(1);
+    expect(new Set(response.body.meals.filter((meal: { meal: string }) => meal.meal === "Lunch").map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBe(1);
+    expect(new Set(response.body.meals.filter((meal: { meal: string }) => meal.meal === "Dinner").map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBe(1);
+    expect(new Set(response.body.meals.filter((meal: { meal: string }) => meal.meal === "Snack").map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBe(1);
   });
 
   it("filters model selections and fallback meals to Plant-Based Week", async () => {

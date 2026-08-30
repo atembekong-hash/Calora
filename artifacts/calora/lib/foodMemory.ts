@@ -79,6 +79,7 @@ export type FoodMemoryDraft = {
   correctionIds: string[];
   plannerMealId?: string;
   sourceRecipeId?: string;
+  imageAssetKey?: string;
   imageUrl?: string;
   imageSource?: FoodImageSource;
 };
@@ -452,7 +453,7 @@ export function migrateFoodMemories(saved: Partial<{
 }
 
 export function plannerMealToDraft(
-  meal: { id: string; name: string; calories: number; proteinG: number; carbsG: number; fatG: number; meal: FoodMemoryDraft['meal']; day: string; image?: string | null },
+  meal: { id: string; name: string; calories: number; proteinG: number; carbsG: number; fatG: number; meal: FoodMemoryDraft['meal']; day: string; image?: string | null; imageAssetKey?: string | null },
   now = new Date().toISOString(),
 ): FoodMemoryDraft {
   const inputType: FoodMemoryInputType = 'planner';
@@ -499,6 +500,7 @@ export function plannerMealToDraft(
     updatedAt: now,
     correctionIds: [],
     plannerMealId: meal.id,
+    imageAssetKey: meal.imageAssetKey ?? undefined,
     imageUrl,
     imageSource: imageUrl ? 'planner' : undefined,
   };

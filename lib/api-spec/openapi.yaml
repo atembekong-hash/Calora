@@ -1230,6 +1230,9 @@ components:
         meal: { type: string, enum: [Breakfast, Lunch, Dinner, Snack] }
         name: { type: string }
         image: { type: string, format: uri }
+        imageAssetKey:
+          type: string
+          description: Stable client asset identity for curated planner imagery. Optional for generated or custom meals.
         serving: { type: string }
         calories: { type: number, minimum: 0 }
         proteinG: { type: number, minimum: 0 }

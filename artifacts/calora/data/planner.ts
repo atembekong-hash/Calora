@@ -2,10 +2,11 @@ import type { PlannerMeal } from '@workspace/api-client-react';
 import type { ShoppingItem } from '@/context/CaloraContext';
 import { addDays, dateFromKey, dateKey } from '@/lib/dates';
 import type { PlanTypeId } from '@/lib/planType';
+import type { PlannerImageKey } from '@/lib/mealImageIdentity';
 
 export const plannerMealTypes: PlannerMeal['meal'][] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
-export const plannerCatalog: PlannerMeal[] = [
+const plannerCatalogDefinitions: PlannerMeal[] = [
   // ── Breakfasts ──────────────────────────────────────────────────────────────
   {
     id: 'berry-oats',
@@ -406,6 +407,40 @@ export const plannerCatalog: PlannerMeal[] = [
     prepMinutes: 2,
   },
 ];
+
+const plannerImageKeysById: Record<string, PlannerImageKey> = {
+  'berry-oats': 'berry-oats',
+  'egg-toast': 'egg-toast',
+  'yogurt-parfait': 'yogurt-parfait',
+  'smoothie-bowl': 'smoothie-bowl',
+  'avo-toast-egg': 'smoked-salmon-rye-toast',
+  'banana-pancakes': 'banana-pancakes',
+  'chia-pudding': 'chia-pudding',
+  'harvest-salad': 'harvest-salad',
+  'salmon-quinoa': 'salmon-quinoa',
+  'lentil-soup': 'lentil-soup',
+  'hummus-wrap': 'turkey-hummus-wrap',
+  'greek-salad': 'greek-salad',
+  'tuna-poke': 'tuna-poke',
+  'chickpea-bowl': 'chickpea-bowl',
+  'stir-fry': 'tofu-stir-fry',
+  'med-pasta': 'med-pasta',
+  'chicken-rice': 'chicken-rice',
+  'thai-curry': 'thai-curry',
+  'spaghetti-bol': 'spaghetti-bolognese',
+  'beef-tacos': 'beef-tacos',
+  'prawn-stirfry': 'prawn-stirfry',
+  'apple-almond': 'apple-almond',
+  edamame: 'edamame',
+  'trail-mix': 'trail-mix',
+  'hummus-veggies': 'hummus-veggies',
+  'banana-pb': 'banana-peanut-butter',
+};
+
+export const plannerCatalog: PlannerMeal[] = plannerCatalogDefinitions.map((meal) => ({
+  ...meal,
+  imageAssetKey: plannerImageKeysById[meal.id],
+}));
 
 export function getPlannerWeekStart(date = new Date()) {
   const local = new Date(date.getFullYear(), date.getMonth(), date.getDate());
