@@ -9,7 +9,7 @@ import { Surface } from '@/components/Surface';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
-import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getPremiumRecipe, getRecipe, listPremiumRecipes, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
+import { getGetPremiumRecipeQueryKey, getListPremiumRecipesQueryKey, getPremiumRecipe, getRecipe, listPremiumRecipes, listRecipes, useGetPremiumRecipe, useGetRecipe, useListPremiumRecipes, useListRecipes, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
 import { CaloraRecipe, useCalora } from '@/context/CaloraContext';
 import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
@@ -37,7 +37,7 @@ const RECIPE_PAGE_SIZE = 18;
 const RECIPE_SECTIONS = ['discover', 'premium', 'create'] as const;
 // Start the next request while several rows remain on screen. This gives the
 // network and image cache time to work before the reader reaches the end.
-const RECIPE_PREFETCH_DISTANCE = 900;
+const RECIPE_PREFETCH_DISTANCE = 1600;
 const PREMIUM_RECIPE_PREFETCH_DISTANCE = 1600;
 
 function recipeKey(recipe: Recipe | CaloraRecipe) {
@@ -1138,6 +1138,22 @@ export default function RecipesScreen() {
     setHasMoreRemote(page.length === RECIPE_PAGE_SIZE);
     loadingMoreRef.current = false;
   }, [recipesQuery.data, remoteOffset]);
+  useEffect(() => {
+    const page = recipesQuery.data?.recipes;
+    if (category === 'My recipes' || !page || page.length < RECIPE_PAGE_SIZE) return;
+    const nextOffset = remoteOffset + RECIPE_PAGE_SIZE;
+    const params = {
+      query: search || undefined,
+      category: category === 'For you' || category === 'Quick' ? undefined : category,
+      limit: RECIPE_PAGE_SIZE,
+      offset: nextOffset,
+    };
+    void queryClient.prefetchQuery({
+      queryKey: ['recipes', search, category, nextOffset],
+      queryFn: ({ signal }) => listRecipes(params, { signal }),
+      staleTime: 1000 * 60 * 10,
+    }).catch(() => undefined);
+  }, [category, queryClient, recipesQuery.data?.recipes, remoteOffset, search]);
   useEffect(() => {
     if (!recipeId) return;
     const matchingRecipe = [...localRecipes, ...remoteRecipes].find((recipe) => recipe.id === recipeId);
