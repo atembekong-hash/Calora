@@ -1492,8 +1492,8 @@ export default function HomeScreen() {
 function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
-    homeHeader: { minHeight: 139, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
-    homeHeaderContent: { minHeight: 139, padding: 18, paddingBottom: 26, justifyContent: 'flex-end' },
+    homeHeader: { minHeight: 125, borderRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'hidden', marginHorizontal: -10, marginBottom: 0, backgroundColor: '#1b3022', shadowColor: '#17231f', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 },
+    homeHeaderContent: { minHeight: 125, padding: 18, paddingBottom: 26, justifyContent: 'flex-end' },
   homeHeaderTop: { position: 'absolute', top: 16, left: 20, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   homeHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   homeHeaderBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.2)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.3)' },
