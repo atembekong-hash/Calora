@@ -12,7 +12,7 @@ import { makeClearedExportSnapshot, resolveExportData } from '@/lib/exportGap';
 import { normalizeHealthConnection } from '@/lib/healthConnection';
 import { healthService } from '@/lib/health/healthService';
 import { EMPTY_HEALTH_CONNECTION, type HealthConnection, type HealthSnapshot } from '@/lib/health/types';
-import { useColorScheme } from 'react-native';
+import { AppState, useColorScheme } from 'react-native';
 import colors from '@/constants/colors';
 import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
 import type { HydrationReminderPrefs } from '@/lib/hydrationReminders';
@@ -495,6 +495,12 @@ export function CaloraProvider({
   const [themePreference, setThemePreference] = useState<ThemePreference>('system');
   const [healthConnection, setHealthConnection] = useState<HealthConnection>(EMPTY_HEALTH_CONNECTION);
   const healthConnected = healthConnection.authorization === 'authorized' || healthConnection.authorization === 'partial';
+  const healthConnectionRef = useRef(healthConnection);
+  const healthSyncPromiseRef = useRef<Promise<void> | null>(null);
+  const healthSyncEpochRef = useRef(0);
+  useEffect(() => {
+    healthConnectionRef.current = healthConnection;
+  }, [healthConnection]);
   const setHealthConnected = (connected: boolean) => {
     if (!connected) setHealthConnection(EMPTY_HEALTH_CONNECTION);
   };
@@ -646,15 +652,40 @@ export function CaloraProvider({
   // If health-service internals change to require component-scoped values, those
   // values must be either memoized or added to this dep array.
   const syncHealth = useCallback(async () => {
-    const current = await healthService.getConnection();
-    setHealthConnection(current);
-    if (current.authorization !== 'authorized' && current.authorization !== 'partial') return;
+    if (healthSyncPromiseRef.current) return healthSyncPromiseRef.current;
+    const epoch = healthSyncEpochRef.current;
+    const run = (async () => {
+      let current: HealthConnection;
+      try {
+        current = await healthService.getConnection();
+      } catch (error) {
+        if (epoch === healthSyncEpochRef.current) {
+          setHealthConnection({
+            ...healthConnectionRef.current,
+            syncError: error instanceof Error ? error.message : 'Health data could not be read.',
+          });
+        }
+        return;
+      }
+      if (epoch !== healthSyncEpochRef.current) return;
+      setHealthConnection(current);
+      if (current.authorization !== 'authorized' && current.authorization !== 'partial') return;
+      try {
+        const snapshot = await healthService.sync();
+        if (epoch !== healthSyncEpochRef.current) return;
+        setHealthConnection({ ...current, snapshot, lastSyncedAt: snapshot.syncedAt, syncError: undefined });
+        setWeights((ws) => mergeHealthWeights(ws, snapshot));
+      } catch (error) {
+        if (epoch === healthSyncEpochRef.current) {
+          setHealthConnection({ ...current, syncError: error instanceof Error ? error.message : 'Health data could not be read.' });
+        }
+      }
+    })();
+    healthSyncPromiseRef.current = run;
     try {
-      const snapshot = await healthService.sync();
-      setHealthConnection({ ...current, snapshot, lastSyncedAt: snapshot.syncedAt, syncError: undefined });
-      setWeights((ws) => mergeHealthWeights(ws, snapshot));
-    } catch (error) {
-      setHealthConnection({ ...current, syncError: error instanceof Error ? error.message : 'Health data could not be read.' });
+      await run;
+    } finally {
+      if (healthSyncPromiseRef.current === run) healthSyncPromiseRef.current = null;
     }
   }, []);
 
@@ -684,6 +715,19 @@ export function CaloraProvider({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (
+        nextState === 'active'
+        && (healthConnectionRef.current.authorization === 'authorized' || healthConnectionRef.current.authorization === 'partial')
+      ) {
+        void syncHealth();
+      }
+    });
+    return () => subscription.remove();
+  }, [hydrated, syncHealth]);
 
   useEffect(() => {
     if (!shouldAutosave({ hydrated, error: hydrationError })) return;
@@ -831,20 +875,21 @@ export function CaloraProvider({
     healthConnection,
     connectHealth: async () => {
       const next = await healthService.requestConnection();
+      // Do not let a pre-permission sync overwrite this freshly returned
+      // connection. Complete its single-flight work before starting a new read.
+      healthSyncEpochRef.current += 1;
       setHealthConnection(next);
       if (next.authorization === 'authorized' || next.authorization === 'partial') {
-        try {
-          const snapshot = await healthService.sync();
-          setHealthConnection({ ...next, snapshot, lastSyncedAt: snapshot.syncedAt, syncError: undefined });
-          setWeights((current) => mergeHealthWeights(current, snapshot));
-        } catch (error) {
-          setHealthConnection({ ...next, syncError: error instanceof Error ? error.message : 'Health data could not be read.' });
-        }
+        if (healthSyncPromiseRef.current) await healthSyncPromiseRef.current;
+        await syncHealth();
       }
       return next;
     },
     syncHealth,
-    disconnectHealth: () => setHealthConnection(EMPTY_HEALTH_CONNECTION),
+    disconnectHealth: () => {
+      healthSyncEpochRef.current += 1;
+      setHealthConnection(EMPTY_HEALTH_CONNECTION);
+    },
     addLog: (log) => {
       const id = makeId('log');
       const capturedAt = new Date().toISOString();

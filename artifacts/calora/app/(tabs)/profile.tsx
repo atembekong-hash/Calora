@@ -1155,12 +1155,12 @@ export default function ProfileScreen() {
                     {healthConnection.syncError ?? (healthConnection.lastSyncedAt ? `Last synced ${new Date(healthConnection.lastSyncedAt).toLocaleString()}` : 'Permission is requested only after you press Connect.')}
                   </Text>
                 </View>
-                {healthConnection.authorization !== 'unavailable' && !healthConnected && (
+                {healthConnection.authorization !== 'unavailable' && (!healthConnected || !healthConnection.granted.includes('activeEnergy')) && (
                   <Pressable accessibilityLabel="Connect health data" onPress={handleHealthConnect} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
-                    {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Connect</Text>}
+                    {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>{healthConnected ? 'Update access' : 'Connect'}</Text>}
                   </Pressable>
                 )}
-                {healthConnected && (
+                {healthConnected && healthConnection.granted.includes('activeEnergy') && (
                   <>
                     <Pressable accessibilityLabel="Sync health data now" onPress={handleHealthSync} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
                       {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Sync now</Text>}

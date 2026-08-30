@@ -54,6 +54,7 @@ import {
   isIntelligenceFeatureEnabled,
   selectVisibleTodayInsight,
 } from '@/lib/intelligence';
+import { burnedStatusForDay } from '@/lib/health/burnedStatus';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -1047,17 +1048,21 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
 
 function CalorieGauge({
   consumed,
-  burned = 0,
+  burned,
+  burnedActionLabel,
+  onBurnedPress,
   target,
   colors,
 }: {
   consumed: number;
-  burned?: number;
+  burned: number | null;
+  burnedActionLabel?: string;
+  onBurnedPress?: () => void;
   target: number;
   colors: ReturnType<typeof useCalora>['colors'];
 }) {
   const { width: windowWidth } = useWindowDimensions();
-  const adjustedTarget = target + burned;
+  const adjustedTarget = target + (burned ?? 0);
   const progress = adjustedTarget > 0 ? Math.min(Math.max(consumed / adjustedTarget, 0), 1) : 0;
   const remaining = Math.max(adjustedTarget - consumed, 0);
   const overGoal  = consumed > adjustedTarget;
@@ -1151,12 +1156,19 @@ function CalorieGauge({
           <Text style={[gaugeStyles.statLabel, { color: colors.mutedForeground }]}>Eaten</Text>
         </View>
         <View style={[gaugeStyles.statDivider, { backgroundColor: colors.border }]} />
-        <View style={gaugeStyles.statItem}>
+        <Pressable
+          accessibilityRole={onBurnedPress ? 'button' : undefined}
+          accessibilityLabel={burnedActionLabel ?? `Burned ${burned?.toLocaleString() ?? 'unavailable'} calories`}
+          disabled={!onBurnedPress}
+          onPress={onBurnedPress}
+          style={gaugeStyles.statItem}
+        >
           <Text style={[gaugeStyles.statNumber, { color: colors.foreground }]}>
-            {burned.toLocaleString()}
+            {burned === null ? '—' : burned.toLocaleString()}
           </Text>
           <Text style={[gaugeStyles.statLabel, { color: colors.mutedForeground }]}>Burned</Text>
-        </View>
+          {burnedActionLabel ? <Text style={[gaugeStyles.burnedAction, { color: colors.primary }]} numberOfLines={1}>{burnedActionLabel}</Text> : null}
+        </Pressable>
       </View>
     </View>
   );
@@ -1194,6 +1206,7 @@ function makeGaugeStyles(f: number) {
   statDivider: { width: 1, height: 28 },
   statNumber: { fontFamily: 'Inter_700Bold', fontSize: 22 * f, letterSpacing: -0.6 },
   statLabel:  { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 2, letterSpacing: 0.5, textTransform: 'uppercase' as const },
+  burnedAction: { fontFamily: 'Inter_500Medium', fontSize: 10 * f, marginTop: 4, maxWidth: 140, textAlign: 'center' as const },
   });
 }
 const gaugeStyles = makeGaugeStyles(1.0);
@@ -1230,7 +1243,8 @@ export default function HomeScreen() {
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 }), [selectedLogs]);
   const mealsLogged = new Set(selectedLogs.map((log) => log.meal)).size;
   const mealNames = Array.from(new Set(selectedLogs.map((log) => log.meal)));
-  const activeEnergy = (isToday(selectedDate) && healthConnection.snapshot?.activeEnergyKcal) || 0;
+  const burnedStatus = burnedStatusForDay({ isToday: isToday(selectedDate), connection: healthConnection });
+  const activeEnergy = burnedStatus.kind === 'ready' ? burnedStatus.calories : 0;
   const remaining = Math.max(target - selectedTotals.calories + activeEnergy, 0);
   const progress = Math.min(selectedTotals.calories / (target + activeEnergy), 1);
   const isProgressAction = livingState.action.kind === 'view_progress';
@@ -1460,7 +1474,16 @@ export default function HomeScreen() {
            )}
 
           {/* Dominant calorie gauge */}
-          <CalorieGauge consumed={selectedTotals.calories} burned={activeEnergy} target={target} colors={colors} />
+          <CalorieGauge
+            consumed={selectedTotals.calories}
+            burned={burnedStatus.kind === 'ready' ? burnedStatus.calories : null}
+            burnedActionLabel={burnedStatus.kind === 'ready' ? undefined : burnedStatus.actionLabel}
+            onBurnedPress={burnedStatus.kind === 'connect' || burnedStatus.kind === 'permission' || burnedStatus.kind === 'failed' || burnedStatus.kind === 'syncing'
+              ? () => router.push('/profile?tab=account')
+              : undefined}
+            target={target}
+            colors={colors}
+          />
 
           <View style={[styles.fuelSnapshot, { borderTopColor: colors.border }]}>
             <View style={styles.fuelSnapshotItem}>
