@@ -623,4 +623,10 @@ describe('accessibility labels — static invariants', () => {
     expect(scanSource).toMatch(/try \{\s*const photo = await cameraRef\.current\.takePictureAsync/);
     expect(scanSource).toMatch(/catch \(error\) \{[\s\S]*setHasScanned\(false\);[\s\S]*Photo unavailable/);
   });
+
+  it('recovers cleanly when the image library fails and preserves explicit capture intent', () => {
+    expect(scanSource).toMatch(/const choosePhoto = async \(requestedMode\?: 'receipt' \| 'food' \| 'nutrition_label'\)/);
+    expect(scanSource).toMatch(/catch \(error\) \{[\s\S]*setHasScanned\(false\);[\s\S]*could not open that image/);
+    expect(scanSource).toContain("void choosePhoto('receipt')");
+  });
 });

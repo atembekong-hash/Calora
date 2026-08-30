@@ -248,7 +248,7 @@ export default function ScanScreen() {
       return;
     }
     setReceiptCapture(true);
-    void choosePhoto();
+    void choosePhoto('receipt');
   };
 
   const onBarcodeScanned = (result: BarcodeScanningResult) => {
@@ -275,14 +275,22 @@ export default function ScanScreen() {
     }
   };
 
-  const choosePhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75, base64: true });
-    const base64 = result.canceled ? undefined : result.assets[0]?.base64;
-    if (base64) {
-      const captureMode = receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : 'food';
-      await analyze({ mode: captureMode, imageBase64: base64 });
-    } else if (!result.canceled) {
-      setAltCaptureBanner('That image could not be read. Choose another receipt or food photo.');
+  const choosePhoto = async (requestedMode?: 'receipt' | 'food' | 'nutrition_label') => {
+    if (analyzeCapture.isPending) return;
+    setHasScanned(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75, base64: true });
+      const base64 = result.canceled ? undefined : result.assets[0]?.base64;
+      if (base64) {
+        const captureMode = requestedMode ?? (receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : 'food');
+        await analyze({ mode: captureMode, imageBase64: base64 });
+      } else {
+        setHasScanned(false);
+        if (!result.canceled) setAltCaptureBanner('That image could not be read. Choose another receipt or food photo.');
+      }
+    } catch (error) {
+      setHasScanned(false);
+      setAltCaptureBanner(error instanceof Error ? error.message : `${BRAND.name} could not open that image. Choose another photo or try the camera.`);
     }
   };
 
