@@ -322,6 +322,36 @@ describe('POST /v1/capture/analyze', () => {
       expect(res.body.components[0].provenance).toBe('Receipt estimate');
       expect(res.body.components[0].sourceLabel).toBe('Receipt line-item estimate');
     });
+
+    it('returns nutrition-label values as editable review data', async () => {
+      vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({
+        choices: [{
+          message: {
+            content: aiJsonResponse({
+              title: 'Test cereal',
+              components: [{
+                ...JSON.parse(aiJsonResponse()).components[0],
+                provenance: 'Nutrition label',
+                sourceLabel: 'Label extract',
+              }],
+            }),
+          },
+        }],
+      } as any);
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'nutrition_label', imageBase64: 'label-image' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('review');
+      expect(res.body.mode).toBe('nutrition_label');
+      expect(res.body.provider).toBe('Managed vision (label reader)');
+      expect(res.body.components[0].provenance).toBe('Nutrition label');
+      expect(res.body.components[0].sourceLabel).toBe('Label extract');
+      expect(res.body.imageRetention).toBe('delete_after_analysis');
+    });
   });
 
   // -------------------------------------------------------------------------
