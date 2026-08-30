@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { burnedStatusForDay } from '../health/burnedStatus';
 import { currentLocalDayRange } from '../health/dayRange';
-import { healthConnectDayRange } from '../health/healthService.android';
+import { healthConnectActiveEnergyKcal, healthConnectDayRange } from '../health/healthService.android';
 import { AuthorizationRequestStatus } from '@kingstinct/react-native-healthkit';
 import { healthKitActiveEnergyOptions, healthKitAuthorizationForRequestStatus, healthKitDayFilter } from '../health/healthService.ios';
 import type { HealthConnection } from '../health/types';
@@ -49,6 +49,19 @@ describe('currentLocalDayRange', () => {
     expect(options.filter.date.startDate).toEqual(new Date(2026, 7, 30));
   });
 
+  it('maps only Health Connect active-calorie totals to Burned', () => {
+    expect(healthConnectActiveEnergyKcal({
+      ACTIVE_CALORIES_TOTAL: { inKilocalories: 347.5 },
+      ENERGY_TOTAL: { inKilocalories: 9999 },
+    })).toBe(347.5);
+    expect(() => healthConnectActiveEnergyKcal({
+      ENERGY_TOTAL: { inKilocalories: 9999 },
+    })).toThrow('invalid active calorie total');
+    expect(() => healthConnectActiveEnergyKcal({
+      ACTIVE_CALORIES_TOTAL: { inKilocalories: -1 },
+    })).toThrow('invalid active calorie total');
+  });
+
   it('recognizes HealthKit’s numeric authorized request status', () => {
     expect(AuthorizationRequestStatus.unnecessary).toBe(2);
     expect(healthKitAuthorizationForRequestStatus(AuthorizationRequestStatus.unnecessary)).toBe('authorized');
@@ -69,6 +82,7 @@ describe('burnedStatusForDay', () => {
   it('keeps a measured zero distinct from missing health data', () => {
     expect(burnedStatusForDay({
       isToday: true,
+      now: new Date(2026, 7, 30, 15, 42, 11),
       connection: connected({ snapshot: { syncedAt: '2026-08-30T10:00:00.000Z', steps: 0, activeEnergyKcal: 0, workouts: [], weights: [] } }),
     })).toEqual({ kind: 'ready', calories: 0 });
   });
@@ -89,5 +103,15 @@ describe('burnedStatusForDay', () => {
       isToday: false,
       connection: connected({ snapshot: { syncedAt: '2026-08-30T10:00:00.000Z', steps: 1200, activeEnergyKcal: 345, workouts: [], weights: [] } }),
     })).toEqual({ kind: 'past-date', actionLabel: 'Burned unavailable for past dates' });
+  });
+
+  it('does not reuse a snapshot from a prior local day', () => {
+    expect(burnedStatusForDay({
+      isToday: true,
+      now: new Date(2026, 7, 31, 8, 0, 0),
+      connection: connected({
+        snapshot: { syncedAt: '2026-08-30T23:59:00.000Z', steps: 1200, activeEnergyKcal: 345, workouts: [], weights: [] },
+      }),
+    })).toEqual({ kind: 'syncing', actionLabel: 'Syncing health…' });
   });
 });

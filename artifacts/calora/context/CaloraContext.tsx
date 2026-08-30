@@ -498,6 +498,7 @@ export function CaloraProvider({
   const healthConnectionRef = useRef(healthConnection);
   const healthSyncPromiseRef = useRef<Promise<void> | null>(null);
   const healthSyncEpochRef = useRef(0);
+  const lastHealthRefreshDayRef = useRef<string | null>(null);
   useEffect(() => {
     healthConnectionRef.current = healthConnection;
   }, [healthConnection]);
@@ -689,6 +690,9 @@ export function CaloraProvider({
     }
   }, []);
 
+  const clockNow = useClock();
+  const healthDayKey = dateKey(clockNow);
+
   // ── Health availability probe ──────────────────────────────────────────────
   // On mount (after hydration), probe the native health service to see if it is
   // actually available on this device. This updates the initial 'unavailable'
@@ -728,6 +732,17 @@ export function CaloraProvider({
     });
     return () => subscription.remove();
   }, [hydrated, syncHealth]);
+
+  // Refresh once when the device crosses into a new local calendar day while
+  // the app remains in the foreground. AppState handles background resume;
+  // this covers an open app crossing midnight.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (healthConnection.authorization !== 'authorized' && healthConnection.authorization !== 'partial') return;
+    if (lastHealthRefreshDayRef.current === healthDayKey) return;
+    lastHealthRefreshDayRef.current = healthDayKey;
+    void syncHealth();
+  }, [healthConnection.authorization, healthDayKey, hydrated, syncHealth]);
 
   useEffect(() => {
     if (!shouldAutosave({ hydrated, error: hydrationError })) return;
@@ -829,7 +844,6 @@ export function CaloraProvider({
     () => foodMemories.filter((memory) => !memory.diaryLogId || !livingMemory.forgotten.meals.includes(memory.diaryLogId)),
     [foodMemories, livingMemory],
   );
-  const clockNow = useClock();
   const livingState = useMemo(() => deriveLivingState({
     profile,
     ...rememberedSources,
@@ -874,16 +888,18 @@ export function CaloraProvider({
     healthConnected,
     healthConnection,
     connectHealth: async () => {
+      const connectEpoch = ++healthSyncEpochRef.current;
+      const previousSync = healthSyncPromiseRef.current;
+      if (previousSync) await previousSync;
       const next = await healthService.requestConnection();
-      // Do not let a pre-permission sync overwrite this freshly returned
-      // connection. Complete its single-flight work before starting a new read.
-      healthSyncEpochRef.current += 1;
+      // Do not let a disconnect or account-state change during permission
+      // approval get overwritten by this older connection result.
+      if (connectEpoch !== healthSyncEpochRef.current) return healthConnectionRef.current;
       setHealthConnection(next);
       if (next.authorization === 'authorized' || next.authorization === 'partial') {
-        if (healthSyncPromiseRef.current) await healthSyncPromiseRef.current;
         await syncHealth();
       }
-      return next;
+      return connectEpoch === healthSyncEpochRef.current ? next : healthConnectionRef.current;
     },
     syncHealth,
     disconnectHealth: () => {

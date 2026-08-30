@@ -304,7 +304,11 @@ export default function ProfileScreen() {
   const handleHealthConnect = async () => {
     if (healthBusy) return;
     setHealthBusy(true);
-    try { await connectHealth(); }
+    try {
+      await connectHealth();
+    } catch (err) {
+      Alert.alert('Health Connect unavailable', err instanceof Error ? err.message : 'Could not open Health Connect permissions.');
+    }
     finally { setHealthBusy(false); }
   };
   const handleHealthSync = async () => {

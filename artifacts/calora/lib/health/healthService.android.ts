@@ -15,6 +15,15 @@ const metricFor = (recordType: string): HealthMetric | null => ({
   Weight: 'bodyWeight',
 }[recordType] as HealthMetric | undefined) ?? null;
 
+export function healthConnectActiveEnergyKcal(result: unknown): number {
+  const value = (result as { ACTIVE_CALORIES_TOTAL?: { inKilocalories?: unknown } } | null | undefined)
+    ?.ACTIVE_CALORIES_TOTAL?.inKilocalories;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error('Health Connect returned an invalid active calorie total.');
+  }
+  return value;
+}
+
 async function native() {
   return require('react-native-health-connect') as any;
 }
@@ -59,6 +68,7 @@ export const healthService: HealthService = {
     const connection = await permissions();
     if (connection.authorization === 'unavailable' || connection.granted.length === 0) throw new Error('Allow Health Connect access before syncing.');
     const range = healthConnectDayRange();
+    const syncedAt = new Date().toISOString();
     const [steps, calories, workouts, weights] = await Promise.all([
       connection.granted.includes('steps') ? hc.aggregateRecord({ recordType: 'Steps', ...range }) : null,
       connection.granted.includes('activeEnergy') ? hc.aggregateRecord({ recordType: 'ActiveCaloriesBurned', ...range }) : null,
@@ -66,12 +76,12 @@ export const healthService: HealthService = {
       connection.granted.includes('bodyWeight') ? hc.readRecords('Weight', range) : { records: [] },
     ]);
     return {
-      syncedAt: new Date().toISOString(),
+      syncedAt,
       steps: connection.granted.includes('steps')
         ? Number(steps?.COUNT_TOTAL ?? steps?.count ?? 0)
         : null,
       activeEnergyKcal: connection.granted.includes('activeEnergy')
-        ? Number(calories?.ACTIVE_CALORIES_TOTAL?.inKilocalories ?? calories?.ENERGY_TOTAL?.inKilocalories ?? 0)
+        ? healthConnectActiveEnergyKcal(calories)
         : null,
       workouts: (workouts?.records ?? []).map((item: any) => ({ id: item.metadata?.id ?? `${item.startTime}-${item.endTime}`, startAt: item.startTime, endAt: item.endTime, type: String(item.exerciseType ?? 'workout') })),
       weights: (weights?.records ?? []).map((item: any) => ({ id: item.metadata?.id ?? `${item.time}-${item.startTime}`, recordedAt: item.time ?? item.startTime, kg: Number(item.weight?.inKilograms ?? item.weight?.inKilogram ?? 0) })).filter((item: { kg: number }) => item.kg > 0),

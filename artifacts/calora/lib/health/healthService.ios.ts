@@ -58,6 +58,7 @@ export const healthService: HealthService = {
     if (current.authorization !== 'authorized') throw new Error('Allow Apple Health access before syncing.');
     const filter = healthKitDayFilter();
     const energyOptions = healthKitActiveEnergyOptions();
+    const syncedAt = new Date().toISOString();
     const [steps, energy, weight, workouts] = await Promise.all([
       hk.queryStatisticsForQuantity(identifiers.steps, ['cumulativeSum'], filter),
       hk.queryStatisticsForQuantity(identifiers.activeEnergy, ['cumulativeSum'], energyOptions),
@@ -65,7 +66,7 @@ export const healthService: HealthService = {
       hk.queryWorkoutSamples({ limit: -1, filter: filter.filter }),
     ]);
     return {
-      syncedAt: new Date().toISOString(),
+      syncedAt,
       steps: Number(steps?.sumQuantity?.quantity ?? 0),
       activeEnergyKcal: Number(energy?.sumQuantity?.quantity ?? 0),
       workouts: (workouts ?? []).map((item: any) => ({ id: item.uuid ?? `${item.startDate}-${item.endDate}`, startAt: item.startDate, endAt: item.endDate, type: String(item.workoutActivityType ?? 'workout') })),

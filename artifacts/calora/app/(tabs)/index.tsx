@@ -1243,7 +1243,7 @@ export default function HomeScreen() {
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 }), [selectedLogs]);
   const mealsLogged = new Set(selectedLogs.map((log) => log.meal)).size;
   const mealNames = Array.from(new Set(selectedLogs.map((log) => log.meal)));
-  const burnedStatus = burnedStatusForDay({ isToday: isToday(selectedDate), connection: healthConnection });
+  const burnedStatus = burnedStatusForDay({ isToday: isToday(selectedDate), connection: healthConnection, now: new Date() });
   const activeEnergy = burnedStatus.kind === 'ready' ? burnedStatus.calories : 0;
   const remaining = Math.max(target - selectedTotals.calories + activeEnergy, 0);
   const progress = Math.min(selectedTotals.calories / (target + activeEnergy), 1);
