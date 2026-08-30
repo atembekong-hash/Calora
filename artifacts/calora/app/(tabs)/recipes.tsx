@@ -312,7 +312,51 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       {status === 'loading' && <Pressable onPress={() => abortRef.current?.abort()}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>}
       {status === 'error' && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{error}</Text><Pressable onPress={generate}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}
     </View>
-    {concepts.map((concept, index) => <Pressable key={`${concept.title}-${index}`} accessibilityLabel={`${session ? 'Open' : 'Preview'} ${concept.title}`} disabled={Boolean(finishingTitle)} onPress={() => finishConcept(concept)} style={[styles.recipeCard, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={styles.cardContent}><Text style={[styles.detailEyebrow, { color: colors.primary }]}>CONCEPT {index + 1}</Text><Text style={[styles.recipeName, { color: colors.foreground }]}>{concept.title}</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{concept.summary}</Text><Text style={[styles.sourceText, { color: colors.mutedForeground }]}>{!session ? 'Sign in to turn this into a full saved recipe' : finishingTitle === concept.title ? 'Building your recipe…' : `${concept.whyItFits}${concept.estimatedMinutes ? ` · ~${concept.estimatedMinutes} min` : ''}`}</Text></View></Pressable>)}
+     {concepts.length > 0 && <View style={styles.conceptsSection}>
+       <View style={styles.conceptsHeader}>
+         <View style={{ flex: 1 }}>
+           <Text style={[styles.conceptsEyebrow, { color: colors.primary }]}>YOUR GENERATED IDEAS</Text>
+           <Text style={[styles.conceptsTitle, { color: colors.foreground }]}>Choose one to continue</Text>
+           <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Each idea is based on the choices above.</Text>
+         </View>
+         <View style={[styles.conceptsCount, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+           <Text style={[styles.conceptsCountValue, { color: colors.foreground }]}>{concepts.length}</Text>
+           <Text style={[styles.conceptsCountLabel, { color: colors.mutedForeground }]}>ideas</Text>
+         </View>
+       </View>
+       <View style={styles.conceptList}>
+         {concepts.map((concept, index) => <Pressable
+           key={`${concept.title}-${index}`}
+           accessibilityLabel={`${session ? 'Open' : 'Preview'} ${concept.title}`}
+           disabled={Boolean(finishingTitle)}
+           onPress={() => finishConcept(concept)}
+           style={[styles.conceptCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+         >
+           <View style={styles.conceptCardHeader}>
+             <View style={[styles.conceptNumber, { backgroundColor: colors.accent }]}>
+               <Text style={[styles.conceptNumberText, { color: colors.primary }]}>{String(index + 1).padStart(2, '0')}</Text>
+             </View>
+             <View style={{ flex: 1 }}>
+               <Text style={[styles.conceptsEyebrow, { color: colors.mutedForeground }]}>CONCEPT {index + 1}</Text>
+               <Text style={[styles.conceptTitle, { color: colors.foreground }]} numberOfLines={2}>{concept.title}</Text>
+             </View>
+             {concept.estimatedMinutes ? <View style={[styles.conceptTime, { backgroundColor: colors.muted }]}>
+               <Feather name="clock" size={12} color={colors.mutedForeground} />
+               <Text style={[styles.conceptTimeText, { color: colors.mutedForeground }]}>{concept.estimatedMinutes} min</Text>
+             </View> : null}
+           </View>
+           <Text style={[styles.conceptSummary, { color: colors.mutedForeground }]} numberOfLines={3}>{concept.summary}</Text>
+           <View style={[styles.conceptFitRow, { backgroundColor: colors.accent }]}>
+             <Feather name="check-circle" size={14} color={colors.primary} />
+             <Text style={[styles.conceptFitText, { color: colors.foreground }]} numberOfLines={2}>{concept.whyItFits}</Text>
+           </View>
+           <View style={[styles.conceptAction, { borderTopColor: colors.border }]}>
+             <Text style={[styles.conceptActionText, { color: colors.primary }]}>{finishingTitle === concept.title ? 'Building your recipe…' : !session ? 'Preview idea' : 'Build full recipe'}</Text>
+             <Feather name="arrow-right" size={15} color={colors.primary} />
+           </View>
+         </Pressable>)}
+       </View>
+     </View>}
   </View>;
 }
 
@@ -1452,6 +1496,26 @@ function makeStyles(f: number) {
   createAddIngredient: { width: 42, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   createSelectionSummary: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, padding: 11, marginBottom: 2 },
   createFormContent: { paddingBottom: 30 },
+  conceptsSection: { marginTop: 22 },
+  conceptsHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
+  conceptsEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1 },
+  conceptsTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.25, marginTop: 4 },
+  conceptsCount: { minWidth: 52, borderWidth: 1, borderRadius: 14, paddingVertical: 8, paddingHorizontal: 9, alignItems: 'center' },
+  conceptsCountValue: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, lineHeight: 20 * f },
+  conceptsCountLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginTop: 2 },
+  conceptList: { gap: 10 },
+  conceptCard: { borderWidth: 1, borderRadius: 18, padding: 14 },
+  conceptCardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  conceptNumber: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  conceptNumberText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+  conceptTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, lineHeight: 18 * f, marginTop: 3 },
+  conceptTime: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 5 },
+  conceptTimeText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
+  conceptSummary: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginTop: 12 },
+  conceptFitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, borderRadius: 11, padding: 9, marginTop: 11 },
+  conceptFitText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 14 * f },
+  conceptAction: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: StyleSheet.hairlineWidth, marginTop: 12, paddingTop: 10 },
+  conceptActionText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
   formError: { flexDirection: 'row', gap: 8, alignItems: 'center', borderRadius: 11, padding: 10, marginTop: 10 },
   formErrorText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 14 },
   numberGrid: { flexDirection: 'row', gap: 7, marginTop: 11 },
