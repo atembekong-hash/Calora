@@ -1505,7 +1505,7 @@ function makeStyles(f: number) {
   homeHeaderCoachText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 11 * f, letterSpacing: 0.1 },
    homeHeaderDate: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 8 * f, letterSpacing: 0.5, textAlign: 'right', maxWidth: 146, textTransform: 'uppercase', transform: [{ translateY: -12 }] },
     homeHeaderTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 14.4 * f, letterSpacing: -0.4 },
-    homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateY: 22 }] },
+    homeHeaderSubtitle: { color: '#d4eadc', fontFamily: 'Inter_500Medium', fontSize: 11.2 * f, marginTop: 6, transform: [{ translateY: 19 }] },
   scrollContent: { paddingHorizontal: 20 },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 },
   dateKicker: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase' },
