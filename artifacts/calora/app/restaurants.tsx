@@ -281,7 +281,7 @@ export default function RestaurantsScreen() {
       <BottomSheet visible={selectedFood !== null} onRequestClose={() => setSelectedFood(null)} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
             {detail ? (
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView style={styles.detailScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.detailScrollContent}>
                 <View style={styles.detailHeader}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.detailBrand, { color: colors.primary }]}>{detail.brandName ?? 'BRANDED FOOD'}</Text>
@@ -406,6 +406,8 @@ const styles = StyleSheet.create({
   attribution: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: 22, paddingHorizontal: 6 },
   attributionText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 9, lineHeight: 14 },
   detailSheet: { paddingHorizontal: 20, paddingTop: 10 },
+  detailScroll: { flexShrink: 1, minHeight: 0 },
+  detailScrollContent: { paddingBottom: 34 },
   sheetHandle: { width: 42, height: 4, borderRadius: 2, backgroundColor: '#c7cec8', alignSelf: 'center', marginBottom: 17 },
   detailHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   detailBrand: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },

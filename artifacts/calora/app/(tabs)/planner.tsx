@@ -932,7 +932,7 @@ export default function PlannerScreen() {
       <BottomSheet visible={detail !== null} onRequestClose={() => { dismissPlannerReview(); setDetail(null); }} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
             {detail && plannerReviewDraft ? (
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 30 }}>
+              <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 34 }}>
                 <View style={styles.reviewTitleRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.detailEyebrow, { color: colors.primary }]}>PLANNER REVIEW · {dateFormatter.format(parseDate(detail.day))}</Text>
@@ -996,7 +996,7 @@ export default function PlannerScreen() {
                     contentFit="cover"
                     style={styles.detailImage}
                   />
-                  <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={styles.detailBody}>
+                  <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.detailBody, { paddingBottom: 34 }]}>
                     <View style={styles.detailTitleRow}>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.detailEyebrow, { color: colors.primary }]}>{detail.meal.toUpperCase()} · {dateFormatter.format(parseDate(detail.day))}</Text>
@@ -1064,7 +1064,7 @@ export default function PlannerScreen() {
                  </ScrollView>
                </View>
              )}
-             <ScrollView showsVerticalScrollIndicator={false} style={styles.shopIngredientScroll} contentContainerStyle={{ paddingBottom: 25 }}>
+             <ScrollView showsVerticalScrollIndicator={false} style={styles.shopIngredientScroll} contentContainerStyle={{ paddingBottom: 34 }}>
                {filteredShoppingItems.map((item) => (
                  <Pressable key={item.id} accessibilityLabel={`${item.checked ? 'Uncheck' : 'Check'} ${item.name}`} onPress={() => toggleShoppingItemByName(item.name)} style={[styles.shoppingRow, { borderBottomColor: colors.border }]}>
                    <View style={[styles.checkbox, { borderColor: item.checked ? colors.success : colors.input, backgroundColor: item.checked ? colors.success : 'transparent' }]}>
@@ -1084,6 +1084,7 @@ export default function PlannerScreen() {
        </BottomSheet>
        <BottomSheet visible={actionMeal !== null} onRequestClose={() => { setActionMeal(null); setActionMode(null); }} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
+              <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.actionSheetContent}>
              {actionMeal && !actionMode && (
                <>
                  <SheetHeader eyebrow={`${actionMeal.meal.toUpperCase()} · ${dateFormatter.format(parseDate(actionMeal.day))}`} title={actionMeal.name} onClose={() => setActionMeal(null)} colors={colors} />
@@ -1130,21 +1131,22 @@ export default function PlannerScreen() {
                <>
                  <SheetHeader eyebrow={actionMode === 'copy' ? 'COPY TO' : 'MOVE TO'} title={actionMeal.name} onClose={() => { setActionMeal(null); setActionMode(null); }} colors={colors} />
                   <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a day. This meal stays until then.</Text>
-                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.dayChoiceList}>
+                <View style={styles.dayChoiceList}>
                    {weekDays.map((day) => {
                      const isCurrent = day === actionMeal.day;
                       const isDisabled = isCurrent;
                      return <ScalePressable key={day} accessibilityLabel={`${actionMode === 'copy' ? 'Copy' : 'Move'} to ${dayFormatter.format(parseDate(day))}`} disabled={isDisabled} onPress={() => moveOrCopyMeal(day, actionMode === 'copy')} scale={isDisabled ? 1 : 0.98} haptic="none" style={[styles.dayChoice, { backgroundColor: colors.card, borderColor: colors.border, opacity: isDisabled ? 0.45 : 1 }]}><View style={[styles.dayChoiceIcon, { backgroundColor: isCurrent ? colors.accent : colors.muted }]}><Feather name={isCurrent ? 'check' : 'calendar'} size={15} color={isCurrent ? colors.accentForeground : colors.foreground} /></View><View style={styles.dayChoiceCopy}><Text style={[styles.dayChoiceName, { color: colors.foreground }]}>{dayFormatter.format(parseDate(day))}</Text><Text style={[styles.dayChoiceDate, { color: colors.mutedForeground }]}>{dateFormatter.format(parseDate(day))}{isCurrent ? ' · current day' : ''}</Text></View><Feather name="chevron-right" size={16} color={colors.mutedForeground} /></ScalePressable>;
                    })}
-                 </ScrollView>
+                </View>
                </>
              )}
+              </ScrollView>
        </BottomSheet>
        <BottomSheet visible={addingMealType !== null} onRequestClose={() => setAddingMealType(null)} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
               <SheetHeader eyebrow={`${dayFormatter.format(parseDate(selectedDay)).toUpperCase()} · ${addingMealType ?? ''}`} title="Add a meal" onClose={() => setAddingMealType(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a meal or add your own.</Text>
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.catalogList}>
+               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.catalogList, styles.sheetBottomPadding]}>
               {plannerCatalog.filter((meal) => meal.meal === addingMealType).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add ${meal.name} to plan`} onPress={() => addMealToPlan(meal, selectedDay, addingMealType!)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: meal.image }} contentFit="cover" style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="plus-circle" size={19} color={colors.primary} /></ScalePressable>)}
              </ScrollView>
              <Pressable
@@ -1166,7 +1168,7 @@ export default function PlannerScreen() {
              <View style={styles.sheetHandle} />
              <SheetHeader eyebrow="REPLACE MEAL" title={replaceMeal?.name ?? ''} onClose={() => setReplaceMeal(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a {replaceMeal?.meal.toLowerCase()} for {dateFormatter.format(parseDate(replaceMeal?.day ?? selectedDay))}.</Text>
-             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.catalogList}>
+              <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.catalogList, styles.sheetBottomPadding]}>
               {plannerCatalog.filter((meal) => meal.meal === replaceMeal?.meal && meal.id !== replaceMeal?.id).map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Replace with ${meal.name}`} onPress={() => replaceMeal && replaceMealInPlan(meal, replaceMeal)} scale={0.98} haptic="none" style={[styles.catalogRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Image source={{ uri: meal.image }} contentFit="cover" style={styles.catalogImage} /><View style={styles.catalogCopy}><Text style={[styles.catalogName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.catalogMeta, { color: colors.mutedForeground }]}>{formatCalories(meal.calories)} · {meal.prepMinutes ?? 0} min prep</Text></View><Feather name="arrow-right" size={18} color={colors.primary} /></ScalePressable>)}
              </ScrollView>
              <Pressable
@@ -1220,7 +1222,7 @@ export default function PlannerScreen() {
                 </ScalePressable>
               </View>
                <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>Guides meals and nutrition on your next build. It does not replace this week automatically.</Text>
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.planTypeList}>
+              <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planTypeList}>
                 {PLAN_TYPES.map((pt) => {
                   const isSelected = plannerPreferences?.primary === pt.id;
                   return (
@@ -1253,6 +1255,7 @@ export default function PlannerScreen() {
         </BottomSheet>
         <BottomSheet visible={programDetail !== null} onRequestClose={() => setProgramDetail(null)} sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
+              <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planDetailContent}>
               {programDetail && <>
                 <SheetHeader eyebrow="PROGRAM DETAILS" title={programDetail.label} onClose={() => setProgramDetail(null)} colors={colors} />
                 <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>{programDetail.description}</Text>
@@ -1266,6 +1269,7 @@ export default function PlannerScreen() {
                 </ScalePressable>
                 <Pressable accessibilityLabel={`Rebuild this week with ${programDetail.label}`} onPress={() => { setProgramRebuildConfirm(programDetail); setProgramDetail(null); }} style={styles.programRebuildLink}><Text style={[styles.programRebuildText, { color: colors.primary }]}>Rebuild this week instead</Text></Pressable>
               </>}
+              </ScrollView>
         </BottomSheet>
         <Modal visible={programRebuildConfirm !== null} transparent animationType="fade" onRequestClose={() => setProgramRebuildConfirm(null)}>
           <View style={styles.modalBackdrop}>
@@ -1457,7 +1461,10 @@ function makeStyles(f: number) {
   todayLink: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
    detailSheet: { overflow: 'hidden' },
+   sheetScroll: { flexShrink: 1, minHeight: 0 },
+   sheetBottomPadding: { paddingBottom: 24 },
    actionSheet: { padding: 20 },
+   actionSheetContent: { paddingBottom: 8 },
    confirmationDialog: { maxHeight: '86%', borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20 },
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 6 },
   sheetSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16, marginBottom: 15 },
@@ -1548,7 +1555,7 @@ function makeStyles(f: number) {
   shopDayPill: { flexShrink: 0, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   shopDayPillText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, lineHeight: 15 },
   // Ingredient list takes all remaining sheet height so it scrolls independently.
-  shopIngredientScroll: { flex: 1 },
+   shopIngredientScroll: { flex: 1, minHeight: 0 },
   shoppingRow: { minHeight: 46, borderBottomWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   checkbox: { width: 22, height: 22, borderRadius: 7, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   shoppingName: { fontFamily: 'Inter_500Medium', fontSize: 12 * f },
@@ -1573,7 +1580,8 @@ function makeStyles(f: number) {
   planTypeSheetEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.3, marginBottom: 3 },
   planTypeSheetTitle: { fontFamily: 'Inter_700Bold', fontSize: 20 * f },
   planTypeSheetSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16, marginBottom: 14 },
-  planTypeList: { gap: 9, paddingBottom: 28 },
+   planTypeList: { gap: 9, paddingBottom: 28 },
+   planDetailContent: { paddingBottom: 28 },
   planTypeOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, borderRadius: 18, borderWidth: 1 },
   planTypeOptionIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   planTypeOptionCopy: { flex: 1 },

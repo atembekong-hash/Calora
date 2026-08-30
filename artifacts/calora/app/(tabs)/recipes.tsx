@@ -763,7 +763,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recip
     <BottomSheet visible={recipe !== null} onRequestClose={handleClose} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
           {reviewDraft ? (
             /* Local recipe review flow — full portion/fraction editor */
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 30 }}>
+            <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 34 }}>
               <View style={styles.reviewHeader}>
                 <View>
                   <Text style={[styles.detailEyebrow, { color: colors.primary }]}>RECIPE REVIEW</Text>
@@ -795,7 +795,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recip
             </ScrollView>
           ) : (
             /* Main recipe detail view */
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+            <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 34 }}>
               <View style={styles.detailTop}>
                 <Pressable accessibilityLabel="Close recipe details" onPress={handleClose} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></Pressable>
                 <Pressable accessibilityLabel={`${savedRecipeIds.includes(detail.id) ? 'Remove' : 'Save'} recipe`} onPress={() => toggleSavedRecipe(detail.id)} style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="bookmark" size={17} color={savedRecipeIds.includes(detail.id) ? colors.primary : colors.foreground} /></Pressable>
@@ -927,6 +927,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recip
       {/* Plan picker sheet */}
       <BottomSheet visible={planVisible} onRequestClose={() => setPlanVisible(false)} sheetStyle={[styles.planSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
+            <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planSheetContent}>
             <View style={styles.reviewHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.detailEyebrow, { color: colors.primary }]}>ADD TO PLAN</Text>
@@ -947,11 +948,13 @@ function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recip
             <View style={styles.planMealRow}>{plannerMealTypes.map((type) => <Pressable key={type} accessibilityLabel={`Plan as ${type}`} onPress={() => setPlanMealType(type)} style={[styles.planMealChip, { backgroundColor: planMealType === type ? colors.accent : colors.card, borderColor: planMealType === type ? colors.accent : colors.border }]}><Text style={[styles.planMealText, { color: planMealType === type ? colors.accentForeground : colors.foreground }]}>{type}</Text></Pressable>)}</View>
             <ScalePressable accessibilityLabel="Confirm add recipe to plan" onPress={addToPlan} scale={0.96} haptic="light" style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="calendar" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Add to {planMealType.toLowerCase()} plan</Text></ScalePressable>
             <Pressable accessibilityLabel="Cancel add recipe to plan" onPress={() => setPlanVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
+            </ScrollView>
       </BottomSheet>
 
       {/* Feature 6: Smart diary sheet — meal type + serving count + live macro preview */}
       <BottomSheet visible={diaryVisible} onRequestClose={() => { if (!diaryLogged) setDiaryVisible(false); }} sheetStyle={[styles.planSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
+            <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planSheetContent}>
             <View style={styles.reviewHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.detailEyebrow, { color: colors.primary }]}>ADD TO DIARY</Text>
@@ -986,6 +989,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recip
               <Text style={[styles.primaryActionText, { color: diaryLogged ? colors.accentForeground : colors.primaryForeground }]}>{diaryLogged ? 'Added to diary!' : `Add to ${diaryMealType.toLowerCase()}`}</Text>
             </ScalePressable>
             {!diaryLogged && <Pressable accessibilityLabel="Cancel diary entry" onPress={() => setDiaryVisible(false)} style={styles.sourceAction}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>}
+            </ScrollView>
       </BottomSheet>
     {/* Feature 4: Shopping list sheet — rendered OUTSIDE the outer recipe modal
         to avoid React Native Web portal stacking issues. When nested inside the
@@ -1004,7 +1008,7 @@ function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recip
           {/* Use fixed height (not maxHeight) so RNW respects the constraint —
               maxHeight on ScrollView grows to full content on web, pushing
               Add/Cancel buttons past the planSheet's clipping boundary. */}
-          <ScrollView style={{ height: 200, flexGrow: 0 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.shopIngredientScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
             {detail.ingredients?.map((ingredient, idx) => (
               <Pressable key={idx}
                 accessibilityLabel={`${selectedIngredients.has(idx) ? 'Deselect' : 'Select'} ${ingredient}`}
@@ -1427,6 +1431,7 @@ function makeStyles(f: number) {
   modalBackdrop: { flex: 1, justifyContent: 'flex-end' },
   detailSheet: { overflow: 'hidden' },
   planSheet: { padding: 20 },
+  planSheetContent: { paddingBottom: 24 },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#b7c5bc', alignSelf: 'center', marginBottom: 12 },
   secondaryAction: { minHeight: 46, borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   secondaryActionText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
@@ -1466,6 +1471,8 @@ function makeStyles(f: number) {
   sourceActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   createSheet: { borderTopLeftRadius: 27, borderTopRightRadius: 27, padding: 20, paddingBottom: 28 },
   bottomSheetContent: { padding: 20 },
+  sheetScroll: { flexShrink: 1, minHeight: 0 },
+  shopIngredientScroll: { height: 200, flexGrow: 0, flexShrink: 1, minHeight: 90 },
   createHero: { borderWidth: 1, borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   createHeroIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   createHeroTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f },

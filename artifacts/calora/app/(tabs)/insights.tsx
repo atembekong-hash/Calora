@@ -14,6 +14,7 @@ import { BRAND } from '@/lib/brand';
 import { formatGrams, formatWhole } from '@/lib/formatters';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet, BottomSheetFrame } from '@/components/BottomSheet';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { router } from 'expo-router';
@@ -1947,6 +1948,7 @@ export default function InsightsScreen() {
         </SwipeableSectionPager>
       </Animated.ScrollView>
       <BottomSheet visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
+            <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>One weigh-in is a data point. {BRAND.name} looks for trends.</Text>
             <TextInput
@@ -1975,8 +1977,10 @@ export default function InsightsScreen() {
               setSaveNotice('Weight check-in saved locally.');
             }} scale={0.96} haptic="light" style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></ScalePressable>
             <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
+            </KeyboardAwareScrollViewCompat>
       </BottomSheet>
       <BottomSheet visible={showGoalEdit} transparent animationType="slide" onRequestClose={() => setShowGoalEdit(false)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
+            <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Weight goal</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>Set a target weight. Logged data will not change.</Text>
             <TextInput
@@ -2008,10 +2012,12 @@ export default function InsightsScreen() {
             <Pressable accessibilityLabel="Cancel goal edit" onPress={() => setShowGoalEdit(false)} style={styles.cancelWeight}>
               <Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Cancel</Text>
             </Pressable>
+            </KeyboardAwareScrollViewCompat>
       </BottomSheet>
       <LocalSaveNotice visible={Boolean(saveNotice)} message={saveNotice ?? ''} colors={colors} />
       {/* Inline edit modal — pre-filled with the selected weigh-in value */}
       <BottomSheet visible={editEntry !== null} transparent animationType="slide" onRequestClose={() => setEditEntry(null)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
+            <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit weigh-in</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>
               {editEntry ? `${new Date(editEntry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} · fix the value below.` : ''}
@@ -2066,6 +2072,7 @@ export default function InsightsScreen() {
             <Pressable accessibilityLabel="Cancel edit" onPress={() => setEditEntry(null)} style={styles.cancelWeight}>
               <Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Cancel</Text>
             </Pressable>
+            </KeyboardAwareScrollViewCompat>
       </BottomSheet>
       {/* Modal is always mounted so its close animation can play when weights drop below 3.
            visible becomes false immediately when the count falls, triggering the slide-out. */}
@@ -2232,6 +2239,8 @@ function makeStyles(f: number) {
   weightLine: { height: 7, borderRadius: 4, overflow: 'hidden', marginTop: 14 },
   weightLineFill: { height: 7, borderRadius: 4 },
   weightModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20 },
+  weightFormScroll: { flexShrink: 1, minHeight: 0 },
+  weightFormContent: { paddingBottom: 4 },
   weightError: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, marginTop: 8 },
   modalTitle: { fontFamily: 'Inter_700Bold', fontSize: 21 * f },
   modalBody: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18, marginTop: 7 },

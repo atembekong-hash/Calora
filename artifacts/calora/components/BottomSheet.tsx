@@ -112,11 +112,13 @@ export const bottomSheetConstants = {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
+    minHeight: 0,
     justifyContent: 'flex-end',
   },
   sheet: {
     width: '100%',
     flexShrink: 1,
+    minHeight: 0,
     borderTopLeftRadius: 27,
     borderTopRightRadius: 27,
   },

@@ -400,7 +400,7 @@ export default function LivingMemoryScreen() {
       )}
 
       <BottomSheet visible={editingLog !== null} onRequestClose={() => setEditingLog(null)} sheetStyle={{ backgroundColor: colors.background }}>
-          <KeyboardAwareScrollViewCompat contentContainerStyle={styles.editSheetContent}>
+          <KeyboardAwareScrollViewCompat style={styles.editSheetScroll} contentContainerStyle={styles.editSheetContent} bottomOffset={72}>
             <Text style={[styles.editTitle, { color: colors.foreground }]}>Correct this signal</Text>
               <Text style={[styles.editBody, { color: colors.mutedForeground }]}>Updates the original diary entry; its nutrition snapshot stays unchanged.</Text>
             <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>DATE · YYYY-MM-DD</Text>
@@ -518,7 +518,8 @@ const styles = StyleSheet.create({
   iconAction: { width: 31, height: 31, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   footerNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 13, padding: 11, marginTop: 1 },
   footerText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
-  editSheetContent: { paddingHorizontal: 20, paddingTop: 20 },
+  editSheetScroll: { flexShrink: 1, minHeight: 0 },
+  editSheetContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 28 },
   editTitle: { fontFamily: 'Inter_700Bold', fontSize: 20 },
   editBody: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, marginTop: 7, marginBottom: 17 },
   inputLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1, marginTop: 8, marginBottom: 7 },

@@ -30,3 +30,10 @@ Never use `entry.date` as a React list `key` for daily entries.
 **Why:** Users can log multiple entries on the same day. Using the date as a key creates duplicate keys within the same list, causing React rendering instability and inconsistent UI state.
 
 **How to apply:** Use `entry.id` as the key. Fallback: `` `${entry.date}-${index}` `` if id is not guaranteed.
+
+## Rule
+Bottom-sheet content that owns vertical scrolling must be shrinkable (`flexShrink: 1`, `minHeight: 0`) and leave explicit trailing content padding for the final action.
+
+**Why:** Native short screens and large text can otherwise let a ScrollView measure at content height, hiding the last control beneath the keyboard or home/navigation inset.
+
+**How to apply:** Keep scrolling in the sheet-specific child rather than the shared frame, add the shrink styles to that child, and use a keyboard-aware variant for editable forms.
