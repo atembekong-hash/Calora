@@ -1289,7 +1289,7 @@ export default function HomeScreen() {
           <LinearGradient colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
-                <View style={styles.homeHeaderBadge}><CaloraFeatureIcon name="rhythm" size={20} primaryColor="#d4eadc" accentColor="#9dd7bd" foregroundColor="#143f34" highlightColor="#f7fff9" /></View>
+                <View style={[styles.homeHeaderBadge, { transform: [{ translateX: -8 }, { translateY: -8 }] }]}><CaloraFeatureIcon name="rhythm" size={20} primaryColor="#d4eadc" accentColor="#9dd7bd" foregroundColor="#143f34" highlightColor="#f7fff9" /></View>
               <Text style={styles.homeHeaderDate}>{formatDateLabel(selectedDate)}</Text>
             </View>
             <Text style={styles.homeHeaderTitle}>{livingState.greeting}, {profile?.name?.split(' ')[0] ?? 'there'}</Text>
