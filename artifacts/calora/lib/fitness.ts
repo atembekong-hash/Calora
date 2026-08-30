@@ -11,6 +11,23 @@ export const FITNESS_PROGRAM_CONNECTION_KINDS = [
 
 export type FitnessProgramConnectionKind = typeof FITNESS_PROGRAM_CONNECTION_KINDS[number];
 
+/**
+ * The first approved program source is intentionally metadata- and link-only.
+ * This is a product boundary, not a claim that partner credentials or a
+ * content license are already active.
+ */
+export const APPROVED_FITNESS_PROGRAM_PROVIDER = {
+  id: 'les-mills-content',
+  name: 'LES MILLS Content',
+  connectionKind: 'official-api',
+  launchModel: 'metadata-deep-link',
+  officialUrl: 'https://www.lesmills.com/',
+  apiDocsUrl: 'https://api.content.lesmills.com/docs/',
+  accessLabel: 'Attributed metadata + official deep links',
+  contentPolicy: 'No workout instructions, media, or playback in Calora.',
+  rightsPolicy: 'A signed partner agreement is required before importing provider metadata.',
+} as const;
+
 export type FitnessHealthState =
   | { kind: 'connect'; providerLabel: string; message: string }
   | { kind: 'unavailable'; providerLabel: string; message: string }

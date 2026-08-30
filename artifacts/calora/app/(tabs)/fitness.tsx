@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useCalora } from '@/context/CaloraContext';
@@ -9,6 +9,7 @@ import { ScalePressable } from '@/components/ScalePressable';
 import { formatWhole } from '@/lib/formatters';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
+  APPROVED_FITNESS_PROGRAM_PROVIDER,
   FITNESS_PROGRAM_CONNECTION_KINDS,
   fitnessGoalCopy,
   fitnessHealthState,
@@ -266,30 +267,84 @@ export default function FitnessScreen() {
         textAlign: 'center',
         marginTop: 16,
       },
-      sourceKinds: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        gap: 7,
-        marginTop: 2,
-      },
-      sourceKind: {
-        borderRadius: 999,
-        paddingHorizontal: 9,
-        paddingVertical: 5,
-        backgroundColor: colors.muted,
-      },
-      sourceKindText: {
-        fontFamily: 'Inter_600SemiBold',
-        fontSize: 10 * scale,
-        color: colors.mutedForeground,
-      },
       errorText: {
         fontFamily: 'Inter_500Medium',
         fontSize: 13 * scale,
         lineHeight: 18 * scale,
         color: colors.warning,
         textAlign: 'center',
+      },
+      providerCard: {
+        padding: 18,
+        gap: 14,
+        backgroundColor: colors.card,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.border,
+        borderRadius: 16,
+      },
+      providerHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+      },
+      providerIconWrap: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.accent,
+      },
+      providerHeaderCopy: {
+        flex: 1,
+        gap: 3,
+      },
+      providerName: {
+        fontFamily: 'Inter_600SemiBold',
+        fontSize: 17 * scale,
+        color: colors.foreground,
+      },
+      providerStatus: {
+        fontFamily: 'Inter_500Medium',
+        fontSize: 12 * scale,
+        color: colors.accentForeground,
+      },
+      providerBody: {
+        fontFamily: 'Inter_400Regular',
+        fontSize: 14 * scale,
+        lineHeight: 20 * scale,
+        color: colors.mutedForeground,
+      },
+      providerPolicy: {
+        gap: 9,
+        paddingTop: 2,
+      },
+      providerPolicyRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 8,
+      },
+      providerPolicyText: {
+        flex: 1,
+        fontFamily: 'Inter_500Medium',
+        fontSize: 12 * scale,
+        lineHeight: 17 * scale,
+        color: colors.foreground,
+      },
+      providerLink: {
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 13,
+        paddingVertical: 9,
+        borderRadius: 16,
+        backgroundColor: colors.muted,
+      },
+      providerLinkText: {
+        fontFamily: 'Inter_600SemiBold',
+        fontSize: 13 * scale,
+        color: colors.primary,
       },
     });
   }, [colors, fontScale, insets.bottom]);
@@ -407,23 +462,47 @@ export default function FitnessScreen() {
 
         <Animated.View entering={FadeInDown.duration(400).delay(400)}>
           <Text style={styles.sectionTitle}>Programs</Text>
-          <View style={styles.emptyCard} testID="fitness-programs-empty">
-            <Feather name="award" size={32} color={colors.mutedForeground} />
-            <View>
-              <Text style={styles.emptyTitle}>Official Programs coming soon</Text>
-              <Text style={styles.emptyText}>Calora will only connect programs through official APIs, approved partner feeds, licensed content, or attributed official links.</Text>
-              <View style={styles.sourceKinds}>
-                {FITNESS_PROGRAM_CONNECTION_KINDS.map((kind) => (
-                  <View key={kind} style={styles.sourceKind}>
-                    <Text style={styles.sourceKindText}>{kind.replaceAll('-', ' ').toUpperCase()}</Text>
-                  </View>
-                ))}
+          <View style={styles.providerCard} testID="fitness-program-provider">
+            <View style={styles.providerHeader}>
+              <View style={styles.providerIconWrap}>
+                <Feather name="award" size={22} color={colors.accentForeground} />
+              </View>
+              <View style={styles.providerHeaderCopy}>
+                <Text style={styles.providerName}>{APPROVED_FITNESS_PROGRAM_PROVIDER.name}</Text>
+                <Text style={styles.providerStatus}>Approved first provider · partner access pending</Text>
               </View>
             </View>
+            <Text style={styles.providerBody}>
+              Calora’s first program connection will use the official LES MILLS Content API when approved partner access is active.
+            </Text>
+            <View style={styles.providerPolicy}>
+              <View style={styles.providerPolicyRow}>
+                <Feather name="check-circle" size={15} color={colors.success} />
+                <Text style={styles.providerPolicyText}>{APPROVED_FITNESS_PROGRAM_PROVIDER.accessLabel}</Text>
+              </View>
+              <View style={styles.providerPolicyRow}>
+                <Feather name="shield" size={15} color={colors.success} />
+                <Text style={styles.providerPolicyText}>{APPROVED_FITNESS_PROGRAM_PROVIDER.contentPolicy}</Text>
+              </View>
+              <View style={styles.providerPolicyRow}>
+                <Feather name="file-text" size={15} color={colors.warning} />
+                <Text style={styles.providerPolicyText}>{APPROVED_FITNESS_PROGRAM_PROVIDER.rightsPolicy}</Text>
+              </View>
+            </View>
+            <ScalePressable
+              accessibilityLabel="Visit the official LES MILLS website"
+              accessibilityRole="link"
+              onPress={() => { void Linking.openURL(APPROVED_FITNESS_PROGRAM_PROVIDER.officialUrl); }}
+              style={styles.providerLink}
+              testID="fitness-provider-official-link"
+            >
+              <Text style={styles.providerLinkText}>Visit official source</Text>
+              <Feather name="external-link" size={14} color={colors.primary} />
+            </ScalePressable>
           </View>
           
           <Text style={styles.disclaimer}>
-            Imported workouts are provided for context and do not alter your logged dietary calories.
+            Imported activity remains context only and does not alter your logged dietary calories. Program connections remain limited to {FITNESS_PROGRAM_CONNECTION_KINDS.length} approved source types.
           </Text>
         </Animated.View>
 

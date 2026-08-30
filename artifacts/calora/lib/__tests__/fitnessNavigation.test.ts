@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  APPROVED_FITNESS_PROGRAM_PROVIDER,
   FITNESS_PROGRAM_CONNECTION_KINDS,
   fitnessHealthState,
   formatWorkoutDuration,
@@ -74,6 +75,16 @@ describe('Fitness health boundary', () => {
       'licensed-content',
       'official-link',
     ]);
+  });
+
+  it('keeps the selected LES MILLS launch metadata- and link-only', () => {
+    expect(APPROVED_FITNESS_PROGRAM_PROVIDER).toMatchObject({
+      id: 'les-mills-content',
+      connectionKind: 'official-api',
+      launchModel: 'metadata-deep-link',
+    });
+    expect(APPROVED_FITNESS_PROGRAM_PROVIDER.contentPolicy).toContain('No workout instructions');
+    expect(APPROVED_FITNESS_PROGRAM_PROVIDER.rightsPolicy).toContain('signed partner agreement');
   });
 });
 
