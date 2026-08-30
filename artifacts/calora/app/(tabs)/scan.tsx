@@ -260,13 +260,18 @@ export default function ScanScreen() {
   const takePhoto = async () => {
     if (!cameraRef.current || analyzeCapture.isPending) return;
     setHasScanned(true);
-    const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.75, skipProcessing: Platform.OS === 'android' });
-    if (photo?.base64) {
-      const captureMode = receiptCapture ? 'receipt' : mode === 'barcode' ? 'food' : mode === 'label' ? 'nutrition_label' : mode;
-      await analyze({ mode: captureMode, imageBase64: photo.base64 });
-    } else {
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.75, skipProcessing: Platform.OS === 'android' });
+      if (photo?.base64) {
+        const captureMode = receiptCapture ? 'receipt' : mode === 'barcode' ? 'food' : mode === 'label' ? 'nutrition_label' : mode;
+        await analyze({ mode: captureMode, imageBase64: photo.base64 });
+        return;
+      }
       setHasScanned(false);
       Alert.alert('Photo unavailable', `${BRAND.name} could not read that photo. Try again or choose a photo from your library.`);
+    } catch (error) {
+      setHasScanned(false);
+      Alert.alert('Photo unavailable', error instanceof Error ? error.message : `${BRAND.name} could not capture that photo. Try again or choose a photo from your library.`);
     }
   };
 

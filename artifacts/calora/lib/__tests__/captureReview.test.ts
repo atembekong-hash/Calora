@@ -618,4 +618,9 @@ describe('accessibility labels — static invariants', () => {
   it('pauses barcode scanning while the camera is recording video', () => {
     expect(scanSource).toContain("cameraMode === 'video' || mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned");
   });
+
+  it('recovers cleanly when native photo capture throws', () => {
+    expect(scanSource).toMatch(/try \{\s*const photo = await cameraRef\.current\.takePictureAsync/);
+    expect(scanSource).toMatch(/catch \(error\) \{[\s\S]*setHasScanned\(false\);[\s\S]*Photo unavailable/);
+  });
 });
