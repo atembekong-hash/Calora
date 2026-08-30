@@ -607,4 +607,15 @@ describe('accessibility labels — static invariants', () => {
     expect(scanSource).toMatch(/accessibilityLabel="Approve and add meal to diary"/);
     expect(scanSource).toMatch(/accessibilityLabel="Discard food review"/);
   });
+
+  it('switches the camera to video before recording Voice and restores picture capture', () => {
+    expect(scanSource).toContain("const [cameraMode, setCameraMode] = useState<CameraMode>('picture')");
+    expect(scanSource).toContain('mode={cameraMode}');
+    expect(scanSource).toMatch(/setCameraMode\('video'\);\s+setVoiceRecording\(true\)/);
+    expect(scanSource).toMatch(/finally \{[\s\S]*setVoiceRecording\(false\);[\s\S]*setCameraMode\('picture'\)/);
+  });
+
+  it('pauses barcode scanning while the camera is recording video', () => {
+    expect(scanSource).toContain("cameraMode === 'video' || mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned");
+  });
 });

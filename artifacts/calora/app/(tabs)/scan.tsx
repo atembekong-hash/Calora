@@ -1,6 +1,6 @@
 import { approveCapture, useAnalyzeCapture, type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
-import { CameraView, useCameraPermissions, useMicrophonePermissions, type BarcodeScanningResult } from 'expo-camera';
+import { CameraView, useCameraPermissions, useMicrophonePermissions, type BarcodeScanningResult, type CameraMode } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -102,6 +102,8 @@ export default function ScanScreen() {
   const [altCaptureBanner, setAltCaptureBanner] = useState<string | null>(null);
   const [receiptCapture, setReceiptCapture] = useState(false);
   const [voiceRecording, setVoiceRecording] = useState(false);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('picture');
+  const voiceCaptureInFlight = useRef(false);
   const analyzeCapture = useAnalyzeCapture();
   const routeDraftId = typeof params.draftId === 'string' ? params.draftId : undefined;
   const reviewDraft = foodDrafts.find((draft) => draft.status === 'draft' && (draft.id === reviewDraftId || draft.id === routeDraftId)) ?? null;
@@ -153,6 +155,48 @@ export default function ScanScreen() {
     }
   };
 
+  useEffect(() => {
+    if (cameraMode !== 'video' || !voiceRecording || voiceCaptureInFlight.current) return;
+    const camera = cameraRef.current;
+    if (!camera) {
+      setVoiceRecording(false);
+      setCameraMode('picture');
+      setAltCaptureBanner('Open the camera, then try voice again.');
+      return;
+    }
+
+    voiceCaptureInFlight.current = true;
+    const recordVoice = async () => {
+      try {
+        const recording = await camera.recordAsync({ maxDuration: 12, maxFileSize: 6 * 1024 * 1024 });
+        if (!recording?.uri) {
+          setAltCaptureBanner('No recording was captured. Try again, or type your meal description instead.');
+          return;
+        }
+        const audioBase64 = await FileSystem.readAsStringAsync(recording.uri, { encoding: FileSystem.EncodingType.Base64 });
+        if (!audioBase64) throw new Error('The recording could not be read');
+        setHasScanned(true);
+        const next = await analyze({ mode: 'voice', audioBase64, audioFormat: 'mp4' });
+        if (next?.status === 'transcript' && next.transcript) {
+          setTextEntry(next.transcript);
+          setTextEntryKind('voice');
+          setShowTextEntry(true);
+          setAltCaptureBanner('Transcript ready. Edit it, then estimate nutrition.');
+          setHasScanned(false);
+        }
+      } catch (error) {
+        setHasScanned(false);
+        setAltCaptureBanner(error instanceof Error ? `${error.message} Type your meal instead.` : 'Recording failed. Type your meal instead.');
+      } finally {
+        voiceCaptureInFlight.current = false;
+        setVoiceRecording(false);
+        setCameraMode('picture');
+      }
+    };
+
+    void recordVoice();
+  }, [cameraMode, voiceRecording]);
+
   const startVoiceCapture = async () => {
     if (Platform.OS === 'web') {
       setAltCaptureBanner('Voice recording is available in the mobile app. Type your meal instead.');
@@ -173,26 +217,11 @@ export default function ScanScreen() {
     }
     try {
       setAltCaptureBanner('Listening… tap Voice again when you are done.');
+      setCameraMode('video');
       setVoiceRecording(true);
-      const recording = await cameraRef.current.recordAsync({ maxDuration: 12, maxFileSize: 6 * 1024 * 1024 });
-      setVoiceRecording(false);
-      if (!recording?.uri) {
-        setAltCaptureBanner('No recording was captured. Try again, or type your meal description instead.');
-        return;
-      }
-      const audioBase64 = await FileSystem.readAsStringAsync(recording.uri, { encoding: FileSystem.EncodingType.Base64 });
-      if (!audioBase64) throw new Error('The recording could not be read');
-      setHasScanned(true);
-      const next = await analyze({ mode: 'voice', audioBase64, audioFormat: 'mp4' });
-      if (next?.status === 'transcript' && next.transcript) {
-        setTextEntry(next.transcript);
-        setTextEntryKind('voice');
-        setShowTextEntry(true);
-        setAltCaptureBanner('Transcript ready. Edit it, then estimate nutrition.');
-        setHasScanned(false);
-      }
     } catch (error) {
       setVoiceRecording(false);
+      setCameraMode('picture');
       setHasScanned(false);
       setAltCaptureBanner(error instanceof Error ? `${error.message} Type your meal instead.` : 'Recording failed. Type your meal instead.');
     }
@@ -339,7 +368,7 @@ export default function ScanScreen() {
         ) : (
           <>
             <View style={[styles.cameraFrame, { borderColor: colors.border }]}>
-              <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" onBarcodeScanned={mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned} barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] }} />
+              <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" mode={cameraMode} onBarcodeScanned={cameraMode === 'video' || mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned} barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] }} />
               <View style={styles.cameraOverlay}>
                 <Animated.View style={[StyleSheet.absoluteFillObject, cornerPulseStyle]} pointerEvents="none">
                   <View style={[styles.corner, styles.cornerTL, { borderColor: colors.onHero }]} />
