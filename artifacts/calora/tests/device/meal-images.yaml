@@ -59,3 +59,25 @@ appId: com.etiendem.caloraapp
     timeout: 10000
 - assertVisible:
     id: "meal-image-audit-snack-image"
+
+# The QA-only scenario supplies an unavailable source for Breakfast and a
+# valid-but-wrong bundled key for Lunch. It does not write planner data or
+# change local storage, so the healthy coverage above remains representative.
+- openLink: "caloraapp:///meal-image-preview?scenario=fallback"
+- assertVisible: "Meal image rendering"
+- extendedWaitUntil:
+    visible: "Breakfast: Overnight oats with berries · Fallback image active"
+    timeout: 10000
+- assertVisible: "Fallback image"
+- assertVisible:
+    text: "Overnight oats with berries meal image is using the fallback image. Fallback image active"
+- assertVisible:
+    id: "meal-image-audit-breakfast-image"
+- extendedWaitUntil:
+    visible: "Lunch: Chicken harvest salad · Swapped image detected · expected harvest-salad · received berry-oats · fallback image active"
+    timeout: 10000
+- assertVisible: "Image mismatch · fallback"
+- assertVisible:
+    text: "Chicken harvest salad meal image is using the fallback image. Swapped image detected · expected harvest-salad · received berry-oats · fallback image active"
+- assertVisible:
+    id: "meal-image-audit-lunch-image"

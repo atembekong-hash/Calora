@@ -87,6 +87,7 @@ export function PlannerMealImage({
       />
       {isFallback && (
         <View
+          accessible
           accessibilityLabel={`${meal.name} meal image is using the fallback image. ${status}`}
           pointerEvents="none"
           style={[styles.fallbackNotice, { backgroundColor: colors.hero }]}
@@ -106,6 +107,7 @@ export function PlannerMealImage({
     <View style={[styles.auditFrame, { backgroundColor: colors.card }]}>
       {image}
       <View
+        accessible
         accessibilityLabel={`${meal.meal}: ${meal.name} · ${status}`}
         style={[styles.auditStatus, { backgroundColor: colors.hero }]}
         testID={`${auditId}-status`}

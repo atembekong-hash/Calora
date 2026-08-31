@@ -53,11 +53,14 @@ image contract. It deep-links to a small QA preview that uses the same
 `PlannerMealImage` component as the real planner cards and checks one stable
 Breakfast, Lunch, Dinner, and Snack card.
 
-The preview waits for each card to report **Bundled image ready**. A missing
-asset or native load error reports the meal type and name with **Fallback image
+The preview first waits for each card to report **Bundled image ready**. It then
+opens the QA-only `scenario=fallback` deep link, which supplies an unavailable
+source to Breakfast and a valid-but-wrong bundled key to Lunch. A missing asset
+or native load error reports the meal type and name with **Fallback image
 active**. A planner identity mismatch reports **Swapped image detected** along
 with the expected and received asset keys, then uses the fallback instead of
-silently showing the wrong meal.
+silently showing the wrong meal. The flow asserts both the visible badge and
+the full fallback accessibility label for each state.
 
 Run the command once with a booted iOS simulator/device selected and once with
 a booted Android emulator/device selected:
@@ -66,9 +69,11 @@ a booted Android emulator/device selected:
 pnpm test:device:meal-images
 ```
 
-The flow starts from clean app storage and opens the preview through the
-`caloraapp:///meal-image-preview` deep link. Do not point it at a personal
-production install.
+The flow starts from clean app storage and opens the healthy preview through
+the `caloraapp:///meal-image-preview` deep link, then opens the isolated
+`caloraapp:///meal-image-preview?scenario=fallback` QA fixture. The fixture only
+changes in-memory preview props; it does not write planner data or local
+storage. Do not point it at a personal production install.
 
 ## Release gate
 

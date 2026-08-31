@@ -7,7 +7,12 @@ const AUDIT_MEAL_IDS = ['berry-oats', 'harvest-salad', 'med-pasta', 'apple-almon
 export type MealImageAuditCase = {
   auditId: `meal-image-audit-${Lowercase<PlannerMeal['meal']>}`;
   meal: PlannerMeal;
-  expectedImageKey: PlannerImageKey;
+  /**
+   * The healthy audit fixture always provides an expected key. The optional
+   * shape also supports the QA-only missing-source scenario, where there is
+   * no identity expectation and the component must report a plain fallback.
+   */
+  expectedImageKey?: PlannerImageKey;
 };
 
 /**

@@ -1,12 +1,39 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 import { PlannerMealImage } from '@/components/PlannerMealImage';
 import { getMealImageAuditCases } from '@/lib/mealImageAudit';
 
+const QA_MISSING_IMAGE_KEY = 'qa-missing-planner-image';
+
 export default function MealImagePreviewScreen() {
   const insets = useSafeAreaInsets();
-  const auditCases = getMealImageAuditCases();
+  const { scenario } = useLocalSearchParams<{ scenario?: string }>();
+  const isFallbackScenario = scenario === 'fallback';
+  const auditCases = getMealImageAuditCases().map((auditCase) => {
+    if (!isFallbackScenario) return auditCase;
+
+    if (auditCase.meal.meal === 'Breakfast') {
+      return {
+        ...auditCase,
+        // Deliberately use an unknown key and empty remote URL. This must
+        // exercise the component's unavailable-image fallback state.
+        expectedImageKey: undefined,
+        meal: { ...auditCase.meal, image: '', imageAssetKey: QA_MISSING_IMAGE_KEY },
+      };
+    }
+
+    if (auditCase.meal.meal === 'Lunch') {
+      return {
+        ...auditCase,
+        // A valid but wrong bundled key must be rejected as an identity swap.
+        meal: { ...auditCase.meal, imageAssetKey: 'berry-oats' },
+      };
+    }
+
+    return auditCase;
+  });
 
   return (
     <ScrollView
@@ -16,7 +43,9 @@ export default function MealImagePreviewScreen() {
       <Text style={styles.eyebrow}>NATIVE QA PREVIEW</Text>
       <Text style={styles.title}>Meal image rendering</Text>
       <Text style={styles.description}>
-        Representative planner cards for iOS and Android. Each card must report a bundled image ready state.
+        {isFallbackScenario
+          ? 'QA fixture for unavailable and mismatched images. Fallback states must remain visible and accessible.'
+          : 'Representative planner cards for iOS and Android. Each card must report a bundled image ready state.'}
       </Text>
 
       <View style={styles.cardList}>
