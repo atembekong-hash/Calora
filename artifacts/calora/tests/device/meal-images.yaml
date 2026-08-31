@@ -14,16 +14,27 @@ appId: com.etiendem.caloraapp
 - openLink: "caloraapp:///meal-image-preview"
 - assertVisible: "Meal image rendering"
 
-# The status line is emitted by the real PlannerMealImage component. If an
-# asset is missing, fails to load, or is assigned to the wrong meal identity,
-# the expected ready line never appears and the preview shows the diagnostic
-# identity plus fallback/swapped state instead.
+# The status line is emitted by the real PlannerMealImage component. The
+# negative assertions intentionally run first so a failed card reports its
+# meal identity and the observed fallback/swapped state in Maestro output.
+- assertNotVisible:
+    text: "Breakfast: Overnight oats with berries · Fallback image active"
+- assertNotVisible:
+    text: "Breakfast: Overnight oats with berries · Swapped image detected"
 - extendedWaitUntil:
     visible: "Breakfast: Overnight oats with berries · Bundled image ready"
     timeout: 10000
+- assertNotVisible:
+    text: "Lunch: Chicken harvest salad · Fallback image active"
+- assertNotVisible:
+    text: "Lunch: Chicken harvest salad · Swapped image detected"
 - extendedWaitUntil:
     visible: "Lunch: Chicken harvest salad · Bundled image ready"
     timeout: 10000
+- assertNotVisible:
+    text: "Dinner: Mediterranean tomato pasta · Fallback image active"
+- assertNotVisible:
+    text: "Dinner: Mediterranean tomato pasta · Swapped image detected"
 - extendedWaitUntil:
     visible: "Dinner: Mediterranean tomato pasta · Bundled image ready"
     timeout: 10000
@@ -39,6 +50,10 @@ appId: com.etiendem.caloraapp
       text: "Snack: Apple with almond butter · Bundled image ready"
     direction: DOWN
     timeout: 10000
+- assertNotVisible:
+    text: "Snack: Apple with almond butter · Fallback image active"
+- assertNotVisible:
+    text: "Snack: Apple with almond butter · Swapped image detected"
 - extendedWaitUntil:
     visible: "Snack: Apple with almond butter · Bundled image ready"
     timeout: 10000

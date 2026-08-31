@@ -12,7 +12,8 @@
     "test:server": "node --test server/serve.security.cjs",
     "test:watch": "vitest",
     "test:device:nutrition-goals": "maestro test tests/device/nutrition-goals.yaml",
-    "test:device:meal-images": "maestro test tests/device/meal-images.yaml"
+    "test:device:meal-images": "maestro test tests/device/meal-images.yaml",
+    "test:release:meal-images": "node scripts/meal-image-release-gate.js"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

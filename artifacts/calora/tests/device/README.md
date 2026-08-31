@@ -69,3 +69,35 @@ pnpm test:device:meal-images
 The flow starts from clean app storage and opens the preview through the
 `caloraapp:///meal-image-preview` deep link. Do not point it at a personal
 production install.
+
+## Release gate
+
+The release validation command runs this same flow on both platforms and fails
+the release if either target fails:
+
+```sh
+# From artifacts/calora
+maestro devices
+CALORA_IOS_DEVICE="<exact booted iOS device ID>" \
+CALORA_ANDROID_DEVICE="<exact booted Android device ID>" \
+  pnpm test:release:meal-images
+```
+
+Before running the gate:
+
+1. Build and install the signed Calora build under release on one selected,
+   booted iOS simulator/device and one selected, booted Android emulator/device.
+   Both installations must use application ID `com.etiendem.caloraapp`.
+2. Run `maestro devices` and copy the exact IDs for the intended iOS and
+   Android targets into `CALORA_IOS_DEVICE` and `CALORA_ANDROID_DEVICE`.
+   Selecting one target per platform is required; do not rely on an arbitrary
+   connected-device choice.
+3. Keep the two targets available for the entire command. The flow clears
+   Calora's local storage on each target and opens
+   `caloraapp:///meal-image-preview`.
+
+The gate runs iOS first and Android second, prints the selected platform and
+device before each run, and continues to the second platform if the first
+fails. A failed card is reported by its meal identity and its observed
+`Fallback image active` or `Swapped image detected` state. A nonzero exit means
+the signed build is not cleared by this meal-image gate.
