@@ -81,8 +81,11 @@ The release validation command runs this same flow on both platforms and fails
 the release if either target fails:
 
 ```sh
+# From the native host: choose one booted target per platform.
+xcrun simctl list devices booted
+adb devices
+
 # From artifacts/calora
-maestro devices
 CALORA_IOS_DEVICE="<exact booted iOS device ID>" \
 CALORA_ANDROID_DEVICE="<exact booted Android device ID>" \
   pnpm test:release:meal-images
@@ -93,10 +96,11 @@ Before running the gate:
 1. Build and install the signed Calora build under release on one selected,
    booted iOS simulator/device and one selected, booted Android emulator/device.
    Both installations must use application ID `com.etiendem.caloraapp`.
-2. Run `maestro devices` and copy the exact IDs for the intended iOS and
-   Android targets into `CALORA_IOS_DEVICE` and `CALORA_ANDROID_DEVICE`.
-   Selecting one target per platform is required; do not rely on an arbitrary
-   connected-device choice.
+2. Run `xcrun simctl list devices booted` on the iOS host and `adb devices` on
+   the Android host. Copy the exact IDs for the intended targets into
+   `CALORA_IOS_DEVICE` and `CALORA_ANDROID_DEVICE`. Maestro 1.40 does not have
+   a `maestro devices` command. Selecting one target per platform is required;
+   do not rely on an arbitrary connected-device choice.
 3. Keep the two targets available for the entire command. The flow clears
    Calora's local storage on each target and opens
    `caloraapp:///meal-image-preview`.

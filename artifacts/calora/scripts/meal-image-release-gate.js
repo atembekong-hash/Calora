@@ -13,7 +13,9 @@ function printUsage() {
     [
       'Meal-image release gate needs one booted target per platform.',
       'Set CALORA_IOS_DEVICE and CALORA_ANDROID_DEVICE to the exact IDs',
-      'reported by `maestro devices`, then run:',
+      'reported by the native platform tools, then run:',
+      '  iOS: xcrun simctl list devices booted',
+      '  Android: adb devices',
       '  pnpm test:release:meal-images',
     ].join('\n'),
   );
