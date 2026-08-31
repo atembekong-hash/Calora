@@ -1,8 +1,10 @@
+import { Feather } from '@expo/vector-icons';
 import { Image, type ImageSource } from 'expo-image';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View, type ImageStyle, type StyleProp } from 'react-native';
+import { StyleSheet, Text, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 import type { PlannerMeal } from '@workspace/api-client-react';
-import { plannerImageSource } from '@/lib/mealImages';
+import { useColors } from '@/hooks/useColors';
+import { hasPlannerImageKey, plannerImageSource } from '@/lib/mealImages';
 import { plannerImageKeyForMealId, type PlannerImageKey } from '@/lib/mealImageIdentity';
 
 export type PlannerMealImageState = 'loading' | 'loaded' | 'fallback' | 'swapped';
@@ -15,13 +17,18 @@ const PLANNER_MEAL_FALLBACKS: Record<PlannerMeal['meal'], ImageSource> = {
   Snack: require('../assets/images/food-fallback-snack.jpg'),
 };
 
-function stateLabel(state: PlannerMealImageState, expectedImageKey?: PlannerImageKey, actualImageKey?: string | null) {
-  if (state === 'loaded') return 'Bundled image ready';
+function stateLabel(
+  state: PlannerMealImageState,
+  isCuratedImage: boolean,
+  expectedImageKey?: PlannerImageKey,
+  actualImageKey?: string | null,
+) {
+  if (state === 'loaded') return isCuratedImage ? 'Bundled image ready' : 'Meal image ready';
   if (state === 'fallback') return 'Fallback image active';
   if (state === 'swapped') {
     return `Swapped image detected · expected ${expectedImageKey ?? 'none'} · received ${actualImageKey ?? 'none'} · fallback image active`;
   }
-  return 'Checking bundled image…';
+  return isCuratedImage ? 'Checking bundled image…' : 'Checking meal image…';
 }
 
 export function PlannerMealImage({
@@ -35,8 +42,10 @@ export function PlannerMealImage({
   auditId?: string;
   expectedImageKey?: PlannerImageKey;
 }) {
+  const colors = useColors();
   const resolvedImageKey = meal.imageAssetKey ?? plannerImageKeyForMealId(meal.id, meal.name);
   const source = plannerImageSource(resolvedImageKey, meal.image);
+  const isCuratedImage = hasPlannerImageKey(resolvedImageKey);
   const fallbackSource = PLANNER_MEAL_FALLBACKS[meal.meal] ?? PLANNER_IMAGE_FALLBACK;
   const identitySwapped = Boolean(expectedImageKey && resolvedImageKey !== expectedImageKey);
   const failedRef = useRef(!source);
@@ -46,64 +55,99 @@ export function PlannerMealImage({
     () => (state === 'swapped' || state === 'fallback' || !source ? fallbackSource : source),
     [fallbackSource, source, state],
   );
-  const status = stateLabel(state, expectedImageKey, resolvedImageKey);
+  const status = stateLabel(state, isCuratedImage, expectedImageKey, resolvedImageKey);
   const imageLabel = `${meal.name} meal image · ${status}`;
+  const isFallback = state === 'fallback' || state === 'swapped';
+  const fallbackNotice = state === 'swapped' ? 'Image mismatch · fallback' : 'Fallback image';
 
   useEffect(() => {
     failedRef.current = !source;
     setLoadState(source ? 'loading' : 'fallback');
-  }, [meal.id, meal.image, resolvedImageKey, source]);
+  }, [meal.id, meal.image, resolvedImageKey]);
 
   const image = (
-    <Image
-      accessibilityLabel={imageLabel}
-      cachePolicy="memory-disk"
-      contentFit="cover"
-      onError={() => {
-        failedRef.current = true;
-        setLoadState('fallback');
-      }}
-      onLoad={() => {
-        if (!failedRef.current) setLoadState('loaded');
-      }}
-      placeholder={PLANNER_IMAGE_FALLBACK}
-       recyclingKey={`${meal.id}:${resolvedImageKey ?? meal.image ?? `fallback-${meal.meal.toLowerCase()}`}`}
-      source={resolvedSource}
-      style={style}
-      testID={auditId ? `${auditId}-image` : undefined}
-      transition={160}
-    />
+    <View style={[style as StyleProp<ViewStyle>, styles.imageSurface]}>
+      <Image
+        accessibilityLabel={imageLabel}
+        cachePolicy="memory-disk"
+        contentFit="cover"
+        onError={() => {
+          failedRef.current = true;
+          setLoadState('fallback');
+        }}
+        onLoad={() => {
+          if (!failedRef.current) setLoadState('loaded');
+        }}
+        placeholder={fallbackSource}
+        recyclingKey={`${meal.id}:${resolvedImageKey ?? meal.image ?? `fallback-${meal.meal.toLowerCase()}`}`}
+        source={resolvedSource}
+        style={StyleSheet.absoluteFill}
+        testID={auditId ? `${auditId}-image` : undefined}
+        transition={160}
+      />
+      {isFallback && (
+        <View
+          accessibilityLabel={`${meal.name} meal image is using the fallback image. ${status}`}
+          pointerEvents="none"
+          style={[styles.fallbackNotice, { backgroundColor: colors.hero }]}
+        >
+          <Feather name="image" size={12} color={colors.onHero} />
+          <Text numberOfLines={1} style={[styles.fallbackNoticeText, { color: colors.onHero }]}>
+            {fallbackNotice}
+          </Text>
+        </View>
+      )}
+    </View>
   );
 
   if (!auditId) return image;
 
   return (
-    <View style={styles.auditFrame}>
+    <View style={[styles.auditFrame, { backgroundColor: colors.card }]}>
       {image}
       <View
         accessibilityLabel={`${meal.meal}: ${meal.name} · ${status}`}
-        style={styles.auditStatus}
+        style={[styles.auditStatus, { backgroundColor: colors.hero }]}
         testID={`${auditId}-status`}
       >
-        <Text style={styles.auditStatusText}>{`${meal.meal}: ${meal.name} · ${status}`}</Text>
+        <Text style={[styles.auditStatusText, { color: colors.onHero }]}>{`${meal.meal}: ${meal.name} · ${status}`}</Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  imageSurface: {
+    overflow: 'hidden',
+    position: 'relative',
+  },
   auditFrame: {
     borderRadius: 16,
     overflow: 'hidden',
   },
   auditStatus: {
-    backgroundColor: '#17231f',
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
   auditStatusText: {
-    color: '#ffffff',
     fontSize: 12,
     lineHeight: 17,
+  },
+  fallbackNotice: {
+    alignItems: 'center',
+    bottom: 0,
+    flexDirection: 'row',
+    gap: 4,
+    left: 0,
+    paddingHorizontal: 7,
+    paddingVertical: 5,
+    position: 'absolute',
+    right: 0,
+  },
+  fallbackNoticeText: {
+    flexShrink: 1,
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 13,
   },
 });

@@ -1,6 +1,6 @@
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { plannerCatalog } from '@/data/planner';
-import type { PlannerImageKey } from '@/lib/mealImageIdentity';
+import { PLANNER_IMAGE_KEYS, type PlannerImageKey } from '@/lib/mealImageIdentity';
 
 const AUDIT_MEAL_IDS = ['berry-oats', 'harvest-salad', 'med-pasta', 'apple-almond'] as const;
 
@@ -22,10 +22,17 @@ export function getMealImageAuditCases(catalog: readonly PlannerMeal[] = planner
       throw new Error(`Meal image audit fixture is missing planner meal "${mealId}"`);
     }
 
+    const imageAssetKey = meal.imageAssetKey;
+    if (!imageAssetKey || !(PLANNER_IMAGE_KEYS as readonly string[]).includes(imageAssetKey)) {
+      throw new Error(
+        `Meal image audit fixture "${meal.id}" must use a curated planner image key; custom/generated meals are not eligible`,
+      );
+    }
+
     return {
       auditId: `meal-image-audit-${meal.meal.toLowerCase()}` as MealImageAuditCase['auditId'],
       meal,
-      expectedImageKey: mealId,
+      expectedImageKey: imageAssetKey as PlannerImageKey,
     };
   });
 }

@@ -177,7 +177,7 @@ describe('planner image rendering contract', () => {
     const source = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../components/PlannerMealImage.tsx'), 'utf8');
     expect(source).toContain('function PlannerMealImage');
     expect(source).toContain('onError={() => {');
-    expect(source).toContain('recyclingKey={`${meal.id}:${meal.imageAssetKey ?? meal.image ?? \'fallback\'}`}');
+    expect(source).toContain('recyclingKey={`${meal.id}:${resolvedImageKey ?? meal.image ?? `fallback-${meal.meal.toLowerCase()}`}`}');
     expect(source).toContain('PLANNER_IMAGE_FALLBACK');
   });
 });

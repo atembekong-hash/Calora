@@ -60,4 +60,9 @@ describe('curated meal image identity', () => {
     expect(plannerImageKeyForMealId('starter-3-Snack', 'Hummus with veggie sticks')).toBe('hummus-veggies');
     expect(plannerImageKeyForMealId('planner-2026-08-31-hummus-veggies-3')).toBe('hummus-veggies');
   });
+
+  it('does not promote custom or generated meal ids into curated image keys', () => {
+    expect(plannerImageKeyForMealId('custom-summer-bowl')).toBeUndefined();
+    expect(plannerImageKeyForMealId('planner-2026-08-31-custom-summer-bowl')).toBeUndefined();
+  });
 });
