@@ -45,3 +45,27 @@ output. With the screen reader enabled, manually confirm both platform runs:
 
 Record any device-specific wording or timing issue here before release. The
 expected error is: “Enter a positive value for calories and each macro.”
+
+## Native meal-image rendering regression test
+
+`meal-images.yaml` is an independent Maestro flow for the planner's native
+image contract. It deep-links to a small QA preview that uses the same
+`PlannerMealImage` component as the real planner cards and checks one stable
+Breakfast, Lunch, Dinner, and Snack card.
+
+The preview waits for each card to report **Bundled image ready**. A missing
+asset or native load error reports the meal type and name with **Fallback image
+active**. A planner identity mismatch reports **Swapped image detected** along
+with the expected and received asset keys, then uses the fallback instead of
+silently showing the wrong meal.
+
+Run the command once with a booted iOS simulator/device selected and once with
+a booted Android emulator/device selected:
+
+```sh
+pnpm test:device:meal-images
+```
+
+The flow starts from clean app storage and opens the preview through the
+`caloraapp:///meal-image-preview` deep link. Do not point it at a personal
+production install.

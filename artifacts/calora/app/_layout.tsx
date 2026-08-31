@@ -195,6 +195,7 @@ function RootLayoutNav() {
         <Stack.Screen name="coach" options={{ headerShown: false }} />
         <Stack.Screen name="memory" options={{ headerShown: false }} />
         <Stack.Screen name="restaurants" options={{ headerShown: false }} />
+        <Stack.Screen name="meal-image-preview" options={{ headerShown: false }} />
         {/* Auth screens group — sign-in, sign-up, forgot/reset password, callback */}
         <Stack.Screen name="auth" options={{ headerShown: false }} />
       </Stack>

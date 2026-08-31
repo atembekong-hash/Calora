@@ -1,0 +1,46 @@
+appId: com.etiendem.caloraapp
+---
+# Run this same flow once on a booted iOS simulator and once on a booted
+# Android emulator or signed device. The flow intentionally uses clean local
+# state so the deep-linked preview is deterministic.
+- launchApp:
+    clearState: true
+- tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "I understand and agree"
+- tapOn: "Enter CaloraApp"
+- openLink: "caloraapp:///meal-image-preview"
+- assertVisible: "Meal image rendering"
+
+# The status line is emitted by the real PlannerMealImage component. If an
+# asset is missing, fails to load, or is assigned to the wrong meal identity,
+# the expected ready line never appears and the preview shows the diagnostic
+# identity plus fallback/swapped state instead.
+- extendedWaitUntil:
+    visible: "Breakfast: Overnight oats with berries · Bundled image ready"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "Lunch: Chicken harvest salad · Bundled image ready"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "Dinner: Mediterranean tomato pasta · Bundled image ready"
+    timeout: 10000
+- assertVisible:
+    id: "meal-image-audit-breakfast-image"
+- assertVisible:
+    id: "meal-image-audit-lunch-image"
+- assertVisible:
+    id: "meal-image-audit-dinner-image"
+
+- scrollUntilVisible:
+    element:
+      text: "Snack: Apple with almond butter · Bundled image ready"
+    direction: DOWN
+    timeout: 10000
+- extendedWaitUntil:
+    visible: "Snack: Apple with almond butter · Bundled image ready"
+    timeout: 10000
+- assertVisible:
+    id: "meal-image-audit-snack-image"

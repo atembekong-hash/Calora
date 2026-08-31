@@ -3,9 +3,10 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ImageStyle, type StyleProp } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
+import { PlannerMealImage } from '@/components/PlannerMealImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
@@ -23,12 +24,10 @@ import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
-import { plannerImageSource } from '@/lib/mealImages';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
 const PLANNER_WORKSPACES = ['today', 'week', 'shopping'] as const;
-const PLANNER_IMAGE_FALLBACK = require('../../assets/images/calora-plan-header.jpg');
 
 function parseDate(date: string) {
   return new Date(`${date}T12:00:00`);
@@ -43,35 +42,6 @@ function formatRange(weekStart: string) {
 function formatShoppingDays(days: string[] | undefined): string {
   if (!days || days.length === 0) return '';
   return days.map((d) => dayFormatter.format(parseDate(d))).join(' · ');
-}
-
-function PlannerMealImage({
-  meal,
-  style,
-}: {
-  meal: Pick<PlannerMeal, 'id' | 'name' | 'image' | 'imageAssetKey'>;
-  style: StyleProp<ImageStyle>;
-}) {
-  const source = plannerImageSource(meal.imageAssetKey, meal.image);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setFailed(false);
-  }, [meal.image, meal.imageAssetKey]);
-
-  return (
-    <Image
-      accessibilityLabel={`${meal.name} meal image`}
-      cachePolicy="memory-disk"
-      contentFit="cover"
-      onError={() => setFailed(true)}
-      placeholder={PLANNER_IMAGE_FALLBACK}
-      recyclingKey={`${meal.id}:${meal.imageAssetKey ?? meal.image ?? 'fallback'}`}
-      source={!failed && source ? source : PLANNER_IMAGE_FALLBACK}
-      style={style}
-      transition={160}
-    />
-  );
 }
 
 function parseNutritionValue(value: string, label: string): number | null {

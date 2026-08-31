@@ -11,7 +11,8 @@
     "test": "vitest run && node --test server/serve.security.cjs",
     "test:server": "node --test server/serve.security.cjs",
     "test:watch": "vitest",
-    "test:device:nutrition-goals": "maestro test tests/device/nutrition-goals.yaml"
+    "test:device:nutrition-goals": "maestro test tests/device/nutrition-goals.yaml",
+    "test:device:meal-images": "maestro test tests/device/meal-images.yaml"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
