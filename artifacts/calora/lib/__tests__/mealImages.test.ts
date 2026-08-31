@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { verifiedFoods } from '@/data/foods';
 import { plannerCatalog } from '@/data/planner';
 import {
   FOOD_IMAGE_KEYS,
+  PLANNER_MEAL_IMAGE_IDENTITIES,
   PLANNER_IMAGE_KEYS,
+  plannerImageKeyForMealId,
 } from '@/lib/mealImageIdentity';
 
 describe('curated meal image identity', () => {
@@ -48,16 +50,9 @@ describe('curated meal image identity', () => {
     }
   });
 
-  it('keeps the duplicated API/client planner image contracts in parity', () => {
-    const clientSource = readFileSync(resolve(process.cwd(), 'data/planner.ts'), 'utf8');
-    const serverSource = readFileSync(resolve(process.cwd(), '../api-server/src/routes/planner.ts'), 'utf8');
-    const readMapping = (source: string) => {
-      const block = source.match(/const plannerImageKeysById[\s\S]*?=\s*\{([\s\S]*?)\n\};/)?.[1] ?? '';
-      return [...block.matchAll(/(?:'([^']+)'|"([^"]+)"|([A-Za-z0-9-]+)):\s*['"]([^'"]+)['"]/g)]
-        .map((match) => [match[1] ?? match[2] ?? match[3], match[4]])
-        .sort(([left], [right]) => left.localeCompare(right));
-    };
-    expect(readMapping(clientSource)).toEqual(readMapping(serverSource));
-    expect(readMapping(serverSource)).toHaveLength(plannerCatalog.length);
+  it('keeps every planner catalog identity in the shared contract', () => {
+    expect(Object.keys(PLANNER_MEAL_IMAGE_IDENTITIES)).toHaveLength(plannerCatalog.length);
+    expect(plannerCatalog.every((meal) => plannerImageKeyForMealId(meal.id) === meal.imageAssetKey)).toBe(true);
+    expect(new Set(PLANNER_IMAGE_KEYS).size).toBe(PLANNER_IMAGE_KEYS.length);
   });
 });

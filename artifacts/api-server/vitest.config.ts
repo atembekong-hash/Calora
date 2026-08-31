@@ -14,6 +14,10 @@ export default defineConfig({
         __dirname,
         '../../lib/integrations-openai-ai-server/src/index.ts',
       ),
+      '@workspace/api-zod/planner-image-identity': path.resolve(
+        __dirname,
+        '../../lib/api-zod/src/planner-image-identity.ts',
+      ),
       '@workspace/api-zod': path.resolve(__dirname, '../../lib/api-zod/src/index.ts'),
       '@workspace/db': path.resolve(__dirname, '../../lib/db/src/index.ts'),
     },

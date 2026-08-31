@@ -1,33 +1,12 @@
-export const PLANNER_IMAGE_KEYS = [
-  'berry-oats',
-  'egg-toast',
-  'yogurt-parfait',
-  'smoothie-bowl',
-  'smoked-salmon-rye-toast',
-  'banana-pancakes',
-  'chia-pudding',
-  'harvest-salad',
-  'salmon-quinoa',
-  'lentil-soup',
-  'turkey-hummus-wrap',
-  'greek-salad',
-  'tuna-poke',
-  'chickpea-bowl',
-  'tofu-stir-fry',
-  'med-pasta',
-  'chicken-rice',
-  'thai-curry',
-  'spaghetti-bolognese',
-  'beef-tacos',
-  'prawn-stirfry',
-  'apple-almond',
-  'edamame',
-  'trail-mix',
-  'hummus-veggies',
-  'banana-peanut-butter',
-] as const;
-
-export type PlannerImageKey = (typeof PLANNER_IMAGE_KEYS)[number];
+export {
+  PLANNER_IMAGE_KEYS,
+  PLANNER_MEAL_IMAGE_IDENTITIES,
+  plannerImageKeyForMealId,
+} from '@workspace/api-zod/planner-image-identity';
+export type {
+  PlannerImageKey,
+  PlannerMealIdentityId,
+} from '@workspace/api-zod/planner-image-identity';
 
 export const FOOD_IMAGE_KEYS = [
   'greek-yogurt-plain',
