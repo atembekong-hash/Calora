@@ -55,4 +55,9 @@ describe('curated meal image identity', () => {
     expect(plannerCatalog.every((meal) => plannerImageKeyForMealId(meal.id) === meal.imageAssetKey)).toBe(true);
     expect(new Set(PLANNER_IMAGE_KEYS).size).toBe(PLANNER_IMAGE_KEYS.length);
   });
+
+  it('recovers bundled identity for legacy planned meals without image metadata', () => {
+    expect(plannerImageKeyForMealId('starter-3-Snack', 'Hummus with veggie sticks')).toBe('hummus-veggies');
+    expect(plannerImageKeyForMealId('planner-2026-08-31-hummus-veggies-3')).toBe('hummus-veggies');
+  });
 });

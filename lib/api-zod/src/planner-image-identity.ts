@@ -38,6 +38,44 @@ export type PlannerImageKey = (typeof PLANNER_MEAL_IMAGE_IDENTITIES)[PlannerMeal
 
 export const PLANNER_IMAGE_KEYS = Object.values(PLANNER_MEAL_IMAGE_IDENTITIES) as PlannerImageKey[];
 
-export function plannerImageKeyForMealId(mealId: string): PlannerImageKey | undefined {
-  return PLANNER_MEAL_IMAGE_IDENTITIES[mealId as PlannerMealIdentityId];
+const PLANNER_MEAL_IMAGE_NAMES: Record<string, PlannerImageKey> = {
+  'overnight oats with berries': 'berry-oats',
+  'eggs on sourdough': 'egg-toast',
+  'mango yogurt parfait': 'yogurt-parfait',
+  'blueberry smoothie bowl': 'smoothie-bowl',
+  'smoked salmon rye toast': 'smoked-salmon-rye-toast',
+  'banana oat pancakes': 'banana-pancakes',
+  'chia seed pudding': 'chia-pudding',
+  'chicken harvest salad': 'harvest-salad',
+  'salmon quinoa bowl': 'salmon-quinoa',
+  'lemon lentil soup': 'lentil-soup',
+  'turkey hummus wrap': 'turkey-hummus-wrap',
+  'greek salad with feta': 'greek-salad',
+  'tuna poke bowl': 'tuna-poke',
+  'roasted chickpea grain bowl': 'chickpea-bowl',
+  'tofu vegetable stir-fry': 'tofu-stir-fry',
+  'mediterranean tomato pasta': 'med-pasta',
+  'herby chicken rice plate': 'chicken-rice',
+  'thai coconut curry': 'thai-curry',
+  'spaghetti bolognese': 'spaghetti-bolognese',
+  'beef taco plate': 'beef-tacos',
+  'prawn veggie stir-fry': 'prawn-stirfry',
+  'apple almond crunch': 'apple-almond',
+  'sea salt edamame': 'edamame',
+  'mixed nuts and dried fruit': 'trail-mix',
+  'hummus with veggie sticks': 'hummus-veggies',
+  'banana with peanut butter': 'banana-peanut-butter',
+};
+
+export function plannerImageKeyForMealId(mealId: string, mealName?: string): PlannerImageKey | undefined {
+  const direct = PLANNER_MEAL_IMAGE_IDENTITIES[mealId as PlannerMealIdentityId];
+  if (direct) return direct;
+
+  const embedded = Object.entries(PLANNER_MEAL_IMAGE_IDENTITIES)
+    .find(([identityId]) => mealId.includes(`-${identityId}-`));
+  if (embedded) return embedded[1];
+
+  return typeof mealName === 'string'
+    ? PLANNER_MEAL_IMAGE_NAMES[mealName.trim().toLowerCase()]
+    : undefined;
 }

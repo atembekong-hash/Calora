@@ -453,7 +453,7 @@ function dateFromWeekStart(weekStart: string, offset: number) {
 function makeMeal(meal: CatalogMeal, day: string, index: number) {
   return {
     ...meal,
-    imageAssetKey: meal.imageAssetKey ?? plannerImageKeyForMealId(meal.id),
+    imageAssetKey: meal.imageAssetKey ?? plannerImageKeyForMealId(meal.id, meal.name),
     id: `planner-${day}-${meal.id}-${index}-${randomUUID().slice(0, 6)}`,
     day,
   };
