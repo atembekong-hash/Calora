@@ -161,3 +161,18 @@ CALORA_ANDROID_DEVICE="<exact booted Android device ID>" \
 Replace the pending target rows and assertion status above with the exact
 device IDs and observed native results. The sign-off cannot be marked passed
 from this workspace without that external device evidence.
+
+## Final disposition for this workspace
+
+The native sign-off remains **BLOCKED**. Continuing without a native-capable
+host does not provide a valid substitute for device evidence:
+
+- `xcrun simctl list devices booted` is unavailable on this Linux host.
+- `adb devices` is unavailable on this host.
+- No signed `.apk`, `.aab`, or `.ipa` is present to install.
+- The release gate exits before Maestro when either exact target ID is absent.
+
+Accordingly, the selected target IDs remain unrecorded, the fallback and
+mismatch badges and accessibility labels remain unverified, and no
+platform-specific timing or wording is claimed. This record is an explicit
+environment blocker, not a native meal-image sign-off.
