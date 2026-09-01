@@ -261,9 +261,9 @@ export default function SavedRecipesScreen() {
               <Text style={[styles.heroCountLabel, { color: colors.heroMuted }]}>saved</Text>
             </View>
           </View>
-          <Text style={[styles.heroEyebrow, { color: colors.heroMuted }]}>YOUR RECIPE SHELF</Text>
+          <Text style={[styles.heroEyebrow, { color: colors.onHero }]}>YOUR RECIPE SHELF</Text>
           <Text style={[styles.heroTitle, { color: colors.onHero }]}>Worth making again.</Text>
-          <Text style={[styles.heroBody, { color: colors.heroMuted }]}>One calm place for recipes you discovered, unlocked, or created yourself.</Text>
+          <Text style={[styles.heroBody, { color: colors.onHero }]}>One calm place for recipes you discovered, unlocked, or created yourself.</Text>
         </LinearGradient>
 
         <View style={styles.filterRow}>

@@ -43,13 +43,15 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('Calora Plus membership');
   });
 
-  it('does not render a header action button', () => {
+  it('exposes a dedicated saved-recipes header action', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
       'utf8',
     );
 
-    expect(source).toContain('<AppHeader title="Recipes" />');
+    expect(source).toContain('title="Recipes"');
+    expect(source).toContain('testID="saved-recipes-header-button"');
+    expect(source).toContain("router.push('/saved-recipes')");
     expect(source).not.toContain('Create personalized recipe ideas');
   });
 
