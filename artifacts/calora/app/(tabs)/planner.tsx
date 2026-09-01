@@ -1429,7 +1429,7 @@ function makeStyles(f: number) {
   planControlRight: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 15, paddingVertical: 13 },
   planControlAction: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
     dayPager: { width: '100%' },
-    programCard: { minHeight: 78, borderRadius: 18, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 10 },
+    programCard: { minHeight: 78, borderRadius: 18, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 20, marginBottom: 10 },
    programIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
    programCopy: { flex: 1 },
    programEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1.1, marginBottom: 4 },
