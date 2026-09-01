@@ -1,6 +1,6 @@
 # Meal-image release validation record
 
-**Validation date:** 2026-08-31  
+**Validation date:** 2026-09-01
 **Flow:** `tests/device/meal-images.yaml`  
 **Application ID:** `com.etiendem.caloraapp`  
 **Maestro:** 1.40.0 (installed as a workspace Nix dependency)
@@ -99,6 +99,31 @@ The following checks were run on 2026-08-31:
    available in this workspace. The iOS and Android flows therefore remain
    unstarted rather than failed.
 
+7. Current signed-target preflight recheck on 2026-09-01:
+
+   ```text
+   Host: Linux 6.18.48 x86_64
+
+   xcrun simctl list devices booted
+   /bin/bash: xcrun: command not found
+   exit status: 127
+
+   adb devices
+   /bin/bash: adb: command not found
+   exit status: 127
+
+   Signed artifact search: no .apk, .aab, or .ipa found in the workspace
+
+   CALORA_IOS_DEVICE= CALORA_ANDROID_DEVICE= pnpm test:release:meal-images
+   Missing required target selection: CALORA_IOS_DEVICE, CALORA_ANDROID_DEVICE
+   Meal-image release gate needs one booted target per platform.
+   exit status: 1
+   ```
+
+   Maestro remains available at version 1.40.0, but there are no native
+   platform tools or booted targets for it to use. The release gate therefore
+   stopped before either platform flow started.
+
 ## Native assertions
 
 The following native checks remain **unverified** because neither platform run
@@ -111,6 +136,15 @@ could start:
 
 No platform-specific wording or timing issue was observed; the flow did not
 reach the app.
+
+The complete expected fallback and mismatch evidence remains defined by the
+flow but is not observed on this host:
+
+- Breakfast fallback badge: `Fallback image`
+- Lunch mismatch badge: `Image mismatch · fallback`
+- Breakfast full fallback accessibility label: `Overnight oats with berries meal image is using the fallback image. Fallback image active`
+- Lunch full mismatch accessibility label: `Chicken harvest salad meal image is using the fallback image. Swapped image detected · expected harvest-salad · received berry-oats · fallback image active`
+- Audit status text: `Fallback image active` and `Swapped image detected · expected harvest-salad · received berry-oats · fallback image active`
 
 ## Required external completion
 
