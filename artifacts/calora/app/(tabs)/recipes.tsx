@@ -103,7 +103,7 @@ function RecipeMeta({ recipe, colors }: { recipe: Recipe | CaloraRecipe; colors:
   );
 }
 
-function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160, remainingCalories }: { recipe: Recipe | CaloraRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void; imageHeight?: number; remainingCalories?: number }) {
+export function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160, remainingCalories }: { recipe: Recipe | CaloraRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void; imageHeight?: number; remainingCalories?: number }) {
   const local = isLocalRecipe(recipe);
   const provenance = recipeProvenance(recipe);
   const fitsGoal = remainingCalories !== undefined && remainingCalories > 0 && recipe.calories != null && recipe.calories > 0 && recipe.calories <= remainingCalories;
@@ -545,7 +545,7 @@ function scaleIngredient(ingredient: string, multiplier: number): string {
   return ingredient.replace(match[0], `${formatted} `).trimEnd();
 }
 
-function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void }) {
+export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void }) {
   const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -1252,7 +1252,25 @@ export default function RecipesScreen() {
   };
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <AppHeader title="Recipes" />
+      <AppHeader
+        title="Recipes"
+        action={(
+          <Pressable
+            accessibilityLabel={`Open saved recipes${savedRecipeIds.length ? `, ${savedRecipeIds.length} saved` : ''}`}
+            testID="saved-recipes-header-button"
+            onPress={() => router.push('/saved-recipes')}
+            hitSlop={8}
+            style={[styles.headerSavedButton, { backgroundColor: colors.accent }]}
+          >
+            <Feather name="bookmark" size={17} color={colors.accentForeground} />
+            {savedRecipeIds.length > 0 && (
+              <View style={[styles.headerSavedBadge, { backgroundColor: colors.primary }]}>
+                <Text style={[styles.headerSavedBadgeText, { color: colors.primaryForeground }]}>{savedRecipeIds.length > 99 ? '99+' : savedRecipeIds.length}</Text>
+              </View>
+            )}
+          </Pressable>
+        )}
+      />
       <SwipeableTabList
         items={RECIPE_SECTIONS}
         activeItem={activeSection}
@@ -1353,6 +1371,9 @@ function makeStyles(f: number) {
    sectionTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 14, marginHorizontal: 20, marginTop: 7, padding: 3, gap: 2 },
    sectionTab: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
    sectionTabText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
+   headerSavedButton: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+   headerSavedBadge: { position: 'absolute', top: -4, right: -5, minWidth: 17, height: 17, paddingHorizontal: 3, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ffffff' },
+   headerSavedBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 7 * f, lineHeight: 9 * f },
    upcomingCard: { padding: 21, alignItems: 'center', marginTop: 13 },
    upcomingIcon: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
    upcomingEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1, textAlign: 'center' },
