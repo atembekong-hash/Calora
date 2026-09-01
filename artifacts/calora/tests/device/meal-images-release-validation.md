@@ -76,6 +76,29 @@ The following checks were run on 2026-08-31:
    It exited with status 1 before running either platform. No target IDs were
    supplied to force or simulate a native run.
 
+6. Final signed-target preflight recheck on 2026-08-31:
+
+   ```text
+   Host: Linux x86_64
+   xcrun simctl list devices booted
+   /bin/bash: xcrun: command not found
+   exit status: 127
+
+   adb devices
+   /bin/bash: adb: command not found
+   exit status: 127
+
+   Signed artifact search: no .apk, .aab, or .ipa found in the workspace
+
+   CALORA_IOS_DEVICE= CALORA_ANDROID_DEVICE= pnpm test:release:meal-images
+   Missing required target selection: CALORA_IOS_DEVICE, CALORA_ANDROID_DEVICE
+   exit status: 1
+   ```
+
+   This final recheck confirms that no approved target IDs or signed builds are
+   available in this workspace. The iOS and Android flows therefore remain
+   unstarted rather than failed.
+
 ## Native assertions
 
 The following native checks remain **unverified** because neither platform run
