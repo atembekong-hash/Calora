@@ -41,6 +41,7 @@ type SwipeableSectionPagerProps<T extends string> = {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel: string;
+  accessibilityHint?: string;
   testID?: string;
 };
 
@@ -155,6 +156,7 @@ export function SwipeableSectionPager<T extends string>({
   children,
   style,
   accessibilityLabel,
+  accessibilityHint = 'Swipe left or right to switch sections',
   testID,
 }: SwipeableSectionPagerProps<T>) {
   const { width: windowWidth } = useWindowDimensions();
@@ -276,7 +278,7 @@ export function SwipeableSectionPager<T extends string>({
       <Animated.View
         {...panResponder.panHandlers}
         accessibilityLabel={accessibilityLabel}
-        accessibilityHint="Swipe left or right to switch sections"
+        accessibilityHint={accessibilityHint}
         style={[style, styles.gestureSurface, animatedStyle]}
         testID={testID}
       >

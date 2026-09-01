@@ -20,15 +20,12 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { AppHeader } from '@/components/AppChrome';
-import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
-import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
+import { SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
-const PLANNER_WORKSPACES = ['today', 'week', 'shopping'] as const;
-
 function parseDate(date: string) {
   return new Date(`${date}T12:00:00`);
 }
@@ -213,7 +210,6 @@ export default function PlannerScreen() {
   const generatePlanner = useGeneratePlanner();
   const today = dateKey();
   const [viewWeekStart, setViewWeekStart] = useState(plannerWeekStart);
-  const [workspace, setWorkspace] = useState<'today' | 'week' | 'shopping'>('today');
   const [selectedDay, setSelectedDay] = useState(() => {
     const persistedWeekDays = Array.from({ length: 7 }, (_, index) => plannerDate(plannerWeekStart, index));
     return persistedWeekDays.includes(today) ? today : plannerWeekStart;
@@ -362,8 +358,6 @@ export default function PlannerScreen() {
     [plannedWeek, shoppingItems],
   );
   const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
-  const nextMeal = selectedMeals.find((meal) => !logs.some((log) => log.plannerMealId === meal.id));
-  const allSelectedMealsLogged = selectedMeals.length > 0 && !nextMeal;
   const actionMealLogged = actionMeal ? logs.some((log) => log.plannerMealId === actionMeal.id) : false;
   const selectedMealLabel = dayFormatter.format(parseDate(selectedDay));
 
@@ -404,23 +398,6 @@ export default function PlannerScreen() {
     setViewWeekStart(currentWeek);
     setSelectedDay(today);
     setWeekOverviewVisible(false);
-  };
-
-  const openDayInToday = (day: string) => {
-    setSelectedDay(day);
-    setWorkspace('today');
-  };
-
-  const openPrimaryPlanAction = () => {
-    if (nextMeal) {
-      addToDiary(nextMeal);
-      return;
-    }
-    if (allSelectedMealsLogged) {
-      router.navigate('/(tabs)');
-      return;
-    }
-    setAddingMealType('Breakfast');
   };
 
   const replaceMealInPlan = (nextMeal: PlannerMeal, target: PlannerMeal) => {
@@ -810,52 +787,38 @@ export default function PlannerScreen() {
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
         title="Plan"
-      />
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 14, paddingBottom: insets.bottom + 106 }]} showsVerticalScrollIndicator={false}>
-        <View style={styles.plannerIntro}>
-          <View>
-            <Text style={[styles.plannerEyebrow, { color: colors.primary }]}>YOUR PLAN</Text>
-            <Text style={[styles.plannerTitle, { color: colors.foreground }]}>{workspace === 'today' ? 'Plan today.' : workspace === 'week' ? 'Plan your week.' : 'Shop your plan.'}</Text>
+        action={(
+          <View style={styles.headerActions}>
+            <Pressable
+              accessibilityLabel={`Open what ${BRAND.name} remembers`}
+              onPress={() => router.push('/memory')}
+              hitSlop={8}
+              style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="compass" size={16} color={colors.foreground} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel={`Open shopping list${uncheckedShopping > 0 ? `, ${uncheckedShopping} items left` : ''}`}
+              onPress={() => {
+                setShoppingDayFilter(null);
+                setShoppingVisible(true);
+              }}
+              hitSlop={8}
+              style={[styles.headerShoppingButton, { backgroundColor: colors.accent }]}
+            >
+              <Feather name="shopping-bag" size={16} color={colors.accentForeground} />
+              {uncheckedShopping > 0 && (
+                <View style={[styles.shoppingCount, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.shoppingCountText, { color: colors.primaryForeground }]}>{uncheckedShopping}</Text>
+                </View>
+              )}
+            </Pressable>
           </View>
-          <Pressable accessibilityLabel={`Open what ${BRAND.name} remembers`} onPress={() => router.push('/memory')} hitSlop={8} style={[styles.memoryShortcut, { backgroundColor: colors.muted }]}>
-            <Feather name="compass" size={17} color={colors.foreground} />
-          </Pressable>
-        </View>
-        <SwipeableTabList
-          items={PLANNER_WORKSPACES}
-          activeItem={workspace}
-          onChange={setWorkspace}
-          accessibilityLabel="Plan workspaces"
-          testID="planner-workspace-tabs"
-          style={[styles.workspaceSwitch, { backgroundColor: colors.muted }]}
-        >
-          {PLANNER_WORKSPACES.map((item) => {
-            const active = workspace === item;
-            const label = item === 'today' ? 'Today' : item === 'week' ? 'Week' : 'Shopping';
-            return <Pressable key={item} accessibilityRole="tab" accessibilityLabel={`Show ${label} workspace`} accessibilityState={{ selected: active }} onPress={() => setWorkspace(item)} style={[styles.workspaceTab, active && { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.workspaceTabText, { color: active ? colors.foreground : colors.mutedForeground }]}>{label}{item === 'shopping' && uncheckedShopping > 0 ? ` · ${uncheckedShopping}` : ''}</Text></Pressable>;
-          })}
-        </SwipeableTabList>
+        )}
+      />
 
-        <SwipeableSectionPager
-          items={PLANNER_WORKSPACES}
-          activeItem={workspace}
-          onChange={setWorkspace}
-          accessibilityLabel="Plan workspace content"
-          testID="planner-workspace-content"
-        >
-        {workspace === 'today' && <>
-          <PlannerFocusCard meal={nextMeal} allLogged={allSelectedMealsLogged} selectedMeals={selectedMeals} target={profile?.calorieTarget ?? 2000} colors={colors} onPrimary={openPrimaryPlanAction} />
-          <Pressable accessibilityLabel="Choose another day from your week" onPress={() => setWorkspace('week')} style={[styles.todayDateLink, { borderColor: colors.border, backgroundColor: colors.card }]}>
-            <View><Text style={[styles.todayDateLabel, { color: colors.foreground }]}>{selectedMealLabel}</Text><Text style={[styles.todayDateMeta, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Day planned' : `${4 - selectedMeals.length} open`}</Text></View><Feather name="calendar" size={17} color={colors.primary} />
-          </Pressable>
-          <Animated.View entering={FadeInDown.springify().damping(20).delay(60)} style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
-            <View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>Today’s meals</Text><Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>Plan here. Log in your diary.</Text></View>
-            <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
-          </Animated.View>
-          <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}</Animated.View>
-        </>}
-
-        {workspace === 'week' && weekOverviewVisible ? <>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 8, paddingBottom: insets.bottom + 106 }]} showsVerticalScrollIndicator={false}>
+        {weekOverviewVisible ? <>
           <View style={styles.weekOverviewHeader}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.programEyebrow, { color: colors.primary }]}>YOUR WEEK IS READY</Text>
@@ -901,7 +864,7 @@ export default function PlannerScreen() {
           <ScalePressable accessibilityLabel="Done reviewing weekly meals" onPress={() => setWeekOverviewVisible(false)} scale={0.97} haptic="light" style={[styles.weekOverviewDone, { backgroundColor: colors.primary }]}>
             <Text style={[styles.weekOverviewDoneText, { color: colors.primaryForeground }]}>Done reviewing</Text>
           </ScalePressable>
-        </> : workspace === 'week' && <>
+        </> : <>
         <View style={styles.weekHeader}>
           <ScalePressable accessibilityLabel="Previous week" onPress={() => shiftWeek(-1)} scale={0.96} haptic="none" style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={18} color={colors.foreground} /></ScalePressable>
           <View style={styles.weekRangeCopy}>
@@ -932,6 +895,22 @@ export default function PlannerScreen() {
             );
           })}
         </ScrollView>
+        <SwipeableSectionPager
+          items={weekDays}
+          activeItem={selectedDay}
+          onChange={setSelectedDay}
+          accessibilityLabel="Planned meal days"
+          accessibilityHint="Swipe left or right to switch days"
+          testID="planner-day-pager"
+          style={styles.dayPager}
+        >
+          <Animated.View entering={FadeInDown.springify().damping(20).delay(60)} style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
+            <View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text><Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Day planned' : `${4 - selectedMeals.length} open`}</Text></View>
+            <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
+          </Animated.View>
+          <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}
+        </Animated.View>
+        </SwipeableSectionPager>
         <Pressable accessibilityLabel="View or change your program" onPress={() => setPlanTypeVisible(true)} style={[styles.programCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.programIcon, { backgroundColor: colors.accent }]}><Feather name="compass" size={18} color={colors.accentForeground} /></View>
           <View style={styles.programCopy}><Text style={[styles.programEyebrow, { color: colors.primary }]}>{appliedProgramForViewedWeek ? 'PROGRAM · THIS WEEK' : 'YOUR PROGRAM'}</Text><Text style={[styles.programTitle, { color: colors.foreground }]}>{appliedProgramForViewedWeek ? findPlanType(appliedProgramForViewedWeek.programId)?.label ?? appliedProgramForViewedWeek.programId : plannerPreferences ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary : 'Choose a Program'}</Text><Text style={[styles.programMeta, { color: colors.mutedForeground }]}>{appliedProgramForViewedWeek ? (appliedProgramForViewedWeek.programId === plannerPreferences?.primary ? 'Used this week.' : `Used this week · ${plannerPreferences ? `${findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary} next` : 'no Program set next'}.`) : plannerPreferences ? `${findPlanType(plannerPreferences.primary)?.subtitle ?? ''} · next build.` : 'Guides your next build.'}</Text></View>
@@ -972,27 +951,9 @@ export default function PlannerScreen() {
           </ScalePressable>
         </View>
         {generationMessage && <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.generationStatus, { backgroundColor: generationError ? colors.muted : colors.accent, borderColor: generationError ? colors.warning : 'transparent', borderWidth: generationError ? 1 : 0 }]}><Feather name={generationError ? 'alert-circle' : 'check-circle'} size={16} color={generationError ? colors.warning : colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
-          <Animated.View entering={FadeInDown.springify().damping(20).delay(60)} style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
-            <View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text><Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Day planned' : `${4 - selectedMeals.length} open`}</Text></View>
-            <View style={styles.weekDayActions}>
-              <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
-              <Pressable accessibilityLabel={`Open ${selectedMealLabel} in Today`} onPress={() => openDayInToday(selectedDay)} hitSlop={8} style={[styles.weekTodayHandoff, { backgroundColor: colors.accent }]}>
-                <Text style={[styles.weekTodayHandoffText, { color: colors.accentForeground }]}>Open in Today</Text>
-                <Feather name="arrow-up-right" size={12} color={colors.accentForeground} />
-              </Pressable>
-            </View>
-          </Animated.View>
-           <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}
-        </Animated.View>
           <View style={{ marginTop: 20 }}><SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} /></View>
         </>}
 
-        {workspace === 'shopping' && <>
-           <View style={[styles.shoppingWorkspaceHeader, { backgroundColor: colors.card, borderColor: colors.border }]}><View><Text style={[styles.programEyebrow, { color: colors.primary }]}>THIS WEEK</Text><Text style={[styles.shoppingWorkspaceTitle, { color: colors.foreground }]}>{uncheckedShopping ? `${uncheckedShopping} left` : 'All checked'}</Text><Text style={[styles.shoppingWorkspaceMeta, { color: colors.mutedForeground }]}>{visibleShoppingItems.length} ingredients · {plannedWeek.length} meals</Text></View><View style={[styles.shoppingWorkspaceIcon, { backgroundColor: colors.accent }]}><CaloraFeatureIcon name="shopping" size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /></View></View>
-          {shoppingDays.length > 1 && <SwipeGestureExclusion><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shopFilterContent}>{[null, ...shoppingDays].map((day) => { const active = shoppingDayFilter === day; const label = day ? dayFormatter.format(parseDate(day)) : 'All'; return <Pressable key={day ?? 'all'} accessibilityRole="tab" accessibilityState={{ selected: active }} accessibilityLabel={`Show ${label} shopping items`} onPress={() => setShoppingDayFilter(day)} style={[styles.shopDayPill, { borderColor: active ? colors.primary : colors.input, backgroundColor: active ? colors.primary : colors.muted }]}><Text style={[styles.shopDayPillText, { color: active ? colors.primaryForeground : colors.foreground }]}>{label}</Text></Pressable>; })}</ScrollView></SwipeGestureExclusion>}
-          <View style={[styles.shoppingListCard, { backgroundColor: colors.card, borderColor: colors.border }]}>{filteredShoppingItems.map((item) => <Pressable key={item.id} accessibilityLabel={`${item.checked ? 'Uncheck' : 'Check'} ${item.name}`} onPress={() => toggleShoppingItemByName(item.name)} style={[styles.shoppingRow, { borderBottomColor: colors.border }]}><View style={[styles.checkbox, { borderColor: item.checked ? colors.success : colors.input, backgroundColor: item.checked ? colors.success : 'transparent' }]}>{item.checked && <Feather name="check" size={13} color={colors.primaryForeground} />}</View><View style={{ flex: 1 }}><Text style={[styles.shoppingName, { color: item.checked ? colors.mutedForeground : colors.foreground, textDecorationLine: item.checked ? 'line-through' : 'none' }]}>{item.name}</Text>{!!formatShoppingDays(item.days) && <Text style={[styles.shoppingDays, { color: item.checked ? colors.mutedForeground : colors.primary }]}>{formatShoppingDays(item.days)}</Text>}</View><Text style={[styles.shoppingQuantity, { color: colors.mutedForeground }]}>{item.quantity}×</Text></Pressable>)}{filteredShoppingItems.length === 0 && <View style={styles.shoppingEmpty}><Feather name="shopping-bag" size={20} color={colors.mutedForeground} /><Text style={[styles.shoppingWorkspaceTitle, { color: colors.foreground }]}>No items yet</Text><Text style={[styles.shoppingWorkspaceMeta, { color: colors.mutedForeground }]}>Plan meals to add ingredients.</Text><Pressable onPress={() => setWorkspace('week')} style={[styles.emptyShoppingButton, { backgroundColor: colors.accent }]}><Text style={[styles.emptyShoppingButtonText, { color: colors.accentForeground }]}>Go to week</Text></Pressable></View>}</View>
-        </>}
-        </SwipeableSectionPager>
       </ScrollView>
        <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal || undoMoveMeal || undoSwapMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undoMoveMeal ? undoMove : undoSwapMeal ? undoSwap : undefined} countdownDuration={undoMeal || undoMoveMeal || undoSwapMeal ? 6000 : undefined} />
       <BottomSheet visible={detail !== null} onRequestClose={() => { dismissPlannerReview(); setDetail(null); }} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
@@ -1181,7 +1142,7 @@ export default function PlannerScreen() {
                       <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Portions</Text>
                        <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>Serving and nutrition</Text>
                     </ScalePressable>
-                     <ScalePressable accessibilityLabel={`View shopping ingredients for ${actionMeal.name}`} onPress={() => { setActionMeal(null); setShoppingDayFilter(actionMeal.day); setWorkspace('shopping'); }} scale={0.96} haptic="none" style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                     <ScalePressable accessibilityLabel={`View shopping ingredients for ${actionMeal.name}`} onPress={() => { setActionMeal(null); setShoppingDayFilter(actionMeal.day); setShoppingVisible(true); }} scale={0.96} haptic="none" style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Feather name="shopping-bag" size={18} color={colors.foreground} />
                       <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Shopping</Text>
                        <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>View ingredients</Text>
@@ -1383,13 +1344,8 @@ function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
   content: { paddingHorizontal: 20 },
-   plannerIntro: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 13, paddingTop: 2 },
-   plannerEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.3, marginBottom: 4 },
-   plannerTitle: { fontFamily: 'Inter_700Bold', fontSize: 24 * f, letterSpacing: -0.7 },
-   memoryShortcut: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-   workspaceSwitch: { minHeight: 44, borderRadius: 14, padding: 3, flexDirection: 'row', marginBottom: 16 },
-   workspaceTab: { flex: 1, minHeight: 38, borderRadius: 11, borderWidth: 1, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
-   workspaceTabText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
+   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+   headerIconButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
    todayDateLink: { minHeight: 58, borderRadius: 16, borderWidth: 1, paddingHorizontal: 13, marginBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
    todayDateLabel: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
    todayDateMeta: { fontFamily: 'Inter_400Regular', fontSize: 9.5 * f, marginTop: 3 },
@@ -1420,7 +1376,7 @@ function makeStyles(f: number) {
   shoppingButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   shoppingCount: { position: 'absolute', right: -4, top: -5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   shoppingCountText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
-  weekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+   weekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
    weekOverviewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16, paddingTop: 2 },
    weekOverviewTitle: { fontFamily: 'Inter_700Bold', fontSize: 22 * f, letterSpacing: -0.5, lineHeight: 28 * f },
    weekOverviewSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 10.5 * f, lineHeight: 16 * f, marginTop: 5 },
@@ -1444,7 +1400,7 @@ function makeStyles(f: number) {
   weekRange: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, letterSpacing: -0.2 },
   editModeButton: { minHeight: 44, borderRadius: 11, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
   editModeText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
-   dayRail: { borderWidth: 1, borderRadius: 18, padding: 5, marginBottom: 16, overflow: 'hidden' },
+    dayRail: { borderWidth: 1, borderRadius: 18, padding: 5, marginBottom: 11, overflow: 'hidden' },
    dayRailContent: { flexDirection: 'row', flexGrow: 1, gap: 4 },
    dayCol: { width: 44, alignItems: 'center', minHeight: 66, borderRadius: 13, paddingTop: 7, paddingBottom: 5 },
   dayName: { fontFamily: 'Inter_600SemiBold', fontSize: 9.5 * f, letterSpacing: 0.2 },
@@ -1464,7 +1420,7 @@ function makeStyles(f: number) {
   summaryMacros: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 },
   summaryMacroValue: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   summaryMacroLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 2 },
-  planControlBar: { flexDirection: 'row', borderRadius: 14, borderWidth: 1, marginBottom: 16, overflow: 'hidden' },
+   planControlBar: { flexDirection: 'row', borderRadius: 14, borderWidth: 1, marginBottom: 16, overflow: 'hidden' },
   planControlLeft: { flex: 1, paddingHorizontal: 14, paddingVertical: 13 },
   planControlLabel: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1.1, marginBottom: 4 },
   planControlValue: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
@@ -1472,7 +1428,8 @@ function makeStyles(f: number) {
   planControlDivider: { width: 1, marginVertical: 11 },
   planControlRight: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 15, paddingVertical: 13 },
   planControlAction: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
-   programCard: { minHeight: 78, borderRadius: 18, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 10 },
+    dayPager: { width: '100%' },
+    programCard: { minHeight: 78, borderRadius: 18, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 10 },
    programIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
    programCopy: { flex: 1 },
    programEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1.1, marginBottom: 4 },
