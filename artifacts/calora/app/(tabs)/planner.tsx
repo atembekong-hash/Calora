@@ -901,6 +901,7 @@ export default function PlannerScreen() {
           onChange={setSelectedDay}
           accessibilityLabel="Planned meal days"
           accessibilityHint="Swipe left or right to switch days"
+          lockGesture
           testID="planner-day-pager"
           style={styles.dayPager}
         >

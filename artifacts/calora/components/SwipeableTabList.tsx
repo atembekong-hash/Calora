@@ -14,7 +14,6 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import {
@@ -42,6 +41,7 @@ type SwipeableSectionPagerProps<T extends string> = {
   style?: StyleProp<ViewStyle>;
   accessibilityLabel: string;
   accessibilityHint?: string;
+  lockGesture?: boolean;
   testID?: string;
 };
 
@@ -157,6 +157,7 @@ export function SwipeableSectionPager<T extends string>({
   style,
   accessibilityLabel,
   accessibilityHint = 'Swipe left or right to switch sections',
+  lockGesture = false,
   testID,
 }: SwipeableSectionPagerProps<T>) {
   const { width: windowWidth } = useWindowDimensions();
@@ -168,6 +169,7 @@ export function SwipeableSectionPager<T extends string>({
   const onChangeRef = useRef(onChange);
   const widthRef = useRef(windowWidth);
   const reduceMotionRef = useRef(reduceMotion);
+  const lockGestureRef = useRef(lockGesture);
   const excludedGestureRef = useRef(false);
 
   itemsRef.current = items;
@@ -175,17 +177,16 @@ export function SwipeableSectionPager<T extends string>({
   onChangeRef.current = onChange;
   widthRef.current = windowWidth;
   reduceMotionRef.current = reduceMotion;
+  lockGestureRef.current = lockGesture;
 
   const settleAtRest = () => {
-    translateX.value = withSpring(0, {
-      damping: 22,
-      stiffness: 240,
-      mass: 0.72,
-      overshootClamping: true,
+    translateX.value = withTiming(0, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
       reduceMotion: ReduceMotion.System,
     });
     opacity.value = withTiming(1, {
-      duration: 140,
+      duration: 180,
       easing: Easing.out(Easing.cubic),
       reduceMotion: ReduceMotion.System,
     });
@@ -199,8 +200,10 @@ export function SwipeableSectionPager<T extends string>({
       return;
     }
 
-    translateX.value = direction * Math.min(widthRef.current * 0.16, 64);
-    opacity.value = 0.72;
+    // The new day enters from the direction it came from, then settles with a
+    // short ease-out instead of a spring that can feel like a snap on release.
+    translateX.value = direction * Math.min(widthRef.current * 0.22, 88);
+    opacity.value = 0.92;
     requestAnimationFrame(settleAtRest);
   };
 
@@ -257,7 +260,7 @@ export function SwipeableSectionPager<T extends string>({
         commitTarget(currentItems[targetIndex], direction);
       },
       onPanResponderTerminate: settleAtRest,
-      onPanResponderTerminationRequest: () => true,
+      onPanResponderTerminationRequest: () => !lockGestureRef.current,
     }),
     [],
   );
