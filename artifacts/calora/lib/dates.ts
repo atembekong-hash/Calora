@@ -10,6 +10,13 @@ export function dateKey(date: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export function formatLogTime(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
 export function dateFromKey(key: string): Date {
   const [year, month, day] = key.split('-').map(Number);
   return new Date(year, month - 1, day);

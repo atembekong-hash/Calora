@@ -41,7 +41,7 @@ import {
   updateRepeatPatterns,
 } from '@/lib/captureReviewTransitions';
 import type { CaptureAnalysis } from '@workspace/api-client-react';
-import { dateKey } from '@/lib/dates';
+import { dateKey, formatLogTime } from '@/lib/dates';
 import { deriveLivingState, type LivingState } from '@/lib/livingState';
 import { useClock } from '@/lib/useClock';
 import {
@@ -935,6 +935,7 @@ export function CaloraProvider({
       const nextLog = normalizeLogImageMetadata({
         ...log,
         id,
+        time: log.time === 'Just now' ? formatLogTime(new Date(capturedAt)) : log.time,
         syncUpdatedAt: capturedAt,
         nutritionSnapshot,
       });

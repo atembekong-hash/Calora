@@ -16,6 +16,7 @@ import {
   normalizeFoodImageMetadata,
   type FoodImageSource,
 } from './foodImageMetadata';
+import { formatLogTime } from './dates';
 
 // Re-export the FoodSource type so callers share one definition.
 export type FoodSource =
@@ -112,7 +113,7 @@ export function buildAcceptResult(
     fat: snapshot.fatG,
     source: foodSourceForMemory(draft.provenance),
     confidence: draft.confidence,
-    time: 'Just now',
+    time: formatLogTime(new Date(acceptedAt)),
     serving,
     notes: `${draft.sourceLabel} · Review approved`,
     memoryId: draft.id,
