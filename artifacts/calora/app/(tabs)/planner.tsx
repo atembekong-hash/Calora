@@ -1295,7 +1295,7 @@ function makeStyles(f: number) {
    programDetailCard: { borderRadius: 15, borderWidth: 1, padding: 13, marginTop: 16, gap: 7 },
    programDetailLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 0.9 },
    programDetailText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f },
-  generationStatus: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  generationStatus: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 14 },
   generationStatusText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 },
   dayDivider: { paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },
    daySummaryRow: { position: 'relative', flexDirection: 'row', alignItems: 'flex-start' },
