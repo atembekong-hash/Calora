@@ -913,19 +913,19 @@ export default function PlannerScreen() {
         >
           <Animated.View entering={FadeInDown.springify().damping(20).delay(60)} style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
             <View style={styles.daySummaryRow}>
-              <View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text><Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Day planned' : `${4 - selectedMeals.length} open`}</Text></View>
+              <View style={styles.daySummaryCopy}><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text><Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Day planned' : `${4 - selectedMeals.length} open`}</Text></View>
+              <Pressable accessibilityLabel={`View or change program: ${selectedProgramLabel}`} onPress={() => setPlanTypeVisible(true)} style={styles.dayProgramInline}>
+                <View style={[styles.dayProgramIcon, { backgroundColor: colors.accent }]}>
+                  <Feather name="compass" size={11} color={colors.accentForeground} />
+                </View>
+                <View style={styles.dayProgramCopy}>
+                  <Text style={[styles.dayProgramEyebrow, { color: colors.primary }]}>{selectedProgramEyebrow}</Text>
+                  <Text numberOfLines={1} style={[styles.dayProgramName, { color: colors.foreground }]}>{selectedProgramLabel}</Text>
+                </View>
+                <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+              </Pressable>
               <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
             </View>
-            <Pressable accessibilityLabel={`View or change program: ${selectedProgramLabel}`} onPress={() => setPlanTypeVisible(true)} style={styles.dayProgramRow}>
-              <View style={[styles.dayProgramIcon, { backgroundColor: colors.accent }]}>
-                <Feather name="compass" size={12} color={colors.accentForeground} />
-              </View>
-              <View style={styles.dayProgramCopy}>
-                <Text style={[styles.dayProgramEyebrow, { color: colors.primary }]}>{selectedProgramEyebrow}</Text>
-                <Text numberOfLines={1} style={[styles.dayProgramName, { color: colors.foreground }]}>{selectedProgramLabel}</Text>
-              </View>
-              <Feather name="chevron-right" size={15} color={colors.mutedForeground} />
-            </Pressable>
           </Animated.View>
           <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}
         </Animated.View>
@@ -1462,12 +1462,13 @@ function makeStyles(f: number) {
   generationStatus: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   generationStatusText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 },
   dayDivider: { paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },
-  daySummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  dayProgramRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  dayProgramIcon: { width: 25, height: 25, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+   daySummaryRow: { flexDirection: 'row', alignItems: 'flex-start' },
+   daySummaryCopy: { flexShrink: 0 },
+   dayProgramInline: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 10, marginRight: 7 },
+   dayProgramIcon: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   dayProgramCopy: { flex: 1 },
   dayProgramEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 7 * f, letterSpacing: 1 },
-  dayProgramName: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, marginTop: 1 },
+   dayProgramName: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, marginTop: 1 },
    weekDayActions: { alignItems: 'flex-end', gap: 6 },
    weekTodayHandoff: { minHeight: 44, borderRadius: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
    weekTodayHandoffText: { fontFamily: 'Inter_700Bold', fontSize: 8.5 * f },
