@@ -22,9 +22,10 @@ type AppHeaderProps = {
   back?: boolean;
   onBack?: () => void;
   action?: React.ReactNode;
+  leftAlignTitle?: boolean;
 };
 
-export function AppHeader({ title, back = false, onBack, action }: AppHeaderProps) {
+export function AppHeader({ title, back = false, onBack, action, leftAlignTitle = false }: AppHeaderProps) {
   const { colors } = useCalora();
   const insets = useSafeAreaInsets();
   const handleBack = () => {
@@ -46,7 +47,7 @@ export function AppHeader({ title, back = false, onBack, action }: AppHeaderProp
           <Pressable accessibilityLabel="Go back" onPress={handleBack} hitSlop={10} style={[styles.backButton, { backgroundColor: colors.muted }]}>
             <Feather name="arrow-left" size={18} color={colors.foreground} />
           </Pressable>
-        ) : <View style={styles.backSpacer} />}
+        ) : !leftAlignTitle ? <View style={styles.backSpacer} /> : null}
         <Text numberOfLines={1} style={[styles.title, { color: colors.foreground }]}>{title}</Text>
         <View style={styles.action}>{action}</View>
       </View>

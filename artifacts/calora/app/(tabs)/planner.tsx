@@ -768,7 +768,8 @@ export default function PlannerScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
-        title="Plan"
+        title="Weekly Planner"
+        leftAlignTitle
         action={(
           <Pressable
             accessibilityLabel="Open meal programs"
