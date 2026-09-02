@@ -366,6 +366,8 @@ export default function PlannerScreen() {
       ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary
       : 'Choose a Program';
   const selectedProgramEyebrow = appliedProgramForViewedWeek ? 'PROGRAM · THIS WEEK' : 'YOUR PROGRAM';
+  const buildButtonColor = appliedProgramForViewedWeek ? colors.warning : plannerPreferences ? colors.primary : colors.muted;
+  const buildButtonForeground = appliedProgramForViewedWeek ? colors.foreground : plannerPreferences ? colors.primaryForeground : colors.mutedForeground;
 
   // Days that have at least one shopping ingredient, in week order
   const shoppingDays = useMemo(
@@ -936,10 +938,10 @@ export default function PlannerScreen() {
                 disabled={generating}
                 scale={0.96}
                 haptic="light"
-                style={[styles.dayBuildButton, { backgroundColor: plannerPreferences ? colors.primary : colors.muted, opacity: generating ? 0.72 : 1 }]}
+                style={[styles.dayBuildButton, { backgroundColor: buildButtonColor, opacity: generating ? 0.72 : 1 }]}
               >
-                {generating ? <ActivityIndicator size="small" color={plannerPreferences ? colors.primaryForeground : colors.mutedForeground} /> : <Feather name="zap" size={11} color={plannerPreferences ? colors.primaryForeground : colors.mutedForeground} />}
-                <Text style={[styles.dayBuildText, { color: plannerPreferences ? colors.primaryForeground : colors.mutedForeground }]}>Build</Text>
+                {generating ? <ActivityIndicator size="small" color={buildButtonForeground} /> : <Feather name="zap" size={11} color={buildButtonForeground} />}
+                <Text style={[styles.dayBuildText, { color: buildButtonForeground }]}>Build</Text>
               </ScalePressable>
             </View>
           </Animated.View>
