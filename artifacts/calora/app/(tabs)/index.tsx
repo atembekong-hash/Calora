@@ -990,21 +990,6 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
                 <Feather name="x" size={18} color={colors.foreground} />
               </ScalePressable>
             </View>
-            {initialMode !== 'manual' && (
-              <View style={[styles.quickAddFocus, { backgroundColor: colors.accent }]}>
-                <CaloraFeatureIcon name="food" size={38} primaryColor={colors.carbs} accentColor={colors.primary} foregroundColor={colors.foreground} highlightColor={colors.card} />
-                <Text style={[styles.quickAddFocusTitle, { color: colors.foreground }]}>Add a food manually</Text>
-                <Text style={[styles.quickAddFocusBody, { color: colors.mutedForeground }]}>For foods outside the verified list.</Text>
-                <View style={styles.manualRow}>
-                  <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
-                  <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
-                  <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
-                    <Feather name="plus" size={20} color={colors.primaryForeground} />
-                  </ScalePressable>
-                </View>
-                {manualError ? <Text accessibilityLiveRegion="polite" style={[styles.manualError, { color: colors.destructive }]}>{manualError}</Text> : null}
-              </View>
-            )}
             {initialMode === 'manual' ? (
               <View style={[styles.quickAddFocus, { backgroundColor: colors.accent }]}>
                 <CaloraFeatureIcon name="food" size={38} primaryColor={colors.carbs} accentColor={colors.primary} foregroundColor={colors.foreground} highlightColor={colors.card} />
@@ -1064,6 +1049,15 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
                     </ScalePressable>
                   ))}
                 </View>
+                 <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 14 }]}>MANUAL</Text>
+                <View style={styles.manualRow}>
+                  <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
+                  <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
+                  <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
+                    <Feather name="plus" size={20} color={colors.primaryForeground} />
+                  </ScalePressable>
+                </View>
+                {manualError ? <Text accessibilityLiveRegion="polite" style={[styles.manualError, { color: colors.destructive }]}>{manualError}</Text> : null}
               </>
             )}
           </KeyboardAwareScrollViewCompat>
