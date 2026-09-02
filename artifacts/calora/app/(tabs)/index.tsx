@@ -33,6 +33,7 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { PlannerPeek } from '@/components/PlannerPeek';
+import { formatLogTime } from '@/lib/dates';
 
 function RecipeWidgetImage({ recipe }: { recipe: Recipe }) {
   const [failed, setFailed] = useState(false);
@@ -693,13 +694,17 @@ function AnimatedWaterSlot({ filled, muted }: { filled: boolean; muted: string }
 }
 
 function MealRow({ log, colors, onEdit }: { log: FoodLog; colors: ReturnType<typeof useCalora>['colors']; onEdit: () => void }) {
+  const recordedAt = log.syncUpdatedAt ?? log.nutritionSnapshot?.capturedAt;
+  const displayedTime = log.time === 'Just now' && recordedAt
+    ? formatLogTime(new Date(recordedAt))
+    : log.time;
   return (
     <ScalePressable accessibilityLabel={`Edit ${log.name}`} onPress={onEdit} scale={0.98} haptic="none" style={[styles.mealRow, { borderBottomColor: colors.border }]}>
       <FoodLogThumbnail log={log} />
       <View style={styles.mealInfo}>
         <Text style={[styles.mealName, { color: colors.foreground }]} numberOfLines={1}>{log.name}</Text>
         <View style={styles.mealMeta}>
-          <Text style={[styles.mealType, { color: colors.mutedForeground }]}>{log.time}</Text>
+          <Text style={[styles.mealType, { color: colors.mutedForeground }]}>{displayedTime}</Text>
         </View>
       </View>
       <Text style={[styles.mealCalories, { color: colors.foreground }]}>{formatWhole(log.calories)}</Text>
@@ -907,7 +912,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
   }, [initialMode, visible]);
 
   const chooseFood = (food: (typeof verifiedFoods)[number]) => {
-    addLog({ ...food, date: entryDate, time: 'Just now', serving: food.serving });
+    addLog({ ...food, date: entryDate, time: formatLogTime(), serving: food.serving });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onClose();
   };
@@ -923,7 +928,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
       fat: meal.fat,
       source: 'Recipe',
       confidence: 92,
-      time: 'Just now',
+      time: formatLogTime(),
       serving: '1 saved portion',
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -955,7 +960,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
       fat: 0,
       source: 'Manual',
       confidence: 70,
-      time: 'Just now',
+      time: formatLogTime(),
       serving: '1 serving',
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

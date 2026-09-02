@@ -334,6 +334,18 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(addAction).toBeGreaterThan(logCardHeader);
   });
 
+  it('records concrete clock times for every Home diary insertion path', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).not.toContain("time: 'Just now'");
+    expect(source.split('time: formatLogTime()').length - 1).toBe(3);
+  });
+
   it('keeps the top greeting elevated without the removed bottom insight line', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');

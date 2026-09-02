@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, dateFromKey, dateKey, dateList, rollingDateRange } from '@/lib/dates';
+import { addDays, dateFromKey, dateKey, dateList, formatLogTime, rollingDateRange } from '@/lib/dates';
 
 describe('local calendar dates', () => {
+  it('formats diary log timestamps as a concrete local clock time', () => {
+    const recordedAt = new Date(2026, 8, 2, 9, 7);
+    expect(formatLogTime(recordedAt)).toBe('9:07 AM');
+  });
+
   it('formats and advances calendar dates without UTC rollover', () => {
     expect(dateKey(new Date(2026, 7, 6, 23, 45))).toBe('2026-08-06');
     expect(addDays('2026-08-06', 1)).toBe('2026-08-07');

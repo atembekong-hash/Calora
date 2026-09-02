@@ -225,8 +225,12 @@ type CaloraState = {
 };
 
 function normalizeLogImageMetadata(log: FoodLog): FoodLog {
+  const recordedAt = log.syncUpdatedAt ?? log.nutritionSnapshot?.capturedAt;
   return {
     ...log,
+    time: log.time === 'Just now' && recordedAt
+      ? formatLogTime(new Date(recordedAt))
+      : log.time,
     ...normalizeFoodImageMetadata(log.imageUrl, log.imageSource),
   };
 }

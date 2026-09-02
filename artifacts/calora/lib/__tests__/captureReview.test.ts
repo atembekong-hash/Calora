@@ -149,6 +149,13 @@ describe('buildAcceptResult — review approval', () => {
     expect(log.meal).toBe('Breakfast');
   });
 
+  it('stores the accepted clock time instead of a permanent relative placeholder', () => {
+    const acceptedAt = new Date(2026, 7, 6, 12, 5).toISOString();
+    const { log } = buildAcceptResult(makeDraft(), nextId('log'), acceptedAt);
+    expect(log.time).toBe('12:05 PM');
+    expect(log.time).not.toBe('Just now');
+  });
+
   it('carries durable image metadata into the accepted diary log', () => {
     const draft = makeDraft({
       imageUrl: 'https://images.openfoodfacts.org/eggs.jpg',
