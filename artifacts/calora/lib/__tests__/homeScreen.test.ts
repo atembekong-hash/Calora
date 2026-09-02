@@ -334,6 +334,22 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(addAction).toBeGreaterThan(logCardHeader);
   });
 
+  it('puts manual meal entry before the scrollable verified-food list', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    const manualEntry = source.indexOf('Add a food manually');
+    const verifiedList = source.indexOf('>VERIFIED</Text>');
+    expect(manualEntry).toBeGreaterThan(-1);
+    expect(verifiedList).toBeGreaterThan(-1);
+    expect(manualEntry).toBeLessThan(verifiedList);
+    expect(source).toContain('initialMode !== \'manual\'');
+  });
+
   it('records concrete clock times for every Home diary insertion path', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
