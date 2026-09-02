@@ -316,6 +316,23 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('nestedScrollEnabled');
   });
 
+  it('keeps manual entry above the scrollable food options', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+    const manualSection = source.indexOf('styles.manualEntrySection');
+    const photoOption = source.indexOf('testID="photo-log-button"');
+    const verifiedLabel = source.indexOf('>VERIFIED</Text>');
+
+    expect(source).toContain('stickyHeaderIndices={initialMode === \'manual\' ? undefined : [2]}');
+    expect(manualSection).toBeGreaterThan(source.indexOf('styles.modalHeading'));
+    expect(manualSection).toBeLessThan(photoOption);
+    expect(photoOption).toBeLessThan(verifiedLabel);
+  });
+
   it('keeps the diary title and Add action inside the log card', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');

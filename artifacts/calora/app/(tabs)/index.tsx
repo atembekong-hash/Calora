@@ -890,26 +890,12 @@ type AddFoodEntryMode = 'search' | 'manual';
 
 function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: { visible: boolean; onClose: () => void; entryDate: string; initialMode?: AddFoodEntryMode }) {
   const { colors, addLog, savedMeals } = useCalora();
-  const insets = useSafeAreaInsets();
-  const modalScrollRef = useRef<ScrollView>(null);
   const [search, setSearch] = useState('');
   const [customName, setCustomName] = useState('');
   const [customCalories, setCustomCalories] = useState('');
   const [manualError, setManualError] = useState<string | null>(null);
   const [captureMode, setCaptureMode] = useState<'search' | 'voice' | 'barcode'>('search');
   const filtered = verifiedFoods.filter((food) => food.name.toLowerCase().includes(search.toLowerCase()));
-
-  useEffect(() => {
-    if (!visible) return;
-    const timeout = setTimeout(() => {
-      if (initialMode === 'manual') {
-        modalScrollRef.current?.scrollToEnd({ animated: false });
-      } else {
-        modalScrollRef.current?.scrollTo({ y: 0, animated: false });
-      }
-    }, 80);
-    return () => clearTimeout(timeout);
-  }, [initialMode, visible]);
 
   const chooseFood = (food: (typeof verifiedFoods)[number]) => {
     addLog({ ...food, date: entryDate, time: formatLogTime(), serving: food.serving });
@@ -973,11 +959,11 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
   return (
     <BottomSheet visible={visible} onRequestClose={onClose} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.modalCard, styles.addFoodModalCard, { backgroundColor: colors.background }]}>
           <KeyboardAwareScrollViewCompat
-            ref={modalScrollRef}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
             bottomOffset={80}
+            stickyHeaderIndices={initialMode === 'manual' ? undefined : [2]}
             contentContainerStyle={styles.modalScrollContent}
           >
             <View style={styles.modalHandle} />
@@ -1006,6 +992,17 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
               </View>
             ) : (
               <>
+                <View style={[styles.manualEntrySection, { backgroundColor: colors.background }]}>
+                  <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>MANUAL</Text>
+                  <View style={styles.manualRow}>
+                    <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
+                    <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
+                    <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
+                      <Feather name="plus" size={20} color={colors.primaryForeground} />
+                    </ScalePressable>
+                  </View>
+                  {manualError ? <Text accessibilityLiveRegion="polite" style={[styles.manualError, { color: colors.destructive }]}>{manualError}</Text> : null}
+                </View>
                 <ScalePressable accessibilityLabel="Log from photo" testID="photo-log-button" onPress={photoLog} scale={0.96} haptic="light" style={[styles.photoButton, { backgroundColor: colors.hero }]}>
                   <CaloraFeatureIcon name="camera" size={31} primaryColor={colors.primary} accentColor={colors.heroMuted} foregroundColor={colors.foreground} highlightColor={colors.onHero} />
                   <View style={{ flex: 1 }}>
@@ -1049,15 +1046,6 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
                     </ScalePressable>
                   ))}
                 </View>
-                 <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 14 }]}>MANUAL</Text>
-                <View style={styles.manualRow}>
-                  <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
-                  <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
-                  <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
-                    <Feather name="plus" size={20} color={colors.primaryForeground} />
-                  </ScalePressable>
-                </View>
-                {manualError ? <Text accessibilityLiveRegion="polite" style={[styles.manualError, { color: colors.destructive }]}>{manualError}</Text> : null}
               </>
             )}
           </KeyboardAwareScrollViewCompat>
@@ -1862,6 +1850,7 @@ function makeStyles(f: number) {
   modalCard: { borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12 },
   addFoodModalCard: {},
   modalScrollContent: { paddingBottom: 4 },
+  manualEntrySection: { paddingBottom: 14 },
   editSheetContent: { paddingBottom: 4 },
   modalHandle: { width: 42, height: 5, borderRadius: 3, backgroundColor: '#9aa69e', alignSelf: 'center', marginBottom: 20 },
   modalHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
