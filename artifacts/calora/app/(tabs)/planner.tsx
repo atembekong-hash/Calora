@@ -1402,7 +1402,7 @@ function makeStyles(f: number) {
    daySummaryRow: { position: 'relative', flexDirection: 'row', alignItems: 'flex-start' },
    daySummaryCopy: { flexShrink: 0 },
    daySummaryHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    dayProgramInline: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, transform: [{ translateX: 16 }] },
+    dayProgramInline: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, transform: [{ translateX: 36 }] },
    dayProgramIcon: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
    dayProgramCopy: { maxWidth: 100 },
   dayProgramEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 7 * f, letterSpacing: 1 },
