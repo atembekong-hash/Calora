@@ -24,7 +24,7 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
-import { recipeNutritionLabel, recipeProvenance, recipeSourceLabel } from '@/lib/recipeModel';
+import { recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
 import { requestGeneratedRecipe, requestGeneratedRecipePhoto, requestGeneratedRecipePhotoUrl, requestRecipeConcepts } from '@/lib/recipeGeneration';
 import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
@@ -1436,7 +1436,7 @@ function makeStyles(f: number) {
   recipeMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 },
   recipeKcal: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
   recipeMetaText: { fontFamily: 'Inter_400Regular', fontSize: 9 * f },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.12)' },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 9, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.12)' },
   loadingState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 10 },
   loadMoreState: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 18 },
   loadingText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
