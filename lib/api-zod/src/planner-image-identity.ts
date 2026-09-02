@@ -57,15 +57,23 @@ const PLANNER_MEAL_IMAGE_NAMES: Record<string, PlannerImageKey> = {
   'mediterranean tomato pasta': 'med-pasta',
   'herby chicken rice plate': 'chicken-rice',
   'thai coconut curry': 'thai-curry',
+  'thai green curry': 'thai-curry',
   'spaghetti bolognese': 'spaghetti-bolognese',
   'beef taco plate': 'beef-tacos',
+  'beef and veggie tacos': 'beef-tacos',
   'prawn veggie stir-fry': 'prawn-stirfry',
+  'garlic prawn stir-fry': 'prawn-stirfry',
   'apple almond crunch': 'apple-almond',
+  'apple with almond butter': 'apple-almond',
   'sea salt edamame': 'edamame',
   'mixed nuts and dried fruit': 'trail-mix',
   'hummus with veggie sticks': 'hummus-veggies',
   'banana with peanut butter': 'banana-peanut-butter',
 };
+
+export function plannerImageKeyForMealName(mealName: string): PlannerImageKey | undefined {
+  return PLANNER_MEAL_IMAGE_NAMES[mealName.trim().toLowerCase()];
+}
 
 export function plannerImageKeyForMealId(mealId: string, mealName?: string): PlannerImageKey | undefined {
   const direct = PLANNER_MEAL_IMAGE_IDENTITIES[mealId as PlannerMealIdentityId];
@@ -75,7 +83,15 @@ export function plannerImageKeyForMealId(mealId: string, mealName?: string): Pla
     .find(([identityId]) => mealId.includes(`-${identityId}-`));
   if (embedded) return embedded[1];
 
-  return typeof mealName === 'string'
-    ? PLANNER_MEAL_IMAGE_NAMES[mealName.trim().toLowerCase()]
-    : undefined;
+  return typeof mealName === 'string' ? plannerImageKeyForMealName(mealName) : undefined;
+}
+
+/**
+ * Resolve the photo shown beside a visible meal name.
+ *
+ * The name is authoritative because edited or restored meals can retain an old
+ * catalog-shaped id. An unknown/custom name must not inherit that stale photo.
+ */
+export function plannerImageKeyForMeal(_mealId: string, mealName: string): PlannerImageKey | undefined {
+  return plannerImageKeyForMealName(mealName);
 }

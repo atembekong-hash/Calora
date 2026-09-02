@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { verifiedFoods } from '@/data/foods';
-import { plannerCatalog } from '@/data/planner';
+import { createStarterPlannerMeals, normalizePlannerMealImageIdentity, plannerCatalog } from '@/data/planner';
 import {
   FOOD_IMAGE_KEYS,
   PLANNER_MEAL_IMAGE_IDENTITIES,
   PLANNER_IMAGE_KEYS,
+  plannerImageKeyForMeal,
   plannerImageKeyForMealId,
 } from '@/lib/mealImageIdentity';
 
@@ -50,6 +52,14 @@ describe('curated meal image identity', () => {
     }
   });
 
+  it('ships distinct image bytes for every planner meal photo', () => {
+    const hashes = PLANNER_IMAGE_KEYS.map((key) => {
+      const bytes = readFileSync(resolve(process.cwd(), `assets/images/meals/${key}.jpg`));
+      return createHash('sha256').update(bytes).digest('hex');
+    });
+    expect(new Set(hashes).size).toBe(PLANNER_IMAGE_KEYS.length);
+  });
+
   it('keeps every planner catalog identity in the shared contract', () => {
     expect(Object.keys(PLANNER_MEAL_IMAGE_IDENTITIES)).toHaveLength(plannerCatalog.length);
     expect(plannerCatalog.every((meal) => plannerImageKeyForMealId(meal.id) === meal.imageAssetKey)).toBe(true);
@@ -59,6 +69,23 @@ describe('curated meal image identity', () => {
   it('recovers bundled identity for legacy planned meals without image metadata', () => {
     expect(plannerImageKeyForMealId('starter-3-Snack', 'Hummus with veggie sticks')).toBe('hummus-veggies');
     expect(plannerImageKeyForMealId('planner-2026-08-31-hummus-veggies-3')).toBe('hummus-veggies');
+  });
+
+  it('keeps the visible meal name authoritative over stale ids and image metadata', () => {
+    expect(plannerImageKeyForMeal('planner-2026-08-31-yogurt-parfait-0', 'Spaghetti bolognese')).toBe('spaghetti-bolognese');
+    expect(plannerImageKeyForMeal('edited-123-planner-2026-08-31-yogurt-parfait-0', 'Custom breakfast')).toBeUndefined();
+    expect(normalizePlannerMealImageIdentity({
+      ...plannerCatalog.find((meal) => meal.id === 'yogurt-parfait')!,
+      name: 'Spaghetti bolognese',
+      imageAssetKey: 'yogurt-parfait',
+    }).imageAssetKey).toBe('spaghetti-bolognese');
+  });
+
+  it('preserves the correct photo identity across every starter meal and day', () => {
+    const week = createStarterPlannerMeals('2026-08-31');
+    expect(week).toHaveLength(28);
+    expect(week.every((meal) => plannerImageKeyForMeal(meal.id, meal.name) === meal.imageAssetKey)).toBe(true);
+    expect(new Set(week.map((meal) => meal.day)).size).toBe(7);
   });
 
   it('does not promote custom or generated meal ids into curated image keys', () => {

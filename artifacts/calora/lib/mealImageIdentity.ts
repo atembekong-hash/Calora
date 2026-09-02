@@ -1,7 +1,9 @@
 export {
   PLANNER_IMAGE_KEYS,
   PLANNER_MEAL_IMAGE_IDENTITIES,
+  plannerImageKeyForMeal,
   plannerImageKeyForMealId,
+  plannerImageKeyForMealName,
 } from '@workspace/api-zod/planner-image-identity';
 export type {
   PlannerImageKey,

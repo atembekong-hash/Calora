@@ -2,7 +2,7 @@ import type { PlannerMeal } from '@workspace/api-client-react';
 import type { ShoppingItem } from '@/context/CaloraContext';
 import { addDays, dateFromKey, dateKey } from '@/lib/dates';
 import type { PlanTypeId } from '@/lib/planType';
-import { plannerImageKeyForMealId } from '@/lib/mealImageIdentity';
+import { plannerImageKeyForMeal, plannerImageKeyForMealId } from '@/lib/mealImageIdentity';
 
 export const plannerMealTypes: PlannerMeal['meal'][] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -412,6 +412,15 @@ export const plannerCatalog: PlannerMeal[] = plannerCatalogDefinitions.map((meal
   ...meal,
   imageAssetKey: plannerImageKeyForMealId(meal.id),
 }));
+
+export function normalizePlannerMealImageIdentity(meal: PlannerMeal): PlannerMeal {
+  const imageAssetKey = plannerImageKeyForMeal(meal.id, meal.name);
+  return imageAssetKey === meal.imageAssetKey ? meal : { ...meal, imageAssetKey };
+}
+
+export function normalizePlannerMealImageIdentities(meals: PlannerMeal[]): PlannerMeal[] {
+  return meals.map(normalizePlannerMealImageIdentity);
+}
 
 export function getPlannerWeekStart(date = new Date()) {
   const local = new Date(date.getFullYear(), date.getMonth(), date.getDate());

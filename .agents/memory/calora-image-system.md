@@ -9,6 +9,12 @@ Calora imagery should be purposeful: editorial photography belongs on headers an
 
 **How to apply:** Prefer bundled local assets and branded fallbacks when remote food images are absent. Keep overlays dark enough for readable text, preserve stable image aspect ratios, and leave Smart Scan camera UI visually focused unless explicitly redesigned.
 
+Planner meal photos must resolve from the visible canonical meal name, not from a persisted image key or catalog-shaped ID alone. Unknown or user-renamed meals use their validated remote image or a meal-type fallback rather than inheriting a stale curated photo.
+
+**Why:** Planner IDs and image metadata can survive edits or older persisted state; trusting them first can pair a renamed meal with the original food photo.
+
+**How to apply:** Keep client and server name aliases aligned with the planner catalog, normalize planner meals at hydration and mutation boundaries, and test every catalog entry plus a complete seven-day starter week.
+
 Diary thumbnails must always render a bundled category fallback unless a durable HTTPS URL from an allowlisted food-image provider is available. Normalize image metadata before every local or server persistence boundary; never retain camera, file, blob, data, or arbitrary-host URLs.
 
 **Why:** Guaranteed local fallbacks keep every diary row visual offline and after remote failures, while write-time normalization prevents temporary captures or untrusted URLs from leaking into persisted nutrition records.

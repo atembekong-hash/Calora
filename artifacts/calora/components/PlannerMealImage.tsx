@@ -5,7 +5,7 @@ import { StyleSheet, Text, View, type ImageStyle, type StyleProp, type ViewStyle
 import type { PlannerMeal } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { hasPlannerImageKey, plannerImageSource } from '@/lib/mealImages';
-import { plannerImageKeyForMealId, type PlannerImageKey } from '@/lib/mealImageIdentity';
+import { plannerImageKeyForMeal, type PlannerImageKey } from '@/lib/mealImageIdentity';
 
 export type PlannerMealImageState = 'loading' | 'loaded' | 'fallback' | 'swapped';
 
@@ -43,7 +43,7 @@ export function PlannerMealImage({
   expectedImageKey?: PlannerImageKey;
 }) {
   const colors = useColors();
-  const resolvedImageKey = meal.imageAssetKey ?? plannerImageKeyForMealId(meal.id, meal.name);
+  const resolvedImageKey = plannerImageKeyForMeal(meal.id, meal.name);
   const source = plannerImageSource(resolvedImageKey, meal.image);
   const isCuratedImage = hasPlannerImageKey(resolvedImageKey);
   const fallbackSource = PLANNER_MEAL_FALLBACKS[meal.meal] ?? PLANNER_IMAGE_FALLBACK;

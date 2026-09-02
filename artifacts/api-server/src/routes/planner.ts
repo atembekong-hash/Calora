@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { GeneratePlannerBody } from "@workspace/api-zod";
-import { plannerImageKeyForMealId, type PlannerImageKey } from "@workspace/api-zod/planner-image-identity";
+import { plannerImageKeyForMeal, type PlannerImageKey } from "@workspace/api-zod/planner-image-identity";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
@@ -453,7 +453,7 @@ function dateFromWeekStart(weekStart: string, offset: number) {
 function makeMeal(meal: CatalogMeal, day: string, index: number) {
   return {
     ...meal,
-    imageAssetKey: meal.imageAssetKey ?? plannerImageKeyForMealId(meal.id, meal.name),
+    imageAssetKey: plannerImageKeyForMeal(meal.id, meal.name),
     id: `planner-${day}-${meal.id}-${index}-${randomUUID().slice(0, 6)}`,
     day,
   };

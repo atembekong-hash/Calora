@@ -18,7 +18,7 @@ import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
 import type { HydrationReminderPrefs } from '@/lib/hydrationReminders';
 import { type MealReminderPrefs, DEFAULT_MEAL_REMINDER_PREFS } from '@/lib/mealReminders';
 import { type GoalReminderPrefs, DEFAULT_GOAL_REMINDER_PREFS } from '@/lib/goalReminder';
-import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
+import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, normalizePlannerMealImageIdentities, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import {
   type AcceptedFoodMemory,
   type FoodMemoryCorrection,
@@ -619,7 +619,7 @@ export function CaloraProvider({
     if (saved.consentAccepted !== undefined) setConsentAccepted(saved.consentAccepted);
     if (saved.outbox) setOutbox(saved.outbox);
     if (saved.plannerWeekStart) setPlannerWeekStart(saved.plannerWeekStart);
-    if (saved.plannerMeals) setPlannerMealsState(saved.plannerMeals);
+    if (saved.plannerMeals) setPlannerMealsState(normalizePlannerMealImageIdentities(saved.plannerMeals));
     if (saved.shoppingItems) setShoppingItems(saved.shoppingItems);
     if (saved.hydrationReminders) setHydrationRemindersState(saved.hydrationReminders);
     if (saved.mealReminders) setMealRemindersState(saved.mealReminders as MealReminderPrefs);
@@ -1310,28 +1310,30 @@ export function CaloraProvider({
      retryHydration,
      isRetrying,
      setPlannerMeals: (weekStart, meals) => {
+        const normalizedMeals = normalizePlannerMealImageIdentities(meals);
        const currentShoppingItems = shoppingItemsRef.current;
        const previousChecks = shoppingChecksByName(currentShoppingItems);
        const recipeItems = currentShoppingItems.filter((item) => item.recipeSource);
-      const plannerBuilt = buildShoppingItems(meals, previousChecks);
+       const plannerBuilt = buildShoppingItems(normalizedMeals, previousChecks);
        const plannerNames = new Set(plannerBuilt.map((i) => shoppingNameKey(i.name)));
       setPlannerWeekStart(weekStart);
-      setPlannerMealsState(meals);
+       setPlannerMealsState(normalizedMeals);
        setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))]);
        setPlannerRevision((revision) => revision + 1);
-      setLivingMemory((current) => replacePlannerObservations(current, meals));
+       setLivingMemory((current) => replacePlannerObservations(current, normalizedMeals));
       queueMutation('settings', 'upsert');
     },
      updatePlannerMeals: (meals) => {
+        const normalizedMeals = normalizePlannerMealImageIdentities(meals);
        const currentShoppingItems = shoppingItemsRef.current;
        const previousChecks = shoppingChecksByName(currentShoppingItems);
        const recipeItems = currentShoppingItems.filter((item) => item.recipeSource);
-      const plannerBuilt = buildShoppingItems(meals, previousChecks);
+       const plannerBuilt = buildShoppingItems(normalizedMeals, previousChecks);
        const plannerNames = new Set(plannerBuilt.map((i) => shoppingNameKey(i.name)));
-      setPlannerMealsState(meals);
+       setPlannerMealsState(normalizedMeals);
        setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))]);
        setPlannerRevision((revision) => revision + 1);
-      setLivingMemory((current) => replacePlannerObservations(current, meals));
+       setLivingMemory((current) => replacePlannerObservations(current, normalizedMeals));
       queueMutation('settings', 'upsert');
     },
     movePlannerMeal: (mealId, day, copy) => {
