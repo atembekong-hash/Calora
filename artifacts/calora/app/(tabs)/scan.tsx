@@ -70,7 +70,7 @@ function PermissionState({ colors, onRequest }: { colors: ReturnType<typeof useC
 export default function ScanScreen() {
   const { colors, foodDrafts, createFoodMemoryDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory } = useCalora();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ date?: string; draftId?: string }>();
+  const params = useLocalSearchParams<{ date?: string; draftId?: string; capture?: string }>();
   const entryDate = typeof params.date === 'string' ? params.date : dateKey();
   const [permission, requestPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
@@ -106,6 +106,8 @@ export default function ScanScreen() {
   const [voiceRecording, setVoiceRecording] = useState(false);
   const [cameraMode, setCameraMode] = useState<CameraMode>('picture');
   const voiceCaptureInFlight = useRef(false);
+  const voiceLaunchRequested = useRef(false);
+  const voicePendingAfterCameraPermission = useRef(false);
   const analyzeCapture = useAnalyzeCapture();
   const routeDraftId = typeof params.draftId === 'string' ? params.draftId : undefined;
   const reviewDraft = foodDrafts.find((draft) => draft.status === 'draft' && (draft.id === reviewDraftId || draft.id === routeDraftId)) ?? null;
@@ -206,8 +208,21 @@ export default function ScanScreen() {
       setShowTextEntry(true);
       return;
     }
+    if (!permission?.granted) {
+      const granted = (await requestPermission()).granted;
+      if (!granted) {
+        setAltCaptureBanner('Camera access is needed to record a voice note here. You can type your meal instead.');
+        setTextEntryKind('voice');
+        setShowTextEntry(true);
+        return;
+      }
+      voicePendingAfterCameraPermission.current = true;
+      setAltCaptureBanner('Camera ready. Preparing voice recording…');
+      return;
+    }
     if (!cameraRef.current) {
-      setAltCaptureBanner('Open the camera, then try voice again.');
+      voicePendingAfterCameraPermission.current = true;
+      setAltCaptureBanner('Preparing voice recording…');
       return;
     }
     const granted = microphonePermission?.granted || (await requestMicrophonePermission()).granted;
@@ -228,6 +243,17 @@ export default function ScanScreen() {
       setAltCaptureBanner(error instanceof Error ? `${error.message} Type your meal instead.` : 'Recording failed. Type your meal instead.');
     }
   };
+
+  useEffect(() => {
+    const routeRequested = params.capture === 'voice' && !voiceLaunchRequested.current;
+    const permissionRequested = voicePendingAfterCameraPermission.current && permission?.granted;
+    if ((!routeRequested && !permissionRequested) || voiceRecording || analyzeCapture.isPending) return;
+    if (Platform.OS !== 'web' && !permission?.granted) return;
+    if (Platform.OS !== 'web' && !cameraRef.current) return;
+    voiceLaunchRequested.current = routeRequested ? true : voiceLaunchRequested.current;
+    voicePendingAfterCameraPermission.current = false;
+    void startVoiceCapture();
+  }, [analyzeCapture.isPending, params.capture, permission?.granted, voiceRecording]);
 
   const onVoicePress = () => {
     if (voiceRecording) {

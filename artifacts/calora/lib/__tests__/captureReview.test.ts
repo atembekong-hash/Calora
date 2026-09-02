@@ -629,6 +629,14 @@ describe('accessibility labels — static invariants', () => {
     expect(scanSource).toMatch(/finally \{[\s\S]*setVoiceRecording\(false\);[\s\S]*setCameraMode\('picture'\)/);
   });
 
+  it('auto-starts Voice when opened from the Add Food card and falls back to editable text', () => {
+    expect(scanSource).toContain("capture?: string");
+    expect(scanSource).toContain("params.capture === 'voice'");
+    expect(scanSource).toContain("setTextEntryKind('voice')");
+    expect(scanSource).toContain("setShowTextEntry(true)");
+    expect(scanSource).toContain('voicePendingAfterCameraPermission');
+  });
+
   it('pauses barcode scanning while the camera is recording video', () => {
     expect(scanSource).toContain("cameraMode === 'video' || mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned");
   });
