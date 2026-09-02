@@ -90,4 +90,17 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('recipes.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard');
     expect(source).not.toContain('{recipeSourceLabel(recipe)}</Text>');
   });
+
+  it('keeps Discover and Plus grid cards fixed while giving the photo more height', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('const GRID_RECIPE_CARD_HEIGHT = 224');
+    expect(source).toContain('const GRID_RECIPE_IMAGE_HEIGHT = 140');
+    expect(source).toContain('imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact');
+    expect(source).toContain('compactCardContent');
+    expect(source).toContain('compactCardFooter');
+  });
 });
