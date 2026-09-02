@@ -398,13 +398,6 @@ export default function PlannerScreen() {
     setWeekOverviewVisible(false);
   };
 
-  const goToToday = () => {
-    const currentWeek = getPlannerWeekStart();
-    setViewWeekStart(currentWeek);
-    setSelectedDay(today);
-    setWeekOverviewVisible(false);
-  };
-
   const replaceMealInPlan = (nextMeal: PlannerMeal, target: PlannerMeal) => {
     const next = applyIdentityReplace(plannerMeals, nextMeal, target);
     updatePlannerMeals(next);
@@ -874,7 +867,6 @@ export default function PlannerScreen() {
           <ScalePressable accessibilityLabel="Previous week" onPress={() => shiftWeek(-1)} scale={0.96} haptic="none" style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-left" size={18} color={colors.foreground} /></ScalePressable>
           <View style={styles.weekRangeCopy}>
             <Text style={[styles.weekRange, { color: colors.foreground }]}>{formatRange(viewWeekStart)}</Text>
-            {viewWeekStart !== getPlannerWeekStart() && <Pressable accessibilityLabel="Return to this week" onPress={goToToday}><Text style={[styles.todayLink, { color: colors.primary }]}>Today</Text></Pressable>}
           </View>
            <View style={styles.weekHeaderActions}><ScalePressable accessibilityLabel="Next week" onPress={() => shiftWeek(1)} scale={0.96} haptic="none" style={[styles.weekArrow, { backgroundColor: colors.muted }]}><Feather name="chevron-right" size={18} color={colors.foreground} /></ScalePressable><ScalePressable accessibilityLabel={editMode ? 'Done editing plan' : 'Edit plan'} onPress={() => setEditMode((value) => !value)} scale={0.96} haptic="none" style={[styles.editModeButton, { backgroundColor: editMode ? colors.primary : colors.muted }]}><Feather name={editMode ? 'check' : 'edit-2'} size={14} color={editMode ? colors.primaryForeground : colors.foreground} /><Text style={[styles.editModeText, { color: editMode ? colors.primaryForeground : colors.foreground }]}>{editMode ? 'Done' : 'Edit'}</Text></ScalePressable></View>
         </View>
@@ -1449,7 +1441,6 @@ function makeStyles(f: number) {
   nextStepTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f, lineHeight: 17, marginTop: 3 },
   nextStepLink: { width: 38, height: 58, alignItems: 'center', justifyContent: 'center' },
   weekRangeCopy: { alignItems: 'center', gap: 3 },
-  todayLink: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.42)' },
    detailSheet: { overflow: 'hidden' },
    sheetScroll: { flexShrink: 1, minHeight: 0 },
