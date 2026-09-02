@@ -770,6 +770,16 @@ export default function PlannerScreen() {
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
         title="Plan"
+        action={(
+          <Pressable
+            accessibilityLabel="Open meal programs"
+            onPress={() => setPlanTypeVisible(true)}
+            hitSlop={8}
+            style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
+          >
+            <Feather name="settings" size={17} color={colors.foreground} />
+          </Pressable>
+        )}
       />
 
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: 8, paddingBottom: insets.bottom + 106 }]} showsVerticalScrollIndicator={false}>
