@@ -42,6 +42,7 @@ type SwipeableSectionPagerProps<T extends string> = {
   accessibilityLabel: string;
   accessibilityHint?: string;
   lockGesture?: boolean;
+  disableAnimation?: boolean;
   testID?: string;
 };
 
@@ -158,6 +159,7 @@ export function SwipeableSectionPager<T extends string>({
   accessibilityLabel,
   accessibilityHint = 'Swipe left or right to switch sections',
   lockGesture = false,
+  disableAnimation = false,
   testID,
 }: SwipeableSectionPagerProps<T>) {
   const { width: windowWidth } = useWindowDimensions();
@@ -170,6 +172,7 @@ export function SwipeableSectionPager<T extends string>({
   const widthRef = useRef(windowWidth);
   const reduceMotionRef = useRef(reduceMotion);
   const lockGestureRef = useRef(lockGesture);
+  const disableAnimationRef = useRef(disableAnimation);
   const excludedGestureRef = useRef(false);
 
   itemsRef.current = items;
@@ -178,8 +181,14 @@ export function SwipeableSectionPager<T extends string>({
   widthRef.current = windowWidth;
   reduceMotionRef.current = reduceMotion;
   lockGestureRef.current = lockGesture;
+  disableAnimationRef.current = disableAnimation;
 
   const settleAtRest = () => {
+    if (disableAnimationRef.current) {
+      translateX.value = 0;
+      opacity.value = 1;
+      return;
+    }
     translateX.value = withTiming(0, {
       duration: 220,
       easing: Easing.out(Easing.cubic),
@@ -194,7 +203,7 @@ export function SwipeableSectionPager<T extends string>({
 
   const showTarget = (targetItem: T, direction: number) => {
     onChangeRef.current(targetItem);
-    if (reduceMotionRef.current) {
+    if (reduceMotionRef.current || disableAnimationRef.current) {
       translateX.value = 0;
       opacity.value = 1;
       return;
@@ -230,6 +239,7 @@ export function SwipeableSectionPager<T extends string>({
         opacity.value = 1;
       },
       onPanResponderMove: (_event, gesture) => {
+        if (disableAnimationRef.current) return;
         const currentItems = itemsRef.current;
         const currentIndex = currentItems.indexOf(activeItemRef.current);
         translateX.value = getWorkspaceSwipeOffset(

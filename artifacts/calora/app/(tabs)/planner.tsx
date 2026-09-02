@@ -2,7 +2,6 @@ import { ApiError, useGeneratePlanner, type PlannerMeal } from '@workspace/api-c
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
@@ -899,10 +898,11 @@ export default function PlannerScreen() {
           accessibilityLabel="Planned meal days"
           accessibilityHint="Swipe left or right to switch days"
           lockGesture
+          disableAnimation
           testID="planner-day-pager"
           style={styles.dayPager}
         >
-          <Animated.View entering={FadeInDown.springify().damping(20).delay(60)} style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
+          <View style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
             <View style={styles.daySummaryRow}>
               <View style={styles.daySummaryCopy}>
                 <View style={styles.daySummaryHeadingRow}>
@@ -922,9 +922,8 @@ export default function PlannerScreen() {
                 <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
               </Pressable>
             </View>
-          </Animated.View>
-          <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}
-        </Animated.View>
+          </View>
+          <View style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}</View>
         </SwipeableSectionPager>
         {generationMessage && <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.generationStatus, { backgroundColor: generationError ? colors.muted : colors.accent, borderColor: generationError ? colors.warning : 'transparent', borderWidth: generationError ? 1 : 0 }]}><Feather name={generationError ? 'alert-circle' : 'check-circle'} size={16} color={generationError ? colors.warning : colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
           <View style={{ marginTop: 20 }}><SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} /></View>
