@@ -876,7 +876,7 @@ export default function PlannerScreen() {
                   <Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text>
                   <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
                 </View>
-                <Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Day planned' : `${4 - selectedMeals.length} open`}</Text>
+                {selectedMeals.length < 4 && <Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{4 - selectedMeals.length} open</Text>}
               </View>
               <View accessibilityLabel={`Meal program: ${selectedProgramLabel}`} style={styles.dayProgramInline}>
                 <Text numberOfLines={1} style={[styles.dayProgramName, { color: colors.foreground }]}>{selectedProgramLabel}</Text>
