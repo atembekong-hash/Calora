@@ -982,7 +982,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
               <CaloraFeatureIcon name="food" size={38} primaryColor={colors.carbs} accentColor={colors.primary} foregroundColor={colors.foreground} highlightColor={colors.card} />
               <Text style={[styles.quickAddFocusTitle, { color: colors.foreground }]}>Add a food manually</Text>
               <Text style={[styles.quickAddFocusBody, { color: colors.mutedForeground }]}>For foods outside the verified list.</Text>
-              <View style={styles.manualRow}>
+              <View style={[styles.manualRow, styles.manualFooterRow]}>
                 <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
                 <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
                 <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
@@ -1882,8 +1882,9 @@ function makeStyles(f: number) {
   foodIcon: { width: 34, height: 34, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   foodName: { fontFamily: 'Inter_600SemiBold', fontSize: 14 * f },
   foodMeta: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 5 },
-  manualRow: { flexDirection: 'row', gap: 8 },
-  manualInput: { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 12, height: 46, fontFamily: 'Inter_500Medium', fontSize: 13 * f },
+  manualRow: { flexDirection: 'row', gap: 8, minWidth: 0 },
+  manualFooterRow: { marginRight: 8 },
+  manualInput: { flex: 1, minWidth: 0, borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 12, height: 46, fontFamily: 'Inter_500Medium', fontSize: 13 * f },
   manualKcal: { width: 72, borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 10, height: 46, fontFamily: 'Inter_500Medium', fontSize: 13 * f },
   manualAdd: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   quickAddFocus: { borderRadius: 22, padding: 18, marginTop: 4 },

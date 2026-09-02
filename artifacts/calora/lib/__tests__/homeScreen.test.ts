@@ -329,6 +329,8 @@ describe('Today dashboard — date context and display contracts', () => {
 
     expect(source).toContain('<KeyboardAvoidingView behavior="padding" style={styles.addFoodSheet}>');
     expect(source).not.toContain('stickyHeaderIndices');
+    expect(source).toContain('styles.manualFooterRow');
+    expect(source).toContain('manualInput: { flex: 1, minWidth: 0');
     expect(manualFooter).toBeGreaterThan(verifiedLabel);
     expect(manualFooter).toBeGreaterThan(photoOption);
     expect(photoOption).toBeLessThan(verifiedLabel);
