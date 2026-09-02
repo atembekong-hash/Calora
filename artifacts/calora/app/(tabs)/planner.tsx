@@ -872,12 +872,10 @@ export default function PlannerScreen() {
           <View style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
             <View style={styles.daySummaryRow}>
               <View style={styles.daySummaryCopy}>
-                <View style={styles.daySummaryHeadingRow}>
-                  <Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text>
-                  <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
-                </View>
+                <Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text>
                 {selectedMeals.length < 4 && <Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{4 - selectedMeals.length} open</Text>}
               </View>
+              <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
               <View accessibilityLabel={`Meal program: ${selectedProgramLabel}`} style={styles.dayProgramInline}>
                 <Text numberOfLines={1} style={[styles.dayProgramName, { color: colors.foreground }]}>{selectedProgramLabel}</Text>
               </View>
@@ -1300,15 +1298,14 @@ function makeStyles(f: number) {
   dayDivider: { paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },
    daySummaryRow: { position: 'relative', flexDirection: 'row', alignItems: 'flex-start' },
    daySummaryCopy: { flexShrink: 0 },
-   daySummaryHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-     dayProgramInline: { position: 'absolute', left: 0, right: 0, alignItems: 'center', justifyContent: 'center', transform: [{ translateX: 36 }] },
-   dayProgramName: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, marginTop: 1 },
+     dayProgramInline: { position: 'absolute', left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
+    dayProgramName: { maxWidth: 126, fontFamily: 'Inter_700Bold', fontSize: 10 * f, marginTop: 1 },
    weekDayActions: { alignItems: 'flex-end', gap: 6 },
    weekTodayHandoff: { minHeight: 44, borderRadius: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
    weekTodayHandoffText: { fontFamily: 'Inter_700Bold', fontSize: 8.5 * f },
    dayHeadingTitle: { fontFamily: 'Inter_700Bold', fontSize: 16 * f, letterSpacing: -0.2 },
    daySubheading: { fontFamily: 'Inter_400Regular', fontSize: 9.5 * f, marginTop: 3 },
-  dayTotal: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
+   dayTotal: { position: 'absolute', right: 0, top: 1, fontFamily: 'Inter_400Regular', fontSize: 11 * f },
   mealList: { gap: 9 },
      mealCard: { overflow: 'hidden', flexDirection: 'row', minHeight: 88 },
      mealImage: { width: 88, minHeight: 88, alignSelf: 'stretch' },
