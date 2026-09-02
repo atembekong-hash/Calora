@@ -27,7 +27,6 @@
     "android": {
       "package": "com.etiendem.caloraapp",
       "versionCode": 24,
-      "minSdkVersion": 26,
       "permissions": [
         "android.permission.health.READ_STEPS",
         "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
