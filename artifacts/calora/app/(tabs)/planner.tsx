@@ -204,7 +204,7 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
 }
 
 export default function PlannerScreen() {
-  const { colors, profile, logs, updateLog, plannerWeekStart, plannerMeals, plannerRevision, plannerPreferences, setPlannerPreferences, updatePlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck, fontScale } = useCalora();
+  const { colors, profile, logs, updateLog, plannerWeekStart, plannerMeals, plannerRevision, plannerPreferences, updatePlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck, fontScale } = useCalora();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const generatePlanner = useGeneratePlanner();
@@ -242,7 +242,6 @@ export default function PlannerScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [planTypeVisible, setPlanTypeVisible] = useState(false);
   const [programDetail, setProgramDetail] = useState<PlanType | null>(null);
-  const [programRebuildConfirm, setProgramRebuildConfirm] = useState<PlanType | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState(false);
@@ -1274,7 +1273,7 @@ export default function PlannerScreen() {
                 <Pressable accessibilityLabel="Cancel planned meal edits" onPress={() => setEditMeal(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
               </KeyboardAwareScrollViewCompat>
         </BottomSheet>
-        {/* Program discovery sheet — selection is non-destructive until an explicit build action. */}
+         {/* Program discovery sheet — applying a selection rebuilds the viewed week immediately. */}
         <BottomSheet visible={planTypeVisible} onRequestClose={() => setPlanTypeVisible(false)} sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <View style={styles.planTypeSheetHeader}>
@@ -1286,7 +1285,7 @@ export default function PlannerScreen() {
                   <Feather name="x" size={18} color={colors.foreground} />
                 </ScalePressable>
               </View>
-               <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>Guides meals and nutrition on your next build. It does not replace this week automatically.</Text>
+                <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>Choose a Program to apply to this week. Your added, edited, and logged meals stay yours.</Text>
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planTypeList}>
                 {PLAN_TYPES.map((pt) => {
                   const isSelected = plannerPreferences?.primary === pt.id;
@@ -1326,29 +1325,16 @@ export default function PlannerScreen() {
                 <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>{programDetail.description}</Text>
                 <View style={[styles.programDetailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Text style={[styles.programDetailLabel, { color: colors.primary }]}>HOW IT SHAPES YOUR PLAN</Text>
-                  <Text style={[styles.programDetailText, { color: colors.foreground }]}>Shapes generated meals, nutrition guidance, catalog choices, and your next build.</Text>
+                   <Text style={[styles.programDetailText, { color: colors.foreground }]}>Shapes generated meals, nutrition guidance, and this week’s generated meals.</Text>
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Recipes and custom meals you add remain yours.</Text>
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Your calorie target and dietary preferences stay in control.</Text>
                 </View>
-                <ScalePressable accessibilityLabel={`Start ${programDetail.label} next week`} onPress={() => { setPlannerPreferences(selectPrimaryProgram(plannerPreferences, programDetail.id)); setProgramDetail(null); setPlanTypeVisible(false); acknowledge(`${programDetail.label} is ready for your next build.`); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10 }]}>
-                  <Feather name="calendar" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Start next week</Text>
+                <ScalePressable accessibilityLabel={`Apply ${programDetail.label} to this week`} onPress={() => { const program = programDetail; setProgramDetail(null); setPlanTypeVisible(false); void generate(program.id); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10 }]}>
+                  <Feather name="zap" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Apply to this week</Text>
                 </ScalePressable>
-                <Pressable accessibilityLabel={`Rebuild this week with ${programDetail.label}`} onPress={() => { setProgramRebuildConfirm(programDetail); setProgramDetail(null); }} style={styles.programRebuildLink}><Text style={[styles.programRebuildText, { color: colors.primary }]}>Rebuild this week instead</Text></Pressable>
               </>}
               </ScrollView>
         </BottomSheet>
-        <Modal visible={programRebuildConfirm !== null} transparent animationType="fade" onRequestClose={() => setProgramRebuildConfirm(null)}>
-          <View style={styles.modalBackdrop}>
-            <View style={[styles.confirmationDialog, { backgroundColor: colors.background }]}>
-              {programRebuildConfirm && <>
-                <SheetHeader eyebrow="CONFIRM REFRESH" title={`Refresh with ${programRebuildConfirm.label}?`} onClose={() => setProgramRebuildConfirm(null)} colors={colors} />
-                <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Rebuild generated meals only. Added, edited, and logged meals stay unchanged.</Text>
-                <ScalePressable accessibilityLabel="Confirm refresh this week" onPress={() => { const program = programRebuildConfirm; setProgramRebuildConfirm(null); setPlanTypeVisible(false); void generate(program.id); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 0 }]}><Feather name="refresh-cw" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Refresh this week</Text></ScalePressable>
-                <Pressable accessibilityLabel="Cancel week refresh" onPress={() => setProgramRebuildConfirm(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Keep current week</Text></Pressable>
-              </>}
-            </View>
-          </View>
-        </Modal>
         <BottomSheet visible={customMealType !== null} onRequestClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <SheetHeader eyebrow={`${customMealType?.toUpperCase() ?? ''} · ${dateFormatter.format(parseDate(customMealReplaceTarget?.day ?? selectedDay))}`} title="Create a custom meal" onClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} colors={colors} />
