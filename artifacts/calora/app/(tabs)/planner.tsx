@@ -365,8 +365,6 @@ export default function PlannerScreen() {
       ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary
       : 'Choose a Program';
   const selectedProgramEyebrow = appliedProgramForViewedWeek ? 'PROGRAM · THIS WEEK' : 'YOUR PROGRAM';
-  const buildButtonColor = appliedProgramForViewedWeek ? colors.warning : plannerPreferences ? colors.primary : colors.muted;
-  const buildButtonForeground = appliedProgramForViewedWeek ? colors.foreground : plannerPreferences ? colors.primaryForeground : colors.mutedForeground;
 
   // Days that have at least one shopping ingredient, in week order
   const shoppingDays = useMemo(
@@ -931,61 +929,11 @@ export default function PlannerScreen() {
                 </View>
                 <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
               </Pressable>
-              <ScalePressable
-                accessibilityLabel={plannerPreferences ? 'Build my week' : 'Choose a plan type first'}
-                onPress={() => { if (!plannerPreferences) { setPlanTypeVisible(true); } else { void generate(); } }}
-                disabled={generating}
-                scale={0.96}
-                haptic="light"
-                style={[styles.dayBuildButton, { backgroundColor: buildButtonColor, opacity: generating ? 0.72 : 1 }]}
-              >
-                {generating ? <ActivityIndicator size="small" color={buildButtonForeground} /> : <Feather name="zap" size={11} color={buildButtonForeground} />}
-                <Text style={[styles.dayBuildText, { color: buildButtonForeground }]}>Build</Text>
-              </ScalePressable>
             </View>
           </Animated.View>
           <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}
         </Animated.View>
         </SwipeableSectionPager>
-        <Pressable accessibilityLabel="View or change your program" onPress={() => setPlanTypeVisible(true)} style={[styles.programCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.programIcon, { backgroundColor: colors.accent }]}><Feather name="compass" size={18} color={colors.accentForeground} /></View>
-          <View style={styles.programCopy}><Text style={[styles.programEyebrow, { color: colors.primary }]}>{appliedProgramForViewedWeek ? 'PROGRAM · THIS WEEK' : 'YOUR PROGRAM'}</Text><Text style={[styles.programTitle, { color: colors.foreground }]}>{appliedProgramForViewedWeek ? findPlanType(appliedProgramForViewedWeek.programId)?.label ?? appliedProgramForViewedWeek.programId : plannerPreferences ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary : 'Choose a Program'}</Text><Text style={[styles.programMeta, { color: colors.mutedForeground }]}>{appliedProgramForViewedWeek ? (appliedProgramForViewedWeek.programId === plannerPreferences?.primary ? 'Used this week.' : `Used this week · ${plannerPreferences ? `${findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary} next` : 'no Program set next'}.`) : plannerPreferences ? `${findPlanType(plannerPreferences.primary)?.subtitle ?? ''} · next build.` : 'Guides your next build.'}</Text></View>
-          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-        </Pressable>
-        <View style={[styles.planControlBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <ScalePressable
-            accessibilityLabel={plannerPreferences ? 'Change plan type' : 'Choose a plan type'}
-            onPress={() => setPlanTypeVisible(true)}
-            scale={0.97}
-            haptic="none"
-            style={styles.planControlLeft}
-          >
-            <Text style={[styles.planControlLabel, { color: colors.mutedForeground }]}>COVERAGE</Text>
-            {plannerPreferences ? (
-              <Text style={[styles.planControlValue, { color: colors.foreground }]} numberOfLines={1}>
-                {plannedWeek.length}/28 slots
-              </Text>
-            ) : (
-              <Text style={[styles.planControlPrompt, { color: colors.primary }]}>Choose Program</Text>
-            )}
-          </ScalePressable>
-          <View style={[styles.planControlDivider, { backgroundColor: colors.border }]} />
-          <ScalePressable
-            accessibilityLabel={plannerPreferences ? 'Generate my week' : 'Choose a plan type first'}
-            onPress={() => { if (!plannerPreferences) { setPlanTypeVisible(true); } else { void generate(); } }}
-            disabled={generating}
-            scale={0.96}
-            haptic="light"
-            style={[styles.planControlRight, { opacity: generating ? 0.72 : 1 }]}
-          >
-            {generating
-              ? <ActivityIndicator size="small" color={colors.primary} />
-              : <Feather name="zap" size={14} color={plannerPreferences ? colors.primary : colors.mutedForeground} />}
-            <Text style={[styles.planControlAction, { color: plannerPreferences ? colors.primary : colors.mutedForeground }]}>
-              {generating ? 'Building…' : 'Build week'}
-            </Text>
-          </ScalePressable>
-        </View>
         {generationMessage && <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.generationStatus, { backgroundColor: generationError ? colors.muted : colors.accent, borderColor: generationError ? colors.warning : 'transparent', borderWidth: generationError ? 1 : 0 }]}><Feather name={generationError ? 'alert-circle' : 'check-circle'} size={16} color={generationError ? colors.warning : colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
           <View style={{ marginTop: 20 }}><SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} /></View>
         </>}
@@ -1443,26 +1391,11 @@ function makeStyles(f: number) {
   summaryMacros: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 },
   summaryMacroValue: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   summaryMacroLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 2 },
-   planControlBar: { flexDirection: 'row', borderRadius: 14, borderWidth: 1, marginBottom: 16, overflow: 'hidden' },
-  planControlLeft: { flex: 1, paddingHorizontal: 14, paddingVertical: 13 },
-  planControlLabel: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1.1, marginBottom: 4 },
-  planControlValue: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
-  planControlPrompt: { fontFamily: 'Inter_600SemiBold', fontSize: 13 * f },
-  planControlDivider: { width: 1, marginVertical: 11 },
-  planControlRight: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 15, paddingVertical: 13 },
-  planControlAction: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
-    dayPager: { width: '100%' },
-    programCard: { minHeight: 78, borderRadius: 18, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 11, marginTop: 20, marginBottom: 10 },
-   programIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-   programCopy: { flex: 1 },
-   programEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1.1, marginBottom: 4 },
-   programTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
-   programMeta: { fontFamily: 'Inter_400Regular', fontSize: 9.5 * f, marginTop: 3 },
+     dayPager: { width: '100%' },
+    programEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1.1, marginBottom: 4 },
    programDetailCard: { borderRadius: 15, borderWidth: 1, padding: 13, marginTop: 16, gap: 7 },
    programDetailLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 0.9 },
    programDetailText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f },
-   programRebuildLink: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: 5 },
-   programRebuildText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   generationStatus: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   generationStatusText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 },
   dayDivider: { paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },
@@ -1474,8 +1407,6 @@ function makeStyles(f: number) {
    dayProgramCopy: { maxWidth: 100 },
   dayProgramEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 7 * f, letterSpacing: 1 },
    dayProgramName: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, marginTop: 1 },
-   dayBuildButton: { minHeight: 28, borderRadius: 9, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
-   dayBuildText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
    weekDayActions: { alignItems: 'flex-end', gap: 6 },
    weekTodayHandoff: { minHeight: 44, borderRadius: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
    weekTodayHandoffText: { fontFamily: 'Inter_700Bold', fontSize: 8.5 * f },
