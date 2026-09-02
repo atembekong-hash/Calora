@@ -360,6 +360,12 @@ export default function PlannerScreen() {
   const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
   const actionMealLogged = actionMeal ? logs.some((log) => log.plannerMealId === actionMeal.id) : false;
   const selectedMealLabel = dayFormatter.format(parseDate(selectedDay));
+  const selectedProgramLabel = appliedProgramForViewedWeek
+    ? findPlanType(appliedProgramForViewedWeek.programId)?.label ?? appliedProgramForViewedWeek.programId
+    : plannerPreferences
+      ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary
+      : 'Choose a Program';
+  const selectedProgramEyebrow = appliedProgramForViewedWeek ? 'PROGRAM · THIS WEEK' : 'YOUR PROGRAM';
 
   // Days that have at least one shopping ingredient, in week order
   const shoppingDays = useMemo(
@@ -906,8 +912,20 @@ export default function PlannerScreen() {
           style={styles.dayPager}
         >
           <Animated.View entering={FadeInDown.springify().damping(20).delay(60)} style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
-            <View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text><Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Day planned' : `${4 - selectedMeals.length} open`}</Text></View>
-            <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
+            <View style={styles.daySummaryRow}>
+              <View><Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text><Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Day planned' : `${4 - selectedMeals.length} open`}</Text></View>
+              <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
+            </View>
+            <Pressable accessibilityLabel={`View or change program: ${selectedProgramLabel}`} onPress={() => setPlanTypeVisible(true)} style={styles.dayProgramRow}>
+              <View style={[styles.dayProgramIcon, { backgroundColor: colors.accent }]}>
+                <Feather name="compass" size={12} color={colors.accentForeground} />
+              </View>
+              <View style={styles.dayProgramCopy}>
+                <Text style={[styles.dayProgramEyebrow, { color: colors.primary }]}>{selectedProgramEyebrow}</Text>
+                <Text numberOfLines={1} style={[styles.dayProgramName, { color: colors.foreground }]}>{selectedProgramLabel}</Text>
+              </View>
+              <Feather name="chevron-right" size={15} color={colors.mutedForeground} />
+            </Pressable>
           </Animated.View>
           <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}
         </Animated.View>
@@ -1443,7 +1461,13 @@ function makeStyles(f: number) {
    programRebuildText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   generationStatus: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   generationStatusText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 },
-  dayDivider: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },
+  dayDivider: { paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },
+  daySummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dayProgramRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  dayProgramIcon: { width: 25, height: 25, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  dayProgramCopy: { flex: 1 },
+  dayProgramEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 7 * f, letterSpacing: 1 },
+  dayProgramName: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, marginTop: 1 },
    weekDayActions: { alignItems: 'flex-end', gap: 6 },
    weekTodayHandoff: { minHeight: 44, borderRadius: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
    weekTodayHandoffText: { fontFamily: 'Inter_700Bold', fontSize: 8.5 * f },
