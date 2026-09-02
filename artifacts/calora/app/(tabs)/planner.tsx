@@ -924,7 +924,20 @@ export default function PlannerScreen() {
                 </View>
                 <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
               </Pressable>
-              <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
+              <View style={styles.dayRightActions}>
+                <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
+                <ScalePressable
+                  accessibilityLabel={plannerPreferences ? 'Build my week' : 'Choose a plan type first'}
+                  onPress={() => { if (!plannerPreferences) { setPlanTypeVisible(true); } else { void generate(); } }}
+                  disabled={generating}
+                  scale={0.96}
+                  haptic="light"
+                  style={[styles.dayBuildButton, { backgroundColor: plannerPreferences ? colors.primary : colors.muted, opacity: generating ? 0.72 : 1 }]}
+                >
+                  {generating ? <ActivityIndicator size="small" color={plannerPreferences ? colors.primaryForeground : colors.mutedForeground} /> : <Feather name="zap" size={11} color={plannerPreferences ? colors.primaryForeground : colors.mutedForeground} />}
+                  <Text style={[styles.dayBuildText, { color: plannerPreferences ? colors.primaryForeground : colors.mutedForeground }]}>Build</Text>
+                </ScalePressable>
+              </View>
             </View>
           </Animated.View>
           <Animated.View entering={FadeInDown.springify().damping(20).delay(120)} style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}
@@ -1462,13 +1475,16 @@ function makeStyles(f: number) {
   generationStatus: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   generationStatusText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 },
   dayDivider: { paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },
-   daySummaryRow: { flexDirection: 'row', alignItems: 'flex-start' },
+   daySummaryRow: { position: 'relative', flexDirection: 'row', alignItems: 'flex-start' },
    daySummaryCopy: { flexShrink: 0 },
    dayProgramInline: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
    dayProgramIcon: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-   dayProgramCopy: { maxWidth: 145 },
+   dayProgramCopy: { maxWidth: 100 },
   dayProgramEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 7 * f, letterSpacing: 1 },
    dayProgramName: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, marginTop: 1 },
+   dayRightActions: { flexDirection: 'row', alignItems: 'center', gap: 7, marginLeft: 'auto' },
+   dayBuildButton: { minHeight: 28, borderRadius: 9, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
+   dayBuildText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
    weekDayActions: { alignItems: 'flex-end', gap: 6 },
    weekTodayHandoff: { minHeight: 44, borderRadius: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
    weekTodayHandoffText: { fontFamily: 'Inter_700Bold', fontSize: 8.5 * f },
