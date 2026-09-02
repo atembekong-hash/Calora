@@ -66,4 +66,17 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('recyclingKey={`${recipe.id}:${recipe.image}`}');
     expect(source).toContain('setImageFailed(false)');
   });
+
+  it('keeps source attribution inside opened recipe details and prevents AI card labels from overlapping', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('cardImageFrame');
+    expect(source).toContain('const localLabel = provenance.sourceType === \'calora_ai\' ? \'CALORA AI\' : \'MY RECIPE\'');
+    expect(source).not.toContain('{recipeSourceLabel(recipe)}</Text>');
+    expect(source).not.toContain('Open recipe discovery is provided by TheMealDB');
+    expect(source).toContain('Source: {sourceName}');
+  });
 });
