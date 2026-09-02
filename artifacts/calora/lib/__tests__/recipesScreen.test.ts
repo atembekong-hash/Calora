@@ -79,4 +79,15 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).not.toContain('Open recipe discovery is provided by TheMealDB');
     expect(source).toContain('Source: {sourceName}');
   });
+
+  it('uses the shared source-free compact card in the Plus catalogue', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('savedRecipes.map((recipe) => <View key={recipe.id} style={{ width: 220 }}><RecipeCard');
+    expect(source).toContain('recipes.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard');
+    expect(source).not.toContain('{recipeSourceLabel(recipe)}</Text>');
+  });
 });
