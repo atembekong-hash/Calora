@@ -637,6 +637,15 @@ describe('accessibility labels — static invariants', () => {
     expect(scanSource).toContain('voicePendingAfterCameraPermission');
   });
 
+  it('opens Barcode in scanner mode and requests camera access when launched from Home', () => {
+    expect(scanSource).toContain("params.capture === 'barcode' ? 'barcode' : 'auto'");
+    expect(scanSource).toContain("setMode('barcode')");
+    expect(scanSource).toContain('barcodeLaunchRequested');
+    expect(scanSource).toContain('requestPermission()');
+    expect(scanSource).toContain('onBarcodeScanned={');
+    expect(scanSource).toContain('analyze({ mode, barcode })');
+  });
+
   it('pauses barcode scanning while the camera is recording video', () => {
     expect(scanSource).toContain("cameraMode === 'video' || mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned");
   });

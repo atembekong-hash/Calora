@@ -932,6 +932,11 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
     router.navigate({ pathname: '/(tabs)/scan', params: { date: entryDate, capture: 'voice' } });
   };
 
+  const barcodeLog = () => {
+    onClose();
+    router.navigate({ pathname: '/(tabs)/scan', params: { date: entryDate, capture: 'barcode' } });
+  };
+
   const addManual = () => {
     const kcal = Number(customCalories);
     if (!customName.trim()) {
@@ -1018,7 +1023,7 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
               <View style={[styles.captureModes, { backgroundColor: colors.muted }]}>
                 <ScalePressable accessibilityLabel="Text food logging" onPress={() => setCaptureMode('search')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'search' && { backgroundColor: colors.card }]}><Feather name="edit-3" size={14} color={captureMode === 'search' ? colors.primary : colors.mutedForeground} /><Text style={[styles.captureModeText, { color: captureMode === 'search' ? colors.foreground : colors.mutedForeground }]}>Text</Text></ScalePressable>
                 <ScalePressable accessibilityLabel="Voice food logging" testID="voice-log-button" onPress={voiceLog} scale={0.95} haptic="none" style={[styles.captureMode, { backgroundColor: colors.card }]}><CaloraFeatureIcon name="voice" size={22} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.captureModeText, { color: colors.foreground }]}>Voice</Text></ScalePressable>
-                <ScalePressable accessibilityLabel="Barcode food logging" onPress={() => setCaptureMode('barcode')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'barcode' && { backgroundColor: colors.card }]}><CaloraFeatureIcon name="barcode" size={22} primaryColor={captureMode === 'barcode' ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.captureModeText, { color: captureMode === 'barcode' ? colors.foreground : colors.mutedForeground }]}>Barcode</Text></ScalePressable>
+                <ScalePressable accessibilityLabel="Barcode food logging" testID="barcode-log-button" onPress={barcodeLog} scale={0.95} haptic="none" style={[styles.captureMode, { backgroundColor: colors.card }]}><CaloraFeatureIcon name="barcode" size={22} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.captureModeText, { color: colors.foreground }]}>Barcode</Text></ScalePressable>
               </View>
               {captureMode !== 'search' && <View style={[styles.unavailableCard, { backgroundColor: colors.accent }]}>
                 <CaloraFeatureIcon name={captureMode === 'voice' ? 'voice' : 'barcode'} size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />

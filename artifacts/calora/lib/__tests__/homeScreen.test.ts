@@ -331,6 +331,8 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).not.toContain('stickyHeaderIndices');
     expect(source).toContain('testID="voice-log-button"');
     expect(source).toContain("params: { date: entryDate, capture: 'voice' }");
+    expect(source).toContain('testID="barcode-log-button"');
+    expect(source).toContain("params: { date: entryDate, capture: 'barcode' }");
     expect(source).toContain('styles.manualFooterRow');
     expect(source).toContain('manualInput: { flex: 1, minWidth: 0');
     expect(manualFooter).toBeGreaterThan(verifiedLabel);

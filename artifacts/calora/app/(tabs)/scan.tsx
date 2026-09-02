@@ -75,8 +75,21 @@ export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
   const cameraRef = useRef<CameraView>(null);
-  const [mode, setMode] = useState<ScanMode>('auto');
+  const [mode, setMode] = useState<ScanMode>(params.capture === 'barcode' ? 'barcode' : 'auto');
   const [hasScanned, setHasScanned] = useState(false);
+  const barcodeLaunchRequested = useRef(false);
+
+  useEffect(() => {
+    if (params.capture !== 'barcode') return;
+    setMode('barcode');
+    setHasScanned(false);
+  }, [params.capture]);
+
+  useEffect(() => {
+    if (params.capture !== 'barcode' || barcodeLaunchRequested.current || !permission) return;
+    barcodeLaunchRequested.current = true;
+    if (!permission.granted) void requestPermission();
+  }, [params.capture, permission, requestPermission]);
 
   // Viewfinder corner pulse — breathes while waiting, stops when a result is in-flight
   const cornerPulse = useSharedValue(1);
