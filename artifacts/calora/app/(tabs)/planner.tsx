@@ -364,7 +364,6 @@ export default function PlannerScreen() {
     : plannerPreferences
       ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary
       : 'Choose a Program';
-  const selectedProgramEyebrow = appliedProgramForViewedWeek ? 'PROGRAM · THIS WEEK' : 'YOUR PROGRAM';
 
   const acknowledge = (message: string, duration = 2600) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -879,16 +878,9 @@ export default function PlannerScreen() {
                 </View>
                 <Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{selectedMeals.length === 4 ? 'Day planned' : `${4 - selectedMeals.length} open`}</Text>
               </View>
-              <Pressable accessibilityLabel={`View or change program: ${selectedProgramLabel}`} onPress={() => setPlanTypeVisible(true)} style={styles.dayProgramInline}>
-                <View style={[styles.dayProgramIcon, { backgroundColor: colors.accent }]}>
-                  <Feather name="compass" size={11} color={colors.accentForeground} />
-                </View>
-                <View style={styles.dayProgramCopy}>
-                  <Text style={[styles.dayProgramEyebrow, { color: colors.primary }]}>{selectedProgramEyebrow}</Text>
-                  <Text numberOfLines={1} style={[styles.dayProgramName, { color: colors.foreground }]}>{selectedProgramLabel}</Text>
-                </View>
-                <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
-              </Pressable>
+              <View accessibilityLabel={`Meal program: ${selectedProgramLabel}`} style={styles.dayProgramInline}>
+                <Text numberOfLines={1} style={[styles.dayProgramName, { color: colors.foreground }]}>{selectedProgramLabel}</Text>
+              </View>
             </View>
           </View>
           <View style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}</View>
@@ -1309,10 +1301,7 @@ function makeStyles(f: number) {
    daySummaryRow: { position: 'relative', flexDirection: 'row', alignItems: 'flex-start' },
    daySummaryCopy: { flexShrink: 0 },
    daySummaryHeadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    dayProgramInline: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, transform: [{ translateX: 36 }] },
-   dayProgramIcon: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-   dayProgramCopy: { maxWidth: 100 },
-  dayProgramEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 7 * f, letterSpacing: 1 },
+     dayProgramInline: { position: 'absolute', left: 0, right: 0, alignItems: 'center', justifyContent: 'center', transform: [{ translateX: 36 }] },
    dayProgramName: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, marginTop: 1 },
    weekDayActions: { alignItems: 'flex-end', gap: 6 },
    weekTodayHandoff: { minHeight: 44, borderRadius: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
