@@ -19,6 +19,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { AppHeader } from '@/components/AppChrome';
+import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
@@ -364,21 +365,6 @@ export default function PlannerScreen() {
       ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary
       : 'Choose a Program';
   const selectedProgramEyebrow = appliedProgramForViewedWeek ? 'PROGRAM · THIS WEEK' : 'YOUR PROGRAM';
-
-  // Days that have at least one shopping ingredient, in week order
-  const shoppingDays = useMemo(
-    () => weekDays.filter((day) => visibleShoppingItems.some((item) => item.days?.includes(day))),
-    [weekDays, visibleShoppingItems],
-  );
-
-  // Items filtered by the active day pill (null = show all)
-  const filteredShoppingItems = useMemo(
-    () =>
-      shoppingDayFilter
-        ? visibleShoppingItems.filter((item) => item.days?.includes(shoppingDayFilter))
-        : visibleShoppingItems,
-    [visibleShoppingItems, shoppingDayFilter],
-  );
 
   const acknowledge = (message: string, duration = 2600) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -784,34 +770,6 @@ export default function PlannerScreen() {
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
         title="Plan"
-        action={(
-          <View style={styles.headerActions}>
-            <Pressable
-              accessibilityLabel={`Open what ${BRAND.name} remembers`}
-              onPress={() => router.push('/memory')}
-              hitSlop={8}
-              style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
-            >
-              <Feather name="compass" size={16} color={colors.foreground} />
-            </Pressable>
-            <Pressable
-              accessibilityLabel={`Open shopping list${uncheckedShopping > 0 ? `, ${uncheckedShopping} items left` : ''}`}
-              onPress={() => {
-                setShoppingDayFilter(null);
-                setShoppingVisible(true);
-              }}
-              hitSlop={8}
-              style={[styles.headerShoppingButton, { backgroundColor: colors.accent }]}
-            >
-              <Feather name="shopping-bag" size={16} color={colors.accentForeground} />
-              {uncheckedShopping > 0 && (
-                <View style={[styles.shoppingCount, { backgroundColor: colors.primary }]}>
-                  <Text style={[styles.shoppingCountText, { color: colors.primaryForeground }]}>{uncheckedShopping}</Text>
-                </View>
-              )}
-            </Pressable>
-          </View>
-        )}
       />
 
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: 8, paddingBottom: insets.bottom + 106 }]} showsVerticalScrollIndicator={false}>
@@ -1024,66 +982,14 @@ export default function PlannerScreen() {
               )
             )}
       </BottomSheet>
-       <BottomSheet visible={shoppingVisible} onRequestClose={() => { setShoppingVisible(false); setShoppingDayFilter(null); }} sheetStyle={[styles.shoppingSheet, { backgroundColor: colors.background }]}>
-             <View style={styles.sheetHandle} />
-             <View style={styles.shoppingHeader}>
-               <View>
-                 <Text style={[styles.detailEyebrow, { color: colors.primary }]}>THIS WEEK</Text>
-                 <Text style={[styles.detailTitle, { color: colors.foreground }]}>Shopping list</Text>
-               </View>
-               <ScalePressable accessibilityLabel="Close shopping list" onPress={() => { setShoppingVisible(false); setShoppingDayFilter(null); }} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
-                 <Feather name="x" size={18} color={colors.foreground} />
-               </ScalePressable>
-             </View>
-             <Text style={[styles.shoppingSubtitle, { color: colors.mutedForeground }]}>Ingredients for this week.</Text>
-             {shoppingDays.length > 1 && (
-               <View style={styles.shopFilterSection}>
-                 <ScrollView
-                   horizontal
-                   showsHorizontalScrollIndicator={false}
-                   contentContainerStyle={styles.shopFilterContent}
-                 >
-                   <Pressable
-                     accessibilityLabel="Show all days"
-                     onPress={() => setShoppingDayFilter(null)}
-                     style={[styles.shopDayPill, { borderColor: shoppingDayFilter === null ? colors.primary : colors.input, backgroundColor: shoppingDayFilter === null ? colors.primary : colors.muted }]}
-                   >
-                     <Text style={[styles.shopDayPillText, { color: shoppingDayFilter === null ? colors.primaryForeground : colors.foreground }]}>All</Text>
-                   </Pressable>
-                   {shoppingDays.map((day) => {
-                     const active = shoppingDayFilter === day;
-                     return (
-                       <Pressable
-                         key={day}
-                         accessibilityLabel={`Filter by ${dayFormatter.format(parseDate(day))}`}
-                         onPress={() => setShoppingDayFilter(active ? null : day)}
-                         style={[styles.shopDayPill, { borderColor: active ? colors.primary : colors.input, backgroundColor: active ? colors.primary : colors.muted }]}
-                       >
-                         <Text style={[styles.shopDayPillText, { color: active ? colors.primaryForeground : colors.foreground }]}>{dayFormatter.format(parseDate(day))}</Text>
-                       </Pressable>
-                     );
-                   })}
-                 </ScrollView>
-               </View>
-             )}
-             <ScrollView showsVerticalScrollIndicator={false} style={styles.shopIngredientScroll} contentContainerStyle={{ paddingBottom: 34 }}>
-               {filteredShoppingItems.map((item) => (
-                 <Pressable key={item.id} accessibilityLabel={`${item.checked ? 'Uncheck' : 'Check'} ${item.name}`} onPress={() => toggleShoppingItemByName(item.name)} style={[styles.shoppingRow, { borderBottomColor: colors.border }]}>
-                   <View style={[styles.checkbox, { borderColor: item.checked ? colors.success : colors.input, backgroundColor: item.checked ? colors.success : 'transparent' }]}>
-                     {item.checked && <Feather name="check" size={13} color={colors.primaryForeground} />}
-                   </View>
-                   <View style={{ flex: 1 }}>
-                     <Text style={[styles.shoppingName, { color: item.checked ? colors.mutedForeground : colors.foreground, textDecorationLine: item.checked ? 'line-through' : 'none' }]}>{item.name}</Text>
-                     {!!formatShoppingDays(item.days) && <Text style={[styles.shoppingDays, { color: item.checked ? colors.mutedForeground : colors.primary, opacity: item.checked ? 0.55 : 0.75 }]}>{formatShoppingDays(item.days)}</Text>}
-                   </View>
-                   <Text style={[styles.shoppingQuantity, { color: colors.mutedForeground }]}>{item.quantity}×</Text>
-                 </Pressable>
-               ))}
-               {filteredShoppingItems.length === 0 && (
-                  <Text style={[styles.shoppingSubtitle, { color: colors.mutedForeground, textAlign: 'center', marginTop: 24 }]}>No items for this day.</Text>
-               )}
-             </ScrollView>
-       </BottomSheet>
+        <ShoppingListSheet
+          visible={shoppingVisible}
+          items={visibleShoppingItems}
+          weekDays={weekDays}
+          initialDayFilter={shoppingDayFilter}
+          onClose={() => setShoppingVisible(false)}
+          onToggleItem={toggleShoppingItemByName}
+        />
        <BottomSheet visible={actionMeal !== null} onRequestClose={() => { setActionMeal(null); setActionMode(null); }} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.actionSheetContent}>

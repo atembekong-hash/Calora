@@ -16,9 +16,11 @@ import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet, BottomSheetFrame } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
+import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { router } from 'expo-router';
 import { dateKey } from '@/lib/dates';
+import { buildShoppingItems, getPlannerWeekStart, plannerDate, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
 import { filterForgottenSources } from '@/lib/livingMemory';
 import { celebrationGate } from '@/lib/goalCelebration';
@@ -1100,7 +1102,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 }
 
 export default function InsightsScreen() {
-  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected } = useCalora();
+  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, toggleShoppingItemByName, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected } = useCalora();
   const healthSnapshotReady = healthSnapshotIsFreshForDay(healthConnection.snapshot);
   const healthStepsAvailable = healthSnapshotReady && (
     healthConnection.granted.includes('steps')
@@ -1119,6 +1121,7 @@ export default function InsightsScreen() {
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [goalInput, setGoalInput] = useState('');
   const [showExpandedChart, setShowExpandedChart] = useState(false);
+  const [shoppingVisible, setShoppingVisible] = useState(false);
 
   // ── Pending-edit state ────────────────────────────────────────────────────────
   const [editEntry, setEditEntry] = useState<{ id: string; kg: number; date: string } | null>(null);
@@ -1423,6 +1426,22 @@ export default function InsightsScreen() {
   const weekDays = weeklySignals.days;
   const signalDays = weeklySignals.trackedDays;
   const averageWeekCalories = weeklySignals.averageCalories;
+  const shoppingWeekStart = getPlannerWeekStart(new Date(`${todayKey}T12:00:00`));
+  const shoppingWeekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => plannerDate(shoppingWeekStart, index)),
+    [shoppingWeekStart],
+  );
+  const visibleShoppingItems = useMemo(() => {
+    const checkedByName = shoppingChecksByName(shoppingItems);
+    const plannedWeek = plannerMeals.filter((meal) => shoppingWeekDays.includes(meal.day));
+    const plannerItems = buildShoppingItems(plannedWeek, checkedByName);
+    const plannerKeys = new Set(plannerItems.map((item) => shoppingNameKey(item.name)));
+    const recipeItems = shoppingItems
+      .filter((item) => item.recipeSource && !plannerKeys.has(shoppingNameKey(item.name)))
+      .map((item) => ({ ...item, checked: checkedByName.get(shoppingNameKey(item.name)) ?? item.checked }));
+    return [...plannerItems, ...recipeItems];
+  }, [plannerMeals, shoppingItems, shoppingWeekDays]);
+  const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
   useEffect(() => {
     if (!saveNotice) return;
     const timeout = setTimeout(() => setSaveNotice(null), 2200);
@@ -1433,17 +1452,29 @@ export default function InsightsScreen() {
       <AppHeader
         title="Progress"
         action={
-          <ScalePressable
-            accessibilityLabel={`Open ${BRAND.name} Coach`}
-            testID="open-calora-coach"
-            onPress={() => router.push('/coach')}
-            scale={0.96}
-            haptic="light"
-            style={[styles.coachHeaderButton, { backgroundColor: colors.primary, borderColor: colors.primary, shadowColor: '#08160f' }]}
-          >
-            <Feather name="zap" size={14} color={colors.primaryForeground} />
-            <Text style={[styles.coachHeaderButtonText, { color: colors.primaryForeground }]}>Ask {BRAND.name}</Text>
-          </ScalePressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              accessibilityLabel={`Open what ${BRAND.name} remembers`}
+              onPress={() => router.push('/memory')}
+              hitSlop={8}
+              style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="compass" size={16} color={colors.foreground} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel={`Open shopping list${uncheckedShopping > 0 ? `, ${uncheckedShopping} items left` : ''}`}
+              onPress={() => setShoppingVisible(true)}
+              hitSlop={8}
+              style={[styles.headerShoppingButton, { backgroundColor: colors.accent }]}
+            >
+              <Feather name="shopping-bag" size={16} color={colors.accentForeground} />
+              {uncheckedShopping > 0 && (
+                <View style={[styles.shoppingCount, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.shoppingCountText, { color: colors.primaryForeground }]}>{uncheckedShopping}</Text>
+                </View>
+              )}
+            </Pressable>
+          </View>
         }
       />
       <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
@@ -2097,6 +2128,13 @@ export default function InsightsScreen() {
         pendingDeleteEntry={pendingDelete}
         onUndo={undoDelete}
       />
+      <ShoppingListSheet
+        visible={shoppingVisible}
+        items={visibleShoppingItems}
+        weekDays={shoppingWeekDays}
+        onClose={() => setShoppingVisible(false)}
+        onToggleItem={toggleShoppingItemByName}
+      />
       {/* Undo-delete snackbar — rendered outside the chart/modal so it survives modal close */}
       {pendingDelete !== null && (
         <Animated.View
@@ -2127,6 +2165,11 @@ export default function InsightsScreen() {
 function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  headerIconButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  headerShoppingButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  shoppingCount: { position: 'absolute', right: -4, top: -5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  shoppingCountText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
   hiddenSection: { display: 'none' },
   localInsightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 16 },
   localInsightIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -2145,8 +2188,6 @@ function makeStyles(f: number) {
   heroEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 6 },
   heroTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 28 * f, letterSpacing: -0.7 },
   heroTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  coachHeaderButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, paddingHorizontal: 11, paddingVertical: 9, borderWidth: 1, shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
-  coachHeaderButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 0.1 },
   heroSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17, marginTop: 7, maxWidth: 285 },
   eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 7 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 28 * f, letterSpacing: -0.7 },
