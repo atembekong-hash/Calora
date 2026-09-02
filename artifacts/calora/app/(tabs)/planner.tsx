@@ -886,6 +886,7 @@ export default function PlannerScreen() {
         </SwipeableSectionPager>
         {generationMessage && <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.generationStatus, { backgroundColor: generationError ? colors.muted : colors.accent, borderColor: generationError ? colors.warning : 'transparent', borderWidth: generationError ? 1 : 0 }]}><Feather name={generationError ? 'alert-circle' : 'check-circle'} size={16} color={generationError ? colors.warning : colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
           <View style={{ marginTop: 20 }}><SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} /></View>
+          <MotivationalQuote colors={colors} style={{ marginTop: 16, marginBottom: 8 }} />
         </>}
 
       </ScrollView>
@@ -1245,7 +1246,7 @@ function makeStyles(f: number) {
   shoppingButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   shoppingCount: { position: 'absolute', right: -4, top: -5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   shoppingCountText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
-   weekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+   weekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
    weekOverviewHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16, paddingTop: 2 },
    weekOverviewTitle: { fontFamily: 'Inter_700Bold', fontSize: 22 * f, letterSpacing: -0.5, lineHeight: 28 * f },
    weekOverviewSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 10.5 * f, lineHeight: 16 * f, marginTop: 5 },
@@ -1264,10 +1265,10 @@ function makeStyles(f: number) {
    weekOverviewEmpty: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, paddingHorizontal: 13, paddingBottom: 13 },
    weekOverviewDone: { minHeight: 45, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
    weekOverviewDoneText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
-   weekArrow: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+   weekArrow: { width: 44, height: 35, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   weekHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   weekRange: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, letterSpacing: -0.2 },
-  editModeButton: { minHeight: 44, borderRadius: 11, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  editModeButton: { minHeight: 35, borderRadius: 10, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
   editModeText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
     dayRail: { borderWidth: 1, borderRadius: 18, padding: 3, marginBottom: 11, overflow: 'hidden' },
    dayRailContent: { flexDirection: 'row', flexGrow: 1, gap: 4 },
