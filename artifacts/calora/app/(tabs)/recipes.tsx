@@ -42,12 +42,41 @@ const RECIPE_PREFETCH_DISTANCE = 1600;
 const PREMIUM_RECIPE_PREFETCH_DISTANCE = 1600;
 const GRID_RECIPE_CARD_HEIGHT = 224;
 const GRID_RECIPE_IMAGE_HEIGHT = 140;
+const RECIPE_SUGGESTION_LIMIT = 10;
+
+type BrowseRecipe = Recipe | CaloraRecipe | PremiumRecipe;
+
+function recipeMealType(recipe: BrowseRecipe): string | null {
+  if (!('mealType' in recipe) || typeof recipe.mealType !== 'string') return null;
+  return recipe.mealType;
+}
+
+function recipeSuggestionScore(candidate: BrowseRecipe, current: BrowseRecipe): number {
+  let score = 0;
+  if (candidate.category && current.category && candidate.category.toLowerCase() === current.category.toLowerCase()) score += 4;
+  if (candidate.area && current.area && candidate.area.toLowerCase() === current.area.toLowerCase()) score += 3;
+  const candidateMealType = recipeMealType(candidate);
+  const currentMealType = recipeMealType(current);
+  if (candidateMealType && currentMealType && candidateMealType.toLowerCase() === currentMealType.toLowerCase()) score += 3;
+  const currentTags = new Set((current.tags ?? []).map((tag) => tag.toLowerCase()));
+  score += (candidate.tags ?? []).filter((tag) => currentTags.has(tag.toLowerCase())).length;
+  return score;
+}
+
+function getRecipeSuggestions(pool: BrowseRecipe[], current: BrowseRecipe | null): BrowseRecipe[] {
+  if (!current) return [];
+  const seen = new Set<string>();
+  return pool
+    .filter((candidate) => candidate.id !== current.id && !seen.has(candidate.id) && seen.add(candidate.id))
+    .sort((a, b) => recipeSuggestionScore(b, current) - recipeSuggestionScore(a, current) || a.name.localeCompare(b.name))
+    .slice(0, RECIPE_SUGGESTION_LIMIT);
+}
 
 function recipeKey(recipe: Recipe | CaloraRecipe) {
   return recipe.id;
 }
 
-function isLocalRecipe(recipe: Recipe | CaloraRecipe): recipe is CaloraRecipe {
+function isLocalRecipe(recipe: BrowseRecipe): recipe is CaloraRecipe {
   return 'isLocal' in recipe && recipe.isLocal === true;
 }
 
@@ -379,7 +408,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
   </View>;
 }
 
-function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes, onLoadMoreRef }: { colors: ReturnType<typeof useCalora>['colors']; visible: boolean; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null> }) {
+function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange }: { colors: ReturnType<typeof useCalora>['colors']; visible: boolean; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -430,6 +459,9 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     setLoadedForUserId(userId);
     loadingMoreRef.current = false;
   }, [data?.recipes, loadedForUserId, offset, userId]);
+  useEffect(() => {
+    onLoadedRecipesChange(loadedRecipes);
+  }, [loadedRecipes, onLoadedRecipesChange]);
   useEffect(() => {
     if (!userId || accessDenied || data?.status !== 'available' || data.nextOffset == null) return;
     const nextParams = { query: search || undefined, category: category || undefined, limit: RECIPE_PAGE_SIZE, offset: data.nextOffset };
@@ -549,7 +581,7 @@ function scaleIngredient(ingredient: string, multiplier: number): string {
   return ingredient.replace(match[0], `${formatted} `).trimEnd();
 }
 
-export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void }) {
+export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
   const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -938,6 +970,33 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto }: 
                   <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{canLog ? `Add to ${profile?.name ? 'today\'s diary' : 'diary'}` : 'Save for later'}</Text>
                 </ScalePressable>
               </View>
+              {suggestedRecipes.length > 0 && onSelectSuggestion ? (
+                <View style={styles.suggestionsSection}>
+                  <View style={styles.suggestionsHeader}>
+                    <View>
+                      <Text style={[styles.detailSectionTitle, styles.suggestionsTitle, { color: colors.foreground }]}>More like this</Text>
+                      <Text style={[styles.suggestionsSubtitle, { color: colors.mutedForeground }]}>Keep exploring your collection.</Text>
+                    </View>
+                    <Text style={[styles.suggestionsCount, { color: colors.mutedForeground }]}>{suggestedRecipes.length} suggestions</Text>
+                  </View>
+                  <SwipeGestureExclusion>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionCards}>
+                      {suggestedRecipes.map((suggestion) => (
+                        <View key={suggestion.id} style={styles.suggestionCard}>
+                          <RecipeCard
+                            recipe={suggestion}
+                            colors={colors}
+                            saved={savedRecipeIds.includes(suggestion.id)}
+                            imageHeight={112}
+                            onPress={() => onSelectSuggestion(suggestion)}
+                            onSave={() => toggleSavedRecipe(suggestion.id)}
+                          />
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </SwipeGestureExclusion>
+                </View>
+              ) : null}
             </ScrollView>
           )}
     </BottomSheet>
@@ -1126,8 +1185,8 @@ export default function RecipesScreen() {
   // Pre-warm the detail query during the modal's slide-up animation (~350 ms).
   // On cache hits (staleTime 30 min) this is a no-op; on misses it means the
   // TheMealDB fetch resolves before the user finishes reading the recipe header.
-  const handleCardPress = (recipe: Recipe | CaloraRecipe) => {
-    if (!isLocalRecipe(recipe)) {
+  const handleCardPress = (recipe: BrowseRecipe) => {
+    if (!isLocalRecipe(recipe) && recipeProvenance(recipe).sourceType !== 'premium') {
       void queryClient.prefetchQuery({
         queryKey: ['recipe', recipe.id],
         queryFn: () => getRecipe(recipe.id),
@@ -1147,6 +1206,7 @@ export default function RecipesScreen() {
   const [remoteOffset, setRemoteOffset] = useState(0);
   const [remoteRecipes, setRemoteRecipes] = useState<Recipe[]>([]);
   const [premiumSavedRecipes, setPremiumSavedRecipes] = useState<PremiumRecipe[]>([]);
+  const [premiumCatalogueRecipes, setPremiumCatalogueRecipes] = useState<PremiumRecipe[]>([]);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
   const loadingMoreRef = useRef(false);
   const premiumLoadMoreRef = useRef<(() => void) | null>(null);
@@ -1233,6 +1293,13 @@ export default function RecipesScreen() {
   }, [localRecipes, updateRecipe]);
   const selectedRecipe = selected && isLocalRecipe(selected) ? localRecipes.find((recipe) => recipe.id === selected.id) ?? selected : selected;
   const visibleRemote = category === 'My recipes' ? [] : category === 'Quick' ? remoteRecipes.filter((r) => r.prepMinutes != null && r.prepMinutes <= 30) : remoteRecipes;
+  const recipeSuggestions = useMemo(() => {
+    const premiumSelected = selectedRecipe ? recipeProvenance(selectedRecipe).sourceType === 'premium' : false;
+    const pool: BrowseRecipe[] = premiumSelected
+      ? premiumCatalogueRecipes
+      : [...localMatches, ...visibleRemote];
+    return getRecipeSuggestions(pool, selectedRecipe);
+  }, [localMatches, premiumCatalogueRecipes, selectedRecipe, visibleRemote]);
   const savedRecipes = [...localRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
   const loadMoreRecipes = () => {
     if (activeSection !== 'discover' || category === 'My recipes' || !hasMoreRemote || recipesQuery.isFetching || loadingMoreRef.current) return;
@@ -1299,7 +1366,7 @@ export default function RecipesScreen() {
         style={{ flex: 1 }}
       >
       <ScrollView ref={recipesScrollRef} contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false} onScroll={handleRecipeScroll} onMomentumScrollEnd={handleRecipeScroll} scrollEventThrottle={16} decelerationRate="normal">
-         <PremiumCatalogue visible={activeSection === 'premium'} colors={colors} onOpen={(recipe) => setSelected(recipe)} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} />
+         <PremiumCatalogue visible={activeSection === 'premium'} colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} />
          {activeSection === 'discover' ? <>
         <View style={styles.recipeHeader}>
           <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
@@ -1334,6 +1401,8 @@ export default function RecipesScreen() {
         recipe={selectedRecipe}
         onClose={() => setSelected(null)}
         onRetryPhoto={createRecipePhoto}
+        suggestedRecipes={recipeSuggestions}
+        onSelectSuggestion={handleCardPress}
         onPlanned={(message) => {
           setSaveMessage(message);
           setPlanNoticeVisible(true);
@@ -1490,6 +1559,13 @@ function makeStyles(f: number) {
   detailTop: { position: 'absolute', zIndex: 2, top: 12, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' },
   closeButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   detailCopy: { padding: 20 },
+  suggestionsSection: { marginTop: 4, paddingBottom: 4 },
+  suggestionsHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10, paddingHorizontal: 20, marginBottom: 10 },
+  suggestionsTitle: { marginTop: 0, marginBottom: 3 },
+  suggestionsSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
+  suggestionsCount: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginBottom: 3 },
+  suggestionCards: { gap: 11, paddingHorizontal: 20, paddingBottom: 8 },
+  suggestionCard: { width: 190 },
   detailEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10 * f, letterSpacing: 1.2, marginTop: 17 },
   detailTitle: { fontFamily: 'Inter_700Bold', fontSize: 25 * f, letterSpacing: -0.6, marginTop: 6 },
   detailSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, marginTop: 6 },
