@@ -358,6 +358,17 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(addAction).toBeGreaterThan(logCardHeader);
   });
 
+  it('opens the Health Data connection sheet directly from the calorie ring', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("router.push('/profile?tab=account&open=health')");
+  });
+
   it('records concrete clock times for every Home diary insertion path', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');

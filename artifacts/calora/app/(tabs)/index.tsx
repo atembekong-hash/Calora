@@ -1507,7 +1507,7 @@ export default function HomeScreen() {
             burned={burnedStatus.kind === 'ready' ? burnedStatus.calories : null}
             burnedActionLabel={burnedStatus.kind === 'ready' ? undefined : burnedStatus.actionLabel}
             onBurnedPress={burnedStatus.kind === 'connect' || burnedStatus.kind === 'permission' || burnedStatus.kind === 'failed' || burnedStatus.kind === 'syncing'
-              ? () => router.push('/profile?tab=account')
+              ? () => router.push('/profile?tab=account&open=health')
               : undefined}
             target={target}
             colors={colors}

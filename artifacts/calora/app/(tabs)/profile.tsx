@@ -63,7 +63,7 @@ const PROFILE_TABS = ['you', 'membership', 'account'] as const;
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const { tab, open } = useLocalSearchParams<{ tab?: string; open?: string }>();
   const { user } = useAuth();
   const {
     colors, themePreference, setThemePreference,
@@ -135,7 +135,7 @@ export default function ProfileScreen() {
   const [editPhotoUri, setEditPhotoUri] = useState<string | null>(null);
 
   // Info sheets (food data / no ads / help)
-  const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help' | 'health'>(null);
+  const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help' | 'health'>(open === 'health' ? 'health' : null);
   const [healthBusy, setHealthBusy] = useState(false);
   const [profileTab, setProfileTab] = useState<ProfileTab>(tab === 'membership' || tab === 'account' ? tab : 'you');
 
