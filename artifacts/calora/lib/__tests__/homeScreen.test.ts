@@ -316,20 +316,21 @@ describe('Today dashboard — date context and display contracts', () => {
     expect(source).toContain('nestedScrollEnabled');
   });
 
-  it('keeps manual entry above the scrollable food options', async () => {
+  it('keeps manual entry fixed below the scrollable food options', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/index.tsx'),
       'utf8',
     );
-    const manualSection = source.indexOf('styles.manualEntrySection');
+    const manualFooter = source.indexOf('styles.manualEntryFooter');
     const photoOption = source.indexOf('testID="photo-log-button"');
     const verifiedLabel = source.indexOf('>VERIFIED</Text>');
 
-    expect(source).toContain('stickyHeaderIndices={initialMode === \'manual\' ? undefined : [2]}');
-    expect(manualSection).toBeGreaterThan(source.indexOf('styles.modalHeading'));
-    expect(manualSection).toBeLessThan(photoOption);
+    expect(source).toContain('<KeyboardAvoidingView behavior="padding" style={styles.addFoodSheet}>');
+    expect(source).not.toContain('stickyHeaderIndices');
+    expect(manualFooter).toBeGreaterThan(verifiedLabel);
+    expect(manualFooter).toBeGreaterThan(photoOption);
     expect(photoOption).toBeLessThan(verifiedLabel);
   });
 

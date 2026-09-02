@@ -16,6 +16,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
 import { CaloraFeatureIcon, type CaloraFeatureIconName } from '@/components/CaloraFeatureIcon';
@@ -958,97 +959,107 @@ function AddFoodModal({ visible, onClose, entryDate, initialMode = 'search' }: {
 
   return (
     <BottomSheet visible={visible} onRequestClose={onClose} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.modalCard, styles.addFoodModalCard, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView behavior="padding" style={styles.addFoodSheet}>
+        <View style={styles.modalHandle} />
+        <View style={styles.modalHeading}>
+          <View>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{initialMode === 'manual' ? 'Quick add to' : 'Add to'} {isToday(entryDate) ? 'today' : formatShortDate(entryDate)}</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>{initialMode === 'manual' ? 'Enter a food and calories.' : 'Choose a food or add one manually.'}</Text>
+          </View>
+          <ScalePressable accessibilityLabel="Close add food" onPress={onClose} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+            <Feather name="x" size={18} color={colors.foreground} />
+          </ScalePressable>
+        </View>
+        {initialMode === 'manual' ? (
           <KeyboardAwareScrollViewCompat
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
             bottomOffset={80}
-            stickyHeaderIndices={initialMode === 'manual' ? undefined : [2]}
+            style={styles.manualModeScroll}
             contentContainerStyle={styles.modalScrollContent}
           >
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeading}>
-              <View>
-                <Text style={[styles.modalTitle, { color: colors.foreground }]}>{initialMode === 'manual' ? 'Quick add to' : 'Add to'} {isToday(entryDate) ? 'today' : formatShortDate(entryDate)}</Text>
-                <Text style={[styles.modalSubtitle, { color: colors.mutedForeground }]}>{initialMode === 'manual' ? 'Enter a food and calories.' : 'Choose a food or add one manually.'}</Text>
-              </View>
-              <ScalePressable accessibilityLabel="Close add food" onPress={onClose} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
-                <Feather name="x" size={18} color={colors.foreground} />
-              </ScalePressable>
-            </View>
-            {initialMode === 'manual' ? (
-              <View style={[styles.quickAddFocus, { backgroundColor: colors.accent }]}>
-                <CaloraFeatureIcon name="food" size={38} primaryColor={colors.carbs} accentColor={colors.primary} foregroundColor={colors.foreground} highlightColor={colors.card} />
-                <Text style={[styles.quickAddFocusTitle, { color: colors.foreground }]}>Add a food manually</Text>
-                <Text style={[styles.quickAddFocusBody, { color: colors.mutedForeground }]}>For foods outside the verified list.</Text>
-                <View style={styles.manualRow}>
-                  <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
-                  <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
-                  <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
-                    <Feather name="plus" size={20} color={colors.primaryForeground} />
-                  </ScalePressable>
-                </View>
-                {manualError ? <Text accessibilityLiveRegion="polite" style={[styles.manualError, { color: colors.destructive }]}>{manualError}</Text> : null}
-              </View>
-            ) : (
-              <>
-                <View style={[styles.manualEntrySection, { backgroundColor: colors.background }]}>
-                  <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>MANUAL</Text>
-                  <View style={styles.manualRow}>
-                    <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
-                    <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
-                    <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
-                      <Feather name="plus" size={20} color={colors.primaryForeground} />
-                    </ScalePressable>
-                  </View>
-                  {manualError ? <Text accessibilityLiveRegion="polite" style={[styles.manualError, { color: colors.destructive }]}>{manualError}</Text> : null}
-                </View>
-                <ScalePressable accessibilityLabel="Log from photo" testID="photo-log-button" onPress={photoLog} scale={0.96} haptic="light" style={[styles.photoButton, { backgroundColor: colors.hero }]}>
-                  <CaloraFeatureIcon name="camera" size={31} primaryColor={colors.primary} accentColor={colors.heroMuted} foregroundColor={colors.foreground} highlightColor={colors.onHero} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.photoTitle, { color: colors.onHero }]}>Log from a photo</Text>
-                    <Text style={[styles.photoSubtitle, { color: colors.heroMuted }]}>Review an estimate before it counts</Text>
-                  </View>
-                  <Feather name="arrow-up-right" size={18} color={colors.heroMuted} />
+            <View style={[styles.quickAddFocus, { backgroundColor: colors.accent }]}>
+              <CaloraFeatureIcon name="food" size={38} primaryColor={colors.carbs} accentColor={colors.primary} foregroundColor={colors.foreground} highlightColor={colors.card} />
+              <Text style={[styles.quickAddFocusTitle, { color: colors.foreground }]}>Add a food manually</Text>
+              <Text style={[styles.quickAddFocusBody, { color: colors.mutedForeground }]}>For foods outside the verified list.</Text>
+              <View style={styles.manualRow}>
+                <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
+                <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
+                <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
+                  <Feather name="plus" size={20} color={colors.primaryForeground} />
                 </ScalePressable>
-                <View style={[styles.captureModes, { backgroundColor: colors.muted }]}>
-                  <ScalePressable accessibilityLabel="Text food logging" onPress={() => setCaptureMode('search')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'search' && { backgroundColor: colors.card }]}><Feather name="edit-3" size={14} color={captureMode === 'search' ? colors.primary : colors.mutedForeground} /><Text style={[styles.captureModeText, { color: captureMode === 'search' ? colors.foreground : colors.mutedForeground }]}>Text</Text></ScalePressable>
-                  <ScalePressable accessibilityLabel="Voice food logging" onPress={() => setCaptureMode('voice')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'voice' && { backgroundColor: colors.card }]}><CaloraFeatureIcon name="voice" size={22} primaryColor={captureMode === 'voice' ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.captureModeText, { color: captureMode === 'voice' ? colors.foreground : colors.mutedForeground }]}>Voice</Text></ScalePressable>
-                  <ScalePressable accessibilityLabel="Barcode food logging" onPress={() => setCaptureMode('barcode')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'barcode' && { backgroundColor: colors.card }]}><CaloraFeatureIcon name="barcode" size={22} primaryColor={captureMode === 'barcode' ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.captureModeText, { color: captureMode === 'barcode' ? colors.foreground : colors.mutedForeground }]}>Barcode</Text></ScalePressable>
-                </View>
-                {captureMode !== 'search' && <View style={[styles.unavailableCard, { backgroundColor: colors.accent }]}>
-                  <CaloraFeatureIcon name={captureMode === 'voice' ? 'voice' : 'barcode'} size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
-                   <View style={{ flex: 1 }}><Text style={[styles.unavailableTitle, { color: colors.foreground }]}>{captureMode === 'voice' ? 'Voice needs microphone access' : 'Barcode scanning needs camera access'}</Text><Text style={[styles.unavailableBody, { color: colors.mutedForeground }]}>{captureMode === 'voice' ? `${BRAND.name} turns your words into a reviewable draft.` : `${BRAND.name} looks up a verified product by barcode.`}</Text></View>
-                  <Pressable accessibilityLabel="Use text logging instead" onPress={() => setCaptureMode('search')}><Text style={[styles.useText, { color: colors.primary }]}>Use text</Text></Pressable>
-                </View>}
-                {savedMeals.length > 0 && <View>
-                   <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 2 }]}>SAVED</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedMealRow}>
-                    {savedMeals.map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add saved ${meal.name}`} onPress={() => chooseSavedMeal(meal)} scale={0.98} haptic="none" style={[styles.savedMealChip, { backgroundColor: colors.accent, borderColor: colors.border }]}><CaloraFeatureIcon name={meal.kind === 'recipe' ? 'recipes' : 'food'} size={22} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /><View><Text style={[styles.savedMealName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.savedMealMeta, { color: colors.mutedForeground }]}>{formatWhole(meal.calories)} kcal · {meal.kind}</Text></View></ScalePressable>)}
-                  </ScrollView>
-                </View>}
-                <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input }]}>
-                  <Feather name="search" size={18} color={colors.mutedForeground} />
-                  <TextInput value={search} onChangeText={setSearch} placeholder="Search verified foods" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />
-                </View>
-                 <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>VERIFIED</Text>
-                <View>
-                  {filtered.map((food) => (
-                    <ScalePressable key={food.name} onPress={() => chooseFood(food)} scale={0.98} haptic="none" style={[styles.foodSuggestion, { borderBottomColor: colors.border }]}>
-                      <View style={[styles.foodIcon, { backgroundColor: colors.accent }]}>
-                        <Feather name="check" size={15} color={colors.accentForeground} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.foodName, { color: colors.foreground }]}>{food.name}</Text>
-                        <Text style={[styles.foodMeta, { color: colors.mutedForeground }]}>{formatWhole(food.calories)} kcal · {formatGrams(food.protein)} protein · {food.confidence}% confidence</Text>
-                      </View>
-                      <Feather name="plus" size={18} color={colors.primary} />
-                    </ScalePressable>
-                  ))}
-                </View>
-              </>
-            )}
+              </View>
+              {manualError ? <Text accessibilityLiveRegion="polite" style={[styles.manualError, { color: colors.destructive }]}>{manualError}</Text> : null}
+            </View>
           </KeyboardAwareScrollViewCompat>
+        ) : (
+          <>
+            <KeyboardAwareScrollViewCompat
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              bottomOffset={80}
+              style={styles.foodOptionsScroll}
+              contentContainerStyle={styles.foodOptionsContent}
+            >
+              <ScalePressable accessibilityLabel="Log from photo" testID="photo-log-button" onPress={photoLog} scale={0.96} haptic="light" style={[styles.photoButton, { backgroundColor: colors.hero }]}>
+                <CaloraFeatureIcon name="camera" size={31} primaryColor={colors.primary} accentColor={colors.heroMuted} foregroundColor={colors.foreground} highlightColor={colors.onHero} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.photoTitle, { color: colors.onHero }]}>Log from a photo</Text>
+                  <Text style={[styles.photoSubtitle, { color: colors.heroMuted }]}>Review an estimate before it counts</Text>
+                </View>
+                <Feather name="arrow-up-right" size={18} color={colors.heroMuted} />
+              </ScalePressable>
+              <View style={[styles.captureModes, { backgroundColor: colors.muted }]}>
+                <ScalePressable accessibilityLabel="Text food logging" onPress={() => setCaptureMode('search')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'search' && { backgroundColor: colors.card }]}><Feather name="edit-3" size={14} color={captureMode === 'search' ? colors.primary : colors.mutedForeground} /><Text style={[styles.captureModeText, { color: captureMode === 'search' ? colors.foreground : colors.mutedForeground }]}>Text</Text></ScalePressable>
+                <ScalePressable accessibilityLabel="Voice food logging" onPress={() => setCaptureMode('voice')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'voice' && { backgroundColor: colors.card }]}><CaloraFeatureIcon name="voice" size={22} primaryColor={captureMode === 'voice' ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.captureModeText, { color: captureMode === 'voice' ? colors.foreground : colors.mutedForeground }]}>Voice</Text></ScalePressable>
+                <ScalePressable accessibilityLabel="Barcode food logging" onPress={() => setCaptureMode('barcode')} scale={0.95} haptic="none" style={[styles.captureMode, captureMode === 'barcode' && { backgroundColor: colors.card }]}><CaloraFeatureIcon name="barcode" size={22} primaryColor={captureMode === 'barcode' ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /><Text style={[styles.captureModeText, { color: captureMode === 'barcode' ? colors.foreground : colors.mutedForeground }]}>Barcode</Text></ScalePressable>
+              </View>
+              {captureMode !== 'search' && <View style={[styles.unavailableCard, { backgroundColor: colors.accent }]}>
+                <CaloraFeatureIcon name={captureMode === 'voice' ? 'voice' : 'barcode'} size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
+                 <View style={{ flex: 1 }}><Text style={[styles.unavailableTitle, { color: colors.foreground }]}>{captureMode === 'voice' ? 'Voice needs microphone access' : 'Barcode scanning needs camera access'}</Text><Text style={[styles.unavailableBody, { color: colors.mutedForeground }]}>{captureMode === 'voice' ? `${BRAND.name} turns your words into a reviewable draft.` : `${BRAND.name} looks up a verified product by barcode.`}</Text></View>
+                <Pressable accessibilityLabel="Use text logging instead" onPress={() => setCaptureMode('search')}><Text style={[styles.useText, { color: colors.primary }]}>Use text</Text></Pressable>
+              </View>}
+              {savedMeals.length > 0 && <View>
+                 <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground, marginTop: 2 }]}>SAVED</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedMealRow}>
+                  {savedMeals.map((meal) => <ScalePressable key={meal.id} accessibilityLabel={`Add saved ${meal.name}`} onPress={() => chooseSavedMeal(meal)} scale={0.98} haptic="none" style={[styles.savedMealChip, { backgroundColor: colors.accent, borderColor: colors.border }]}><CaloraFeatureIcon name={meal.kind === 'recipe' ? 'recipes' : 'food'} size={22} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} /><View><Text style={[styles.savedMealName, { color: colors.foreground }]}>{meal.name}</Text><Text style={[styles.savedMealMeta, { color: colors.mutedForeground }]}>{formatWhole(meal.calories)} kcal · {meal.kind}</Text></View></ScalePressable>)}
+                </ScrollView>
+              </View>}
+              <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.input }]}>
+                <Feather name="search" size={18} color={colors.mutedForeground} />
+                <TextInput value={search} onChangeText={setSearch} placeholder="Search verified foods" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} />
+              </View>
+               <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>VERIFIED</Text>
+              <View>
+                {filtered.map((food) => (
+                  <ScalePressable key={food.name} onPress={() => chooseFood(food)} scale={0.98} haptic="none" style={[styles.foodSuggestion, { borderBottomColor: colors.border }]}>
+                    <View style={[styles.foodIcon, { backgroundColor: colors.accent }]}>
+                      <Feather name="check" size={15} color={colors.accentForeground} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.foodName, { color: colors.foreground }]}>{food.name}</Text>
+                      <Text style={[styles.foodMeta, { color: colors.mutedForeground }]}>{formatWhole(food.calories)} kcal · {formatGrams(food.protein)} protein · {food.confidence}% confidence</Text>
+                    </View>
+                    <Feather name="plus" size={18} color={colors.primary} />
+                  </ScalePressable>
+                ))}
+              </View>
+            </KeyboardAwareScrollViewCompat>
+            <View style={[styles.manualEntryFooter, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+              <Text style={[styles.sectionEyebrow, { color: colors.mutedForeground }]}>MANUAL</Text>
+              <View style={styles.manualRow}>
+                <TextInput accessibilityLabel="Manual food name" value={customName} onChangeText={(value) => { setCustomName(value); setManualError(null); }} placeholder="Food name" placeholderTextColor={colors.mutedForeground} returnKeyType="next" style={[styles.manualInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
+                <TextInput accessibilityLabel="Manual food calories" value={customCalories} onChangeText={(value) => { setCustomCalories(value); setManualError(null); }} placeholder="kcal" placeholderTextColor={colors.mutedForeground} keyboardType="number-pad" returnKeyType="done" onSubmitEditing={addManual} style={[styles.manualKcal, { color: colors.foreground, backgroundColor: colors.card, borderColor: manualError ? colors.destructive : colors.input }]} />
+                <ScalePressable accessibilityLabel="Add manual food" onPress={addManual} scale={0.96} haptic="light" style={[styles.manualAdd, { backgroundColor: colors.primary }]}>
+                  <Feather name="plus" size={20} color={colors.primaryForeground} />
+                </ScalePressable>
+              </View>
+              {manualError ? <Text accessibilityLiveRegion="polite" style={[styles.manualError, { color: colors.destructive }]}>{manualError}</Text> : null}
+            </View>
+          </>
+        )}
+      </KeyboardAvoidingView>
     </BottomSheet>
   );
 }
@@ -1849,8 +1860,12 @@ function makeStyles(f: number) {
   footerNoteText: { fontFamily: 'Inter_500Medium', fontSize: 9 * f },
   modalCard: { borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12 },
   addFoodModalCard: {},
+  addFoodSheet: { flexShrink: 1, minHeight: 0 },
   modalScrollContent: { paddingBottom: 4 },
-  manualEntrySection: { paddingBottom: 14 },
+  manualModeScroll: { flexShrink: 1, minHeight: 0 },
+  foodOptionsScroll: { flex: 1, minHeight: 0 },
+  foodOptionsContent: { paddingBottom: 12 },
+  manualEntryFooter: { paddingTop: 12, paddingBottom: 2, borderTopWidth: StyleSheet.hairlineWidth },
   editSheetContent: { paddingBottom: 4 },
   modalHandle: { width: 42, height: 5, borderRadius: 3, backgroundColor: '#9aa69e', alignSelf: 'center', marginBottom: 20 },
   modalHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
