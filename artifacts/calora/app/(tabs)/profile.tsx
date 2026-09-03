@@ -675,6 +675,7 @@ export default function ProfileScreen() {
           {PROFILE_SUBMENUS.map((submenu) => {
             const selected = activeSubmenu === submenu;
             const label = submenu === 'plan' ? 'Plan' : submenu === 'settings' ? 'Settings' : 'Account';
+            const icon: keyof typeof Feather.glyphMap = submenu === 'plan' ? 'target' : submenu === 'settings' ? 'settings' : 'shield';
             return (
               <Pressable
                 key={submenu}
@@ -685,6 +686,7 @@ export default function ProfileScreen() {
                 onPress={() => changeSubmenu(submenu)}
                 style={[styles.submenuTab, selected && { backgroundColor: colors.card }]}
               >
+                <Feather name={icon} size={14} color={selected ? colors.primary : colors.mutedForeground} />
                 <Text style={[styles.submenuTabText, { color: selected ? colors.foreground : colors.mutedForeground }]}>{label}</Text>
               </Pressable>
             );
@@ -711,6 +713,7 @@ export default function ProfileScreen() {
           accessibilityLabel="Profile section content"
           accessibilityHint="Swipe left or right to move between Plan, Settings, and Account"
           testID="profile-submenu-pager"
+          style={styles.submenuPager}
         >
         {activeSubmenu === 'plan' && <ProfileYouSettings profile={profile} colors={colors} updateProfile={updateProfile} />}
 
@@ -1743,12 +1746,13 @@ function makeStyles(f: number) {
   localFirstText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.7 },
 
   // Profile submenu navigation
-  submenuTabs: { flexDirection: 'row', borderRadius: 15, padding: 4, marginBottom: 18 },
-  submenuTab: { flex: 1, minHeight: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  submenuTabs: { flexDirection: 'row', borderRadius: 17, padding: 5, marginTop: 6, marginBottom: 26 },
+  submenuTab: { flex: 1, minHeight: 45, borderRadius: 13, alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 6 },
   submenuTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
-  submenuHeaderCopy: { marginBottom: 18 },
-  submenuHeaderTitle: { fontFamily: 'Inter_700Bold', fontSize: 19 * f, letterSpacing: -0.4 },
-  submenuHeaderBody: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15 * f, marginTop: 3 },
+  submenuHeaderCopy: { paddingHorizontal: 1, marginBottom: 26 },
+  submenuHeaderTitle: { fontFamily: 'Inter_700Bold', fontSize: 22 * f, letterSpacing: -0.5 },
+  submenuHeaderBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 17 * f, marginTop: 5 },
+  submenuPager: { paddingTop: 2 },
 
   // Section headings
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.3 },
