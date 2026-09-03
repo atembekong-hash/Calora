@@ -37,6 +37,7 @@ import { enterMotion } from '@/lib/motion';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { ProfileYouSettings } from '@/components/ProfileYouSettings';
+import { SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import {
   clearNotificationInbox,
   getNotificationInbox,
@@ -60,7 +61,8 @@ const mealConfig: { key: 'breakfast' | 'lunch' | 'dinner'; label: string; icon: 
   { key: 'dinner', label: 'Dinner', icon: 'moon', iconBg: '#f2eafd', iconColor: '#9875c7' },
 ];
 
-type ProfileSubmenu = 'home' | 'plan' | 'settings' | 'account';
+const PROFILE_SUBMENUS = ['plan', 'settings', 'account'] as const;
+type ProfileSubmenu = typeof PROFILE_SUBMENUS[number];
 
 function formatNotificationDate(value: string): string {
   const date = new Date(value);
@@ -156,7 +158,7 @@ export default function ProfileScreen() {
   // Info sheets (food data / no ads / help)
   const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help' | 'health'>(open === 'health' ? 'health' : null);
   const [healthBusy, setHealthBusy] = useState(false);
-  const [activeSubmenu, setActiveSubmenu] = useState<ProfileSubmenu>(open === 'health' ? 'account' : 'home');
+  const [activeSubmenu, setActiveSubmenu] = useState<ProfileSubmenu>(open === 'health' ? 'account' : 'plan');
   const [notificationModal, setNotificationModal] = useState(false);
   const [notifications, setNotifications] = useState<NotificationInboxItem[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -239,13 +241,8 @@ export default function ProfileScreen() {
 
   const unreadNotificationCount = notifications.filter((item) => !item.read).length;
 
-  const openSubmenu = (submenu: Exclude<ProfileSubmenu, 'home'>) => {
+  const changeSubmenu = (submenu: ProfileSubmenu) => {
     setActiveSubmenu(submenu);
-    profileScrollRef.current?.scrollTo({ y: 0, animated: true });
-  };
-
-  const closeSubmenu = () => {
-    setActiveSubmenu('home');
     profileScrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
@@ -667,89 +664,54 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {activeSubmenu === 'home' ? (
-          <View style={styles.submenuLanding}>
-            <Text style={[styles.submenuLandingTitle, { color: colors.foreground }]}>What would you like to manage?</Text>
-            <Text style={[styles.submenuLandingBody, { color: colors.mutedForeground }]}>Choose an area to keep Profile focused and easy to scan.</Text>
-            <View style={styles.submenuList}>
+        <SwipeableTabList
+          items={PROFILE_SUBMENUS}
+          activeItem={activeSubmenu}
+          onChange={changeSubmenu}
+          accessibilityLabel="Profile sections"
+          testID="profile-submenu-tabs"
+          style={[styles.submenuTabs, { backgroundColor: colors.muted }]}
+        >
+          {PROFILE_SUBMENUS.map((submenu) => {
+            const selected = activeSubmenu === submenu;
+            const label = submenu === 'plan' ? 'Plan' : submenu === 'settings' ? 'Settings' : 'Account';
+            return (
               <Pressable
-                accessibilityLabel="Open Plan and memory"
-                testID="profile-submenu-plan"
-                onPress={() => openSubmenu('plan')}
-                style={[styles.submenuCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                key={submenu}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`${label} profile section`}
+                testID={`profile-submenu-${submenu}`}
+                onPress={() => changeSubmenu(submenu)}
+                style={[styles.submenuTab, selected && { backgroundColor: colors.card }]}
               >
-                <View style={[styles.submenuIcon, { backgroundColor: colors.accent }]}>
-                  <Feather name="target" size={19} color={colors.accentForeground} />
-                </View>
-                <View style={styles.submenuCopy}>
-                  <Text style={[styles.submenuTitle, { color: colors.foreground }]}>Plan & memory</Text>
-                  <Text style={[styles.submenuBody, { color: colors.mutedForeground }]}>Goals, personal details, saved meals, and living memory</Text>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+                <Text style={[styles.submenuTabText, { color: selected ? colors.foreground : colors.mutedForeground }]}>{label}</Text>
               </Pressable>
-              <Pressable
-                accessibilityLabel="Open Settings"
-                testID="profile-submenu-settings"
-                onPress={() => openSubmenu('settings')}
-                style={[styles.submenuCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              >
-                <View style={[styles.submenuIcon, { backgroundColor: colors.muted }]}>
-                  <Feather name="settings" size={19} color={colors.primary} />
-                </View>
-                <View style={styles.submenuCopy}>
-                  <Text style={[styles.submenuTitle, { color: colors.foreground }]}>Settings</Text>
-                  <Text style={[styles.submenuBody, { color: colors.mutedForeground }]}>Notifications, reminders, appearance, and units</Text>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-              </Pressable>
-              <Pressable
-                accessibilityLabel="Open Account and privacy"
-                testID="profile-submenu-account"
-                onPress={() => openSubmenu('account')}
-                style={[styles.submenuCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              >
-                <View style={[styles.submenuIcon, { backgroundColor: colors.accent }]}>
-                  <Feather name="shield" size={19} color={colors.accentForeground} />
-                </View>
-                <View style={styles.submenuCopy}>
-                  <Text style={[styles.submenuTitle, { color: colors.foreground }]}>Account & privacy</Text>
-                  <Text style={[styles.submenuBody, { color: colors.mutedForeground }]}>Membership, health data, exports, and account controls</Text>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-              </Pressable>
-            </View>
-            <View style={[styles.submenuHint, { backgroundColor: colors.muted }]}>
-              <Feather name="lock" size={14} color={colors.primary} />
-              <Text style={[styles.submenuHintText, { color: colors.mutedForeground }]}>Your choices stay local-first and remain available offline.</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.submenuHeader}>
-            <Pressable
-              accessibilityLabel="Back to Profile menu"
-              testID="profile-submenu-back"
-              onPress={closeSubmenu}
-              hitSlop={8}
-              style={[styles.submenuBack, { backgroundColor: colors.muted }]}
-            >
-              <Feather name="arrow-left" size={17} color={colors.foreground} />
-            </Pressable>
-            <View style={styles.submenuHeaderCopy}>
-              <Text style={[styles.submenuHeaderTitle, { color: colors.foreground }]}>
-                {activeSubmenu === 'plan' ? 'Plan & memory' : activeSubmenu === 'settings' ? 'Settings' : 'Account & privacy'}
-              </Text>
-              <Text style={[styles.submenuHeaderBody, { color: colors.mutedForeground }]}>
-                {activeSubmenu === 'plan'
-                  ? 'Your goals and the signals you choose to keep.'
-                  : activeSubmenu === 'settings'
-                    ? 'Make Calora fit your day and your device.'
-                    : 'Membership, data boundaries, and account access.'}
-              </Text>
-            </View>
-          </View>
-        )}
+            );
+          })}
+        </SwipeableTabList>
 
-        {activeSubmenu !== 'home' && <>
+        <View style={styles.submenuHeaderCopy}>
+          <Text style={[styles.submenuHeaderTitle, { color: colors.foreground }]}>
+            {activeSubmenu === 'plan' ? 'Plan & memory' : activeSubmenu === 'settings' ? 'Settings' : 'Account & privacy'}
+          </Text>
+          <Text style={[styles.submenuHeaderBody, { color: colors.mutedForeground }]}>
+            {activeSubmenu === 'plan'
+              ? 'Your goals and the signals you choose to keep.'
+              : activeSubmenu === 'settings'
+                ? 'Make Calora fit your day and your device.'
+                : 'Membership, data boundaries, and account access.'}
+          </Text>
+        </View>
+
+        <SwipeableSectionPager
+          items={PROFILE_SUBMENUS}
+          activeItem={activeSubmenu}
+          onChange={changeSubmenu}
+          accessibilityLabel="Profile section content"
+          accessibilityHint="Swipe left or right to move between Plan, Settings, and Account"
+          testID="profile-submenu-pager"
+        >
         {activeSubmenu === 'plan' && <ProfileYouSettings profile={profile} colors={colors} updateProfile={updateProfile} />}
 
         {/* ── Daily habits ── */}
@@ -1323,7 +1285,7 @@ export default function ProfileScreen() {
         <Text style={[styles.version, { color: colors.mutedForeground }]}>{BRAND.copyright} · {BRAND.name} 1.0 · Made for steadier days</Text>
         </View>
         </>}
-        </>}
+        </SwipeableSectionPager>
       </ScrollView>
 
       {/* ── Billing modal ── */}
@@ -1781,20 +1743,10 @@ function makeStyles(f: number) {
   localFirstText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.7 },
 
   // Profile submenu navigation
-  submenuLanding: { marginTop: 2 },
-  submenuLandingTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.3 },
-  submenuLandingBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginTop: 4 },
-  submenuList: { marginTop: 16 },
-  submenuCard: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 18, padding: 13, marginBottom: 9 },
-  submenuIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-  submenuCopy: { flex: 1 },
-  submenuTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
-  submenuBody: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15 * f, marginTop: 4 },
-  submenuHint: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 13, paddingHorizontal: 12, paddingVertical: 10, marginTop: 7 },
-  submenuHintText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15 * f },
-  submenuHeader: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 22 },
-  submenuBack: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  submenuHeaderCopy: { flex: 1 },
+  submenuTabs: { flexDirection: 'row', borderRadius: 15, padding: 4, marginBottom: 18 },
+  submenuTab: { flex: 1, minHeight: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  submenuTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+  submenuHeaderCopy: { marginBottom: 18 },
   submenuHeaderTitle: { fontFamily: 'Inter_700Bold', fontSize: 19 * f, letterSpacing: -0.4 },
   submenuHeaderBody: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15 * f, marginTop: 3 },
 
