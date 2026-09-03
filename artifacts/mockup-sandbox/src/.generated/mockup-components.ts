@@ -2,6 +2,7 @@
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/calora-profile/Current.tsx": () => import("../components/mockups/calora-profile/Current.tsx"),
+  "./components/mockups/calora-profile/Redesigned.tsx": () => import("../components/mockups/calora-profile/Redesigned.tsx"),
   "./components/mockups/calora-today/Current.tsx": () => import("../components/mockups/calora-today/Current.tsx"),
   "./components/mockups/calora-today/EditorialCalm.tsx": () => import("../components/mockups/calora-today/EditorialCalm.tsx")
 };
