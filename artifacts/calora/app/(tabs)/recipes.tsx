@@ -25,6 +25,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
+import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 import { requestGeneratedRecipe, requestGeneratedRecipePhoto, requestGeneratedRecipePhotoUrl, requestRecipeConcepts } from '@/lib/recipeGeneration';
 import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
@@ -107,7 +108,7 @@ function RecipeImage({ recipe, height = 160 }: { recipe: Recipe | CaloraRecipe; 
       />
     ) : (
     <View style={[styles.recipeImage, styles.imageFallback, { height }]}>
-      <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+       <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
       <LinearGradient colors={['rgba(18,34,24,0.18)', 'rgba(18,34,24,0.82)']} style={StyleSheet.absoluteFillObject} />
       <View style={styles.imageFallbackCopy}>
         <Feather name="book-open" size={22} color="#d4eadc" />
@@ -1178,6 +1179,7 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
 
 export default function RecipesScreen() {
   const { colors, profile, logs, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe, fontScale } = useCalora();
+  const recipesHeaderImage = useHourlyHeaderImage('recipes');
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
@@ -1369,7 +1371,7 @@ export default function RecipesScreen() {
          <PremiumCatalogue visible={activeSection === 'premium'} colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} />
          {activeSection === 'discover' ? <>
         <View style={styles.recipeHeader}>
-          <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+           <Image key={recipesHeaderImage.hourSlot} source={recipesHeaderImage.source} contentFit="cover" transition={450} style={StyleSheet.absoluteFillObject} />
           <LinearGradient
             colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']}
             locations={[0, 0.58, 1]}

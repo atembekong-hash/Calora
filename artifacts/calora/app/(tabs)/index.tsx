@@ -76,6 +76,7 @@ import {
   selectVisibleTodayInsight,
 } from '@/lib/intelligence';
 import { burnedStatusForDay } from '@/lib/health/burnedStatus';
+import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -1250,6 +1251,7 @@ export default function HomeScreen() {
     updateProfile,
   } = useCalora();
   const insets = useSafeAreaInsets();
+  const homeHeaderImage = useHourlyHeaderImage('home');
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showAdd, setShowAdd] = useState(false);
@@ -1473,7 +1475,7 @@ export default function HomeScreen() {
       />
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: 14, paddingBottom: insets.bottom + 104 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.homeHeader}>
-           <Image source={require('../../assets/images/calora-profile-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+           <Image key={homeHeaderImage.hourSlot} source={homeHeaderImage.source} contentFit="cover" transition={450} style={StyleSheet.absoluteFillObject} />
           <LinearGradient colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>

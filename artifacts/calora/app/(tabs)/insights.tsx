@@ -31,6 +31,7 @@ import {
   isIntelligenceFeatureEnabled,
   selectVisibleLocalInsight,
 } from '@/lib/intelligence';
+import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 
 type ProgressView = 'overview' | 'trends' | 'weight';
 const PROGRESS_VIEWS = ['overview', 'trends', 'weight'] as const;
@@ -1103,6 +1104,7 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
 
 export default function InsightsScreen() {
   const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, toggleShoppingItemByName, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected } = useCalora();
+  const insightsHeaderImage = useHourlyHeaderImage('insights');
   const healthSnapshotReady = healthSnapshotIsFreshForDay(healthConnection.snapshot);
   const healthStepsAvailable = healthSnapshotReady && (
     healthConnection.granted.includes('steps')
@@ -1480,7 +1482,7 @@ export default function InsightsScreen() {
       <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
         <View style={styles.heroHeader}>
           <Animated.View style={[StyleSheet.absoluteFillObject, heroParallaxStyle]}>
-            <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+            <Image key={insightsHeaderImage.hourSlot} source={insightsHeaderImage.source} contentFit="cover" transition={450} style={StyleSheet.absoluteFillObject} />
           </Animated.View>
           <LinearGradient
             colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.78)', 'rgba(18,34,24,0.18)']}
