@@ -100,7 +100,7 @@ export async function scheduleHydrationReminders(
         content: {
           title: 'Hydration reminder',
           body: getMessage(i),
-          data: { tag: NOTIFICATION_TAG },
+          data: { tag: NOTIFICATION_TAG, category: 'hydration' },
           sound: true,
         },
         trigger: {

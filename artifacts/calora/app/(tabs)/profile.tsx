@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Notifications from 'expo-notifications';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Constants from 'expo-constants';
 import { BRAND, EMAILS, URLS } from '@/lib/brand';
@@ -35,6 +35,14 @@ import { REVENUECAT_ENTITLEMENT_IDENTIFIER, useSubscription } from '@/lib/revenu
 import { enterMotion } from '@/lib/motion';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import {
+  clearNotificationInbox,
+  getNotificationInbox,
+  markAllNotificationsRead,
+  markNotificationRead,
+  subscribeToNotificationInbox,
+  type NotificationInboxItem,
+} from '@/lib/notificationInbox';
 
 // ─── Static config ────────────────────────────────────────────────────────────
 
@@ -59,6 +67,17 @@ const mealConfig: { key: 'breakfast' | 'lunch' | 'dinner'; label: string; icon: 
 
 type ProfileTab = 'you' | 'membership' | 'account';
 const PROFILE_TABS = ['you', 'membership', 'account'] as const;
+
+function formatNotificationDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Recently';
+  const today = new Date();
+  const isToday = date.toDateString() === today.toDateString();
+  const time = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return isToday
+    ? `Today · ${time}`
+    : `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${time}`;
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -138,6 +157,54 @@ export default function ProfileScreen() {
   const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help' | 'health'>(open === 'health' ? 'health' : null);
   const [healthBusy, setHealthBusy] = useState(false);
   const [profileTab, setProfileTab] = useState<ProfileTab>(tab === 'membership' || tab === 'account' ? tab : 'you');
+  const [notificationModal, setNotificationModal] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationInboxItem[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const notificationAccountId = user?.id ?? null;
+
+  const refreshNotifications = useCallback(async () => {
+    setNotificationsLoading(true);
+    const items = await getNotificationInbox(notificationAccountId);
+    setNotifications(items);
+    setNotificationsLoading(false);
+  }, [notificationAccountId]);
+
+  useEffect(() => {
+    void refreshNotifications();
+    return subscribeToNotificationInbox(notificationAccountId, setNotifications);
+  }, [notificationAccountId, refreshNotifications]);
+
+  const openNotificationCenter = () => {
+    setNotificationModal(true);
+    void refreshNotifications();
+  };
+
+  const handleNotificationPress = async (item: NotificationInboxItem) => {
+    if (!item.read) {
+      await markNotificationRead(notificationAccountId, item.id);
+    }
+    setNotificationModal(false);
+    if (item.category === 'hydration' || item.category === 'meal' || item.category === 'goal') {
+      router.navigate('/');
+    }
+  };
+
+  const handleMarkAllNotificationsRead = () => {
+    void markAllNotificationsRead(notificationAccountId);
+  };
+
+  const handleClearNotifications = () => {
+    Alert.alert(
+      'Clear notification history?',
+      'This removes notifications from this inbox. Your reminder settings will not change.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear history', style: 'destructive', onPress: () => { void clearNotificationInbox(notificationAccountId); } },
+      ],
+    );
+  };
+
+  const unreadNotificationCount = notifications.filter((item) => !item.read).length;
 
   useEffect(() => {
     if (tab !== 'membership' && tab !== 'account' && tab !== 'you') return;
@@ -424,7 +491,28 @@ export default function ProfileScreen() {
   // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <AppHeader back title="Profile" />
+      <AppHeader
+        back
+        title="Profile"
+        action={(
+          <Pressable
+            accessibilityLabel={`Open notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`}
+            testID="profile-notifications-button"
+            onPress={openNotificationCenter}
+            hitSlop={8}
+            style={[styles.notificationButton, { backgroundColor: colors.muted }]}
+          >
+            <Feather name="bell" size={18} color={colors.foreground} />
+            {unreadNotificationCount > 0 && (
+              <View style={[styles.notificationBadge, { backgroundColor: colors.destructive }]}>
+                <Text style={[styles.notificationBadgeText, { color: colors.destructiveForeground }]}>
+                  {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        )}
+      />
       <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
 
         {/* ── Profile card ── */}
@@ -1041,6 +1129,98 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* ── Notification center ── */}
+      <BottomSheet
+        visible={notificationModal}
+        onRequestClose={() => setNotificationModal(false)}
+        onBackdropPress={() => setNotificationModal(false)}
+        overlayColor="rgba(0,0,0,0.5)"
+        maxHeight="88%"
+        sheetStyle={{ backgroundColor: colors.background }}
+      >
+        <View style={styles.notificationSheet}>
+          <View style={styles.notificationSheetHeader}>
+            <View style={styles.notificationSheetTitleGroup}>
+              <View style={[styles.notificationSheetIcon, { backgroundColor: colors.accent }]}>
+                <Feather name="bell" size={18} color={colors.accentForeground} />
+              </View>
+              <View>
+                <Text style={[styles.notificationSheetTitle, { color: colors.foreground }]}>Notifications</Text>
+                <Text style={[styles.notificationSheetSubtitle, { color: colors.mutedForeground }]}>
+                  {unreadNotificationCount > 0 ? `${unreadNotificationCount} unread update${unreadNotificationCount === 1 ? '' : 's'}` : 'You’re all caught up'}
+                </Text>
+              </View>
+            </View>
+            <Pressable accessibilityLabel="Close notifications" onPress={() => setNotificationModal(false)} hitSlop={10} style={styles.notificationClose}>
+              <Feather name="x" size={20} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+
+          {notificationsLoading ? (
+            <View style={styles.notificationEmpty}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={[styles.notificationEmptyBody, { color: colors.mutedForeground }]}>Loading your updates…</Text>
+            </View>
+          ) : notifications.length === 0 ? (
+            <View style={[styles.notificationEmpty, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.notificationEmptyIcon, { backgroundColor: colors.accent }]}>
+                <Feather name="inbox" size={22} color={colors.accentForeground} />
+              </View>
+              <Text style={[styles.notificationEmptyTitle, { color: colors.foreground }]}>Your inbox is clear</Text>
+              <Text style={[styles.notificationEmptyBody, { color: colors.mutedForeground }]}>
+                New reminder updates will appear here when they arrive.
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              style={styles.notificationList}
+              contentContainerStyle={styles.notificationListContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {notifications.map((item) => {
+                const icon = item.category === 'hydration' ? 'droplet' : item.category === 'meal' ? 'coffee' : item.category === 'goal' ? 'target' : 'bell';
+                return (
+                  <Pressable
+                    key={item.id}
+                    accessibilityLabel={`${item.read ? '' : 'Unread '}${item.title}. ${item.body}`}
+                    accessibilityState={{ selected: !item.read }}
+                    onPress={() => { void handleNotificationPress(item); }}
+                    style={[styles.notificationRow, { backgroundColor: item.read ? colors.card : colors.accent, borderColor: colors.border }]}
+                  >
+                    <View style={[styles.notificationItemIcon, { backgroundColor: item.read ? colors.muted : colors.card }]}>
+                      <Feather name={icon as keyof typeof Feather.glyphMap} size={17} color={colors.primary} />
+                    </View>
+                    <View style={styles.notificationItemCopy}>
+                      <View style={styles.notificationItemTopline}>
+                        <Text style={[styles.notificationItemTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text>
+                        {!item.read && <View style={[styles.notificationUnreadDot, { backgroundColor: colors.primary }]} />}
+                      </View>
+                      <Text style={[styles.notificationItemBody, { color: colors.mutedForeground }]} numberOfLines={3}>{item.body}</Text>
+                      <Text style={[styles.notificationItemTime, { color: colors.mutedForeground }]}>{formatNotificationDate(item.receivedAt)}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {notifications.length > 0 && (
+            <View style={[styles.notificationActions, { borderTopColor: colors.border }]}>
+              {unreadNotificationCount > 0 && (
+                <Pressable accessibilityLabel="Mark all notifications as read" onPress={handleMarkAllNotificationsRead} style={[styles.notificationActionButton, { backgroundColor: colors.muted }]}>
+                  <Feather name="check-circle" size={15} color={colors.primary} />
+                  <Text style={[styles.notificationActionText, { color: colors.foreground }]}>Mark all read</Text>
+                </Pressable>
+              )}
+              <Pressable accessibilityLabel="Clear notification history" onPress={handleClearNotifications} style={styles.notificationClearButton}>
+                <Text style={[styles.notificationClearText, { color: colors.mutedForeground }]}>Clear history</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      </BottomSheet>
+
       {/* ── Profile edit modal ── */}
       <BottomSheet visible={profileEditModal} onRequestClose={() => setProfileEditModal(false)} overlayColor="rgba(0,0,0,0.5)" sheetStyle={{ backgroundColor: colors.background }}>
           <KeyboardAwareScrollViewCompat style={styles.sheetScroll} contentContainerStyle={styles.sheetContent} bottomOffset={72}>
@@ -1213,6 +1393,35 @@ function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
   hiddenSection: { display: 'none' },
+  notificationButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  notificationBadge: { position: 'absolute', top: -3, right: -4, minWidth: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2 },
+  notificationBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8, lineHeight: 10 },
+  notificationSheet: { minHeight: 260, paddingTop: 8 },
+  notificationSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 18 },
+  notificationSheetTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  notificationSheetIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  notificationSheetTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.3 },
+  notificationSheetSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 3 },
+  notificationClose: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  notificationList: { maxHeight: 430, paddingHorizontal: 20 },
+  notificationListContent: { gap: 8, paddingBottom: 4 },
+  notificationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, borderWidth: 1, borderRadius: 17, padding: 12 },
+  notificationItemIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  notificationItemCopy: { flex: 1, minWidth: 0 },
+  notificationItemTopline: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  notificationItemTitle: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 13 * f },
+  notificationUnreadDot: { width: 7, height: 7, borderRadius: 4 },
+  notificationItemBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginTop: 4 },
+  notificationItemTime: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginTop: 7 },
+  notificationEmpty: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 19, marginHorizontal: 20, paddingHorizontal: 24, paddingVertical: 30 },
+  notificationEmptyIcon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  notificationEmptyTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 * f },
+  notificationEmptyBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 17 * f, textAlign: 'center', marginTop: 6, maxWidth: 270 },
+  notificationActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, borderTopWidth: StyleSheet.hairlineWidth, marginTop: 14, paddingHorizontal: 20, paddingTop: 14 },
+  notificationActionButton: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
+  notificationActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
+  notificationClearButton: { paddingHorizontal: 8, paddingVertical: 9 },
+  notificationClearText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
   profileTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 15, padding: 4, gap: 4, marginBottom: 10 },
   profileTab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40, borderRadius: 11, paddingHorizontal: 6 },
   profileTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },

@@ -25,6 +25,7 @@ import { AppStatusBar } from '@/components/AppChrome';
 import { initializeRevenueCat, SubscriptionProvider } from '@/lib/revenuecat';
 import { ReferralActivator } from '@/components/ReferralActivator';
 import { useDiarySync } from '@/hooks/useDiarySync';
+import { recordReceivedNotification } from '@/lib/notificationInbox';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -78,6 +79,7 @@ function createQueryClient() {
  */
 function NotificationHandler() {
   const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
     // Register Android notification channels once on mount.
@@ -104,9 +106,21 @@ function NotificationHandler() {
       ]).catch(() => {});
     }
 
-    // Navigate to home when user taps any CaloraApp notification.
-    const subscription = Notifications.addNotificationResponseReceivedListener(
+    const accountId = user?.id ?? null;
+    const capture = (notification: Notifications.Notification) => {
+      void recordReceivedNotification(accountId, notification).catch((error) => {
+        console.warn('[CaloraApp][notifications] Could not save notification:', error);
+      });
+    };
+
+    // Capture notifications received while the app is open.
+    const receivedSubscription = Notifications.addNotificationReceivedListener(capture);
+
+    // Capture a notification that launched or resumed the app, then navigate
+    // to the relevant tab when the user taps it.
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
+        capture(response.notification);
         const category = response.notification.request.content.data?.category;
         if (category === 'hydration' || category === 'meal' || category === 'goal') {
           router.navigate('/');
@@ -114,8 +128,17 @@ function NotificationHandler() {
       },
     );
 
-    return () => subscription.remove();
-  }, [router]);
+    // On native, keep notifications that are still presented in sync with the
+    // inbox so a user can review them after returning from the lock screen.
+    void Notifications.getPresentedNotificationsAsync()
+      .then((presented) => presented.forEach(capture))
+      .catch(() => {});
+
+    return () => {
+      receivedSubscription.remove();
+      responseSubscription.remove();
+    };
+  }, [router, user?.id]);
 
   return null;
 }
