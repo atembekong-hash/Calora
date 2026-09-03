@@ -84,6 +84,9 @@ function makeStoredSnapshot(overrides: Record<string, unknown> = {}): string {
     memoryCorrections: [],
     livingMemory: null,
     hydrationReminders: { enabled: false, intervalHours: 2, wakeHour: 7, wakeMinute: 0, sleepHour: 22, sleepMinute: 0 },
+    mealReminders: { breakfast: false, breakfastTime: { hour: 8, minute: 0 }, lunch: false, lunchTime: { hour: 12, minute: 30 }, dinner: false, dinnerTime: { hour: 18, minute: 30 } },
+    goalReminder: { enabled: false, hour: 20, minute: 0 },
+    notificationPreferences: { version: 1, delivery: 'local', masterEnabled: true, quietHours: { enabled: false, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } }, categories: {} },
     healthConnected: false,
     consentAccepted: true,
     coachConsentAccepted: true,
@@ -314,6 +317,10 @@ describe('exported JSON contains the expected CaloraExportState keys', () => {
     'coachConsentAccepted',
     'coachMessages',
     'healthConnected',
+    'hydrationReminders',
+    'mealReminders',
+    'goalReminder',
+    'notificationPreferences',
   ];
 
   it.each(EXPECTED_KEYS)('exported JSON contains top-level key "%s"', async (key) => {

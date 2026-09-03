@@ -24,11 +24,12 @@ function positiveOrFallback(value: number | undefined, fallback: number) {
 export function getMacroTargets(profile: Profile | null): MacroTargets {
   const calories = positiveOrFallback(profile?.calorieTarget, DEFAULT_CALORIES);
 
+  const automatic = profile?.targetMode === 'automatic';
   return {
     calories,
-    protein: positiveOrFallback(profile?.proteinTargetGrams, Math.round(calories * DEFAULT_PROTEIN_RATIO / 4)),
-    carbs: positiveOrFallback(profile?.carbsTargetGrams, Math.round(calories * DEFAULT_CARBS_RATIO / 4)),
-    fat: positiveOrFallback(profile?.fatTargetGrams, Math.round(calories * DEFAULT_FAT_RATIO / 9)),
+    protein: automatic ? Math.round(calories * DEFAULT_PROTEIN_RATIO / 4) : positiveOrFallback(profile?.proteinTargetGrams, Math.round(calories * DEFAULT_PROTEIN_RATIO / 4)),
+    carbs: automatic ? Math.round(calories * DEFAULT_CARBS_RATIO / 4) : positiveOrFallback(profile?.carbsTargetGrams, Math.round(calories * DEFAULT_CARBS_RATIO / 4)),
+    fat: automatic ? Math.round(calories * DEFAULT_FAT_RATIO / 9) : positiveOrFallback(profile?.fatTargetGrams, Math.round(calories * DEFAULT_FAT_RATIO / 9)),
   };
 }
 

@@ -23,7 +23,11 @@
 
 import { buildExportPayload, type CaloraExportState } from './exportPayload';
 import { emptyLivingMemory } from './livingMemory';
-import { DEFAULT_HYDRATION_PREFS } from './clearAllData';
+import {
+  DEFAULT_LOCAL_NOTIFICATION_PREFERENCES,
+  legacyReminderMirrors,
+  normalizeNotificationPreferences,
+} from './notificationPreferences';
 
 // ---------------------------------------------------------------------------
 // makeClearedExportSnapshot
@@ -56,6 +60,8 @@ export interface ClearExportSnapshotOpts {
  *   exportSnapshotRef.current = makeClearedExportSnapshot({ … });
  */
 export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): CaloraExportState {
+  const notificationPreferences = normalizeNotificationPreferences(DEFAULT_LOCAL_NOTIFICATION_PREFERENCES);
+  const reminders = legacyReminderMirrors(notificationPreferences);
   return {
     profile:              null,
     logs:                 [],
@@ -76,7 +82,10 @@ export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): Calora
     memoryCorrections:    [],
     livingMemory:         emptyLivingMemory(),
     // Always use the default — never the stale pre-clear closed-over value.
-    hydrationReminders:   DEFAULT_HYDRATION_PREFS,
+    hydrationReminders:   reminders.hydrationReminders,
+    mealReminders:        reminders.mealReminders,
+    goalReminder:         reminders.goalReminder,
+    notificationPreferences,
     healthConnected:      opts.healthConnected,
     consentAccepted:      false,
     coachConsentAccepted: false,

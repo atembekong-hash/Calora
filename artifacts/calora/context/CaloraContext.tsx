@@ -7,7 +7,7 @@ import { useHydrationEffect } from '@/lib/useHydrationEffect';
 import { PersistenceManager } from '@/lib/persistenceManager';
 import { performClearAllData, DEFAULT_HYDRATION_PREFS } from '@/lib/clearAllData';
 import { verifyProfilePhotoExists, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
-import { buildExportPayload, readRawStorageData } from '@/lib/exportPayload';
+import { readRawStorageData } from '@/lib/exportPayload';
 import { makeClearedExportSnapshot, resolveExportData } from '@/lib/exportGap';
 import { normalizeHealthConnection } from '@/lib/healthConnection';
 import { healthService } from '@/lib/health/healthService';
@@ -75,6 +75,17 @@ import {
   type FoodImageSource,
 } from '@/lib/foodImageMetadata';
 import { recordDiaryDelete } from '@/lib/diarySync';
+import {
+  DEFAULT_LOCAL_NOTIFICATION_PREFERENCES,
+  legacyReminderMirrors,
+  normalizeNotificationPreferences,
+  type LocalNotificationPreferences,
+} from '@/lib/notificationPreferences';
+import {
+  cancelNotificationPlanForClear,
+  reconcileHydratedNotificationPlan,
+} from '@/lib/notificationLifecycle';
+import { clearNotificationInbox } from '@/lib/notificationInbox';
 export type { PlannerPreferences, PlanTypeId } from '@/lib/planType';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
@@ -173,6 +184,8 @@ export type Profile = {
   proteinTargetGrams?: number;
   carbsTargetGrams?: number;
   fatTargetGrams?: number;
+  /** Missing on older installs; legacy targets are always treated as custom. */
+  targetMode?: 'automatic' | 'custom';
   units?: 'metric' | 'imperial';
 };
 
@@ -213,6 +226,7 @@ type CaloraState = {
   hydrationReminders: HydrationReminderPrefs;
   mealReminders?: MealReminderPrefs;
   goalReminder?: GoalReminderPrefs;
+  notificationPreferences?: LocalNotificationPreferences;
   coachConsentAccepted: boolean;
   coachMessages: CoachMessage[];
   livingMemory?: LivingMemory;
@@ -272,6 +286,7 @@ type CaloraContextValue = {
   hydrationReminders: HydrationReminderPrefs;
   mealReminders: MealReminderPrefs;
   goalReminder: GoalReminderPrefs;
+  notificationPreferences: LocalNotificationPreferences;
   fontScale: number;
   fontSizeScale: 'small' | 'default' | 'large' | 'xlarge';
   setFontSizeScale: (scale: 'small' | 'default' | 'large' | 'xlarge') => void;
@@ -315,6 +330,7 @@ type CaloraContextValue = {
   setHydrationReminders: (prefs: HydrationReminderPrefs) => void;
   setMealReminders: (prefs: MealReminderPrefs) => void;
   setGoalReminder: (prefs: GoalReminderPrefs) => void;
+  setNotificationPreferences: (prefs: LocalNotificationPreferences) => void;
   deleteSavedMeal: (id: string) => void;
   addLog: (log: Omit<FoodLog, 'id'>) => void;
   updateLog: (id: string, patch: Partial<FoodLog>) => void;
@@ -537,6 +553,9 @@ export function CaloraProvider({
   const [hydrationReminders, setHydrationRemindersState] = useState<HydrationReminderPrefs>(DEFAULT_HYDRATION_PREFS);
   const [mealReminders, setMealRemindersState] = useState<MealReminderPrefs>(DEFAULT_MEAL_REMINDER_PREFS);
   const [goalReminder, setGoalReminderState] = useState<GoalReminderPrefs>(DEFAULT_GOAL_REMINDER_PREFS);
+  const [notificationPreferences, setNotificationPreferencesState] = useState<LocalNotificationPreferences>(
+    DEFAULT_LOCAL_NOTIFICATION_PREFERENCES,
+  );
   const [coachConsentAccepted, setCoachConsentAccepted] = useState(false);
   const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([]);
   const [goalCelebrationSeenTargetKg, setGoalCelebrationSeenTargetKg] = useState<number | null>(null);
@@ -590,7 +609,7 @@ export function CaloraProvider({
   const { hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying } = useHydrationEffect<Partial<CaloraState>>(pm, (saved) => {
     if (!saved) return;
     if (saved.onboardingComplete !== undefined) setOnboardingComplete(saved.onboardingComplete);
-    if (saved.profile) setProfile(saved.profile);
+    if (saved.profile) setProfile({ ...saved.profile, targetMode: saved.profile.targetMode ?? 'custom' });
      const normalizedLogs = saved.logs?.map((log) => normalizeLogImageMetadata({
        ...log,
        date: log.date ?? today,
@@ -625,9 +644,12 @@ export function CaloraProvider({
     if (saved.plannerWeekStart) setPlannerWeekStart(saved.plannerWeekStart);
     if (saved.plannerMeals) setPlannerMealsState(normalizePlannerMealImageIdentities(saved.plannerMeals));
     if (saved.shoppingItems) setShoppingItems(saved.shoppingItems);
-    if (saved.hydrationReminders) setHydrationRemindersState(saved.hydrationReminders);
-    if (saved.mealReminders) setMealRemindersState(saved.mealReminders as MealReminderPrefs);
-    if (saved.goalReminder) setGoalReminderState(saved.goalReminder as GoalReminderPrefs);
+    const normalizedNotificationPreferences = normalizeNotificationPreferences(saved.notificationPreferences, saved);
+    const reminderMirrors = legacyReminderMirrors(normalizedNotificationPreferences);
+    setNotificationPreferencesState(normalizedNotificationPreferences);
+    setHydrationRemindersState(reminderMirrors.hydrationReminders);
+    setMealRemindersState(reminderMirrors.mealReminders);
+    setGoalReminderState(reminderMirrors.goalReminder);
      if (saved.coachConsentAccepted !== undefined) setCoachConsentAccepted(saved.coachConsentAccepted);
      if (saved.coachMessages) setCoachMessages(saved.coachMessages);
      if (saved.goalCelebrationSeenTargetKg !== undefined) setGoalCelebrationSeenTargetKg(saved.goalCelebrationSeenTargetKg ?? null);
@@ -635,6 +657,18 @@ export function CaloraProvider({
      if (saved.fontSizeScale) setFontSizeScaleState(saved.fontSizeScale as 'small' | 'default' | 'large' | 'xlarge');
      if (saved.profilePhotoUri) setProfilePhotoUriState(saved.profilePhotoUri);
   });
+
+  // A provider is keyed by the active account/guest scope. Reconcile precisely
+  // once after each successful hydration so schedules from the previous scope
+  // are cancelled before this scope's desired plan is installed. This path
+  // deliberately never asks the OS for permission.
+  useEffect(() => {
+    if (!hydrated || hydrationError) return;
+    void reconcileHydratedNotificationPlan(notificationPreferences);
+  // notificationPreferences is intentionally read from the hydration commit;
+  // user edits reconcile themselves through the same native lifecycle queue.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, hydrated, hydrationError]);
 
   // The former device-wide key had no reliable owner. Never attach it to an
   // account automatically; quarantine it only after a successful raw copy.
@@ -795,6 +829,7 @@ export function CaloraProvider({
       hydrationReminders,
       mealReminders,
       goalReminder,
+      notificationPreferences,
       coachConsentAccepted,
       coachMessages,
       livingMemory,
@@ -804,7 +839,7 @@ export function CaloraProvider({
       profilePhotoUri: profilePhotoUri ?? undefined,
     };
      enqueueAutosave(pm.current, state);
-  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, onboardingComplete, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs]);
+  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -1184,7 +1219,15 @@ export function CaloraProvider({
        queueMutation('settings', 'upsert');
      },
     setHydrationReminders: (prefs: HydrationReminderPrefs) => {
-      setHydrationRemindersState(prefs);
+      const next = normalizeNotificationPreferences({
+        ...notificationPreferences,
+        categories: {
+          ...notificationPreferences.categories,
+          hydration: { enabled: prefs.enabled, preferences: prefs },
+        },
+      });
+      setNotificationPreferencesState(next);
+      setHydrationRemindersState(legacyReminderMirrors(next).hydrationReminders);
     },
     fontScale,
     fontSizeScale,
@@ -1198,8 +1241,38 @@ export function CaloraProvider({
     },
     mealReminders,
     goalReminder,
-    setMealReminders: (prefs: MealReminderPrefs) => setMealRemindersState(prefs),
-    setGoalReminder: (prefs: GoalReminderPrefs) => setGoalReminderState(prefs),
+    notificationPreferences,
+    setNotificationPreferences: (prefs: LocalNotificationPreferences) => {
+      const next = normalizeNotificationPreferences(prefs);
+      const mirrors = legacyReminderMirrors(next);
+      setNotificationPreferencesState(next);
+      setHydrationRemindersState(mirrors.hydrationReminders);
+      setMealRemindersState(mirrors.mealReminders);
+      setGoalReminderState(mirrors.goalReminder);
+      queueMutation('settings', 'upsert');
+    },
+    setMealReminders: (prefs: MealReminderPrefs) => {
+      const next = normalizeNotificationPreferences({
+        ...notificationPreferences,
+        categories: {
+          ...notificationPreferences.categories,
+          meal: { enabled: prefs.breakfast || prefs.lunch || prefs.dinner, preferences: prefs },
+        },
+      });
+      setNotificationPreferencesState(next);
+      setMealRemindersState(legacyReminderMirrors(next).mealReminders);
+    },
+    setGoalReminder: (prefs: GoalReminderPrefs) => {
+      const next = normalizeNotificationPreferences({
+        ...notificationPreferences,
+        categories: {
+          ...notificationPreferences.categories,
+          goal: { enabled: prefs.enabled, preferences: prefs },
+        },
+      });
+      setNotificationPreferencesState(next);
+      setGoalReminderState(legacyReminderMirrors(next).goalReminder);
+    },
     deleteSavedMeal: (id: string) => {
       setSavedMeals((current) => current.filter((meal) => meal.id !== id));
       queueMutation('savedMeal', 'delete');
@@ -1212,6 +1285,12 @@ export function CaloraProvider({
         // set synchronously by clearAllData before React re-renders) and falls
         // through to the live closed-over state only when the ref is null.
         // See lib/exportGap.ts for the extracted production function.
+        const normalizedPreferences = normalizeNotificationPreferences(notificationPreferences, {
+          hydrationReminders,
+          mealReminders,
+          goalReminder,
+        });
+        const reminderMirrors = legacyReminderMirrors(normalizedPreferences);
         return resolveExportData(exportSnapshotRef, {
           profile,
           logs,
@@ -1231,7 +1310,10 @@ export function CaloraProvider({
           repeatPatterns,
           memoryCorrections,
           livingMemory,
-          hydrationReminders,
+          hydrationReminders: reminderMirrors.hydrationReminders,
+          mealReminders: reminderMirrors.mealReminders,
+          goalReminder: reminderMirrors.goalReminder,
+          notificationPreferences: normalizedPreferences,
           healthConnected,
           consentAccepted,
           coachConsentAccepted,
@@ -1249,6 +1331,10 @@ export function CaloraProvider({
         CoachFactRequestLifecycle.invalidateAll();
         invalidateAllCoachLifecycleEpochs('clear_data');
         await coachFactConsentCache.clear(accountId ?? null);
+        // These are both account-safe (inbox) or explicitly Calora-tagged
+        // (schedules), and must finish before the clear promise resolves.
+        await cancelNotificationPlanForClear();
+        await clearNotificationInbox(accountId ?? null);
         const photoDeleteResult = await deleteProfilePhoto(FileSystem, accountId);
         if (!photoDeleteResult.ok) {
           throw new Error('Could not delete the local profile photo.');
@@ -1298,6 +1384,7 @@ export function CaloraProvider({
         // See lib/exportGap.ts for the extracted production function.
         setMealRemindersState(DEFAULT_MEAL_REMINDER_PREFS);
         setGoalReminderState(DEFAULT_GOAL_REMINDER_PREFS);
+        setNotificationPreferencesState(DEFAULT_LOCAL_NOTIFICATION_PREFERENCES);
         setFontSizeScaleState('default');
         setProfilePhotoUriState(null);
         exportSnapshotRef.current = makeClearedExportSnapshot({
@@ -1407,7 +1494,7 @@ export function CaloraProvider({
      goalCelebrationSeenTargetKg,
      markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
      resetGoalCelebrationSeen: () => setGoalCelebrationSeenTargetKg(null),
-      }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+      }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

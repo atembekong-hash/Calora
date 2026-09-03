@@ -11,13 +11,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { type DietPreference, type Goal, SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
 import {
-  cancelHydrationReminders,
   formatTime,
-  scheduleHydrationReminders,
   type HydrationReminderPrefs,
 } from '@/lib/hydrationReminders';
-import { cancelMealReminders, scheduleMealReminders, type MealReminderPrefs } from '@/lib/mealReminders';
-import { cancelGoalReminder, scheduleGoalReminder, type GoalReminderPrefs } from '@/lib/goalReminder';
+import { type MealReminderPrefs } from '@/lib/mealReminders';
+import { type GoalReminderPrefs } from '@/lib/goalReminder';
+import { normalizeNotificationPreferences } from '@/lib/notificationPreferences';
+import { reconcileUserNotificationPlan } from '@/lib/notificationLifecycle';
 import * as FileSystem from 'expo-file-system/legacy';
 import { copyProfilePhoto, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
 import * as Haptics from 'expo-haptics';
@@ -35,6 +35,7 @@ import { REVENUECAT_ENTITLEMENT_IDENTIFIER, useSubscription } from '@/lib/revenu
 import { enterMotion } from '@/lib/motion';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { ProfileYouSettings } from '@/components/ProfileYouSettings';
 import {
   clearNotificationInbox,
   getNotificationInbox,
@@ -90,9 +91,7 @@ export default function ProfileScreen() {
     healthConnected, healthConnection, connectHealth, syncHealth, disconnectHealth,
     exportRawStorageData, clearAllData, isClearing, syncState,
     savedMeals, saveMeal, deleteSavedMeal,
-    hydrationReminders, setHydrationReminders,
-    mealReminders, setMealReminders,
-    goalReminder, setGoalReminder,
+    notificationPreferences, setNotificationPreferences,
     livingMemory, logs,
     fontSizeScale, setFontSizeScale,
     profilePhotoUri, setProfilePhotoUri, fontScale,
@@ -132,6 +131,7 @@ export default function ProfileScreen() {
   const [reminderStatus, setReminderStatus] = useState<'idle' | 'denied' | 'scheduled'>('idle');
   const [mealReminderStatus, setMealReminderStatus] = useState<'idle' | 'denied' | 'scheduled'>('idle');
   const [goalReminderStatus, setGoalReminderStatus] = useState<'idle' | 'denied' | 'scheduled'>('idle');
+  const [notificationPermissionDenied, setNotificationPermissionDenied] = useState(false);
 
   // Saved meal creation modal
   const [savedMealModal, setSavedMealModal] = useState(false);
@@ -161,6 +161,11 @@ export default function ProfileScreen() {
   const [notifications, setNotifications] = useState<NotificationInboxItem[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const notificationAccountId = user?.id ?? null;
+  // These are the user's desired settings rather than the legacy effective
+  // mirrors, which are intentionally off while the master delivery switch is off.
+  const hydrationReminderPrefs = notificationPreferences.categories.hydration.preferences;
+  const mealReminderPrefs = notificationPreferences.categories.meal.preferences;
+  const goalReminderPrefs = notificationPreferences.categories.goal.preferences;
 
   const refreshNotifications = useCallback(async () => {
     setNotificationsLoading(true);
@@ -216,11 +221,15 @@ export default function ProfileScreen() {
     (async () => {
       try {
         const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        const permission = await Notifications.getPermissionsAsync();
+        if (permission.status === Notifications.PermissionStatus.DENIED) {
+          setNotificationPermissionDenied(true);
+        }
         const tags = new Set(scheduled.map((n) => n.content.data?.tag));
-        if (hydrationReminders.enabled && tags.has('calora-hydration')) setReminderStatus('scheduled');
-        const anyMeal = mealReminders.breakfast || mealReminders.lunch || mealReminders.dinner;
+        if (hydrationReminderPrefs.enabled && tags.has('calora-hydration')) setReminderStatus('scheduled');
+        const anyMeal = mealReminderPrefs.breakfast || mealReminderPrefs.lunch || mealReminderPrefs.dinner;
         if (anyMeal && tags.has('calora-meals')) setMealReminderStatus('scheduled');
-        if (goalReminder.enabled && tags.has('calora-goal')) setGoalReminderStatus('scheduled');
+        if (goalReminderPrefs.enabled && tags.has('calora-goal')) setGoalReminderStatus('scheduled');
       } catch {
         // Permission not granted yet — leave statuses at 'idle'
       }
@@ -230,42 +239,78 @@ export default function ProfileScreen() {
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
+  const applyNotificationPrefs = async (next: typeof notificationPreferences) => {
+    Haptics.selectionAsync();
+    const desired = normalizeNotificationPreferences(next);
+    // Persist first: permission denial controls delivery, never the user's choices.
+    setNotificationPreferences(desired);
+    const result = await reconcileUserNotificationPlan(desired);
+    setNotificationPermissionDenied((wasDenied) => result.status === 'denied'
+      ? true
+      : result.status === 'scheduled' ? false : wasDenied);
+    return result;
+  };
+
+  const openNotificationSettings = () => {
+    void Linking.openSettings().catch(() => {
+      Alert.alert('Unable to open settings', 'Open your device settings and allow notifications for this app.');
+    });
+  };
+
+  const nudgeQuietTime = (field: 'start' | 'end', delta: number) => {
+    const current = notificationPreferences.quietHours[field];
+    const minutes = (current.hour * 60 + current.minute + delta + 24 * 60) % (24 * 60);
+    void applyNotificationPrefs({
+      ...notificationPreferences,
+      quietHours: { ...notificationPreferences.quietHours, [field]: { hour: Math.floor(minutes / 60), minute: minutes % 60 } },
+    });
+  };
+
   /** Hydration reminders */
   const applyHydrationPrefs = async (next: HydrationReminderPrefs) => {
-    Haptics.selectionAsync();
-    setHydrationReminders(next);
-    if (!next.enabled) { await cancelHydrationReminders(); setReminderStatus('idle'); return; }
-    const count = await scheduleHydrationReminders(next);
-    if (count === -1) {
+    const desired = normalizeNotificationPreferences({
+      ...notificationPreferences,
+      categories: {
+        ...notificationPreferences.categories,
+        hydration: { enabled: next.enabled, preferences: next },
+      },
+    });
+    const result = await applyNotificationPrefs(desired);
+    if (result.status === 'denied') {
       setReminderStatus('denied');
       Alert.alert('Notification permission needed', `To receive hydration reminders, allow ${BRAND.name} to send notifications in your device settings.`);
     } else {
-      setReminderStatus('scheduled');
+      setReminderStatus(notificationPreferences.masterEnabled && next.enabled ? 'scheduled' : 'idle');
     }
   };
   const nudgeHydrationHour = (field: 'wakeHour' | 'sleepHour', delta: number) =>
-    applyHydrationPrefs({ ...hydrationReminders, [field]: (hydrationReminders[field] + delta + 24) % 24 });
+    applyHydrationPrefs({ ...hydrationReminderPrefs, [field]: (hydrationReminderPrefs[field] + delta + 24) % 24 });
   const nudgeHydrationMinute = (field: 'wakeMinute' | 'sleepMinute', delta: number) =>
-    applyHydrationPrefs({ ...hydrationReminders, [field]: (hydrationReminders[field] + delta + 60) % 60 });
+    applyHydrationPrefs({ ...hydrationReminderPrefs, [field]: (hydrationReminderPrefs[field] + delta + 60) % 60 });
 
   /** Meal reminders */
   const applyMealPrefs = async (next: MealReminderPrefs) => {
-    Haptics.selectionAsync();
-    setMealReminders(next);
-    const granted = await scheduleMealReminders(next);
-    if (!granted) {
+    const desired = normalizeNotificationPreferences({
+      ...notificationPreferences,
+      categories: {
+        ...notificationPreferences.categories,
+        meal: { enabled: next.breakfast || next.lunch || next.dinner, preferences: next },
+      },
+    });
+    const result = await applyNotificationPrefs(desired);
+    if (result.status === 'denied') {
       setMealReminderStatus('denied');
       Alert.alert('Notification permission needed', `To receive meal reminders, allow ${BRAND.name} to send notifications in your device settings.`);
     } else {
       const anyEnabled = next.breakfast || next.lunch || next.dinner;
-      setMealReminderStatus(anyEnabled ? 'scheduled' : 'idle');
+      setMealReminderStatus(notificationPreferences.masterEnabled && anyEnabled ? 'scheduled' : 'idle');
     }
   };
   const nudgeMealTime = (meal: 'breakfast' | 'lunch' | 'dinner', field: 'hour' | 'minute', delta: number) => {
     const timeKey = `${meal}Time` as 'breakfastTime' | 'lunchTime' | 'dinnerTime';
-    const current = mealReminders[timeKey];
+    const current = mealReminderPrefs[timeKey];
     applyMealPrefs({
-      ...mealReminders,
+      ...mealReminderPrefs,
       [timeKey]: field === 'hour'
         ? { ...current, hour: (current.hour + delta + 24) % 24 }
         : { ...current, minute: (current.minute + delta + 60) % 60 },
@@ -274,22 +319,26 @@ export default function ProfileScreen() {
 
   /** Goal reminder */
   const applyGoalPrefs = async (next: GoalReminderPrefs) => {
-    Haptics.selectionAsync();
-    setGoalReminder(next);
-    if (!next.enabled) { await cancelGoalReminder(); setGoalReminderStatus('idle'); return; }
-    const granted = await scheduleGoalReminder(next);
-    if (!granted) {
+    const desired = normalizeNotificationPreferences({
+      ...notificationPreferences,
+      categories: {
+        ...notificationPreferences.categories,
+        goal: { enabled: next.enabled, preferences: next },
+      },
+    });
+    const result = await applyNotificationPrefs(desired);
+    if (result.status === 'denied') {
       setGoalReminderStatus('denied');
       Alert.alert('Notification permission needed', `To receive goal reminders, allow ${BRAND.name} to send notifications in your device settings.`);
     } else {
-      setGoalReminderStatus('scheduled');
+      setGoalReminderStatus(notificationPreferences.masterEnabled && next.enabled ? 'scheduled' : 'idle');
     }
   };
   const nudgeGoalTime = (field: 'hour' | 'minute', delta: number) =>
     applyGoalPrefs({
-      ...goalReminder,
-      hour: field === 'hour' ? (goalReminder.hour + delta + 24) % 24 : goalReminder.hour,
-      minute: field === 'minute' ? (goalReminder.minute + delta + 60) % 60 : goalReminder.minute,
+      ...goalReminderPrefs,
+      hour: field === 'hour' ? (goalReminderPrefs.hour + delta + 24) % 24 : goalReminderPrefs.hour,
+      minute: field === 'minute' ? (goalReminderPrefs.minute + delta + 60) % 60 : goalReminderPrefs.minute,
     });
 
   /** Billing */
@@ -454,7 +503,7 @@ export default function ProfileScreen() {
         return;
       }
     }
-    updateProfile({ name: editName.trim(), calorieTarget: calories, diet: editDiet, goal: editGoal });
+    updateProfile({ name: editName.trim(), calorieTarget: calories, diet: editDiet, goal: editGoal, targetMode: 'custom' });
     setProfilePhotoUri(cleanUri);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setProfileEditError('');
@@ -569,6 +618,7 @@ export default function ProfileScreen() {
         </Text>
 
         <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
+        <ProfileYouSettings profile={profile} colors={colors} updateProfile={updateProfile} />
         {/* ── Appearance ── */}
         <Animated.View entering={enterMotion('screen', 1)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
@@ -636,29 +686,101 @@ export default function ProfileScreen() {
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 4, marginBottom: 4 }]}>Reminders</Text>
         <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>On-device water, meal, and goal nudges.</Text>
 
+        {/* Delivery controls keep each category's desired settings intact while paused. */}
+        <View style={[styles.notificationMasterCard, { backgroundColor: colors.card, borderColor: notificationPreferences.masterEnabled ? colors.primary : colors.border }]}>
+          <View style={[styles.notificationMasterIcon, { backgroundColor: notificationPreferences.masterEnabled ? colors.accent : colors.muted }]}>
+            <Feather name={notificationPreferences.masterEnabled ? 'bell' : 'bell-off'} size={18} color={notificationPreferences.masterEnabled ? colors.primary : colors.mutedForeground} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.settingTitle, { color: colors.foreground }]}>Notifications</Text>
+            <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
+              {notificationPreferences.masterEnabled ? 'Deliver selected reminders on this device' : 'Paused — your reminder choices are saved'}
+            </Text>
+          </View>
+          <Switch
+            accessibilityLabel="Toggle all notifications"
+            testID="notification-master-toggle"
+            value={notificationPreferences.masterEnabled}
+            onValueChange={(masterEnabled) => void applyNotificationPrefs({ ...notificationPreferences, masterEnabled })}
+            trackColor={{ false: colors.muted, true: colors.primary }}
+            thumbColor={colors.primaryForeground}
+          />
+        </View>
+
+        <View style={[styles.reminderSettings, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 8 }]}>
+          <View style={styles.reminderTimeRow}>
+            <View style={[styles.reminderTimeIcon, { backgroundColor: colors.muted }]}><Feather name="moon" size={14} color={colors.primary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.settingTitle, { color: colors.foreground }]}>Quiet hours</Text>
+              <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
+                {notificationPreferences.quietHours.enabled
+                  ? `Pause delivery ${formatTime(notificationPreferences.quietHours.start.hour, notificationPreferences.quietHours.start.minute)} – ${formatTime(notificationPreferences.quietHours.end.hour, notificationPreferences.quietHours.end.minute)}`
+                  : 'Allow reminders at all hours'}
+              </Text>
+            </View>
+            <Switch
+              accessibilityLabel="Toggle quiet hours"
+              testID="quiet-hours-toggle"
+              value={notificationPreferences.quietHours.enabled}
+              onValueChange={(enabled) => void applyNotificationPrefs({ ...notificationPreferences, quietHours: { ...notificationPreferences.quietHours, enabled } })}
+              trackColor={{ false: colors.muted, true: colors.primary }}
+              thumbColor={colors.primaryForeground}
+            />
+          </View>
+          {notificationPreferences.quietHours.enabled && (
+            <>
+              <View style={[styles.reminderDivider, { backgroundColor: colors.border }]} />
+              {(['start', 'end'] as const).map((field) => {
+                const time = notificationPreferences.quietHours[field];
+                const label = field === 'start' ? 'START QUIET HOURS' : 'END QUIET HOURS';
+                return (
+                  <View key={field} style={styles.reminderTimeRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.reminderTimeLabel, { color: colors.mutedForeground }]}>{label}</Text>
+                      <Text style={[styles.reminderTimeValue, { color: colors.foreground }]}>{formatTime(time.hour, time.minute)}</Text>
+                    </View>
+                    <View style={styles.reminderNudge}>
+                      <Pressable accessibilityLabel={`Decrease quiet hours ${field} time by 15 minutes`} testID={`quiet-hours-${field}-decrease`} onPress={() => nudgeQuietTime(field, -15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                      <Pressable accessibilityLabel={`Increase quiet hours ${field} time by 15 minutes`} testID={`quiet-hours-${field}-increase`} onPress={() => nudgeQuietTime(field, 15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+            </>
+          )}
+        </View>
+
+        {notificationPermissionDenied && (
+          <Pressable accessibilityLabel="Open notification settings" testID="open-notification-settings" onPress={openNotificationSettings} style={[styles.notificationSettingsButton, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+            <Feather name="settings" size={14} color={colors.foreground} />
+            <Text style={[styles.notificationSettingsButtonText, { color: colors.foreground }]}>Notifications are off in device settings</Text>
+            <Text style={[styles.notificationSettingsLink, { color: colors.primary }]}>Open settings</Text>
+          </Pressable>
+        )}
+
         {/* Hydration */}
         <View style={[styles.reminderToggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.settingIcon, { backgroundColor: '#e5f1ff' }]}><Feather name="droplet" size={17} color="#5d8edb" /></View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Hydration reminders</Text>
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
-              {hydrationReminders.enabled
+              {hydrationReminderPrefs.enabled
                 ? reminderStatus === 'denied' ? 'Permission required in device settings'
-                  : `Every ${hydrationReminders.intervalHours}h · ${formatTime(hydrationReminders.wakeHour, hydrationReminders.wakeMinute)} – ${formatTime(hydrationReminders.sleepHour, hydrationReminders.sleepMinute)}`
+                  : `Every ${hydrationReminderPrefs.intervalHours}h · ${formatTime(hydrationReminderPrefs.wakeHour, hydrationReminderPrefs.wakeMinute)} – ${formatTime(hydrationReminderPrefs.sleepHour, hydrationReminderPrefs.sleepMinute)}`
                 : 'Off · tap to turn on'}
             </Text>
           </View>
-          <Switch accessibilityLabel="Toggle hydration reminders" testID="hydration-reminder-toggle" value={hydrationReminders.enabled} onValueChange={(val) => applyHydrationPrefs({ ...hydrationReminders, enabled: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} />
+          <Switch accessibilityLabel="Toggle hydration reminders" testID="hydration-reminder-toggle" value={hydrationReminderPrefs.enabled} onValueChange={(val) => applyHydrationPrefs({ ...hydrationReminderPrefs, enabled: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} />
         </View>
 
-        {hydrationReminders.enabled && (
+        {hydrationReminderPrefs.enabled && (
           <View style={[styles.reminderSettings, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Wake time */}
             <View style={styles.reminderTimeRow}>
               <View style={[styles.reminderTimeIcon, { backgroundColor: '#fff0dc' }]}><Feather name="sun" size={14} color="#d7954e" /></View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.reminderTimeLabel, { color: colors.mutedForeground }]}>WAKE TIME</Text>
-                <Text style={[styles.reminderTimeValue, { color: colors.foreground }]}>{formatTime(hydrationReminders.wakeHour, hydrationReminders.wakeMinute)}</Text>
+                <Text style={[styles.reminderTimeValue, { color: colors.foreground }]}>{formatTime(hydrationReminderPrefs.wakeHour, hydrationReminderPrefs.wakeMinute)}</Text>
               </View>
               <View style={styles.reminderNudgeGroup}>
                 <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>HR</Text>
@@ -681,7 +803,7 @@ export default function ProfileScreen() {
               <View style={[styles.reminderTimeIcon, { backgroundColor: '#f2eafd' }]}><Feather name="moon" size={14} color="#9875c7" /></View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.reminderTimeLabel, { color: colors.mutedForeground }]}>WIND-DOWN TIME</Text>
-                <Text style={[styles.reminderTimeValue, { color: colors.foreground }]}>{formatTime(hydrationReminders.sleepHour, hydrationReminders.sleepMinute)}</Text>
+                <Text style={[styles.reminderTimeValue, { color: colors.foreground }]}>{formatTime(hydrationReminderPrefs.sleepHour, hydrationReminderPrefs.sleepMinute)}</Text>
               </View>
               <View style={styles.reminderNudgeGroup}>
                 <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>HR</Text>
@@ -704,9 +826,9 @@ export default function ProfileScreen() {
               <Text style={[styles.reminderTimeLabel, { color: colors.mutedForeground, marginBottom: 8 }]}>REMIND EVERY</Text>
               <View style={styles.intervalChips}>
                 {([1, 1.5, 2, 3] as const).map((h) => {
-                  const selected = hydrationReminders.intervalHours === h;
+                  const selected = hydrationReminderPrefs.intervalHours === h;
                   return (
-                    <Pressable key={h} accessibilityLabel={`Remind every ${h} hours`} onPress={() => applyHydrationPrefs({ ...hydrationReminders, intervalHours: h })} style={[styles.intervalChip, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}>
+                    <Pressable key={h} accessibilityLabel={`Remind every ${h} hours`} onPress={() => applyHydrationPrefs({ ...hydrationReminderPrefs, intervalHours: h })} style={[styles.intervalChip, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}>
                       <Text style={[styles.intervalChipText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{h}h</Text>
                     </Pressable>
                   );
@@ -725,9 +847,9 @@ export default function ProfileScreen() {
         <Text style={[styles.reminderSectionLabel, { color: colors.mutedForeground }]}>MEAL REMINDERS</Text>
         <View style={[styles.reminderSettings, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 8 }]}>
           {mealConfig.map((meal, idx) => {
-            const enabled = mealReminders[meal.key];
+            const enabled = mealReminderPrefs[meal.key];
             const timeKey = `${meal.key}Time` as 'breakfastTime' | 'lunchTime' | 'dinnerTime';
-            const time = mealReminders[timeKey];
+            const time = mealReminderPrefs[timeKey];
             return (
               <View key={meal.key}>
                 {idx > 0 && <View style={[styles.reminderDivider, { backgroundColor: colors.border }]} />}
@@ -753,7 +875,7 @@ export default function ProfileScreen() {
                       </View>
                     </View>
                   )}
-                  <Switch accessibilityLabel={`Toggle ${meal.label} reminder`} value={enabled} onValueChange={(val) => applyMealPrefs({ ...mealReminders, [meal.key]: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
+                  <Switch accessibilityLabel={`Toggle ${meal.label} reminder`} value={enabled} onValueChange={(val) => applyMealPrefs({ ...mealReminderPrefs, [meal.key]: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
                 </View>
               </View>
             );
@@ -773,13 +895,13 @@ export default function ProfileScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]} numberOfLines={1}>Daily goal check-in</Text>
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
-              {goalReminder.enabled
+              {goalReminderPrefs.enabled
                 ? goalReminderStatus === 'denied' ? 'Permission required in device settings'
-                  : `Daily at ${formatTime(goalReminder.hour, goalReminder.minute)}`
+                  : `Daily at ${formatTime(goalReminderPrefs.hour, goalReminderPrefs.minute)}`
                 : 'Off · a reminder to log remaining meals'}
             </Text>
           </View>
-          {goalReminder.enabled && (
+          {goalReminderPrefs.enabled && (
             <View style={styles.reminderNudgeGroup}>
               <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>HR</Text>
               <View style={styles.reminderNudge}>
@@ -793,7 +915,7 @@ export default function ProfileScreen() {
               </View>
             </View>
           )}
-          <Switch accessibilityLabel="Toggle daily goal reminder" value={goalReminder.enabled} onValueChange={(val) => applyGoalPrefs({ ...goalReminder, enabled: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
+          <Switch accessibilityLabel="Toggle daily goal reminder" value={goalReminderPrefs.enabled} onValueChange={(val) => applyGoalPrefs({ ...goalReminderPrefs, enabled: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
         </View>
         </Animated.View>
 
@@ -1454,6 +1576,11 @@ function makeStyles(f: number) {
 
   // Reminder elements
   reminderSectionLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginTop: 18, marginBottom: 8 },
+  notificationMasterCard: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1.5, borderRadius: 18, padding: 13, marginBottom: 8 },
+  notificationMasterIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  notificationSettingsButton: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 10, marginBottom: 4 },
+  notificationSettingsButtonText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f },
+  notificationSettingsLink: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
   reminderToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 12, marginBottom: 8 },
   reminderSettings: { borderWidth: 1, borderRadius: 17, padding: 14, marginBottom: 8, gap: 4 },
   reminderTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 6 },

@@ -39,6 +39,9 @@ export interface CaloraExportState {
   memoryCorrections: unknown[];
   livingMemory: unknown;
   hydrationReminders: unknown;
+  mealReminders: unknown;
+  goalReminder: unknown;
+  notificationPreferences: unknown;
   healthConnected: boolean;
   consentAccepted: boolean;
   coachConsentAccepted: boolean;

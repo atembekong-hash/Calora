@@ -14,6 +14,7 @@
  */
 
 import { BRAND } from '@/lib/brand';
+import { normalizeNotificationPreferences } from '@/lib/notificationPreferences';
 
 export type HydrationStatus = {
   hydrated: boolean;
@@ -101,6 +102,19 @@ export const MIGRATIONS: Record<number, (state: object) => object> = {
    * Snapshots without schemaVersion are treated as v1 by the `?? 1` fallback.
    */
   1: (state) => ({ ...state, schemaVersion: 2 }),
+  2: (state) => {
+    const legacy = state as {
+      hydrationReminders?: import('./hydrationReminders').HydrationReminderPrefs;
+      mealReminders?: import('./mealReminders').MealReminderPrefs;
+      goalReminder?: import('./goalReminder').GoalReminderPrefs;
+      notificationPreferences?: unknown;
+    };
+    return {
+      ...state,
+      notificationPreferences: normalizeNotificationPreferences(legacy.notificationPreferences, legacy),
+      schemaVersion: 3,
+    };
+  },
 };
 
 /**

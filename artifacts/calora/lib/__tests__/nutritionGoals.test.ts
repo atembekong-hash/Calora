@@ -39,6 +39,18 @@ describe('getMacroTargets', () => {
     });
   });
 
+  it('uses derived recommendations in automatic mode and preserves independent custom grams', () => {
+    expect(getMacroTargets({
+      ...profile,
+      targetMode: 'automatic',
+      proteinTargetGrams: 175,
+      carbsTargetGrams: 205,
+      fatTargetGrams: 82,
+    })).toEqual({ calories: 2000, protein: 130, carbs: 220, fat: 67 });
+    expect(getMacroTargets({ ...profile, targetMode: 'custom', proteinTargetGrams: 175, carbsTargetGrams: 205, fatTargetGrams: 82 }))
+      .toEqual({ calories: 2000, protein: 175, carbs: 205, fat: 82 });
+  });
+
   it('falls back safely when persisted custom targets are invalid', () => {
     expect(getMacroTargets({
       ...profile,

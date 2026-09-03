@@ -1438,6 +1438,9 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     memoryCorrections:    [{ id: 'mc-1' }],
     livingMemory:         { observations: [], lastUpdated: '2026-08-07' },
     hydrationReminders:   { enabled: true, times: ['08:00', '12:00', '18:00'] },
+    mealReminders:        { breakfast: true, lunch: false, dinner: false },
+    goalReminder:         { enabled: true, hour: 20, minute: 0 },
+    notificationPreferences: { version: 1, delivery: 'local', masterEnabled: true, quietHours: { enabled: false, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } }, categories: {} },
     healthConnected:      false,
     consentAccepted:      true,
     coachConsentAccepted: true,
@@ -1508,6 +1511,9 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     expect(snap.memoryCorrections).toEqual([]);
     expect(snap.livingMemory).toBeDefined();
     expect(snap.hydrationReminders).toEqual(DEFAULT_HYDRATION_PREFS);
+    expect(snap.mealReminders).toBeDefined();
+    expect(snap.goalReminder).toBeDefined();
+    expect(snap.notificationPreferences).toMatchObject({ version: 1, delivery: 'local' });
     expect(snap.healthConnected).toBe(false);
     expect(snap.consentAccepted).toBe(false);
     expect(snap.coachConsentAccepted).toBe(false);
@@ -1754,7 +1760,11 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
       savedRecipeIds: [], plannerWeekStart: '2026-08-03', plannerMeals: [],
       shoppingItems: [], foodDrafts: [], foodMemories: [], repeatPatterns: [],
       memoryCorrections: [], livingMemory: emptyLivingMemory(),
-      hydrationReminders: DEFAULT_HYDRATION_PREFS, healthConnected: false,
+      hydrationReminders: DEFAULT_HYDRATION_PREFS,
+      mealReminders: { breakfast: false, lunch: false, dinner: false },
+      goalReminder: { enabled: false, hour: 20, minute: 0 },
+      notificationPreferences: { version: 1, delivery: 'local', masterEnabled: true, quietHours: { enabled: false, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } }, categories: {} },
+      healthConnected: false,
       consentAccepted: false, coachConsentAccepted: false, coachMessages: [],
     };
 
@@ -1815,6 +1825,9 @@ describe('exportData (buildExportPayload): serialised output reflects the cleare
       memoryCorrections:    captured.memoryCorrections    as [],
       livingMemory:         captured.livingMemory,
       hydrationReminders:   captured.hydrationReminders,
+      mealReminders:        { breakfast: false, lunch: false, dinner: false },
+      goalReminder:         { enabled: false, hour: 20, minute: 0 },
+      notificationPreferences: { version: 1, delivery: 'local', masterEnabled: true, quietHours: { enabled: false, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } }, categories: {} },
       healthConnected:      false,
       consentAccepted:      captured.consentAccepted      as boolean,
       coachConsentAccepted: captured.coachConsentAccepted as boolean,
@@ -1851,6 +1864,9 @@ describe('exportData (buildExportPayload): serialised output reflects the cleare
     expect(parsed['foodMemories']).toEqual([]);
     expect(parsed['repeatPatterns']).toEqual([]);
     expect(parsed['memoryCorrections']).toEqual([]);
+    expect(parsed['notificationPreferences']).toMatchObject({ version: 1, delivery: 'local' });
+    expect(parsed['mealReminders']).toEqual({ breakfast: false, lunch: false, dinner: false });
+    expect(parsed['goalReminder']).toEqual({ enabled: false, hour: 20, minute: 0 });
     expect(parsed['consentAccepted']).toBe(false);
     expect(parsed['coachConsentAccepted']).toBe(false);
     expect(parsed['coachMessages']).toEqual([]);

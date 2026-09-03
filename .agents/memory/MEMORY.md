@@ -53,3 +53,4 @@
 - [Maestro native validation](maestro-native-validation.md) — Maestro 1.40 uses native host tooling for exact booted device IDs; no `maestro devices` command.
 - [Expo monorepo config](expo-monorepo-config.md) — Expo 54 expects build properties in the plugin and Metro defaults preserved while adding the workspace root.
 - [Notification inbox](notification-inbox.md) — local reminder delivery feeds an account-scoped in-app inbox with deduplication and explicit read/clear states.
+- [Native notification account lifecycle](native-notification-account-lifecycle.md) — device-wide schedules must be serialized so only the hydrated active account owns Calora reminders.

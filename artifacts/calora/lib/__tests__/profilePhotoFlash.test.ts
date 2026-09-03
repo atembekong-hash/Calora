@@ -491,7 +491,7 @@ describe('real CaloraProvider — clearAllData() deletes the profile photo file'
         'Could not delete the local profile photo.',
       );
     });
-    expect(result.current.profile).toEqual(ACCOUNT_PROFILE);
+    expect(result.current.profile).toEqual({ ...ACCOUNT_PROFILE, targetMode: 'custom' });
     expect(result.current.profilePhotoUri).toBe(STORED_PHOTO_URI);
   });
 });

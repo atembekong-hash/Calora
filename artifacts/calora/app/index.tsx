@@ -9,6 +9,7 @@ import { BRAND } from '@/lib/brand';
 import { formatWhole } from '@/lib/formatters';
 import { handleParseErrorExport } from '@/lib/parseErrorExportHandler';
 import { deriveErrorScreenActions } from '@/lib/errorScreenActions';
+import { recommendCalories } from '@/lib/calorieRecommendation';
 
 const goals: { key: Goal; label: string; body: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'lose', label: 'Lose weight', body: 'A steady, sustainable pace', icon: 'trending-down' },
@@ -36,13 +37,10 @@ export default function OnboardingScreen() {
   const [targetWeight, setTargetWeight] = useState('68');
   const [consent, setConsent] = useState(false);
 
-  const calorieTarget = useMemo(() => {
-    const weightNumber = Number(weight) || 76;
-    const base = 10 * weightNumber + 900;
-    const activityMultiplier = activity === 'low' ? 1.25 : activity === 'high' ? 1.55 : 1.4;
-    const adjustment = goal === 'lose' ? -250 : goal === 'gain' ? 250 : 0;
-    return Math.round((base * activityMultiplier + adjustment) / 50) * 50;
-  }, [activity, goal, weight]);
+  const calorieTarget = useMemo(
+    () => recommendCalories({ weightKg: Number(weight) || 76, activity, goal }),
+    [activity, goal, weight],
+  );
 
   const finish = () => {
     const profile: Profile = {
@@ -55,6 +53,7 @@ export default function OnboardingScreen() {
       targetWeightKg: Number(targetWeight) || 68,
       age: Number(age) || 31,
       calorieTarget,
+      targetMode: 'automatic',
     };
     completeOnboarding(profile, consent);
   };
