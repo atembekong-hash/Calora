@@ -15,7 +15,6 @@ import { BRAND, URLS } from '@/lib/brand';
 import { parseRecipeInstructionSteps } from '@/lib/recipe-instructions';
 import { formatCalories, formatGrams, formatQuantity, formatWhole } from '@/lib/formatters';
 import { AppHeader } from '@/components/AppChrome';
-import { HourlyBackground, useHourlyBackground } from '@/components/HourlyBackground';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
@@ -1182,7 +1181,6 @@ export default function RecipesScreen() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
-  const { source: hourlyBackgroundSource } = useHourlyBackground();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   // Pre-warm the detail query during the modal's slide-up animation (~350 ms).
   // On cache hits (staleTime 30 min) this is a no-op; on misses it means the
@@ -1324,8 +1322,7 @@ export default function RecipesScreen() {
     requestAnimationFrame(() => recipesScrollRef.current?.scrollTo({ y: section === 'discover' ? discoverScrollYRef.current : 0, animated: false }));
   };
   return (
-    <View style={[styles.page, { backgroundColor: 'transparent' }]}>
-      <HourlyBackground />
+    <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
         title="Recipes"
         action={(
@@ -1372,7 +1369,7 @@ export default function RecipesScreen() {
          <PremiumCatalogue visible={activeSection === 'premium'} colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} />
          {activeSection === 'discover' ? <>
         <View style={styles.recipeHeader}>
-          <Image source={hourlyBackgroundSource} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+          <Image source={require('../../assets/images/calora-recipes-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
           <LinearGradient
             colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']}
             locations={[0, 0.58, 1]}

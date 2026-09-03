@@ -29,7 +29,6 @@ import { SettingRowPressable } from '@/components/SettingRowPressable';
 import { AccountSection } from '@/components/auth/AccountSection';
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
-import { HourlyBackground } from '@/components/HourlyBackground';
 import { SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { ReferralCard } from '@/components/ReferralCard';
 import { REVENUECAT_ENTITLEMENT_IDENTIFIER, useSubscription } from '@/lib/revenuecat';
@@ -424,8 +423,7 @@ export default function ProfileScreen() {
 
   // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
-    <View style={[styles.page, { backgroundColor: 'transparent' }]}>
-      <HourlyBackground />
+    <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader back title="Profile" />
       <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
 

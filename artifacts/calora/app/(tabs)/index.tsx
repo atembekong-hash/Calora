@@ -21,7 +21,6 @@ import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
 import { CaloraFeatureIcon, type CaloraFeatureIconName } from '@/components/CaloraFeatureIcon';
 import { AppHeader } from '@/components/AppChrome';
-import { HourlyBackground, useHourlyBackground } from '@/components/HourlyBackground';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -1251,7 +1250,6 @@ export default function HomeScreen() {
     updateProfile,
   } = useCalora();
   const insets = useSafeAreaInsets();
-  const { source: hourlyBackgroundSource } = useHourlyBackground();
   const gaugeStyles = useMemo(() => makeGaugeStyles(fontScale), [fontScale]);
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showAdd, setShowAdd] = useState(false);
@@ -1445,8 +1443,7 @@ export default function HomeScreen() {
   }, [saveNotice]);
 
   return (
-    <View style={[styles.page, { backgroundColor: 'transparent' }]}>
-      <HourlyBackground />
+    <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
         title="Today"
         action={
@@ -1476,7 +1473,7 @@ export default function HomeScreen() {
       />
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: 14, paddingBottom: insets.bottom + 104 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.homeHeader}>
-           <Image source={hourlyBackgroundSource} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+           <Image source={require('../../assets/images/calora-profile-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
           <LinearGradient colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.72)', 'rgba(18,34,24,0.16)']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFillObject} />
           <View style={styles.homeHeaderContent}>
             <View style={styles.homeHeaderTop}>
@@ -1626,7 +1623,7 @@ export default function HomeScreen() {
               <Text style={[styles.addMealText, { color: colors.primaryForeground }]}>Add</Text>
             </ScalePressable>
           </View>
-          {!selectedLogs.length && <View style={styles.emptyDiary}><View style={styles.emptyDiaryVisual}><Image source={hourlyBackgroundSource} contentFit="cover" style={StyleSheet.absoluteFillObject} /><LinearGradient colors={['rgba(18,34,24,0.1)', 'rgba(18,34,24,0.68)']} style={StyleSheet.absoluteFillObject} /></View><Feather name="calendar" size={22} color={colors.mutedForeground} /><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>No meals yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal. It stays here offline.</Text></View>}
+          {!selectedLogs.length && <View style={styles.emptyDiary}><View style={styles.emptyDiaryVisual}><Image source={require('../../assets/images/calora-home-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} /><LinearGradient colors={['rgba(18,34,24,0.1)', 'rgba(18,34,24,0.68)']} style={StyleSheet.absoluteFillObject} /></View><Feather name="calendar" size={22} color={colors.mutedForeground} /><Text style={[styles.emptyDiaryTitle, { color: colors.foreground }]}>No meals yet</Text><Text style={[styles.emptyDiaryBody, { color: colors.mutedForeground }]}>Add a meal. It stays here offline.</Text></View>}
           {mealOrder.map((meal) => {
             const mealLogs = selectedLogs.filter((log) => log.meal === meal);
             if (!mealLogs.length) return null;

@@ -25,7 +25,6 @@ import { AppStatusBar } from '@/components/AppChrome';
 import { initializeRevenueCat, SubscriptionProvider } from '@/lib/revenuecat';
 import { ReferralActivator } from '@/components/ReferralActivator';
 import { useDiarySync } from '@/hooks/useDiarySync';
-import { HourlyBackgroundProvider } from '@/components/HourlyBackground';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -173,13 +172,11 @@ function AccountScopedProviders({ children }: { children: React.ReactNode }) {
         <SubscriptionProvider>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              <HourlyBackgroundProvider>
-                <AppStatusBar />
-                <DiarySyncWorker />
-                <ReferralActivator />
-                <PostLogIntelligenceHost />
-                {children}
-              </HourlyBackgroundProvider>
+              <AppStatusBar />
+              <DiarySyncWorker />
+              <ReferralActivator />
+              <PostLogIntelligenceHost />
+              {children}
             </KeyboardProvider>
           </GestureHandlerRootView>
         </SubscriptionProvider>

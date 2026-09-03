@@ -10,7 +10,6 @@ import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, wi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
 import { AppHeader } from '@/components/AppChrome';
-import { HourlyBackground } from '@/components/HourlyBackground';
 import { BRAND } from '@/lib/brand';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -381,12 +380,11 @@ export default function ScanScreen() {
   };
 
   if (!permission) {
-    return <View style={[styles.page, { backgroundColor: 'transparent' }]}><HourlyBackground /><ActivityIndicator color={colors.primary} /></View>;
+    return <View style={[styles.page, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primary} /></View>;
   }
 
   return (
-    <View style={[styles.page, { backgroundColor: 'transparent' }]}>
-      <HourlyBackground />
+    <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
         title="Scan"
         action={
