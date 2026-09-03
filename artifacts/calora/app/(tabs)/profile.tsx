@@ -161,6 +161,8 @@ export default function ProfileScreen() {
   const [notificationModal, setNotificationModal] = useState(false);
   const [notifications, setNotifications] = useState<NotificationInboxItem[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const notificationRequestRef = useRef(0);
   const notificationAccountId = user?.id ?? null;
   // These are the user's desired settings rather than the legacy effective
   // mirrors, which are intentionally off while the master delivery switch is off.
@@ -169,15 +171,31 @@ export default function ProfileScreen() {
   const goalReminderPrefs = notificationPreferences.categories.goal.preferences;
 
   const refreshNotifications = useCallback(async () => {
+    const requestId = ++notificationRequestRef.current;
     setNotificationsLoading(true);
-    const items = await getNotificationInbox(notificationAccountId);
-    setNotifications(items);
-    setNotificationsLoading(false);
+    try {
+      const items = await getNotificationInbox(notificationAccountId);
+      if (requestId !== notificationRequestRef.current) return;
+      setNotifications(items);
+      setNotificationsError(null);
+    } catch (error) {
+      if (requestId !== notificationRequestRef.current) return;
+      console.warn('[Calora][notifications] Could not load inbox:', error);
+      setNotificationsError('Your notification history could not be loaded.');
+    } finally {
+      if (requestId === notificationRequestRef.current) setNotificationsLoading(false);
+    }
   }, [notificationAccountId]);
 
   useEffect(() => {
+    setNotifications([]);
+    setNotificationsError(null);
     void refreshNotifications();
-    return subscribeToNotificationInbox(notificationAccountId, setNotifications);
+    const unsubscribe = subscribeToNotificationInbox(notificationAccountId, setNotifications);
+    return () => {
+      notificationRequestRef.current++;
+      unsubscribe();
+    };
   }, [notificationAccountId, refreshNotifications]);
 
   const openNotificationCenter = () => {
@@ -237,7 +255,8 @@ export default function ProfileScreen() {
         } else {
           setNotificationPermissionDenied(false);
         }
-      } catch {
+      } catch (error) {
+        console.warn('[Calora][notifications] Could not read notification permission:', error);
         // Permission not granted yet — leave statuses at 'idle'
       }
     })();
@@ -1352,6 +1371,22 @@ export default function ProfileScreen() {
             <View style={styles.notificationEmpty}>
               <ActivityIndicator color={colors.primary} />
               <Text style={[styles.notificationEmptyBody, { color: colors.mutedForeground }]}>Loading your updates…</Text>
+            </View>
+          ) : notificationsError ? (
+            <View style={[styles.notificationEmpty, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.notificationEmptyIcon, { backgroundColor: colors.accent }]}>
+                <Feather name="alert-circle" size={22} color={colors.accentForeground} />
+              </View>
+              <Text style={[styles.notificationEmptyTitle, { color: colors.foreground }]}>Couldn’t load your inbox</Text>
+              <Text style={[styles.notificationEmptyBody, { color: colors.mutedForeground }]}>{notificationsError}</Text>
+              <Pressable
+                accessibilityLabel="Retry loading notifications"
+                onPress={() => { void refreshNotifications(); }}
+                style={[styles.notificationActionButton, { backgroundColor: colors.muted, marginTop: 16 }]}
+              >
+                <Feather name="refresh-cw" size={15} color={colors.primary} />
+                <Text style={[styles.notificationActionText, { color: colors.foreground }]}>Try again</Text>
+              </Pressable>
             </View>
           ) : notifications.length === 0 ? (
             <View style={[styles.notificationEmpty, { backgroundColor: colors.card, borderColor: colors.border }]}>

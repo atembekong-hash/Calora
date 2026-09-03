@@ -54,28 +54,31 @@ export async function requestNotificationPermission(): Promise<boolean> {
 /**
  * Cancel all previously scheduled hydration reminders.
  */
-export async function cancelHydrationReminders(): Promise<void> {
+export async function cancelHydrationReminders(): Promise<boolean> {
   try {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     const ours = scheduled.filter(
       (n) => n.content.data?.tag === NOTIFICATION_TAG,
     );
     await Promise.all(ours.map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
-  } catch {
-    // Silently ignore — cancellation failure should not block the user
+    return true;
+  } catch (error) {
+    console.warn('[Calora][notifications] Could not cancel legacy hydration reminders:', error);
+    return false;
   }
 }
 
 /**
  * Schedule daily hydration reminders based on user preferences.
  * Cancels any existing reminders first, then schedules new ones.
- * Returns the number of reminders scheduled, or -1 on permission failure.
+ * Returns the number of reminders scheduled, or -1 when permission,
+ * cancellation, or installation fails.
  */
 export async function scheduleHydrationReminders(
   prefs: HydrationReminderPrefs,
   scopeToken?: string,
 ): Promise<number> {
-  await cancelHydrationReminders();
+  if (!await cancelHydrationReminders()) return -1;
 
   if (!prefs.enabled) return 0;
   // Tokenless legacy scheduling cannot establish notification ownership and
@@ -104,7 +107,7 @@ export async function scheduleHydrationReminders(
   }
 
   // Schedule each slot as a daily repeating notification
-  await Promise.all(
+  const results = await Promise.all(
     slots.map((slot, i) =>
       Notifications.scheduleNotificationAsync({
         content: {
@@ -118,11 +121,18 @@ export async function scheduleHydrationReminders(
           hour: slot.hour,
           minute: slot.minute,
         },
-      }).catch(() => null), // Individual failures should not abort the others
+      }).then(() => true).catch((error) => {
+        console.warn('[Calora][notifications] Could not schedule legacy hydration reminder:', error);
+        return false;
+      }),
     ),
   );
 
-  return slots.length;
+  if (results.every(Boolean)) return slots.length;
+  // A partial legacy plan is no safer than a failed plan. Remove the
+  // successfully installed subset before reporting failure to the caller.
+  await cancelHydrationReminders();
+  return -1;
 }
 
 /**

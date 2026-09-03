@@ -17,6 +17,7 @@ import {
   recordReceivedNotification,
   isNotificationOwnedByScope,
 } from '@/lib/notificationInbox';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const notification = (id: string, category = 'meal') => ({
   request: {
@@ -142,5 +143,30 @@ describe('notification inbox persistence', () => {
     await clearNotificationInbox('account-a');
     expect(await getNotificationInbox('account-a')).toEqual([]);
     expect(await getNotificationInbox('account-b')).toHaveLength(1);
+  });
+
+  it('does not replace recoverable history when a read fails', async () => {
+    await recordReceivedNotification('account-a', notification('existing'), '2026-09-03T12:00:00.000Z');
+    vi.mocked(AsyncStorage.getItem).mockRejectedValueOnce(new Error('storage unavailable'));
+
+    await expect(recordReceivedNotification(
+      'account-a',
+      notification('new'),
+      '2026-09-03T13:00:00.000Z',
+    )).rejects.toThrow('Notification history could not be read');
+
+    expect(await getNotificationInbox('account-a')).toEqual([
+      expect.objectContaining({ id: 'existing' }),
+    ]);
+  });
+
+  it('does not let a malformed inbox payload become an empty overwrite', async () => {
+    storage.set('@calora/notification-inbox/account-a', JSON.stringify({ corrupted: true }));
+
+    await expect(recordReceivedNotification('account-a', notification('new'))).rejects.toThrow(
+      'Notification history has an invalid format',
+    );
+
+    expect(storage.get('@calora/notification-inbox/account-a')).toBe(JSON.stringify({ corrupted: true }));
   });
 });

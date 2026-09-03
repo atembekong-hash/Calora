@@ -25,40 +25,49 @@ const NOTIFICATION_TAG = 'calora-goal';
 /**
  * Cancel the previously scheduled goal reminder (if any).
  */
-export async function cancelGoalReminder(): Promise<void> {
+export async function cancelGoalReminder(): Promise<boolean> {
   try {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     const ours = scheduled.filter((n) => n.content.data?.tag === NOTIFICATION_TAG);
     await Promise.all(ours.map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
-  } catch {
-    // Silently ignore
+    return true;
+  } catch (error) {
+    console.warn('[Calora][notifications] Could not cancel legacy goal reminder:', error);
+    return false;
   }
 }
 
 /**
  * Schedule a daily goal check-in reminder.
- * Returns true if scheduling succeeded or was skipped (disabled), false on permission denial.
+ * Returns true if scheduling succeeded or was skipped (disabled), false when
+ * ownership, permission, cancellation, or installation cannot be verified.
  */
-export async function scheduleGoalReminder(prefs: GoalReminderPrefs): Promise<boolean> {
-  await cancelGoalReminder();
+export async function scheduleGoalReminder(
+  prefs: GoalReminderPrefs,
+  scopeToken?: string,
+): Promise<boolean> {
+  if (!await cancelGoalReminder()) return false;
   if (!prefs.enabled) return true;
+  // Tokenless legacy scheduling cannot establish notification ownership.
+  if (!scopeToken) return false;
 
   const granted = await requestNotificationPermission();
   if (!granted) return false;
 
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: 'Daily goal check-in',
-      body: 'How are you tracking today? Tap to log your remaining meals.',
-      data: { tag: NOTIFICATION_TAG, category: 'goal' },
-      sound: true,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: prefs.hour,
-      minute: prefs.minute,
-    },
-  }).catch(() => null);
-
-  return true;
+  return Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Daily goal check-in',
+        body: 'How are you tracking today? Tap to log your remaining meals.',
+        data: { tag: NOTIFICATION_TAG, category: 'goal', scopeToken },
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: prefs.hour,
+        minute: prefs.minute,
+      },
+    }).then(() => true).catch((error) => {
+      console.warn('[Calora][notifications] Could not schedule legacy goal reminder:', error);
+      return false;
+    });
 }

@@ -63,17 +63,37 @@ function normalize(value: unknown): NotificationInboxItem[] {
 }
 
 async function readInbox(key: string): Promise<NotificationInboxItem[]> {
+  let raw: string | null;
   try {
-    const raw = await AsyncStorage.getItem(key);
-    return normalize(raw ? JSON.parse(raw) : []);
-  } catch {
-    return [];
+    raw = await AsyncStorage.getItem(key);
+  } catch (error) {
+    throw new Error('Notification history could not be read.', { cause: error });
   }
+  if (!raw) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error('Notification history could not be read.', { cause: error });
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error('Notification history has an invalid format.');
+  }
+  return normalize(parsed);
 }
 
 async function writeInbox(key: string, items: NotificationInboxItem[]): Promise<void> {
-  await AsyncStorage.setItem(key, JSON.stringify(items.slice(0, MAX_NOTIFICATIONS)));
-  listeners.get(key)?.forEach((listener) => listener(items));
+  const bounded = items.slice(0, MAX_NOTIFICATIONS);
+  await AsyncStorage.setItem(key, JSON.stringify(bounded));
+  listeners.get(key)?.forEach((listener) => {
+    try {
+      listener(bounded);
+    } catch (error) {
+      // A UI subscriber must not turn a successful storage write into a
+      // rejected mutation or block other subscribers from receiving it.
+      console.warn('[Calora][notifications] Inbox listener failed:', error);
+    }
+  });
 }
 
 function enqueueWrite<T>(key: string, task: () => Promise<T>): Promise<T> {

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { AppState, StyleSheet, Text, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -89,19 +89,31 @@ function NotificationHandler() {
 
     const accountId = user?.id ?? null;
     const scopeToken = notificationPreferences.scopeToken;
+    let active = true;
     const isCaloraNotification = (notification: Notifications.Notification) =>
       isNotificationOwnedByScope(notification, scopeToken);
     const capture = (notification: Notifications.Notification) => {
+      if (!active) return;
       if (!isCaloraNotification(notification)) return;
       void recordReceivedNotification(accountId, notification).catch((error) => {
         console.warn('[CaloraApp][notifications] Could not save notification:', error);
       });
     };
     const navigateFor = (notification: Notifications.Notification) => {
+      if (!active) return;
       if (!isCaloraNotification(notification)) return;
       const category = notification.request.content.data?.category;
       if (category === 'hydration' || category === 'meal' || category === 'goal') {
         router.navigate('/');
+      }
+    };
+    const capturePresented = async () => {
+      try {
+        const presented = await Notifications.getPresentedNotificationsAsync();
+        if (!active) return;
+        presented.forEach(capture);
+      } catch (error) {
+        console.warn('[CaloraApp][notifications] Could not read presented notifications:', error);
       }
     };
 
@@ -122,7 +134,7 @@ function NotificationHandler() {
     // the same tagged capture path (delivery identity makes replay idempotent).
     void Notifications.getLastNotificationResponseAsync()
       .then(async (response) => {
-        if (!response) return;
+        if (!response || !active) return;
         try {
           // Legacy/no-token and prior-scope responses fail closed.
           if (isCaloraNotification(response.notification)) {
@@ -132,7 +144,7 @@ function NotificationHandler() {
         } finally {
           // Consume accepted and rejected retained responses so neither can
           // replay after a later account/guest transition.
-          await Notifications.clearLastNotificationResponseAsync();
+          if (active) await Notifications.clearLastNotificationResponseAsync();
         }
       })
       .catch((error) => {
@@ -141,13 +153,16 @@ function NotificationHandler() {
 
     // On native, keep notifications that are still presented in sync with the
     // inbox so a user can review them after returning from the lock screen.
-    void Notifications.getPresentedNotificationsAsync()
-      .then((presented) => presented.forEach(capture))
-      .catch(() => {});
+    void capturePresented();
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') void capturePresented();
+    });
 
     return () => {
+      active = false;
       receivedSubscription.remove();
       responseSubscription.remove();
+      appStateSubscription.remove();
     };
   }, [notificationPreferences.scopeToken, notificationScopeReady, router, user?.id]);
 

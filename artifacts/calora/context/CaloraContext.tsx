@@ -831,9 +831,10 @@ export function CaloraProvider({
         // is not a safe capture boundary because the native state is unknown.
         if (active && result.status !== 'failed') setNotificationScopeReady(true);
       })
-      .catch(() => {
+      .catch((error) => {
         // Reconciliation normally returns failures, but do not let a native
         // exception create an unhandled hydration rejection.
+        console.warn('[Calora][notifications] Hydrated reconciliation crashed:', error);
       });
     return () => { active = false; };
   // notificationPreferences is intentionally read from the hydration commit;
@@ -844,7 +845,9 @@ export function CaloraProvider({
   // The former device-wide key had no reliable owner. Never attach it to an
   // account automatically; quarantine it only after a successful raw copy.
   useEffect(() => {
-    quarantineLegacyStorage(AsyncStorage).catch(() => {});
+    quarantineLegacyStorage(AsyncStorage).catch((error) => {
+      console.warn('[Calora][storage] Could not quarantine legacy local data:', error);
+    });
   }, []);
 
   // ── Profile photo stale-URI guard ─────────────────────────────────────────
@@ -856,11 +859,15 @@ export function CaloraProvider({
   useEffect(() => {
     if (!hydrated || !profilePhotoUri) return;
     let cancelled = false;
-    verifyProfilePhotoExists(profilePhotoUri, FileSystem).then((exists) => {
-      if (!cancelled && !exists) {
-        setProfilePhotoUriState(null);
-      }
-    });
+    verifyProfilePhotoExists(profilePhotoUri, FileSystem)
+      .then((exists) => {
+        if (!cancelled && !exists) {
+          setProfilePhotoUriState(null);
+        }
+      })
+      .catch((error) => {
+        console.warn('[Calora][profile-photo] Could not verify saved photo:', error);
+      });
     return () => { cancelled = true; };
   // Run once after hydration; profilePhotoUri is intentionally excluded from
   // deps — re-running on every photo change would be wasteful and the picked
@@ -952,8 +959,9 @@ export function CaloraProvider({
         if (canSyncHealthConnection(conn)) {
           void syncHealth();
         }
-      }).catch(() => {
+      }).catch((error) => {
         if (clearingRef.current || probeEpoch !== healthSyncEpochRef.current) return;
+        console.warn('[Calora][health] Availability probe failed:', error);
         // Fallback to unavailable on error
         healthConnectionRef.current = EMPTY_HEALTH_CONNECTION;
         patchExportSnapshot({ healthConnected: false, healthConnection: EMPTY_HEALTH_CONNECTION });
@@ -1074,7 +1082,8 @@ export function CaloraProvider({
         postLogSourceIdRef.current = addedLog.id;
         setPostLogInsight(insight);
       }
-    } catch {
+    } catch (error) {
+      console.warn('[Calora][intelligence] Could not build post-log insight:', error);
       clearPostLogInsight();
     }
   };

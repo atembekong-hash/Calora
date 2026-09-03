@@ -37,26 +37,34 @@ const MEAL_BODY: Record<'breakfast' | 'lunch' | 'dinner', string> = {
 /**
  * Cancel all previously scheduled meal reminders.
  */
-export async function cancelMealReminders(): Promise<void> {
+export async function cancelMealReminders(): Promise<boolean> {
   try {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     const ours = scheduled.filter((n) => n.content.data?.tag === NOTIFICATION_TAG);
     await Promise.all(ours.map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
-  } catch {
-    // Silently ignore — cancellation failure should not block the user
+    return true;
+  } catch (error) {
+    console.warn('[Calora][notifications] Could not cancel legacy meal reminders:', error);
+    return false;
   }
 }
 
 /**
  * Schedule daily meal reminders based on user preferences.
  * Cancels existing reminders first, then schedules new ones.
- * Returns true if scheduling succeeded (or nothing was needed), false on permission denial.
+ * Returns true if scheduling succeeded (or nothing was needed), false when
+ * ownership, permission, cancellation, or installation cannot be verified.
  */
-export async function scheduleMealReminders(prefs: MealReminderPrefs): Promise<boolean> {
-  await cancelMealReminders();
+export async function scheduleMealReminders(
+  prefs: MealReminderPrefs,
+  scopeToken?: string,
+): Promise<boolean> {
+  if (!await cancelMealReminders()) return false;
 
   const anyEnabled = prefs.breakfast || prefs.lunch || prefs.dinner;
   if (!anyEnabled) return true;
+  // Tokenless legacy scheduling cannot establish notification ownership.
+  if (!scopeToken) return false;
 
   const granted = await requestNotificationPermission();
   if (!granted) return false;
@@ -67,7 +75,7 @@ export async function scheduleMealReminders(prefs: MealReminderPrefs): Promise<b
     { key: 'dinner', time: prefs.dinnerTime },
   ];
 
-  await Promise.all(
+  const results = await Promise.all(
     entries
       .filter(({ key }) => prefs[key])
       .map(({ key, time }) =>
@@ -75,7 +83,7 @@ export async function scheduleMealReminders(prefs: MealReminderPrefs): Promise<b
           content: {
             title: `${key.charAt(0).toUpperCase()}${key.slice(1)} reminder`,
             body: MEAL_BODY[key],
-            data: { tag: NOTIFICATION_TAG, category: 'meal', meal: key },
+            data: { tag: NOTIFICATION_TAG, category: 'meal', meal: key, scopeToken },
             sound: true,
           },
           trigger: {
@@ -83,9 +91,14 @@ export async function scheduleMealReminders(prefs: MealReminderPrefs): Promise<b
             hour: time.hour,
             minute: time.minute,
           },
-        }).catch(() => null),
+        }).then(() => true).catch((error) => {
+          console.warn('[Calora][notifications] Could not schedule legacy meal reminder:', error);
+          return false;
+        }),
       ),
   );
 
-  return true;
+  if (results.every(Boolean)) return true;
+  await cancelMealReminders();
+  return false;
 }
