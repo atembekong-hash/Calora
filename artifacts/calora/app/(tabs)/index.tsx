@@ -91,6 +91,9 @@ const GAUGE_SWEEP  = 270;
 const GAUGE_HEIGHT_SCALE = 0.72;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
 const CALORIE_RING_SCALE = 1.2;
+// The greeting header and calorie card read as one merged surface on Home.
+// Keep their content and math unchanged while reducing only the vertical footprint.
+const MERGED_WIDGET_HEIGHT_SCALE = 0.8;
 const _gaugePt = (deg: number) => ({
   x: GAUGE_CX + GAUGE_R * Math.cos((deg * Math.PI) / 180),
   y: GAUGE_CY + GAUGE_R * Math.sin((deg * Math.PI) / 180),
@@ -1101,7 +1104,7 @@ function CalorieGauge({
   //   gauge fills the full inner card width (Eaten/Burned move below)
   const cardInnerW = windowWidth - 60;
   const gaugeW     = Math.min(cardInnerW, 340);
-  const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE;
+  const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE * MERGED_WIDGET_HEIGHT_SCALE;
   const ringW      = gaugeW * CALORIE_RING_SCALE;
   const ringH      = gaugeH * CALORIE_RING_SCALE;
   const ringLeft   = (gaugeW - ringW) / 2;
@@ -1204,7 +1207,7 @@ function CalorieGauge({
 
 function makeGaugeStyles(f: number) {
   return StyleSheet.create({
-  container: { marginTop: 14, marginBottom: 4, alignItems: 'center' },
+  container: { marginTop: 14 * MERGED_WIDGET_HEIGHT_SCALE, marginBottom: 4 * MERGED_WIDGET_HEIGHT_SCALE, alignItems: 'center' },
   arcWrap:   { position: 'relative' as const },
   ringLayer: { position: 'absolute' as const },
   textOverlay: {
@@ -1229,7 +1232,7 @@ function makeGaugeStyles(f: number) {
   },
   kcalLeft: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, marginTop: 2 },
   goalText:  { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 6, opacity: 0.72 },
-  statsRow:  { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 32, marginTop: 6 },
+  statsRow:  { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 32, marginTop: 6 * MERGED_WIDGET_HEIGHT_SCALE },
   statItem:  { alignItems: 'center' as const },
   statDivider: { width: 1, height: 28 },
   statNumber: { fontFamily: 'Inter_700Bold', fontSize: 22 * f, letterSpacing: -0.6 },
