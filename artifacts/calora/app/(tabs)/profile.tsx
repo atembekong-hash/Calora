@@ -631,7 +631,7 @@ export default function ProfileScreen() {
           </Pressable>
         )}
       />
-      <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.profileContent, { paddingBottom: insets.bottom + 104 }]} showsVerticalScrollIndicator={false}>
 
         {/* ── Profile card ── */}
         <Animated.View entering={enterMotion('screen', 0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
@@ -682,16 +682,11 @@ export default function ProfileScreen() {
           accessibilityLabel="Profile section content"
           testID="profile-section-content"
         >
-        <Text style={[styles.tabSubtitle, { color: colors.mutedForeground }]}>
-          {{ you: 'Settings and reminders.', membership: 'Plans and rewards.', account: 'Data, health, and help.' }[profileTab]}
-        </Text>
-
         <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
         <ProfileYouSettings profile={profile} colors={colors} updateProfile={updateProfile} />
         {/* ── Appearance ── */}
         <Animated.View entering={enterMotion('screen', 1)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
-        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Choose your display.</Text>
         <View style={[styles.segmentedControl, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {themes.map((theme) => {
             const selected = themePreference === theme.key;
@@ -707,7 +702,7 @@ export default function ProfileScreen() {
 
         {/* Text size */}
         <Animated.View entering={enterMotion('screen', 2)}>
-        <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 10 }]}>
+        <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 14 }]}>
           <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}>
             <Feather name="type" size={16} color={colors.primary} />
           </View>
@@ -729,7 +724,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Units */}
-        <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 14 }]}>
           <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}>
             <Feather name="maximize-2" size={16} color={colors.primary} />
           </View>
@@ -752,8 +747,7 @@ export default function ProfileScreen() {
         <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
         {/* ── Reminders ── */}
         <Animated.View entering={enterMotion('screen', 3)}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 4, marginBottom: 4 }]}>Reminders</Text>
-        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>On-device water, meal, and goal nudges.</Text>
+        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 16, marginBottom: 6 }]}>Reminders</Text>
 
         {/* Delivery controls keep each category's desired settings intact while paused. */}
         <View style={[styles.notificationMasterCard, { backgroundColor: colors.card, borderColor: notificationPreferences.masterEnabled ? colors.primary : colors.border }]}>
@@ -763,7 +757,7 @@ export default function ProfileScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Notifications</Text>
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
-              {notificationPreferences.masterEnabled ? 'Deliver selected reminders on this device' : 'Paused — your reminder choices are saved'}
+               {notificationPreferences.masterEnabled ? 'On this device' : 'Paused · choices saved'}
             </Text>
           </View>
           <Switch
@@ -776,7 +770,7 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <View style={[styles.reminderSettings, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 8 }]}>
+        <View style={[styles.reminderSettings, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 12 }]}>
           <View style={styles.reminderTimeRow}>
             <View style={[styles.reminderTimeIcon, { backgroundColor: colors.muted }]}><Feather name="moon" size={14} color={colors.primary} /></View>
             <View style={{ flex: 1 }}>
@@ -784,7 +778,7 @@ export default function ProfileScreen() {
               <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
                 {notificationPreferences.quietHours.enabled
                   ? `Pause delivery ${formatTime(notificationPreferences.quietHours.start.hour, notificationPreferences.quietHours.start.minute)} – ${formatTime(notificationPreferences.quietHours.end.hour, notificationPreferences.quietHours.end.minute)}`
-                  : 'Allow reminders at all hours'}
+                   : 'Reminders allowed all day'}
               </Text>
             </View>
             <Switch
@@ -847,9 +841,9 @@ export default function ProfileScreen() {
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
               {hydrationReminderPrefs.enabled
                 ? reminderStatus === 'denied' ? 'Permission required in device settings'
-                  : reminderStatus === 'failed' ? 'Setup incomplete · retry above'
+                   : reminderStatus === 'failed' ? 'Setup incomplete · retry above'
                   : `Every ${hydrationReminderPrefs.intervalHours}h · ${formatTime(hydrationReminderPrefs.wakeHour, hydrationReminderPrefs.wakeMinute)} – ${formatTime(hydrationReminderPrefs.sleepHour, hydrationReminderPrefs.sleepMinute)}`
-                : 'Off · tap to turn on'}
+                 : 'Off'}
             </Text>
           </View>
           <Switch accessibilityLabel="Toggle hydration reminders" testID="hydration-reminder-toggle" value={hydrationReminderPrefs.enabled} onValueChange={(val) => applyHydrationPrefs({ ...hydrationReminderPrefs, enabled: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} />
@@ -927,7 +921,7 @@ export default function ProfileScreen() {
 
         {/* ── Meal reminders ── */}
         <Text style={[styles.reminderSectionLabel, { color: colors.mutedForeground }]}>MEAL REMINDERS</Text>
-        <View style={[styles.reminderSettings, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 8 }]}>
+        <View style={[styles.reminderSettings, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 12 }]}>
           {mealConfig.map((meal, idx) => {
             const enabled = mealReminderPrefs[meal.key];
             const timeKey = `${meal.key}Time` as 'breakfastTime' | 'lunchTime' | 'dinnerTime';
@@ -977,7 +971,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Daily goal reminder ── */}
-        <Text style={[styles.reminderSectionLabel, { color: colors.mutedForeground }]}>DAILY GOAL CHECK-IN</Text>
+         <Text style={[styles.reminderSectionLabel, { color: colors.mutedForeground }]}>DAILY GOAL CHECK-IN</Text>
         <View style={[styles.reminderToggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.settingIcon, { backgroundColor: '#e8f5e9' }]}><Feather name="target" size={17} color="#4caf7d" /></View>
           <View style={{ flex: 1 }}>
@@ -987,7 +981,7 @@ export default function ProfileScreen() {
                 ? goalReminderStatus === 'denied' ? 'Permission required in device settings'
                   : goalReminderStatus === 'failed' ? 'Setup incomplete · retry above'
                   : `Daily at ${formatTime(goalReminderPrefs.hour, goalReminderPrefs.minute)}`
-                : 'Off · a reminder to log remaining meals'}
+                 : 'Off'}
             </Text>
           </View>
           {goalReminderPrefs.enabled && (
@@ -1015,7 +1009,6 @@ export default function ProfileScreen() {
         <View style={styles.planHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{BRAND.premiumName}</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Premium features.</Text>
           </View>
           <View style={[styles.betaPill, { backgroundColor: colors.accent }]}><Text style={[styles.betaText, { color: colors.accentForeground }]}>PRO</Text></View>
         </View>
@@ -1082,7 +1075,7 @@ export default function ProfileScreen() {
         <View style={profileTab === 'membership' ? undefined : styles.hiddenSection}>
         {/* ── Saved meals ── */}
         <View style={styles.savedHeader}>
-          <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved meals</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Meals to reuse.</Text></View>
+           <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved meals</Text></View>
           <Pressable accessibilityLabel="Create saved meal" onPress={() => setSavedMealModal(true)} style={[styles.connectButton, { backgroundColor: colors.primary }]}>
             <Feather name="plus" size={14} color={colors.primaryForeground} />
             <Text style={[styles.connectButtonText, { color: colors.primaryForeground }]}>Create</Text>
@@ -1122,8 +1115,7 @@ export default function ProfileScreen() {
           )}
 
         {/* ── Living memory ── */}
-        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 4 }]}>Living memory</Text>
-        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Review saved signals on this device.</Text>
+         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 30, marginBottom: 14 }]}>Living memory</Text>
         <Pressable accessibilityLabel="Review living memory" testID="review-living-memory" onPress={() => router.push('/memory')} style={[styles.memoryShortcut, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name="layers" size={17} color={colors.accentForeground} /></View>
           <View style={{ flex: 1 }}>
@@ -1144,7 +1136,7 @@ export default function ProfileScreen() {
         <AccountSection fontScale={fontScale} clearAllData={clearAllData} />
 
         {/* ── Trust & privacy ── */}
-        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Trust & privacy</Text>
+         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 30, marginBottom: 14 }]}>Trust & privacy</Text>
         <View style={[styles.connectionRow, { backgroundColor: colors.accent }]}>
           <View style={[styles.connectionIcon, { backgroundColor: colors.primary }]}><Feather name="activity" size={17} color={colors.primaryForeground} /></View>
           <View style={{ flex: 1 }}>
@@ -1163,10 +1155,10 @@ export default function ProfileScreen() {
         </View>
         {[
           { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Portable JSON · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExport, disabled: !hasExportData || isExporting, isLoading: isExporting },
-          { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove this device\u2019s diary and profile data.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
+           { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove diary and profile from this device.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
           { icon: 'shield' as const, title: 'Your food data', body: 'Export and delete controls.', onPress: () => setInfoModal('food-data'), disabled: false },
           { icon: 'eye-off' as const, title: 'No ad tracking', body: 'Meals are not used for ads.', onPress: () => setInfoModal('no-ads'), disabled: false },
-          { icon: 'help-circle' as const, title: 'Help', body: 'Get support.', onPress: () => setInfoModal('help'), disabled: false },
+           { icon: 'help-circle' as const, title: 'Help', body: 'Support and answers.', onPress: () => setInfoModal('help'), disabled: false },
         ].map((item) => (
           <SettingRowPressable
             key={item.title}
@@ -1184,13 +1176,13 @@ export default function ProfileScreen() {
         ))}
 
         {/* ── About CaloraApp ── */}
-        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>About</Text>
+         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 30, marginBottom: 14 }]}>About</Text>
         {[
           { icon: 'info' as const, title: BRAND.name, body: `${BRAND.descriptor} · v${Constants.expoConfig?.version ?? '1.0.0'}`, url: null },
           { icon: 'globe' as const, title: 'Website', body: BRAND.domain, url: URLS.main },
-          { icon: 'shield' as const, title: 'Privacy Policy', body: 'How we handle your data', url: URLS.privacy },
-          { icon: 'file-text' as const, title: 'Terms of Use', body: 'Terms governing your use', url: URLS.terms },
-          { icon: 'mail' as const, title: 'Help & Support', body: EMAILS.support, url: URLS.support },
+           { icon: 'shield' as const, title: 'Privacy Policy', body: 'How data is handled', url: URLS.privacy },
+           { icon: 'file-text' as const, title: 'Terms of Use', body: 'Terms of use', url: URLS.terms },
+           { icon: 'mail' as const, title: 'Help & Support', body: 'Contact support', url: URLS.support },
         ].map((item) => (
           <SettingRowPressable
             key={item.title}
@@ -1649,13 +1641,13 @@ function makeStyles(f: number) {
   notificationActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
   notificationClearButton: { paddingHorizontal: 8, paddingVertical: 9 },
   notificationClearText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
-  profileTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 15, padding: 4, gap: 4, marginBottom: 10 },
+  profileContent: { paddingTop: 22, paddingHorizontal: 20 },
+  profileTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 15, padding: 4, gap: 4, marginBottom: 18 },
   profileTab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40, borderRadius: 11, paddingHorizontal: 6 },
   profileTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
-  tabSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginBottom: 20 },
 
   // Profile card
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 23, padding: 16, marginBottom: 26 },
+  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 23, padding: 16, marginBottom: 30 },
   largeAvatar: { width: 47, height: 47, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
   largeAvatarText: { fontFamily: 'Inter_700Bold', fontSize: 19 * f },
   editAvatarWrap: { alignSelf: 'center', marginBottom: 20, position: 'relative' },
@@ -1669,7 +1661,7 @@ function makeStyles(f: number) {
   sectionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 4, marginBottom: 12 },
 
   // Segmented controls (theme + units)
-  segmentedControl: { flexDirection: 'row', gap: 5, borderWidth: StyleSheet.hairlineWidth, padding: 5, borderRadius: 16, marginBottom: 12 },
+  segmentedControl: { flexDirection: 'row', gap: 5, borderWidth: StyleSheet.hairlineWidth, padding: 5, borderRadius: 16, marginBottom: 14 },
   segmentedOption: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderRadius: 11, paddingVertical: 10 },
   segmentedLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
 
@@ -1680,16 +1672,16 @@ function makeStyles(f: number) {
   unitChipText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
 
   // Reminder elements
-  reminderSectionLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginTop: 18, marginBottom: 8 },
-  notificationMasterCard: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1.5, borderRadius: 18, padding: 13, marginBottom: 8 },
+  reminderSectionLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginTop: 22, marginBottom: 10 },
+  notificationMasterCard: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1.5, borderRadius: 18, padding: 13, marginBottom: 12 },
   notificationMasterIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   notificationSettingsButton: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 10, marginBottom: 4 },
   notificationSettingsButtonText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f },
   notificationSettingsLink: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-  reminderToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 12, marginBottom: 8 },
-  reminderSettings: { borderWidth: 1, borderRadius: 17, padding: 14, marginBottom: 8, gap: 4 },
-  reminderTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 6 },
-  mealReminderRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 8 },
+  reminderToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 12, marginBottom: 12 },
+  reminderSettings: { borderWidth: 1, borderRadius: 17, padding: 14, marginBottom: 12, gap: 4 },
+  reminderTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 8 },
+  mealReminderRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 10 },
   reminderTimeIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   reminderTimeLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1, marginBottom: 3 },
   reminderTimeValue: { fontFamily: 'Inter_700Bold', fontSize: 15 * f, letterSpacing: -0.3 },
@@ -1734,30 +1726,30 @@ function makeStyles(f: number) {
   linkDot: { width: 3, height: 3, borderRadius: 2 },
 
   // Saved meals
-  savedHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 25, marginBottom: 10 },
+  savedHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 30, marginBottom: 14 },
   emptySaved: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, padding: 10 },
   emptySavedImage: { width: 58, height: 58, borderRadius: 13 },
   emptySavedCopy: { flex: 1 },
   emptySavedTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f, marginBottom: 3 },
-  savedList: { gap: 8 },
-  savedItem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: StyleSheet.hairlineWidth, borderRadius: 17, padding: 11 },
+  savedList: { gap: 10 },
+  savedItem: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: StyleSheet.hairlineWidth, borderRadius: 17, padding: 13 },
   deleteMealButton: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 
   // Living memory
-  memoryShortcut: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 17, padding: 12, marginBottom: 8 },
+  memoryShortcut: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 17, padding: 13, marginBottom: 12 },
 
   // Trust & privacy
-  connectionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 17, padding: 12, marginBottom: 8 },
+  connectionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 17, padding: 13, marginBottom: 12 },
   connectionIcon: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   connectButton: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
   connectButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 17, padding: 12, marginBottom: 8 },
+  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 17, padding: 14, marginBottom: 12 },
   settingIcon: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   settingTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
   settingBody: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 4 },
 
   // Version
-  version: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, textAlign: 'center', marginTop: 18 },
+  version: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, textAlign: 'center', marginTop: 24 },
 
   // Dialogs / modals
   dialogBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
