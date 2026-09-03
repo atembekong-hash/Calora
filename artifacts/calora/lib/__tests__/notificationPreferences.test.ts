@@ -40,6 +40,20 @@ describe('notification preference migration', () => {
       },
     });
     expect(legacyReminderMirrors(migrated)).toEqual(legacy);
+    expect(migrated.scopeToken).toMatch(/^scope_/);
+    expect(normalizeNotificationPreferences(migrated).scopeToken).toBe(migrated.scopeToken);
+  });
+
+  it('creates distinct non-identifying tokens for new account and guest scopes', () => {
+    const accountA = normalizeNotificationPreferences(undefined);
+    const accountB = normalizeNotificationPreferences(undefined);
+    const guest = normalizeNotificationPreferences(undefined);
+
+    expect(new Set([accountA.scopeToken, accountB.scopeToken, guest.scopeToken]).size).toBe(3);
+    for (const token of [accountA.scopeToken, accountB.scopeToken, guest.scopeToken]) {
+      expect(token).not.toContain('account');
+      expect(token.length).toBeGreaterThanOrEqual(12);
+    }
   });
 
   it('keeps desired categories while legacy mirrors are disabled by master', () => {

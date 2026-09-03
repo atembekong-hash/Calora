@@ -24,13 +24,14 @@ import { beforeEach, describe, expect, it, vi, type MockedFunction } from 'vites
 import { handleParseErrorExport, type ParseErrorExportDeps } from '../parseErrorExportHandler';
 import { BRAND } from '../brand';
 import { PersistenceManager, type StorageAdapter } from '../persistenceManager';
+import { storageKeyForAccount } from '../accountStorage';
 
 // ---------------------------------------------------------------------------
 // Shared in-memory StorageAdapter — injects into PersistenceManager so tests
 // can pre-seed corrupt or empty storage without touching real AsyncStorage.
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = '@calora/local-state-v2'; // must match CaloraContext
+const STORAGE_KEY = storageKeyForAccount(null);
 
 function makeStore(initial?: Record<string, string>): StorageAdapter & { store: Record<string, string> } {
   const store: Record<string, string> = { ...initial };

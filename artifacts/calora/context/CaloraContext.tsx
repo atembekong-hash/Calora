@@ -5,10 +5,10 @@ import { shouldAutosave, type HydrationErrorKind } from '@/lib/hydrationGuard';
 import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '@/lib/storageSchema';
 import { useHydrationEffect } from '@/lib/useHydrationEffect';
 import { PersistenceManager } from '@/lib/persistenceManager';
-import { performClearAllData, DEFAULT_HYDRATION_PREFS } from '@/lib/clearAllData';
+import { performClearAllData, DEFAULT_HYDRATION_PREFS, ClearAllDataError } from '@/lib/clearAllData';
 import { verifyProfilePhotoExists, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
-import { readRawStorageData } from '@/lib/exportPayload';
-import { makeClearedExportSnapshot, resolveExportData } from '@/lib/exportGap';
+import { buildExportPayload, readRawStorageData, type CaloraExportState } from '@/lib/exportPayload';
+import { makeClearedExportSnapshot } from '@/lib/exportGap';
 import { normalizeHealthConnection } from '@/lib/healthConnection';
 import { healthService } from '@/lib/health/healthService';
 import { EMPTY_HEALTH_CONNECTION, type HealthConnection, type HealthSnapshot } from '@/lib/health/types';
@@ -287,6 +287,12 @@ type CaloraContextValue = {
   mealReminders: MealReminderPrefs;
   goalReminder: GoalReminderPrefs;
   notificationPreferences: LocalNotificationPreferences;
+  /**
+   * True only after this account/guest scope has completed a non-failing,
+   * serialized native notification reconciliation. Notification capture must
+   * not cross this privacy boundary.
+   */
+  notificationScopeReady: boolean;
   fontScale: number;
   fontSizeScale: 'small' | 'default' | 'large' | 'xlarge';
   setFontSizeScale: (scale: 'small' | 'default' | 'large' | 'xlarge') => void;
@@ -331,6 +337,9 @@ type CaloraContextValue = {
   setMealReminders: (prefs: MealReminderPrefs) => void;
   setGoalReminder: (prefs: GoalReminderPrefs) => void;
   setNotificationPreferences: (prefs: LocalNotificationPreferences) => void;
+  updateNotificationPreferences: (
+    updater: (current: LocalNotificationPreferences) => LocalNotificationPreferences,
+  ) => LocalNotificationPreferences;
   deleteSavedMeal: (id: string) => void;
   addLog: (log: Omit<FoodLog, 'id'>) => void;
   updateLog: (id: string, patch: Partial<FoodLog>) => void;
@@ -511,6 +520,7 @@ export function CaloraProvider({
   const systemScheme = useColorScheme();
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const profileRef = useRef<Profile | null>(null);
   const [logs, setLogs] = useState<FoodLog[]>(starterLogs);
   const [weights, setWeights] = useState<WeightEntry[]>([
     { id: 'weight-1', date: today, kg: 76, source: 'manual' },
@@ -532,11 +542,9 @@ export function CaloraProvider({
   useEffect(() => {
     healthConnectionRef.current = healthConnection;
   }, [healthConnection]);
-  const setHealthConnected = (connected: boolean) => {
-    if (!connected) setHealthConnection(EMPTY_HEALTH_CONNECTION);
-  };
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [outbox, setOutbox] = useState<OutboxMutation[]>([]);
+  const outboxRef = useRef<OutboxMutation[]>([]);
   const [plannerWeekStart, setPlannerWeekStart] = useState(getPlannerWeekStart());
   const [plannerMeals, setPlannerMealsState] = useState<PlannerMeal[]>(() => createStarterPlannerMeals());
   const [plannerRevision, setPlannerRevision] = useState(0);
@@ -553,9 +561,24 @@ export function CaloraProvider({
   const [hydrationReminders, setHydrationRemindersState] = useState<HydrationReminderPrefs>(DEFAULT_HYDRATION_PREFS);
   const [mealReminders, setMealRemindersState] = useState<MealReminderPrefs>(DEFAULT_MEAL_REMINDER_PREFS);
   const [goalReminder, setGoalReminderState] = useState<GoalReminderPrefs>(DEFAULT_GOAL_REMINDER_PREFS);
+  const initialNotificationPreferencesRef = useRef<LocalNotificationPreferences | null>(null);
+  if (!initialNotificationPreferencesRef.current) {
+    initialNotificationPreferencesRef.current = normalizeNotificationPreferences(undefined);
+  }
   const [notificationPreferences, setNotificationPreferencesState] = useState<LocalNotificationPreferences>(
-    DEFAULT_LOCAL_NOTIFICATION_PREFERENCES,
+    initialNotificationPreferencesRef.current,
   );
+  // Canonical same-tick notification state. React state alone is not sufficient
+  // here: two controls can fire before a render and would otherwise both merge
+  // against the same stale closure.
+  const notificationPreferencesRef = useRef<LocalNotificationPreferences>(
+    initialNotificationPreferencesRef.current,
+  );
+  const notificationHydrationAppliedRef = useRef(false);
+  const pendingNotificationUpdatesRef = useRef<Array<
+    (current: LocalNotificationPreferences) => LocalNotificationPreferences
+  >>([]);
+  const [notificationScopeReady, setNotificationScopeReady] = useState(false);
   const [coachConsentAccepted, setCoachConsentAccepted] = useState(false);
   const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([]);
   const [goalCelebrationSeenTargetKg, setGoalCelebrationSeenTargetKg] = useState<number | null>(null);
@@ -575,6 +598,10 @@ export function CaloraProvider({
   const storageKey = storageKeyForAccount(accountId);
   useEffect(() => {
     return () => {
+      // An account switch/unmount makes every completion owned by this scope
+      // stale before the next provider can begin health work.
+      healthSyncEpochRef.current += 1;
+      healthSyncPromiseRef.current = null;
       CoachFactRequestLifecycle.invalidateAll();
       invalidateAllCoachLifecycleEpochs('account_switch');
       void coachFactConsentCache.clear(accountId ?? null);
@@ -585,13 +612,30 @@ export function CaloraProvider({
   const clearingRef = useRef(false);
   const [isClearing, setIsClearing] = useState(false);
   /**
-   * Cleared-state snapshot set synchronously inside clearAllData after
-   * performClearAllData resolves — before React commits the re-render triggered
-   * by the state setters.  exportData reads from this ref so it always returns
-   * the cleared payload even if called in the async gap before re-render.
-   * The autosave useEffect clears the ref once React state has been committed.
+   * Complete authoritative export snapshot. Renders initialize/refresh every
+   * field; exposed mutations synchronously patch it before React rerenders.
    */
-  const exportSnapshotRef = useRef<import('@/lib/exportPayload').CaloraExportState | null>(null);
+  const exportSnapshotRef = useRef<CaloraExportState | null>(null);
+  const patchExportSnapshot = useCallback((patch: Partial<CaloraExportState>) => {
+    if (exportSnapshotRef.current) {
+      exportSnapshotRef.current = { ...exportSnapshotRef.current, ...patch };
+    }
+  }, []);
+  const updateExportField = useCallback(<K extends keyof CaloraExportState,>(
+    key: K,
+    updater: (current: CaloraExportState[K]) => CaloraExportState[K],
+  ) => {
+    const snapshot = exportSnapshotRef.current;
+    if (snapshot) {
+      exportSnapshotRef.current = { ...snapshot, [key]: updater(snapshot[key]) };
+    }
+  }, []);
+  const setHealthConnected = (connected: boolean) => {
+    if (!connected) {
+      patchExportSnapshot({ healthConnected: false, healthConnection: EMPTY_HEALTH_CONNECTION });
+      setHealthConnection(EMPTY_HEALTH_CONNECTION);
+    }
+  };
   // Session-only navigation state (not persisted)
   const [plannerViewedDay, setPlannerViewedDay] = useState(dateKey());
   const [recipeSlotTarget, setRecipeSlotTarget] = useState<{ day: string; mealType: PlannerMeal['meal'] } | null>(null);
@@ -603,19 +647,69 @@ export function CaloraProvider({
   // It is not persisted and is never exposed to UI consumers.
   const logsRef = useRef<FoodLog[]>([]);
   useEffect(() => {
+    profileRef.current = profile;
+  }, [profile]);
+  useEffect(() => {
     logsRef.current = logs;
   }, [logs]);
+  useEffect(() => {
+    outboxRef.current = outbox;
+  }, [outbox]);
+
+  const commitNotificationPreferences = useCallback((
+    updater: LocalNotificationPreferences
+      | ((current: LocalNotificationPreferences) => LocalNotificationPreferences),
+  ): LocalNotificationPreferences => {
+    const operation = typeof updater === 'function'
+      ? updater
+      : () => updater;
+    if (!notificationHydrationAppliedRef.current) {
+      // A control can land in the microtask where storage has resolved but its
+      // React hydration commit has not rendered. Replay that exact functional
+      // edit over the hydrated canonical value instead of losing either side.
+      pendingNotificationUpdatesRef.current.push(operation);
+    }
+    const candidate = operation(notificationPreferencesRef.current);
+    const committed = normalizeNotificationPreferences(candidate);
+    const mirrors = legacyReminderMirrors(committed);
+    notificationPreferencesRef.current = committed;
+    setNotificationPreferencesState(committed);
+    // All compatibility fields are always derived from the exact same commit.
+    setHydrationRemindersState(mirrors.hydrationReminders);
+    setMealRemindersState(mirrors.mealReminders);
+    setGoalReminderState(mirrors.goalReminder);
+    patchExportSnapshot({
+      notificationPreferences: committed,
+      hydrationReminders: mirrors.hydrationReminders,
+      mealReminders: mirrors.mealReminders,
+      goalReminder: mirrors.goalReminder,
+    });
+    return committed;
+  }, [patchExportSnapshot]);
 
   const { hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying } = useHydrationEffect<Partial<CaloraState>>(pm, (saved) => {
-    if (!saved) return;
+    if (!saved) {
+      const initial = notificationPreferencesRef.current;
+      setNotificationPreferencesState(initial);
+      notificationHydrationAppliedRef.current = true;
+      pendingNotificationUpdatesRef.current = [];
+      return;
+    }
     if (saved.onboardingComplete !== undefined) setOnboardingComplete(saved.onboardingComplete);
-    if (saved.profile) setProfile({ ...saved.profile, targetMode: saved.profile.targetMode ?? 'custom' });
+    if (saved.profile) {
+      const hydratedProfile = { ...saved.profile, targetMode: saved.profile.targetMode ?? 'custom' } as Profile;
+      profileRef.current = hydratedProfile;
+      setProfile(hydratedProfile);
+    }
      const normalizedLogs = saved.logs?.map((log) => normalizeLogImageMetadata({
        ...log,
        date: log.date ?? today,
        serving: log.serving ?? '1 serving',
      })) ?? starterLogs;
-     if (saved.logs) setLogs(normalizedLogs);
+     if (saved.logs) {
+       logsRef.current = normalizedLogs;
+       setLogs(normalizedLogs);
+     }
      const migratedMemories = migrateFoodMemories(saved, normalizedLogs);
      setFoodDrafts(migratedMemories.foodDrafts.map(normalizeMemoryImageMetadata));
      setFoodMemories(migratedMemories.foodMemories.map(normalizeMemoryImageMetadata));
@@ -640,12 +734,21 @@ export function CaloraProvider({
     if (saved.healthConnection) setHealthConnection(normalizeHealthConnection(saved.healthConnection));
     else if (saved.healthConnected !== undefined) setHealthConnection(normalizeHealthConnection(saved.healthConnected));
     if (saved.consentAccepted !== undefined) setConsentAccepted(saved.consentAccepted);
-    if (saved.outbox) setOutbox(saved.outbox);
+    if (saved.outbox) {
+      outboxRef.current = saved.outbox;
+      setOutbox(saved.outbox);
+    }
     if (saved.plannerWeekStart) setPlannerWeekStart(saved.plannerWeekStart);
     if (saved.plannerMeals) setPlannerMealsState(normalizePlannerMealImageIdentities(saved.plannerMeals));
     if (saved.shoppingItems) setShoppingItems(saved.shoppingItems);
-    const normalizedNotificationPreferences = normalizeNotificationPreferences(saved.notificationPreferences, saved);
+    let normalizedNotificationPreferences = normalizeNotificationPreferences(saved.notificationPreferences, saved);
+    for (const update of pendingNotificationUpdatesRef.current) {
+      normalizedNotificationPreferences = normalizeNotificationPreferences(update(normalizedNotificationPreferences));
+    }
+    pendingNotificationUpdatesRef.current = [];
+    notificationHydrationAppliedRef.current = true;
     const reminderMirrors = legacyReminderMirrors(normalizedNotificationPreferences);
+    notificationPreferencesRef.current = normalizedNotificationPreferences;
     setNotificationPreferencesState(normalizedNotificationPreferences);
     setHydrationRemindersState(reminderMirrors.hydrationReminders);
     setMealRemindersState(reminderMirrors.mealReminders);
@@ -656,6 +759,62 @@ export function CaloraProvider({
      if (saved.plannerPreferences !== undefined) setPlannerPreferencesState(normalizePlannerPreferences(saved.plannerPreferences));
      if (saved.fontSizeScale) setFontSizeScaleState(saved.fontSizeScale as 'small' | 'default' | 'large' | 'xlarge');
      if (saved.profilePhotoUri) setProfilePhotoUriState(saved.profilePhotoUri);
+     const base = exportSnapshotRef.current;
+     if (base) {
+       const hydratedHealthConnection = saved.healthConnection
+         ? normalizeHealthConnection(saved.healthConnection)
+         : saved.healthConnected !== undefined
+           ? normalizeHealthConnection(saved.healthConnected)
+           : base.healthConnection as HealthConnection;
+       const hydratedLivingMemory = mergeLivingMemory(saved.livingMemory, buildLivingMemory({
+         logs: normalizedLogs,
+         waterLogs: saved.waterLogs ?? {},
+         moodLogs: saved.moodLogs ?? {},
+         activityLogs: saved.activityLogs ?? {},
+         plannerMeals: saved.plannerMeals ?? [],
+       }));
+       exportSnapshotRef.current = {
+         ...base,
+         onboardingComplete: saved.onboardingComplete ?? base.onboardingComplete,
+         profile: saved.profile ? { ...saved.profile, targetMode: saved.profile.targetMode ?? 'custom' } : base.profile,
+         logs: saved.logs ? normalizedLogs : base.logs,
+         weights: saved.weights ?? base.weights,
+         waterLogs: saved.waterLogs ?? base.waterLogs,
+         moodLogs: saved.moodLogs ?? base.moodLogs,
+         activityLogs: saved.activityLogs ?? base.activityLogs,
+         activityMinutesLogs: saved.activityMinutesLogs ?? base.activityMinutesLogs,
+         savedMeals: saved.savedMeals?.map((meal) => ({ ...meal, kind: meal.kind ?? 'meal' })) ?? base.savedMeals,
+         localRecipes: saved.localRecipes ?? base.localRecipes,
+         savedRecipeIds: saved.savedRecipeIds ?? base.savedRecipeIds,
+         themePreference: saved.themePreference ?? base.themePreference,
+         healthConnected: canSyncHealthConnection(hydratedHealthConnection),
+         healthConnection: hydratedHealthConnection,
+         consentAccepted: saved.consentAccepted ?? base.consentAccepted,
+         outbox: saved.outbox ?? base.outbox,
+         plannerWeekStart: saved.plannerWeekStart ?? base.plannerWeekStart,
+         plannerMeals: saved.plannerMeals ? normalizePlannerMealImageIdentities(saved.plannerMeals) : base.plannerMeals,
+         shoppingItems: saved.shoppingItems ?? base.shoppingItems,
+         foodDrafts: migratedMemories.foodDrafts.map(normalizeMemoryImageMetadata),
+         foodMemories: migratedMemories.foodMemories.map(normalizeMemoryImageMetadata),
+         repeatPatterns: migratedMemories.repeatPatterns,
+         memoryCorrections: migratedMemories.memoryCorrections,
+         livingMemory: hydratedLivingMemory,
+         hydrationReminders: reminderMirrors.hydrationReminders,
+         mealReminders: reminderMirrors.mealReminders,
+         goalReminder: reminderMirrors.goalReminder,
+         notificationPreferences: normalizedNotificationPreferences,
+         coachConsentAccepted: saved.coachConsentAccepted ?? base.coachConsentAccepted,
+         coachMessages: saved.coachMessages ?? base.coachMessages,
+         goalCelebrationSeenTargetKg: saved.goalCelebrationSeenTargetKg !== undefined
+           ? saved.goalCelebrationSeenTargetKg ?? null
+           : base.goalCelebrationSeenTargetKg,
+         plannerPreferences: saved.plannerPreferences !== undefined
+           ? normalizePlannerPreferences(saved.plannerPreferences)
+           : base.plannerPreferences,
+         fontSizeScale: saved.fontSizeScale ?? base.fontSizeScale,
+         profilePhotoUri: saved.profilePhotoUri ?? base.profilePhotoUri,
+       };
+     }
   });
 
   // A provider is keyed by the active account/guest scope. Reconcile precisely
@@ -664,7 +823,19 @@ export function CaloraProvider({
   // deliberately never asks the OS for permission.
   useEffect(() => {
     if (!hydrated || hydrationError) return;
-    void reconcileHydratedNotificationPlan(notificationPreferences);
+    let active = true;
+    setNotificationScopeReady(false);
+    void reconcileHydratedNotificationPlan(notificationPreferences)
+      .then((result) => {
+        // A denied or disabled plan is still safely reconciled. A failed plan
+        // is not a safe capture boundary because the native state is unknown.
+        if (active && result.status !== 'failed') setNotificationScopeReady(true);
+      })
+      .catch(() => {
+        // Reconciliation normally returns failures, but do not let a native
+        // exception create an unhandled hydration rejection.
+      });
+    return () => { active = false; };
   // notificationPreferences is intentionally read from the hydration commit;
   // user edits reconcile themselves through the same native lifecycle queue.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -706,32 +877,47 @@ export function CaloraProvider({
   // If health-service internals change to require component-scoped values, those
   // values must be either memoized or added to this dep array.
   const syncHealth = useCallback(async () => {
+    if (clearingRef.current) return;
     if (healthSyncPromiseRef.current) return healthSyncPromiseRef.current;
     const epoch = healthSyncEpochRef.current;
+    const generationIsCurrent = () =>
+      !clearingRef.current && epoch === healthSyncEpochRef.current;
     const run = (async () => {
       let current: HealthConnection;
       try {
         current = await healthService.getConnection();
       } catch (error) {
-        if (epoch === healthSyncEpochRef.current) {
-          setHealthConnection({
+        if (generationIsCurrent()) {
+          const failedConnection = {
             ...healthConnectionRef.current,
             syncError: error instanceof Error ? error.message : 'Health data could not be read.',
-          });
+          };
+          healthConnectionRef.current = failedConnection;
+          patchExportSnapshot({ healthConnected: canSyncHealthConnection(failedConnection), healthConnection: failedConnection });
+          setHealthConnection(failedConnection);
         }
         return;
       }
-      if (epoch !== healthSyncEpochRef.current) return;
+      if (!generationIsCurrent()) return;
+      healthConnectionRef.current = current;
+      patchExportSnapshot({ healthConnected: canSyncHealthConnection(current), healthConnection: current });
       setHealthConnection(current);
       if (!canSyncHealthConnection(current)) return;
       try {
         const snapshot = await healthService.sync();
-        if (epoch !== healthSyncEpochRef.current) return;
-        setHealthConnection({ ...current, snapshot, lastSyncedAt: snapshot.syncedAt, syncError: undefined });
+        if (!generationIsCurrent()) return;
+        const syncedConnection = { ...current, snapshot, lastSyncedAt: snapshot.syncedAt, syncError: undefined };
+        healthConnectionRef.current = syncedConnection;
+        patchExportSnapshot({ healthConnected: canSyncHealthConnection(syncedConnection), healthConnection: syncedConnection });
+        updateExportField('weights', (weights) => mergeHealthWeights(weights as WeightEntry[], snapshot));
+        setHealthConnection(syncedConnection);
         setWeights((ws) => mergeHealthWeights(ws, snapshot));
       } catch (error) {
-        if (epoch === healthSyncEpochRef.current) {
-          setHealthConnection({ ...current, syncError: error instanceof Error ? error.message : 'Health data could not be read.' });
+        if (generationIsCurrent()) {
+          const failedConnection = { ...current, syncError: error instanceof Error ? error.message : 'Health data could not be read.' };
+          healthConnectionRef.current = failedConnection;
+          patchExportSnapshot({ healthConnected: canSyncHealthConnection(failedConnection), healthConnection: failedConnection });
+          setHealthConnection(failedConnection);
         }
       }
     })();
@@ -741,7 +927,7 @@ export function CaloraProvider({
     } finally {
       if (healthSyncPromiseRef.current === run) healthSyncPromiseRef.current = null;
     }
-  }, []);
+  }, [patchExportSnapshot, updateExportField]);
 
   const clockNow = useClock();
   const healthDayKey = dateKey(clockNow);
@@ -752,18 +938,25 @@ export function CaloraProvider({
   // state to 'notConnected' if the provider (Health Connect / HealthKit) is
   // present, enabling the connection UI.
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || clearingRef.current) return;
     // Only probe if we don't have a definitive authorized/denied status yet.
     // 'unavailable' is the default for fresh installs.
     if (healthConnection.authorization === 'unavailable') {
+      const probeEpoch = healthSyncEpochRef.current;
       healthService.getConnection().then((conn) => {
+        if (clearingRef.current || probeEpoch !== healthSyncEpochRef.current) return;
+        healthConnectionRef.current = conn;
+        patchExportSnapshot({ healthConnected: canSyncHealthConnection(conn), healthConnection: conn });
         setHealthConnection(conn);
         // If already authorized, trigger an initial sync to refresh data.
         if (canSyncHealthConnection(conn)) {
-          syncHealth();
+          void syncHealth();
         }
       }).catch(() => {
+        if (clearingRef.current || probeEpoch !== healthSyncEpochRef.current) return;
         // Fallback to unavailable on error
+        healthConnectionRef.current = EMPTY_HEALTH_CONNECTION;
+        patchExportSnapshot({ healthConnected: false, healthConnection: EMPTY_HEALTH_CONNECTION });
         setHealthConnection(EMPTY_HEALTH_CONNECTION);
       });
     } else if (healthConnected) {
@@ -778,6 +971,7 @@ export function CaloraProvider({
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (
         nextState === 'active'
+        && !clearingRef.current
         && canSyncHealthConnection(healthConnectionRef.current)
       ) {
         void syncHealth();
@@ -790,7 +984,7 @@ export function CaloraProvider({
   // the app remains in the foreground. AppState handles background resume;
   // this covers an open app crossing midnight.
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || clearingRef.current) return;
     if (!canSyncHealthConnection(healthConnection)) return;
     if (lastHealthRefreshDayRef.current === healthDayKey) return;
     lastHealthRefreshDayRef.current = healthDayKey;
@@ -799,9 +993,6 @@ export function CaloraProvider({
 
   useEffect(() => {
     if (!shouldAutosave({ hydrated, error: hydrationError })) return;
-    // React state has been committed — the cleared snapshot ref (set by clearAllData
-    // before re-render) is no longer needed; exportData will now read the live state.
-    exportSnapshotRef.current = null;
     const state: CaloraState = {
       onboardingComplete,
       profile,
@@ -843,7 +1034,10 @@ export function CaloraProvider({
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
-    setOutbox((current) => [...current, { id: makeId('mutation'), entity, operation, createdAt: new Date().toISOString() }]);
+    const mutation = { id: makeId('mutation'), entity, operation, createdAt: new Date().toISOString() };
+    outboxRef.current = [...outboxRef.current, mutation];
+    setOutbox(outboxRef.current);
+    patchExportSnapshot({ outbox: outboxRef.current });
   };
   const clearPostLogInsight = () => {
     postLogSourceIdRef.current = null;
@@ -906,6 +1100,48 @@ export function CaloraProvider({
     now: clockNow,
   }), [clockNow, onboardingComplete, profile, rememberedSources, repeatPatterns]);
 
+  // Authoritative export state. Every committed render refreshes the complete
+  // snapshot, while exposed mutations patch it synchronously before scheduling
+  // React state. Export therefore never mixes refs with stale render closures.
+  const normalizedExportPreferences = normalizeNotificationPreferences(notificationPreferences);
+  const normalizedExportMirrors = legacyReminderMirrors(normalizedExportPreferences);
+  exportSnapshotRef.current = {
+    onboardingComplete,
+    profile,
+    logs,
+    weights,
+    waterLogs,
+    moodLogs,
+    activityLogs,
+    activityMinutesLogs,
+    savedMeals,
+    localRecipes,
+    savedRecipeIds,
+    themePreference,
+    plannerWeekStart,
+    plannerMeals,
+    shoppingItems,
+    foodDrafts,
+    foodMemories,
+    repeatPatterns,
+    memoryCorrections,
+    livingMemory,
+    hydrationReminders: normalizedExportMirrors.hydrationReminders,
+    mealReminders: normalizedExportMirrors.mealReminders,
+    goalReminder: normalizedExportMirrors.goalReminder,
+    notificationPreferences: normalizedExportPreferences,
+    healthConnected,
+    healthConnection,
+    consentAccepted,
+    outbox,
+    coachConsentAccepted,
+    coachMessages,
+    goalCelebrationSeenTargetKg,
+    plannerPreferences,
+    fontSizeScale,
+    profilePhotoUri,
+  };
+
   const value = useMemo<CaloraContextValue>(() => ({
     logs,
     weights,
@@ -931,10 +1167,13 @@ export function CaloraProvider({
     plannerRevision,
     plannerPreferences,
     setPlannerPreferences: (prefs) => {
+      patchExportSnapshot({ plannerPreferences: prefs });
       setPlannerPreferencesState(prefs);
     },
     updatePlannerPreferences: (updater) => {
-      setPlannerPreferencesState((prev) => updater(prev));
+      const next = updater((exportSnapshotRef.current?.plannerPreferences ?? null) as import('@/lib/planType').PlannerPreferences | null);
+      patchExportSnapshot({ plannerPreferences: next });
+      setPlannerPreferencesState(next);
     },
     shoppingItems,
     foodDrafts,
@@ -943,22 +1182,34 @@ export function CaloraProvider({
     healthConnected,
     healthConnection,
     connectHealth: async () => {
+      if (clearingRef.current) return healthConnectionRef.current;
       const connectEpoch = ++healthSyncEpochRef.current;
       const previousSync = healthSyncPromiseRef.current;
       if (previousSync) await previousSync;
+      if (clearingRef.current || connectEpoch !== healthSyncEpochRef.current) {
+        return healthConnectionRef.current;
+      }
       const next = await healthService.requestConnection();
       // Do not let a disconnect or account-state change during permission
       // approval get overwritten by this older connection result.
-      if (connectEpoch !== healthSyncEpochRef.current) return healthConnectionRef.current;
+      if (clearingRef.current || connectEpoch !== healthSyncEpochRef.current) {
+        return healthConnectionRef.current;
+      }
+      healthConnectionRef.current = next;
       setHealthConnection(next);
+      patchExportSnapshot({ healthConnected: canSyncHealthConnection(next), healthConnection: next });
       if (canSyncHealthConnection(next)) {
         await syncHealth();
       }
-      return connectEpoch === healthSyncEpochRef.current ? next : healthConnectionRef.current;
+      return !clearingRef.current && connectEpoch === healthSyncEpochRef.current
+        ? next
+        : healthConnectionRef.current;
     },
     syncHealth,
     disconnectHealth: () => {
       healthSyncEpochRef.current += 1;
+      healthConnectionRef.current = EMPTY_HEALTH_CONNECTION;
+      patchExportSnapshot({ healthConnected: false, healthConnection: EMPTY_HEALTH_CONNECTION });
       setHealthConnection(EMPTY_HEALTH_CONNECTION);
     },
     addLog: (log) => {
@@ -1025,6 +1276,9 @@ export function CaloraProvider({
       const beforeLogs = logsRef.current;
       const nextLogs = [...beforeLogs, nextLog];
       logsRef.current = nextLogs;
+      updateExportField('logs', () => nextLogs);
+      updateExportField('foodMemories', (current) => [...current as AcceptedFoodMemory[], acceptedMemory]);
+      updateExportField('livingMemory', (current) => upsertMealObservation(current as LivingMemory, id, nextLog.date, nextLog.meal));
       setLogs((current) => current.some((log) => log.id === nextLog.id) ? current : [...current, nextLog]);
       setFoodMemories((current) => [...current, acceptedMemory]);
       setLivingMemory((current) => upsertMealObservation(current, id, nextLog.date, nextLog.meal));
@@ -1036,6 +1290,8 @@ export function CaloraProvider({
        const syncUpdatedAt = new Date().toISOString();
        const updated = existing ? normalizeLogImageMetadata({ ...existing, ...patch, syncUpdatedAt }) : null;
       if (updated) {
+        updateExportField('livingMemory', (current) => upsertMealObservation(
+          removeMealObservation(current as LivingMemory, id), id, updated.date, updated.meal));
         setLivingMemory((memory) => upsertMealObservation(
           removeMealObservation(memory, id),
           id,
@@ -1044,6 +1300,7 @@ export function CaloraProvider({
         ));
       }
       logsRef.current = logsRef.current.map((log) => log.id === id ? normalizeLogImageMetadata({ ...log, ...patch, syncUpdatedAt }) : log);
+      patchExportSnapshot({ logs: logsRef.current });
       setLogs((current) => current.map((log) => log.id === id ? normalizeLogImageMetadata({ ...log, ...patch, syncUpdatedAt }) : log));
       queueMutation('diaryEntry', 'upsert');
       if (postLogSourceIdRef.current === id) clearPostLogInsight();
@@ -1051,6 +1308,11 @@ export function CaloraProvider({
     removeLog: (id) => {
       recordDiaryDelete(id, new Date().toISOString());
       logsRef.current = logsRef.current.filter((log) => log.id !== id);
+      patchExportSnapshot({
+        logs: logsRef.current,
+        foodMemories: (exportSnapshotRef.current?.foodMemories as AcceptedFoodMemory[] ?? []).filter((memory) => memory.diaryLogId !== id),
+      });
+      updateExportField('livingMemory', (current) => removeMealObservation(current as LivingMemory, id));
       setLogs((current) => current.filter((log) => log.id !== id));
       setFoodMemories((current) => current.filter((memory) => memory.diaryLogId !== id));
       setLivingMemory((current) => removeMealObservation(current, id));
@@ -1059,6 +1321,10 @@ export function CaloraProvider({
     },
     applySyncedDiaryLogs: (nextLogs) => {
       logsRef.current = nextLogs;
+      patchExportSnapshot({ logs: nextLogs });
+      updateExportField('livingMemory', (current) => mergeLivingMemory(current as LivingMemory, buildLivingMemory({
+        logs: nextLogs, waterLogs, moodLogs, activityLogs, plannerMeals,
+      })));
       setLogs(nextLogs);
       setLivingMemory((current) => mergeLivingMemory(current, buildLivingMemory({
         logs: nextLogs,
@@ -1070,25 +1336,30 @@ export function CaloraProvider({
     },
     createFoodMemoryDraft: (analysis, date = dateKey(), meal = 'Snack') => {
       const draft = captureAnalysisToDraft(analysis, date, meal);
+      updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },
     createFoodMemorySourceDraft: (input) => {
       const draft = sourceComponentsToDraft(input);
+      updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },
     createRecipeDraft: (recipe, date = dateKey(), meal = 'Dinner') => {
       const draft = recipeToDraft(recipe, date, meal);
+      updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },
     createPlannerDraft: (meal) => {
       const draft = plannerMealToDraft(meal);
+      updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },
     updateFoodMemoryDraft: (draftId, components) => {
+      updateExportField('foodDrafts', (current) => (current as FoodMemoryDraft[]).map((draft) => draft.id === draftId ? updateDraftComponents(draft, components) : draft));
       setFoodDrafts((current) => current.map((draft) => draft.id === draftId ? updateDraftComponents(draft, components) : draft));
     },
     acceptFoodMemory: (draftId, draftOverride) => {
@@ -1112,19 +1383,37 @@ export function CaloraProvider({
       const beforeLogs = logsRef.current;
       const nextLogs = [...beforeLogs, log];
       logsRef.current = nextLogs;
+      patchExportSnapshot({
+        logs: nextLogs,
+        foodDrafts: (exportSnapshotRef.current?.foodDrafts as FoodMemoryDraft[] ?? []).filter((item) => item.id !== draftId),
+      });
+      updateExportField('foodMemories', (current) => [...current as AcceptedFoodMemory[], memory]);
+      const nextRepeatPatterns = updateRepeatPatterns(
+        exportSnapshotRef.current?.repeatPatterns as RepeatPattern[],
+        memory,
+        log,
+        makeId('repeat'),
+        acceptedAt,
+      );
+      patchExportSnapshot({ repeatPatterns: nextRepeatPatterns });
+      updateExportField('livingMemory', (current) => upsertMealObservation(current as LivingMemory, log.id, log.date, log.meal));
       setLogs((current) => current.some((item) => item.id === log.id) ? current : [...current, log]);
       setFoodMemories((current) => [...current, memory]);
       setLivingMemory((current) => upsertMealObservation(current, log.id, log.date, log.meal));
       setFoodDrafts((current) => current.filter((item) => item.id !== draftId));
-      setRepeatPatterns((current) => updateRepeatPatterns(current, memory, log, makeId('repeat'), acceptedAt));
+      setRepeatPatterns(nextRepeatPatterns);
       queueMutation('diaryEntry', 'upsert');
       publishPostLogInsight(beforeLogs, nextLogs, log);
       return log;
     },
     rejectFoodMemory: (draftId) => {
+      const rejectedAt = new Date().toISOString();
+      updateExportField('foodDrafts', (current) =>
+        (current as FoodMemoryDraft[]).map((draft) =>
+          draft.id === draftId ? buildRejectDraft(draft, rejectedAt) : draft));
       setFoodDrafts((current) =>
         current.map((draft) =>
-          draft.id === draftId ? buildRejectDraft(draft, new Date().toISOString()) : draft,
+          draft.id === draftId ? buildRejectDraft(draft, rejectedAt) : draft,
         ),
       );
     },
@@ -1132,81 +1421,110 @@ export function CaloraProvider({
       const memory = foodMemories.find((item) => item.id === memoryId);
       if (!memory) return;
       const signature = memorySignature(memory);
-      setRepeatPatterns((current) => current.some((pattern) => pattern.signature === signature) ? current : [...current, {
-        id: makeId('repeat'),
-        signature,
-        title: memory.title,
+      const pattern: RepeatPattern = {
+        id: makeId('repeat'), signature, title: memory.title,
         componentNames: memory.components.filter((component) => component.included).map((component) => component.name),
         serving: memory.components.filter((component) => component.included).map((component) => component.serving).join(' + '),
-        useCount: 1,
-        rejectedCount: 0,
-        lastAcceptedAt: memory.acceptedAt,
-        sourceMemoryId: memory.id,
-      }]);
+        useCount: 1, rejectedCount: 0, lastAcceptedAt: memory.acceptedAt, sourceMemoryId: memory.id,
+      };
+      const next = (exportSnapshotRef.current?.repeatPatterns as RepeatPattern[]).some((item) => item.signature === signature)
+        ? exportSnapshotRef.current?.repeatPatterns as RepeatPattern[]
+        : [...exportSnapshotRef.current?.repeatPatterns as RepeatPattern[], pattern];
+      patchExportSnapshot({ repeatPatterns: next });
+      setRepeatPatterns(next);
     },
     addWeight: (kg, source = 'manual') => {
-      setWeights((current) => [...current, { id: makeId('weight'), date: dateKey(), kg, source }]);
+      const entry = { id: makeId('weight'), date: dateKey(), kg, source };
+      updateExportField('weights', (current) => [...current as WeightEntry[], entry]);
+      setWeights((current) => [...current, entry]);
       queueMutation('weight', 'upsert');
     },
     removeWeight: (id) => {
+      updateExportField('weights', (current) => (current as WeightEntry[]).filter((w) => w.id !== id));
       setWeights((current) => current.filter((w) => w.id !== id));
       queueMutation('weight', 'delete');
     },
     updateWeight: (id, kg) => {
+      updateExportField('weights', (current) => (current as WeightEntry[]).map((w) => w.id === id ? { ...w, kg } : w));
       setWeights((current) => current.map((w) => w.id === id ? { ...w, kg } : w));
       queueMutation('weight', 'upsert');
     },
     addWater: (date, ounces = 8) => {
       if (!Number.isFinite(ounces) || ounces === 0) return;
+      updateExportField('waterLogs', (current) => {
+        const values = current as WaterLog;
+        return { ...values, [date]: Math.max(0, (values[date] ?? 0) + ounces) };
+      });
+      updateExportField('livingMemory', (current) => {
+        const memory = current as LivingMemory;
+        const exportWater = exportSnapshotRef.current?.waterLogs as WaterLog;
+        return upsertWaterObservation(memory, date, exportWater[date] ?? 0);
+      });
       setWaterLogs((current) => ({ ...current, [date]: Math.max(0, (current[date] ?? 0) + ounces) }));
       setLivingMemory((current) => upsertWaterObservation(current, date, Math.max(0, (current.waterObservations[date]?.ounces ?? waterLogs[date] ?? 0) + ounces)));
       queueMutation('settings', 'upsert');
     },
     setMood: (date, mood) => {
+      updateExportField('moodLogs', (current) => ({ ...current as MoodLog, [date]: mood }));
+      updateExportField('livingMemory', (current) => upsertMoodObservation(current as LivingMemory, date, mood));
       setMoodLogs((current) => ({ ...current, [date]: mood }));
       setLivingMemory((current) => upsertMoodObservation(current, date, mood));
       queueMutation('settings', 'upsert');
     },
     setActivity: (date, activity) => {
+      updateExportField('activityLogs', (current) => ({ ...current as ActivityLog, [date]: activity }));
+      updateExportField('livingMemory', (current) => upsertActivityObservation(current as LivingMemory, date, activity));
       setActivityLogs((current) => ({ ...current, [date]: activity }));
       setLivingMemory((current) => upsertActivityObservation(current, date, activity));
       queueMutation('settings', 'upsert');
     },
     setActivityMinutes: (date, minutes) => {
       if (!Number.isFinite(minutes) || minutes < 0) return;
+      updateExportField('activityMinutesLogs', (current) => ({ ...current as ActivityMinutesLog, [date]: minutes }));
       setActivityMinutesLogs((current) => ({ ...current, [date]: minutes }));
       queueMutation('settings', 'upsert');
     },
     saveMeal: (meal) => {
-      setSavedMeals((current) => [...current, { ...meal, id: makeId('meal') }]);
+      const saved = { ...meal, id: makeId('meal') };
+      updateExportField('savedMeals', (current) => [...current as SavedMeal[], saved]);
+      setSavedMeals((current) => [...current, saved]);
       queueMutation('savedMeal', 'upsert');
     },
     saveRecipe: (recipe) => {
       const saved = { ...recipe, id: makeId('recipe'), isLocal: true };
+      updateExportField('localRecipes', (current) => [...current as CaloraRecipe[], saved]);
       setLocalRecipes((current) => [...current, saved]);
       queueMutation('savedMeal', 'upsert');
       return saved;
     },
     updateRecipe: (recipeId, patch) => {
-      setLocalRecipes((current) => current.map((recipe) => recipe.id === recipeId ? { ...recipe, ...patch, updatedAt: new Date().toISOString() } : recipe));
+      const updatedAt = new Date().toISOString();
+      updateExportField('localRecipes', (current) => (current as CaloraRecipe[]).map((recipe) => recipe.id === recipeId ? { ...recipe, ...patch, updatedAt } : recipe));
+      setLocalRecipes((current) => current.map((recipe) => recipe.id === recipeId ? { ...recipe, ...patch, updatedAt } : recipe));
       queueMutation('savedMeal', 'upsert');
     },
     toggleSavedRecipe: (recipeId) => {
+      updateExportField('savedRecipeIds', (current) => current.includes(recipeId) ? current.filter((id) => id !== recipeId) : [...current, recipeId]);
       setSavedRecipeIds((current) => current.includes(recipeId) ? current.filter((id) => id !== recipeId) : [...current, recipeId]);
       queueMutation('savedMeal', 'upsert');
     },
     setThemePreference: (preference) => {
+      patchExportSnapshot({ themePreference: preference });
       setThemePreference(preference);
       queueMutation('settings', 'upsert');
     },
     completeOnboarding: (nextProfile, consent) => {
+      patchExportSnapshot({ profile: nextProfile, consentAccepted: consent, onboardingComplete: true });
+      profileRef.current = nextProfile;
       setProfile(nextProfile);
       setConsentAccepted(consent);
       setOnboardingComplete(true);
       queueMutation('profile', 'upsert');
     },
     updateProfile: (patch) => {
-      setProfile((current) => current ? { ...current, ...patch } : current);
+      profileRef.current = profileRef.current ? { ...profileRef.current, ...patch } : null;
+      setProfile(profileRef.current);
+      patchExportSnapshot({ profile: profileRef.current });
       queueMutation('profile', 'upsert');
     },
     hydrationReminders,
@@ -1215,114 +1533,96 @@ export function CaloraProvider({
     livingState,
      livingMemory,
       forgetLivingObservation: (kind, id) => {
+        updateExportField('livingMemory', (current) => ({ ...forgetMemoryObservation(current as LivingMemory, kind, id) }));
        setLivingMemory((current) => ({ ...forgetMemoryObservation(current, kind, id) }));
        queueMutation('settings', 'upsert');
      },
     setHydrationReminders: (prefs: HydrationReminderPrefs) => {
-      const next = normalizeNotificationPreferences({
-        ...notificationPreferences,
+      commitNotificationPreferences((current) => ({
+        ...current,
         categories: {
-          ...notificationPreferences.categories,
+          ...current.categories,
           hydration: { enabled: prefs.enabled, preferences: prefs },
         },
-      });
-      setNotificationPreferencesState(next);
-      setHydrationRemindersState(legacyReminderMirrors(next).hydrationReminders);
+      }));
+      queueMutation('settings', 'upsert');
     },
     fontScale,
     fontSizeScale,
-    setFontSizeScale: (scale) => setFontSizeScaleState(scale === 'xlarge' ? 'large' : scale),
+    setFontSizeScale: (scale) => {
+      const next = scale === 'xlarge' ? 'large' : scale;
+      patchExportSnapshot({ fontSizeScale: next });
+      setFontSizeScaleState(next);
+    },
     profilePhotoUri,
-    setProfilePhotoUri: setProfilePhotoUriState,
+    setProfilePhotoUri: (uri) => {
+      patchExportSnapshot({ profilePhotoUri: uri });
+      setProfilePhotoUriState(uri);
+    },
     clearProfilePhoto: async () => {
       const result = await deleteProfilePhoto(FileSystem, accountId);
       if (!result.ok) throw new Error('Could not delete the local profile photo.');
+      patchExportSnapshot({ profilePhotoUri: null });
       setProfilePhotoUriState(null);
     },
     mealReminders,
     goalReminder,
     notificationPreferences,
+    notificationScopeReady,
     setNotificationPreferences: (prefs: LocalNotificationPreferences) => {
-      const next = normalizeNotificationPreferences(prefs);
-      const mirrors = legacyReminderMirrors(next);
-      setNotificationPreferencesState(next);
-      setHydrationRemindersState(mirrors.hydrationReminders);
-      setMealRemindersState(mirrors.mealReminders);
-      setGoalReminderState(mirrors.goalReminder);
+      commitNotificationPreferences(prefs);
       queueMutation('settings', 'upsert');
     },
+    updateNotificationPreferences: (updater) => {
+      const committed = commitNotificationPreferences(updater);
+      queueMutation('settings', 'upsert');
+      return committed;
+    },
     setMealReminders: (prefs: MealReminderPrefs) => {
-      const next = normalizeNotificationPreferences({
-        ...notificationPreferences,
+      commitNotificationPreferences((current) => ({
+        ...current,
         categories: {
-          ...notificationPreferences.categories,
+          ...current.categories,
           meal: { enabled: prefs.breakfast || prefs.lunch || prefs.dinner, preferences: prefs },
         },
-      });
-      setNotificationPreferencesState(next);
-      setMealRemindersState(legacyReminderMirrors(next).mealReminders);
+      }));
+      queueMutation('settings', 'upsert');
     },
     setGoalReminder: (prefs: GoalReminderPrefs) => {
-      const next = normalizeNotificationPreferences({
-        ...notificationPreferences,
+      commitNotificationPreferences((current) => ({
+        ...current,
         categories: {
-          ...notificationPreferences.categories,
+          ...current.categories,
           goal: { enabled: prefs.enabled, preferences: prefs },
         },
-      });
-      setNotificationPreferencesState(next);
-      setGoalReminderState(legacyReminderMirrors(next).goalReminder);
+      }));
+      queueMutation('settings', 'upsert');
     },
     deleteSavedMeal: (id: string) => {
+      updateExportField('savedMeals', (current) => (current as SavedMeal[]).filter((meal) => meal.id !== id));
       setSavedMeals((current) => current.filter((meal) => meal.id !== id));
       queueMutation('savedMeal', 'delete');
     },
     setHealthConnected,
-    clearOutbox: () => setOutbox([]),
+    clearOutbox: () => {
+      outboxRef.current = [];
+      patchExportSnapshot({ outbox: [] });
+      setOutbox([]);
+    },
       exportRawStorageData: () => readRawStorageData(AsyncStorage.getItem.bind(AsyncStorage), storageKey),
       exportData: async () => {
-        // resolveExportData reads exportSnapshotRef.current first (the gap-bridge
-        // set synchronously by clearAllData before React re-renders) and falls
-        // through to the live closed-over state only when the ref is null.
-        // See lib/exportGap.ts for the extracted production function.
-        const normalizedPreferences = normalizeNotificationPreferences(notificationPreferences, {
-          hydrationReminders,
-          mealReminders,
-          goalReminder,
-        });
-        const reminderMirrors = legacyReminderMirrors(normalizedPreferences);
-        return resolveExportData(exportSnapshotRef, {
-          profile,
-          logs,
-          weights,
-          waterLogs,
-          moodLogs,
-          activityLogs,
-          activityMinutesLogs,
-          savedMeals,
-          localRecipes,
-          savedRecipeIds,
-          plannerWeekStart,
-          plannerMeals,
-          shoppingItems,
-          foodDrafts,
-          foodMemories,
-          repeatPatterns,
-          memoryCorrections,
-          livingMemory,
-          hydrationReminders: reminderMirrors.hydrationReminders,
-          mealReminders: reminderMirrors.mealReminders,
-          goalReminder: reminderMirrors.goalReminder,
-          notificationPreferences: normalizedPreferences,
-          healthConnected,
-          consentAccepted,
-          coachConsentAccepted,
-          coachMessages,
-        }, STORAGE_SCHEMA_VERSION);
+        if (!exportSnapshotRef.current) {
+          throw new Error('Export state is not initialized.');
+        }
+        return buildExportPayload(STORAGE_SCHEMA_VERSION, exportSnapshotRef.current);
       },
     clearAllData: async () => {
       if (clearingRef.current) return;
       clearingRef.current = true;
+      // Invalidate health work before the first async clear boundary. Every
+      // sync completion is epoch-gated, so stale device results cannot
+      // repopulate state or trigger an autosave after the durable removal.
+      healthSyncEpochRef.current += 1;
        // Invalidate any planner generation before the destructive work starts,
        // not after its async photo/storage operations complete.
        setPlannerRevision((revision) => revision + 1);
@@ -1330,16 +1630,11 @@ export function CaloraProvider({
       try {
         CoachFactRequestLifecycle.invalidateAll();
         invalidateAllCoachLifecycleEpochs('clear_data');
-        await coachFactConsentCache.clear(accountId ?? null);
-        // These are both account-safe (inbox) or explicitly Calora-tagged
-        // (schedules), and must finish before the clear promise resolves.
-        await cancelNotificationPlanForClear();
-        await clearNotificationInbox(accountId ?? null);
-        const photoDeleteResult = await deleteProfilePhoto(FileSystem, accountId);
-        if (!photoDeleteResult.ok) {
-          throw new Error('Could not delete the local profile photo.');
-        }
-        await performClearAllData({
+        let coreFailure: unknown = null;
+        try {
+          // The account-scoped state is the destructive commit boundary. It is
+          // serialized behind pending autosaves by PersistenceManager.
+          await performClearAllData({
         pm: pm.current,
         emptyLivingMemory: emptyLivingMemory(),
         defaultHydrationPrefs: DEFAULT_HYDRATION_PREFS,
@@ -1375,24 +1670,57 @@ export function CaloraProvider({
         setCoachConsentAccepted,
         setCoachMessages,
         setGoalCelebrationSeenTargetKg,
-        });
-        // Build and assign the cleared export snapshot synchronously so that
-        // exportData() (which calls resolveExportData) returns cleared values
-        // even if called before React commits the re-render triggered by the
-        // state setters above.  The autosave useEffect clears this ref once
-        // React state is committed and the closed-over state vars are current.
-        // See lib/exportGap.ts for the extracted production function.
-        setMealRemindersState(DEFAULT_MEAL_REMINDER_PREFS);
-        setGoalReminderState(DEFAULT_GOAL_REMINDER_PREFS);
-        setNotificationPreferencesState(DEFAULT_LOCAL_NOTIFICATION_PREFERENCES);
-        setFontSizeScaleState('default');
-        setProfilePhotoUriState(null);
-        exportSnapshotRef.current = makeClearedExportSnapshot({
-          getPlannerWeekStart,
-          healthConnected,
-          // hydrationReminders is intentionally omitted — makeClearedExportSnapshot
-          // always resets to DEFAULT_HYDRATION_PREFS, never the stale closure value.
-        });
+          });
+        } catch (error) {
+          coreFailure = error;
+        }
+
+        if (!coreFailure) {
+          // Finish the in-memory core reset immediately after the durable
+          // account-key removal. Auxiliary native cleanup below may be slow or
+          // fail, but must not delay/undo this committed destructive boundary.
+          setMealRemindersState(DEFAULT_MEAL_REMINDER_PREFS);
+          setGoalReminderState(DEFAULT_GOAL_REMINDER_PREFS);
+          const clearedNotificationPreferences = normalizeNotificationPreferences(undefined);
+          setNotificationPreferencesState(clearedNotificationPreferences);
+          notificationPreferencesRef.current = clearedNotificationPreferences;
+          profileRef.current = null;
+          logsRef.current = [];
+          outboxRef.current = [];
+          shoppingItemsRef.current = [];
+          setThemePreference('system');
+          setFontSizeScaleState('default');
+          setProfilePhotoUriState(null);
+          exportSnapshotRef.current = makeClearedExportSnapshot({
+            getPlannerWeekStart,
+            healthConnected: canSyncHealthConnection(healthConnectionRef.current),
+            healthConnection: healthConnectionRef.current,
+            notificationPreferences: clearedNotificationPreferences,
+          });
+        }
+
+        // Attempt every independent cleanup even when another cleanup fails.
+        // These run only after the core commit attempt, so an auxiliary native
+        // failure can never prevent already-committed personal-data deletion.
+        const cleanup = await Promise.allSettled([
+          cancelNotificationPlanForClear(),
+          clearNotificationInbox(accountId ?? null),
+          coachFactConsentCache.clear(accountId ?? null),
+          deleteProfilePhoto(FileSystem, accountId).then((result) => {
+            if (!result.ok) throw new Error('profile-photo');
+          }),
+        ]);
+        const cleanupNames = ['native schedules', 'notification inbox', 'coach cache', 'profile photo'];
+        const cleanupFailures = cleanup.flatMap((result, index) =>
+          result.status === 'rejected' ? [cleanupNames[index]] : []);
+
+        if (coreFailure) {
+          throw new ClearAllDataError('core-clear-failed', cleanupFailures, { cause: coreFailure });
+        }
+
+        if (cleanupFailures.length) {
+          throw new ClearAllDataError('partial-cleanup', cleanupFailures);
+        }
       } finally {
         clearingRef.current = false;
         setIsClearing(false);
@@ -1408,9 +1736,13 @@ export function CaloraProvider({
        const recipeItems = currentShoppingItems.filter((item) => item.recipeSource);
        const plannerBuilt = buildShoppingItems(normalizedMeals, previousChecks);
        const plannerNames = new Set(plannerBuilt.map((i) => shoppingNameKey(i.name)));
-      setPlannerWeekStart(weekStart);
+       const nextShopping = [...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))];
+       shoppingItemsRef.current = nextShopping;
+       patchExportSnapshot({ plannerWeekStart: weekStart, plannerMeals: normalizedMeals, shoppingItems: nextShopping });
+       updateExportField('livingMemory', (current) => replacePlannerObservations(current as LivingMemory, normalizedMeals));
+       setPlannerWeekStart(weekStart);
        setPlannerMealsState(normalizedMeals);
-       setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))]);
+       setShoppingItems(nextShopping);
        setPlannerRevision((revision) => revision + 1);
        setLivingMemory((current) => replacePlannerObservations(current, normalizedMeals));
       queueMutation('settings', 'upsert');
@@ -1422,8 +1754,12 @@ export function CaloraProvider({
        const recipeItems = currentShoppingItems.filter((item) => item.recipeSource);
        const plannerBuilt = buildShoppingItems(normalizedMeals, previousChecks);
        const plannerNames = new Set(plannerBuilt.map((i) => shoppingNameKey(i.name)));
+       const nextShopping = [...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))];
+       shoppingItemsRef.current = nextShopping;
+       patchExportSnapshot({ plannerMeals: normalizedMeals, shoppingItems: nextShopping });
+       updateExportField('livingMemory', (current) => replacePlannerObservations(current as LivingMemory, normalizedMeals));
        setPlannerMealsState(normalizedMeals);
-       setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))]);
+       setShoppingItems(nextShopping);
        setPlannerRevision((revision) => revision + 1);
        setLivingMemory((current) => replacePlannerObservations(current, normalizedMeals));
       queueMutation('settings', 'upsert');
@@ -1448,22 +1784,41 @@ export function CaloraProvider({
        const recipeItems = currentShoppingItems.filter((item) => item.recipeSource);
       const plannerBuilt = buildShoppingItems(next, previousChecks);
        const plannerNames = new Set(plannerBuilt.map((i) => shoppingNameKey(i.name)));
+      const nextShopping = [...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))];
+      shoppingItemsRef.current = nextShopping;
+      patchExportSnapshot({ plannerMeals: next, shoppingItems: nextShopping });
+      updateExportField('livingMemory', (current) => replacePlannerObservations(current as LivingMemory, next));
       setPlannerMealsState(next);
-       setShoppingItems([...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))]);
+       setShoppingItems(nextShopping);
        setPlannerRevision((revision) => revision + 1);
       setLivingMemory((current) => replacePlannerObservations(current, next));
       queueMutation('settings', 'upsert');
     },
     toggleShoppingItem: (itemId) => {
+      updateExportField('shoppingItems', (current) => (current as ShoppingItem[]).map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item));
+      shoppingItemsRef.current = shoppingItemsRef.current.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item);
       setShoppingItems((items) => items.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item));
       queueMutation('settings', 'upsert');
     },
     toggleShoppingItemByName: (name) => {
        const key = shoppingNameKey(name);
+       updateExportField('shoppingItems', (current) => (current as ShoppingItem[]).map((item) => shoppingNameKey(item.name) === key ? { ...item, checked: !item.checked } : item));
+       shoppingItemsRef.current = shoppingItemsRef.current.map((item) => shoppingNameKey(item.name) === key ? { ...item, checked: !item.checked } : item);
        setShoppingItems((items) => items.map((item) => shoppingNameKey(item.name) === key ? { ...item, checked: !item.checked } : item));
       queueMutation('settings', 'upsert');
     },
     addIngredientsToShopping: (ingredients, sourceId) => {
+      updateExportField('shoppingItems', (current) => {
+        const next = [...current as ShoppingItem[]];
+        ingredients.forEach((ingredient) => {
+          const name = ingredient.trim().replace(/\s+/g, ' ');
+          const key = name.toLocaleLowerCase();
+          if (!next.some((item) => item.name.toLocaleLowerCase() === key)) {
+            next.push({ id: `recipe-shop-${sourceId}-${key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30)}`, name, quantity: 1, checked: false, recipeSource: true, sourceMealIds: [sourceId] });
+          }
+        });
+        return next;
+      });
       setShoppingItems((prev) => {
         const next = [...prev];
         ingredients.forEach((ingredient) => {
@@ -1478,9 +1833,19 @@ export function CaloraProvider({
        setPlannerRevision((revision) => revision + 1);
       queueMutation('settings', 'upsert');
     },
-     setCoachConsentAccepted: (accepted) => setCoachConsentAccepted(accepted),
-     setCoachMessages: (messages) => setCoachMessages(messages.slice(-12)),
-     clearCoachHistory: () => setCoachMessages([]),
+     setCoachConsentAccepted: (accepted) => {
+       patchExportSnapshot({ coachConsentAccepted: accepted });
+       setCoachConsentAccepted(accepted);
+     },
+     setCoachMessages: (messages) => {
+       const next = messages.slice(-12);
+       patchExportSnapshot({ coachMessages: next });
+       setCoachMessages(next);
+     },
+     clearCoachHistory: () => {
+       patchExportSnapshot({ coachMessages: [] });
+       setCoachMessages([]);
+     },
      plannerViewedDay,
      setPlannerViewedDay,
      recipeSlotTarget,
@@ -1492,9 +1857,15 @@ export function CaloraProvider({
       postLogInsight,
       clearPostLogInsight,
      goalCelebrationSeenTargetKg,
-     markGoalCelebrationSeen: (targetKg: number) => setGoalCelebrationSeenTargetKg(targetKg),
-     resetGoalCelebrationSeen: () => setGoalCelebrationSeenTargetKg(null),
-      }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+     markGoalCelebrationSeen: (targetKg: number) => {
+       patchExportSnapshot({ goalCelebrationSeenTargetKg: targetKg });
+       setGoalCelebrationSeenTargetKg(targetKg);
+     },
+     resetGoalCelebrationSeen: () => {
+       patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
+       setGoalCelebrationSeenTargetKg(null);
+     },
+      }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

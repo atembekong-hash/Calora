@@ -10,6 +10,7 @@ import { formatWhole } from '@/lib/formatters';
 import { handleParseErrorExport } from '@/lib/parseErrorExportHandler';
 import { deriveErrorScreenActions } from '@/lib/errorScreenActions';
 import { recommendCalories } from '@/lib/calorieRecommendation';
+import { validatePersonalDetails } from '@/lib/profileTargets';
 
 const goals: { key: Goal; label: string; body: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'lose', label: 'Lose weight', body: 'A steady, sustainable pace', icon: 'trending-down' },
@@ -36,29 +37,54 @@ export default function OnboardingScreen() {
   const [weight, setWeight] = useState('76');
   const [targetWeight, setTargetWeight] = useState('68');
   const [consent, setConsent] = useState(false);
+  const [personalDetailsError, setPersonalDetailsError] = useState('');
 
+  const validatedPersonalDetails = useMemo(() => validatePersonalDetails({
+    age, height, weight, targetWeight, activity, diet, goal,
+  }, 'metric'), [activity, age, diet, goal, height, targetWeight, weight]);
   const calorieTarget = useMemo(
-    () => recommendCalories({ weightKg: Number(weight) || 76, activity, goal }),
-    [activity, goal, weight],
+    () => validatedPersonalDetails.ok
+      ? recommendCalories({
+          weightKg: validatedPersonalDetails.values.weightKg,
+          activity,
+          goal,
+        })
+      : null,
+    [activity, goal, validatedPersonalDetails],
   );
 
   const finish = () => {
+    const validation = validatePersonalDetails({
+      age, height, weight, targetWeight, activity, diet, goal,
+    }, 'metric');
+    if (!validation.ok) {
+      setPersonalDetailsError(validation.message);
+      setStep(2);
+      return;
+    }
     const profile: Profile = {
       name: name.trim() || 'Alex Morgan',
-      goal,
-      activity,
-      diet,
-      heightCm: Number(height) || 172,
-      weightKg: Number(weight) || 76,
-      targetWeightKg: Number(targetWeight) || 68,
-      age: Number(age) || 31,
-      calorieTarget,
+      ...validation.values,
+      calorieTarget: recommendCalories({
+        weightKg: validation.values.weightKg,
+        activity: validation.values.activity,
+        goal: validation.values.goal,
+      }),
       targetMode: 'automatic',
     };
     completeOnboarding(profile, consent);
   };
 
-  const next = () => setStep((current) => Math.min(current + 1, 4));
+  const next = () => {
+    if (step === 2) {
+      if (!validatedPersonalDetails.ok) {
+        setPersonalDetailsError(validatedPersonalDetails.message);
+        return;
+      }
+      setPersonalDetailsError('');
+    }
+    setStep((current) => Math.min(current + 1, 4));
+  };
 
   // Show generic loading only on the initial read — not during a retry, where
   // the error screen (with its spinner button) should remain visible instead.
@@ -208,9 +234,10 @@ export default function OnboardingScreen() {
             <Text style={[styles.body, { color: colors.mutedForeground }]}>These details create a starting estimate, not a medical recommendation.</Text>
             <View style={styles.formGrid}>
               <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>What should we call you?</Text><TextInput value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
-              {[['Age', age, setAge], ['Height (cm)', height, setHeight], ['Current weight (kg)', weight, setWeight], ['Goal weight (kg)', targetWeight, setTargetWeight]].map(([label, value, setter]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput value={value as string} onChangeText={setter as (value: string) => void} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>)}
+              {[['Age', age, setAge], ['Height (cm)', height, setHeight], ['Current weight (kg)', weight, setWeight], ['Goal weight (kg)', targetWeight, setTargetWeight]].map(([label, value, setter]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput value={value as string} onChangeText={(nextValue) => { (setter as (value: string) => void)(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: personalDetailsError ? colors.destructive : colors.input }]} /></View>)}
             </View>
-             <View style={[styles.targetPreview, { backgroundColor: colors.accent }]}><Feather name="target" size={18} color={colors.accentForeground} /><Text style={[styles.targetText, { color: colors.accentForeground }]}>Starting target: <Text style={styles.targetBold}>{formatWhole(calorieTarget)} kcal/day</Text></Text></View>
+             {!!personalDetailsError && <Text accessibilityRole="alert" style={[styles.personalDetailsError, { color: colors.destructive }]}>{personalDetailsError}</Text>}
+             <View style={[styles.targetPreview, { backgroundColor: colors.accent }]}><Feather name="target" size={18} color={colors.accentForeground} /><Text style={[styles.targetText, { color: colors.accentForeground }]}>{calorieTarget === null ? 'Enter valid details to see your starting target.' : <>Starting target: <Text style={styles.targetBold}>{formatWhole(calorieTarget)} kcal/day</Text></>}</Text></View>
           </View>
         )}
 
@@ -297,6 +324,7 @@ const styles = StyleSheet.create({
   targetPreview: { flexDirection: 'row', gap: 9, alignItems: 'center', borderRadius: 14, padding: 13, marginTop: 18 },
   targetText: { fontFamily: 'Inter_500Medium', fontSize: 12 },
   targetBold: { fontFamily: 'Inter_700Bold' },
+  personalDetailsError: { fontFamily: 'Inter_500Medium', fontSize: 11, lineHeight: 16, marginTop: 12 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 },
   chipText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },

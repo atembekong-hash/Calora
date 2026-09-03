@@ -68,10 +68,20 @@ const {
 // _fsGetInfoResult controls what verifyProfilePhotoExists (and the stale-URI
 // guard) observes.  Flip it in beforeEach / per-test to control the outcome.
 
-const { _fsGetInfoResult } = vi.hoisted(() => {
+const { _fsGetInfoResult, _fsDeleteAsync } = vi.hoisted(() => {
   const _fsGetInfoResult = { exists: true };
-  return { _fsGetInfoResult };
+  return { _fsGetInfoResult, _fsDeleteAsync: vi.fn() };
 });
+
+const { _healthGetConnection, _healthRequestConnection, _healthSync } = vi.hoisted(() => ({
+  _healthGetConnection: vi.fn(),
+  _healthRequestConnection: vi.fn(),
+  _healthSync: vi.fn(),
+}));
+
+const { _appStateChangeHandler } = vi.hoisted(() => ({
+  _appStateChangeHandler: { current: null as null | ((state: string) => void) },
+}));
 
 // ── Native module mocks ─────────────────────────────────────────────────────
 // vi.mock calls are hoisted; they run before any calora imports below resolve.
@@ -91,7 +101,7 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 vi.mock('expo-file-system/legacy', () => ({
   documentDirectory: '/test/docs/',
   copyAsync:    vi.fn(async () => {}),
-  deleteAsync:  vi.fn(async () => {}),
+  deleteAsync:  _fsDeleteAsync,
   getInfoAsync: vi.fn(async () => _fsGetInfoResult),
 }));
 
@@ -108,9 +118,20 @@ vi.mock('react-native', () => ({
   useColorScheme:   vi.fn().mockReturnValue('light'),
   AppState: {
     currentState:     'active',
-    addEventListener: vi.fn().mockReturnValue({ remove: vi.fn() }),
+    addEventListener: vi.fn((_event: string, handler: (state: string) => void) => {
+      _appStateChangeHandler.current = handler;
+      return { remove: vi.fn() };
+    }),
   },
   Platform: { OS: 'ios', select: (obj: Record<string, unknown>) => obj['ios'] },
+}));
+
+vi.mock('@/lib/health/healthService', () => ({
+  healthService: {
+    getConnection: _healthGetConnection,
+    requestConnection: _healthRequestConnection,
+    sync: _healthSync,
+  },
 }));
 
 // ── Production imports ───────────────────────────────────────────────────────
@@ -165,6 +186,12 @@ beforeEach(() => {
   // by calls from previous tests (getInfoAsync, deleteAsync, etc. are shared
   // module-level spies).
   vi.clearAllMocks();
+  _fsDeleteAsync.mockResolvedValue(undefined);
+  _appStateChangeHandler.current = null;
+  const unavailable = { provider: 'unsupported', authorization: 'unavailable', granted: [] };
+  _healthGetConnection.mockResolvedValue(unavailable);
+  _healthRequestConnection.mockResolvedValue(unavailable);
+  _healthSync.mockRejectedValue(new Error('Health data is unavailable on this platform.'));
 });
 
 // ---------------------------------------------------------------------------
@@ -470,7 +497,7 @@ describe('real CaloraProvider — clearAllData() deletes the profile photo file'
     expect(result.current.profilePhotoUri).toBeNull();
   });
 
-  it('rejects without clearing state when the photo file cannot be deleted', async () => {
+  it('reports partial cleanup while keeping core personal data deleted when the photo cannot be deleted', async () => {
     _asyncStore[STORAGE_KEY] = JSON.stringify({
       schemaVersion: STORAGE_SCHEMA_VERSION,
       onboardingComplete: true,
@@ -488,11 +515,377 @@ describe('real CaloraProvider — clearAllData() deletes the profile photo file'
 
     await act(async () => {
       await expect(result.current.clearAllData()).rejects.toThrow(
-        'Could not delete the local profile photo.',
+        'Personal data was deleted, but some device cleanup did not finish.',
       );
     });
-    expect(result.current.profile).toEqual({ ...ACCOUNT_PROFILE, targetMode: 'custom' });
-    expect(result.current.profilePhotoUri).toBe(STORED_PHOTO_URI);
+    expect(result.current.profile).toBeNull();
+    expect(result.current.profilePhotoUri).toBeNull();
+  });
+
+  it('reports a core failure accurately but still attempts auxiliary cleanup', async () => {
+    _asyncStore[STORAGE_KEY] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      onboardingComplete: true,
+      profile: ACCOUNT_PROFILE,
+      profilePhotoUri: STORED_PHOTO_URI,
+    });
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const { deleteAsync } = await import('expo-file-system/legacy');
+    (AsyncStorage.removeItem as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('storage unavailable'));
+    const { result } = await renderAndAwaitHydration();
+
+    await act(async () => {
+      await expect(result.current.clearAllData()).rejects.toThrow(
+        'Core personal data could not be deleted.',
+      );
+    });
+
+    expect(result.current.profile?.name).toBe('User A');
+    expect(deleteAsync).toHaveBeenCalled();
+  });
+});
+
+describe('real CaloraProvider — transactional notifications and live export', () => {
+  it('preserves a just-hydrated schedule when a meal control commits in the same tick', async () => {
+    _asyncStore[STORAGE_KEY] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      notificationPreferences: {
+        version: 1,
+        delivery: 'local',
+        masterEnabled: true,
+        quietHours: { enabled: false, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } },
+        categories: {
+          hydration: {
+            enabled: true,
+            preferences: {
+              enabled: true, wakeHour: 6, wakeMinute: 25,
+              sleepHour: 22, sleepMinute: 0, intervalHours: 2,
+            },
+          },
+        },
+      },
+    });
+    const releaseRead = blockNextAsyncRead();
+    const handle = renderHook(() => useCalora(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      releaseRead();
+      // Let the storage continuation commit its canonical ref, without waiting
+      // for a separate user-visible render before firing the meal control.
+      await Promise.resolve();
+      await Promise.resolve();
+      handle.result.current.updateNotificationPreferences((current) => ({
+        ...current,
+        categories: {
+          ...current.categories,
+          meal: {
+            enabled: true,
+            preferences: { ...current.categories.meal.preferences, lunch: true },
+          },
+        },
+      }));
+    });
+
+    expect(handle.result.current.notificationPreferences.categories.hydration.preferences.wakeMinute).toBe(25);
+    expect(handle.result.current.notificationPreferences.categories.meal.preferences.lunch).toBe(true);
+  });
+
+  it('merges rapid meal and double-nudge updates from the latest canonical preferences', async () => {
+    const { result } = await renderAndAwaitHydration();
+
+    act(() => {
+      result.current.updateNotificationPreferences((current) => ({
+        ...current,
+        categories: {
+          ...current.categories,
+          meal: {
+            enabled: true,
+            preferences: { ...current.categories.meal.preferences, breakfast: true },
+          },
+        },
+      }));
+      result.current.updateNotificationPreferences((current) => ({
+        ...current,
+        categories: {
+          ...current.categories,
+          hydration: {
+            ...current.categories.hydration,
+            preferences: {
+              ...current.categories.hydration.preferences,
+              wakeMinute: current.categories.hydration.preferences.wakeMinute + 5,
+            },
+          },
+        },
+      }));
+      result.current.updateNotificationPreferences((current) => ({
+        ...current,
+        categories: {
+          ...current.categories,
+          hydration: {
+            ...current.categories.hydration,
+            preferences: {
+              ...current.categories.hydration.preferences,
+              wakeMinute: current.categories.hydration.preferences.wakeMinute + 5,
+            },
+          },
+        },
+      }));
+    });
+
+    expect(result.current.notificationPreferences.categories.meal.preferences.breakfast).toBe(true);
+    expect(result.current.notificationPreferences.categories.hydration.preferences.wakeMinute).toBe(10);
+    expect(result.current.mealReminders.breakfast).toBe(true);
+  });
+
+  it('exports the exact same-tick notification commit without waiting for autosave', async () => {
+    const { result } = await renderAndAwaitHydration();
+    let exported = '';
+    await act(async () => {
+      result.current.updateNotificationPreferences((current) => ({
+        ...current,
+        quietHours: { ...current.quietHours, start: { hour: 21, minute: 35 } },
+      }));
+      exported = await result.current.exportData();
+    });
+
+    const parsed = JSON.parse(exported);
+    expect(parsed.notificationPreferences.quietHours.start).toEqual({ hour: 21, minute: 35 });
+    expect(parsed).toHaveProperty('onboardingComplete');
+    expect(parsed).toHaveProperty('healthConnection');
+    expect(parsed).toHaveProperty('fontSizeScale');
+  });
+
+  it('exports scalar and collection mutations from the same call stack', async () => {
+    const { result } = await renderAndAwaitHydration();
+    let exported = '';
+    await act(async () => {
+      result.current.setThemePreference('dark');
+      result.current.setFontSizeScale('large');
+      result.current.addWeight(71.5);
+      result.current.addWater('2026-08-07', 12);
+      result.current.setMood('2026-08-07', 'good');
+      exported = await result.current.exportData();
+    });
+
+    const parsed = JSON.parse(exported);
+    expect(parsed.themePreference).toBe('dark');
+    expect(parsed.fontSizeScale).toBe('large');
+    expect(parsed.weights.at(-1).kg).toBe(71.5);
+    expect(parsed.waterLogs['2026-08-07']).toBe(12);
+    expect(parsed.moodLogs['2026-08-07']).toBe('good');
+  });
+
+  it('exports planner and shopping changes from the same call stack', async () => {
+    const { result } = await renderAndAwaitHydration();
+    const planned = {
+      id: 'same-stack-plan',
+      name: 'Breakfast bowl',
+      day: '2026-08-07',
+      meal: 'Breakfast',
+      calories: 400,
+      proteinG: 20,
+      carbsG: 45,
+      fatG: 12,
+      ingredients: ['oats'],
+    } as unknown as Parameters<typeof result.current.setPlannerMeals>[1][number];
+    let exported = '';
+    await act(async () => {
+      result.current.setPlannerMeals('2026-08-03', [planned]);
+      exported = await result.current.exportData();
+    });
+
+    const parsed = JSON.parse(exported);
+    expect(parsed.plannerWeekStart).toBe('2026-08-03');
+    expect(parsed.plannerMeals).toEqual([expect.objectContaining({ id: 'same-stack-plan' })]);
+    expect(parsed.shoppingItems).toEqual(expect.any(Array));
+  });
+
+  it('exports profile, log, and outbox changes from the same call stack', async () => {
+    const { result } = await renderAndAwaitHydration();
+    let exported = '';
+    await act(async () => {
+      result.current.completeOnboarding(ACCOUNT_PROFILE, true);
+      result.current.updateProfile({ name: 'Same Stack User' });
+      result.current.addLog({
+        name: 'Same stack snack', date: '2026-08-07', meal: 'Snack',
+        calories: 120, protein: 3, carbs: 20, fat: 4,
+        source: 'Manual', confidence: 100, time: 'Just now', serving: '1 serving',
+      });
+      exported = await result.current.exportData();
+    });
+
+    const parsed = JSON.parse(exported);
+    expect(parsed.profile.name).toBe('Same Stack User');
+    expect(parsed.logs).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Same stack snack' })]));
+    expect(parsed.outbox.length).toBeGreaterThanOrEqual(3);
+    expect(parsed.consentAccepted).toBe(true);
+  });
+
+  it('exports the atomic cleared snapshot immediately after the clear commit', async () => {
+    _asyncStore[STORAGE_KEY] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      onboardingComplete: true,
+      profile: ACCOUNT_PROFILE,
+      logs: [{ id: 'private-log', name: 'Private meal' }],
+      themePreference: 'dark',
+    });
+    const { result } = await renderAndAwaitHydration();
+    let exported = '';
+    await act(async () => {
+      await result.current.clearAllData();
+      exported = await result.current.exportData();
+    });
+
+    const parsed = JSON.parse(exported);
+    expect(parsed.profile).toBeNull();
+    expect(parsed.logs).toEqual([]);
+    expect(parsed.outbox).toEqual([]);
+    expect(parsed.themePreference).toBe('system');
+    expect(parsed.notificationPreferences.categories.hydration.enabled).toBe(false);
+  });
+
+  it('does not resurrect cleared data when an older health sync resolves', async () => {
+    let resolveSync!: (snapshot: {
+      syncedAt: string;
+      steps: number;
+      activeEnergyKcal: number;
+      workouts: never[];
+      weights: Array<{ id: string; recordedAt: string; kg: number }>;
+    }) => void;
+    _healthSync.mockImplementationOnce(() => new Promise((resolve) => { resolveSync = resolve; }));
+    const connected = {
+      provider: 'healthkit',
+      authorization: 'authorized',
+      granted: ['bodyWeight', 'activeEnergy'],
+    };
+    _healthGetConnection.mockResolvedValue(connected);
+    _asyncStore[STORAGE_KEY] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      onboardingComplete: true,
+      profile: ACCOUNT_PROFILE,
+      healthConnected: true,
+      healthConnection: connected,
+      weights: [{ id: 'private-weight', date: '2026-08-06', kg: 89, source: 'manual' }],
+      activityLogs: { '2026-08-06': 9999 },
+      activityMinutesLogs: { '2026-08-06': 45 },
+    });
+
+    const { result } = await renderAndAwaitHydration();
+    expect(_healthSync).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.clearAllData();
+    });
+    expect(result.current.weights).toEqual([]);
+    expect(result.current.activityLogs).toEqual({});
+    expect(result.current.activityMinutesLogs).toEqual({});
+
+    await act(async () => {
+      resolveSync({
+        syncedAt: '2026-08-07T12:00:00.000Z',
+        steps: 12345,
+        activeEnergyKcal: 650,
+        workouts: [],
+        weights: [{ id: 'stale-health-weight', recordedAt: '2026-08-07T11:00:00.000Z', kg: 91 }],
+      });
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.weights).toEqual([]);
+    expect(result.current.activityLogs).toEqual({});
+    expect(result.current.activityMinutesLogs).toEqual({});
+    expect(result.current.healthConnection.snapshot).toBeUndefined();
+    const exported = JSON.parse(await result.current.exportData());
+    expect(exported.weights).toEqual([]);
+    expect(exported.activityLogs).toEqual({});
+    expect(exported.activityMinutesLogs).toEqual({});
+    expect(exported.healthConnection.snapshot).toBeUndefined();
+
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+    const persistedRaw = _asyncStore[STORAGE_KEY];
+    if (persistedRaw) {
+      const persisted = JSON.parse(persistedRaw);
+      expect(persisted.weights).toEqual([]);
+      expect(persisted.activityLogs).toEqual({});
+      expect(persisted.activityMinutesLogs).toEqual({});
+      expect(persisted.healthConnection.snapshot).toBeUndefined();
+    }
+  });
+
+  it('blocks brand-new manual and foreground health syncs during auxiliary clear cleanup', async () => {
+    const connected = {
+      provider: 'healthkit',
+      authorization: 'authorized',
+      granted: ['bodyWeight', 'activeEnergy'],
+    };
+    _healthGetConnection.mockResolvedValue(connected);
+    _healthSync.mockResolvedValue({
+      syncedAt: '2026-08-07T09:00:00.000Z',
+      steps: 100,
+      activeEnergyKcal: 20,
+      workouts: [],
+      weights: [],
+    });
+    _asyncStore[STORAGE_KEY] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      healthConnected: true,
+      healthConnection: connected,
+      weights: [{ id: 'private-weight', date: '2026-08-06', kg: 89, source: 'manual' }],
+      activityLogs: { '2026-08-06': 9999 },
+    });
+    const { result } = await renderAndAwaitHydration();
+    await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
+
+    let releaseAuxiliaryCleanup!: () => void;
+    _fsDeleteAsync.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      releaseAuxiliaryCleanup = resolve;
+    }));
+    _healthGetConnection.mockClear();
+    _healthSync.mockClear();
+    _healthRequestConnection.mockClear();
+
+    let clearPromise!: Promise<void>;
+    await act(async () => {
+      clearPromise = result.current.clearAllData();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+    expect(result.current.isClearing).toBe(true);
+    expect(result.current.weights).toEqual([]);
+    expect(result.current.activityLogs).toEqual({});
+
+    await act(async () => {
+      await result.current.syncHealth();
+      _appStateChangeHandler.current?.('active');
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(_healthGetConnection).not.toHaveBeenCalled();
+    expect(_healthSync).not.toHaveBeenCalled();
+    expect(_healthRequestConnection).not.toHaveBeenCalled();
+
+    await act(async () => {
+      releaseAuxiliaryCleanup();
+      await clearPromise;
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(result.current.weights).toEqual([]);
+    expect(result.current.activityLogs).toEqual({});
+    expect(result.current.activityMinutesLogs).toEqual({});
+    const exported = JSON.parse(await result.current.exportData());
+    expect(exported.weights).toEqual([]);
+    expect(exported.activityLogs).toEqual({});
+    expect(exported.activityMinutesLogs).toEqual({});
+    const persistedRaw = _asyncStore[STORAGE_KEY];
+    if (persistedRaw) {
+      const persisted = JSON.parse(persistedRaw);
+      expect(persisted.weights).toEqual([]);
+      expect(persisted.activityLogs).toEqual({});
+      expect(persisted.activityMinutesLogs).toEqual({});
+    }
   });
 });
 

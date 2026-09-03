@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -25,7 +25,7 @@ import { AppStatusBar } from '@/components/AppChrome';
 import { initializeRevenueCat, SubscriptionProvider } from '@/lib/revenuecat';
 import { ReferralActivator } from '@/components/ReferralActivator';
 import { useDiarySync } from '@/hooks/useDiarySync';
-import { recordReceivedNotification } from '@/lib/notificationInbox';
+import { isNotificationOwnedByScope, recordReceivedNotification } from '@/lib/notificationInbox';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -80,37 +80,29 @@ function createQueryClient() {
 function NotificationHandler() {
   const router = useRouter();
   const { user } = useAuth();
+  const { notificationScopeReady, notificationPreferences } = useCalora();
 
   useEffect(() => {
-    // Register Android notification channels once on mount.
-    if (Platform.OS === 'android') {
-      Promise.all([
-        Notifications.setNotificationChannelAsync('calora-hydration', {
-          name: 'Hydration reminders',
-          importance: Notifications.AndroidImportance.DEFAULT,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#4caf7d',
-        }),
-        Notifications.setNotificationChannelAsync('calora-meals', {
-          name: 'Meal reminders',
-          importance: Notifications.AndroidImportance.DEFAULT,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#4caf7d',
-        }),
-        Notifications.setNotificationChannelAsync('calora-goal', {
-          name: 'Goal check-ins',
-          importance: Notifications.AndroidImportance.DEFAULT,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#4caf7d',
-        }),
-      ]).catch(() => {});
-    }
+    // No listener exists until the current scope has passed its serialized
+    // native reconciliation. This makes A → B → guest a hard inbox boundary.
+    if (!notificationScopeReady) return;
 
     const accountId = user?.id ?? null;
+    const scopeToken = notificationPreferences.scopeToken;
+    const isCaloraNotification = (notification: Notifications.Notification) =>
+      isNotificationOwnedByScope(notification, scopeToken);
     const capture = (notification: Notifications.Notification) => {
+      if (!isCaloraNotification(notification)) return;
       void recordReceivedNotification(accountId, notification).catch((error) => {
         console.warn('[CaloraApp][notifications] Could not save notification:', error);
       });
+    };
+    const navigateFor = (notification: Notifications.Notification) => {
+      if (!isCaloraNotification(notification)) return;
+      const category = notification.request.content.data?.category;
+      if (category === 'hydration' || category === 'meal' || category === 'goal') {
+        router.navigate('/');
+      }
     };
 
     // Capture notifications received while the app is open.
@@ -121,12 +113,31 @@ function NotificationHandler() {
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         capture(response.notification);
-        const category = response.notification.request.content.data?.category;
-        if (category === 'hydration' || category === 'meal' || category === 'goal') {
-          router.navigate('/');
-        }
+        navigateFor(response.notification);
       },
     );
+
+    // Response listeners do not replay a tap that launched the process before
+    // React mounted. Read it only after this account scope is ready, through
+    // the same tagged capture path (delivery identity makes replay idempotent).
+    void Notifications.getLastNotificationResponseAsync()
+      .then(async (response) => {
+        if (!response) return;
+        try {
+          // Legacy/no-token and prior-scope responses fail closed.
+          if (isCaloraNotification(response.notification)) {
+            capture(response.notification);
+            navigateFor(response.notification);
+          }
+        } finally {
+          // Consume accepted and rejected retained responses so neither can
+          // replay after a later account/guest transition.
+          await Notifications.clearLastNotificationResponseAsync();
+        }
+      })
+      .catch((error) => {
+        console.warn('[CaloraApp][notifications] Could not read launch notification:', error);
+      });
 
     // On native, keep notifications that are still presented in sync with the
     // inbox so a user can review them after returning from the lock screen.
@@ -138,7 +149,7 @@ function NotificationHandler() {
       receivedSubscription.remove();
       responseSubscription.remove();
     };
-  }, [router, user?.id]);
+  }, [notificationPreferences.scopeToken, notificationScopeReady, router, user?.id]);
 
   return null;
 }

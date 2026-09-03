@@ -10,6 +10,8 @@ export type NotificationCategory<T> = { enabled: boolean; preferences: T };
 export type LocalNotificationPreferences = {
   version: typeof NOTIFICATION_PREFERENCES_VERSION;
   delivery: 'local';
+  /** Random local ownership proof; never derived from an account identifier. */
+  scopeToken: string;
   masterEnabled: boolean;
   quietHours: {
     enabled: boolean;
@@ -32,6 +34,7 @@ export type LegacyReminderFields = {
 export const DEFAULT_LOCAL_NOTIFICATION_PREFERENCES: LocalNotificationPreferences = {
   version: NOTIFICATION_PREFERENCES_VERSION,
   delivery: 'local',
+  scopeToken: createNotificationScopeToken(),
   masterEnabled: true,
   quietHours: {
     enabled: false,
@@ -71,6 +74,20 @@ function finiteInt(value: unknown, fallback: number, min: number, max: number): 
     : fallback;
 }
 
+/** Intervals are deliberately constrained to the values offered by the UI. */
+export const HYDRATION_INTERVAL_HOURS = [1, 1.5, 2, 3, 4, 6, 8, 12] as const;
+
+function hydrationInterval(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    && HYDRATION_INTERVAL_HOURS.includes(value as typeof HYDRATION_INTERVAL_HOURS[number])
+    ? value
+    : fallback;
+}
+
+export function createNotificationScopeToken(): string {
+  return `scope_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
+}
+
 function time(value: unknown, fallback: NotificationTime): NotificationTime {
   const candidate = value && typeof value === 'object' ? value as Partial<NotificationTime> : {};
   return {
@@ -100,6 +117,9 @@ export function normalizeNotificationPreferences(
   return {
     version: NOTIFICATION_PREFERENCES_VERSION,
     delivery: 'local',
+    scopeToken: typeof candidate?.scopeToken === 'string' && candidate.scopeToken.trim().length >= 12
+      ? candidate.scopeToken
+      : createNotificationScopeToken(),
     masterEnabled: candidate?.masterEnabled !== false,
     quietHours: {
       enabled: quiet?.enabled === true,
@@ -115,7 +135,10 @@ export function normalizeNotificationPreferences(
           wakeMinute: finiteInt(hydration.wakeMinute, defaults.categories.hydration.preferences.wakeMinute, 0, 59),
           sleepHour: finiteInt(hydration.sleepHour, defaults.categories.hydration.preferences.sleepHour, 0, 23),
           sleepMinute: finiteInt(hydration.sleepMinute, defaults.categories.hydration.preferences.sleepMinute, 0, 59),
-          intervalHours: finiteInt(hydration.intervalHours, defaults.categories.hydration.preferences.intervalHours, 1, 23),
+          intervalHours: hydrationInterval(
+            hydration.intervalHours,
+            defaults.categories.hydration.preferences.intervalHours,
+          ),
         },
       },
       meal: {

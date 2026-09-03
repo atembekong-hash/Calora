@@ -35,6 +35,7 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
+import { storageKeyForAccount } from '../accountStorage';
 import { useRef, useState } from 'react';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { useHydrationEffect } from '../useHydrationEffect';
@@ -45,7 +46,7 @@ import { deriveExportHasData } from '../exportUiHandler';
 // In-memory StorageAdapter — identical pattern to clearAllData.integration.test.ts
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = '@calora/local-state-v2'; // must match CaloraContext
+const STORAGE_KEY = storageKeyForAccount(null);
 
 function makeStore(initial: Record<string, string> = {}): StorageAdapter & { store: Record<string, string> } {
   const store: Record<string, string> = { ...initial };

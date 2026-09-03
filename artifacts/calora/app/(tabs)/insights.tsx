@@ -32,6 +32,7 @@ import {
   selectVisibleLocalInsight,
 } from '@/lib/intelligence';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
+import { displayTargetWeight, validateTargetWeight } from '@/lib/profileTargets';
 
 type ProgressView = 'overview' | 'trends' | 'weight';
 const PROGRESS_VIEWS = ['overview', 'trends', 'weight'] as const;
@@ -1122,6 +1123,7 @@ export default function InsightsScreen() {
   const [minutesInput, setMinutesInput] = useState('');
   const [showGoalEdit, setShowGoalEdit] = useState(false);
   const [goalInput, setGoalInput] = useState('');
+  const [goalError, setGoalError] = useState('');
   const [showExpandedChart, setShowExpandedChart] = useState(false);
   const [shoppingVisible, setShoppingVisible] = useState(false);
 
@@ -1299,6 +1301,15 @@ export default function InsightsScreen() {
   const showGoalNudge = showGoalProgress && !goalReached && goalProgressPct >= 90;
   const goalRemainingKg = Math.max(0, goalTotalDistance - goalProgressKg);
   const useImperial = profile?.units === 'imperial';
+  const weightUnits = useImperial ? 'lb' : 'kg';
+  const targetWeightDisplay = useImperial ? targetWeight * 2.20462 : targetWeight;
+  const openWeightGoalEdit = () => {
+    setGoalInput(targetWeight > 0
+      ? displayTargetWeight(targetWeight, useImperial ? 'imperial' : 'metric')
+      : '');
+    setGoalError('');
+    setShowGoalEdit(true);
+  };
   const goalRemainingDisplay = useImperial
     ? (goalRemainingKg * 2.20462).toFixed(1)
     : goalRemainingKg.toFixed(1);
@@ -1828,13 +1839,13 @@ export default function InsightsScreen() {
           <View style={styles.weightHeaderButtons}>
             <ScalePressable
               accessibilityLabel="Edit weight goal"
-              onPress={() => { setGoalInput(targetWeight > 0 ? String(targetWeight) : ''); setShowGoalEdit(true); }}
+              onPress={openWeightGoalEdit}
               scale={0.98}
               haptic="none"
               style={[styles.goalHeaderBtn, { backgroundColor: colors.muted }]}
             >
               <Feather name="target" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.goalHeaderBtnText, { color: colors.mutedForeground }]}>{targetWeight > 0 ? `Goal: ${targetWeight.toFixed(0)} kg` : 'Set goal'}</Text>
+              <Text style={[styles.goalHeaderBtnText, { color: colors.mutedForeground }]}>{targetWeight > 0 ? `Goal: ${targetWeightDisplay.toFixed(0)} ${weightUnits}` : 'Set goal'}</Text>
             </ScalePressable>
             <ScalePressable accessibilityLabel="Log weight" onPress={() => setShowWeight(true)} scale={0.96} haptic="light" style={[styles.weightButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.weightButtonText, { color: colors.primaryForeground }]}>Log</Text></ScalePressable>
           </View>
@@ -1925,14 +1936,14 @@ export default function InsightsScreen() {
               <View style={styles.goalProgressHeaderRow}>
                 <Text style={[styles.goalProgressText, { color: goalReached ? colors.success : colors.mutedForeground }]}>
                   {goalReached
-                    ? `Goal reached · ${targetWeight.toFixed(0)} kg`
+                    ? `Goal reached · ${targetWeightDisplay.toFixed(0)} ${weightUnits}`
                     : goalProgressKg > 0
-                    ? `${goalProgressKg.toFixed(1)} kg toward your ${targetWeight.toFixed(0)} kg goal`
-                    : `Target ${targetWeight.toFixed(0)} kg · start logging progress`}
+                    ? `${(useImperial ? goalProgressKg * 2.20462 : goalProgressKg).toFixed(1)} ${weightUnits} toward your ${targetWeightDisplay.toFixed(0)} ${weightUnits} goal`
+                    : `Target ${targetWeightDisplay.toFixed(0)} ${weightUnits} · start logging progress`}
                 </Text>
                 <ScalePressable
                   accessibilityLabel="Edit weight goal"
-                  onPress={() => { setGoalInput(targetWeight > 0 ? String(targetWeight) : ''); setShowGoalEdit(true); }}
+                  onPress={openWeightGoalEdit}
                   scale={0.98}
                   haptic="none"
                   style={styles.goalEditBtn}
@@ -2022,29 +2033,33 @@ export default function InsightsScreen() {
             <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
             </KeyboardAwareScrollViewCompat>
       </BottomSheet>
-      <BottomSheet visible={showGoalEdit} transparent animationType="slide" onRequestClose={() => setShowGoalEdit(false)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={showGoalEdit} transparent animationType="slide" onRequestClose={() => { setGoalError(''); setShowGoalEdit(false); }} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
             <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>Weight goal</Text>
             <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>Set a target weight. Logged data will not change.</Text>
             <TextInput
               value={goalInput}
-              onChangeText={setGoalInput}
+              onChangeText={(value) => { setGoalInput(value); if (goalError) setGoalError(''); }}
               keyboardType="decimal-pad"
-              placeholder="e.g. 70 kg"
+              placeholder={useImperial ? 'e.g. 154 lb' : 'e.g. 70 kg'}
               placeholderTextColor={colors.mutedForeground}
-              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]}
+              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: goalError ? colors.destructive : colors.input }]}
               autoFocus
             />
+            {!!goalError && <Text accessibilityRole="alert" style={[styles.weightError, { color: colors.destructive }]}>{goalError}</Text>}
             <ScalePressable
               accessibilityLabel="Save weight goal"
               onPress={() => {
-                const value = Number(goalInput);
-                if (value > 0) {
-                  updateProfile({ targetWeightKg: value });
-                  setGoalInput('');
-                  setShowGoalEdit(false);
-                  setSaveNotice('Weight goal updated.');
+                const result = validateTargetWeight(goalInput, useImperial ? 'imperial' : 'metric');
+                if (!result.ok) {
+                  setGoalError(result.message);
+                  return;
                 }
+                updateProfile({ targetWeightKg: result.targetWeightKg });
+                setGoalInput('');
+                setGoalError('');
+                setShowGoalEdit(false);
+                setSaveNotice('Weight goal updated.');
               }}
               scale={0.96}
               haptic="light"
@@ -2052,7 +2067,7 @@ export default function InsightsScreen() {
             >
               <Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save goal</Text>
             </ScalePressable>
-            <Pressable accessibilityLabel="Cancel goal edit" onPress={() => setShowGoalEdit(false)} style={styles.cancelWeight}>
+            <Pressable accessibilityLabel="Cancel goal edit" onPress={() => { setGoalError(''); setShowGoalEdit(false); }} style={styles.cancelWeight}>
               <Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Cancel</Text>
             </Pressable>
             </KeyboardAwareScrollViewCompat>

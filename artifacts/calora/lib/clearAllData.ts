@@ -17,6 +17,23 @@ import type { PersistenceManager } from './persistenceManager';
 import type { LivingMemory } from './livingMemory';
 import type { HydrationReminderPrefs } from './hydrationReminders';
 
+export type ClearAllDataFailureKind = 'core-clear-failed' | 'partial-cleanup';
+
+/** Error surfaced by the provider so UI copy can accurately describe the outcome. */
+export class ClearAllDataError extends Error {
+  constructor(
+    public readonly kind: ClearAllDataFailureKind,
+    public readonly cleanupFailures: string[] = [],
+    options?: { cause?: unknown },
+  ) {
+    super(kind === 'core-clear-failed'
+      ? 'Core personal data could not be deleted.'
+      : 'Personal data was deleted, but some device cleanup did not finish.',
+    options);
+    this.name = 'ClearAllDataError';
+  }
+}
+
 /** Default hydration-reminder preferences — shared between CaloraContext and tests. */
 export const DEFAULT_HYDRATION_PREFS: HydrationReminderPrefs = {
   enabled: false,

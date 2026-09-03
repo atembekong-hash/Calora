@@ -4,6 +4,7 @@
  * All scheduling is entirely on-device — no data leaves the phone.
  */
 import * as Notifications from 'expo-notifications';
+import { HYDRATION_INTERVAL_HOURS } from './notificationPreferences';
 
 export type HydrationReminderPrefs = {
   enabled: boolean;
@@ -72,10 +73,17 @@ export async function cancelHydrationReminders(): Promise<void> {
  */
 export async function scheduleHydrationReminders(
   prefs: HydrationReminderPrefs,
+  scopeToken?: string,
 ): Promise<number> {
   await cancelHydrationReminders();
 
   if (!prefs.enabled) return 0;
+  // Tokenless legacy scheduling cannot establish notification ownership and
+  // must fail closed rather than creating cross-account-deliverable content.
+  if (!scopeToken) return 0;
+  if (!HYDRATION_INTERVAL_HOURS.includes(prefs.intervalHours as typeof HYDRATION_INTERVAL_HOURS[number])) {
+    return 0;
+  }
 
   const granted = await requestNotificationPermission();
   if (!granted) return -1;
@@ -83,13 +91,15 @@ export async function scheduleHydrationReminders(
   // Build a list of reminder times (hour, minute) between wake and sleep
   const slots: Array<{ hour: number; minute: number }> = [];
   const wakeTotal = prefs.wakeHour * 60 + prefs.wakeMinute;
-  const sleepTotal = prefs.sleepHour * 60 + prefs.sleepMinute;
+  const configuredSleep = prefs.sleepHour * 60 + prefs.sleepMinute;
+  const sleepTotal = configuredSleep <= wakeTotal ? configuredSleep + 24 * 60 : configuredSleep;
   const intervalMins = prefs.intervalHours * 60;
 
   // Start one interval after wake time
   let current = wakeTotal + intervalMins;
   while (current < sleepTotal) {
-    slots.push({ hour: Math.floor(current / 60), minute: current % 60 });
+    const at = current % (24 * 60);
+    slots.push({ hour: Math.floor(at / 60), minute: at % 60 });
     current += intervalMins;
   }
 
@@ -100,7 +110,7 @@ export async function scheduleHydrationReminders(
         content: {
           title: 'Hydration reminder',
           body: getMessage(i),
-          data: { tag: NOTIFICATION_TAG, category: 'hydration' },
+          data: { tag: NOTIFICATION_TAG, category: 'hydration', scopeToken },
           sound: true,
         },
         trigger: {

@@ -1,5 +1,7 @@
 import type { LocalNotificationPreferences } from './notificationPreferences';
+import * as Notifications from 'expo-notifications';
 import {
+  CALORA_NOTIFICATION_TAGS,
   cancelCaloraLocalNotifications,
   reconcileLocalNotifications,
   type NotificationReconciliationAdapter,
@@ -17,6 +19,20 @@ import {
  * head of this serialized lifecycle.
  */
 let nativeLifecycle: Promise<void> = Promise.resolve();
+
+async function dismissPresentedCaloraNotifications(activeScopeToken: string): Promise<void> {
+  const presented = await Notifications.getPresentedNotificationsAsync();
+  await Promise.all(
+    presented
+      .filter((item) => {
+        const data = item.request.content.data;
+        return CALORA_NOTIFICATION_TAGS.includes(
+          data?.tag as typeof CALORA_NOTIFICATION_TAGS[number],
+        ) && data?.scopeToken !== activeScopeToken;
+      })
+      .map((item) => Notifications.dismissNotificationAsync(item.request.identifier)),
+  );
+}
 
 function enqueue<T>(operation: () => Promise<T>): Promise<T> {
   const run = nativeLifecycle.then(operation, operation);
@@ -40,7 +56,14 @@ export function reconcileHydratedNotificationPlan(
   preferences: LocalNotificationPreferences,
   adapter?: NotificationReconciliationAdapter,
 ): Promise<NotificationReconciliationResult> {
-  return enqueue(() => reconcileLocalNotifications(preferences, adapter, { requestPermission: false }));
+  return enqueue(async () => {
+    // Cancellation and presented cleanup share this queue, closing the window
+    // in which an old scope could deliver or be captured by the next scope.
+    return reconcileLocalNotifications(preferences, adapter, {
+      requestPermission: false,
+      afterCancel: () => dismissPresentedCaloraNotifications(preferences.scopeToken),
+    });
+  });
 }
 
 /** Put destructive clear work behind any in-flight account reconciliation. */

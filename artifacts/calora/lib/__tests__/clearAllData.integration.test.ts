@@ -25,13 +25,14 @@ import {
   type CaloraExportState,
 } from '../exportPayload';
 import { makeClearedExportSnapshot, resolveExportData } from '../exportGap';
+import { storageKeyForAccount } from '../accountStorage';
 
 // ---------------------------------------------------------------------------
 // In-memory StorageAdapter — mirrors the AsyncStorage surface used in
 // CaloraContext, with optional per-call blocking for concurrency tests.
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = '@calora/local-state-v2'; // matches CaloraContext
+const STORAGE_KEY = storageKeyForAccount(null);
 
 interface ControllableStore extends StorageAdapter {
   /** Raw in-memory backing store — inspect this to verify clear/write outcomes. */
@@ -1416,6 +1417,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
    * when exportSnapshotRef is non-null.
    */
   const staleClosedOver: CaloraExportState = {
+    onboardingComplete:    true,
     profile:              { name: 'Alex', goal: 'lose', weightKg: 76 },
     logs:                 [
       { id: 'log-1', name: 'Overnight oats', date: '2026-08-07', meal: 'Breakfast' },
@@ -1429,6 +1431,7 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     savedMeals:           [{ id: 'sm-1', name: 'Granola bowl' }],
     localRecipes:         [{ id: 'lr-1', name: 'My cookie dough' }],
     savedRecipeIds:       ['recipe-42', 'recipe-99'],
+    themePreference:      'dark',
     plannerWeekStart:     '2026-08-03',
     plannerMeals:         [{ id: 'pm-1', name: 'Oatmeal', day: '2026-08-07', meal: 'Breakfast' }],
     shoppingItems:        [{ id: 'si-1', name: 'Oats', quantity: 1, checked: false }],
@@ -1442,9 +1445,15 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
     goalReminder:         { enabled: true, hour: 20, minute: 0 },
     notificationPreferences: { version: 1, delivery: 'local', masterEnabled: true, quietHours: { enabled: false, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } }, categories: {} },
     healthConnected:      false,
+    healthConnection:     null,
     consentAccepted:      true,
+    outbox:                [],
     coachConsentAccepted: true,
     coachMessages:        [{ role: 'assistant', content: 'Great progress today!' }],
+    goalCelebrationSeenTargetKg: 68,
+    plannerPreferences:   null,
+    fontSizeScale:        'large',
+    profilePhotoUri:      '/photo.jpg',
   };
 
   it('resolveExportData with a non-null ref returns cleared snapshot — ref priority wins over stale closed-over state', () => {
@@ -1755,9 +1764,9 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
 
     // Simulate the live closed-over state after re-render (all cleared values).
     const liveCleared: CaloraExportState = {
-      profile: null, logs: [], weights: [], waterLogs: {}, moodLogs: {},
+      onboardingComplete: false, profile: null, logs: [], weights: [], waterLogs: {}, moodLogs: {},
       activityLogs: {}, activityMinutesLogs: {}, savedMeals: [], localRecipes: [],
-      savedRecipeIds: [], plannerWeekStart: '2026-08-03', plannerMeals: [],
+      savedRecipeIds: [], themePreference: 'system', plannerWeekStart: '2026-08-03', plannerMeals: [],
       shoppingItems: [], foodDrafts: [], foodMemories: [], repeatPatterns: [],
       memoryCorrections: [], livingMemory: emptyLivingMemory(),
       hydrationReminders: DEFAULT_HYDRATION_PREFS,
@@ -1765,7 +1774,10 @@ describe('exportData and exportRawStorageData: mid-clear async gap — real prod
       goalReminder: { enabled: false, hour: 20, minute: 0 },
       notificationPreferences: { version: 1, delivery: 'local', masterEnabled: true, quietHours: { enabled: false, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } }, categories: {} },
       healthConnected: false,
-      consentAccepted: false, coachConsentAccepted: false, coachMessages: [],
+      healthConnection: null, consentAccepted: false, outbox: [],
+      coachConsentAccepted: false, coachMessages: [],
+      goalCelebrationSeenTargetKg: null, plannerPreferences: null,
+      fontSizeScale: 'default', profilePhotoUri: null,
     };
 
     // With ref null, resolveExportData falls through to liveCleared.
@@ -1806,6 +1818,7 @@ describe('exportData (buildExportPayload): serialised output reflects the cleare
     // source of truth.  We pass it explicitly here; buildExportPayload adds no
     // independent constant of its own to prevent drift.
     const clearedSnapshot: CaloraExportState = {
+      onboardingComplete:    false,
       profile:              captured.profile  as null,
       logs:                 captured.logs     as [],
       weights:              captured.weights  as [],
@@ -1816,6 +1829,7 @@ describe('exportData (buildExportPayload): serialised output reflects the cleare
       savedMeals:           captured.savedMeals           as [],
       localRecipes:         captured.localRecipes         as [],
       savedRecipeIds:       captured.savedRecipeIds       as string[],
+      themePreference:      'system',
       plannerWeekStart:     captured.plannerWeekStart     as string,
       plannerMeals:         captured.plannerMeals         as [],
       shoppingItems:        captured.shoppingItems        as [],
@@ -1829,9 +1843,15 @@ describe('exportData (buildExportPayload): serialised output reflects the cleare
       goalReminder:         { enabled: false, hour: 20, minute: 0 },
       notificationPreferences: { version: 1, delivery: 'local', masterEnabled: true, quietHours: { enabled: false, start: { hour: 22, minute: 0 }, end: { hour: 7, minute: 0 } }, categories: {} },
       healthConnected:      false,
+      healthConnection:     null,
       consentAccepted:      captured.consentAccepted      as boolean,
+      outbox:                [],
       coachConsentAccepted: captured.coachConsentAccepted as boolean,
       coachMessages:        captured.coachMessages        as [],
+      goalCelebrationSeenTargetKg: null,
+      plannerPreferences:   null,
+      fontSizeScale:         'default',
+      profilePhotoUri:       null,
     };
 
     // Call the real production serialiser — same code path as

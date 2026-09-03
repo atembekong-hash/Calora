@@ -23,12 +23,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readRawStorageData }                      from '../exportPayload';
 import { makeExportHandler, EXPORT_FILENAME, EXPORT_MIME_TYPE, type FileShareAdapter } from '../exportUiHandler';
+import { storageKeyForAccount } from '../accountStorage';
 
 // ---------------------------------------------------------------------------
 // In-memory storage adapter — same pattern used by other integration tests
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = '@calora/local-state-v2'; // must match CaloraContext
+const STORAGE_KEY = storageKeyForAccount(null);
 
 function makeStore(initial: Record<string, string> = {}): {
   store: Record<string, string>;

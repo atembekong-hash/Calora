@@ -17,6 +17,7 @@ import { getCoachWeightChangeKg, getFirstLoggedWeight, getLatestLoggedWeight, ge
 import { calculateWeightShortTrend } from './weightTrend';
 import { calculateNutritionSevenDayCoverage } from './nutritionCoverage';
 import { calculateSevenDayMacroRecordCoverage } from './macroRecordCoverage';
+import { getMacroTargets } from '@/lib/nutritionGoals';
 
 const MEALS: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -69,6 +70,10 @@ export function createSourceWatermark(context: IntelligenceContext): SourceWater
       dayBoundary: context.dayBoundary,
       profile: context.profile ? {
         calorieTarget: context.profile.calorieTarget,
+        proteinTargetGrams: context.profile.proteinTargetGrams,
+        carbsTargetGrams: context.profile.carbsTargetGrams,
+        fatTargetGrams: context.profile.fatTargetGrams,
+        targetMode: context.profile.targetMode,
         weightKg: context.profile.weightKg,
         targetWeightKg: context.profile.targetWeightKg,
       } : null,
@@ -281,11 +286,13 @@ export function buildDailyIntelligenceFacts(
   const evidence = collectEvidence(dayLogs);
   const missingData = dayMissingData(context, dayLogs);
   const watermark = createSourceWatermark(context);
-  // Preserve Today's existing fallback without making this layer profile-authoritative.
-  const calorieTarget = finite(context.profile?.calorieTarget ?? 2000);
-  const proteinTarget = calorieTarget ? Math.round((calorieTarget * 0.26) / 4) : 0;
-  const carbsTarget = calorieTarget ? Math.round((calorieTarget * 0.44) / 4) : 0;
-  const fatTarget = calorieTarget ? Math.round((calorieTarget * 0.3) / 9) : 0;
+  // nutritionGoals has only a type-only dependency on context, so using the
+  // canonical target resolver here does not create a runtime import cycle.
+  const targets = getMacroTargets(context.profile);
+  const calorieTarget = targets.calories;
+  const proteinTarget = targets.protein;
+  const carbsTarget = targets.carbs;
+  const fatTarget = targets.fat;
   const facts: IntelligenceFact[] = [
     fact(context, watermark, generatedAt, 'daily.calories_consumed', totals.calories, 'kcal', evidence, missingData),
     fact(context, watermark, generatedAt, 'daily.calorie_target', calorieTarget, 'kcal', evidence, missingData),

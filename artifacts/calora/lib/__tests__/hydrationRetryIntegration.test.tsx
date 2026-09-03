@@ -25,6 +25,7 @@ import { shouldAutosave, ParseHydrationError } from '../hydrationGuard';
 import { useHydrationEffect } from '../useHydrationEffect';
 import { PersistenceManager, type StorageAdapter } from '../persistenceManager';
 import { STORAGE_SCHEMA_VERSION } from '../storageSchema';
+import { storageKeyForAccount } from '../accountStorage';
 
 // ---------------------------------------------------------------------------
 // Controllable storage adapter
@@ -60,7 +61,7 @@ function makeControllableStorage(initial: Record<string, string> = {}): Controll
   };
 }
 
-const STORAGE_KEY = '@calora/local-state-v2';
+const STORAGE_KEY = storageKeyForAccount(null);
 
 // ---------------------------------------------------------------------------
 // Helper: render useHydrationEffect with a given storage and await the

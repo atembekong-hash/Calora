@@ -9,7 +9,8 @@ import { formatQuantity } from '@/lib/formatters';
 import { formatGrams, formatWhole } from '@/lib/formatters';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
-import { type DietPreference, type Goal, SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
+import { SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
+import { ClearAllDataError } from '@/lib/clearAllData';
 import {
   formatTime,
   type HydrationReminderPrefs,
@@ -18,6 +19,7 @@ import { type MealReminderPrefs } from '@/lib/mealReminders';
 import { type GoalReminderPrefs } from '@/lib/goalReminder';
 import { normalizeNotificationPreferences } from '@/lib/notificationPreferences';
 import { reconcileUserNotificationPlan } from '@/lib/notificationLifecycle';
+import type { NotificationReconciliationResult } from '@/lib/notificationReconciliation';
 import * as FileSystem from 'expo-file-system/legacy';
 import { copyProfilePhoto, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
 import * as Haptics from 'expo-haptics';
@@ -53,13 +55,6 @@ const themes: { key: ThemePreference; label: string; icon: keyof typeof Feather.
   { key: 'dark', label: 'Dark', icon: 'moon' },
 ];
 
-const dietOptions: DietPreference[] = ['Everything', 'Vegetarian', 'Vegan', 'High protein'];
-const goalOptions: { key: Goal; label: string }[] = [
-  { key: 'lose', label: 'Lose weight' },
-  { key: 'maintain', label: 'Maintain' },
-  { key: 'gain', label: 'Build muscle' },
-];
-
 const mealConfig: { key: 'breakfast' | 'lunch' | 'dinner'; label: string; icon: keyof typeof Feather.glyphMap; iconBg: string; iconColor: string }[] = [
   { key: 'breakfast', label: 'Breakfast', icon: 'sunrise', iconBg: '#fff0dc', iconColor: '#d7954e' },
   { key: 'lunch', label: 'Lunch', icon: 'sun', iconBg: '#e5f1ff', iconColor: '#5d8edb' },
@@ -80,6 +75,14 @@ function formatNotificationDate(value: string): string {
     : `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${time}`;
 }
 
+export function notificationOutcomeMessage(result: NotificationReconciliationResult): string | null {
+  if (result.status !== 'failed') return null;
+  if (result.failure === 'cancel') return 'Existing reminders could not be cleared. Your preferences were saved; please retry.';
+  if (result.failure === 'presented') return 'Older displayed reminders could not be cleared safely. Your preferences were saved; please retry.';
+  if (result.failure === 'channels') return 'Reminder channels could not be prepared on this device. Please retry.';
+  return 'Not all reminders could be scheduled. Your preferences were saved; please retry.';
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
@@ -89,9 +92,9 @@ export default function ProfileScreen() {
     colors, themePreference, setThemePreference,
     profile, updateProfile,
     healthConnected, healthConnection, connectHealth, syncHealth, disconnectHealth,
-    exportRawStorageData, clearAllData, isClearing, syncState,
+    exportData, clearAllData, isClearing, syncState,
     savedMeals, saveMeal, deleteSavedMeal,
-    notificationPreferences, setNotificationPreferences,
+    notificationPreferences, updateNotificationPreferences,
     livingMemory, logs,
     fontSizeScale, setFontSizeScale,
     profilePhotoUri, setProfilePhotoUri, fontScale,
@@ -128,10 +131,11 @@ export default function ProfileScreen() {
   const [isExporting, setIsExporting] = useState(false);
 
   // Reminder statuses
-  const [reminderStatus, setReminderStatus] = useState<'idle' | 'denied' | 'scheduled'>('idle');
-  const [mealReminderStatus, setMealReminderStatus] = useState<'idle' | 'denied' | 'scheduled'>('idle');
-  const [goalReminderStatus, setGoalReminderStatus] = useState<'idle' | 'denied' | 'scheduled'>('idle');
+  const [reminderStatus, setReminderStatus] = useState<'idle' | 'denied' | 'scheduled' | 'failed'>('idle');
+  const [mealReminderStatus, setMealReminderStatus] = useState<'idle' | 'denied' | 'scheduled' | 'failed'>('idle');
+  const [goalReminderStatus, setGoalReminderStatus] = useState<'idle' | 'denied' | 'scheduled' | 'failed'>('idle');
   const [notificationPermissionDenied, setNotificationPermissionDenied] = useState(false);
+  const [notificationReconcileError, setNotificationReconcileError] = useState<string | null>(null);
 
   // Saved meal creation modal
   const [savedMealModal, setSavedMealModal] = useState(false);
@@ -148,9 +152,6 @@ export default function ProfileScreen() {
   const [profileEditModal, setProfileEditModal] = useState(false);
   const [profileEditError, setProfileEditError] = useState('');
   const [editName, setEditName] = useState('');
-  const [editCalories, setEditCalories] = useState('');
-  const [editDiet, setEditDiet] = useState<DietPreference>('Everything');
-  const [editGoal, setEditGoal] = useState<Goal>('maintain');
   const [editPhotoUri, setEditPhotoUri] = useState<string | null>(null);
 
   // Info sheets (food data / no ads / help)
@@ -195,7 +196,9 @@ export default function ProfileScreen() {
   };
 
   const handleMarkAllNotificationsRead = () => {
-    void markAllNotificationsRead(notificationAccountId);
+    void markAllNotificationsRead(notificationAccountId).catch(() => {
+      Alert.alert('Could not update notifications', 'Please try again.');
+    });
   };
 
   const handleClearNotifications = () => {
@@ -204,7 +207,15 @@ export default function ProfileScreen() {
       'This removes notifications from this inbox. Your reminder settings will not change.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear history', style: 'destructive', onPress: () => { void clearNotificationInbox(notificationAccountId); } },
+        {
+          text: 'Clear history',
+          style: 'destructive',
+          onPress: () => {
+            void clearNotificationInbox(notificationAccountId).catch(() => {
+              Alert.alert('Could not clear notifications', 'Please try again.');
+            });
+          },
+        },
       ],
     );
   };
@@ -220,16 +231,12 @@ export default function ProfileScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
         const permission = await Notifications.getPermissionsAsync();
         if (permission.status === Notifications.PermissionStatus.DENIED) {
           setNotificationPermissionDenied(true);
+        } else {
+          setNotificationPermissionDenied(false);
         }
-        const tags = new Set(scheduled.map((n) => n.content.data?.tag));
-        if (hydrationReminderPrefs.enabled && tags.has('calora-hydration')) setReminderStatus('scheduled');
-        const anyMeal = mealReminderPrefs.breakfast || mealReminderPrefs.lunch || mealReminderPrefs.dinner;
-        if (anyMeal && tags.has('calora-meals')) setMealReminderStatus('scheduled');
-        if (goalReminderPrefs.enabled && tags.has('calora-goal')) setGoalReminderStatus('scheduled');
       } catch {
         // Permission not granted yet — leave statuses at 'idle'
       }
@@ -239,16 +246,25 @@ export default function ProfileScreen() {
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
-  const applyNotificationPrefs = async (next: typeof notificationPreferences) => {
-    Haptics.selectionAsync();
-    const desired = normalizeNotificationPreferences(next);
+  const applyNotificationPrefs = async (
+    updater: (current: typeof notificationPreferences) => typeof notificationPreferences,
+  ) => {
+    void Haptics.selectionAsync().catch(() => {});
     // Persist first: permission denial controls delivery, never the user's choices.
-    setNotificationPreferences(desired);
-    const result = await reconcileUserNotificationPlan(desired);
-    setNotificationPermissionDenied((wasDenied) => result.status === 'denied'
-      ? true
-      : result.status === 'scheduled' ? false : wasDenied);
-    return result;
+    const desired = updateNotificationPreferences((current) =>
+      normalizeNotificationPreferences(updater(current)));
+    try {
+      const result = await reconcileUserNotificationPlan(desired);
+      setNotificationPermissionDenied((wasDenied) => result.status === 'denied'
+        ? true
+        : result.status === 'scheduled' ? false : wasDenied);
+      setNotificationReconcileError(notificationOutcomeMessage(result));
+      return { result, desired };
+    } catch {
+      const result: NotificationReconciliationResult = { status: 'failed', scheduledCount: 0, failure: 'schedule' };
+      setNotificationReconcileError(notificationOutcomeMessage(result));
+      return { result, desired };
+    }
   };
 
   const openNotificationSettings = () => {
@@ -258,87 +274,114 @@ export default function ProfileScreen() {
   };
 
   const nudgeQuietTime = (field: 'start' | 'end', delta: number) => {
-    const current = notificationPreferences.quietHours[field];
-    const minutes = (current.hour * 60 + current.minute + delta + 24 * 60) % (24 * 60);
-    void applyNotificationPrefs({
-      ...notificationPreferences,
-      quietHours: { ...notificationPreferences.quietHours, [field]: { hour: Math.floor(minutes / 60), minute: minutes % 60 } },
+    void applyNotificationPrefs((current) => {
+      const time = current.quietHours[field];
+      const minutes = (time.hour * 60 + time.minute + delta + 24 * 60) % (24 * 60);
+      return {
+        ...current,
+        quietHours: { ...current.quietHours, [field]: { hour: Math.floor(minutes / 60), minute: minutes % 60 } },
+      };
     });
   };
 
   /** Hydration reminders */
   const applyHydrationPrefs = async (next: HydrationReminderPrefs) => {
-    const desired = normalizeNotificationPreferences({
-      ...notificationPreferences,
+    const { result, desired } = await applyNotificationPrefs((current) => ({
+      ...current,
       categories: {
-        ...notificationPreferences.categories,
+        ...current.categories,
         hydration: { enabled: next.enabled, preferences: next },
       },
-    });
-    const result = await applyNotificationPrefs(desired);
+    }));
     if (result.status === 'denied') {
       setReminderStatus('denied');
       Alert.alert('Notification permission needed', `To receive hydration reminders, allow ${BRAND.name} to send notifications in your device settings.`);
+    } else if (result.status === 'failed') {
+      setReminderStatus('failed');
     } else {
-      setReminderStatus(notificationPreferences.masterEnabled && next.enabled ? 'scheduled' : 'idle');
+      setReminderStatus(result.status === 'scheduled' && desired.masterEnabled && next.enabled ? 'scheduled' : 'idle');
     }
   };
   const nudgeHydrationHour = (field: 'wakeHour' | 'sleepHour', delta: number) =>
-    applyHydrationPrefs({ ...hydrationReminderPrefs, [field]: (hydrationReminderPrefs[field] + delta + 24) % 24 });
+    applyNotificationPrefs((current) => {
+      const prefs = current.categories.hydration.preferences;
+      const next = { ...prefs, [field]: (prefs[field] + delta + 24) % 24 };
+      return { ...current, categories: { ...current.categories, hydration: { enabled: next.enabled, preferences: next } } };
+    });
   const nudgeHydrationMinute = (field: 'wakeMinute' | 'sleepMinute', delta: number) =>
-    applyHydrationPrefs({ ...hydrationReminderPrefs, [field]: (hydrationReminderPrefs[field] + delta + 60) % 60 });
+    applyNotificationPrefs((current) => {
+      const prefs = current.categories.hydration.preferences;
+      const next = { ...prefs, [field]: (prefs[field] + delta + 60) % 60 };
+      return { ...current, categories: { ...current.categories, hydration: { enabled: next.enabled, preferences: next } } };
+    });
 
   /** Meal reminders */
   const applyMealPrefs = async (next: MealReminderPrefs) => {
-    const desired = normalizeNotificationPreferences({
-      ...notificationPreferences,
+    const { result, desired } = await applyNotificationPrefs((current) => ({
+      ...current,
       categories: {
-        ...notificationPreferences.categories,
+        ...current.categories,
         meal: { enabled: next.breakfast || next.lunch || next.dinner, preferences: next },
       },
-    });
-    const result = await applyNotificationPrefs(desired);
+    }));
     if (result.status === 'denied') {
       setMealReminderStatus('denied');
       Alert.alert('Notification permission needed', `To receive meal reminders, allow ${BRAND.name} to send notifications in your device settings.`);
+    } else if (result.status === 'failed') {
+      setMealReminderStatus('failed');
     } else {
       const anyEnabled = next.breakfast || next.lunch || next.dinner;
-      setMealReminderStatus(notificationPreferences.masterEnabled && anyEnabled ? 'scheduled' : 'idle');
+      setMealReminderStatus(result.status === 'scheduled' && desired.masterEnabled && anyEnabled ? 'scheduled' : 'idle');
     }
   };
   const nudgeMealTime = (meal: 'breakfast' | 'lunch' | 'dinner', field: 'hour' | 'minute', delta: number) => {
     const timeKey = `${meal}Time` as 'breakfastTime' | 'lunchTime' | 'dinnerTime';
-    const current = mealReminderPrefs[timeKey];
-    applyMealPrefs({
-      ...mealReminderPrefs,
-      [timeKey]: field === 'hour'
-        ? { ...current, hour: (current.hour + delta + 24) % 24 }
-        : { ...current, minute: (current.minute + delta + 60) % 60 },
+    void applyNotificationPrefs((current) => {
+      const prefs = current.categories.meal.preferences;
+      const time = prefs[timeKey];
+      const next = {
+        ...prefs,
+        [timeKey]: field === 'hour'
+          ? { ...time, hour: (time.hour + delta + 24) % 24 }
+          : { ...time, minute: (time.minute + delta + 60) % 60 },
+      };
+      return {
+        ...current,
+        categories: {
+          ...current.categories,
+          meal: { enabled: next.breakfast || next.lunch || next.dinner, preferences: next },
+        },
+      };
     });
   };
 
   /** Goal reminder */
   const applyGoalPrefs = async (next: GoalReminderPrefs) => {
-    const desired = normalizeNotificationPreferences({
-      ...notificationPreferences,
+    const { result, desired } = await applyNotificationPrefs((current) => ({
+      ...current,
       categories: {
-        ...notificationPreferences.categories,
+        ...current.categories,
         goal: { enabled: next.enabled, preferences: next },
       },
-    });
-    const result = await applyNotificationPrefs(desired);
+    }));
     if (result.status === 'denied') {
       setGoalReminderStatus('denied');
       Alert.alert('Notification permission needed', `To receive goal reminders, allow ${BRAND.name} to send notifications in your device settings.`);
+    } else if (result.status === 'failed') {
+      setGoalReminderStatus('failed');
     } else {
-      setGoalReminderStatus(notificationPreferences.masterEnabled && next.enabled ? 'scheduled' : 'idle');
+      setGoalReminderStatus(result.status === 'scheduled' && desired.masterEnabled && next.enabled ? 'scheduled' : 'idle');
     }
   };
   const nudgeGoalTime = (field: 'hour' | 'minute', delta: number) =>
-    applyGoalPrefs({
-      ...goalReminderPrefs,
-      hour: field === 'hour' ? (goalReminderPrefs.hour + delta + 24) % 24 : goalReminderPrefs.hour,
-      minute: field === 'minute' ? (goalReminderPrefs.minute + delta + 60) % 60 : goalReminderPrefs.minute,
+    applyNotificationPrefs((current) => {
+      const prefs = current.categories.goal.preferences;
+      const next = {
+        ...prefs,
+        hour: field === 'hour' ? (prefs.hour + delta + 24) % 24 : prefs.hour,
+        minute: field === 'minute' ? (prefs.minute + delta + 60) % 60 : prefs.minute,
+      };
+      return { ...current, categories: { ...current.categories, goal: { enabled: next.enabled, preferences: next } } };
     });
 
   /** Billing */
@@ -390,7 +433,7 @@ export default function ProfileScreen() {
   /** Export — locked against concurrent invocations via exportLockRef */
   const handleExport = makeExportHandler(
     exportLockRef,
-    exportRawStorageData,
+    exportData,
     {
       cacheDirectory: FileSystem.cacheDirectory,
       writeAsStringAsync: FileSystem.writeAsStringAsync,
@@ -411,8 +454,19 @@ export default function ProfileScreen() {
     try {
       await clearAllData();
       setPrivacyModal(null);
-    } catch {
-      Alert.alert('Delete failed', 'Your local data was not fully deleted. Nothing else was changed. Please try again.');
+    } catch (error) {
+      if (error instanceof ClearAllDataError && error.kind === 'partial-cleanup') {
+        setPrivacyModal(null);
+        Alert.alert(
+          'Data deleted with cleanup pending',
+          `Your personal data was deleted, but ${error.cleanupFailures.join(', ')} could not be fully cleaned up. Please try again.`,
+        );
+      } else {
+        Alert.alert(
+          'Delete incomplete',
+          'Your main local data could not be fully deleted. Some device cleanup may still have occurred. Please try again.',
+        );
+      }
     }
     finally { confirmingRef.current = false; }
   };
@@ -478,17 +532,13 @@ export default function ProfileScreen() {
 
   const openProfileEdit = () => {
     setEditName(profile?.name ?? '');
-    setEditCalories(String(profile?.calorieTarget ?? 2000));
-    setEditDiet(profile?.diet ?? 'Everything');
-    setEditGoal(profile?.goal ?? 'maintain');
     setEditPhotoUri(profilePhotoUri);
     setProfileEditError('');
     setProfileEditModal(true);
   };
   const saveProfileEdit = async () => {
-    const calories = Number(editCalories);
-    if (!editName.trim() || !Number.isFinite(calories) || calories < 500 || calories > 9999) {
-      setProfileEditError('Enter your name and a daily calorie target between 500 and 9,999.');
+    if (!editName.trim()) {
+      setProfileEditError('Enter your name.');
       return;
     }
     // Strip the cache-bust query param before persisting
@@ -503,7 +553,7 @@ export default function ProfileScreen() {
         return;
       }
     }
-    updateProfile({ name: editName.trim(), calorieTarget: calories, diet: editDiet, goal: editGoal, targetMode: 'custom' });
+    updateProfile({ name: editName.trim() });
     setProfilePhotoUri(cleanUri);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setProfileEditError('');
@@ -701,7 +751,7 @@ export default function ProfileScreen() {
             accessibilityLabel="Toggle all notifications"
             testID="notification-master-toggle"
             value={notificationPreferences.masterEnabled}
-            onValueChange={(masterEnabled) => void applyNotificationPrefs({ ...notificationPreferences, masterEnabled })}
+            onValueChange={(masterEnabled) => void applyNotificationPrefs((current) => ({ ...current, masterEnabled }))}
             trackColor={{ false: colors.muted, true: colors.primary }}
             thumbColor={colors.primaryForeground}
           />
@@ -722,7 +772,7 @@ export default function ProfileScreen() {
               accessibilityLabel="Toggle quiet hours"
               testID="quiet-hours-toggle"
               value={notificationPreferences.quietHours.enabled}
-              onValueChange={(enabled) => void applyNotificationPrefs({ ...notificationPreferences, quietHours: { ...notificationPreferences.quietHours, enabled } })}
+              onValueChange={(enabled) => void applyNotificationPrefs((current) => ({ ...current, quietHours: { ...current.quietHours, enabled } }))}
               trackColor={{ false: colors.muted, true: colors.primary }}
               thumbColor={colors.primaryForeground}
             />
@@ -757,6 +807,18 @@ export default function ProfileScreen() {
             <Text style={[styles.notificationSettingsLink, { color: colors.primary }]}>Open settings</Text>
           </Pressable>
         )}
+        {notificationReconcileError && (
+          <Pressable
+            accessibilityLabel="Retry notification setup"
+            testID="retry-notification-setup"
+            onPress={() => { void applyNotificationPrefs((current) => current); }}
+            style={[styles.notificationSettingsButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          >
+            <Feather name="alert-circle" size={14} color={colors.foreground} />
+            <Text style={[styles.notificationSettingsButtonText, { color: colors.foreground }]}>{notificationReconcileError}</Text>
+            <Text style={[styles.notificationSettingsLink, { color: colors.primary }]}>Retry</Text>
+          </Pressable>
+        )}
 
         {/* Hydration */}
         <View style={[styles.reminderToggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -766,6 +828,7 @@ export default function ProfileScreen() {
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
               {hydrationReminderPrefs.enabled
                 ? reminderStatus === 'denied' ? 'Permission required in device settings'
+                  : reminderStatus === 'failed' ? 'Setup incomplete · retry above'
                   : `Every ${hydrationReminderPrefs.intervalHours}h · ${formatTime(hydrationReminderPrefs.wakeHour, hydrationReminderPrefs.wakeMinute)} – ${formatTime(hydrationReminderPrefs.sleepHour, hydrationReminderPrefs.sleepMinute)}`
                 : 'Off · tap to turn on'}
             </Text>
@@ -886,6 +949,12 @@ export default function ProfileScreen() {
               <Text style={[styles.reminderPrivacyText, { color: colors.mutedForeground }]}>Notification permission required — enable in device settings.</Text>
             </View>
           )}
+          {mealReminderStatus === 'failed' && (
+            <View style={[styles.reminderPrivacy, { backgroundColor: colors.muted, marginTop: 6 }]}>
+              <Feather name="alert-circle" size={12} color={colors.warning} />
+              <Text style={[styles.reminderPrivacyText, { color: colors.mutedForeground }]}>Setup incomplete — retry notification setup above.</Text>
+            </View>
+          )}
         </View>
 
         {/* ── Daily goal reminder ── */}
@@ -897,6 +966,7 @@ export default function ProfileScreen() {
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
               {goalReminderPrefs.enabled
                 ? goalReminderStatus === 'denied' ? 'Permission required in device settings'
+                  : goalReminderStatus === 'failed' ? 'Setup incomplete · retry above'
                   : `Daily at ${formatTime(goalReminderPrefs.hour, goalReminderPrefs.minute)}`
                 : 'Off · a reminder to log remaining meals'}
             </Text>
@@ -1306,7 +1376,11 @@ export default function ProfileScreen() {
                     key={item.id}
                     accessibilityLabel={`${item.read ? '' : 'Unread '}${item.title}. ${item.body}`}
                     accessibilityState={{ selected: !item.read }}
-                    onPress={() => { void handleNotificationPress(item); }}
+                    onPress={() => {
+                      void handleNotificationPress(item).catch(() => {
+                        Alert.alert('Could not update notification', 'Please try again.');
+                      });
+                    }}
                     style={[styles.notificationRow, { backgroundColor: item.read ? colors.card : colors.accent, borderColor: colors.border }]}
                   >
                     <View style={[styles.notificationItemIcon, { backgroundColor: item.read ? colors.muted : colors.card }]}>
@@ -1366,24 +1440,20 @@ export default function ProfileScreen() {
 
             <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>YOUR NAME</Text>
             <TextInput accessibilityLabel="Name" value={editName} onChangeText={(value) => { setEditName(value); if (profileEditError) setProfileEditError(''); }} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: profileEditError ? colors.destructive : colors.input, marginBottom: 14 }]} />
-            <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>DAILY CALORIE TARGET</Text>
-            <TextInput accessibilityLabel="Calorie target" value={editCalories} onChangeText={(value) => { setEditCalories(value); if (profileEditError) setProfileEditError(''); }} keyboardType="number-pad" placeholder="e.g. 2000" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: profileEditError ? colors.destructive : colors.input, marginBottom: 14 }]} />
-            <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>DIET</Text>
-            <View style={styles.editChips}>
-              {dietOptions.map((d) => (
-                <Pressable key={d} accessibilityLabel={`Diet: ${d}`} onPress={() => setEditDiet(d)} style={[styles.editChip, { backgroundColor: editDiet === d ? colors.primary : colors.card, borderColor: editDiet === d ? colors.primary : colors.border }]}>
-                  <Text style={[styles.editChipText, { color: editDiet === d ? colors.primaryForeground : colors.mutedForeground }]}>{d}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={[styles.editFieldLabel, { color: colors.mutedForeground, marginTop: 14 }]}>GOAL</Text>
-            <View style={styles.editChips}>
-              {goalOptions.map((g) => (
-                <Pressable key={g.key} accessibilityLabel={`Goal: ${g.label}`} onPress={() => setEditGoal(g.key)} style={[styles.editChip, { backgroundColor: editGoal === g.key ? colors.primary : colors.card, borderColor: editGoal === g.key ? colors.primary : colors.border }]}>
-                  <Text style={[styles.editChipText, { color: editGoal === g.key ? colors.primaryForeground : colors.mutedForeground }]}>{g.label}</Text>
-                </Pressable>
-              ))}
-            </View>
+            <Pressable
+              accessibilityLabel="Open Your plan settings"
+              onPress={() => {
+                setProfileEditModal(false);
+                setProfileTab('you');
+              }}
+              style={[styles.profileEditPlanLink, { backgroundColor: colors.muted }]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.profileEditPlanTitle, { color: colors.foreground }]}>Edit your plan</Text>
+                <Text style={[styles.profileEditPlanNote, { color: colors.mutedForeground }]}>Nutrition, diet, and goal settings are managed in Your plan.</Text>
+              </View>
+              <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+            </Pressable>
             {!!profileEditError && <Text accessibilityRole="alert" style={[styles.formError, { color: colors.destructive }]}>{profileEditError}</Text>}
             <Pressable accessibilityLabel="Save profile changes" onPress={saveProfileEdit} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 20 }]}>
               <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Save changes</Text>
@@ -1681,6 +1751,9 @@ function makeStyles(f: number) {
 
   // Profile edit modal
   editModalHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 8 },
+  profileEditPlanLink: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 13, padding: 12 },
+  profileEditPlanTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
+  profileEditPlanNote: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15 * f, marginTop: 3 },
   editFieldLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1, marginBottom: 6 },
   editChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   editChip: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },

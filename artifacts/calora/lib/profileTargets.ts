@@ -18,6 +18,27 @@ export type PersonalDetailsValidation =
 const poundsPerKg = 2.20462;
 const inchesPerCm = 0.393701;
 
+export type TargetWeightValidation =
+  | { ok: true; targetWeightKg: number }
+  | { ok: false; message: string };
+
+export function displayTargetWeight(targetWeightKg: number, units: 'metric' | 'imperial'): string {
+  return String(units === 'imperial' ? targetWeightKg * poundsPerKg : targetWeightKg);
+}
+
+export function validateTargetWeight(
+  value: string,
+  units: 'metric' | 'imperial',
+): TargetWeightValidation {
+  const displayedWeight = Number(value);
+  const targetWeightKg = units === 'imperial' ? displayedWeight / poundsPerKg : displayedWeight;
+  const weightRange = units === 'imperial' ? '55 to 770 lb' : '25 to 350 kg';
+  if (!Number.isFinite(targetWeightKg) || targetWeightKg < 25 || targetWeightKg > 350) {
+    return { ok: false, message: `Enter a target weight from ${weightRange}.` };
+  }
+  return { ok: true, targetWeightKg };
+}
+
 export function profileTargetMode(profile: Profile | null): 'automatic' | 'custom' {
   return profile?.targetMode ?? 'custom';
 }
@@ -29,10 +50,8 @@ export function validatePersonalDetails(
   const age = Number(input.age);
   const height = Number(input.height);
   const weight = Number(input.weight);
-  const targetWeight = Number(input.targetWeight);
   const heightCm = units === 'imperial' ? height / inchesPerCm : height;
   const weightKg = units === 'imperial' ? weight / poundsPerKg : weight;
-  const targetWeightKg = units === 'imperial' ? targetWeight / poundsPerKg : targetWeight;
 
   if (!Number.isFinite(age) || age < 13 || age > 120 || !Number.isInteger(age)) {
     return { ok: false, message: 'Enter an age from 13 to 120.' };
@@ -44,10 +63,9 @@ export function validatePersonalDetails(
   if (!Number.isFinite(weightKg) || weightKg < 25 || weightKg > 350) {
     return { ok: false, message: `Enter a current weight from ${weightRange}.` };
   }
-  if (!Number.isFinite(targetWeightKg) || targetWeightKg < 25 || targetWeightKg > 350) {
-    return { ok: false, message: `Enter a target weight from ${weightRange}.` };
-  }
-  return { ok: true, values: { age, heightCm, weightKg, targetWeightKg, activity: input.activity, diet: input.diet, goal: input.goal } };
+  const targetResult = validateTargetWeight(input.targetWeight, units);
+  if (!targetResult.ok) return targetResult;
+  return { ok: true, values: { age, heightCm, weightKg, targetWeightKg: targetResult.targetWeightKg, activity: input.activity, diet: input.diet, goal: input.goal } };
 }
 
 export function recommendationForProfile(profile: Pick<Profile, 'weightKg' | 'activity' | 'goal'>): number {

@@ -1368,6 +1368,7 @@ export default function HomeScreen() {
       proteinTargetGrams: values.protein,
       carbsTargetGrams: values.carbs,
       fatTargetGrams: values.fat,
+      targetMode: 'custom',
     });
     setMacroGoalsVisible(false);
     setMacroGoalDraft(null);

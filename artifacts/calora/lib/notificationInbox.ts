@@ -22,11 +22,25 @@ type NotificationLike = {
       data?: Record<string, unknown> | null;
     };
   };
+  /** Expo's delivery timestamp is stable when the same presented event is read again. */
+  date?: number;
 };
 
 type InboxListener = (items: NotificationInboxItem[]) => void;
 const listeners = new Map<string, Set<InboxListener>>();
 const writeQueues = new Map<string, Promise<void>>();
+const OWNED_TAGS = ['calora-hydration', 'calora-meals', 'calora-goal'] as const;
+
+export function isNotificationOwnedByScope(
+  notification: NotificationLike,
+  scopeToken: string,
+): boolean {
+  const data = notification.request.content.data;
+  return typeof scopeToken === 'string'
+    && scopeToken.length > 0
+    && data?.scopeToken === scopeToken
+    && OWNED_TAGS.includes(data?.tag as typeof OWNED_TAGS[number]);
+}
 
 function storageKey(accountId: string | null | undefined): string {
   return `${STORAGE_PREFIX}${accountId ?? 'guest'}`;
@@ -96,12 +110,23 @@ export async function recordReceivedNotification(
   await enqueueWrite(key, async () => {
     const items = await readInbox(key);
     const content = notification.request.content;
-    const existing = items.find((item) => item.id === notification.request.identifier);
+    const deliveryAt = notification.date !== undefined
+      ? new Date(notification.date).toISOString()
+      : receivedAt;
+    // Recurring requests reuse their request identifier. A delivery timestamp
+    // gives each occurrence a stable identity while repeated capture of the
+    // same delivered notification remains idempotent.
+    // Older callers/testing shims may not expose Expo's date. Preserve their
+    // historical request-id identity; native Expo deliveries always do.
+    const deliveryId = notification.date !== undefined
+      ? `${notification.request.identifier}:${deliveryAt}`
+      : notification.request.identifier;
+    const existing = items.find((item) => item.id === deliveryId);
     const nextItem: NotificationInboxItem = {
-      id: notification.request.identifier,
+      id: deliveryId,
       title: content.title?.trim() || 'Calora update',
       body: content.body?.trim() || 'You have a new update from Calora.',
-      receivedAt: existing?.receivedAt ?? receivedAt,
+      receivedAt: existing?.receivedAt ?? deliveryAt,
       read: existing?.read ?? false,
       category: typeof content.data?.category === 'string' ? content.data.category : undefined,
       tag: typeof content.data?.tag === 'string' ? content.data.tag : undefined,

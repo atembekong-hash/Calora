@@ -20,6 +20,7 @@
 // an `unknown` slot at the call site.
 // ---------------------------------------------------------------------------
 export interface CaloraExportState {
+  onboardingComplete: boolean;
   profile: unknown;
   logs: unknown[];
   weights: unknown[];
@@ -30,6 +31,7 @@ export interface CaloraExportState {
   savedMeals: unknown[];
   localRecipes: unknown[];
   savedRecipeIds: string[];
+  themePreference: unknown;
   plannerWeekStart: string;
   plannerMeals: unknown[];
   shoppingItems: unknown[];
@@ -43,9 +45,15 @@ export interface CaloraExportState {
   goalReminder: unknown;
   notificationPreferences: unknown;
   healthConnected: boolean;
+  healthConnection: unknown;
   consentAccepted: boolean;
+  outbox: unknown[];
   coachConsentAccepted: boolean;
   coachMessages: unknown[];
+  goalCelebrationSeenTargetKg: number | null;
+  plannerPreferences: unknown;
+  fontSizeScale: unknown;
+  profilePhotoUri: string | null;
 }
 
 /**

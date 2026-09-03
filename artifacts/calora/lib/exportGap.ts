@@ -27,6 +27,7 @@ import {
   DEFAULT_LOCAL_NOTIFICATION_PREFERENCES,
   legacyReminderMirrors,
   normalizeNotificationPreferences,
+  type LocalNotificationPreferences,
 } from './notificationPreferences';
 
 // ---------------------------------------------------------------------------
@@ -41,6 +42,9 @@ export interface ClearExportSnapshotOpts {
    * health app pairing survives a data clear).  Preserved from closed-over state.
    */
   healthConnected: boolean;
+  healthConnection?: unknown;
+  /** Fresh post-clear notification scope ownership token. */
+  notificationPreferences?: LocalNotificationPreferences;
   // NOTE: hydrationReminders is intentionally NOT a parameter.  clearAllData
   // resets hydration preferences to DEFAULT_HYDRATION_PREFS, so the snapshot
   // must always contain the default, never the stale pre-clear closed-over value.
@@ -60,9 +64,11 @@ export interface ClearExportSnapshotOpts {
  *   exportSnapshotRef.current = makeClearedExportSnapshot({ … });
  */
 export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): CaloraExportState {
-  const notificationPreferences = normalizeNotificationPreferences(DEFAULT_LOCAL_NOTIFICATION_PREFERENCES);
+  const notificationPreferences = opts.notificationPreferences
+    ?? normalizeNotificationPreferences(DEFAULT_LOCAL_NOTIFICATION_PREFERENCES);
   const reminders = legacyReminderMirrors(notificationPreferences);
   return {
+    onboardingComplete:    false,
     profile:              null,
     logs:                 [],
     weights:              [],
@@ -73,6 +79,7 @@ export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): Calora
     savedMeals:           [],
     localRecipes:         [],
     savedRecipeIds:       [],
+    themePreference:      'system',
     plannerWeekStart:     opts.getPlannerWeekStart(),
     plannerMeals:         [],
     shoppingItems:        [],
@@ -87,9 +94,15 @@ export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): Calora
     goalReminder:         reminders.goalReminder,
     notificationPreferences,
     healthConnected:      opts.healthConnected,
+    healthConnection:     opts.healthConnection ?? null,
     consentAccepted:      false,
+    outbox:                [],
     coachConsentAccepted: false,
     coachMessages:        [],
+    goalCelebrationSeenTargetKg: null,
+    plannerPreferences:   null,
+    fontSizeScale:         'default',
+    profilePhotoUri:       null,
   };
 }
 
