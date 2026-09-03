@@ -31,13 +31,13 @@ import { SettingRowPressable } from '@/components/SettingRowPressable';
 import { AccountSection } from '@/components/auth/AccountSection';
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
+import { SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { ReferralCard } from '@/components/ReferralCard';
 import { REVENUECAT_ENTITLEMENT_IDENTIFIER, useSubscription } from '@/lib/revenuecat';
 import { enterMotion } from '@/lib/motion';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { ProfileYouSettings } from '@/components/ProfileYouSettings';
-import { SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import {
   clearNotificationInbox,
   getNotificationInbox,
@@ -61,8 +61,8 @@ const mealConfig: { key: 'breakfast' | 'lunch' | 'dinner'; label: string; icon: 
   { key: 'dinner', label: 'Dinner', icon: 'moon', iconBg: '#f2eafd', iconColor: '#9875c7' },
 ];
 
-const PROFILE_SUBMENUS = ['plan', 'settings', 'account'] as const;
-type ProfileSubmenu = typeof PROFILE_SUBMENUS[number];
+type ProfileTab = 'you' | 'membership' | 'account';
+const PROFILE_TABS = ['you', 'membership', 'account'] as const;
 
 function formatNotificationDate(value: string): string {
   const date = new Date(value);
@@ -86,7 +86,7 @@ export function notificationOutcomeMessage(result: NotificationReconciliationRes
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
-  const { open } = useLocalSearchParams<{ open?: string }>();
+  const { tab, open } = useLocalSearchParams<{ tab?: string; open?: string }>();
   const { user } = useAuth();
   const {
     colors, themePreference, setThemePreference,
@@ -103,7 +103,6 @@ export default function ProfileScreen() {
 
   const hasExportData = deriveExportHasData(profile, logs);
   const insets = useSafeAreaInsets();
-  const profileScrollRef = useRef<ScrollView>(null);
 
   // Billing — the live RevenueCat offering is the price authority.
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
@@ -158,7 +157,7 @@ export default function ProfileScreen() {
   // Info sheets (food data / no ads / help)
   const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help' | 'health'>(open === 'health' ? 'health' : null);
   const [healthBusy, setHealthBusy] = useState(false);
-  const [activeSubmenu, setActiveSubmenu] = useState<ProfileSubmenu>(open === 'health' ? 'account' : 'plan');
+  const [profileTab, setProfileTab] = useState<ProfileTab>(tab === 'membership' || tab === 'account' ? tab : 'you');
   const [notificationModal, setNotificationModal] = useState(false);
   const [notifications, setNotifications] = useState<NotificationInboxItem[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -241,10 +240,10 @@ export default function ProfileScreen() {
 
   const unreadNotificationCount = notifications.filter((item) => !item.read).length;
 
-  const changeSubmenu = (submenu: ProfileSubmenu) => {
-    setActiveSubmenu(submenu);
-    profileScrollRef.current?.scrollTo({ y: 0, animated: true });
-  };
+  useEffect(() => {
+    if (tab !== 'membership' && tab !== 'account' && tab !== 'you') return;
+    setProfileTab(tab);
+  }, [tab]);
 
   // ─── OS reminder status sync ───────────────────────────────────────────────
   useEffect(() => {
@@ -632,7 +631,7 @@ export default function ProfileScreen() {
           </Pressable>
         )}
       />
-      <ScrollView ref={profileScrollRef} contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
 
         {/* ── Profile card ── */}
         <Animated.View entering={enterMotion('screen', 0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
@@ -654,84 +653,109 @@ export default function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
-        <View style={styles.profileIntro}>
-          <Text style={[styles.profileIntroText, { color: colors.mutedForeground }]}>
-            A calm place to tune the details that keep your days feeling like yours.
-          </Text>
-          <View style={[styles.localFirst, { backgroundColor: colors.accent }]}>
-            <Feather name="lock" size={12} color={colors.primary} />
-            <Text style={[styles.localFirstText, { color: colors.primary }]}>LOCAL FIRST</Text>
-          </View>
-        </View>
-
         <SwipeableTabList
-          items={PROFILE_SUBMENUS}
-          activeItem={activeSubmenu}
-          onChange={changeSubmenu}
+          items={PROFILE_TABS}
+          activeItem={profileTab}
+          onChange={setProfileTab}
           accessibilityLabel="Profile sections"
-          testID="profile-submenu-tabs"
-          style={[styles.submenuTabs, { backgroundColor: colors.muted }]}
+          testID="profile-section-tabs"
+          style={[styles.profileTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}
         >
-          {PROFILE_SUBMENUS.map((submenu) => {
-            const selected = activeSubmenu === submenu;
-            const label = submenu === 'plan' ? 'Plan' : submenu === 'settings' ? 'Settings' : 'Account';
-            const icon: keyof typeof Feather.glyphMap = submenu === 'plan' ? 'target' : submenu === 'settings' ? 'settings' : 'shield';
+          {([
+            { key: 'you' as const, label: 'You' },
+            { key: 'membership' as const, label: 'Membership' },
+            { key: 'account' as const, label: 'Account' },
+          ]).map((tab) => {
+            const selected = profileTab === tab.key;
             return (
-              <Pressable
-                key={submenu}
-                accessibilityRole="tab"
-                accessibilityState={{ selected }}
-                accessibilityLabel={`${label} profile section`}
-                testID={`profile-submenu-${submenu}`}
-                onPress={() => changeSubmenu(submenu)}
-                style={[styles.submenuTab, selected && { backgroundColor: colors.card }]}
-              >
-                <Feather name={icon} size={14} color={selected ? colors.primary : colors.mutedForeground} />
-                <Text style={[styles.submenuTabText, { color: selected ? colors.foreground : colors.mutedForeground }]}>{label}</Text>
+              <Pressable key={tab.key} accessibilityRole="tab" accessibilityState={{ selected }} accessibilityLabel={`${tab.label} profile tab`} onPress={() => setProfileTab(tab.key)} style={[styles.profileTab, selected && { backgroundColor: colors.card }]}>
+                <Text style={[styles.profileTabText, { color: selected ? colors.foreground : colors.mutedForeground }]}>{tab.label}</Text>
               </Pressable>
             );
           })}
         </SwipeableTabList>
 
-        <View style={styles.submenuHeaderCopy}>
-          <Text style={[styles.submenuHeaderTitle, { color: colors.foreground }]}>
-            {activeSubmenu === 'plan' ? 'Plan & memory' : activeSubmenu === 'settings' ? 'Settings' : 'Account & privacy'}
-          </Text>
-          <Text style={[styles.submenuHeaderBody, { color: colors.mutedForeground }]}>
-            {activeSubmenu === 'plan'
-              ? 'Your goals and the signals you choose to keep.'
-              : activeSubmenu === 'settings'
-                ? 'Make Calora fit your day and your device.'
-                : 'Membership, data boundaries, and account access.'}
-          </Text>
-        </View>
-
         <SwipeableSectionPager
-          items={PROFILE_SUBMENUS}
-          activeItem={activeSubmenu}
-          onChange={changeSubmenu}
+          items={PROFILE_TABS}
+          activeItem={profileTab}
+          onChange={setProfileTab}
           accessibilityLabel="Profile section content"
-          accessibilityHint="Swipe left or right to move between Plan, Settings, and Account"
-          testID="profile-submenu-pager"
-          style={styles.submenuPager}
+          testID="profile-section-content"
         >
-        {activeSubmenu === 'plan' && <ProfileYouSettings profile={profile} colors={colors} updateProfile={updateProfile} />}
+        <Text style={[styles.tabSubtitle, { color: colors.mutedForeground }]}>
+          {{ you: 'Settings and reminders.', membership: 'Plans and rewards.', account: 'Data, health, and help.' }[profileTab]}
+        </Text>
 
-        {/* ── Daily habits ── */}
-        {activeSubmenu === 'settings' && <>
-        <Animated.View entering={enterMotion('screen', 3)} style={styles.sectionBlock}>
-        <View style={styles.sectionHeading}>
-          <View style={[styles.sectionIndex, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.sectionIndexText, { color: colors.accentForeground }]}>02</Text>
+        <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
+        <ProfileYouSettings profile={profile} colors={colors} updateProfile={updateProfile} />
+        {/* ── Appearance ── */}
+        <Animated.View entering={enterMotion('screen', 1)}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Choose your display.</Text>
+        <View style={[styles.segmentedControl, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {themes.map((theme) => {
+            const selected = themePreference === theme.key;
+            return (
+              <Pressable key={theme.key} accessibilityLabel={`${theme.label} mode`} testID={`theme-${theme.key}`} onPress={() => setThemePreference(theme.key)} style={[styles.segmentedOption, selected && { backgroundColor: colors.accent }]}>
+                <Feather name={theme.icon} size={16} color={selected ? colors.accentForeground : colors.mutedForeground} />
+                <Text style={[styles.segmentedLabel, { color: selected ? colors.accentForeground : colors.mutedForeground }]}>{theme.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        </Animated.View>
+
+        {/* Text size */}
+        <Animated.View entering={enterMotion('screen', 2)}>
+        <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 10 }]}>
+          <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}>
+            <Feather name="type" size={16} color={colors.primary} />
           </View>
-          <View style={styles.sectionHeadingCopy}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Daily habits</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Small nudges, delivered on your terms.</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.settingTitle, { color: colors.foreground }]}>Text size</Text>
+            <Text style={{ fontSize: 13 * fontScale, fontFamily: 'Inter_400Regular', color: colors.mutedForeground, marginTop: 3 }} numberOfLines={1}>Grilled chicken salad · 510 kcal</Text>
+          </View>
+          <View style={styles.unitChips}>
+            {(['small', 'default', 'large'] as const).map((key) => {
+              const label = { small: 'A−', default: 'A', large: 'A+' }[key];
+              const sel = fontSizeScale === key;
+              return (
+                <Pressable key={key} accessibilityLabel={`${key} text size`} onPress={() => setFontSizeScale(key)} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
+                  <Text style={[styles.unitChipText, { color: sel ? colors.primaryForeground : colors.mutedForeground }]}>{label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
+
+        {/* Units */}
+        <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}>
+            <Feather name="maximize-2" size={16} color={colors.primary} />
+          </View>
+          <Text style={[styles.settingTitle, { color: colors.foreground, flex: 1 }]}>Measurement units</Text>
+          <View style={styles.unitChips}>
+            {(['metric', 'imperial'] as const).map((u) => {
+              const sel = units === u;
+              return (
+                <Pressable key={u} accessibilityLabel={`${u} units`} onPress={() => updateProfile({ units: u })} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
+                  <Text style={[styles.unitChipText, { color: sel ? colors.primaryForeground : colors.mutedForeground }]}>{u === 'metric' ? 'Metric' : 'Imperial'}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+        </Animated.View>
+
+        </View>
+
+        <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
+        {/* ── Reminders ── */}
+        <Animated.View entering={enterMotion('screen', 3)}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 4, marginBottom: 4 }]}>Reminders</Text>
+        <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>On-device water, meal, and goal nudges.</Text>
 
         {/* Delivery controls keep each category's desired settings intact while paused. */}
-        <Text style={[styles.preferenceLabel, { color: colors.mutedForeground }]}>NOTIFICATIONS</Text>
         <View style={[styles.notificationMasterCard, { backgroundColor: colors.card, borderColor: notificationPreferences.masterEnabled ? colors.primary : colors.border }]}>
           <View style={[styles.notificationMasterIcon, { backgroundColor: notificationPreferences.masterEnabled ? colors.accent : colors.muted }]}>
             <Feather name={notificationPreferences.masterEnabled ? 'bell' : 'bell-off'} size={18} color={notificationPreferences.masterEnabled ? colors.primary : colors.mutedForeground} />
@@ -751,23 +775,6 @@ export default function ProfileScreen() {
             thumbColor={colors.primaryForeground}
           />
         </View>
-        <Pressable
-          accessibilityLabel="Open notification inbox"
-          testID="profile-notification-inbox-row"
-          onPress={openNotificationCenter}
-          style={[styles.notificationInboxRow, { backgroundColor: colors.muted, borderColor: colors.border }]}
-        >
-          <View style={[styles.notificationInboxIcon, { backgroundColor: colors.card }]}>
-            <Feather name="inbox" size={16} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.settingTitle, { color: colors.foreground }]}>Notification inbox</Text>
-            <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
-              {unreadNotificationCount > 0 ? `${unreadNotificationCount} unread update${unreadNotificationCount === 1 ? '' : 's'}` : 'Review your recent updates'}
-            </Text>
-          </View>
-          <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-        </Pressable>
 
         <View style={[styles.reminderSettings, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 8 }]}>
           <View style={styles.reminderTimeRow}>
@@ -820,7 +827,12 @@ export default function ProfileScreen() {
           </Pressable>
         )}
         {notificationReconcileError && (
-          <Pressable accessibilityLabel="Retry notification setup" testID="retry-notification-setup" onPress={() => { void applyNotificationPrefs((current) => current); }} style={[styles.notificationSettingsButton, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+          <Pressable
+            accessibilityLabel="Retry notification setup"
+            testID="retry-notification-setup"
+            onPress={() => { void applyNotificationPrefs((current) => current); }}
+            style={[styles.notificationSettingsButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
+          >
             <Feather name="alert-circle" size={14} color={colors.foreground} />
             <Text style={[styles.notificationSettingsButtonText, { color: colors.foreground }]}>{notificationReconcileError}</Text>
             <Text style={[styles.notificationSettingsLink, { color: colors.primary }]}>Retry</Text>
@@ -995,84 +1007,11 @@ export default function ProfileScreen() {
           <Switch accessibilityLabel="Toggle daily goal reminder" value={goalReminderPrefs.enabled} onValueChange={(val) => applyGoalPrefs({ ...goalReminderPrefs, enabled: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
         </View>
         </Animated.View>
-        </>}
 
-        {/* ── App preferences ── */}
-        {activeSubmenu === 'settings' && <>
-        <Animated.View entering={enterMotion('screen', 4)}>
-        <View style={styles.sectionHeading}>
-          <View style={[styles.sectionIndex, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.sectionIndexText, { color: colors.accentForeground }]}>03</Text>
-          </View>
-          <View style={styles.sectionHeadingCopy}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>App preferences</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Make Calora read and feel right for you.</Text>
-          </View>
         </View>
-        <Text style={[styles.preferenceLabel, { color: colors.mutedForeground }]}>APPEARANCE</Text>
-        <View style={[styles.segmentedControl, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {themes.map((theme) => {
-            const selected = themePreference === theme.key;
-            return (
-              <Pressable key={theme.key} accessibilityLabel={`${theme.label} mode`} testID={`theme-${theme.key}`} onPress={() => setThemePreference(theme.key)} style={[styles.segmentedOption, selected && { backgroundColor: colors.accent }]}>
-                <Feather name={theme.icon} size={16} color={selected ? colors.accentForeground : colors.mutedForeground} />
-                <Text style={[styles.segmentedLabel, { color: selected ? colors.accentForeground : colors.mutedForeground }]}>{theme.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Text style={[styles.preferenceLabel, { color: colors.mutedForeground }]}>TEXT SIZE & UNITS</Text>
-        <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 10 }]}>
-          <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}>
-            <Feather name="type" size={16} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.settingTitle, { color: colors.foreground }]}>Text size</Text>
-            <Text style={{ fontSize: 13 * fontScale, fontFamily: 'Inter_400Regular', color: colors.mutedForeground, marginTop: 3 }} numberOfLines={1}>Grilled chicken salad · 510 kcal</Text>
-          </View>
-          <View style={styles.unitChips}>
-            {(['small', 'default', 'large'] as const).map((key) => {
-              const label = { small: 'A−', default: 'A', large: 'A+' }[key];
-              const sel = fontSizeScale === key;
-              return (
-                <Pressable key={key} accessibilityLabel={`${key} text size`} onPress={() => setFontSizeScale(key)} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
-                  <Text style={[styles.unitChipText, { color: sel ? colors.primaryForeground : colors.mutedForeground }]}>{label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-        <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}>
-            <Feather name="maximize-2" size={16} color={colors.primary} />
-          </View>
-          <Text style={[styles.settingTitle, { color: colors.foreground, flex: 1 }]}>Measurement units</Text>
-          <View style={styles.unitChips}>
-            {(['metric', 'imperial'] as const).map((u) => {
-              const sel = units === u;
-              return (
-                <Pressable key={u} accessibilityLabel={`${u} units`} onPress={() => updateProfile({ units: u })} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
-                  <Text style={[styles.unitChipText, { color: sel ? colors.primaryForeground : colors.mutedForeground }]}>{u === 'metric' ? 'Metric' : 'Imperial'}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-        </Animated.View>
-        </>}
 
-        {/* ── Membership ── */}
-        {activeSubmenu === 'account' && <>
-        <View style={[styles.sectionBlock, { marginTop: 30 }]}>
-        <View style={styles.sectionHeading}>
-          <View style={[styles.sectionIndex, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.sectionIndexText, { color: colors.accentForeground }]}>04</Text>
-          </View>
-          <View style={styles.sectionHeadingCopy}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Membership</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Keep the tools that help you notice what works.</Text>
-          </View>
-        </View>
+        <View style={profileTab === 'membership' ? undefined : styles.hiddenSection}>
+        {/* ── CaloraApp Pro ── */}
         <View style={styles.planHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{BRAND.premiumName}</Text>
@@ -1139,10 +1078,9 @@ export default function ProfileScreen() {
         <ReferralCard fontScale={fontScale} />
 
         </View>
-        </>}
 
+        <View style={profileTab === 'membership' ? undefined : styles.hiddenSection}>
         {/* ── Saved meals ── */}
-        {activeSubmenu === 'plan' && <>
         <View style={styles.savedHeader}>
           <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved meals</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Meals to reuse.</Text></View>
           <Pressable accessibilityLabel="Create saved meal" onPress={() => setSavedMealModal(true)} style={[styles.connectButton, { backgroundColor: colors.primary }]}>
@@ -1198,20 +1136,15 @@ export default function ProfileScreen() {
           </View>
           <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
         </Pressable>
-        </>}
 
-        {/* ── Data and privacy ── */}
-        {activeSubmenu === 'account' && <>
-        <View style={[styles.sectionBlock, { marginTop: 30 }]}>
-        <View style={styles.sectionHeading}>
-          <View style={[styles.sectionIndex, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.sectionIndexText, { color: colors.accentForeground }]}>05</Text>
-          </View>
-          <View style={styles.sectionHeadingCopy}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Data and privacy</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your food diary stays yours, with controls close at hand.</Text>
-          </View>
         </View>
+
+        <View style={profileTab === 'account' ? undefined : styles.hiddenSection}>
+        {/* ── Account ── */}
+        <AccountSection fontScale={fontScale} clearAllData={clearAllData} />
+
+        {/* ── Trust & privacy ── */}
+        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Trust & privacy</Text>
         <View style={[styles.connectionRow, { backgroundColor: colors.accent }]}>
           <View style={[styles.connectionIcon, { backgroundColor: colors.primary }]}><Feather name="activity" size={17} color={colors.primaryForeground} /></View>
           <View style={{ flex: 1 }}>
@@ -1250,23 +1183,8 @@ export default function ProfileScreen() {
           </SettingRowPressable>
         ))}
 
-        </View>
-
-        {/* ── Account ── */}
-        <View style={[styles.sectionBlock, { marginTop: 30 }]}>
-        <View style={styles.sectionHeading}>
-          <View style={[styles.sectionIndex, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.sectionIndexText, { color: colors.accentForeground }]}>06</Text>
-          </View>
-          <View style={styles.sectionHeadingCopy}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Account</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Sign-in, support, and the small print.</Text>
-          </View>
-        </View>
-        <AccountSection fontScale={fontScale} clearAllData={clearAllData} />
-
         {/* ── About CaloraApp ── */}
-        <Text style={[styles.preferenceLabel, { color: colors.mutedForeground, marginTop: 20 }]}>ABOUT CALORA</Text>
+        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>About</Text>
         {[
           { icon: 'info' as const, title: BRAND.name, body: `${BRAND.descriptor} · v${Constants.expoConfig?.version ?? '1.0.0'}`, url: null },
           { icon: 'globe' as const, title: 'Website', body: BRAND.domain, url: URLS.main },
@@ -1287,7 +1205,6 @@ export default function ProfileScreen() {
         ))}
         <Text style={[styles.version, { color: colors.mutedForeground }]}>{BRAND.copyright} · {BRAND.name} 1.0 · Made for steadier days</Text>
         </View>
-        </>}
         </SwipeableSectionPager>
       </ScrollView>
 
@@ -1562,7 +1479,7 @@ export default function ProfileScreen() {
               accessibilityLabel="Open Your plan settings"
               onPress={() => {
                 setProfileEditModal(false);
-                profileScrollRef.current?.scrollTo({ y: 0, animated: true });
+                setProfileTab('you');
               }}
               style={[styles.profileEditPlanLink, { backgroundColor: colors.muted }]}
             >
@@ -1702,6 +1619,7 @@ export default function ProfileScreen() {
 function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
+  hiddenSection: { display: 'none' },
   notificationButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   notificationBadge: { position: 'absolute', top: -3, right: -4, minWidth: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3, borderWidth: 2 },
   notificationBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8, lineHeight: 10 },
@@ -1731,6 +1649,11 @@ function makeStyles(f: number) {
   notificationActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
   notificationClearButton: { paddingHorizontal: 8, paddingVertical: 9 },
   notificationClearText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
+  profileTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 15, padding: 4, gap: 4, marginBottom: 10 },
+  profileTab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40, borderRadius: 11, paddingHorizontal: 6 },
+  profileTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+  tabSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginBottom: 20 },
+
   // Profile card
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 23, padding: 16, marginBottom: 26 },
   largeAvatar: { width: 47, height: 47, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
@@ -1740,30 +1663,10 @@ function makeStyles(f: number) {
   editAvatarBadge: { position: 'absolute', bottom: 0, right: 0, width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   profileName: { fontFamily: 'Inter_700Bold', fontSize: 16 * f },
   profileSub: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 4, maxWidth: 230 },
-  profileIntro: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: -12, marginBottom: 26, paddingHorizontal: 3 },
-  profileIntroText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f },
-  localFirst: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 6 },
-  localFirstText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.7 },
-
-  // Profile submenu navigation
-  submenuTabs: { flexDirection: 'row', borderRadius: 17, padding: 5, marginTop: 6, marginBottom: 26 },
-  submenuTab: { flex: 1, minHeight: 45, borderRadius: 13, alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 6 },
-  submenuTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
-  submenuHeaderCopy: { paddingHorizontal: 1, marginBottom: 26 },
-  submenuHeaderTitle: { fontFamily: 'Inter_700Bold', fontSize: 22 * f, letterSpacing: -0.5 },
-  submenuHeaderBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 17 * f, marginTop: 5 },
-  submenuPager: { paddingTop: 2 },
 
   // Section headings
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.3 },
   sectionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 4, marginBottom: 12 },
-  sectionBlock: { marginTop: 6 },
-  sectionHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 4 },
-  sectionIndex: { width: 25, height: 25, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  sectionIndexText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
-  sectionHeadingCopy: { flex: 1 },
-  preferenceLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginTop: 6, marginBottom: 8 },
-  preferenceCardGroup: { marginTop: 4 },
 
   // Segmented controls (theme + units)
   segmentedControl: { flexDirection: 'row', gap: 5, borderWidth: StyleSheet.hairlineWidth, padding: 5, borderRadius: 16, marginBottom: 12 },
@@ -1780,8 +1683,6 @@ function makeStyles(f: number) {
   reminderSectionLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginTop: 18, marginBottom: 8 },
   notificationMasterCard: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1.5, borderRadius: 18, padding: 13, marginBottom: 8 },
   notificationMasterIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  notificationInboxRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 10, marginBottom: 8 },
-  notificationInboxIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   notificationSettingsButton: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 11, paddingVertical: 10, marginBottom: 4 },
   notificationSettingsButtonText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f },
   notificationSettingsLink: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
