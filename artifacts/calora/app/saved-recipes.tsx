@@ -6,6 +6,7 @@ import { useQueries } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { getGetPremiumRecipeQueryKey, getPremiumRecipe, getRecipe, type PremiumRecipe, type Recipe } from '@workspace/api-client-react';
 import { AppHeader } from '@/components/AppChrome';
+import { HourlyBackground } from '@/components/HourlyBackground';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { RecipeCard, RecipeDetailModal } from '@/app/(tabs)/recipes';
 import { ScalePressable } from '@/components/ScalePressable';
@@ -245,7 +246,8 @@ export default function SavedRecipesScreen() {
   };
 
   return (
-    <View style={[styles.page, { backgroundColor: colors.background }]}>
+    <View style={[styles.page, { backgroundColor: 'transparent' }]}>
+      <HourlyBackground />
       <AppHeader title="Saved recipes" back />
       <ScrollView
         showsVerticalScrollIndicator={false}

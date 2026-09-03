@@ -19,6 +19,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HourlyBackground } from '@/components/HourlyBackground';
 import { useAuth } from '@/context/AuthContext';
 import { type MealType, useCalora } from '@/context/CaloraContext';
 import { dateKey } from '@/lib/dates';
@@ -150,7 +151,8 @@ export default function RestaurantsScreen() {
     : null;
 
   return (
-    <View style={[styles.page, { backgroundColor: colors.background }]}>
+    <View style={[styles.page, { backgroundColor: 'transparent' }]}>
+      <HourlyBackground />
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <Pressable accessibilityRole="button" accessibilityLabel="Back from restaurant search" onPress={handleBack} style={[styles.backButton, { backgroundColor: colors.muted }]}>
           <Feather name="arrow-left" size={19} color={colors.foreground} />

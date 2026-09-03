@@ -19,6 +19,7 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { AppHeader } from '@/components/AppChrome';
+import { HourlyBackground, useHourlyBackground } from '@/components/HourlyBackground';
 import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
@@ -206,6 +207,7 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
 export default function PlannerScreen() {
   const { colors, profile, logs, updateLog, plannerWeekStart, plannerMeals, plannerRevision, plannerPreferences, updatePlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck, fontScale } = useCalora();
   const insets = useSafeAreaInsets();
+  const { source: hourlyBackgroundSource } = useHourlyBackground();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const generatePlanner = useGeneratePlanner();
   const today = dateKey();
@@ -766,7 +768,8 @@ export default function PlannerScreen() {
   };
 
   return (
-    <View style={[styles.page, { backgroundColor: colors.background }]}>
+    <View style={[styles.page, { backgroundColor: 'transparent' }]}>
+      <HourlyBackground />
       <AppHeader
         title="Weekly Planner"
         leftAlignTitle
@@ -951,10 +954,7 @@ export default function PlannerScreen() {
               detail && (
                 <>
                   <Image
-                    source={[
-                      ...(detail.image ? [{ uri: detail.image }] : []),
-                      require('../../assets/images/calora-plan-header.jpg'),
-                    ]}
+                    source={detail.image ? { uri: detail.image } : hourlyBackgroundSource}
                     contentFit="cover"
                     style={styles.detailImage}
                   />

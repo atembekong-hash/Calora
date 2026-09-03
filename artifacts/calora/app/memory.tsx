@@ -10,6 +10,7 @@ import type { LivingMemoryKind } from '@/lib/livingMemory';
 import { buildDiaryRows, buildWellnessRows, buildPlannerRows } from '@/lib/memorySections';
 import { isStaleDate, relativeTime as computeRelativeTime } from '@/lib/memoryDateHelpers';
 import { AppHeader } from '@/components/AppChrome';
+import { HourlyBackground } from '@/components/HourlyBackground';
 import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -254,7 +255,8 @@ export default function LivingMemoryScreen() {
   };
 
   return (
-    <View style={[styles.page, { backgroundColor: colors.background }]}>
+    <View style={[styles.page, { backgroundColor: 'transparent' }]}>
+      <HourlyBackground />
       <AppHeader back title="Living memory" />
       <ScrollView
         contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 28 }}

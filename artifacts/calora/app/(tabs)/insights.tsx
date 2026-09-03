@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
 import { AppHeader } from '@/components/AppChrome';
+import { HourlyBackground, useHourlyBackground } from '@/components/HourlyBackground';
 import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -1113,6 +1114,7 @@ export default function InsightsScreen() {
     || (healthConnection.provider === 'healthkit' && healthConnection.snapshot?.activeEnergyKcal !== null)
   );
   const insets = useSafeAreaInsets();
+  const { source: hourlyBackgroundSource } = useHourlyBackground();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
@@ -1448,7 +1450,8 @@ export default function InsightsScreen() {
     return () => clearTimeout(timeout);
   }, [saveNotice]);
   return (
-    <View style={[styles.page, { backgroundColor: colors.background }]}>
+    <View style={[styles.page, { backgroundColor: 'transparent' }]}>
+      <HourlyBackground />
       <AppHeader
         title="Progress"
         action={
@@ -1480,7 +1483,7 @@ export default function InsightsScreen() {
       <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
         <View style={styles.heroHeader}>
           <Animated.View style={[StyleSheet.absoluteFillObject, heroParallaxStyle]}>
-            <Image source={require('../../assets/images/calora-insights-header.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
+            <Image source={hourlyBackgroundSource} contentFit="cover" style={StyleSheet.absoluteFillObject} />
           </Animated.View>
           <LinearGradient
             colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.78)', 'rgba(18,34,24,0.18)']}

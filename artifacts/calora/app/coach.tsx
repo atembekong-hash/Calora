@@ -22,6 +22,7 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { useCalora } from '@/context/CaloraContext';
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
+import { HourlyBackground } from '@/components/HourlyBackground';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { CoachFactContextConsentPanel } from '@/components/CoachFactContextConsentPanel';
 import {
@@ -325,7 +326,8 @@ export default function CoachScreen() {
   };
 
   return (
-    <View style={[styles.page, { backgroundColor: colors.background }]}>
+    <View style={[styles.page, { backgroundColor: 'transparent' }]}>
+      <HourlyBackground />
       <AppHeader
         back
         title={`${BRAND.name} Coach`}
