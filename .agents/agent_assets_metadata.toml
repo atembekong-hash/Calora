@@ -50,3 +50,17 @@ mtime_ms = 1787839789604
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/35836d6f-7261-4200-911a-db84dac99d7f/48066db7-6907-4c7d-ba7f-0ab62435389e"
 storage_version_token = "1787839846412737"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "r4C7gVBsQEVhgiIvJ2RoQ"
+uri = "file://docs/CALORA_PRODUCTION_READINESS_MASTER_AUDIT_2026-09-03.md"
+type = "text"
+title = "Calora Production Readiness Master Audit"
+description = "Evidence-backed audit for commit 2ddfaa2. Final verdict: NO-GO FOR PRODUCTION, with confirmed findings, scanner evidence, regression results, and required native/provider release gates."
+logical_id = "4899b76f-67c8-4dca-adb1-b6c409f8983b"
+content_hash = "sha256:7d90dad3ac072363244e07e6ea059dd7fb3e932cc7bdb65b73fe1ad21fe900c0"
+size = 45854
+mtime_ms = 1788454950472
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/4899b76f-67c8-4dca-adb1-b6c409f8983b/a946f7d3-c621-46a2-a256-1f83dedd068e"
+storage_version_token = "1788454988466076"
+content_type = "text/markdown"

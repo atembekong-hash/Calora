@@ -1,4 +1,7 @@
-# Calora — Production Readiness Report
+# Calora — Historical Web-Preview Validation Report
+
+> **SUPERSEDED for release decisions.** This document records an earlier Expo web-preview validation pass only. It is not evidence of native, store, provider, or production readiness. The current canonical audit is [`docs/CALORA_PRODUCTION_READINESS_MASTER_AUDIT_2026-09-03.md`](../../docs/CALORA_PRODUCTION_READINESS_MASTER_AUDIT_2026-09-03.md), whose verdict is **NO-GO FOR PRODUCTION**.
+
 **Date:** August 8, 2026  
 **Tested on:** Expo web preview (React Native Web, mobile viewport 402×874)  
 **Testing method:** Automated Playwright-based E2E validation across all 46 application flows
@@ -7,8 +10,8 @@
 
 ## Executive Summary
 
-**Verdict: READY FOR PRODUCTION** ✅  
-*(with four known platform-gated limitations documented below)*
+**Historical web-preview verdict: READY FOR THE LIMITED WEB-PREVIEW SCOPE**
+*(This wording does not authorize a native or public production release. See the current master audit linked above.)*
 
 All core user journeys were exercised end-to-end. Four bugs were found and repaired during this session. Data persistence, AI integrations (Coach, AI Planner, Scan), and all five tabs behave correctly across full app lifecycle including page reloads.
 
