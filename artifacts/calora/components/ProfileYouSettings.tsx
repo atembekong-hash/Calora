@@ -101,8 +101,15 @@ export function ProfileYouSettings({
 
   return (
     <>
-      <Text style={[styles.title, { color: themeColors.foreground }]}>Your plan</Text>
-      <Text style={[styles.subtitle, { color: themeColors.mutedForeground }]}>Update details and choose how targets are managed.</Text>
+      <View style={styles.sectionHeading}>
+        <View style={[styles.sectionIndex, { backgroundColor: themeColors.accent }]}>
+          <Text style={[styles.sectionIndexText, { color: themeColors.accentForeground }]}>01</Text>
+        </View>
+        <View style={styles.sectionHeadingCopy}>
+          <Text style={[styles.title, { color: themeColors.foreground }]}>Your plan</Text>
+          <Text style={[styles.subtitle, { color: themeColors.mutedForeground }]}>The details Calora uses to make your day feel steadier.</Text>
+        </View>
+      </View>
       <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
         <Pressable testID="personal-details-settings" onPress={openPersonal} style={styles.row}>
           <View style={[styles.icon, { backgroundColor: themeColors.muted }]}><Feather name="user" size={16} color={themeColors.primary} /></View>
@@ -174,6 +181,10 @@ function OptionGroup<T extends string>({ label, items, value, onChange, colors }
 const styles = StyleSheet.create({
   title: { fontFamily: 'Inter_700Bold', fontSize: 18, letterSpacing: -0.3, marginTop: 4 },
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 4, marginBottom: 12 },
+  sectionHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 4 },
+  sectionIndex: { width: 25, height: 25, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  sectionIndexText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
+  sectionHeadingCopy: { flex: 1 },
   card: { borderWidth: 1, borderRadius: 17, marginBottom: 25 },
   row: { minHeight: 66, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   icon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
