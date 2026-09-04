@@ -93,8 +93,8 @@ const GAUGE_HEIGHT_SCALE = 0.72;
 const GAUGE_ARC_LEN = (GAUGE_SWEEP / 360) * 2 * Math.PI * GAUGE_R; // ≈ 424.1 px
 const CALORIE_RING_SCALE = 1.2;
 // The greeting header and calorie card read as one merged surface on Home.
-// Keep their content and math unchanged while reducing only the vertical footprint.
-const MERGED_WIDGET_HEIGHT_SCALE = 0.8;
+// Keep their content and math unchanged while controlling only the vertical footprint.
+const MERGED_WIDGET_HEIGHT_SCALE = 1;
 const _gaugePt = (deg: number) => ({
   x: GAUGE_CX + GAUGE_R * Math.cos((deg * Math.PI) / 180),
   y: GAUGE_CY + GAUGE_R * Math.sin((deg * Math.PI) / 180),
