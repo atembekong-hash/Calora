@@ -6,6 +6,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { HealthSyncOutcome } from '@/context/CaloraContext';
 
 const harness = vi.hoisted(() => {
   const notificationPreferences = {
@@ -40,7 +41,9 @@ const harness = vi.hoisted(() => {
   const calora = {
     colors, themePreference: 'system', setThemePreference: vi.fn(), profile, updateProfile: vi.fn(),
     healthConnected: true, healthConnection: { provider: 'health-connect', authorization: 'partial', granted: ['steps'] },
-    connectHealth: vi.fn(async () => undefined), syncHealth: vi.fn(async () => undefined), disconnectHealth: vi.fn(),
+    connectHealth: vi.fn(async () => undefined),
+    syncHealth: vi.fn(async (): Promise<HealthSyncOutcome> => ({ status: 'synced', syncedAt: '2026-09-04T05:00:00.000Z' })),
+    disconnectHealth: vi.fn(),
     exportData: vi.fn(async () => '{}'), clearAllData: vi.fn(async () => undefined), isClearing: false, syncState: 'local',
     savedMeals: state.savedMeals, saveMeal: vi.fn(), deleteSavedMeal: vi.fn(),
     notificationPreferences, updateNotificationPreferences, livingMemory: { mealObservations: {}, waterObservations: {}, moodObservations: {}, activityObservations: {}, plannerObservations: {} },
@@ -72,7 +75,11 @@ vi.mock('@/lib/notificationInbox', () => ({
 vi.mock('@/lib/profilePhotoStorage', () => ({ copyProfilePhoto: vi.fn(), deleteProfilePhoto: vi.fn() }));
 vi.mock('@/lib/clearAllData', () => ({ ClearAllDataError: class ClearAllDataError extends Error {} }));
 vi.mock('expo-notifications', () => ({ PermissionStatus: { DENIED: 'denied' }, getPermissionsAsync: vi.fn(async () => ({ status: 'granted' })) }));
-vi.mock('expo-haptics', () => ({ selectionAsync: vi.fn(async () => undefined) }));
+vi.mock('expo-haptics', () => ({
+  selectionAsync: vi.fn(async () => undefined),
+  notificationAsync: vi.fn(async () => undefined),
+  NotificationFeedbackType: { Success: 'success' },
+}));
 vi.mock('expo-image-picker', () => ({ requestMediaLibraryPermissionsAsync: vi.fn(), launchImageLibraryAsync: vi.fn() }));
 vi.mock('expo-file-system/legacy', () => ({ cacheDirectory: '/tmp/', getInfoAsync: vi.fn(), readAsStringAsync: vi.fn(), writeAsStringAsync: vi.fn() }));
 vi.mock('expo-sharing', () => ({ isAvailableAsync: vi.fn(async () => false), shareAsync: vi.fn() }));
@@ -149,6 +156,27 @@ describe('Profile rendered interactions', () => {
     await waitFor(() => expect(screen.getByText(/Some requested categories are not available/)).toBeTruthy());
     expect(screen.getByRole('button', { name: 'Sync health data now' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Disconnect health data' })).toBeTruthy();
+  });
+
+  it('runs health sync and confirms success or failure in the health sheet', async () => {
+    render(<ProfileScreen />);
+    harness.state.open = 'health';
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sync health data now' })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sync health data now' }));
+    await waitFor(() => expect(harness.calora.syncHealth).toHaveBeenCalledTimes(1));
+    expect(screen.getByText('Health data synced just now.')).toBeTruthy();
+
+  });
+
+  it('shows the native sync error instead of reporting a false success', async () => {
+    harness.calora.syncHealth.mockResolvedValueOnce({ status: 'failed', message: 'Health Connect could not be read.' });
+    render(<ProfileScreen />);
+    harness.state.open = 'health';
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sync health data now' })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sync health data now' }));
+    await waitFor(() => expect(screen.getByText('Health Connect could not be read.')).toBeTruthy());
   });
 
   it('opens saved-meal creation and routes living memory to its screen', () => {

@@ -85,6 +85,11 @@ import {
   cancelNotificationPlanForClear,
   reconcileHydratedNotificationPlan,
 } from '@/lib/notificationLifecycle';
+
+export type HealthSyncOutcome =
+  | { status: 'synced'; syncedAt: string }
+  | { status: 'skipped'; message: string }
+  | { status: 'failed'; message: string };
 import { clearNotificationInbox } from '@/lib/notificationInbox';
 export type { PlannerPreferences, PlanTypeId } from '@/lib/planType';
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -360,7 +365,7 @@ type CaloraContextValue = {
   updateProfile: (patch: Partial<Profile>) => void;
   setHealthConnected: (connected: boolean) => void;
   connectHealth: () => Promise<HealthConnection>;
-  syncHealth: () => Promise<void>;
+  syncHealth: () => Promise<HealthSyncOutcome>;
   disconnectHealth: () => void;
   clearOutbox: () => void;
   exportData: () => Promise<string>;
@@ -536,7 +541,7 @@ export function CaloraProvider({
   const [healthConnection, setHealthConnection] = useState<HealthConnection>(EMPTY_HEALTH_CONNECTION);
   const healthConnected = canSyncHealthConnection(healthConnection);
   const healthConnectionRef = useRef(healthConnection);
-  const healthSyncPromiseRef = useRef<Promise<void> | null>(null);
+  const healthSyncPromiseRef = useRef<Promise<HealthSyncOutcome> | null>(null);
   const healthSyncEpochRef = useRef(0);
   const lastHealthRefreshDayRef = useRef<string | null>(null);
   useEffect(() => {
@@ -887,13 +892,13 @@ export function CaloraProvider({
   //   • mergeHealthWeights — module-level pure function
   // If health-service internals change to require component-scoped values, those
   // values must be either memoized or added to this dep array.
-  const syncHealth = useCallback(async () => {
-    if (clearingRef.current) return;
+  const syncHealth = useCallback(async (): Promise<HealthSyncOutcome> => {
+    if (clearingRef.current) return { status: 'skipped', message: 'Health sync is temporarily unavailable while data is being cleared.' };
     if (healthSyncPromiseRef.current) return healthSyncPromiseRef.current;
     const epoch = healthSyncEpochRef.current;
     const generationIsCurrent = () =>
       !clearingRef.current && epoch === healthSyncEpochRef.current;
-    const run = (async () => {
+    const run = (async (): Promise<HealthSyncOutcome> => {
       let current: HealthConnection;
       try {
         current = await healthService.getConnection();
@@ -907,34 +912,39 @@ export function CaloraProvider({
           patchExportSnapshot({ healthConnected: canSyncHealthConnection(failedConnection), healthConnection: failedConnection });
           setHealthConnection(failedConnection);
         }
-        return;
+        return { status: 'failed', message: error instanceof Error ? error.message : 'Health data could not be read.' };
       }
-      if (!generationIsCurrent()) return;
+      if (!generationIsCurrent()) return { status: 'skipped', message: 'Health sync was cancelled.' };
       healthConnectionRef.current = current;
       patchExportSnapshot({ healthConnected: canSyncHealthConnection(current), healthConnection: current });
       setHealthConnection(current);
-      if (!canSyncHealthConnection(current)) return;
+      if (!canSyncHealthConnection(current)) {
+        return { status: 'skipped', message: 'Health access is not ready. Connect or update access before syncing.' };
+      }
       try {
         const snapshot = await healthService.sync();
-        if (!generationIsCurrent()) return;
+        if (!generationIsCurrent()) return { status: 'skipped', message: 'Health sync was cancelled.' };
         const syncedConnection = { ...current, snapshot, lastSyncedAt: snapshot.syncedAt, syncError: undefined };
         healthConnectionRef.current = syncedConnection;
         patchExportSnapshot({ healthConnected: canSyncHealthConnection(syncedConnection), healthConnection: syncedConnection });
         updateExportField('weights', (weights) => mergeHealthWeights(weights as WeightEntry[], snapshot));
         setHealthConnection(syncedConnection);
         setWeights((ws) => mergeHealthWeights(ws, snapshot));
+        return { status: 'synced', syncedAt: snapshot.syncedAt };
       } catch (error) {
+        const message = error instanceof Error ? error.message : 'Health data could not be read.';
         if (generationIsCurrent()) {
-          const failedConnection = { ...current, syncError: error instanceof Error ? error.message : 'Health data could not be read.' };
+          const failedConnection = { ...current, syncError: message };
           healthConnectionRef.current = failedConnection;
           patchExportSnapshot({ healthConnected: canSyncHealthConnection(failedConnection), healthConnection: failedConnection });
           setHealthConnection(failedConnection);
         }
+        return { status: 'failed', message };
       }
     })();
     healthSyncPromiseRef.current = run;
     try {
-      await run;
+      return await run;
     } finally {
       if (healthSyncPromiseRef.current === run) healthSyncPromiseRef.current = null;
     }

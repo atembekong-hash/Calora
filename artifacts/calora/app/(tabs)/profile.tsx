@@ -10,6 +10,7 @@ import { formatGrams, formatWhole } from '@/lib/formatters';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
+import type { HealthSyncOutcome } from '@/context/CaloraContext';
 import { ClearAllDataError } from '@/lib/clearAllData';
 import {
   formatTime,
@@ -158,6 +159,7 @@ export default function ProfileScreen() {
   // Info sheets (food data / no ads / help)
   const [infoModal, setInfoModal] = useState<null | 'food-data' | 'no-ads' | 'help' | 'health'>(open === 'health' ? 'health' : null);
   const [healthBusy, setHealthBusy] = useState(false);
+  const [healthSyncFeedback, setHealthSyncFeedback] = useState<HealthSyncOutcome | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTab>(tab === 'membership' || tab === 'account' ? tab : 'you');
   const [notificationModal, setNotificationModal] = useState(false);
   const [notifications, setNotifications] = useState<NotificationInboxItem[]>([]);
@@ -249,6 +251,10 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (open === 'health') setInfoModal('health');
   }, [open]);
+
+  useEffect(() => {
+    if (infoModal !== 'health') setHealthSyncFeedback(null);
+  }, [infoModal]);
 
   // ─── OS reminder status sync ───────────────────────────────────────────────
   useEffect(() => {
@@ -529,11 +535,19 @@ export default function ProfileScreen() {
   const handleHealthSync = async () => {
     if (healthBusy) return;
     setHealthBusy(true);
+    setHealthSyncFeedback(null);
     try {
-      await syncHealth();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const outcome = await syncHealth();
+      setHealthSyncFeedback(outcome);
+      if (outcome.status === 'synced') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     } catch (err) {
-      Alert.alert('Sync failed', err instanceof Error ? err.message : 'Could not read health data.');
+      const outcome: HealthSyncOutcome = {
+        status: 'failed',
+        message: err instanceof Error ? err.message : 'Could not read health data.',
+      };
+      setHealthSyncFeedback(outcome);
     } finally {
       setHealthBusy(false);
     }
@@ -1597,8 +1611,36 @@ export default function ProfileScreen() {
                 {healthConnected && (
                   <>
                     <Pressable accessibilityRole="button" accessibilityLabel="Sync health data now" onPress={handleHealthSync} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
-                      {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Sync now</Text>}
+                      {healthBusy ? (
+                        <View style={styles.healthSyncButtonContent}>
+                          <ActivityIndicator color={colors.primaryForeground} />
+                          <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Syncing…</Text>
+                        </View>
+                      ) : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Sync now</Text>}
                     </Pressable>
+                    {!!healthSyncFeedback && (
+                      <Animated.View
+                        entering={enterMotion('component', 0)}
+                        accessibilityLiveRegion="polite"
+                        accessibilityRole={healthSyncFeedback.status === 'failed' ? 'alert' : undefined}
+                        style={[
+                          styles.healthSyncFeedback,
+                          {
+                            backgroundColor: healthSyncFeedback.status === 'synced' ? colors.accent : colors.muted,
+                            borderColor: healthSyncFeedback.status === 'failed' ? colors.warning : colors.accent,
+                          },
+                        ]}
+                      >
+                        <Feather
+                          name={healthSyncFeedback.status === 'synced' ? 'check-circle' : 'alert-circle'}
+                          size={15}
+                          color={healthSyncFeedback.status === 'synced' ? colors.success : colors.warning}
+                        />
+                        <Text style={[styles.healthSyncFeedbackText, { color: colors.foreground }]}>
+                          {healthSyncFeedback.status === 'synced' ? 'Health data synced just now.' : healthSyncFeedback.message}
+                        </Text>
+                      </Animated.View>
+                    )}
                     <Pressable accessibilityRole="button" accessibilityLabel="Disconnect health data" onPress={disconnectHealth} style={[styles.dialogButton, { backgroundColor: colors.muted, marginTop: 10 }]}>
                       <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Disconnect</Text>
                     </Pressable>
@@ -1788,6 +1830,9 @@ function makeStyles(f: number) {
   dialogStatusText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
   dialogButton: { alignItems: 'center', justifyContent: 'center', borderRadius: 13, paddingVertical: 13, marginTop: 16 },
   dialogButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
+  healthSyncButtonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  healthSyncFeedback: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: 11, padding: 10, marginTop: 10 },
+  healthSyncFeedbackText: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, lineHeight: 16 * f },
   dialogSecondaryButton: { alignItems: 'center', paddingTop: 14 },
   dialogSecondaryText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
 
