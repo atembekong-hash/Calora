@@ -113,13 +113,14 @@ describe("Premium recipe routes", () => {
   });
 
   it("normalizes a configured provider list and forwards filters/pagination", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: [{ id: "42", name: "Miso bowl", sourceUrl: "https://provider.example/42", calories: 410, nutritionConfidence: "verified", nutritionSource: "Provider data", servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8 }], nextOffset: 18 }) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: [{ id: "42", name: "Miso bowl", sourceUrl: "https://provider.example/42", image: "http://images.provider.example/42.jpg", calories: 410, nutritionConfidence: "verified", nutritionSource: "Provider data", servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8 }], nextOffset: 18 }) });
     vi.stubGlobal("fetch", fetchMock);
     const app = await appWithProvider("https://provider.example");
     const res = await request(app).get("/v1/premium-recipes?query=miso&category=Dinner&limit=18&offset=0");
     expect(res.status).toBe(200);
     expect(res.body.recipes[0]).toMatchObject({ id: "premium:Premium provider:42", sourceType: "premium", nutritionConfidence: "verified" });
     expect(res.body.recipes[0]).toMatchObject({ servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8, sodiumMg: null });
+    expect(res.body.recipes[0].image).toBeNull();
     expect(String(fetchMock.mock.calls[0][0])).toContain("query=miso");
     expect(String(fetchMock.mock.calls[0][0])).toContain("offset=0");
   });
@@ -213,6 +214,7 @@ describe("Premium recipe routes", () => {
     const res = await request(app).get("/v1/premium-recipes?query=bowl&limit=10&offset=20");
     expect(res.status).toBe(200);
     expect(res.body.recipes[0]).toMatchObject({ id: "premium:FatSecret:99", name: "Gateway bowl" });
+    expect(res.body.recipes[0].image).toBeNull();
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://gateway.example/fatsecret/recipes/search");
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
       method: "POST",

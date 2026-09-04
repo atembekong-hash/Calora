@@ -177,7 +177,7 @@ function fatSecretRecipe(input: unknown): PremiumRecipe | null {
   const directionList = Array.isArray(instructionRows) ? instructionRows : instructionRows ? [instructionRows] : [];
   const nutrients = nutrition as Record<string, unknown>;
   return {
-    id: `premium:FatSecret:${recipeId}`, name, image: string(raw.recipe_image), category: null, area: null,
+    id: `premium:FatSecret:${recipeId}`, name, image: recipeImage(raw.recipe_image) ?? recipeImage(raw.image), category: null, area: null,
     description: string(raw.recipe_description), instructions: directionList.map((row) => row && typeof row === "object" ? string((row as Record<string, unknown>).direction_description) : null).filter((v): v is string => Boolean(v)).join("\n") || null,
     ingredients: ingredientList.map(fatSecretIngredient).filter((v): v is string => Boolean(v)),
     tags: [], prepMinutes: fatSecretNumber(raw.preparation_time_min), cookMinutes: fatSecretNumber(raw.cooking_time_min), totalMinutes: null, servings: fatSecretNumber(raw.number_of_servings),
@@ -384,6 +384,16 @@ async function fatSecretGatewayFetch(path: string, params: Record<string, string
 function string(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
+function recipeImage(value: unknown): string | null {
+  const candidate = string(value);
+  if (!candidate) return null;
+  try {
+    const url = new URL(candidate);
+    return url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
 function number(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
@@ -405,7 +415,7 @@ export function normalizePremiumRecipe(input: unknown): PremiumRecipe | null {
   return {
     id: `premium:${providerName}:${providerId}`,
     name,
-    image: string(raw.image),
+    image: recipeImage(raw.image) ?? recipeImage(raw.recipeImage) ?? recipeImage(raw.recipe_image),
     category: string(raw.category),
     area: string(raw.area),
     description: string(raw.description),

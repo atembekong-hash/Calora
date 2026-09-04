@@ -159,6 +159,7 @@ export default function SavedRecipesScreen() {
   const [selected, setSelected] = useState<SavedRecipe | null>(null);
   const [planNotice, setPlanNotice] = useState<string | null>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const photoRequestsRef = useRef(new Set<string>());
 
   const localIds = useMemo(() => new Set(localRecipes.map((recipe) => recipe.id)), [localRecipes]);
   const savedLocalRecipes = useMemo(() => localRecipes.filter((recipe) => savedRecipeIds.includes(recipe.id)), [localRecipes, savedRecipeIds]);
@@ -234,15 +235,24 @@ export default function SavedRecipesScreen() {
   };
 
   const retryPhoto = async (recipe: CaloraRecipe) => {
-    if (recipeProvenance(recipe).sourceType !== 'calora_ai' || recipe.imageStatus === 'pending') return;
+    const sourceType = recipeProvenance(recipe).sourceType;
+    if (!['calora_ai', 'user_created'].includes(sourceType) || recipe.imageStatus === 'ready' || photoRequestsRef.current.has(recipe.id)) return;
+    photoRequestsRef.current.add(recipe.id);
     updateRecipe(recipe.id, { imageStatus: 'pending' });
     try {
       const photo = await requestGeneratedRecipePhoto({ title: recipe.name, description: recipe.description ?? '' });
       updateRecipe(recipe.id, { image: photo.imageUrl, imageId: photo.imageId, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready' });
     } catch {
       updateRecipe(recipe.id, { imageStatus: 'failed' });
+    } finally {
+      photoRequestsRef.current.delete(recipe.id);
     }
   };
+  useEffect(() => {
+    localRecipes
+      .filter((recipe) => ['calora_ai', 'user_created'].includes(recipeProvenance(recipe).sourceType) && !recipe.image && recipe.imageStatus !== 'failed')
+      .forEach((recipe) => { void retryPhoto(recipe); });
+  }, [localRecipes]);
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
