@@ -651,7 +651,7 @@ export default function ProfileScreen() {
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
         back
-        title="Profile"
+        title="Settings and profile"
         action={(
           <Pressable
             accessibilityRole="button"
