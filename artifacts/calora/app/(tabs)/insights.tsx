@@ -7,7 +7,7 @@ import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, T
 import { ScalePressable } from '@/components/ScalePressable';
 import { AppHeader } from '@/components/AppChrome';
 import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Line, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
@@ -1103,6 +1103,151 @@ function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: 
   );
 }
 
+type ProgressLinePoint = {
+  label: string;
+  value: number | null;
+};
+
+function ProgressLineGraph({
+  colors,
+  title,
+  subtitle,
+  points,
+  color,
+  valueFormatter,
+  target,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  title: string;
+  subtitle: string;
+  points: ProgressLinePoint[];
+  color: string;
+  valueFormatter: (value: number) => string;
+  target?: { value: number; label: string };
+}) {
+  const [chartWidth, setChartWidth] = useState(320);
+  const progress = useSharedValue(0);
+  const chartHeight = 128;
+  const padX = 8;
+  const padTop = 12;
+  const padBottom = 22;
+  const values = points.flatMap((point) => point.value == null ? [] : [point.value]);
+  const hasData = values.length > 0;
+  const showTarget = hasData && target != null;
+  const scaleValues = showTarget ? [...values, target.value] : values;
+  const min = hasData ? Math.min(...scaleValues) : 0;
+  const max = hasData ? Math.max(...scaleValues) : 1;
+  const range = Math.max(max - min, 1);
+  const plotWidth = Math.max(chartWidth - padX * 2, 1);
+  const xStep = points.length > 1 ? plotWidth / (points.length - 1) : 0;
+  const chartPoints = points.map((point, index) => ({
+    x: padX + index * xStep,
+    y: point.value == null
+      ? null
+      : padTop + (1 - (point.value - min) / range) * (chartHeight - padTop - padBottom),
+    value: point.value,
+  }));
+  const segments: { x: number; y: number }[][] = [];
+  let currentSegment: { x: number; y: number }[] = [];
+  for (const point of chartPoints) {
+    if (point.y == null) {
+      if (currentSegment.length) segments.push(currentSegment);
+      currentSegment = [];
+    } else {
+      currentSegment.push({ x: point.x, y: point.y });
+    }
+  }
+  if (currentSegment.length) segments.push(currentSegment);
+  const path = segments
+    .map((segment) => segment.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' '))
+    .join(' ');
+  const targetY = showTarget
+    ? padTop + (1 - (target.value - min) / range) * (chartHeight - padTop - padBottom)
+    : null;
+  const lineDashLength = Math.max(chartWidth * 2, 1);
+  const animatedPathProps = useAnimatedProps(() => ({
+    strokeDashoffset: lineDashLength * (1 - progress.value),
+  }));
+
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) });
+  }, [path, progress]);
+
+  return (
+    <View
+      accessibilityLabel={`${title}. ${hasData ? points.filter((point) => point.value != null).map((point) => `${point.label} ${valueFormatter(point.value!)}`).join(', ') : 'No data yet'}`}
+      accessibilityRole="summary"
+      style={[styles.lineGraphCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+    >
+      <View style={styles.sectionHeader}>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{title}</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>{subtitle}</Text>
+        </View>
+        <View style={[styles.lineGraphBadge, { backgroundColor: colors.muted }]}>
+          <Feather name="activity" size={12} color={color} />
+          <Text style={[styles.lineGraphBadgeText, { color: colors.mutedForeground }]}>{hasData ? valueFormatter(values[values.length - 1]) : 'No data'}</Text>
+        </View>
+      </View>
+      <View onLayout={(event) => setChartWidth(Math.max(event.nativeEvent.layout.width, 1))} style={styles.lineGraphPlot}>
+        <Svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
+          <Line x1={padX} y1={padTop} x2={chartWidth - padX} y2={padTop} stroke={colors.border} strokeWidth={1} opacity={0.7} />
+          <Line x1={padX} y1={chartHeight - padBottom} x2={chartWidth - padX} y2={chartHeight - padBottom} stroke={colors.border} strokeWidth={1} opacity={0.7} />
+          {targetY != null && (
+            <Line x1={padX} y1={targetY} x2={chartWidth - padX} y2={targetY} stroke={colors.warning} strokeWidth={1} strokeDasharray="4 4" opacity={0.75} />
+          )}
+          {path ? (
+            <AnimatedPath
+              d={path}
+              stroke={color}
+              strokeWidth={2.5}
+              fill="none"
+              strokeDasharray={lineDashLength}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              animatedProps={animatedPathProps}
+            />
+          ) : null}
+          {chartPoints.map((point, index) => point.y == null ? null : (
+            <Circle
+              key={`${point.x}-${point.y}`}
+              cx={point.x}
+              cy={point.y}
+              r={index === chartPoints.length - 1 ? 4 : 3}
+              fill={index === chartPoints.length - 1 ? colors.primary : color}
+              stroke={colors.card}
+              strokeWidth={2}
+            />
+          ))}
+        </Svg>
+        {!hasData && (
+          <View pointerEvents="none" style={styles.lineGraphEmpty}>
+            <Text style={[styles.lineGraphEmptyText, { color: colors.mutedForeground }]}>Log a day to start your graph.</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.lineGraphLabels}>
+        {points.map((point, index) => (
+          <Text key={`${point.label}-${index}`} style={[styles.lineGraphLabel, { color: index === points.length - 1 ? colors.primary : colors.mutedForeground }]}>{point.label}</Text>
+        ))}
+      </View>
+      <View style={[styles.lineGraphLegend, { borderTopColor: colors.border }]}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: color }]} />
+          <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{title}</Text>
+        </View>
+        {target && hasData && (
+          <View style={styles.legendItem}>
+            <View style={[styles.lineGraphTargetDot, { backgroundColor: colors.warning }]} />
+            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{target.label}: {valueFormatter(target.value)}</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 export default function InsightsScreen() {
   const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, toggleShoppingItemByName, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected } = useCalora();
   const insightsHeaderImage = useHourlyHeaderImage('insights');
@@ -1616,6 +1761,16 @@ export default function InsightsScreen() {
             </View>
           </View>
         </AnimatedReveal>
+        <AnimatedReveal delay={300}>
+          <ProgressLineGraph
+            colors={colors}
+            title="Meal rhythm"
+            subtitle="Meals logged across the last seven days."
+            points={weekDays.map((day) => ({ label: day.day, value: day.hasFood ? day.meals : null }))}
+            color={colors.primary}
+            valueFormatter={(value) => `${value} ${value === 1 ? 'meal' : 'meals'}`}
+          />
+        </AnimatedReveal>
         </View>
 
         <View style={progressView === 'trends' ? undefined : styles.hiddenSection}>
@@ -1646,6 +1801,18 @@ export default function InsightsScreen() {
             <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{averageWeekCalories ? `Avg. ${formatWhole(averageWeekCalories)} kcal` : 'No calorie average yet'}</Text>
           </View>
         </View>
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={350}>
+          <ProgressLineGraph
+            colors={colors}
+            title="Calorie trend"
+            subtitle="Daily intake compared with your target."
+            points={weekDays.map((day) => ({ label: day.day, value: day.kcal > 0 ? day.kcal : null }))}
+            color={colors.success}
+            valueFormatter={(value) => `${formatWhole(value)} kcal`}
+            target={{ value: target, label: 'Target' }}
+          />
         </AnimatedReveal>
 
         <AnimatedReveal delay={360}>
@@ -2248,6 +2415,16 @@ function makeStyles(f: number) {
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 7, height: 7, borderRadius: 4 },
   legendText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
+  lineGraphCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginBottom: 20 },
+  lineGraphBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6 },
+  lineGraphBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
+  lineGraphPlot: { height: 128, marginTop: 4, position: 'relative' },
+  lineGraphEmpty: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  lineGraphEmptyText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
+  lineGraphLabels: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2, marginTop: 2 },
+  lineGraphLabel: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, textAlign: 'center' },
+  lineGraphLegend: { borderTopWidth: 1, marginTop: 12, paddingTop: 11, flexDirection: 'row', justifyContent: 'space-between' },
+  lineGraphTargetDot: { width: 7, height: 2, borderRadius: 1 },
   nutrientCard: { borderWidth: 1, borderRadius: 20, padding: 14, marginBottom: 1 },
   nutrientRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8 },
   nutrientDot: { width: 8, height: 8, borderRadius: 4 },
