@@ -735,8 +735,12 @@ export function CaloraProvider({
     else if (saved.healthConnected !== undefined) setHealthConnection(normalizeHealthConnection(saved.healthConnected));
     if (saved.consentAccepted !== undefined) setConsentAccepted(saved.consentAccepted);
     if (saved.outbox) {
-      outboxRef.current = saved.outbox;
-      setOutbox(saved.outbox);
+      // The server currently syncs diary entries only. Older versions queued
+      // local Profile/settings/saved-meal edits here, which could never be
+      // flushed or restored on another device and made sync status misleading.
+      const diaryOutbox = saved.outbox.filter((mutation) => mutation.entity === 'diaryEntry');
+      outboxRef.current = diaryOutbox;
+      setOutbox(diaryOutbox);
     }
     if (saved.plannerWeekStart) setPlannerWeekStart(saved.plannerWeekStart);
     if (saved.plannerMeals) setPlannerMealsState(normalizePlannerMealImageIdentities(saved.plannerMeals));
@@ -1042,6 +1046,7 @@ export function CaloraProvider({
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
+    if (entity !== 'diaryEntry') return;
     const mutation = { id: makeId('mutation'), entity, operation, createdAt: new Date().toISOString() };
     outboxRef.current = [...outboxRef.current, mutation];
     setOutbox(outboxRef.current);

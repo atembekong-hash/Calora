@@ -52,6 +52,7 @@ export function BottomSheetFrame({
       ) : null}
       <View
         {...sheetProps}
+        accessibilityViewIsModal
         style={[
           styles.sheet,
           sheetStyle,

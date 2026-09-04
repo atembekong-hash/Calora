@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Notifications from 'expo-notifications';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Constants from 'expo-constants';
 import { BRAND, EMAILS, URLS } from '@/lib/brand';
 import { formatQuantity } from '@/lib/formatters';
@@ -106,7 +106,7 @@ export default function ProfileScreen() {
 
   // Billing — the live RevenueCat offering is the price authority.
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
-  const [billingModal, setBillingModal] = useState<'purchase' | 'restore' | 'manage' | 'confirm' | null>(null);
+  const [billingModal, setBillingModal] = useState<'purchase' | 'confirm' | null>(null);
   const [billingNotice, setBillingNotice] = useState<string | null>(null);
   const { offerings, isSubscribed, purchase, restore, isPurchasing, isRestoring } = useSubscription();
   const currentOffering = offerings?.current ?? null;
@@ -136,6 +136,7 @@ export default function ProfileScreen() {
   const [goalReminderStatus, setGoalReminderStatus] = useState<'idle' | 'denied' | 'scheduled' | 'failed'>('idle');
   const [notificationPermissionDenied, setNotificationPermissionDenied] = useState(false);
   const [notificationReconcileError, setNotificationReconcileError] = useState<string | null>(null);
+  const [notificationUpdating, setNotificationUpdating] = useState(false);
 
   // Saved meal creation modal
   const [savedMealModal, setSavedMealModal] = useState(false);
@@ -245,6 +246,10 @@ export default function ProfileScreen() {
     setProfileTab(tab);
   }, [tab]);
 
+  useEffect(() => {
+    if (open === 'health') setInfoModal('health');
+  }, [open]);
+
   // ─── OS reminder status sync ───────────────────────────────────────────────
   useEffect(() => {
     (async () => {
@@ -272,6 +277,7 @@ export default function ProfileScreen() {
     // Persist first: permission denial controls delivery, never the user's choices.
     const desired = updateNotificationPreferences((current) =>
       normalizeNotificationPreferences(updater(current)));
+    setNotificationUpdating(true);
     try {
       const result = await reconcileUserNotificationPlan(desired);
       setNotificationPermissionDenied((wasDenied) => result.status === 'denied'
@@ -283,6 +289,8 @@ export default function ProfileScreen() {
       const result: NotificationReconciliationResult = { status: 'failed', scheduledCount: 0, failure: 'schedule' };
       setNotificationReconcileError(notificationOutcomeMessage(result));
       return { result, desired };
+    } finally {
+      setNotificationUpdating(false);
     }
   };
 
@@ -447,7 +455,25 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleManage = () => setBillingModal('manage');
+  const handleManage = async () => {
+    const managementUrl =
+      Platform.OS === 'ios'
+        ? 'itms-apps://apps.apple.com/account/subscriptions'
+        : Platform.OS === 'android'
+          ? 'https://play.google.com/store/account/subscriptions'
+          : null;
+
+    if (!managementUrl) {
+      setBillingNotice('Open Calora on your iPhone or Android device to manage App Store or Google Play subscriptions.');
+      return;
+    }
+
+    try {
+      await Linking.openURL(managementUrl);
+    } catch {
+      setBillingNotice('Could not open subscription management. Open your App Store or Google Play account settings to manage or cancel your plan.');
+    }
+  };
 
   /** Export — locked against concurrent invocations via exportLockRef */
   const handleExport = makeExportHandler(
@@ -614,6 +640,7 @@ export default function ProfileScreen() {
         title="Profile"
         action={(
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={`Open notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`}
             testID="profile-notifications-button"
             onPress={openNotificationCenter}
@@ -691,7 +718,7 @@ export default function ProfileScreen() {
           {themes.map((theme) => {
             const selected = themePreference === theme.key;
             return (
-              <Pressable key={theme.key} accessibilityLabel={`${theme.label} mode`} testID={`theme-${theme.key}`} onPress={() => setThemePreference(theme.key)} style={[styles.segmentedOption, selected && { backgroundColor: colors.accent }]}>
+              <Pressable key={theme.key} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`${theme.label} mode`} testID={`theme-${theme.key}`} onPress={() => setThemePreference(theme.key)} style={[styles.segmentedOption, selected && { backgroundColor: colors.accent }]}>
                 <Feather name={theme.icon} size={16} color={selected ? colors.accentForeground : colors.mutedForeground} />
                 <Text style={[styles.segmentedLabel, { color: selected ? colors.accentForeground : colors.mutedForeground }]}>{theme.label}</Text>
               </Pressable>
@@ -715,7 +742,7 @@ export default function ProfileScreen() {
               const label = { small: 'A−', default: 'A', large: 'A+' }[key];
               const sel = fontSizeScale === key;
               return (
-                <Pressable key={key} accessibilityLabel={`${key} text size`} onPress={() => setFontSizeScale(key)} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
+                <Pressable key={key} accessibilityRole="radio" accessibilityState={{ selected: sel }} accessibilityLabel={`${key} text size`} onPress={() => setFontSizeScale(key)} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
                   <Text style={[styles.unitChipText, { color: sel ? colors.primaryForeground : colors.mutedForeground }]}>{label}</Text>
                 </Pressable>
               );
@@ -733,7 +760,7 @@ export default function ProfileScreen() {
             {(['metric', 'imperial'] as const).map((u) => {
               const sel = units === u;
               return (
-                <Pressable key={u} accessibilityLabel={`${u} units`} onPress={() => updateProfile({ units: u })} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
+                <Pressable key={u} accessibilityRole="radio" accessibilityState={{ selected: sel }} accessibilityLabel={`${u} units`} onPress={() => updateProfile({ units: u })} style={[styles.unitChip, { backgroundColor: sel ? colors.primary : colors.muted, borderColor: sel ? colors.primary : colors.border }]}>
                   <Text style={[styles.unitChipText, { color: sel ? colors.primaryForeground : colors.mutedForeground }]}>{u === 'metric' ? 'Metric' : 'Imperial'}</Text>
                 </Pressable>
               );
@@ -757,7 +784,7 @@ export default function ProfileScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Notifications</Text>
             <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
-               {notificationPreferences.masterEnabled ? 'On this device' : 'Paused · choices saved'}
+               {notificationUpdating ? 'Saving reminder settings…' : notificationPreferences.masterEnabled ? 'On this device' : 'Paused · choices saved'}
             </Text>
           </View>
           <Switch
@@ -765,6 +792,7 @@ export default function ProfileScreen() {
             testID="notification-master-toggle"
             value={notificationPreferences.masterEnabled}
             onValueChange={(masterEnabled) => void applyNotificationPrefs((current) => ({ ...current, masterEnabled }))}
+            disabled={notificationUpdating}
             trackColor={{ false: colors.muted, true: colors.primary }}
             thumbColor={colors.primaryForeground}
           />
@@ -786,6 +814,7 @@ export default function ProfileScreen() {
               testID="quiet-hours-toggle"
               value={notificationPreferences.quietHours.enabled}
               onValueChange={(enabled) => void applyNotificationPrefs((current) => ({ ...current, quietHours: { ...current.quietHours, enabled } }))}
+              disabled={notificationUpdating}
               trackColor={{ false: colors.muted, true: colors.primary }}
               thumbColor={colors.primaryForeground}
             />
@@ -803,8 +832,8 @@ export default function ProfileScreen() {
                       <Text style={[styles.reminderTimeValue, { color: colors.foreground }]}>{formatTime(time.hour, time.minute)}</Text>
                     </View>
                     <View style={styles.reminderNudge}>
-                      <Pressable accessibilityLabel={`Decrease quiet hours ${field} time by 15 minutes`} testID={`quiet-hours-${field}-decrease`} onPress={() => nudgeQuietTime(field, -15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                      <Pressable accessibilityLabel={`Increase quiet hours ${field} time by 15 minutes`} testID={`quiet-hours-${field}-increase`} onPress={() => nudgeQuietTime(field, 15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                      <Pressable accessibilityLabel={`Decrease quiet hours ${field} time by 15 minutes`} testID={`quiet-hours-${field}-decrease`} onPress={() => nudgeQuietTime(field, -15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                      <Pressable accessibilityLabel={`Increase quiet hours ${field} time by 15 minutes`} testID={`quiet-hours-${field}-increase`} onPress={() => nudgeQuietTime(field, 15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
                     </View>
                   </View>
                 );
@@ -825,6 +854,7 @@ export default function ProfileScreen() {
             accessibilityLabel="Retry notification setup"
             testID="retry-notification-setup"
             onPress={() => { void applyNotificationPrefs((current) => current); }}
+            disabled={notificationUpdating}
             style={[styles.notificationSettingsButton, { backgroundColor: colors.muted, borderColor: colors.border }]}
           >
             <Feather name="alert-circle" size={14} color={colors.foreground} />
@@ -846,7 +876,7 @@ export default function ProfileScreen() {
                  : 'Off'}
             </Text>
           </View>
-          <Switch accessibilityLabel="Toggle hydration reminders" testID="hydration-reminder-toggle" value={hydrationReminderPrefs.enabled} onValueChange={(val) => applyHydrationPrefs({ ...hydrationReminderPrefs, enabled: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} />
+           <Switch accessibilityLabel="Toggle hydration reminders" testID="hydration-reminder-toggle" value={hydrationReminderPrefs.enabled} onValueChange={(val) => applyHydrationPrefs({ ...hydrationReminderPrefs, enabled: val })} disabled={notificationUpdating} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} />
         </View>
 
         {hydrationReminderPrefs.enabled && (
@@ -861,13 +891,13 @@ export default function ProfileScreen() {
               <View style={styles.reminderNudgeGroup}>
                 <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>HR</Text>
                 <View style={styles.reminderNudge}>
-                  <Pressable accessibilityLabel="Decrease wake hour" onPress={() => nudgeHydrationHour('wakeHour', -1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                  <Pressable accessibilityLabel="Increase wake hour" onPress={() => nudgeHydrationHour('wakeHour', 1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Decrease wake hour" onPress={() => nudgeHydrationHour('wakeHour', -1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Increase wake hour" onPress={() => nudgeHydrationHour('wakeHour', 1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
                 </View>
                 <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>MIN</Text>
                 <View style={styles.reminderNudge}>
-                  <Pressable accessibilityLabel="Decrease wake minute" onPress={() => nudgeHydrationMinute('wakeMinute', -15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                  <Pressable accessibilityLabel="Increase wake minute" onPress={() => nudgeHydrationMinute('wakeMinute', 15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Decrease wake minute" onPress={() => nudgeHydrationMinute('wakeMinute', -15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Increase wake minute" onPress={() => nudgeHydrationMinute('wakeMinute', 15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
                 </View>
               </View>
             </View>
@@ -884,13 +914,13 @@ export default function ProfileScreen() {
               <View style={styles.reminderNudgeGroup}>
                 <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>HR</Text>
                 <View style={styles.reminderNudge}>
-                  <Pressable accessibilityLabel="Decrease sleep hour" onPress={() => nudgeHydrationHour('sleepHour', -1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                  <Pressable accessibilityLabel="Increase sleep hour" onPress={() => nudgeHydrationHour('sleepHour', 1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Decrease sleep hour" onPress={() => nudgeHydrationHour('sleepHour', -1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Increase sleep hour" onPress={() => nudgeHydrationHour('sleepHour', 1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
                 </View>
                 <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>MIN</Text>
                 <View style={styles.reminderNudge}>
-                  <Pressable accessibilityLabel="Decrease sleep minute" onPress={() => nudgeHydrationMinute('sleepMinute', -15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                  <Pressable accessibilityLabel="Increase sleep minute" onPress={() => nudgeHydrationMinute('sleepMinute', 15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Decrease sleep minute" onPress={() => nudgeHydrationMinute('sleepMinute', -15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                  <Pressable accessibilityLabel="Increase sleep minute" onPress={() => nudgeHydrationMinute('sleepMinute', 15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
                 </View>
               </View>
             </View>
@@ -904,7 +934,7 @@ export default function ProfileScreen() {
                 {([1, 1.5, 2, 3] as const).map((h) => {
                   const selected = hydrationReminderPrefs.intervalHours === h;
                   return (
-                    <Pressable key={h} accessibilityLabel={`Remind every ${h} hours`} onPress={() => applyHydrationPrefs({ ...hydrationReminderPrefs, intervalHours: h })} style={[styles.intervalChip, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}>
+                    <Pressable key={h} accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`Remind every ${h} hours`} onPress={() => applyHydrationPrefs({ ...hydrationReminderPrefs, intervalHours: h })} disabled={notificationUpdating} style={[styles.intervalChip, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}>
                       <Text style={[styles.intervalChipText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{h}h</Text>
                     </Pressable>
                   );
@@ -941,17 +971,17 @@ export default function ProfileScreen() {
                     <View style={styles.reminderNudgeGroup}>
                       <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>HR</Text>
                       <View style={styles.reminderNudge}>
-                        <Pressable accessibilityLabel={`Decrease ${meal.label} hour`} onPress={() => nudgeMealTime(meal.key, 'hour', -1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={12} color={colors.foreground} /></Pressable>
-                        <Pressable accessibilityLabel={`Increase ${meal.label} hour`} onPress={() => nudgeMealTime(meal.key, 'hour', 1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={12} color={colors.foreground} /></Pressable>
+                        <Pressable accessibilityLabel={`Decrease ${meal.label} hour`} onPress={() => nudgeMealTime(meal.key, 'hour', -1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={12} color={colors.foreground} /></Pressable>
+                        <Pressable accessibilityLabel={`Increase ${meal.label} hour`} onPress={() => nudgeMealTime(meal.key, 'hour', 1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={12} color={colors.foreground} /></Pressable>
                       </View>
                       <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>MIN</Text>
                       <View style={styles.reminderNudge}>
-                        <Pressable accessibilityLabel={`Decrease ${meal.label} minute`} onPress={() => nudgeMealTime(meal.key, 'minute', -15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={12} color={colors.foreground} /></Pressable>
-                        <Pressable accessibilityLabel={`Increase ${meal.label} minute`} onPress={() => nudgeMealTime(meal.key, 'minute', 15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={12} color={colors.foreground} /></Pressable>
+                        <Pressable accessibilityLabel={`Decrease ${meal.label} minute`} onPress={() => nudgeMealTime(meal.key, 'minute', -15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={12} color={colors.foreground} /></Pressable>
+                        <Pressable accessibilityLabel={`Increase ${meal.label} minute`} onPress={() => nudgeMealTime(meal.key, 'minute', 15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={12} color={colors.foreground} /></Pressable>
                       </View>
                     </View>
                   )}
-                  <Switch accessibilityLabel={`Toggle ${meal.label} reminder`} value={enabled} onValueChange={(val) => applyMealPrefs({ ...mealReminderPrefs, [meal.key]: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
+                  <Switch accessibilityLabel={`Toggle ${meal.label} reminder`} value={enabled} onValueChange={(val) => applyMealPrefs({ ...mealReminderPrefs, [meal.key]: val })} disabled={notificationUpdating} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
                 </View>
               </View>
             );
@@ -988,17 +1018,17 @@ export default function ProfileScreen() {
             <View style={styles.reminderNudgeGroup}>
               <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>HR</Text>
               <View style={styles.reminderNudge}>
-                <Pressable accessibilityLabel="Decrease goal reminder hour" onPress={() => nudgeGoalTime('hour', -1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                <Pressable accessibilityLabel="Increase goal reminder hour" onPress={() => nudgeGoalTime('hour', 1)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                <Pressable accessibilityLabel="Decrease goal reminder hour" onPress={() => nudgeGoalTime('hour', -1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                <Pressable accessibilityLabel="Increase goal reminder hour" onPress={() => nudgeGoalTime('hour', 1)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
               </View>
               <Text style={[styles.nudgeGroupLabel, { color: colors.mutedForeground }]}>MIN</Text>
               <View style={styles.reminderNudge}>
-                <Pressable accessibilityLabel="Decrease goal reminder minute" onPress={() => nudgeGoalTime('minute', -15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
-                <Pressable accessibilityLabel="Increase goal reminder minute" onPress={() => nudgeGoalTime('minute', 15)} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
+                <Pressable accessibilityLabel="Decrease goal reminder minute" onPress={() => nudgeGoalTime('minute', -15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="minus" size={13} color={colors.foreground} /></Pressable>
+                <Pressable accessibilityLabel="Increase goal reminder minute" onPress={() => nudgeGoalTime('minute', 15)} disabled={notificationUpdating} style={[styles.nudgeButton, { backgroundColor: colors.muted }]}><Feather name="plus" size={13} color={colors.foreground} /></Pressable>
               </View>
             </View>
           )}
-          <Switch accessibilityLabel="Toggle daily goal reminder" value={goalReminderPrefs.enabled} onValueChange={(val) => applyGoalPrefs({ ...goalReminderPrefs, enabled: val })} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
+          <Switch accessibilityLabel="Toggle daily goal reminder" value={goalReminderPrefs.enabled} onValueChange={(val) => applyGoalPrefs({ ...goalReminderPrefs, enabled: val })} disabled={notificationUpdating} trackColor={{ false: colors.muted, true: colors.primary }} thumbColor={colors.primaryForeground} style={{ marginLeft: 8 }} />
         </View>
         </Animated.View>
 
@@ -1015,7 +1045,7 @@ export default function ProfileScreen() {
         <View style={[styles.planCard, { backgroundColor: colors.card, borderColor: colors.primary }]}>
           <Text style={[styles.planEyebrow, { color: colors.mutedForeground }]}>CHOOSE A PLAN</Text>
           <View style={styles.planChoices}>
-            <Pressable accessibilityLabel="Choose monthly plan" testID="billing-plan-monthly" onPress={() => setSelectedPlan('monthly')} style={[styles.planChoice, { borderColor: selectedPlan === 'monthly' ? colors.primary : colors.border, backgroundColor: selectedPlan === 'monthly' ? colors.accent : colors.card }]}>
+            <Pressable accessibilityRole="radio" accessibilityState={{ selected: selectedPlan === 'monthly' }} accessibilityLabel="Choose monthly plan" testID="billing-plan-monthly" onPress={() => setSelectedPlan('monthly')} style={[styles.planChoice, { borderColor: selectedPlan === 'monthly' ? colors.primary : colors.border, backgroundColor: selectedPlan === 'monthly' ? colors.accent : colors.card }]}>
               <View style={[styles.radio, { borderColor: selectedPlan === 'monthly' ? colors.primary : colors.mutedForeground }]}>
                 {selectedPlan === 'monthly' && <View style={[styles.radioSelected, { backgroundColor: colors.primary }]} />}
               </View>
@@ -1025,7 +1055,7 @@ export default function ProfileScreen() {
               </View>
               <Text style={[styles.planPrice, { color: colors.foreground }]}>{monthlyPriceString ?? 'Store price unavailable'}{monthlyPriceString && <Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / mo</Text>}</Text>
             </Pressable>
-            <Pressable accessibilityLabel="Choose annual plan" testID="billing-plan-annual" onPress={() => setSelectedPlan('annual')} style={[styles.planChoice, { borderColor: selectedPlan === 'annual' ? colors.primary : colors.border, backgroundColor: selectedPlan === 'annual' ? colors.accent : colors.card }]}>
+            <Pressable accessibilityRole="radio" accessibilityState={{ selected: selectedPlan === 'annual' }} accessibilityLabel="Choose annual plan" testID="billing-plan-annual" onPress={() => setSelectedPlan('annual')} style={[styles.planChoice, { borderColor: selectedPlan === 'annual' ? colors.primary : colors.border, backgroundColor: selectedPlan === 'annual' ? colors.accent : colors.card }]}>
               <View style={[styles.radio, { borderColor: selectedPlan === 'annual' ? colors.primary : colors.mutedForeground }]}>
                 {selectedPlan === 'annual' && <View style={[styles.radioSelected, { backgroundColor: colors.primary }]} />}
               </View>
@@ -1053,7 +1083,7 @@ export default function ProfileScreen() {
               </View>
             ))}
           </View>
-          <Pressable accessibilityLabel={isSelectedPlanAvailable ? 'Continue to billing' : 'Selected store plan is unavailable'} accessibilityState={{ disabled: !isSelectedPlanAvailable }} testID="billing-continue" disabled={!isSelectedPlanAvailable} onPress={handlePurchase} style={({ pressed }) => [styles.planButton, { backgroundColor: colors.primary, opacity: !isSelectedPlanAvailable ? 0.55 : pressed ? 0.8 : 1 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={isSelectedPlanAvailable ? 'Continue to billing' : 'Selected store plan is unavailable'} accessibilityState={{ disabled: !isSelectedPlanAvailable }} testID="billing-continue" disabled={!isSelectedPlanAvailable} onPress={handlePurchase} style={({ pressed }) => [styles.planButton, { backgroundColor: colors.primary, opacity: !isSelectedPlanAvailable ? 0.55 : pressed ? 0.8 : 1 }]}>
             <Text style={[styles.planButtonText, { color: colors.primaryForeground }]}>
               {isSubscribed ? `${BRAND.premiumName} is active` : isSelectedPlanAvailable ? `Continue with ${selectedPrice} / ${selectedPeriod}` : 'Store plan unavailable'}
             </Text>
@@ -1076,7 +1106,7 @@ export default function ProfileScreen() {
         {/* ── Saved meals ── */}
         <View style={styles.savedHeader}>
            <View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved meals</Text></View>
-          <Pressable accessibilityLabel="Create saved meal" onPress={() => setSavedMealModal(true)} style={[styles.connectButton, { backgroundColor: colors.primary }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Create saved meal" onPress={() => setSavedMealModal(true)} style={[styles.connectButton, { backgroundColor: colors.primary }]}>
             <Feather name="plus" size={14} color={colors.primaryForeground} />
             <Text style={[styles.connectButtonText, { color: colors.primaryForeground }]}>Create</Text>
           </Pressable>
@@ -1116,7 +1146,7 @@ export default function ProfileScreen() {
 
         {/* ── Living memory ── */}
          <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 30, marginBottom: 14 }]}>Living memory</Text>
-        <Pressable accessibilityLabel="Review living memory" testID="review-living-memory" onPress={() => router.push('/memory')} style={[styles.memoryShortcut, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Review living memory" testID="review-living-memory" onPress={() => router.push('/memory')} style={[styles.memoryShortcut, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={[styles.settingIcon, { backgroundColor: colors.accent }]}><Feather name="layers" size={17} color={colors.accentForeground} /></View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.settingTitle, { color: colors.foreground }]}>Saved signals</Text>
@@ -1203,21 +1233,17 @@ export default function ProfileScreen() {
       {/* ── Billing modal ── */}
       <Modal visible={billingModal !== null} transparent animationType="fade" onRequestClose={() => setBillingModal(null)}>
         <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
-          <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
+          <View accessibilityViewIsModal style={[styles.dialogCard, { backgroundColor: colors.card }]}>
             <View style={[styles.dialogIcon, { backgroundColor: colors.accent }]}>
-              <Feather name={billingModal === 'confirm' ? 'credit-card' : billingModal === 'purchase' ? 'lock' : billingModal === 'restore' ? 'rotate-ccw' : 'external-link'} size={20} color={colors.accentForeground} />
+              <Feather name={billingModal === 'confirm' ? 'credit-card' : 'lock'} size={20} color={colors.accentForeground} />
             </View>
             <Text style={[styles.dialogTitle, { color: colors.foreground }]}>
-              {billingModal === 'confirm' ? 'Confirm your purchase' : billingModal === 'purchase' ? 'Billing is ready for setup' : billingModal === 'restore' ? 'Restore purchases' : 'Manage subscription'}
+              {billingModal === 'confirm' ? 'Confirm your purchase' : 'Billing is ready for setup'}
             </Text>
             <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>
               {billingModal === 'confirm'
                 ? `Subscribe to ${BRAND.premiumName} (${selectedPlan}) at ${selectedPrice} per ${selectedPeriod}? The store determines 7-day trial eligibility and completes the payment.`
-                : billingModal === 'purchase'
-                ? `The ${selectedPlan} store plan is unavailable, so no purchase can be started. Please try again when store pricing has loaded.`
-                : billingModal === 'restore'
-                  ? `This will look up your active ${BRAND.premiumName} entitlement on this device.`
-                  : 'This opens platform settings to manage or cancel your plan.'}
+                : `The ${selectedPlan} store plan is unavailable, so no purchase can be started. Please try again when store pricing has loaded.`}
             </Text>
             {billingModal !== 'confirm' && (
               <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
@@ -1251,7 +1277,7 @@ export default function ProfileScreen() {
       {/* ── Billing notice modal ── */}
       <Modal visible={billingNotice !== null} transparent animationType="fade" onRequestClose={() => setBillingNotice(null)}>
         <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
-          <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
+          <View accessibilityViewIsModal style={[styles.dialogCard, { backgroundColor: colors.card }]}>
             <View style={[styles.dialogIcon, { backgroundColor: colors.accent }]}>
               <Feather name="info" size={20} color={colors.accentForeground} />
             </View>
@@ -1267,7 +1293,7 @@ export default function ProfileScreen() {
       {/* ── Delete confirmation modal ── */}
       <Modal visible={privacyModal !== null} transparent animationType="fade" onRequestClose={() => { if (!isClearing) setPrivacyModal(null); }}>
         <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
-          <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
+          <View accessibilityViewIsModal style={[styles.dialogCard, { backgroundColor: colors.card }]}>
             <View style={[styles.dialogIcon, { backgroundColor: colors.warning }]}>
               <Feather name="trash-2" size={20} color={colors.foreground} />
             </View>
@@ -1293,8 +1319,8 @@ export default function ProfileScreen() {
             <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Create a saved template</Text>
             <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>Add the numbers from a meal or recipe you make often. It will be stored offline and appear in the add-food sheet.</Text>
             <View style={styles.savedKindRow}>
-              <Pressable onPress={() => setSavedMealKind('meal')} style={[styles.savedKind, { backgroundColor: savedMealKind === 'meal' ? colors.primary : colors.card, borderColor: savedMealKind === 'meal' ? colors.primary : colors.border }]}><Text style={[styles.savedKindText, { color: savedMealKind === 'meal' ? colors.primaryForeground : colors.mutedForeground }]}>Meal</Text></Pressable>
-              <Pressable onPress={() => setSavedMealKind('recipe')} style={[styles.savedKind, { backgroundColor: savedMealKind === 'recipe' ? colors.primary : colors.card, borderColor: savedMealKind === 'recipe' ? colors.primary : colors.border }]}><Text style={[styles.savedKindText, { color: savedMealKind === 'recipe' ? colors.primaryForeground : colors.mutedForeground }]}>Recipe</Text></Pressable>
+              <Pressable accessibilityRole="radio" accessibilityState={{ selected: savedMealKind === 'meal' }} accessibilityLabel="Saved meal type: meal" onPress={() => setSavedMealKind('meal')} style={[styles.savedKind, { backgroundColor: savedMealKind === 'meal' ? colors.primary : colors.card, borderColor: savedMealKind === 'meal' ? colors.primary : colors.border }]}><Text style={[styles.savedKindText, { color: savedMealKind === 'meal' ? colors.primaryForeground : colors.mutedForeground }]}>Meal</Text></Pressable>
+              <Pressable accessibilityRole="radio" accessibilityState={{ selected: savedMealKind === 'recipe' }} accessibilityLabel="Saved meal type: recipe" onPress={() => setSavedMealKind('recipe')} style={[styles.savedKind, { backgroundColor: savedMealKind === 'recipe' ? colors.primary : colors.card, borderColor: savedMealKind === 'recipe' ? colors.primary : colors.border }]}><Text style={[styles.savedKindText, { color: savedMealKind === 'recipe' ? colors.primaryForeground : colors.mutedForeground }]}>Recipe</Text></Pressable>
             </View>
             <TextInput accessibilityLabel="Saved meal name" value={savedMealName} onChangeText={(value) => { setSavedMealName(value); if (savedMealError) setSavedMealError(''); }} placeholder="Name, e.g. Sunday chili" placeholderTextColor={colors.mutedForeground} style={[styles.savedInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: savedMealError ? colors.destructive : colors.input }]} />
             <View style={styles.savedNumbers}>
@@ -1306,15 +1332,15 @@ export default function ProfileScreen() {
               ))}
             </View>
             {!!savedMealError && <Text accessibilityRole="alert" style={[styles.formError, { color: colors.destructive }]}>{savedMealError}</Text>}
-            <Pressable accessibilityLabel="Save meal template" onPress={createSavedMeal} style={[styles.dialogButton, { backgroundColor: colors.primary }]}><Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Save template</Text></Pressable>
-            <Pressable accessibilityLabel="Cancel saved meal" onPress={() => setSavedMealModal(false)} style={styles.dialogSecondaryButton}><Text style={[styles.dialogSecondaryText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Save meal template" onPress={createSavedMeal} style={[styles.dialogButton, { backgroundColor: colors.primary }]}><Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Save template</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Cancel saved meal" onPress={() => setSavedMealModal(false)} style={styles.dialogSecondaryButton}><Text style={[styles.dialogSecondaryText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
           </KeyboardAwareScrollViewCompat>
       </BottomSheet>
 
       {/* ── Saved meal deletion confirmation ── */}
       <Modal visible={savedMealPendingDelete !== null} transparent animationType="fade" onRequestClose={() => setSavedMealPendingDelete(null)}>
         <View style={[styles.dialogBackdrop, { backgroundColor: 'rgba(0,0,0,0.46)' }]}>
-          <View style={[styles.dialogCard, { backgroundColor: colors.card }]}>
+          <View accessibilityViewIsModal style={[styles.dialogCard, { backgroundColor: colors.card }]}>
             <View style={[styles.dialogIcon, { backgroundColor: colors.warning }]}>
               <Feather name="trash-2" size={20} color={colors.foreground} />
             </View>
@@ -1400,6 +1426,7 @@ export default function ProfileScreen() {
                 const icon = item.category === 'hydration' ? 'droplet' : item.category === 'meal' ? 'coffee' : item.category === 'goal' ? 'target' : 'bell';
                 return (
                   <Pressable
+                    accessibilityRole="button"
                     key={item.id}
                     accessibilityLabel={`${item.read ? '' : 'Unread '}${item.title}. ${item.body}`}
                     accessibilityState={{ selected: !item.read }}
@@ -1563,16 +1590,16 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
                 {healthConnection.authorization !== 'unavailable' && !healthConnected && (
-                  <Pressable accessibilityLabel="Connect health data" onPress={handleHealthConnect} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Connect health data" onPress={handleHealthConnect} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
                     {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>{healthConnected ? 'Update access' : 'Connect'}</Text>}
                   </Pressable>
                 )}
-                {healthConnected && (healthConnection.provider === 'healthkit' || healthConnection.granted.includes('activeEnergy')) && (
+                {healthConnected && (
                   <>
-                    <Pressable accessibilityLabel="Sync health data now" onPress={handleHealthSync} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Sync health data now" onPress={handleHealthSync} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
                       {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Sync now</Text>}
                     </Pressable>
-                    <Pressable accessibilityLabel="Disconnect health data" onPress={disconnectHealth} style={[styles.dialogButton, { backgroundColor: colors.muted, marginTop: 10 }]}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Disconnect health data" onPress={disconnectHealth} style={[styles.dialogButton, { backgroundColor: colors.muted, marginTop: 10 }]}>
                       <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Disconnect</Text>
                     </Pressable>
                   </>
@@ -1584,7 +1611,7 @@ export default function ProfileScreen() {
               <>
                 {[
                   { q: 'Why does my calorie ring show 0?', a: 'The ring fills as you log meals. Tap the + button on the Home tab to add your first entry.' },
-                  { q: 'How do I change my calorie target?', a: 'Tap the pencil icon at the top of this page to edit your profile, including your daily calorie target.' },
+                  { q: 'How do I change my calorie target?', a: 'Open the You tab, tap Nutrition goals, then choose Automatic or Custom targets.' },
                   { q: 'Are my notifications actually sent?', a: 'All reminders are scheduled locally on your device. Nothing is transmitted — they fire even in airplane mode.' },
                   { q: 'Can I undo a deleted log entry?', a: 'Deletions from the diary can be undone for a few seconds with the Undo button that appears at the bottom of the screen.' },
                   { q: 'How do I report a problem?', a: 'Use Export your data to capture your local state, then reach out via the feedback channel in the app store listing.' },
@@ -1597,7 +1624,7 @@ export default function ProfileScreen() {
               </>
             )}
 
-            <Pressable accessibilityLabel="Close information sheet" onPress={() => setInfoModal(null)} style={[styles.dialogButton, { backgroundColor: colors.muted, marginTop: 16 }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close information sheet" onPress={() => setInfoModal(null)} style={[styles.dialogButton, { backgroundColor: colors.muted, marginTop: 16 }]}>
               <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Got it</Text>
             </Pressable>
           </ScrollView>

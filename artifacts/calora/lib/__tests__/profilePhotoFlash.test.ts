@@ -701,7 +701,7 @@ describe('real CaloraProvider — transactional notifications and live export', 
     expect(parsed.shoppingItems).toEqual(expect.any(Array));
   });
 
-  it('exports profile, log, and outbox changes from the same call stack', async () => {
+  it('exports profile and diary changes from the same call stack', async () => {
     const { result } = await renderAndAwaitHydration();
     let exported = '';
     await act(async () => {
@@ -718,7 +718,10 @@ describe('real CaloraProvider — transactional notifications and live export', 
     const parsed = JSON.parse(exported);
     expect(parsed.profile.name).toBe('Same Stack User');
     expect(parsed.logs).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Same stack snack' })]));
-    expect(parsed.outbox.length).toBeGreaterThanOrEqual(3);
+    // Profile changes are intentionally local-first until the server supports
+    // profile/settings mutations. Only the diary entry belongs in this sync
+    // outbox.
+    expect(parsed.outbox).toHaveLength(1);
     expect(parsed.consentAccepted).toBe(true);
   });
 

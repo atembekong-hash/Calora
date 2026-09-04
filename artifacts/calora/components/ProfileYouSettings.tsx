@@ -103,13 +103,13 @@ export function ProfileYouSettings({
     <>
       <Text style={[styles.title, { color: themeColors.foreground }]}>Your plan</Text>
       <View style={[styles.card, { backgroundColor: themeColors.card, borderColor: themeColors.border }]}>
-        <Pressable testID="personal-details-settings" onPress={openPersonal} style={styles.row}>
+        <Pressable accessibilityRole="button" testID="personal-details-settings" onPress={openPersonal} style={styles.row}>
           <View style={[styles.icon, { backgroundColor: themeColors.muted }]}><Feather name="user" size={16} color={themeColors.primary} /></View>
           <View style={styles.copy}><Text style={[styles.rowTitle, { color: themeColors.foreground }]}>Personal details</Text><Text style={[styles.rowBody, { color: themeColors.mutedForeground }]}>{profile ? `${profile.age} years · ${profile.activity}` : 'Finish onboarding first'}</Text></View>
           <Feather name="chevron-right" size={18} color={themeColors.mutedForeground} />
         </Pressable>
         <View style={[styles.divider, { backgroundColor: themeColors.border }]} />
-        <Pressable testID="nutrition-goals-settings" onPress={openNutrition} style={styles.row}>
+        <Pressable accessibilityRole="button" testID="nutrition-goals-settings" onPress={openNutrition} style={styles.row}>
           <View style={[styles.icon, { backgroundColor: themeColors.muted }]}><Feather name="target" size={16} color={themeColors.primary} /></View>
           <View style={styles.copy}><Text style={[styles.rowTitle, { color: themeColors.foreground }]}>Nutrition goals</Text><Text style={[styles.rowBody, { color: themeColors.mutedForeground }]}>{targetMode === 'automatic' ? 'Automatic recommendations' : 'Custom calorie and macro targets'}</Text></View>
           <Feather name="chevron-right" size={18} color={themeColors.mutedForeground} />
@@ -147,7 +147,7 @@ export function ProfileYouSettings({
         <KeyboardAwareScrollViewCompat contentContainerStyle={styles.sheet} bottomOffset={72}>
           <Text style={[styles.sheetTitle, { color: themeColors.foreground }]}>Nutrition goals</Text>
           <View style={[styles.mode, { backgroundColor: themeColors.muted }]}>
-            {(['automatic', 'custom'] as const).map((mode) => <Pressable key={mode} onPress={() => mode === 'automatic' ? resetRecommendations() : updateProfile({ targetMode: 'custom' })} style={[styles.modeOption, targetMode === mode && { backgroundColor: themeColors.card }]}><Text style={[styles.modeText, { color: themeColors.foreground }]}>{mode === 'automatic' ? 'Automatic' : 'Custom'}</Text></Pressable>)}
+            {(['automatic', 'custom'] as const).map((mode) => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ selected: targetMode === mode }} onPress={() => mode === 'automatic' ? resetRecommendations() : updateProfile({ targetMode: 'custom' })} style={[styles.modeOption, targetMode === mode && { backgroundColor: themeColors.card }]}><Text style={[styles.modeText, { color: themeColors.foreground }]}>{mode === 'automatic' ? 'Automatic' : 'Custom'}</Text></Pressable>)}
           </View>
           <Text style={[styles.sheetBody, { color: themeColors.mutedForeground }]}>{targetMode === 'automatic' ? `Based on your details: ${profile ? formatWhole(recommendationForProfile(profile)) : 2000} kcal/day.` : 'Set each target independently; grams do not need to match calories.'}</Text>
           {targetMode === 'custom' && <><View style={styles.fields}>
@@ -167,7 +167,7 @@ function Field({ label, value, setValue, colors }: { label: string; value: strin
   return <View style={styles.field}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text><TextInput value={value} onChangeText={setValue} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>;
 }
 function OptionGroup<T extends string>({ label, items, value, onChange, colors }: { label: string; items: { key: T; label: string }[]; value: T; onChange: (next: T) => void; colors: typeof import('@/constants/colors').default.light }) {
-  return <View style={styles.optionGroup}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text><View style={styles.chips}>{items.map((item) => <Pressable key={item.key} onPress={() => onChange(item.key)} style={[styles.chip, { borderColor: value === item.key ? colors.primary : colors.border, backgroundColor: value === item.key ? colors.accent : colors.card }]}><Text style={[styles.chipText, { color: value === item.key ? colors.accentForeground : colors.foreground }]}>{item.label}</Text></Pressable>)}</View></View>;
+  return <View style={styles.optionGroup}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text><View style={styles.chips}>{items.map((item) => <Pressable key={item.key} accessibilityRole="radio" accessibilityState={{ selected: value === item.key }} onPress={() => onChange(item.key)} style={[styles.chip, { borderColor: value === item.key ? colors.primary : colors.border, backgroundColor: value === item.key ? colors.accent : colors.card }]}><Text style={[styles.chipText, { color: value === item.key ? colors.accentForeground : colors.foreground }]}>{item.label}</Text></Pressable>)}</View></View>;
 }
 
 const styles = StyleSheet.create({

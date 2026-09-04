@@ -44,3 +44,10 @@ On native, a bottom sheet with a flexing ScrollView and a fixed footer needs an 
 **Why:** Android can measure a shrink-only sheet from its non-flexing footer when the ScrollView has no intrinsic height, leaving the photo, capture modes, search, and verified options outside the visible sheet.
 
 **How to apply:** Give the affected sheet a bounded height (for example, `96%`), make the keyboard-aware wrapper `flex: 1`, and keep the scroll owner `flex: 1, minHeight: 0`; retain the fixed footer outside that scroll owner.
+
+## Rule
+React Native Web interaction tests should mock animated DOM wrappers without forwarding native style arrays, and production Pressables that are tested as controls should declare an explicit accessibility role.
+
+**Why:** DOM style application can reject React Native's frozen style-array proxy when it reaches a raw mocked `div`, while RNW does not consistently infer a button role from every Pressable configuration.
+
+**How to apply:** Keep the animated mock presentation-only (`children` in a `div`), and add `accessibilityRole="button"` to user-action Pressables whose role is part of the accessibility contract.

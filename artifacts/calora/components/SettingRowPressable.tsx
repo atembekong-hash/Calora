@@ -50,6 +50,7 @@ export function SettingRowPressable({
   return (
     <Pressable
       testID={testID}
+      accessibilityRole="button"
       onPress={onPress}
       disabled={disabled}
       accessibilityState={{ disabled }}
