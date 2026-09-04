@@ -37,3 +37,10 @@ Bottom-sheet content that owns vertical scrolling must be shrinkable (`flexShrin
 **Why:** Native short screens and large text can otherwise let a ScrollView measure at content height, hiding the last control beneath the keyboard or home/navigation inset.
 
 **How to apply:** Keep scrolling in the sheet-specific child rather than the shared frame, add the shrink styles to that child, and use a keyboard-aware variant for editable forms.
+
+## Rule
+On native, a bottom sheet with a flexing ScrollView and a fixed footer needs an explicit sheet height and a flex-filling content wrapper; shrink-only sizing can collapse the sheet to the footer.
+
+**Why:** Android can measure a shrink-only sheet from its non-flexing footer when the ScrollView has no intrinsic height, leaving the photo, capture modes, search, and verified options outside the visible sheet.
+
+**How to apply:** Give the affected sheet a bounded height (for example, `96%`), make the keyboard-aware wrapper `flex: 1`, and keep the scroll owner `flex: 1, minHeight: 0`; retain the fixed footer outside that scroll owner.
