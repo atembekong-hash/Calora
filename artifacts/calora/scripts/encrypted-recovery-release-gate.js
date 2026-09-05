@@ -1,12 +1,79 @@
+const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..');
 const flowPath = path.join('tests', 'device', 'encrypted-recovery.yaml');
+const flowDisplayPath = flowPath.split(path.sep).join('/');
 const targets = [
   { platform: 'iOS', envName: 'CALORA_IOS_DEVICE' },
   { platform: 'Android', envName: 'CALORA_ANDROID_DEVICE' },
 ];
+const evidencePath = process.env.CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH?.trim();
+const platformResults = new Map();
+
+function readAppId() {
+  const flowSource = fs.readFileSync(path.join(projectRoot, flowPath), 'utf8');
+  const appId = flowSource.match(/^appId:\s*(\S+)\s*$/m)?.[1];
+  if (!appId) {
+    throw new Error(
+      `The encrypted-recovery flow does not declare an appId: ${flowDisplayPath}`,
+    );
+  }
+  return appId;
+}
+
+const appId = readAppId();
+
+function buildEvidence(result, failureClass) {
+  return {
+    flow: flowDisplayPath,
+    appId,
+    timestamp: new Date().toISOString(),
+    targets: targets.map(({ platform, envName }) => ({
+      platform,
+      targetId: process.env[envName]?.trim() || null,
+      outcome: platformResults.get(platform)?.outcome || 'not-run',
+      exitCode: platformResults.get(platform)?.exitCode ?? null,
+    })),
+    result,
+    ...(failureClass ? { failureClass } : {}),
+  };
+}
+
+function writeEvidence(evidence) {
+  const serializedEvidence = `${JSON.stringify(evidence)}\n`;
+
+  // The evidence contains only release metadata. It must never contain
+  // Maestro's output, app state, SecureStore keys, or recovery payloads.
+  console.log(
+    `[encrypted-recovery] RELEASE EVIDENCE ${serializedEvidence.trim()}`,
+  );
+
+  if (evidencePath) {
+    const resolvedEvidencePath = path.resolve(projectRoot, evidencePath);
+    fs.mkdirSync(path.dirname(resolvedEvidencePath), {
+      recursive: true,
+      mode: 0o700,
+    });
+    fs.writeFileSync(resolvedEvidencePath, serializedEvidence, { mode: 0o600 });
+    console.log(`[encrypted-recovery] Evidence written to ${resolvedEvidencePath}`);
+  }
+
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    fs.appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      [
+        '## Native encrypted-recovery release evidence',
+        '',
+        '```json',
+        serializedEvidence.trim(),
+        '```',
+        '',
+      ].join('\n'),
+    );
+  }
+}
 
 function printUsage() {
   console.error(
@@ -29,6 +96,7 @@ if (missingTargets.length > 0) {
       .join(', ')}`,
   );
   printUsage();
+  writeEvidence(buildEvidence('failed', 'missing_target_selection'));
   process.exit(1);
 }
 
@@ -41,6 +109,7 @@ if (versionCheck.error) {
     'Maestro is required for the encrypted-recovery release gate but was not found on PATH.',
   );
   console.error('Install Maestro before running this release validation.');
+  writeEvidence(buildEvidence('failed', 'maestro_unavailable'));
   process.exit(1);
 }
 
@@ -61,6 +130,10 @@ for (const { platform, envName } of targets) {
   );
 
   if (result.error || result.status !== 0) {
+    platformResults.set(platform, {
+      outcome: 'failed',
+      exitCode: typeof result.status === 'number' ? result.status : null,
+    });
     failures.push({
       platform,
       device,
@@ -71,6 +144,7 @@ for (const { platform, envName } of targets) {
       `[encrypted-recovery] ${platform} failed for ${device}. Review the migration, tamper, export, account-isolation, and clear-all assertions above.`,
     );
   } else {
+    platformResults.set(platform, { outcome: 'passed', exitCode: 0 });
     console.log(`[encrypted-recovery] ${platform} passed for ${device}`);
   }
 }
@@ -83,7 +157,9 @@ if (failures.length > 0) {
       : `Maestro exited with status ${failure.status}`;
     console.error(`- ${failure.platform} (${failure.device}): ${reason}`);
   }
+  writeEvidence(buildEvidence('failed', 'platform_failure'));
   process.exit(1);
 }
 
+writeEvidence(buildEvidence('passed'));
 console.log('\n[encrypted-recovery] RELEASE GATE PASSED: iOS and Android');

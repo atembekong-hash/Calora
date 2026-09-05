@@ -151,6 +151,25 @@ either target fails. Install the signed Calora build with application ID
 1.40 does not provide a device-list command, so use the native platform tools
 above and do not fabricate IDs or rely on an arbitrary connected device.
 
+The gate prints one `RELEASE EVIDENCE` JSON record after the preflight or native
+runs. The record contains only the flow path, application ID, selected target
+IDs, platform outcomes, safe Maestro exit codes, an overall result, and an ISO
+timestamp. It never captures Maestro output, app state, SecureStore keys, or
+the encrypted recovery export. To preserve the record as a release artifact,
+provide a path in the release runner:
+
+```sh
+CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH="$RUNNER_TEMP/encrypted-recovery-evidence.json" \
+CALORA_IOS_DEVICE="<exact booted iOS device ID>" \
+CALORA_ANDROID_DEVICE="<exact booted Android device ID>" \
+  pnpm test:release:encrypted-recovery
+```
+
+When `GITHUB_STEP_SUMMARY` is available, the same sanitized JSON is appended
+to the workflow summary. A missing target, missing Maestro installation, or
+failed platform writes a failed record when an evidence path is provided and
+keeps the command nonzero.
+
 ## iOS signing preflight
 
 Before queuing a production iOS build, run the read-only signing preflight from
