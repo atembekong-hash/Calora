@@ -91,7 +91,7 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const {
     colors, themePreference, setThemePreference,
-    profile, updateProfile, restartOnboarding,
+    profile, updateProfile,
     healthConnected, healthConnection, connectHealth, syncHealth, disconnectHealth,
     exportData, clearAllData, isClearing, syncState,
     savedMeals, saveMeal, deleteSavedMeal,
@@ -646,23 +646,6 @@ export default function ProfileScreen() {
       : `${formatQuantity(profile.weightKg)} kg`
     : null;
 
-  const requestOnboardingReview = () => {
-    Alert.alert(
-      'Review onboarding?',
-      'Your logs, saved meals, recipes, reminders, and profile data will stay. You can review the setup questions and save your choices when you finish.',
-      [
-        { text: 'Not now', style: 'cancel' },
-        {
-          text: 'Review onboarding',
-          onPress: () => {
-            restartOnboarding();
-            router.replace('/');
-          },
-        },
-      ],
-    );
-  };
-
   // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
@@ -743,29 +726,6 @@ export default function ProfileScreen() {
         >
         <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
         <ProfileYouSettings profile={profile} colors={colors} updateProfile={updateProfile} />
-        <Animated.View entering={enterMotion('screen', 1.5)}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 2, marginBottom: 6 }]}>Getting started</Text>
-        <View style={[styles.onboardingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.onboardingIcon, { backgroundColor: colors.accent }]}>
-            <Feather name="compass" size={18} color={colors.accentForeground} />
-          </View>
-          <View style={styles.onboardingCopy}>
-            <Text style={[styles.settingTitle, { color: colors.foreground }]}>Review your setup</Text>
-            <Text style={[styles.settingBody, { color: colors.mutedForeground }]}>
-              Walk through onboarding again to refresh your goals, activity, and food preferences.
-            </Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Review onboarding"
-            testID="review-onboarding-button"
-            onPress={requestOnboardingReview}
-            style={[styles.onboardingButton, { backgroundColor: colors.primary }]}
-          >
-            <Text style={[styles.onboardingButtonText, { color: colors.primaryForeground }]}>Review</Text>
-          </Pressable>
-        </View>
-        </Animated.View>
         {/* ── Appearance ── */}
         <Animated.View entering={enterMotion('screen', 1)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
@@ -1769,11 +1729,6 @@ function makeStyles(f: number) {
   // Section headings
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.3 },
   sectionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 4, marginBottom: 12 },
-  onboardingCard: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 17, paddingVertical: 12, paddingHorizontal: 13, marginBottom: 26 },
-  onboardingIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  onboardingCopy: { flex: 1, minWidth: 0 },
-  onboardingButton: { borderRadius: 11, paddingHorizontal: 12, paddingVertical: 9 },
-  onboardingButtonText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
 
   // Segmented controls (theme + units)
   segmentedControl: { flexDirection: 'row', gap: 5, borderWidth: StyleSheet.hairlineWidth, padding: 5, borderRadius: 16, marginBottom: 14 },

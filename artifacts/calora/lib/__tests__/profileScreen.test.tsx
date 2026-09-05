@@ -5,7 +5,6 @@
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { Alert } from 'react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HealthSyncOutcome } from '@/context/CaloraContext';
 
@@ -40,7 +39,7 @@ const harness = vi.hoisted(() => {
   };
   const updateNotificationPreferences = vi.fn((updater: any) => updater(notificationPreferences));
   const calora = {
-    colors, themePreference: 'system', setThemePreference: vi.fn(), profile, updateProfile: vi.fn(), restartOnboarding: vi.fn(),
+    colors, themePreference: 'system', setThemePreference: vi.fn(), profile, updateProfile: vi.fn(),
     healthConnected: true, healthConnection: { provider: 'health-connect', authorization: 'partial', granted: ['steps'] },
     connectHealth: vi.fn(async () => undefined),
     syncHealth: vi.fn(async (): Promise<HealthSyncOutcome> => ({ status: 'synced', syncedAt: '2026-09-04T05:00:00.000Z' })),
@@ -103,8 +102,6 @@ vi.mock('@/components/SwipeableTabList', () => ({
 }));
 
 import ProfileScreen from '@/app/(tabs)/profile';
-
-const alertSpy = vi.spyOn(Alert, 'alert');
 
 beforeEach(() => {
   harness.state.tab = undefined;
@@ -199,15 +196,5 @@ describe('Profile rendered interactions', () => {
     await waitFor(() => expect(screen.getByText('Goal check-in')).toBeTruthy());
     expect(screen.getByText('1 unread update')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Unread Goal check-in/ })).toBeTruthy();
-  });
-
-  it('offers a safe onboarding review path from settings', () => {
-    render(<ProfileScreen />);
-    fireEvent.click(screen.getByRole('button', { name: 'Review onboarding' }));
-    expect(alertSpy).toHaveBeenCalledWith(
-      'Review onboarding?',
-      expect.stringContaining('Your logs, saved meals, recipes, reminders, and profile data will stay.'),
-      expect.any(Array),
-    );
   });
 });

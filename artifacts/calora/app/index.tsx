@@ -120,17 +120,17 @@ function OnboardingIllustration({
 }
 
 export default function OnboardingScreen() {
-  const { colors, profile: existingProfile, onboardingComplete, hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying, clearAllData, exportRawStorageData, completeOnboarding } = useCalora();
+  const { colors, onboardingComplete, hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying, clearAllData, exportRawStorageData, completeOnboarding } = useCalora();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
-  const [goal, setGoal] = useState<Goal>(() => existingProfile?.goal ?? 'lose');
-  const [activity, setActivity] = useState<ActivityLevel>(() => existingProfile?.activity ?? 'moderate');
-  const [diet, setDiet] = useState<DietPreference>(() => existingProfile?.diet ?? 'Everything');
-  const [name, setName] = useState(() => existingProfile?.name ?? '');
-  const [age, setAge] = useState(() => String(existingProfile?.age ?? 31));
-  const [height, setHeight] = useState(() => String(existingProfile?.heightCm ?? 172));
-  const [weight, setWeight] = useState(() => String(existingProfile?.weightKg ?? 76));
-  const [targetWeight, setTargetWeight] = useState(() => String(existingProfile?.targetWeightKg ?? 68));
+  const [goal, setGoal] = useState<Goal>('lose');
+  const [activity, setActivity] = useState<ActivityLevel>('moderate');
+  const [diet, setDiet] = useState<DietPreference>('Everything');
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('31');
+  const [height, setHeight] = useState('172');
+  const [weight, setWeight] = useState('76');
+  const [targetWeight, setTargetWeight] = useState('68');
   const [consent, setConsent] = useState(false);
   const [personalDetailsError, setPersonalDetailsError] = useState('');
 
