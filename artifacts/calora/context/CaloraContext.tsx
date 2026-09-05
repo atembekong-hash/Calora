@@ -362,6 +362,8 @@ type CaloraContextValue = {
   toggleSavedRecipe: (recipeId: string) => void;
   setThemePreference: (preference: ThemePreference) => void;
   completeOnboarding: (profile: Profile, consentAccepted: boolean) => void;
+  /** Reopen onboarding without deleting the existing profile or account data. */
+  restartOnboarding: () => void;
   updateProfile: (patch: Partial<Profile>) => void;
   setHealthConnected: (connected: boolean) => void;
   connectHealth: () => Promise<HealthConnection>;
@@ -1545,6 +1547,10 @@ export function CaloraProvider({
       setOnboardingComplete(true);
       queueMutation('profile', 'upsert');
     },
+     restartOnboarding: () => {
+       patchExportSnapshot({ onboardingComplete: false });
+       setOnboardingComplete(false);
+     },
     updateProfile: (patch) => {
       profileRef.current = profileRef.current ? { ...profileRef.current, ...patch } : null;
       setProfile(profileRef.current);
