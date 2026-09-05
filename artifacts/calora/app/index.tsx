@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -16,7 +16,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Redirect } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useCalora, ActivityLevel, DietPreference, Goal, Profile } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
 import { formatWhole } from '@/lib/formatters';
@@ -120,19 +120,53 @@ function OnboardingIllustration({
 }
 
 export default function OnboardingScreen() {
-  const { colors, onboardingComplete, hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying, clearAllData, exportRawStorageData, completeOnboarding } = useCalora();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const {
+    colors,
+    onboardingComplete,
+    profile: existingProfile,
+    hydrated,
+    hydrationError,
+    hydrationErrorKind,
+    retryHydration,
+    isRetrying,
+    clearAllData,
+    exportRawStorageData,
+    completeOnboarding,
+  } = useCalora();
   const insets = useSafeAreaInsets();
+  const isReviewMode = mode === 'review' && onboardingComplete && !!existingProfile;
   const [step, setStep] = useState(0);
-  const [goal, setGoal] = useState<Goal>('lose');
-  const [activity, setActivity] = useState<ActivityLevel>('moderate');
-  const [diet, setDiet] = useState<DietPreference>('Everything');
-  const [name, setName] = useState('');
-  const [age, setAge] = useState('31');
-  const [height, setHeight] = useState('172');
-  const [weight, setWeight] = useState('76');
-  const [targetWeight, setTargetWeight] = useState('68');
-  const [consent, setConsent] = useState(false);
+  const [goal, setGoal] = useState<Goal>(() => existingProfile?.goal ?? 'lose');
+  const [activity, setActivity] = useState<ActivityLevel>(() => existingProfile?.activity ?? 'moderate');
+  const [diet, setDiet] = useState<DietPreference>(() => existingProfile?.diet ?? 'Everything');
+  const [name, setName] = useState(() => existingProfile?.name ?? '');
+  const [age, setAge] = useState(() => String(existingProfile?.age ?? 31));
+  const [height, setHeight] = useState(() => String(existingProfile?.heightCm ?? 172));
+  const [weight, setWeight] = useState(() => String(existingProfile?.weightKg ?? 76));
+  const [targetWeight, setTargetWeight] = useState(() => String(existingProfile?.targetWeightKg ?? 68));
+  // A completed onboarding flow has already accepted this review step. Keep it
+  // selected in review mode, while a first-run flow still requires the tap.
+  const [consent, setConsent] = useState(isReviewMode);
   const [personalDetailsError, setPersonalDetailsError] = useState('');
+  const reviewSeededRef = useRef(false);
+
+  // Hydration can finish after this route first mounts. Seed review fields once
+  // at that boundary so the review form never replaces saved values with the
+  // first-run defaults.
+  useEffect(() => {
+    if (!hydrated || !isReviewMode || reviewSeededRef.current || !existingProfile) return;
+    reviewSeededRef.current = true;
+    setGoal(existingProfile.goal);
+    setActivity(existingProfile.activity);
+    setDiet(existingProfile.diet);
+    setName(existingProfile.name);
+    setAge(String(existingProfile.age));
+    setHeight(String(existingProfile.heightCm));
+    setWeight(String(existingProfile.weightKg));
+    setTargetWeight(String(existingProfile.targetWeightKg));
+    setConsent(true);
+  }, [existingProfile, hydrated, isReviewMode]);
 
   const validatedPersonalDetails = useMemo(() => validatePersonalDetails({
     age, height, weight, targetWeight, activity, diet, goal,
@@ -168,6 +202,7 @@ export default function OnboardingScreen() {
       targetMode: 'automatic',
     };
     completeOnboarding(profile, consent);
+    if (isReviewMode) router.replace('/(tabs)/profile');
   };
 
   const next = () => {
@@ -279,7 +314,7 @@ export default function OnboardingScreen() {
     );
   }
 
-  if (onboardingComplete) return <Redirect href="/(tabs)" />;
+  if (onboardingComplete && !isReviewMode) return <Redirect href="/(tabs)" />;
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>

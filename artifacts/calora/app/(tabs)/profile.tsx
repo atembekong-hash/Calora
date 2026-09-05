@@ -91,7 +91,7 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const {
     colors, themePreference, setThemePreference,
-    profile, updateProfile,
+    profile, onboardingComplete, updateProfile,
     healthConnected, healthConnection, connectHealth, syncHealth, disconnectHealth,
     exportData, clearAllData, isClearing, syncState,
     savedMeals, saveMeal, deleteSavedMeal,
@@ -695,6 +695,31 @@ export default function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
+        <Animated.View entering={enterMotion('screen', 1)} style={[styles.onboardingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.onboardingIcon, { backgroundColor: colors.accent }]}>
+            <Feather name="compass" size={18} color={colors.primary} />
+          </View>
+          <View style={styles.onboardingCopy}>
+            <Text style={[styles.onboardingTitle, { color: colors.foreground }]}>Onboarding</Text>
+            <Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>
+              {onboardingComplete
+                ? 'Your starting preferences are saved. Review them anytime.'
+                : 'Finish setup to personalize your plan.'}
+            </Text>
+          </View>
+          {onboardingComplete && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Review onboarding"
+              testID="review-onboarding"
+              onPress={() => router.push({ pathname: '/', params: { mode: 'review' } })}
+              style={[styles.onboardingButton, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.onboardingButtonText, { color: colors.primaryForeground }]}>Review</Text>
+            </Pressable>
+          )}
+        </Animated.View>
+
         <SwipeableTabList
           items={PROFILE_TABS}
           activeItem={profileTab}
@@ -727,7 +752,7 @@ export default function ProfileScreen() {
         <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
         <ProfileYouSettings profile={profile} colors={colors} updateProfile={updateProfile} />
         {/* ── Appearance ── */}
-        <Animated.View entering={enterMotion('screen', 1)}>
+        <Animated.View entering={enterMotion('screen', 2)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Appearance</Text>
         <View style={[styles.segmentedControl, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {themes.map((theme) => {
@@ -743,7 +768,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Text size */}
-        <Animated.View entering={enterMotion('screen', 2)}>
+        <Animated.View entering={enterMotion('screen', 3)}>
         <View style={[styles.unitsRow, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 14 }]}>
           <View style={[styles.settingIcon, { backgroundColor: colors.muted }]}>
             <Feather name="type" size={16} color={colors.primary} />
@@ -788,7 +813,7 @@ export default function ProfileScreen() {
 
         <View style={profileTab === 'you' ? undefined : styles.hiddenSection}>
         {/* ── Reminders ── */}
-        <Animated.View entering={enterMotion('screen', 3)}>
+        <Animated.View entering={enterMotion('screen', 4)}>
         <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 16, marginBottom: 6 }]}>Reminders</Text>
 
         {/* Delivery controls keep each category's desired settings intact while paused. */}
@@ -1718,6 +1743,13 @@ function makeStyles(f: number) {
 
   // Profile card
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 23, padding: 16, marginBottom: 30 },
+  onboardingCard: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 18, padding: 13, marginTop: -16, marginBottom: 26 },
+  onboardingIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  onboardingCopy: { flex: 1 },
+  onboardingTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+  onboardingBody: { fontFamily: 'Inter_400Regular', fontSize: 11, lineHeight: 16, marginTop: 3 },
+  onboardingButton: { borderRadius: 11, paddingHorizontal: 12, paddingVertical: 9 },
+  onboardingButtonText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
   largeAvatar: { width: 47, height: 47, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
   largeAvatarText: { fontFamily: 'Inter_700Bold', fontSize: 19 * f },
   editAvatarWrap: { alignSelf: 'center', marginBottom: 20, position: 'relative' },

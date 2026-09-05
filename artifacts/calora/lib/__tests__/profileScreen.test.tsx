@@ -39,7 +39,7 @@ const harness = vi.hoisted(() => {
   };
   const updateNotificationPreferences = vi.fn((updater: any) => updater(notificationPreferences));
   const calora = {
-    colors, themePreference: 'system', setThemePreference: vi.fn(), profile, updateProfile: vi.fn(),
+     colors, themePreference: 'system', setThemePreference: vi.fn(), profile, onboardingComplete: true, updateProfile: vi.fn(),
     healthConnected: true, healthConnection: { provider: 'health-connect', authorization: 'partial', granted: ['steps'] },
     connectHealth: vi.fn(async () => undefined),
     syncHealth: vi.fn(async (): Promise<HealthSyncOutcome> => ({ status: 'synced', syncedAt: '2026-09-04T05:00:00.000Z' })),
@@ -132,6 +132,13 @@ beforeEach(() => {
 });
 
 describe('Profile rendered interactions', () => {
+  it('offers a review path for completed onboarding without changing data first', () => {
+    render(<ProfileScreen />);
+    expect(screen.getByText('Your starting preferences are saved. Review them anytime.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Review onboarding' }));
+    expect(harness.router.push).toHaveBeenCalledWith({ pathname: '/', params: { mode: 'review' } });
+  });
+
   it('switches between You, Membership, and Account tabs', () => {
     render(<ProfileScreen />);
     expect(screen.getByText('Your plan')).toBeTruthy();
