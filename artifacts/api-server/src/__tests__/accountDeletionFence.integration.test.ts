@@ -7,6 +7,13 @@ import {
 } from "../lib/account-deletion-state.js";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
+const DATABASE_REQUIRED =
+  process.env.ACCOUNT_DELETION_FENCE_REQUIRE_DATABASE === "true";
+if (DATABASE_REQUIRED && !HAS_DB) {
+  throw new Error(
+    "DATABASE_URL must be set when account-deletion fence database verification is required.",
+  );
+}
 const EXPECTED_FENCED_TABLES = [
   "calora_capture_rate_limits",
   "calora_referral_codes",
@@ -35,7 +42,7 @@ describe("account deletion fence classification", () => {
   });
 });
 
-describe.skipIf(!HAS_DB)(
+describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
   "account deletion database fence (real schema)",
   () => {
     let pool: (typeof import("@workspace/db"))["pool"];
@@ -198,7 +205,7 @@ describe.skipIf(!HAS_DB)(
   },
 );
 
-describe.skipIf(!HAS_DB)(
+describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
   "account deletion fence provisioning (disposable schema)",
   () => {
     it("creates enabled INSERT/UPDATE fence triggers on every expected fresh-schema table", async () => {
@@ -265,9 +272,17 @@ describe.skipIf(!HAS_DB)(
           })),
         );
       } finally {
-        await client.query("RESET search_path");
-        await client.query(`DROP SCHEMA IF EXISTS ${quotedSchemaName} CASCADE`);
-        client.release();
+        try {
+          await client.query("RESET search_path");
+        } finally {
+          try {
+            await client.query(
+              `DROP SCHEMA IF EXISTS ${quotedSchemaName} CASCADE`,
+            );
+          } finally {
+            client.release();
+          }
+        }
       }
     });
   },
