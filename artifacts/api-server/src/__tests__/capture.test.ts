@@ -675,6 +675,47 @@ describe('POST /v1/capture/analyze', () => {
       expect(res.body.components.length).toBeGreaterThan(0);
     });
 
+    it('returns the server-issued session ID after an authenticated capture is saved', async () => {
+      const userId = 'capture-success-user';
+      const email = 'capture-success@example.com';
+      const clientSessionId = 'client-fallback-session';
+      const sessionInsert = {
+        values: vi.fn().mockResolvedValue(undefined),
+      };
+      const candidateInsert = {
+        values: vi.fn().mockResolvedValue(undefined),
+      };
+
+      vi.mocked(verifyBearerToken).mockResolvedValueOnce({ id: userId, email });
+      mockInsert.mockReturnValueOnce(sessionInsert).mockReturnValueOnce(candidateInsert);
+      vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({
+        choices: [{ message: { content: aiJsonResponse() } }],
+      } as any);
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({
+          mode: 'text',
+          textInput: 'a bowl of oatmeal with berries',
+          clientSessionId,
+        })
+        .set('Authorization', 'Bearer valid-token')
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(200);
+      expect(mockInsert).toHaveBeenCalledTimes(2);
+      expect(sessionInsert.values).toHaveBeenCalledTimes(1);
+      expect(candidateInsert.values).toHaveBeenCalledTimes(1);
+
+      const sessionValues = sessionInsert.values.mock.calls[0][0] as { id: string };
+      expect(sessionValues.id).toEqual(expect.any(String));
+      expect(res.body.sessionId).toBe(sessionValues.id);
+      expect(res.body.sessionId).not.toBe(clientSessionId);
+      expect(candidateInsert.values).toHaveBeenCalledWith([
+        expect.objectContaining({ sessionId: sessionValues.id }),
+      ]);
+    });
+
     it('response components include all required fields', async () => {
       (openai.chat.completions.create as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         choices: [{ message: { content: aiJsonResponse() } }],
