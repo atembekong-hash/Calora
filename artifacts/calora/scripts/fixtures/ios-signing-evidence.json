@@ -1,0 +1,230 @@
+[
+  {
+    "name": "passed EAS record",
+    "args": [],
+    "responses": [
+      {
+        "status": 200,
+        "body": {
+          "data": {
+            "account": {
+              "byName": {
+                "appleAppIdentifiers": [{ "id": "fixture-apple-identifier" }]
+              }
+            }
+          }
+        }
+      },
+      {
+        "status": 200,
+        "body": {
+          "data": {
+            "app": {
+              "byFullName": {
+                "iosAppCredentials": [
+                  {
+                    "iosAppBuildCredentialsList": [
+                      {
+                        "distributionCertificate": {
+                          "validityNotBefore": "2026-01-01T00:00:00.000Z",
+                          "validityNotAfter": "2027-01-01T00:00:00.000Z"
+                        },
+                        "provisioningProfile": {
+                          "expiration": "2027-01-01T00:00:00.000Z",
+                          "status": "ACTIVE"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ],
+    "easCli": {
+      "status": 0,
+      "stdout": "raw-eas-output Bearer fixture-eas-token certificatePassword=fixture-certificate-password\n-----BEGIN PRIVATE KEY-----fixture-private-key-----END PRIVATE KEY-----\n",
+      "stderr": ""
+    },
+    "expected": {
+      "exitCode": 0,
+      "result": "passed",
+      "failureClass": null,
+      "summaryLines": [
+        "[ios-signing] RELEASE PREFLIGHT PASSED",
+        "[ios-signing] App Store distribution certificate ready for @vvault07/calora (com.etiendem.caloraapp).",
+        "[ios-signing] Certificate expires: 2027-01-01",
+        "[ios-signing] Provisioning profile expires: 2027-01-01",
+        "[ios-signing] This result validates the EAS record only; Apple-side state requires the macOS rehearsal.",
+        "[ios-signing] No build was started. Run pnpm build:ios:production to queue the signed build."
+      ]
+    },
+    "sensitiveValues": [
+      "raw-eas-output",
+      "fixture-eas-token",
+      "fixture-certificate-password",
+      "fixture-private-key"
+    ]
+  },
+  {
+    "name": "missing EAS record",
+    "args": [],
+    "responses": [
+      {
+        "status": 200,
+        "body": {
+          "data": {
+            "account": {
+              "byName": {
+                "appleAppIdentifiers": []
+              }
+            }
+          }
+        }
+      }
+    ],
+    "expected": {
+      "exitCode": 1,
+      "result": "failed",
+      "failureClass": "EAS_RECORD",
+      "summaryLines": [
+        "[ios-signing] RELEASE PREFLIGHT FAILED",
+        "[ios-signing] Failure class: EAS_RECORD",
+        "[ios-signing] No App Store iOS build credentials are assigned to this app.",
+        "[ios-signing] App: com.etiendem.caloraapp",
+        "[ios-signing] Repair interactively with: eas credentials --platform ios (choose \"Build Credentials: Manage everything needed to build your project\", then \"All: Set up all the required credentials to build your project\"; if needed, use \"Distribution Certificate: Use an existing one for your project\" or \"Distribution Certificate: Add a new one to your account\")",
+        "[ios-signing] EAS credential guide: https://docs.expo.dev/app-signing/app-credentials/",
+        "[ios-signing] Do not paste certificates, passwords, or tokens into chat or logs."
+      ]
+    },
+    "sensitiveValues": []
+  },
+  {
+    "name": "Apple certificate rejection",
+    "args": ["--queue-build"],
+    "responses": [
+      {
+        "status": 200,
+        "body": {
+          "data": {
+            "account": {
+              "byName": {
+                "appleAppIdentifiers": [{ "id": "fixture-apple-identifier" }]
+              }
+            }
+          }
+        }
+      },
+      {
+        "status": 200,
+        "body": {
+          "data": {
+            "app": {
+              "byFullName": {
+                "iosAppCredentials": [
+                  {
+                    "iosAppBuildCredentialsList": [
+                      {
+                        "distributionCertificate": {
+                          "validityNotBefore": "2026-01-01T00:00:00.000Z",
+                          "validityNotAfter": "2027-01-01T00:00:00.000Z"
+                        },
+                        "provisioningProfile": {
+                          "expiration": "2027-01-01T00:00:00.000Z",
+                          "status": "ACTIVE"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ],
+    "easCli": {
+      "status": 17,
+      "stdout": "raw-eas-output certificatePassword=fixture-certificate-password\n",
+      "stderr": "Apple Developer rejected the distribution certificate because it was revoked. Bearer fixture-eas-token\n"
+    },
+    "expected": {
+      "exitCode": 17,
+      "result": "failed",
+      "failureClass": "APPLE_CERTIFICATE_STATE",
+      "summaryLines": [
+        "[ios-signing] RELEASE PREFLIGHT PASSED",
+        "[ios-signing] App Store distribution certificate ready for @vvault07/calora (com.etiendem.caloraapp).",
+        "[ios-signing] Certificate expires: 2027-01-01",
+        "[ios-signing] Provisioning profile expires: 2027-01-01",
+        "[ios-signing] This result validates the EAS record only; Apple-side state requires the macOS rehearsal.",
+        "[ios-signing] Credentials are ready; queuing the current revision with EAS...",
+        "[ios-signing] RELEASE PREFLIGHT FAILED",
+        "[ios-signing] Failure class: APPLE_CERTIFICATE_STATE",
+        "[ios-signing] EAS reached the Apple signing step, but Apple rejected or invalidated the distribution certificate or provisioning profile.",
+        "[ios-signing] App: com.etiendem.caloraapp",
+        "[ios-signing] Repair interactively with: eas credentials --platform ios (choose \"Build Credentials: Manage everything needed to build your project\", then \"All: Set up all the required credentials to build your project\"; if needed, use \"Distribution Certificate: Use an existing one for your project\" or \"Distribution Certificate: Add a new one to your account\")",
+        "[ios-signing] EAS credential guide: https://docs.expo.dev/app-signing/app-credentials/",
+        "[ios-signing] Do not paste certificates, passwords, or tokens into chat or logs."
+      ]
+    },
+    "sensitiveValues": [
+      "raw-eas-output",
+      "fixture-eas-token",
+      "fixture-certificate-password"
+    ]
+  },
+  {
+    "name": "EAS service failure",
+    "args": [],
+    "responses": [
+      {
+        "status": 503,
+        "body": {
+          "errors": [
+            {
+              "message": "credentials service unavailable certificatePassword=fixture-certificate-password Bearer fixture-eas-token"
+            }
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "exitCode": 1,
+      "result": "failed",
+      "failureClass": "EAS_SERVICE",
+      "summaryLines": [
+        "[ios-signing] RELEASE PREFLIGHT FAILED",
+        "[ios-signing] Failure class: EAS_SERVICE",
+        "[ios-signing] Could not read the EAS iOS signing record: credentials service unavailable certificatePassword=[redacted] Bearer [redacted]",
+        "[ios-signing] App: com.etiendem.caloraapp",
+        "[ios-signing] Repair interactively with: eas credentials --platform ios (choose \"Build Credentials: Manage everything needed to build your project\", then \"All: Set up all the required credentials to build your project\"; if needed, use \"Distribution Certificate: Use an existing one for your project\" or \"Distribution Certificate: Add a new one to your account\")",
+        "[ios-signing] EAS credential guide: https://docs.expo.dev/app-signing/app-credentials/",
+        "[ios-signing] Do not paste certificates, passwords, or tokens into chat or logs."
+      ]
+    },
+    "sensitiveValues": ["fixture-eas-token", "fixture-certificate-password"]
+  },
+  {
+    "name": "non-macOS host",
+    "args": ["--apple-rehearsal"],
+    "responses": [],
+    "expected": {
+      "exitCode": 1,
+      "result": "failed",
+      "failureClass": "HOST_PLATFORM",
+      "summaryLines": [
+        "[ios-signing] RELEASE PREFLIGHT FAILED",
+        "[ios-signing] Failure class: HOST_PLATFORM",
+        "[ios-signing] The Apple certificate rehearsal must run on macOS so the release environment matches the native signing host.",
+        "[ios-signing] App: com.etiendem.caloraapp",
+        "[ios-signing] Repair interactively with: eas credentials --platform ios (choose \"Build Credentials: Manage everything needed to build your project\", then \"All: Set up all the required credentials to build your project\"; if needed, use \"Distribution Certificate: Use an existing one for your project\" or \"Distribution Certificate: Add a new one to your account\")",
+        "[ios-signing] EAS credential guide: https://docs.expo.dev/app-signing/app-credentials/",
+        "[ios-signing] Do not paste certificates, passwords, or tokens into chat or logs."
+      ]
+    },
+    "sensitiveValues": []
+  }
+]
