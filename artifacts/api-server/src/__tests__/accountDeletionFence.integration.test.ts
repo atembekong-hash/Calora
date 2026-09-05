@@ -48,7 +48,39 @@ describe.skipIf(!HAS_DB)("account deletion database fence (real schema)", () => 
     pool = (await import("@workspace/db")).pool;
     await pool.query(
       `INSERT INTO calora_account_deletion_states (identity_fingerprint, state)
-       VALUES (encode(digest($1, 'sha256'), 'hex'), 'deleting')`,
+       VALUES (encode(digest($1, 'sha256'), 'hex'), 'active')`,
+      [externalUserId],
+    );
+
+    await pool.query(
+      `INSERT INTO calora_users (external_id, email) VALUES ($1, $2)`,
+      [externalUserId, `${externalUserId}@example.com`],
+    );
+    await pool.query(
+      `INSERT INTO calora_referral_codes (user_id, code) VALUES ($1, $2)`,
+      [externalUserId, referralCode],
+    );
+    await pool.query(
+      `INSERT INTO calora_referral_redemptions
+         (code, referrer_user_id, referred_user_id)
+       VALUES ($1, $2, $3)`,
+      [referralCode, externalUserId, referredUserId],
+    );
+    await pool.query(
+      `INSERT INTO calora_referral_qualifications
+         (external_user_id, capture_session_id, expires_at)
+       VALUES ($1, $2, now() + interval '1 hour')`,
+      [externalUserId, qualificationSessionId],
+    );
+    await pool.query(
+      `INSERT INTO calora_capture_rate_limits (key, count, reset_at)
+       VALUES ($1, 1, now() + interval '1 minute')`,
+      [rateLimitKey],
+    );
+    await pool.query(
+      `UPDATE calora_account_deletion_states
+       SET state = 'deleting'
+       WHERE identity_fingerprint = encode(digest($1, 'sha256'), 'hex')`,
       [externalUserId],
     );
 
@@ -84,6 +116,43 @@ describe.skipIf(!HAS_DB)("account deletion database fence (real schema)", () => 
       pool.query(
         `INSERT INTO calora_capture_rate_limits (key, count, reset_at)
          VALUES ($1, 1, now() + interval '1 minute')`,
+        [rateLimitKey],
+      ),
+    );
+
+    await expectDeletionFence(
+      pool.query(
+        `UPDATE calora_users SET email = $2 WHERE external_id = $1`,
+        [externalUserId, `${externalUserId}+updated@example.com`],
+      ),
+    );
+    await expectDeletionFence(
+      pool.query(
+        `UPDATE calora_referral_codes SET code = $2 WHERE user_id = $1`,
+        [externalUserId, `${referralCode}-UPDATED`],
+      ),
+    );
+    await expectDeletionFence(
+      pool.query(
+        `UPDATE calora_referral_redemptions
+         SET status = 'rewarded'
+         WHERE referrer_user_id = $1 AND referred_user_id = $2`,
+        [externalUserId, referredUserId],
+      ),
+    );
+    await expectDeletionFence(
+      pool.query(
+        `UPDATE calora_referral_qualifications
+         SET expires_at = now() + interval '2 hours'
+         WHERE external_user_id = $1 AND capture_session_id = $2`,
+        [externalUserId, qualificationSessionId],
+      ),
+    );
+    await expectDeletionFence(
+      pool.query(
+        `UPDATE calora_capture_rate_limits
+         SET count = 2
+         WHERE key = $1`,
         [rateLimitKey],
       ),
     );
