@@ -4,6 +4,7 @@ on:
   schedule:
     - cron: "17 4 * * *"
   workflow_dispatch:
+  deployment_status:
 
 permissions:
   contents: read
@@ -11,6 +12,7 @@ permissions:
 jobs:
   verify:
     name: Verify production Universal Links and App Links
+    if: github.event_name != 'deployment_status'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -28,3 +30,50 @@ jobs:
 
       - name: Verify production association files
         run: node scripts/monitor-native-associations.mjs
+
+  verify-production-release:
+    name: Verify published production API release
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'deployment_status' &&
+        github.event.deployment_status.state == 'success' &&
+        github.event.deployment.environment == 'production'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PUBLIC_VERIFY_ORIGIN: https://calorie-coach-pie35449.replit.app
+      PUBLIC_CANONICAL_ORIGIN: https://calorie-coach-pie35449.replit.app
+      APPLE_TEAM_ID: ${{ secrets.CALORA_APPLE_TEAM_ID }}
+      ANDROID_SHA256_FINGERPRINT: ${{ secrets.CALORA_ANDROID_SHA256_FINGERPRINT }}
+    steps:
+      - name: Check out published source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'deployment_status' && github.event.deployment.sha || github.sha }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Verify published API release
+        run: |
+          set -o pipefail
+          pnpm --filter @workspace/api-server run verify:public-release 2>&1 | tee production-release-verification.txt
+
+      - name: Upload release verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release-verification
+          path: production-release-verification.txt
+          if-no-files-found: error
+          retention-days: 30
