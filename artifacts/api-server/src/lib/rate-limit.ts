@@ -19,6 +19,7 @@
 
 import { pool } from "@workspace/db";
 import { logger } from "./logger.js";
+import { classifyAccountDeletionError } from "./account-deletion-state.js";
 
 export type RateLimitResult = {
   allowed: boolean;
@@ -35,7 +36,7 @@ export async function checkRateLimit(
   key: string,
   limit: number,
   windowSecs: number,
-  options?: { failClosed?: boolean },
+  options?: { failClosed?: boolean; rethrowAccountDeletionFence?: boolean },
 ): Promise<RateLimitResult> {
   try {
     const result = await pool.query<{ count: number; reset_at: Date }>(
@@ -65,6 +66,9 @@ export async function checkRateLimit(
 
     return { allowed: true, retryAfterSecs: 0 };
   } catch (err) {
+    if (options?.rethrowAccountDeletionFence && classifyAccountDeletionError(err)) {
+      throw err;
+    }
     if (options?.failClosed) {
       // Fail closed — anonymous paid-AI paths must never run unmetered.
       logger.error(

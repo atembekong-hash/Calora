@@ -27,6 +27,10 @@ import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 import { normalizeImageMetadata } from "../lib/image-metadata.js";
 import { logger } from "../lib/logger.js";
+import {
+  accountDeletionFenceSignal,
+  classifyAccountDeletionError,
+} from "../lib/account-deletion-state.js";
 
 const router: IRouter = Router();
 
@@ -167,43 +171,65 @@ router.get("/v1/diary", async (req, res) => {
 });
 
 router.post("/v1/diary", async (req, res) => {
-  const auth = await verifyBearerToken(req);
-  if (!auth) return res.status(401).json({ message: "Please sign in to save a diary entry." });
-  const parsed = CreateDiaryEntryBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid diary entry" });
-  const entry = parsed.data;
-  const userId = await ensureUserRow(auth.id, auth.email);
-  // Image metadata is optional and provider/user supplied — re-validate it
-  // here (never trust the Zod url() alone) so only trusted absolute HTTPS URLs
-  // are persisted and a source label without a URL is dropped.
-  const image = normalizeImageMetadata(entry.imageUrl, entry.imageSource);
-  const values: typeof diaryEntriesTable.$inferInsert = {
-    userId,
-    entryDate: entry.entryDate.toISOString().slice(0, 10),
-    meal: entry.meal,
-    name: entry.name,
-    serving: entry.serving,
-    calories: String(entry.calories),
-    proteinG: String(entry.proteinG),
-    carbsG: String(entry.carbsG),
-    fatG: String(entry.fatG),
-    provenance: entry.provenance,
-    confidence: entry.confidence,
-    notes: entry.notes ?? null,
-    imageUrl: image.imageUrl,
-    imageSource: image.imageSource,
-    clientUpdatedAt: entry.clientUpdatedAt,
-  };
-  const [created] = await db.insert(diaryEntriesTable).values(values).returning();
-  return res.status(201).json(serialize(created));
+  try {
+    const auth = await verifyBearerToken(req);
+    if (!auth) return res.status(401).json({ message: "Please sign in to save a diary entry." });
+    const parsed = CreateDiaryEntryBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid diary entry" });
+    const entry = parsed.data;
+    const userId = await ensureUserRow(auth.id, auth.email);
+    // Image metadata is optional and provider/user supplied — re-validate it
+    // here (never trust the Zod url() alone) so only trusted absolute HTTPS URLs
+    // are persisted and a source label without a URL is dropped.
+    const image = normalizeImageMetadata(entry.imageUrl, entry.imageSource);
+    const values: typeof diaryEntriesTable.$inferInsert = {
+      userId,
+      entryDate: entry.entryDate.toISOString().slice(0, 10),
+      meal: entry.meal,
+      name: entry.name,
+      serving: entry.serving,
+      calories: String(entry.calories),
+      proteinG: String(entry.proteinG),
+      carbsG: String(entry.carbsG),
+      fatG: String(entry.fatG),
+      provenance: entry.provenance,
+      confidence: entry.confidence,
+      notes: entry.notes ?? null,
+      imageUrl: image.imageUrl,
+      imageSource: image.imageSource,
+      clientUpdatedAt: entry.clientUpdatedAt,
+    };
+    const [created] = await db.insert(diaryEntriesTable).values(values).returning();
+    return res.status(201).json(serialize(created));
+  } catch (err) {
+    if (classifyAccountDeletionError(err)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/diary"),
+        "Account deletion fence rejected diary write",
+      );
+      return res.status(503).json({ message: "Diary is unavailable right now. Please try again later." });
+    }
+    throw err;
+  }
 });
 
 router.delete("/v1/diary/:entryId", async (req, res) => {
-  const auth = await verifyBearerToken(req);
-  if (!auth) return res.status(401).json({ message: "Please sign in to delete a diary entry." });
-  const userId = await ensureUserRow(auth.id, auth.email);
-  await db.delete(diaryEntriesTable).where(and(eq(diaryEntriesTable.id, req.params.entryId), eq(diaryEntriesTable.userId, userId)));
-  return res.status(204).send();
+  try {
+    const auth = await verifyBearerToken(req);
+    if (!auth) return res.status(401).json({ message: "Please sign in to delete a diary entry." });
+    const userId = await ensureUserRow(auth.id, auth.email);
+    await db.delete(diaryEntriesTable).where(and(eq(diaryEntriesTable.id, req.params.entryId), eq(diaryEntriesTable.userId, userId)));
+    return res.status(204).send();
+  } catch (err) {
+    if (classifyAccountDeletionError(err)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/diary/:entryId"),
+        "Account deletion fence rejected diary deletion",
+      );
+      return res.status(503).json({ message: "Diary entry could not be deleted right now. Please try again later." });
+    }
+    throw err;
+  }
 });
 
 // ── POST /v1/diary/first-log ────────────────────────────────────────────────
@@ -329,6 +355,14 @@ router.post("/v1/diary/first-log", async (req, res) => {
 
     res.json({ synced: true, alreadyExisted: false });
   } catch (err) {
+    if (classifyAccountDeletionError(err)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/diary/first-log"),
+        "Account deletion fence rejected diary first-log",
+      );
+      res.status(503).json({ message: "Diary sync is unavailable right now. Please try again later." });
+      return;
+    }
     logger.error({ err }, "First diary log sync failed");
     res.status(503).json({ message: "Diary sync is unavailable right now. Please try again later." });
   }

@@ -15,6 +15,14 @@ const ACCOUNT_DELETION_FENCE_MESSAGE = "account deletion is in progress";
 
 const LEASE_SECONDS = 5 * 60;
 
+export function accountDeletionFenceSignal(route: string, count = 1) {
+  return {
+    errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+    route,
+    count,
+  };
+}
+
 export interface RecoverableAccountDeletion {
   externalUserId: string;
   identityFingerprint: string;

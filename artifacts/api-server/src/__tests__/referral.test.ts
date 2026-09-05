@@ -79,10 +79,33 @@ vi.mock('../lib/referral-qualification.js', () => ({
   hasSavedDiaryEntry: (...args: unknown[]) => hasSavedDiaryEntry(...args),
 }));
 
-const assertAccountWritable = vi.fn();
+const { assertAccountWritable, loggerWarn, loggerError } = vi.hoisted(() => ({
+  assertAccountWritable: vi.fn(),
+  loggerWarn: vi.fn(),
+  loggerError: vi.fn(),
+}));
 vi.mock('../lib/account-deletion-state.js', () => ({
   assertAccountWritable: (...args: unknown[]) => assertAccountWritable(...args),
+  accountDeletionFenceSignal: (route: string, count = 1) => ({
+    errorClass: 'account_deletion_fence',
+    route,
+    count,
+  }),
+  classifyAccountDeletionError: (error: unknown) =>
+    error &&
+    typeof error === 'object' &&
+    (
+      (error as { errorClass?: unknown }).errorClass === 'account_deletion_fence'
+      ||
+      error instanceof Error && error.message === 'Account deletion is in progress.'
+      || (error as { code?: unknown }).code === '55000' &&
+        (error as { message?: unknown }).message === 'account deletion is in progress'
+    ),
   AccountDeletionInProgressError: class AccountDeletionInProgressError extends Error {},
+}));
+
+vi.mock('../lib/logger.js', () => ({
+  logger: { warn: loggerWarn, error: loggerError },
 }));
 
 import express from 'express';
@@ -234,6 +257,24 @@ describe('POST /v1/referral/activate — qualification gate', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('none');
     expect(grantPromoDays).not.toHaveBeenCalled();
+  });
+
+  it('returns the route response and a redacted signal for a trigger-shaped fence', async () => {
+    assertAccountWritable.mockRejectedValueOnce({
+      code: '55000',
+      message: 'account deletion is in progress',
+    });
+
+    const res = await request(buildApp()).post('/v1/referral/activate');
+
+    expect(res.status).toBe(423);
+    expect(res.body).toEqual({ message: 'Account deletion is in progress.' });
+    expect(loggerWarn).toHaveBeenCalledWith(
+      { errorClass: 'account_deletion_fence', route: '/v1/referral/activate', count: 1 },
+      'Account deletion fence rejected referral activation',
+    );
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('55000');
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('referred-user-1');
   });
 
   it('rejects unauthenticated calls', async () => {

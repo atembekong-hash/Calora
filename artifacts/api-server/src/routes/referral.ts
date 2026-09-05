@@ -20,7 +20,11 @@ import { and, count, eq, sql } from "drizzle-orm";
 import { db, referralCodesTable, referralRedemptionsTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { grantPromoDays } from "../lib/revenuecat.js";
-import { assertAccountWritable, AccountDeletionInProgressError } from "../lib/account-deletion-state.js";
+import {
+  accountDeletionFenceSignal,
+  assertAccountWritable,
+  classifyAccountDeletionError,
+} from "../lib/account-deletion-state.js";
 import { hasSavedDiaryEntry } from "../lib/referral-qualification.js";
 import { logger } from "../lib/logger.js";
 
@@ -59,6 +63,7 @@ async function ensureCode(userId: string): Promise<string> {
       await db.insert(referralCodesTable).values({ userId, code });
       return code;
     } catch (err) {
+      if (classifyAccountDeletionError(err)) throw err;
       // Unique violation on user_id means a concurrent insert won — reuse it.
       const again = await db
         .select()
@@ -120,7 +125,11 @@ router.get("/v1/referral", async (req, res) => {
             },
     });
   } catch (err) {
-    if (err instanceof AccountDeletionInProgressError) {
+    if (classifyAccountDeletionError(err)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/referral"),
+        "Account deletion fence rejected referral summary",
+      );
       res.status(423).json({ message: "Account deletion is in progress." });
       return;
     }
@@ -178,7 +187,8 @@ router.post("/v1/referral/redeem", async (req, res) => {
         referredUserId: user.id,
         status: "pending",
       });
-    } catch {
+    } catch (err) {
+      if (classifyAccountDeletionError(err)) throw err;
       // Unique index race: a concurrent redeem won.
       res.status(409).json({ message: "This account has already used an invite code." });
       return;
@@ -189,7 +199,11 @@ router.post("/v1/referral/redeem", async (req, res) => {
       message: `Invite accepted! Log your first meal to unlock ${REWARD_DAYS} days of Pro for you both.`,
     });
   } catch (err) {
-    if (err instanceof AccountDeletionInProgressError) {
+    if (classifyAccountDeletionError(err)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/referral/redeem"),
+        "Account deletion fence rejected referral redemption",
+      );
       res.status(423).json({ message: "Account deletion is in progress." });
       return;
     }
@@ -328,6 +342,7 @@ router.post("/v1/referral/activate", async (req, res) => {
           .returning();
         claimedReferrerReward = rowsClaimed.length > 0;
       } catch (err) {
+        if (classifyAccountDeletionError(err)) throw err;
         logger.error({ err }, "Referrer reward claim failed");
       }
 
@@ -353,7 +368,11 @@ router.post("/v1/referral/activate", async (req, res) => {
       message: `You've unlocked ${REWARD_DAYS} days of CaloraApp Pro. Enjoy!`,
     });
   } catch (err) {
-    if (err instanceof AccountDeletionInProgressError) {
+    if (classifyAccountDeletionError(err)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/referral/activate"),
+        "Account deletion fence rejected referral activation",
+      );
       res.status(423).json({ message: "Account deletion is in progress." });
       return;
     }

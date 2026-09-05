@@ -9,6 +9,10 @@ import { ensureUserRow } from "../lib/user-rows.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import { safeImageUrl, safeImageSource } from "../lib/image-metadata.js";
 import { logger } from "../lib/logger.js";
+import {
+  accountDeletionFenceSignal,
+  classifyAccountDeletionError,
+} from "../lib/account-deletion-state.js";
 
 // ---------------------------------------------------------------------------
 // DB-backed rate limiter for POST /v1/capture/analyze
@@ -97,6 +101,7 @@ async function persistCaptureSession(
     );
     return sessionId;
   } catch (err) {
+    if (classifyAccountDeletionError(err)) throw err;
     logger.error({ err }, "Failed to persist capture session");
     return null;
   }
@@ -463,16 +468,37 @@ router.post("/v1/capture/analyze", async (req, res) => {
   let verifiedUser: VerifiedUser | null = null;
   try {
     verifiedUser = await verifyBearerToken(req);
-  } catch {
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/capture/analyze"),
+        "Account deletion fence rejected capture write",
+      );
+      res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
+      return;
+    }
     // Supabase not configured or unreachable — treat as anonymous.
   }
 
-  const rate = await checkRateLimit(
-    rateLimitKey(verifiedUser, req),
-    CAPTURE_RATE_LIMIT,
-    CAPTURE_RATE_WINDOW_SECS,
-    { failClosed: true },
-  );
+  let rate;
+  try {
+    rate = await checkRateLimit(
+      rateLimitKey(verifiedUser, req),
+      CAPTURE_RATE_LIMIT,
+      CAPTURE_RATE_WINDOW_SECS,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/capture/analyze"),
+        "Account deletion fence rejected capture write",
+      );
+      res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
+      return;
+    }
+    throw error;
+  }
   if (!rate.allowed) {
     res.setHeader("Retry-After", String(rate.retryAfterSecs));
     if (rate.degraded) {
@@ -725,6 +751,14 @@ router.post("/v1/capture/analyze", async (req, res) => {
        imageRetention: "delete_after_analysis",
     });
   } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/capture/analyze"),
+        "Account deletion fence rejected capture write",
+      );
+      res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
+      return;
+    }
     logger.error({ err: error }, "Capture provider request failed");
     res.status(502).json({ message: "Capture provider unavailable. Please try again shortly." });
   }

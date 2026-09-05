@@ -138,6 +138,11 @@ vi.mock('../lib/supabase-auth.js', () => ({
 vi.mock('../lib/account-deletion-state.js', () => ({
   assertAccountWritable: (...args: unknown[]) => assertAccountWritable(...args),
   ACCOUNT_DELETION_FENCE_ERROR_CLASS: 'account_deletion_fence',
+  accountDeletionFenceSignal: (route: string, count = 1) => ({
+    errorClass: 'account_deletion_fence',
+    route,
+    count,
+  }),
   classifyAccountDeletionError: (error: unknown) => {
     if (error instanceof AccountDeletionInProgressError) return 'account_deletion_fence';
     if (

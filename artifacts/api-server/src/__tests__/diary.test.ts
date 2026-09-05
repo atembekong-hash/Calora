@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 
 // ── DB mock ─────────────────────────────────────────────────────────────────
-const { queued, dbMock, insertCalls, deleteCalls } = vi.hoisted(() => {
+const { queued, dbMock, insertCalls, deleteCalls, loggerWarn, loggerError } = vi.hoisted(() => {
   const queued: unknown[][] = [];
   const insertCalls: unknown[] = [];
   const deleteCalls: { whereArg: unknown }[] = [];
@@ -53,7 +53,7 @@ const { queued, dbMock, insertCalls, deleteCalls } = vi.hoisted(() => {
     transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(dbMock),
   };
 
-  return { queued, dbMock, insertCalls, deleteCalls };
+  return { queued, dbMock, insertCalls, deleteCalls, loggerWarn: vi.fn(), loggerError: vi.fn() };
 });
 
 vi.mock('@workspace/db', () => ({
@@ -76,7 +76,24 @@ vi.mock('../lib/supabase-auth.js', () => ({
 
 vi.mock('../lib/account-deletion-state.js', () => ({
   assertAccountWritable: vi.fn().mockResolvedValue(undefined),
+  accountDeletionFenceSignal: (route: string, count = 1) => ({
+    errorClass: 'account_deletion_fence',
+    route,
+    count,
+  }),
+  classifyAccountDeletionError: (error: unknown) =>
+    error &&
+    typeof error === 'object' &&
+    (
+      (error as { errorClass?: unknown }).errorClass === 'account_deletion_fence'
+      || ((error as { code?: unknown }).code === '55000' &&
+        (error as { message?: unknown }).message === 'account deletion is in progress')
+    ),
   AccountDeletionInProgressError: class AccountDeletionInProgressError extends Error {},
+}));
+
+vi.mock('../lib/logger.js', () => ({
+  logger: { warn: loggerWarn, error: loggerError },
 }));
 
 // Wrap drizzle-orm's eq/and with spies so the cross-user test can assert
@@ -262,6 +279,25 @@ describe('POST /v1/diary', () => {
     await request(buildApp()).post('/v1/diary').send(validDiaryBody);
 
     expect(insertCalls[0]).toMatchObject({ userId: USER_A_UUID });
+  });
+
+  it('returns a generic response and redacted signal for a trigger-shaped fence', async () => {
+    const error = { errorClass: 'account_deletion_fence' };
+    const assertAccountWritable = (await import('../lib/account-deletion-state.js')).assertAccountWritable as ReturnType<typeof vi.fn>;
+    assertAccountWritable.mockRejectedValueOnce(error);
+
+    const res = await request(buildApp()).post('/v1/diary').send(validDiaryBody);
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({
+      message: 'Diary is unavailable right now. Please try again later.',
+    });
+    expect(loggerWarn).toHaveBeenCalledWith(
+      { errorClass: 'account_deletion_fence', route: '/v1/diary', count: 1 },
+      'Account deletion fence rejected diary write',
+    );
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('55000');
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('account deletion is in progress');
   });
 
   it('returns 401 when the bearer token is absent or invalid', async () => {

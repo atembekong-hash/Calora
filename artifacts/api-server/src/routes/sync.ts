@@ -28,6 +28,7 @@ import { normalizeImageMetadata } from "../lib/image-metadata.js";
 import { logger } from "../lib/logger.js";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+  accountDeletionFenceSignal,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
 
@@ -596,11 +597,7 @@ router.post("/v1/sync", async (req, res) => {
 
     if (deletionFenceRejectionCount > 0) {
       logger.warn(
-        {
-          errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
-          route: "/v1/sync",
-          count: deletionFenceRejectionCount,
-        },
+        accountDeletionFenceSignal("/v1/sync", deletionFenceRejectionCount),
         "Account deletion fence rejected sync writes",
       );
       res
@@ -625,11 +622,7 @@ router.post("/v1/sync", async (req, res) => {
     const errorClass = classifyAccountDeletionError(err);
     if (errorClass === ACCOUNT_DELETION_FENCE_ERROR_CLASS) {
       logger.warn(
-        {
-          errorClass,
-          route: "/v1/sync",
-          count: Math.max(1, deletionFenceRejectionCount),
-        },
+        accountDeletionFenceSignal("/v1/sync", Math.max(1, deletionFenceRejectionCount)),
         "Account deletion fence rejected sync request",
       );
       res

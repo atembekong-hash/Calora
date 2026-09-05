@@ -17,8 +17,10 @@ import request from 'supertest';
 // vi.hoisted ensures this is available inside the vi.mock factory (which
 // is hoisted to the top of the module by vitest).
 // ---------------------------------------------------------------------------
-const { mockRateBuckets } = vi.hoisted(() => ({
+const { mockRateBuckets, loggerWarn, loggerError } = vi.hoisted(() => ({
   mockRateBuckets: new Map<string, { count: number; reset_at: Date }>(),
+  loggerWarn: vi.fn(),
+  loggerError: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -75,7 +77,24 @@ vi.mock('@workspace/db', () => {
 
 vi.mock('../lib/account-deletion-state.js', () => ({
   assertAccountWritable: vi.fn().mockResolvedValue(undefined),
+  accountDeletionFenceSignal: (route: string, count = 1) => ({
+    errorClass: 'account_deletion_fence',
+    route,
+    count,
+  }),
+  classifyAccountDeletionError: (error: unknown) =>
+    error &&
+    typeof error === 'object' &&
+    (
+      (error as { errorClass?: unknown }).errorClass === 'account_deletion_fence'
+      || ((error as { code?: unknown }).code === '55000' &&
+        (error as { message?: unknown }).message === 'account deletion is in progress')
+    ),
   AccountDeletionInProgressError: class AccountDeletionInProgressError extends Error {},
+}));
+
+vi.mock('../lib/logger.js', () => ({
+  logger: { warn: loggerWarn, error: loggerError },
 }));
 
 // ---------------------------------------------------------------------------
@@ -124,6 +143,8 @@ function buildApp() {
   app.use(captureRouter);
   return app;
 }
+
+const fenceError = () => ({ code: '55000', message: 'account deletion is in progress' });
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -225,6 +246,26 @@ describe('POST /v1/capture/analyze', () => {
     // Default: anonymous (no verified user). Individual tests can override this.
     vi.mocked(verifyBearerToken).mockResolvedValue(null);
     vi.mocked(openai.audio.transcriptions.create).mockResolvedValue({ text: 'test meal' } as any);
+  });
+
+  it('returns a generic response and redacted signal for a PostgreSQL fence', async () => {
+    vi.mocked(verifyBearerToken).mockRejectedValueOnce(fenceError());
+
+    const res = await request(app)
+      .post('/v1/capture/analyze')
+      .send({ mode: 'text', textInput: 'a banana' })
+      .set('Content-Type', 'application/json');
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({
+      message: 'Capture is temporarily unavailable. Please try again shortly.',
+    });
+    expect(loggerWarn).toHaveBeenCalledWith(
+      { errorClass: 'account_deletion_fence', route: '/v1/capture/analyze', count: 1 },
+      'Account deletion fence rejected capture write',
+    );
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('55000');
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('account deletion is in progress');
   });
 
   // -------------------------------------------------------------------------
