@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -223,31 +223,169 @@ test("fails closed on malformed structured fence signals", () => {
   );
 });
 
-test("keeps the shared builder and representative sync call sites monitor-compatible", async () => {
-  const [stateSource, syncSource] = await Promise.all([
-    readFile(
-      path.join(
-        workspaceDir,
-        "artifacts",
-        "api-server",
-        "src",
-        "lib",
-        "account-deletion-state.ts",
-      ),
-      "utf8",
+const ACCOUNT_DELETION_FENCE_CALL_SITES = [
+  {
+    file: "capture.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/capture/analyze")',
+    routes: ["/v1/capture/analyze"],
+    countSource: "builder default count",
+  },
+  {
+    file: "capture.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/capture/analyze")',
+    routes: ["/v1/capture/analyze"],
+    countSource: "builder default count",
+  },
+  {
+    file: "capture.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/capture/analyze")',
+    routes: ["/v1/capture/analyze"],
+    countSource: "builder default count",
+  },
+  {
+    file: "coachFactContext.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/coach/fact-context/respond")',
+    routes: ["/v1/coach/fact-context/respond"],
+    countSource: "builder default count",
+  },
+  {
+    file: "diary.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/diary")',
+    routes: ["/v1/diary"],
+    countSource: "builder default count",
+  },
+  {
+    file: "diary.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/diary/:entryId")',
+    routes: ["/v1/diary/:entryId"],
+    countSource: "builder default count",
+  },
+  {
+    file: "diary.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/diary/first-log")',
+    routes: ["/v1/diary/first-log"],
+    countSource: "builder default count",
+  },
+  {
+    file: "planner.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/planner/generate")',
+    routes: ["/v1/planner/generate"],
+    countSource: "builder default count",
+  },
+  {
+    file: "premiumRecipes.ts",
+    invocation: "accountDeletionFenceSignal(route)",
+    routes: ["/v1/premium-recipes", "/v1/premium-recipes/:sourceId"],
+    countSource: "builder default count",
+  },
+  {
+    file: "recipes.ts",
+    invocation: "accountDeletionFenceSignal(route)",
+    routes: ["/v1/recipes/concepts", "/v1/recipes/generated"],
+    countSource: "builder default count",
+  },
+  {
+    file: "recipes.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/recipes/photo")',
+    routes: ["/v1/recipes/photo"],
+    countSource: "builder default count",
+  },
+  {
+    file: "referral.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/referral")',
+    routes: ["/v1/referral"],
+    countSource: "builder default count",
+  },
+  {
+    file: "referral.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/referral/redeem")',
+    routes: ["/v1/referral/redeem"],
+    countSource: "builder default count",
+  },
+  {
+    file: "referral.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/referral/activate")',
+    routes: ["/v1/referral/activate"],
+    countSource: "builder default count",
+  },
+  {
+    file: "restaurantFoods.ts",
+    invocation: "accountDeletionFenceSignal(route)",
+    routes: ["/v1/restaurant-foods", "/v1/restaurant-foods/:sourceId"],
+    countSource: "builder default count",
+  },
+  {
+    file: "sync.ts",
+    invocation:
+      'accountDeletionFenceSignal("/v1/sync", deletionFenceRejectionCount)',
+    routes: ["/v1/sync"],
+    countSource: "deletionFenceRejectionCount guarded by > 0",
+  },
+  {
+    file: "sync.ts",
+    invocation:
+      'accountDeletionFenceSignal("/v1/sync", Math.max(1, deletionFenceRejectionCount))',
+    routes: ["/v1/sync"],
+    countSource: "Math.max(1, deletionFenceRejectionCount)",
+  },
+];
+
+const DYNAMIC_ROUTE_EVIDENCE = [
+  {
+    file: "premiumRecipes.ts",
+    sourcePattern:
+      /const route = req\.params\.sourceId \? "\/v1\/premium-recipes\/:sourceId" : "\/v1\/premium-recipes";/,
+  },
+  {
+    file: "recipes.ts",
+    sourcePattern:
+      /enforceRecipeGenLimit\("recipes-concepts", "\/v1\/recipes\/concepts"/,
+  },
+  {
+    file: "recipes.ts",
+    sourcePattern:
+      /enforceRecipeGenLimit\("recipes-generated", "\/v1\/recipes\/generated"/,
+  },
+  {
+    file: "restaurantFoods.ts",
+    sourcePattern: /authorizeAndLimit\(req, "\/v1\/restaurant-foods"\)/,
+  },
+  {
+    file: "restaurantFoods.ts",
+    sourcePattern:
+      /authorizeAndLimit\(req, "\/v1\/restaurant-foods\/:sourceId"\)/,
+  },
+];
+
+test("keeps every API deletion-fence call site monitor-compatible", async () => {
+  const routesDir = path.join(
+    workspaceDir,
+    "artifacts",
+    "api-server",
+    "src",
+    "routes",
+  );
+  const stateSource = await readFile(
+    path.join(
+      workspaceDir,
+      "artifacts",
+      "api-server",
+      "src",
+      "lib",
+      "account-deletion-state.ts",
     ),
-    readFile(
-      path.join(
-        workspaceDir,
-        "artifacts",
-        "api-server",
-        "src",
-        "routes",
-        "sync.ts",
-      ),
-      "utf8",
-    ),
-  ]);
+    "utf8",
+  );
+  const routeEntries = await readdir(routesDir, { withFileTypes: true });
+  const routeFiles = routeEntries
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  const routeSources = await Promise.all(
+    routeFiles.map(async (entry) => ({
+      file: entry.name,
+      source: await readFile(path.join(routesDir, entry.name), "utf8"),
+    })),
+  );
 
   assert.match(
     stateSource,
@@ -257,40 +395,131 @@ test("keeps the shared builder and representative sync call sites monitor-compat
     stateSource,
     /interface AccountDeletionFenceSignal[\s\S]*errorClass[\s\S]*route:\s*string[\s\S]*count:\s*number/,
   );
-
-  const syncSignals = syncSource
-    .split("\n")
-    .filter((line) => line.includes("accountDeletionFenceSignal("))
-    .map((line) => line.trim());
-  assert.deepEqual(syncSignals, [
-    "accountDeletionFenceSignal(\"/v1/sync\", deletionFenceRejectionCount),",
-    "accountDeletionFenceSignal(\"/v1/sync\", Math.max(1, deletionFenceRejectionCount)),",
-  ]);
-  assert.doesNotMatch(
-    syncSource,
-    /logger\.warn\(\s*\{\s*errorClass:\s*ACCOUNT_DELETION_FENCE_ERROR_CLASS/s,
+  assert.match(
+    stateSource,
+    /accountDeletionFenceSignal\(\s*route:\s*string,\s*count\s*=\s*1/,
   );
 
+  const actualCallSites = routeSources.flatMap(({ file, source }) =>
+    source
+      .split("\n")
+      .map((line, lineNumber) => ({
+        file,
+        lineNumber,
+        line: line.trim(),
+      }))
+      .filter(({ line }) => line.includes("accountDeletionFenceSignal("))
+      .map(({ file, lineNumber, line }) => ({
+        file,
+        lineNumber,
+        invocation: line
+          .slice(line.indexOf("accountDeletionFenceSignal("))
+          .replace(/,$/, ""),
+      })),
+  );
+  assert.deepEqual(
+    actualCallSites.map(({ file, invocation }) => ({ file, invocation })),
+    ACCOUNT_DELETION_FENCE_CALL_SITES.map(({ file, invocation }) => ({
+      file,
+      invocation,
+    })),
+  );
+
+  for (const callSite of ACCOUNT_DELETION_FENCE_CALL_SITES) {
+    assert.ok(
+      callSite.routes.length > 0,
+      `${callSite.file} has no monitor routes`,
+    );
+    const callSiteReport = summarizeAccountDeletionFenceLogs(
+      callSite.routes
+        .map((route) =>
+          JSON.stringify({
+            errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+            route,
+            count: 1,
+          }),
+        )
+        .join("\n"),
+    );
+    assert.equal(
+      callSiteReport.verified,
+      true,
+      `${callSite.file} has an unsafe route`,
+    );
+    assert.deepEqual(
+      callSiteReport.deletionFence.routes,
+      Object.fromEntries(callSite.routes.map((route) => [route, 1])),
+      `${callSite.file} has an uncountable route`,
+    );
+
+    if (callSite.countSource === "builder default count") {
+      assert.doesNotMatch(
+        callSite.invocation,
+        /,\s*/,
+        `${callSite.file} does not use the positive builder default count`,
+      );
+    } else if (
+      callSite.countSource === "deletionFenceRejectionCount guarded by > 0"
+    ) {
+      assert.equal(
+        callSite.invocation,
+        'accountDeletionFenceSignal("/v1/sync", deletionFenceRejectionCount)',
+      );
+    } else if (
+      callSite.countSource === "Math.max(1, deletionFenceRejectionCount)"
+    ) {
+      assert.match(
+        callSite.invocation,
+        /Math\.max\(1,\s*deletionFenceRejectionCount\)\)$/,
+      );
+    } else {
+      assert.fail(`unknown count source for ${callSite.file}`);
+    }
+  }
+
+  for (const { file, sourcePattern } of DYNAMIC_ROUTE_EVIDENCE) {
+    const source = routeSources.find((entry) => entry.file === file)?.source;
+    assert.ok(source, `missing route source for ${file}`);
+    assert.match(source, sourcePattern);
+  }
+
+  const routes = [
+    ...new Set(
+      ACCOUNT_DELETION_FENCE_CALL_SITES.flatMap(({ routes }) => routes),
+    ),
+  ];
   const report = summarizeAccountDeletionFenceLogs(
-    [
-      JSON.stringify({
-        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
-        route: "/v1/sync",
-        count: 2,
-      }),
-      JSON.stringify({
-        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
-        route: "/v1/sync",
-        count: 1,
-      }),
-    ].join("\n"),
+    routes
+      .map((route) =>
+        JSON.stringify({
+          errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+          route,
+          count: 1,
+        }),
+      )
+      .join("\n"),
   );
-  assert.deepEqual(report.deletionFence, {
-    eventCount: 2,
-    rejectionCount: 3,
-    routes: { "/v1/sync": 3 },
-  });
+  assert.equal(report.verified, true);
+  assert.deepEqual(
+    report.deletionFence.routes,
+    Object.fromEntries(routes.map((route) => [route, 1])),
+  );
+
+  const syncSource =
+    routeSources.find(({ file }) => file === "sync.ts")?.source ?? "";
+  assert.match(
+    syncSource,
+    /if\s*\(\s*deletionFenceRejectionCount\s*>\s*0\s*\)/,
+  );
+  assert.match(
+    syncSource,
+    /accountDeletionFenceSignal\("\/v1\/sync",\s*Math\.max\(1,\s*deletionFenceRejectionCount\)\)/,
+  );
+
   assert.equal(JSON.stringify(report).includes("raw-account-id"), false);
-  assert.equal(JSON.stringify(report).includes("Bearer disposable-credential"), false);
+  assert.equal(
+    JSON.stringify(report).includes("Bearer disposable-credential"),
+    false,
+  );
   assert.equal(JSON.stringify(report).includes("database error text"), false);
 });
