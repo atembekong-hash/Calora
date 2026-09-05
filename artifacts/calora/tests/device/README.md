@@ -246,8 +246,50 @@ test "$(uname -s)" = "Darwin"
 
 # Load EXPO_TOKEN from the workspace/CI secret store; never paste it into a
 # command, shell transcript, evidence file, or chat message.
-pnpm test:release:ios-signing:apple
+CALORA_IOS_SIGNING_EVIDENCE_PATH="$RUNNER_TEMP/calora-ios-signing-evidence.json" \
+  pnpm test:release:ios-signing:apple
 ```
+
+`test:release:ios-signing:apple` runs through the release-evidence wrapper. It
+passes the preflight's exit code through unchanged and writes
+`calora-ios-signing-evidence.json` with the result, exit code, failure class,
+and only lines beginning with `[ios-signing]`. On a CI runner, omit
+`CALORA_IOS_SIGNING_EVIDENCE_PATH` to write automatically under `RUNNER_TEMP`;
+set it explicitly on a local macOS host if the evidence needs to be retained:
+
+```sh
+CALORA_IOS_SIGNING_EVIDENCE_PATH="$TMPDIR/calora-ios-signing-evidence.json" \
+  pnpm test:release:ios-signing:apple
+```
+
+The wrapper never writes the captured EAS output, certificate material,
+passwords, tokens, build environment, or credential files to the evidence
+artifact. It also forwards only the sanitized prefixed lines to the terminal.
+If the preflight exits nonzero, inspect `failureClass` before deciding whether
+to repair EAS credentials or treat the result as an Apple-side rejection.
+
+### Evidence retention and review
+
+Upload the JSON file as a release-run artifact even when the rehearsal fails,
+so the failure class and exit code remain reviewable:
+
+```yaml
+- name: Upload sanitized iOS signing evidence
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: calora-ios-signing-evidence
+    path: ${{ runner.temp }}/calora-ios-signing-evidence.json
+    if-no-files-found: error
+    retention-days: 30
+```
+
+Review the artifact during release sign-off: confirm `result`, `exitCode`, and
+`failureClass`, then review the prefixed lines for the matching repair or
+Apple-side outcome. Retain it for 30 days with the release run, or delete a
+local copy after sign-off. Do not increase retention or attach additional EAS
+logs; if more detail is needed, use the interactive EAS repair path without
+adding raw output to the release artifact.
 
 The command deliberately stops before contacting Apple when the EAS record is
 missing, malformed, expired, or otherwise not ready:
