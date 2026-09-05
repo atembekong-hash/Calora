@@ -17,9 +17,11 @@ const evidenceKeys = [
   'appId',
   'flow',
   'result',
+  'signedBuildIdentifier',
   'targets',
   'timestamp',
 ];
+const signedBuildIdentifier = 'eas-build-ios-001,eas-build-android-001';
 
 function writeFakeMaestro(directory) {
   const executablePath = path.join(directory, 'maestro');
@@ -99,6 +101,7 @@ function runGate({
   missingBuildPlatform,
   unavailablePlatform,
   summary = true,
+  signedBuildIdentifier: buildIdentifier = signedBuildIdentifier,
 }) {
   const fixtureDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'calora-encrypted-recovery-gate-'),
@@ -120,6 +123,7 @@ function runGate({
       ...process.env,
       CALORA_IOS_DEVICE: iosDevice,
       CALORA_ANDROID_DEVICE: androidDevice,
+      CALORA_ENCRYPTED_RECOVERY_SIGNED_BUILD_IDENTIFIER: buildIdentifier,
       CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH: evidencePath,
       CALORA_ENCRYPTED_RECOVERY_BUILD_CHECK: buildCheck ? 'true' : '',
       FAKE_MISSING_BUILD_PLATFORM: missingBuildPlatform || '',
@@ -162,13 +166,19 @@ function assertEvidenceLineIsSanitized(stdout, evidence) {
   );
 }
 
-function assertEvidenceSchema(evidence, expectedTargets, expectedResult, failureClass) {
+function assertEvidenceSchema(
+  evidence,
+  expectedTargets,
+  expectedResult,
+  failureClass,
+) {
   assert.deepEqual(
     Object.keys(evidence).sort(),
     [...evidenceKeys, ...(failureClass ? ['failureClass'] : [])].sort(),
   );
   assert.equal(evidence.flow, 'tests/device/encrypted-recovery.yaml');
   assert.equal(evidence.appId, 'com.etiendem.caloraapp');
+  assert.equal(evidence.signedBuildIdentifier, signedBuildIdentifier);
   assert.match(
     evidence.timestamp,
     /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
@@ -206,6 +216,8 @@ test('records sanitized evidence for a passing iOS and Android run', (t) => {
   );
   assertEvidenceLineIsSanitized(result.stdout, result.evidence);
   assert.equal(result.evidenceText.includes(sensitiveOutput), false);
+  assert.equal(result.summaryText.includes(sensitiveOutput), false);
+  assert.match(result.summaryText, new RegExp(signedBuildIdentifier));
   assert.match(result.summaryText, /\| xcrun \| ✅ Ready \| 1\.0 \|/);
   assert.match(result.summaryText, /\| adb \| ✅ Ready \| 1\.0\.41 \|/);
   assert.match(result.summaryText, /\| Maestro \| ✅ Ready \| 1\.40\.0 \|/);
@@ -242,6 +254,8 @@ test('records the failed platform and preserves the sanitized boundary', (t) => 
   );
   assertEvidenceLineIsSanitized(result.stdout, result.evidence);
   assert.equal(result.evidenceText.includes(sensitiveOutput), false);
+  assert.equal(result.summaryText.includes(sensitiveOutput), false);
+  assert.match(result.summaryText, new RegExp(signedBuildIdentifier));
 });
 
 test('writes failed evidence and exits nonzero when a target is missing', (t) => {

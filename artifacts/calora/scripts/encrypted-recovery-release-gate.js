@@ -10,6 +10,8 @@ const targets = [
   { platform: 'Android', envName: 'CALORA_ANDROID_DEVICE' },
 ];
 const evidencePath = process.env.CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH?.trim();
+const signedBuildIdentifier =
+  process.env.CALORA_ENCRYPTED_RECOVERY_SIGNED_BUILD_IDENTIFIER?.trim() || null;
 const buildCheckEnabled =
   process.env.CALORA_ENCRYPTED_RECOVERY_BUILD_CHECK === 'true';
 const platformResults = new Map();
@@ -32,6 +34,7 @@ function buildEvidence(result, failureClass) {
   return {
     flow: flowDisplayPath,
     appId,
+    signedBuildIdentifier,
     timestamp: new Date().toISOString(),
     targets: targets.map(({ platform, envName }) => ({
       platform,
@@ -226,6 +229,8 @@ function printUsage() {
       'reported by the native platform tools, then run:',
       '  iOS: xcrun simctl list devices booted',
       '  Android: adb devices',
+      'Set CALORA_ENCRYPTED_RECOVERY_SIGNED_BUILD_IDENTIFIER to the',
+      'non-sensitive identifier of the installed signed native build.',
       '  pnpm test:release:encrypted-recovery',
     ].join('\n'),
   );
@@ -252,6 +257,11 @@ function checkInstalledBuild(platform, device) {
 const missingTargets = targets.filter(({ envName }) => !process.env[envName]?.trim());
 const failures = [];
 const diagnoses = [];
+if (!signedBuildIdentifier) {
+  diagnoses.push(
+    'Missing required signed build identifier: CALORA_ENCRYPTED_RECOVERY_SIGNED_BUILD_IDENTIFIER',
+  );
+}
 const preflightTools = [
   checkTool('xcrun', ['--version']),
   checkTool('adb', ['version']),
@@ -334,6 +344,9 @@ for (const target of preflight.targets) {
 }
 
 function determineFailureClass() {
+  if (!signedBuildIdentifier) {
+    return 'missing_signed_build_identifier';
+  }
   if (missingTargets.length > 0) {
     return 'missing_target_selection';
   }

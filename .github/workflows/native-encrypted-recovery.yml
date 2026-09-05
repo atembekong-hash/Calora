@@ -11,6 +11,10 @@ on:
         description: "Exact booted Android emulator/device ID"
         required: false
         type: string
+      signed_build_identifier:
+        description: "Non-sensitive identifier for the installed signed native build"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -25,6 +29,7 @@ jobs:
     env:
       CALORA_IOS_DEVICE: ${{ inputs.ios_device }}
       CALORA_ANDROID_DEVICE: ${{ inputs.android_device }}
+      CALORA_ENCRYPTED_RECOVERY_SIGNED_BUILD_IDENTIFIER: ${{ inputs.signed_build_identifier }}
       CALORA_ENCRYPTED_RECOVERY_BUILD_CHECK: "true"
       CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH: ${{ runner.temp }}/calora-encrypted-recovery-evidence.json
     steps:
