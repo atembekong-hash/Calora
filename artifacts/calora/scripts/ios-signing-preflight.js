@@ -10,6 +10,8 @@ const accountName = 'vvault07';
 const projectName = 'calora';
 const profileName = 'production';
 const distributionType = 'APP_STORE';
+const DEFAULT_WARNING_WINDOW_DAYS = 30;
+const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
 
 const FAILURE_CLASSES = {
   LOCAL_CONFIGURATION: 'LOCAL_CONFIGURATION',
@@ -22,6 +24,7 @@ const FAILURE_CLASSES = {
 
 const REPAIR_COMMAND =
   'eas credentials --platform ios (choose "Build Credentials: Manage everything needed to build your project", then "All: Set up all the required credentials to build your project"; if needed, use "Distribution Certificate: Use an existing one for your project" or "Distribution Certificate: Add a new one to your account")';
+const REPAIR_GUIDE_URL = 'https://docs.expo.dev/app-signing/app-credentials/';
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -167,6 +170,56 @@ function formatDate(date) {
   return date.toISOString().slice(0, 10);
 }
 
+function parseWarningWindowDays(value = DEFAULT_WARNING_WINDOW_DAYS) {
+  const days = Number(value);
+  if (!Number.isInteger(days) || days < 1 || days > 365) {
+    throw new Error('The iOS signing warning window must be a whole number of days from 1 to 365.');
+  }
+  return days;
+}
+
+function evaluateCredentialExpiryRisk(credentials, now = new Date(), warningWindowDays = DEFAULT_WARNING_WINDOW_DAYS) {
+  const windowDays = parseWarningWindowDays(warningWindowDays);
+  const readiness = evaluateCredentialReadiness(credentials, now);
+  if (!readiness.ready) {
+    return {
+      ...readiness,
+      warning: false,
+      warningWindowDays: windowDays,
+      warnings: [],
+    };
+  }
+
+  const expirations = [
+    {
+      credential: 'distribution certificate',
+      expires: readiness.certificateExpires,
+    },
+    {
+      credential: 'provisioning profile',
+      expires: readiness.provisioningProfileExpires,
+    },
+  ];
+  const warnings = expirations
+    .map(({ credential, expires }) => {
+      const expiration = parseDate(expires);
+      const daysRemaining = Math.ceil((expiration.getTime() - now.getTime()) / DAY_IN_MILLISECONDS);
+      return {
+        credential,
+        expires,
+        daysRemaining,
+      };
+    })
+    .filter(({ daysRemaining }) => daysRemaining <= windowDays);
+
+  return {
+    ...readiness,
+    warning: warnings.length > 0,
+    warningWindowDays: windowDays,
+    warnings,
+  };
+}
+
 function evaluateCredentialReadiness(credentials, now = new Date()) {
   if (!credentials) {
     return {
@@ -266,8 +319,40 @@ function printFailure(reason, bundleIdentifier, failureClass = FAILURE_CLASSES.E
   console.error(`[ios-signing] Failure class: ${failureClass}`);
   console.error(`[ios-signing] ${redactSensitiveText(reason)}`);
   console.error(`[ios-signing] App: ${bundleIdentifier}`);
+  printRepairPath();
+}
+
+function printRepairPath() {
   console.error(`[ios-signing] Repair interactively with: ${REPAIR_COMMAND}`);
+  console.error(`[ios-signing] EAS credential guide: ${REPAIR_GUIDE_URL}`);
   console.error('[ios-signing] Do not paste certificates, passwords, or tokens into chat or logs.');
+}
+
+function printExpiryWarning(expiryRisk, bundleIdentifier) {
+  console.error('\n[ios-signing] EXPIRATION WARNING');
+  console.error(
+    `[ios-signing] App Store signing credentials for ${bundleIdentifier} enter the ${expiryRisk.warningWindowDays}-day warning window.`,
+  );
+  for (const warning of expiryRisk.warnings) {
+    const dayLabel = warning.daysRemaining === 1 ? 'day' : 'days';
+    console.error(
+      `[ios-signing] ${warning.credential} expires on ${warning.expires} (${warning.daysRemaining} ${dayLabel} remaining).`,
+    );
+  }
+  printRepairPath();
+}
+
+function getWarningWindowDaysFromArgs(args = process.argv.slice(2)) {
+  const inlineArgument = args.find((argument) => argument.startsWith('--warn-days='));
+  const separateArgumentIndex = args.indexOf('--warn-days');
+  const separateArgument =
+    separateArgumentIndex >= 0 ? args[separateArgumentIndex + 1] : undefined;
+  const requestedDays =
+    inlineArgument?.slice('--warn-days='.length) ||
+    separateArgument ||
+    process.env.IOS_SIGNING_WARNING_DAYS ||
+    DEFAULT_WARNING_WINDOW_DAYS;
+  return parseWarningWindowDays(requestedDays);
 }
 
 function runEasBuild({ rehearsal = false, bundleIdentifier } = {}) {
@@ -325,6 +410,18 @@ function runEasBuild({ rehearsal = false, bundleIdentifier } = {}) {
 
 async function main() {
   const appleRehearsal = process.argv.includes('--apple-rehearsal');
+  const expiryMonitor = process.argv.some(
+    (argument) => argument === '--warn-days' || argument.startsWith('--warn-days='),
+  );
+  let warningWindowDays;
+  if (expiryMonitor) {
+    try {
+      warningWindowDays = getWarningWindowDaysFromArgs();
+    } catch (error) {
+      printFailure(error.message, 'unknown', FAILURE_CLASSES.LOCAL_CONFIGURATION);
+      return 1;
+    }
+  }
   let identity;
   try {
     identity = loadBuildIdentity();
@@ -370,6 +467,14 @@ async function main() {
     return 1;
   }
 
+  if (expiryMonitor) {
+    const expiryRisk = evaluateCredentialExpiryRisk(credentials, new Date(), warningWindowDays);
+    if (expiryRisk.warning) {
+      printExpiryWarning(expiryRisk, identity.bundleIdentifier);
+      return 1;
+    }
+  }
+
   console.log(
     [
       '\n[ios-signing] RELEASE PREFLIGHT PASSED',
@@ -405,7 +510,10 @@ if (require.main === module) {
 module.exports = {
   classifyBuildFailure,
   evaluateCredentialReadiness,
+  evaluateCredentialExpiryRisk,
   formatDate,
+  getWarningWindowDaysFromArgs,
   loadBuildIdentity,
+  parseWarningWindowDays,
   redactSensitiveText,
 };

@@ -184,6 +184,36 @@ The failure output is intentionally limited to a failure class, safe status, and
 expiration metadata; it never prints certificate material, passwords, tokens, or
 raw EAS CLI output.
 
+### Scheduled expiry monitor
+
+The repository's **Monitor iOS signing credential expiry** GitHub Actions
+workflow runs the same read-only EAS check daily and can also be started with
+**Run workflow**. It uses a 30-day warning window. A warning is a nonzero
+check so the scheduled run is visible as an alert; the output names only the
+affected credential type, expiration date, days remaining, and the safe repair
+path.
+
+Configure the GitHub Actions secret `CALORA_EXPO_TOKEN` with the authenticated
+EAS token before enabling the workflow. Never print or commit that token. To
+run the same check locally or in another CI system:
+
+```sh
+IOS_SIGNING_WARNING_DAYS=30 pnpm test:release:ios-signing:monitor
+```
+
+When the monitor warns or fails, repair from `artifacts/calora` with the exact
+interactive path below, then rerun the monitor:
+
+```sh
+eas credentials --platform ios
+```
+
+Choose **Build Credentials: Manage everything needed to build your project**,
+then **All: Set up all the required credentials to build your project**. If
+needed, choose **Distribution Certificate: Use an existing one for your
+project** or **Distribution Certificate: Add a new one to your account**.
+Reference: https://docs.expo.dev/app-signing/app-credentials/
+
 ### Apple certificate-state rehearsal (macOS only)
 
 Run this controlled rehearsal from a clean release-candidate checkout on a
