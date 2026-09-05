@@ -56,7 +56,7 @@ async function fetchRequired(path, expectedContentType) {
 }
 
 async function main() {
-  const [status, expectedTree] = await Promise.all([
+  const [status, currentTree] = await Promise.all([
     git("status", "--porcelain", "--untracked-files=all"),
     git("rev-parse", "HEAD^{tree}"),
   ]);
@@ -64,6 +64,8 @@ async function main() {
     throw new Error("Public release verification requires a clean checkout.");
   }
 
+  const expectedTree =
+    process.env.PUBLIC_VERIFY_EXPECTED_SOURCE_TREE?.trim() || currentTree;
   const versionResponse = await fetchRequired(
     "/api/version",
     "application/json",
@@ -71,10 +73,10 @@ async function main() {
   const version = await versionResponse.json();
   if (version.sourceTree !== expectedTree) {
     throw new Error(
-      `Live source tree ${String(version.sourceTree)} does not match current source tree ${expectedTree}.`,
+      `Live source tree ${String(version.sourceTree)} does not match expected source tree ${expectedTree}.`,
     );
   }
-  console.info(`[PASS] Live API source tree matches ${expectedTree}.`);
+  console.info(`[PASS] Live API source tree matches ${currentTree}.`);
 
   const associationEvidence = await checkAppleAndGoogleAssociationEvidence({
     origin,

@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "17 4 * * *"
   workflow_dispatch:
+    inputs:
+      simulate_release_failure:
+        description: "Intentionally fail the source-tree check to verify report upload"
+        required: false
+        default: false
+        type: boolean
   deployment_status:
 
 permissions:
@@ -48,6 +54,12 @@ jobs:
     env:
       PUBLIC_VERIFY_ORIGIN: https://calorie-coach-pie35449.replit.app
       PUBLIC_CANONICAL_ORIGIN: https://calorie-coach-pie35449.replit.app
+      PUBLIC_VERIFY_EXPECTED_SOURCE_TREE: >-
+        ${{
+          inputs.simulate_release_failure &&
+          '0000000000000000000000000000000000000000000000000000000000000000' ||
+          ''
+        }}
       APPLE_TEAM_ID: ${{ secrets.CALORA_APPLE_TEAM_ID }}
       ANDROID_SHA256_FINGERPRINT: ${{ secrets.CALORA_ANDROID_SHA256_FINGERPRINT }}
     steps:
