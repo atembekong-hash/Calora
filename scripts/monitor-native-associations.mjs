@@ -416,10 +416,19 @@ export async function checkNativeAssociations({
 }
 
 async function main() {
-  const result = await checkNativeAssociations();
+  const [result, providerEvidence] = await Promise.all([
+    checkNativeAssociations(),
+    checkAppleAndGoogleAssociationEvidence(),
+  ]);
   console.info(
     `Native association monitor passed for ${result.origin}: ${result.checked.join("; ")}.`,
   );
+  console.info(
+    `Provider association evidence passed for ${providerEvidence.origin}: ${providerEvidence.checked.join("; ")}.`,
+  );
+  for (const warning of providerEvidence.warnings ?? []) {
+    console.warn(`[WARN] ${warning}`);
+  }
 }
 
 if (import.meta.url === new URL(process.argv[1], "file:").href) {
