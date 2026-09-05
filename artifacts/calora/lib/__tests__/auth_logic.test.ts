@@ -48,7 +48,7 @@ describe('Auth Logic Verification', () => {
   });
 
   it('should handle PKCE flow (Google) correctly', async () => {
-    const pkceUrl = 'caloraapp://auth/callback?code=test-code';
+    const pkceUrl = 'https://calorie-coach-pie35449.replit.app/auth/callback?code=test-code';
     mockExchange.mockResolvedValue({ data: { session: { user: {} } }, error: null });
 
     const result = await handleOAuthCallbackUrl(pkceUrl);
@@ -63,8 +63,8 @@ describe('Auth Logic Verification', () => {
       resolveExchange = resolve;
     }));
 
-    const browserResult = handleOAuthCallbackUrl('caloraapp://auth/callback?code=shared-code');
-    const routerResult = handleOAuthCallbackUrl('caloraapp://auth/callback?code=shared-code&source=router');
+    const browserResult = handleOAuthCallbackUrl('https://calorie-coach-pie35449.replit.app/auth/callback?code=shared-code');
+    const routerResult = handleOAuthCallbackUrl('https://calorie-coach-pie35449.replit.app/auth/callback?code=shared-code&source=router');
 
     await vi.waitFor(() => expect(mockExchange).toHaveBeenCalledTimes(1));
     resolveExchange({ data: { session: { user: { id: 'qa-user' } } }, error: null });
@@ -78,7 +78,7 @@ describe('Auth Logic Verification', () => {
     const session = { user: { id: 'qa-user' } };
     mockExchange.mockResolvedValue({ data: { session }, error: null });
     mockGetSession.mockResolvedValue({ data: { session }, error: null });
-    const callbackUrl = 'caloraapp://auth/callback?code=settled-code';
+    const callbackUrl = 'https://calorie-coach-pie35449.replit.app/auth/callback?code=settled-code';
 
     const first = await handleOAuthCallbackUrl(callbackUrl);
     const duplicate = await handleOAuthCallbackUrl(callbackUrl);
@@ -96,8 +96,8 @@ describe('Auth Logic Verification', () => {
       })
       .mockResolvedValueOnce({ data: { session: { user: { id: 'qa-user' } } }, error: null });
 
-    const failed = await handleOAuthCallbackUrl('caloraapp://auth/callback?code=missing-verifier-code');
-    const retry = await handleOAuthCallbackUrl('caloraapp://auth/callback?code=missing-verifier-code');
+    const failed = await handleOAuthCallbackUrl('https://calorie-coach-pie35449.replit.app/auth/callback?code=missing-verifier-code');
+    const retry = await handleOAuthCallbackUrl('https://calorie-coach-pie35449.replit.app/auth/callback?code=missing-verifier-code');
 
     expect(failed.success).toBe(false);
     expect(retry.success).toBe(true);
@@ -111,11 +111,11 @@ describe('Auth Logic Verification', () => {
       resolveExchange = resolve;
     }));
 
-    const first = handleOAuthCallbackUrl('caloraapp://auth/callback?code=long-pending-code');
+    const first = handleOAuthCallbackUrl('https://calorie-coach-pie35449.replit.app/auth/callback?code=long-pending-code');
     await Promise.resolve();
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(61_000);
-    const duplicate = handleOAuthCallbackUrl('caloraapp://auth/callback?code=long-pending-code');
+    const duplicate = handleOAuthCallbackUrl('https://calorie-coach-pie35449.replit.app/auth/callback?code=long-pending-code');
     await Promise.resolve();
     await Promise.resolve();
 
@@ -131,7 +131,7 @@ describe('Auth Logic Verification', () => {
     const session = { user: { id: 'qa-user' } };
     mockExchange.mockResolvedValue({ data: { session }, error: null });
     mockGetSession.mockResolvedValue({ data: { session }, error: null });
-    const callbackUrl = 'caloraapp://auth/callback?code=expired-success-code';
+    const callbackUrl = 'https://calorie-coach-pie35449.replit.app/auth/callback?code=expired-success-code';
 
     const first = await handleOAuthCallbackUrl(callbackUrl);
     await vi.advanceTimersByTimeAsync(60_000);
@@ -150,7 +150,7 @@ describe('Auth Logic Verification', () => {
       data: { session: { user: { id: 'different-user' } } },
       error: null,
     });
-    const callbackUrl = 'caloraapp://auth/callback?code=account-switch-code';
+    const callbackUrl = 'https://calorie-coach-pie35449.replit.app/auth/callback?code=account-switch-code';
 
     const first = await handleOAuthCallbackUrl(callbackUrl);
     const staleReplay = await handleOAuthCallbackUrl(callbackUrl);
@@ -164,7 +164,7 @@ describe('Auth Logic Verification', () => {
     mockExchange.mockImplementation(() => new Promise(() => undefined));
 
     const attempts = Array.from({ length: 9 }, (_, index) =>
-      handleOAuthCallbackUrl(`caloraapp://auth/callback?code=capacity-code-${index}`),
+      handleOAuthCallbackUrl(`https://calorie-coach-pie35449.replit.app/auth/callback?code=capacity-code-${index}`),
     );
     await vi.waitFor(() => expect(mockExchange).toHaveBeenCalledTimes(8));
     const ninth = await attempts[8];
@@ -172,7 +172,7 @@ describe('Auth Logic Verification', () => {
   });
 
   it('should handle Implicit flow (Email) correctly', async () => {
-    const emailUrl = 'caloraapp://auth/callback#access_token=test-token&refresh_token=test-refresh';
+    const emailUrl = 'https://calorie-coach-pie35449.replit.app/auth/callback#access_token=test-token&refresh_token=test-refresh';
     mockSetSession.mockResolvedValue({ data: { session: { user: {} } }, error: null });
 
     const result = await handleOAuthCallbackUrl(emailUrl);
@@ -182,7 +182,7 @@ describe('Auth Logic Verification', () => {
   });
 
   it('should handle provider errors correctly', async () => {
-    const errorUrl = 'caloraapp://auth/callback?error=access_denied';
+    const errorUrl = 'https://calorie-coach-pie35449.replit.app/auth/callback?error=access_denied';
     
     const result = await handleOAuthCallbackUrl(errorUrl);
 
@@ -196,6 +196,17 @@ describe('Auth Logic Verification', () => {
   it('rejects callbacks from an untrusted origin before consuming credentials', async () => {
     const result = await handleOAuthCallbackUrl(
       'https://attacker.example/auth/callback#access_token=attacker-token&refresh_token=attacker-refresh',
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.code).toBe('token');
+    expect(mockExchange).not.toHaveBeenCalled();
+    expect(mockSetSession).not.toHaveBeenCalled();
+  });
+
+  it('rejects the legacy custom-scheme callback before consuming credentials', async () => {
+    const result = await handleOAuthCallbackUrl(
+      'caloraapp://auth/callback#access_token=legacy-token&refresh_token=legacy-refresh',
     );
 
     expect(result.success).toBe(false);

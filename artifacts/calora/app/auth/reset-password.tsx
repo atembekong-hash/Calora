@@ -3,7 +3,7 @@
  *
  * This screen is reached after:
  *   1. User taps the reset link in their email
- *   2. caloraapp://auth/callback receives the link
+ *   2. the HTTPS /auth/callback associated link receives it
  *   3. handleOAuthCallbackUrl() exchanges the code → Supabase fires PASSWORD_RECOVERY
  *   4. AuthContext sets isPasswordRecovery = true
  *   5. callback.tsx routes here instead of to /(tabs)

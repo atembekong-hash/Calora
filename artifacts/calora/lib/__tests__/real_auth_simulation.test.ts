@@ -11,7 +11,7 @@ describe('Real Supabase Auth Simulation', () => {
   it('should attempt to sign in and report the exact error from Supabase', async () => {
     // We use a non-existent code to trigger the exchange logic
     // This will tell us if the server is reachable and how it responds to invalid data
-    const fakeUrl = 'caloraapp://auth/callback?code=12345678-1234-1234-1234-123456789012';
+    const fakeUrl = 'https://calorie-coach-pie35449.replit.app/auth/callback?code=12345678-1234-1234-1234-123456789012';
     
     console.log('--- Starting Supabase Exchange Simulation ---');
     console.log('URL:', SUPABASE_URL);

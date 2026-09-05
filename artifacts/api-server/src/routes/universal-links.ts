@@ -7,6 +7,10 @@
  *   GET /.well-known/assetlinks.json
  *   GET /invite/:code
  *
+ * The same production host is also associated with the native auth callback
+ * path (/auth/callback). Supabase delivers the one-time code to the app there;
+ * the association file must claim that exact path on iOS.
+ *
  * Configuration (environment variables):
  *   APPLE_TEAM_ID               — Apple Developer Team ID (e.g. AB12CD34EF)
  *   ANDROID_SHA256_FINGERPRINT  — SHA-256 cert fingerprint from Play Console or
@@ -51,6 +55,10 @@ router.get(
                 {
                   "/": "/invite/*",
                   comment: "Open invite referral links in the CaloraApp",
+                },
+                {
+                  "/": "/auth/callback",
+                  comment: "Open Supabase auth callbacks in the CaloraApp",
                 },
               ],
             },

@@ -7,6 +7,10 @@
           {
             "/": "/invite/*",
             "comment": "Open invite referral links in the CaloraApp"
+          },
+          {
+            "/": "/auth/callback",
+            "comment": "Open Supabase auth callbacks in the CaloraApp"
           }
         ]
       }

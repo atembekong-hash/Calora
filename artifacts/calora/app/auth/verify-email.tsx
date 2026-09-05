@@ -3,7 +3,7 @@
  *
  * Reached from sign-up.tsx when Supabase returns no session (confirmation enabled).
  * The user must tap the link in their email; the app then receives it via the
- * caloraapp://auth/callback deep link which establishes the session.
+ * HTTPS /auth/callback associated link which establishes the session.
  */
 
 import { Feather } from '@expo/vector-icons';

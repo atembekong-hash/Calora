@@ -1,14 +1,20 @@
 # Universal / App Links for the current published Calora origin
 
 Invite links in the referral share message use
-`https://calorie-coach-pie35449.replit.app/invite/<CODE>`.
-For those links to open the app directly (instead of the browser), two pieces are needed:
+`https://calorie-coach-pie35449.replit.app/invite/<CODE>`. Native auth links
+use the same production host at
+`https://calorie-coach-pie35449.replit.app/auth/callback`.
+For either link to open the app directly (instead of the browser), two pieces are needed:
 
 1. **App configuration** — already done in `artifacts/calora/app.json`:
    - iOS: `ios.associatedDomains: ["applinks:calorie-coach-pie35449.replit.app"]`
    - Android: `android.intentFilters` with `autoVerify: true` for `https://calorie-coach-pie35449.replit.app/invite`
+      and a second verified filter for `/auth/callback`
    - The route `app/invite/[code].tsx` handles the link via expo-router
      (path `/invite/<code>` maps to it automatically).
+    - The route `app/auth/callback.tsx` handles the Supabase code, verification,
+      and password-recovery callback. The old `caloraapp://auth/callback`
+      scheme is deliberately not trusted for authentication.
    - These take effect in the next EAS build (they are native config, not OTA-updatable).
 
 2. **Files hosted on the published Calora origin** — served dynamically by the API server
@@ -20,6 +26,10 @@ For those links to open the app directly (instead of the browser), two pieces ar
    | `/.well-known/assetlinks.json` | `Content-Type: application/json` |
    | `/invite` | Fallback landing page (no code — omits badge, skips deep-link) |
    | `/invite/<code>` | Fallback landing page with App Store / Play Store links |
+
+    The iOS response claims both `/invite/*` and `/auth/callback`. Android
+    asset links cover the verified host; the native intent filter restricts
+    Calora's auth handoff to `/auth/callback`.
 
    The template files in this directory (`apple-app-site-association`,
    `assetlinks.json`) are kept as reference; the live endpoint builds the
@@ -104,7 +114,8 @@ an OTA JavaScript update. Older builds still reach the browser fallback, whose
   `https://app-site-association.cdn-apple.com/a/v1/calorie-coach-pie35449.replit.app`.
   Apple caches AASA via its CDN; changes can take up to ~24 h to propagate.
 - Android: `adb shell pm get-app-links com.etiendem.caloraapp` should show
-  `calorie-coach-pie35449.replit.app: verified`. Google's checker:
+  `calorie-coach-pie35449.replit.app: verified` and the auth intent should
+  resolve to `/auth/callback`. Google's checker:
   `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://calorie-coach-pie35449.replit.app&relation=delegate_permission/common.handle_all_urls`
 
 ## Fallback for users without the app

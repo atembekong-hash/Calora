@@ -1,5 +1,5 @@
 /**
- * auth/callback — OAuth / magic-link deep-link callback screen.
+ * auth/callback — OAuth / magic-link HTTPS associated-link callback screen.
  */
 
 import React, { useEffect, useRef, useState } from 'react';

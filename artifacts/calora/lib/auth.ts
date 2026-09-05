@@ -7,7 +7,13 @@ import * as Crypto from 'expo-crypto';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
-export const OAUTH_REDIRECT_URI = 'caloraapp://auth/callback' as const;
+/**
+ * HTTPS is intentional here. The production host is associated with this
+ * bundle/package on iOS and Android, so the OS—not a globally claimable
+ * custom scheme—owns the callback. Keep the path in sync with app.json,
+ * the association responses, and Supabase's redirect allow-list.
+ */
+export const OAUTH_REDIRECT_URI = 'https://calorie-coach-pie35449.replit.app/auth/callback' as const;
 const OAUTH_REDIRECT_URL = new URL(OAUTH_REDIRECT_URI);
 
 export type AuthErrorCode =

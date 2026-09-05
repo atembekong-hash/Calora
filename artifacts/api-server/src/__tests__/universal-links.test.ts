@@ -264,6 +264,13 @@ describe('GET /.well-known/apple-app-site-association', () => {
     const res = await request(app).get('/.well-known/apple-app-site-association');
     expect(JSON.stringify(res.body)).toContain('/invite/*');
   });
+
+  it('covers the HTTPS auth callback path in the applinks components', async () => {
+    process.env['APPLE_TEAM_ID'] = 'AB12CD34EF';
+    const app = makeApp();
+    const res = await request(app).get('/.well-known/apple-app-site-association');
+    expect(JSON.stringify(res.body)).toContain('/auth/callback');
+  });
 });
 
 describe('GET /.well-known/assetlinks.json', () => {
