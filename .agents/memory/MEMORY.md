@@ -57,3 +57,4 @@
 - [Native notification account lifecycle](native-notification-account-lifecycle.md) — device-wide schedules must be serialized so only the hydrated active account owns Calora reminders.
 - [Destructive clear async gate](destructive-clear-async-gate.md) — clear must invalidate old background work and block new work until durable and auxiliary cleanup finishes.
 - [Expo native bridge in tests](expo-native-bridge-in-tests.md) — keep SecureStore lazy in app modules and mock its async key contract before provider tests run under Vitest.
+- [Supabase redirect probes](supabase-redirect-probes.md) — authorize 302s and recovery 200s do not prove an Auth redirect is allow-listed; inspect generated-link destinations.

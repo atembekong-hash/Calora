@@ -3,8 +3,8 @@
 **Scope:** Calora sign-in, email verification, and password recovery  
 **Canonical callback:** `https://calorie-coach-pie35449.replit.app/auth/callback`  
 **Native identifiers:** `com.etiendem.caloraapp` / `com.etiendem.caloraapp`  
-**Status:** Configuration and source validation complete; native-device
-execution and legacy provider-allow-list cleanup remain release gates.
+**Status:** Source validation and Supabase Auth redirect cleanup complete;
+native-device execution remains a release gate.
 
 ## What is shipped in source
 
@@ -30,7 +30,7 @@ authentication transport.
 | Callback parser fail-closed behavior | **PASS** | Unit coverage accepts the canonical HTTPS callback and rejects the old custom-scheme callback before `exchangeCodeForSession` or `setSession`. |
 | Association response source | **PASS** | API tests cover the `/auth/callback` AASA component. |
 | Production association response | **REDEPLOY REQUIRED** | The currently reachable response was captured before this source change and still showed only `/invite/*`; redeploy and re-fetch it before a release decision. |
-| Supabase redirect allow-list | **PARTIAL / RELEASE BLOCKER** | The public Google authorize probe accepted the canonical HTTPS callback (302), and the password-recovery probe accepted it (200). The old `caloraapp://auth/callback` is also still accepted (302), so remove it from the Supabase Auth allow-list before shipping; this environment cannot mutate that Auth control-plane setting. |
+| Supabase redirect allow-list | **PASS** | Supabase Management API readback contains only `https://calorie-coach-pie35449.replit.app/auth/callback`. A disposable generated recovery link preserved the canonical callback, while `caloraapp://auth/callback` and an unrelated HTTPS URL fell back to the configured Site URL. The initial Google authorize endpoint returns a handoff `302` even for unlisted `redirect_to` values, so that status alone is not a final redirect-allow-list assertion. |
 | Disposable iOS build and three live auth flows | **NOT RUN** | This environment has no physical iOS device and the Expo guidance forbids invoking EAS CLI directly; run the `development-device`/internal native build through the supported Expo build flow. |
 | Disposable Android build and three live auth flows | **NOT RUN** | Same environment limitation; run an internal APK on a clean Android device or emulator with Play Services. |
 
@@ -75,10 +75,9 @@ real user's credentials.
 Old email messages that still contain `caloraapp://auth/callback` are
 intentionally fail-closed after this migration. Ask the user to request a new
 verification or recovery message; never re-enable token acceptance on the
-claimable scheme. Supabase still accepts that old redirect today, so the
-provider setting is a release blocker: remove the old callback, retain only
-the canonical HTTPS URL (plus any separately justified non-auth URLs), then
-rerun the two public probes.
+claimable scheme. Supabase now retains only the canonical HTTPS callback in
+the Auth allow-list; legacy and unrelated recovery links fall back to the
+configured Site URL.
 
 Until a signed build is installed and the production AASA/assetlinks responses
 plus the cleaned Supabase allow-list are rechecked, source configuration alone
