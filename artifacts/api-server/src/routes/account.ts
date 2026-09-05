@@ -24,7 +24,7 @@ import {
   type RecoverableAccountDeletion,
 } from "../lib/account-deletion-state.js";
 import { deleteRevenueCatSubscriber } from "../lib/revenuecat.js";
-import { logger } from "../lib/logger.js";
+import { logger, noteSuppressedRecoveryWarning } from "../lib/logger.js";
 
 const router: IRouter = Router();
 const RECOVERY_STUCK_AFTER_MS = 15 * 60 * 1000;
@@ -214,10 +214,17 @@ export async function recoverPendingAccountDeletions(): Promise<void> {
   const overdue = unresolved.filter(
     (deletion) => ageSeconds(deletion, now) * 1000 >= RECOVERY_STUCK_AFTER_MS,
   );
-  if (
-    (failed.length > 0 || overdue.length > 0)
-    && await shouldEmitRecoveryWarning(failed, overdue)
-  ) {
+  if (failed.length > 0 || overdue.length > 0) {
+    const warningKey = recoveryWarningKey(failed, overdue);
+    const emitWarning = await shouldEmitRecoveryWarning(failed, overdue);
+    if (!emitWarning) {
+      noteSuppressedRecoveryWarning({
+        cohortKey: warningKey,
+        correlationKeys: correlationKeys([...failed, ...overdue]),
+      });
+      return;
+    }
+
     logger.warn(
       {
         event: "account_deletion_recovery",

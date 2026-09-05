@@ -1,5 +1,9 @@
 import app from "./app";
-import { logger } from "./lib/logger";
+import {
+  flushSuppressedRecoveryWarningSummary,
+  logger,
+  RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
+} from "./lib/logger";
 import { pool } from "@workspace/db";
 import { recoverPendingAccountDeletions } from "./routes/account";
 import { runSafeBackgroundTask } from "./lib/safe-background-task";
@@ -72,6 +76,11 @@ const accountRecoveryTimer = setInterval(
   ACCOUNT_DELETION_RECOVERY_INTERVAL_MS,
 );
 accountRecoveryTimer.unref();
+const recoveryWarningSummaryTimer = setInterval(
+  flushSuppressedRecoveryWarningSummary,
+  RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
+);
+recoveryWarningSummaryTimer.unref();
 
 let rateLimitCleanupTimer: NodeJS.Timeout | undefined;
 const server = app.listen(port, (err) => {
@@ -99,6 +108,7 @@ function shutdown(reason: string, exitCode: number): void {
 
   logger.info({ reason, exitCode }, "API shutdown started");
   clearInterval(accountRecoveryTimer);
+  clearInterval(recoveryWarningSummaryTimer);
   if (rateLimitCleanupTimer) clearInterval(rateLimitCleanupTimer);
 
   const hardShutdownTimer = setTimeout(() => {

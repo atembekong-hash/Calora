@@ -5,7 +5,7 @@ import request from "supertest";
 const {
   transaction, execute, deleteWhere, deleteUser, getUser, advisoryQuery,
   claimDeletion, checkpointDeletion, completeDeletion, failedDeletion, deleteRevenueCatSubscriber,
-  listRecoverableDeletions, claimRecoveryWarningSuppression, warn,
+  listRecoverableDeletions, claimRecoveryWarningSuppression, noteSuppressedRecoveryWarning, warn,
 } = vi.hoisted(() => {
   const execute = vi.fn();
   const deleteWhere = vi.fn();
@@ -29,6 +29,7 @@ const {
     advisoryQuery,
     listRecoverableDeletions: vi.fn(),
     claimRecoveryWarningSuppression: vi.fn(),
+    noteSuppressedRecoveryWarning: vi.fn(),
     warn,
   };
 });
@@ -63,6 +64,7 @@ vi.mock("../lib/revenuecat.js", () => ({
 
 vi.mock("../lib/logger.js", () => ({
   logger: { warn },
+  noteSuppressedRecoveryWarning: (...args: unknown[]) => noteSuppressedRecoveryWarning(...args),
 }));
 
 import accountRouter, { recoverPendingAccountDeletions } from "../routes/account.js";
@@ -209,6 +211,8 @@ describe("account deletion recovery signals", () => {
     listRecoverableDeletions.mockResolvedValue([]);
     advisoryQuery.mockResolvedValue({ rows: [{ locked: true }] });
     claimDeletion.mockResolvedValue({ kind: "completed" });
+    claimRecoveryWarningSuppression.mockResolvedValue(true);
+    noteSuppressedRecoveryWarning.mockReset();
   });
 
   it("stays quiet when all recoverable deletions complete", async () => {
@@ -282,6 +286,11 @@ describe("account deletion recovery signals", () => {
 
     expect(warn).toHaveBeenCalledOnce();
     expect(claimRecoveryWarningSuppression).toHaveBeenCalledTimes(2);
+    expect(noteSuppressedRecoveryWarning).toHaveBeenCalledOnce();
+    expect(noteSuppressedRecoveryWarning.mock.calls[0][0]).toMatchObject({
+      cohortKey: expect.stringContaining("failed"),
+      correlationKeys: ["c".repeat(16)],
+    });
   });
 
   it("emits a fresh signal when a recovery stage changes", async () => {
@@ -307,6 +316,36 @@ describe("account deletion recovery signals", () => {
     expect(warn.mock.calls[1][0]).toMatchObject({
       overdueStages: { application: 0, revenuecat: 0, auth: 1 },
     });
+    expect(noteSuppressedRecoveryWarning).not.toHaveBeenCalled();
+  });
+
+  it("emits a fresh signal when a new account cohort appears", async () => {
+    const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+    listRecoverableDeletions.mockResolvedValue([
+      {
+        externalUserId: "raw-auth-uuid-1",
+        identityFingerprint: "1".repeat(64),
+        stage: "revenuecat",
+        requestedAt,
+        updatedAt: requestedAt,
+      },
+    ]);
+    claimDeletion.mockRejectedValue(new Error("provider unavailable"));
+
+    await recoverPendingAccountDeletions();
+    listRecoverableDeletions.mockResolvedValue([
+      {
+        externalUserId: "raw-auth-uuid-2",
+        identityFingerprint: "2".repeat(64),
+        stage: "revenuecat",
+        requestedAt,
+        updatedAt: requestedAt,
+      },
+    ]);
+    await recoverPendingAccountDeletions();
+
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(noteSuppressedRecoveryWarning).not.toHaveBeenCalled();
   });
 
   it("emits the same cohort again after the warning cooldown", async () => {

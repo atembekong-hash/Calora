@@ -15,3 +15,14 @@ stages, and states and must continue retrying independently.
 **How to apply:** Keep warning identity construction limited to redacted,
 stage-aware values; hash again at the persistence boundary; use an atomic
 shared claim; and treat persistence failure as permission to emit the warning.
+
+Suppressed-cycle summaries are intentionally process-local and cadence-bound:
+they add operator visibility without turning the summary into a second
+cross-instance coordination table or a dependency for deletion retries.
+
+**Why:** The shared claim already decides which instance owns an immediate
+warning; durable aggregate counters would expand the sensitive operational
+state without improving recovery correctness.
+
+**How to apply:** Record only opaque cohort digests and validated redacted
+correlation keys, cap the buffer, and flush summaries on a slow timer.
