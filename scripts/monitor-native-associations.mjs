@@ -455,10 +455,10 @@ export async function checkNativeAssociations({
   };
 }
 
-async function main() {
+export async function runNativeAssociationMonitor({ fetchImpl = fetch } = {}) {
   const [result, providerEvidence] = await Promise.all([
-    checkNativeAssociations(),
-    checkAppleAndGoogleAssociationEvidence(),
+    checkNativeAssociations({ fetchImpl }),
+    checkAppleAndGoogleAssociationEvidence({ fetchImpl }),
   ]);
   console.info(
     `Native association monitor passed for ${result.origin}: ${result.checked.join("; ")}.`,
@@ -472,6 +472,12 @@ async function main() {
   for (const warning of providerEvidence.warnings ?? []) {
     console.warn(`[WARN] ${warning}`);
   }
+
+  return { result, providerEvidence };
+}
+
+async function main() {
+  await runNativeAssociationMonitor();
 }
 
 if (import.meta.url === new URL(process.argv[1], "file:").href) {
