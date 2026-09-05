@@ -14,7 +14,9 @@ applied main cannot be published as an exact historical tree without omitting
 later main changes.
 
 **How to apply:** Compare the live tree with both the task checkout and the
-applied-main tree before publishing. Apply forward task changes before release.
+applied-main tree before publishing. Also inspect the hosted GitHub workflow
+definition before dispatching an operator verification; it can lag the applied
+source and reject newly added inputs. Apply forward task changes before release.
 For an older historical tree, require an explicit owner release decision or
 Replit Support guidance; do not rewrite history, roll back valid later code, or
 keep republishing.
