@@ -8,6 +8,12 @@ import {
   MONITOR_SCHEMA_VERSION,
   summarizeAccountDeletionFenceLogs,
 } from "./monitor-account-deletion-fence.mjs";
+import {
+  ACCOUNT_DELETION_FENCE_MAX_COUNT,
+  ACCOUNT_DELETION_FENCE_MAX_ROUTE_LENGTH,
+  createAccountDeletionFenceSignal,
+  parseAccountDeletionFenceSignal,
+} from "../artifacts/api-server/src/lib/account-deletion-fence-schema.mjs";
 
 const workspaceDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -223,6 +229,39 @@ test("fails closed on malformed structured fence signals", () => {
   );
 });
 
+test("uses one shared fence schema for API construction and monitor parsing", () => {
+  assert.deepEqual(createAccountDeletionFenceSignal("/v1/sync", 2), {
+    errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+    route: "/v1/sync",
+    count: 2,
+  });
+  assert.deepEqual(
+    parseAccountDeletionFenceSignal({
+      errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+      route: `/v1/${"a".repeat(ACCOUNT_DELETION_FENCE_MAX_ROUTE_LENGTH - 4)}`,
+      count: ACCOUNT_DELETION_FENCE_MAX_COUNT,
+      accountId: "must-not-be-retained",
+    }),
+    {
+      errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+      route: `/v1/${"a".repeat(ACCOUNT_DELETION_FENCE_MAX_ROUTE_LENGTH - 4)}`,
+      count: ACCOUNT_DELETION_FENCE_MAX_COUNT,
+    },
+  );
+  assert.equal(
+    parseAccountDeletionFenceSignal({
+      errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+      route: "/v1/sync?unsafe=query",
+      count: 1,
+    }),
+    null,
+  );
+  assert.throws(
+    () => createAccountDeletionFenceSignal("/v1/sync", 0),
+    /Invalid account-deletion fence signal/,
+  );
+});
+
 const ACCOUNT_DELETION_FENCE_CALL_SITES = [
   {
     file: "capture.ts",
@@ -387,13 +426,14 @@ test("keeps every API deletion-fence call site monitor-compatible", async () => 
     })),
   );
 
+  assert.match(stateSource, /createAccountDeletionFenceSignal/);
   assert.match(
     stateSource,
-    /return\s*\{\s*errorClass:\s*ACCOUNT_DELETION_FENCE_ERROR_CLASS,\s*route,\s*count,\s*\}/s,
+    /account-deletion-fence-schema\.mjs/,
   );
-  assert.match(
+  assert.doesNotMatch(
     stateSource,
-    /interface AccountDeletionFenceSignal[\s\S]*errorClass[\s\S]*route:\s*string[\s\S]*count:\s*number/,
+    /ACCOUNT_DELETION_FENCE_ERROR_CLASS\s*=\s*"account_deletion_fence"/,
   );
   assert.match(
     stateSource,

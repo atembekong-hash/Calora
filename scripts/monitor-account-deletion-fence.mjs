@@ -18,8 +18,12 @@ import {
   fetchPublishedReleaseAttestation,
   sanitizePublishedReleaseAttestation,
 } from "./lib/public-release-attestation.mjs";
+import {
+  ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+  parseAccountDeletionFenceSignal,
+} from "../artifacts/api-server/src/lib/account-deletion-fence-schema.mjs";
 
-export const ACCOUNT_DELETION_FENCE_ERROR_CLASS = "account_deletion_fence";
+export { ACCOUNT_DELETION_FENCE_ERROR_CLASS };
 export const MONITOR_SCHEMA_VERSION =
   "calora.account-deletion-fence-monitor.v1";
 
@@ -45,21 +49,6 @@ function routeForRequest(record) {
   return route === "/api" ? "/" : route.startsWith("/api/")
     ? route.slice("/api".length)
     : route;
-}
-
-function isSafeRoute(route) {
-  return (
-    typeof route === "string" &&
-    route.length > 0 &&
-    route.length <= 200 &&
-    /^\/[A-Za-z0-9._:/-]+$/.test(route)
-  );
-}
-
-function positiveCount(value) {
-  return Number.isInteger(value) && value > 0 && value <= 1_000_000
-    ? value
-    : null;
 }
 
 function incrementRoute(routes, route, count) {
@@ -142,13 +131,13 @@ export function summarizeAccountDeletionFenceLogs(ndjson, options = {}) {
     // This is the only event class treated as an expected deletion-control
     // signal. Do not infer it from HTTP 503 or arbitrary database text.
     if (record?.errorClass === ACCOUNT_DELETION_FENCE_ERROR_CLASS) {
-      const route = record.route;
-      const count = positiveCount(record.count);
-      if (!isSafeRoute(route) || count === null) {
+      const signal = parseAccountDeletionFenceSignal(record);
+      if (signal === null) {
         throw new Error(
           `Deletion-fence signal on line ${index + 1} has an invalid route or count.`,
         );
       }
+      const { route, count } = signal;
       deletionFence.eventCount += 1;
       deletionFence.rejectionCount += count;
       incrementRoute(deletionFence.routes, route, count);

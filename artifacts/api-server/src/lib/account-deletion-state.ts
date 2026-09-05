@@ -1,6 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
+import {
+  ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+  createAccountDeletionFenceSignal,
+} from "./account-deletion-fence-schema.mjs";
+import type { AccountDeletionFenceSignal } from "./account-deletion-fence-schema.mjs";
 
 export type AccountDeletionState = "active" | "deleting" | "deleted";
 export type AccountDeletionStage = "application" | "revenuecat" | "auth";
@@ -9,7 +14,7 @@ export type AccountDeletionClaim =
   | { kind: "in_progress" }
   | { kind: "claimed"; operationId: string; stage: AccountDeletionStage };
 
-export const ACCOUNT_DELETION_FENCE_ERROR_CLASS = "account_deletion_fence" as const;
+export { ACCOUNT_DELETION_FENCE_ERROR_CLASS };
 const ACCOUNT_DELETION_FENCE_SQLSTATE = "55000";
 const ACCOUNT_DELETION_FENCE_MESSAGE = "account deletion is in progress";
 
@@ -18,21 +23,13 @@ export const RECOVERY_WARNING_COOLDOWN_MS = 15 * 60 * 1000;
 const RECOVERY_WARNING_MAX_RECORDS = 128;
 const RECOVERY_WARNING_LOCK_KEY = "calora:recovery-warning-suppression";
 
-export interface AccountDeletionFenceSignal {
-  errorClass: typeof ACCOUNT_DELETION_FENCE_ERROR_CLASS;
-  route: string;
-  count: number;
-}
+export type { AccountDeletionFenceSignal };
 
 export function accountDeletionFenceSignal(
   route: string,
   count = 1,
 ): AccountDeletionFenceSignal {
-  return {
-    errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
-    route,
-    count,
-  };
+  return createAccountDeletionFenceSignal(route, count);
 }
 
 /**
