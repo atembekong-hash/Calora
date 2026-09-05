@@ -17,9 +17,12 @@ import request from 'supertest';
 // vi.hoisted ensures this is available inside the vi.mock factory (which
 // is hoisted to the top of the module by vitest).
 // ---------------------------------------------------------------------------
-const { mockRateBuckets, mockInsert, loggerWarn, loggerError } = vi.hoisted(() => ({
+const { mockRateBuckets, mockInsert, mockTransaction, loggerWarn, loggerError } = vi.hoisted(() => ({
   mockRateBuckets: new Map<string, { count: number; reset_at: Date }>(),
   mockInsert: vi.fn(),
+  mockTransaction: vi.fn(async (callback: (tx: { insert: typeof mockInsert }) => unknown) =>
+    callback({ insert: mockInsert }),
+  ),
   loggerWarn: vi.fn(),
   loggerError: vi.fn(),
 }));
@@ -65,7 +68,7 @@ vi.mock('@workspace/db', () => {
 
   return {
     pool: { query: mockQuery },
-    db: { insert: mockInsert },
+    db: { insert: mockInsert, transaction: mockTransaction },
     aiCaptureSessionsTable: {},
     aiCaptureCandidatesTable: {},
   };
@@ -246,6 +249,7 @@ describe('POST /v1/capture/analyze', () => {
     mockInsert.mockReturnValue({
       values: vi.fn().mockResolvedValue(undefined),
     });
+    mockTransaction.mockClear();
     // resetCaptureRateLimiter is async — it issues a DELETE against the
     // (mocked) DB table so the in-memory simulation is cleared before each test.
     await resetCaptureRateLimiter();
@@ -714,6 +718,51 @@ describe('POST /v1/capture/analyze', () => {
       expect(candidateInsert.values).toHaveBeenCalledWith([
         expect.objectContaining({ sessionId: sessionValues.id }),
       ]);
+    });
+
+    it('does not return a server session when candidate persistence fails', async () => {
+      const clientSessionId = 'client-fallback-session';
+      const sessionInsert = {
+        values: vi.fn().mockResolvedValue(undefined),
+      };
+      const candidateWriteError = new Error('candidate storage unavailable');
+      const candidateInsert = {
+        values: vi.fn().mockRejectedValue(candidateWriteError),
+      };
+
+      vi.mocked(verifyBearerToken).mockResolvedValueOnce({
+        id: 'capture-candidate-failure-user',
+        email: 'capture-candidate-failure@example.com',
+      });
+      mockInsert.mockReturnValueOnce(sessionInsert).mockReturnValueOnce(candidateInsert);
+      vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({
+        choices: [{ message: { content: aiJsonResponse() } }],
+      } as any);
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({
+          mode: 'text',
+          textInput: 'a bowl of oatmeal with berries',
+          clientSessionId,
+        })
+        .set('Authorization', 'Bearer valid-token')
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(200);
+      expect(res.body.sessionId).toBe(clientSessionId);
+      const sessionValues = sessionInsert.values.mock.calls[0][0] as { id: string };
+      expect(res.body.sessionId).not.toBe(sessionValues.id);
+      expect(mockTransaction).toHaveBeenCalledTimes(1);
+      expect(sessionInsert.values).toHaveBeenCalledTimes(1);
+      expect(candidateInsert.values).toHaveBeenCalledTimes(1);
+      expect(loggerError).toHaveBeenCalledWith(
+        { err: candidateWriteError },
+        'Failed to persist capture session',
+      );
+
+      // The storage error is operational detail, not part of the client response.
+      expect(JSON.stringify(res.body)).not.toContain(candidateWriteError.message);
     });
 
     it('response components include all required fields', async () => {

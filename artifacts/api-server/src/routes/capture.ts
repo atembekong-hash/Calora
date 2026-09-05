@@ -82,23 +82,28 @@ async function persistCaptureSession(
   try {
     const userId = await ensureUserRow(user.id, user.email);
     const sessionId = randomUUID();
-    await db.insert(aiCaptureSessionsTable).values({ id: sessionId, userId, mode, status: "review" });
-    await db.insert(aiCaptureCandidatesTable).values(
-      candidates.map((candidate) => ({
-        sessionId,
-        name: candidate.name,
-        calories: String(candidate.calories),
-        proteinG: String(candidate.proteinG),
-        carbsG: String(candidate.carbsG),
-        fatG: String(candidate.fatG),
-        confidence: candidate.confidence,
-        evidence: {
-          serving: candidate.serving,
-          provenance: candidate.provenance,
-          sourceLabel: candidate.sourceLabel,
-        },
-      })),
-    );
+    // Keep the session and its review candidates atomic. A session without
+    // candidates cannot be resumed or safely accepted by the diary sync path,
+    // so a candidate-write failure must roll back the session insert too.
+    await db.transaction(async (tx) => {
+      await tx.insert(aiCaptureSessionsTable).values({ id: sessionId, userId, mode, status: "review" });
+      await tx.insert(aiCaptureCandidatesTable).values(
+        candidates.map((candidate) => ({
+          sessionId,
+          name: candidate.name,
+          calories: String(candidate.calories),
+          proteinG: String(candidate.proteinG),
+          carbsG: String(candidate.carbsG),
+          fatG: String(candidate.fatG),
+          confidence: candidate.confidence,
+          evidence: {
+            serving: candidate.serving,
+            provenance: candidate.provenance,
+            sourceLabel: candidate.sourceLabel,
+          },
+        })),
+      );
+    });
     return sessionId;
   } catch (err) {
     if (classifyAccountDeletionError(err)) throw err;
