@@ -1,9 +1,5 @@
 import { type ImageSource } from 'expo-image';
-
-type RestaurantFoodImageInput = {
-  name: string;
-  brandName?: string | null;
-};
+import { restaurantFoodImageKey, type RestaurantFoodImageInput, type RestaurantFoodImageKey } from './restaurantFoodImageSelection';
 
 const FALLBACK_MAIN = require('../assets/images/food-fallback-main.jpg');
 const FALLBACK_DRINK = require('../assets/images/food-fallback-drink.jpg');
@@ -23,38 +19,18 @@ const PASTA = require('../assets/images/foods/whole-wheat-pasta-primavera.jpg');
  * assign a stable, representative local photo for every menu item instead.
  */
 export function restaurantFoodImageSource(food: RestaurantFoodImageInput): ImageSource {
-  const text = `${food.brandName ?? ''} ${food.name}`.toLowerCase();
-
-  if (/\b(water|coffee|tea|latte|lemonade|juice|smoothie|shake|soda|drink|beverage)\b/.test(text)) {
-    return FALLBACK_DRINK;
-  }
-  if (/\b(cookie|brownie|cake|pie|donut|doughnut|dessert|ice cream|chips?|fries|fries|side)\b/.test(text)) {
-    return FALLBACK_SNACK;
-  }
-  if (/\b(egg|oatmeal|oats|pancake|waffle|breakfast)\b/.test(text)) {
-    return BREAKFAST;
-  }
-  if (/\b(salad|greens)\b/.test(text)) {
-    return SALAD;
-  }
-  if (/\b(soup|chili)\b/.test(text)) {
-    return SOUP;
-  }
-  if (/\b(taco|tacos|burrito|quesadilla|nacho)\b/.test(text)) {
-    return TACOS;
-  }
-  if (/\b(pasta|spaghetti|mac ?and ?cheese)\b/.test(text)) {
-    return PASTA;
-  }
-  if (/\b(chicken|nugget|tender|wing|turkey)\b/.test(text)) {
-    return CHICKEN;
-  }
-  if (/\b(wrap|sub|hoagie|sandwich)\b/.test(text)) {
-    return WRAP;
-  }
-  if (/\b(bowl|rice|poke)\b/.test(text)) {
-    return BOWL;
-  }
-
-  return FALLBACK_MAIN;
+  const images: Record<RestaurantFoodImageKey, ImageSource> = {
+    main: FALLBACK_MAIN,
+    drink: FALLBACK_DRINK,
+    snack: FALLBACK_SNACK,
+    breakfast: BREAKFAST,
+    bowl: BOWL,
+    chicken: CHICKEN,
+    wrap: WRAP,
+    salad: SALAD,
+    soup: SOUP,
+    tacos: TACOS,
+    pasta: PASTA,
+  };
+  return images[restaurantFoodImageKey(food)];
 }

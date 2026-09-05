@@ -297,6 +297,12 @@ export default function RestaurantsScreen() {
                   </Pressable>
                 </View>
 
+                <Image
+                  accessibilityLabel={`${detail.name} food photo`}
+                  contentFit="cover"
+                  source={restaurantFoodImageSource(detail)}
+                  style={styles.detailImage}
+                />
                 {detailResult.isFetching ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} /> : null}
                 <View style={[styles.nutritionCard, { backgroundColor: colors.hero }]}>
                   <View><Text style={[styles.macroValueLarge, { color: colors.onHero }]}>{selectedServing?.calories !== null ? Math.round(selectedServing?.calories ?? 0) : '—'}</Text><Text style={[styles.macroLabel, { color: colors.heroMuted }]}>kcal</Text></View>
