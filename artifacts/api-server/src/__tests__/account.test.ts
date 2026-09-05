@@ -5,7 +5,7 @@ import request from "supertest";
 const {
   transaction, execute, deleteWhere, deleteUser, getUser, advisoryQuery,
   claimDeletion, checkpointDeletion, completeDeletion, failedDeletion, deleteRevenueCatSubscriber,
-  listRecoverableDeletions, warn,
+  listRecoverableDeletions, claimRecoveryWarningSuppression, warn,
 } = vi.hoisted(() => {
   const execute = vi.fn();
   const deleteWhere = vi.fn();
@@ -28,6 +28,7 @@ const {
     deleteRevenueCatSubscriber: vi.fn(),
     advisoryQuery,
     listRecoverableDeletions: vi.fn(),
+    claimRecoveryWarningSuppression: vi.fn(),
     warn,
   };
 });
@@ -49,6 +50,7 @@ vi.mock("../lib/supabase-admin.js", () => ({
 
 vi.mock("../lib/account-deletion-state.js", () => ({
   claimAccountDeletion: (...args: unknown[]) => claimDeletion(...args),
+  claimRecoveryWarningSuppression: (...args: unknown[]) => claimRecoveryWarningSuppression(...args),
   checkpointAccountDeletion: (...args: unknown[]) => checkpointDeletion(...args),
   completeAccountDeletion: (...args: unknown[]) => completeDeletion(...args),
   markAccountDeletionFailed: (...args: unknown[]) => failedDeletion(...args),
@@ -86,6 +88,7 @@ describe("DELETE /v1/account", () => {
     failedDeletion.mockResolvedValue(undefined);
     deleteRevenueCatSubscriber.mockResolvedValue(undefined);
     listRecoverableDeletions.mockResolvedValue([]);
+    claimRecoveryWarningSuppression.mockResolvedValue(true);
   });
 
   it("removes application data before deleting the authenticated Auth identity", async () => {
@@ -271,10 +274,14 @@ describe("account deletion recovery signals", () => {
     ]);
     claimDeletion.mockRejectedValue(new Error("provider unavailable"));
 
+    claimRecoveryWarningSuppression
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
     await recoverPendingAccountDeletions();
     await recoverPendingAccountDeletions();
 
     expect(warn).toHaveBeenCalledOnce();
+    expect(claimRecoveryWarningSuppression).toHaveBeenCalledTimes(2);
   });
 
   it("emits a fresh signal when a recovery stage changes", async () => {
@@ -303,27 +310,26 @@ describe("account deletion recovery signals", () => {
   });
 
   it("emits the same cohort again after the warning cooldown", async () => {
-    vi.useFakeTimers();
-    try {
-      const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
-      listRecoverableDeletions.mockResolvedValue([
-        {
-          externalUserId: "raw-auth-uuid-that-must-not-be-logged",
-          identityFingerprint: "e".repeat(64),
-          stage: "revenuecat",
-          requestedAt,
-          updatedAt: requestedAt,
-        },
-      ]);
-      claimDeletion.mockRejectedValue(new Error("provider unavailable"));
+    const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+    listRecoverableDeletions.mockResolvedValue([
+      {
+        externalUserId: "raw-auth-uuid-that-must-not-be-logged",
+        identityFingerprint: "e".repeat(64),
+        stage: "revenuecat",
+        requestedAt,
+        updatedAt: requestedAt,
+      },
+    ]);
+    claimDeletion.mockRejectedValue(new Error("provider unavailable"));
+    claimRecoveryWarningSuppression
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
 
-      await recoverPendingAccountDeletions();
-      vi.advanceTimersByTime(15 * 60 * 1000);
-      await recoverPendingAccountDeletions();
+    await recoverPendingAccountDeletions();
+    await recoverPendingAccountDeletions();
+    await recoverPendingAccountDeletions();
 
-      expect(warn).toHaveBeenCalledTimes(2);
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(warn).toHaveBeenCalledTimes(2);
   });
 });

@@ -5,6 +5,7 @@ import {
   check,
   date,
   integer,
+  index,
   jsonb,
   numeric,
   pgTable,
@@ -422,6 +423,21 @@ export const accountDeletionStatesTable = pgTable("calora_account_deletion_state
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   lastError: text("last_error"),
 });
+
+/**
+ * Shared cooldown records for aggregate account-deletion recovery warnings.
+ *
+ * The key is a server-generated digest, never an account identifier or
+ * provider error. Rows are short-lived operational state and are pruned by
+ * the recovery claim path.
+ */
+export const recoveryWarningSuppressionsTable = pgTable("calora_recovery_warning_suppressions", {
+  warningKey: text("warning_key").primaryKey(),
+  emittedAt: timestamp("emitted_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, (table) => ({
+  expiresAtIndex: index("calora_recovery_warning_suppressions_expires_at_idx").on(table.expiresAt),
+}));
 
 export const insertRecipeNutritionSchema = createInsertSchema(recipeNutritionTable);
 export type RecipeNutrition = typeof recipeNutritionTable.$inferSelect;

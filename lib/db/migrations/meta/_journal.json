@@ -15,6 +15,13 @@
       "when": 1787827621763,
       "tag": "0002_cross_device_diary_restore",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788602296199,
+      "tag": "0003_recovery_warning_suppression",
+      "breakpoints": true
     }
   ]
 }

@@ -14,6 +14,9 @@ const ACCOUNT_DELETION_FENCE_SQLSTATE = "55000";
 const ACCOUNT_DELETION_FENCE_MESSAGE = "account deletion is in progress";
 
 const LEASE_SECONDS = 5 * 60;
+export const RECOVERY_WARNING_COOLDOWN_MS = 15 * 60 * 1000;
+const RECOVERY_WARNING_MAX_RECORDS = 128;
+const RECOVERY_WARNING_LOCK_KEY = "calora:recovery-warning-suppression";
 
 export function accountDeletionFenceSignal(route: string, count = 1) {
   return {
@@ -21,6 +24,60 @@ export function accountDeletionFenceSignal(route: string, count = 1) {
     route,
     count,
   };
+}
+
+/**
+ * Atomically claim a shared recovery-warning cooldown record.
+ *
+ * The caller supplies only a locally-built warning signature. Hashing it
+ * again here ensures that even an accidental future caller cannot persist
+ * account identifiers, provider messages, or other warning content.
+ *
+ * The fixed advisory lock serializes pruning and insertion across API
+ * instances. Expired rows and the oldest active rows are removed before a
+ * new claim, keeping this operational table bounded without suppressing a
+ * newly-seen warning signature.
+ */
+export async function claimRecoveryWarningSuppression(
+  warningSignature: string,
+  now = new Date(),
+): Promise<boolean> {
+  const warningKey = createHash("sha256").update(warningSignature).digest("hex");
+  const expiresAt = new Date(now.getTime() + RECOVERY_WARNING_COOLDOWN_MS);
+
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`
+      SELECT pg_advisory_xact_lock(hashtextextended(${RECOVERY_WARNING_LOCK_KEY}, 0))
+    `);
+    await tx.execute(sql`
+      DELETE FROM calora_recovery_warning_suppressions
+      WHERE expires_at <= ${now}
+    `);
+    await tx.execute(sql`
+      DELETE FROM calora_recovery_warning_suppressions
+      WHERE warning_key IN (
+        SELECT warning_key
+        FROM calora_recovery_warning_suppressions
+        ORDER BY emitted_at ASC
+        LIMIT GREATEST(
+          0,
+          (SELECT COUNT(*) FROM calora_recovery_warning_suppressions)
+            - ${RECOVERY_WARNING_MAX_RECORDS - 1}
+        )
+      )
+    `);
+    const result = await tx.execute(sql`
+      INSERT INTO calora_recovery_warning_suppressions
+        (warning_key, emitted_at, expires_at)
+      VALUES (${warningKey}, ${now}, ${expiresAt})
+      ON CONFLICT (warning_key) DO UPDATE
+      SET emitted_at = EXCLUDED.emitted_at,
+          expires_at = EXCLUDED.expires_at
+      WHERE calora_recovery_warning_suppressions.expires_at <= ${now}
+      RETURNING warning_key
+    `);
+    return result.rows.length === 1;
+  });
 }
 
 export interface RecoverableAccountDeletion {
