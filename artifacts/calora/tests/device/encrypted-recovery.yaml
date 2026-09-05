@@ -1,0 +1,22 @@
+appId: com.etiendem.caloraapp
+---
+# This is one deterministic flow for both native platforms. It starts from a
+# disposable install and opens the QA route that uses the production
+# AsyncStorage + SecureStore adapters.
+- launchApp:
+    clearState: true
+- openLink: "caloraapp:///encrypted-recovery-preview"
+- assertVisible: "Encrypted recovery"
+
+# Keep the assertions identical for iOS and Android. The release gate selects
+# the exact native target; Maestro does not choose an arbitrary connected
+# device.
+- extendedWaitUntil:
+    visible: "Legacy migration passed"
+    timeout: 15000
+- assertVisible: "Tamper recovery passed"
+- assertVisible: "Encrypted envelope export passed"
+- assertVisible: "Account switching passed"
+- assertVisible: "Clear-all isolation passed"
+- assertVisible: "NATIVE ENCRYPTED RECOVERY SMOKE PASSED"
+- assertNotVisible: "Encrypted recovery failed:"

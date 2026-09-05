@@ -111,6 +111,46 @@ fails. A failed card is reported by its meal identity and its observed
 `Fallback image active` or `Swapped image detected` state. A nonzero exit means
 the signed build is not cleared by this meal-image gate.
 
+## Native encrypted-recovery smoke gate
+
+`encrypted-recovery.yaml` runs the same production encrypted-storage path on
+iOS and Android. The QA route seeds a valid legacy account snapshot, confirms
+that migration replaces plaintext in AsyncStorage with an authenticated
+envelope, tampers with that envelope, and verifies that recovery rejects the
+tamper while preserving the encrypted bytes for export. It then verifies
+account-scoped state switching and clear-all isolation: clearing account A
+cannot remove account B's encrypted state.
+
+The export assertion uses the same recovery export handler as the corruption
+screen and checks that the shared payload is the encrypted envelope rather than
+plaintext state or the SecureStore key. The flow intentionally does not claim
+that clear-all deletes the install-wide SecureStore key; that key remains
+available for other account scopes by design.
+
+Run the identical flow once on each disposable native target:
+
+```sh
+pnpm test:device:encrypted-recovery
+```
+
+For exact-device release validation:
+
+```sh
+# On the native host, select one booted target per platform.
+xcrun simctl list devices booted
+adb devices
+
+CALORA_IOS_DEVICE="<exact booted iOS device ID>" \
+CALORA_ANDROID_DEVICE="<exact booted Android device ID>" \
+  pnpm test:release:encrypted-recovery
+```
+
+The gate requires both IDs, runs iOS first and Android second, and fails if
+either target fails. Install the signed Calora build with application ID
+`com.etiendem.caloraapp` on both disposable targets before running it. Maestro
+1.40 does not provide a device-list command, so use the native platform tools
+above and do not fabricate IDs or rely on an arbitrary connected device.
+
 ## iOS signing preflight
 
 Before queuing a production iOS build, run the read-only signing preflight from

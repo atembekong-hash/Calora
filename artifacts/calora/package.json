@@ -14,7 +14,9 @@
     "test:device:nutrition-goals": "maestro test tests/device/nutrition-goals.yaml",
     "test:device:meal-images": "maestro test tests/device/meal-images.yaml",
     "test:device:plus-recipes": "maestro test tests/device/plus-recipes-rapid-scroll.yaml",
+    "test:device:encrypted-recovery": "maestro test tests/device/encrypted-recovery.yaml",
     "test:release:meal-images": "node scripts/meal-image-release-gate.js",
+    "test:release:encrypted-recovery": "node scripts/encrypted-recovery-release-gate.js",
     "test:release:ios-signing": "node scripts/ios-signing-preflight.js",
     "build:ios:production": "node scripts/ios-signing-preflight.js --queue-build"
   },
