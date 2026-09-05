@@ -1,13 +1,18 @@
 import { pool } from "./index";
+import type { PoolClient } from "pg";
+
+type SupportObjectClient = Pick<PoolClient, "query">;
 
 /**
  * Applies version-controlled PostgreSQL support objects after Drizzle has
  * created the typed tables. This runs only from the managed development
  * post-merge lifecycle, never from API startup or a production build.
  */
-export async function provisionDatabaseSupportObjects(): Promise<void> {
-  await pool.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
-  await pool.query(`
+export async function provisionDatabaseSupportObjects(
+  client: SupportObjectClient = pool,
+): Promise<void> {
+  await client.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
+  await client.query(`
     CREATE OR REPLACE FUNCTION calora_assert_deletion_writable(external_user_id TEXT)
     RETURNS VOID AS $$
     BEGIN
@@ -21,7 +26,7 @@ export async function provisionDatabaseSupportObjects(): Promise<void> {
     END;
     $$ LANGUAGE plpgsql
   `);
-  await pool.query(`
+  await client.query(`
     CREATE OR REPLACE FUNCTION calora_account_deletion_write_fence()
     RETURNS TRIGGER AS $$
     DECLARE rate_limit_user_id TEXT;
@@ -57,8 +62,10 @@ export async function provisionDatabaseSupportObjects(): Promise<void> {
     "calora_capture_rate_limits",
   ];
   for (const table of fencedTables) {
-    await pool.query(`DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON ${table}`);
-    await pool.query(`
+    await client.query(
+      `DROP TRIGGER IF EXISTS calora_account_deletion_write_fence_trigger ON ${table}`,
+    );
+    await client.query(`
       CREATE TRIGGER calora_account_deletion_write_fence_trigger
       BEFORE INSERT OR UPDATE ON ${table}
       FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence()
