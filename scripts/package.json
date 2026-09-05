@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "monitor-native-associations": "node ./monitor-native-associations.mjs",
     "provision-qa-account": "tsx ./src/provisionQaAccount.ts",
+    "test": "node --test ./*.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

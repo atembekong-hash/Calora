@@ -1,0 +1,30 @@
+name: Monitor native association files
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify production Universal Links and App Links
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      NATIVE_ASSOCIATION_ORIGIN: https://calorie-coach-pie35449.replit.app
+      APPLE_TEAM_ID: ${{ secrets.CALORA_APPLE_TEAM_ID }}
+      ANDROID_SHA256_FINGERPRINT: ${{ secrets.CALORA_ANDROID_SHA256_FINGERPRINT }}
+    steps:
+      - name: Check out monitor
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Verify production association files
+        run: node scripts/monitor-native-associations.mjs
