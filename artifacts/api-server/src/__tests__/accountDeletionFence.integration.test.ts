@@ -298,6 +298,105 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
       }
     });
 
+    it("repairs missing, disabled, and drifted triggers when re-provisioning an existing schema", async () => {
+      const { pool } = await import("@workspace/db");
+      const { provisionDatabaseSupportObjects } =
+        await import("../../../../lib/db/src/provision-support-objects.js");
+      const client = await pool.connect();
+      const schemaName = `calora_fence_${randomUUID().replaceAll("-", "")}`;
+      const quotedSchemaName = `"${schemaName}"`;
+
+      try {
+        await client.query(`CREATE SCHEMA ${quotedSchemaName}`);
+        await client.query(`SET search_path TO ${quotedSchemaName}, public`);
+        await client.query(`
+        CREATE TABLE calora_account_deletion_states (
+          identity_fingerprint text PRIMARY KEY,
+          state text NOT NULL
+        );
+        CREATE TABLE calora_users (external_id text);
+        CREATE TABLE calora_referral_codes (user_id text);
+        CREATE TABLE calora_referral_redemptions (
+          referrer_user_id text,
+          referred_user_id text
+        );
+        CREATE TABLE calora_referral_qualifications (external_user_id text);
+        CREATE TABLE calora_capture_rate_limits (key text);
+      `);
+
+        await provisionDatabaseSupportObjects(client);
+
+        await client.query(`
+          DROP TRIGGER calora_account_deletion_write_fence_trigger
+            ON calora_users;
+          ALTER TABLE calora_referral_codes
+            DISABLE TRIGGER calora_account_deletion_write_fence_trigger;
+          DROP TRIGGER calora_account_deletion_write_fence_trigger
+            ON calora_referral_redemptions;
+          CREATE TRIGGER calora_account_deletion_write_fence_trigger
+            AFTER INSERT ON calora_referral_redemptions
+            FOR EACH ROW
+            EXECUTE FUNCTION calora_account_deletion_write_fence();
+          DROP TRIGGER calora_account_deletion_write_fence_trigger
+            ON calora_referral_qualifications;
+          CREATE TRIGGER calora_account_deletion_write_fence_trigger
+            BEFORE UPDATE ON calora_referral_qualifications
+            FOR EACH ROW
+            EXECUTE FUNCTION calora_account_deletion_write_fence();
+        `);
+
+        await provisionDatabaseSupportObjects(client);
+
+        const catalog = await client.query<{
+          table_name: string;
+          enabled: string;
+          is_before: boolean;
+          is_row: boolean;
+          on_insert: boolean;
+          on_update: boolean;
+        }>(
+          `SELECT
+           relation.relname AS table_name,
+           trigger.tgenabled AS enabled,
+           (trigger.tgtype & 2) <> 0 AS is_before,
+           (trigger.tgtype & 1) <> 0 AS is_row,
+           (trigger.tgtype & 4) <> 0 AS on_insert,
+           (trigger.tgtype & 16) <> 0 AS on_update
+         FROM pg_trigger AS trigger
+         JOIN pg_class AS relation ON relation.oid = trigger.tgrelid
+         JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+         WHERE namespace.nspname = $1
+           AND trigger.tgname = 'calora_account_deletion_write_fence_trigger'
+           AND NOT trigger.tgisinternal
+         ORDER BY relation.relname`,
+          [schemaName],
+        );
+
+        expect(catalog.rows).toEqual(
+          EXPECTED_FENCED_TABLES.map((tableName) => ({
+            table_name: tableName,
+            enabled: "O",
+            is_before: true,
+            is_row: true,
+            on_insert: true,
+            on_update: true,
+          })),
+        );
+      } finally {
+        try {
+          await client.query("RESET search_path");
+        } finally {
+          try {
+            await client.query(
+              `DROP SCHEMA IF EXISTS ${quotedSchemaName} CASCADE`,
+            );
+          } finally {
+            client.release();
+          }
+        }
+      }
+    });
+
     it("rolls back functions and earlier triggers when a later fenced table is missing", async () => {
       const { pool } = await import("@workspace/db");
       const { provisionDatabaseSupportObjects } =
