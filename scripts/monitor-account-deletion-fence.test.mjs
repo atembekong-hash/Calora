@@ -62,6 +62,79 @@ test("counts sanitized deletion-fence events by route and separates sync 503s", 
   assert.equal(JSON.stringify(report).includes(credential), false);
 });
 
+test("adds only published attestation identity and a sanitized log run window", () => {
+  const report = summarizeAccountDeletionFenceLogs(
+    JSON.stringify({
+      time: "2026-09-05T10:20:00.000Z",
+      errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+      route: "/v1/sync",
+      count: 1,
+      accountId: "must-not-be-retained",
+      rawLog: "must-not-be-retained",
+    }),
+    {
+      releaseAttestation: {
+        schemaVersion: "calora.release-attestation.v1",
+        gitCommit: "a".repeat(40),
+        sourceTree: "b".repeat(40),
+        sourceDigest: "c".repeat(64),
+        buildTimestamp: "2026-09-05T10:14:25.616Z",
+        releaseId: "calora-api-aaaaaaaaaaaa-20260905101425616",
+        credential: "must-not-be-retained",
+      },
+    },
+  );
+
+  assert.deepEqual(report.release, {
+    source: "published-api-attestation",
+    schemaVersion: "calora.release-attestation.v1",
+    gitCommit: "a".repeat(40),
+    sourceTree: "b".repeat(40),
+    sourceDigest: "c".repeat(64),
+    buildTimestamp: "2026-09-05T10:14:25.616Z",
+    releaseId: "calora-api-aaaaaaaaaaaa-20260905101425616",
+  });
+  assert.deepEqual(report.runWindow, {
+    startedAt: "2026-09-05T10:20:00.000Z",
+    endedAt: "2026-09-05T10:20:00.000Z",
+    source: "sanitized-log-record-timestamps",
+  });
+  assert.equal(JSON.stringify(report).includes("must-not-be-retained"), false);
+});
+
+test("accepts explicit bounded run windows without retaining log records", () => {
+  const report = summarizeAccountDeletionFenceLogs(
+    JSON.stringify({
+      errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+      route: "/v1/sync",
+      count: 1,
+      message: "raw deployment record",
+    }),
+    {
+      releaseAttestation: {
+        schemaVersion: "calora.release-attestation.v1",
+        gitCommit: "a".repeat(40),
+        sourceTree: "b".repeat(40),
+        sourceDigest: "c".repeat(64),
+        buildTimestamp: "2026-09-05T10:14:25.616Z",
+        releaseId: "calora-api-aaaaaaaaaaaa-20260905101425616",
+      },
+      runWindow: {
+        startedAt: "2026-09-05T10:00:00Z",
+        endedAt: "2026-09-05T10:30:00Z",
+        source: "bounded-log-export",
+      },
+    },
+  );
+
+  assert.deepEqual(report.runWindow, {
+    startedAt: "2026-09-05T10:00:00.000Z",
+    endedAt: "2026-09-05T10:30:00.000Z",
+    source: "bounded-log-export",
+  });
+  assert.equal(JSON.stringify(report).includes("raw deployment record"), false);
+});
+
 test("aggregates multiple sanitized routes without persisting record contents", () => {
   const report = summarizeAccountDeletionFenceLogs(
     [

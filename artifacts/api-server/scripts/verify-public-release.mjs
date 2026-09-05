@@ -4,6 +4,7 @@ import {
   checkAppleAndGoogleAssociationEvidence,
   formatAssociationFreshnessPolicy,
 } from "../../../scripts/monitor-native-associations.mjs";
+import { fetchPublishedReleaseAttestation } from "../../../scripts/lib/public-release-attestation.mjs";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_ORIGIN = "https://calorie-coach-pie35449.replit.app";
@@ -58,7 +59,9 @@ async function fetchRequired(path, expectedContentType) {
   return response;
 }
 
-async function main() {
+export { fetchPublishedReleaseAttestation };
+
+export async function main() {
   const [status, currentTree] = await Promise.all([
     git("status", "--porcelain", "--untracked-files=all"),
     git("rev-parse", "HEAD^{tree}"),
@@ -69,11 +72,7 @@ async function main() {
 
   const expectedTree =
     process.env.PUBLIC_VERIFY_EXPECTED_SOURCE_TREE?.trim() || currentTree;
-  const versionResponse = await fetchRequired(
-    "/api/version",
-    "application/json",
-  );
-  const version = await versionResponse.json();
+  const version = await fetchPublishedReleaseAttestation(origin);
   if (version.sourceTree !== expectedTree) {
     throw new Error(
       `Live source tree ${String(version.sourceTree)} does not match expected source tree ${expectedTree}.`,
@@ -130,11 +129,13 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(
-    `Release verification: FAIL — ${
-      error instanceof Error ? error.message : String(error)
-    }`,
-  );
-  process.exitCode = 1;
-});
+if (import.meta.url === new URL(process.argv[1], "file:").href) {
+  main().catch((error) => {
+    console.error(
+      `Release verification: FAIL — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    process.exitCode = 1;
+  });
+}

@@ -8,11 +8,16 @@
  * is an expected deletion-control rejection, while a pino-http `/v1/sync`
  * 503 without that signal is an unrelated sync failure.
  *
- * This monitor only writes aggregate counts and route names. It never copies
- * log records, account identifiers, credentials, or database error text into
- * its report.
+ * This monitor only writes aggregate counts, route names, a bounded run window,
+ * and the allowlisted identity from the published API attestation. It never
+ * copies log records, account identifiers, credentials, or database error text
+ * into its report.
  */
 import { readFile, writeFile } from "node:fs/promises";
+import {
+  fetchPublishedReleaseAttestation,
+  sanitizePublishedReleaseAttestation,
+} from "./lib/public-release-attestation.mjs";
 
 export const ACCOUNT_DELETION_FENCE_ERROR_CLASS = "account_deletion_fence";
 export const MONITOR_SCHEMA_VERSION =
@@ -21,7 +26,7 @@ export const MONITOR_SCHEMA_VERSION =
 function usage(message) {
   if (message) console.error(`Error: ${message}\n`);
   console.error(
-    "Usage: node scripts/monitor-account-deletion-fence.mjs --log-file <ndjson-file> [--report-file <json-file>] [--require-fence]",
+    "Usage: node scripts/monitor-account-deletion-fence.mjs --log-file <ndjson-file> --release-url <https-origin> [--window-start <ISO-8601> --window-end <ISO-8601>] [--report-file <json-file>] [--require-fence]",
   );
   process.exit(2);
 }
@@ -61,6 +66,24 @@ function incrementRoute(routes, route, count) {
   routes[route] = (routes[route] ?? 0) + count;
 }
 
+function timestampFromRecord(record) {
+  const value = record?.time;
+  const date =
+    typeof value === "number"
+      ? new Date(value)
+      : typeof value === "string"
+        ? new Date(value)
+        : null;
+  return date && !Number.isNaN(date.getTime()) ? date.toISOString() : null;
+}
+
+function validWindowTimestamp(value, name) {
+  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
+    throw new Error(`${name} must be a valid ISO-8601 timestamp.`);
+  }
+  return new Date(value).toISOString();
+}
+
 function emptyDeletionFenceAggregate() {
   return {
     eventCount: 0,
@@ -80,16 +103,24 @@ function emptySync503Aggregate() {
  * Analyze pino NDJSON without retaining the source records.
  *
  * @param {string} ndjson
+ * @param {{
+ *   releaseAttestation?: object,
+ *   runWindow?: {startedAt?: string, endedAt?: string, source?: string},
+ * }} [options]
  * @returns {{
  *   schemaVersion: string,
  *   verified: boolean,
+ *   release?: object,
+ *   runWindow?: {startedAt: string, endedAt: string, source: string},
  *   deletionFence: {eventCount: number, rejectionCount: number, routes: Record<string, number>},
  *   unrelatedSync503: {eventCount: number, routes: Record<string, number>},
  * }}
  */
-export function summarizeAccountDeletionFenceLogs(ndjson) {
+export function summarizeAccountDeletionFenceLogs(ndjson, options = {}) {
   const deletionFence = emptyDeletionFenceAggregate();
   const unrelatedSync503 = emptySync503Aggregate();
+  let firstObservedAt = null;
+  let lastObservedAt = null;
 
   const lines = ndjson.split(/\r?\n/);
   for (const [index, line] of lines.entries()) {
@@ -100,6 +131,12 @@ export function summarizeAccountDeletionFenceLogs(ndjson) {
       record = JSON.parse(line);
     } catch {
       throw new Error(`Monitoring input contains invalid JSON on line ${index + 1}.`);
+    }
+
+    const observedAt = timestampFromRecord(record);
+    if (observedAt) {
+      firstObservedAt ??= observedAt;
+      lastObservedAt = observedAt;
     }
 
     // This is the only event class treated as an expected deletion-control
@@ -129,26 +166,78 @@ export function summarizeAccountDeletionFenceLogs(ndjson) {
     }
   }
 
-  return {
+  const report = {
     schemaVersion: MONITOR_SCHEMA_VERSION,
     verified: deletionFence.eventCount > 0,
     deletionFence,
     unrelatedSync503,
   };
+
+  if (options.releaseAttestation !== undefined) {
+    report.release = {
+      source: "published-api-attestation",
+      ...sanitizePublishedReleaseAttestation(options.releaseAttestation),
+    };
+  }
+
+  if (options.runWindow !== undefined || firstObservedAt || lastObservedAt) {
+    const startedAt = options.runWindow?.startedAt ?? firstObservedAt;
+    const endedAt = options.runWindow?.endedAt ?? lastObservedAt;
+    if (!startedAt || !endedAt) {
+      throw new Error(
+        "Monitoring input must provide both run-window bounds or timestamped log records.",
+      );
+    }
+    report.runWindow = {
+      startedAt: validWindowTimestamp(startedAt, "Run-window start"),
+      endedAt: validWindowTimestamp(endedAt, "Run-window end"),
+      source:
+        options.runWindow?.source ??
+        "sanitized-log-record-timestamps",
+    };
+    if (Date.parse(report.runWindow.startedAt) > Date.parse(report.runWindow.endedAt)) {
+      throw new Error("Run-window start must not be after its end.");
+    }
+  }
+
+  return report;
 }
 
 async function main() {
   const logPath = argument("--log-file");
+  const releaseOrigin = argument("--release-url");
   const reportPath = process.argv.includes("--report-file")
     ? argument("--report-file")
     : null;
   const requireFence = process.argv.includes("--require-fence");
+  const hasWindowStart = process.argv.includes("--window-start");
+  const hasWindowEnd = process.argv.includes("--window-end");
+  if (hasWindowStart !== hasWindowEnd) {
+    usage("--window-start and --window-end must be provided together.");
+  }
   const input = await readFile(logPath, "utf8");
-  const report = summarizeAccountDeletionFenceLogs(input);
+  const releaseAttestation = await fetchPublishedReleaseAttestation(releaseOrigin);
+  const runWindow =
+    hasWindowStart && hasWindowEnd
+      ? {
+          startedAt: validWindowTimestamp(argument("--window-start"), "Run-window start"),
+          endedAt: validWindowTimestamp(argument("--window-end"), "Run-window end"),
+          source: "bounded-log-export",
+        }
+      : undefined;
+  const report = summarizeAccountDeletionFenceLogs(input, {
+    releaseAttestation,
+    runWindow,
+  });
 
   if (requireFence && !report.verified) {
     throw new Error(
       "No sanitized account-deletion fence event was found in the monitoring input.",
+    );
+  }
+  if (!report.runWindow) {
+    throw new Error(
+      "No bounded run window was found; pass --window-start and --window-end or include pino time fields.",
     );
   }
 
