@@ -265,6 +265,45 @@ describe("account deletion recovery signals", () => {
     expect(JSON.stringify(fields)).not.toContain("provider failed");
   });
 
+  it("fails open when suppression is unavailable without blocking recovery retries", async () => {
+    const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+    listRecoverableDeletions.mockResolvedValue([
+      {
+        externalUserId: "raw-auth-uuid-that-must-not-be-logged",
+        identityFingerprint: "f".repeat(64),
+        stage: "revenuecat",
+        requestedAt,
+        updatedAt: requestedAt,
+      },
+    ]);
+    claimDeletion
+      .mockRejectedValueOnce(new Error("provider failed for raw-auth-uuid-that-must-not-be-logged"))
+      .mockResolvedValueOnce({ kind: "completed" });
+    claimRecoveryWarningSuppression.mockRejectedValueOnce(
+      new Error("suppression store unavailable"),
+    );
+
+    await recoverPendingAccountDeletions();
+    await recoverPendingAccountDeletions();
+
+    expect(warn).toHaveBeenCalledOnce();
+    const [fields, message] = warn.mock.calls[0];
+    expect(message).toBe("Account deletion recovery needs attention");
+    expect(fields).toMatchObject({
+      event: "account_deletion_recovery",
+      attemptedCount: 1,
+      failureCount: 1,
+      unresolvedCount: 1,
+      overdueCount: 1,
+      correlationKeys: ["f".repeat(16)],
+    });
+    expect(JSON.stringify(fields)).not.toContain("raw-auth-uuid-that-must-not-be-logged");
+    expect(JSON.stringify(fields)).not.toContain("provider failed");
+    expect(claimRecoveryWarningSuppression).toHaveBeenCalledOnce();
+    expect(noteSuppressedRecoveryWarning).not.toHaveBeenCalled();
+    expect(claimDeletion).toHaveBeenCalledTimes(2);
+  });
+
   it("rate-limits an unchanged recovery cohort", async () => {
     const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
     listRecoverableDeletions.mockResolvedValue([
