@@ -112,6 +112,25 @@ export CALORA_CALLBACK_ARTIFACT_DIR="$RUNNER_TEMP/calora-native-auth-callbacks"
 pnpm test:release:native-auth-preflight
 ```
 
+The repeatable GitHub Actions entry point is **Native auth-link release
+preflight** (`.github/workflows/native-auth-preflight.yml`). Dispatch it on a
+runner labeled `self-hosted, calora-native` and provide all four required
+inputs: the exact paths to the signed iOS and Android binaries plus the exact
+booted iOS UDID and connected Android serial. The workflow keeps the preflight
+exit status, so any missing tool, target, binary, build match, or verified
+Android association blocks the job.
+
+The workflow always uploads
+`calora-native-auth-preflight-<run-id>/calora-native-auth-preflight.json` and
+publishes the same sanitized summary, including when the preflight is blocked.
+The evidence contains only build identity, safe binary metadata, target
+identifiers, callback-case status, artifact names/metadata, failure classes,
+and stable failure reasons. It does not include credentials, certificates or
+private signing material, raw command output, or callback contents. If the
+preflight fails before it can write evidence, the always-run summary says so
+and the required artifact upload fails closed rather than presenting an
+apparently complete release record.
+
 The command records a sanitized `RELEASE PREFLIGHT EVIDENCE` JSON object and
 returns nonzero unless all of these are true:
 

@@ -1,0 +1,108 @@
+name: Native auth-link release preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      ios_binary:
+        description: "Path to the newly built signed .ipa or .app on the native runner"
+        required: true
+        type: string
+      android_binary:
+        description: "Path to the newly built signed .apk on the native runner"
+        required: true
+        type: string
+      ios_device:
+        description: "Exact booted iOS simulator/device UDID"
+        required: true
+        type: string
+      android_device:
+        description: "Exact connected Android emulator/device serial"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Verify native auth-link release prerequisites
+    # The runner must provide xcrun, adb, codesign, plutil, unzip, aapt,
+    # apksigner, and one explicitly selected target for each platform.
+    runs-on: [self-hosted, calora-native]
+    timeout-minutes: 30
+    env:
+      CALORA_IOS_BINARY: ${{ inputs.ios_binary }}
+      CALORA_ANDROID_BINARY: ${{ inputs.android_binary }}
+      CALORA_IOS_DEVICE: ${{ inputs.ios_device }}
+      CALORA_ANDROID_DEVICE: ${{ inputs.android_device }}
+      CALORA_NATIVE_AUTH_EVIDENCE_PATH: ${{ runner.temp }}/calora-native-auth-preflight.json
+    steps:
+      - name: Check out release candidate
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Run native auth-link preflight
+        working-directory: artifacts/calora
+        run: pnpm test:release:native-auth-preflight
+
+      - name: Upload sanitized native auth-link evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calora-native-auth-preflight-${{ github.run_id }}
+          path: ${{ runner.temp }}/calora-native-auth-preflight.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish sanitized native auth-link summary
+        if: always()
+        env:
+          EVIDENCE_PATH: ${{ runner.temp }}/calora-native-auth-preflight.json
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const evidencePath = process.env.EVIDENCE_PATH;
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+
+          if (!fs.existsSync(evidencePath)) {
+            fs.appendFileSync(
+              summaryPath,
+              "## Calora native auth-link preflight\n\nEvidence was not created; the preflight did not reach its evidence writer.\n",
+            );
+            process.exit(0);
+          }
+
+          const evidence = JSON.parse(fs.readFileSync(evidencePath, "utf8"));
+          const summary = {
+            schemaVersion: evidence.schemaVersion,
+            generatedAt: evidence.generatedAt,
+            result: evidence.result,
+            failureClasses: evidence.failureClasses,
+            build: evidence.build,
+            targets: evidence.targets,
+            callbackCases: evidence.callbackCases,
+            callbackArtifacts: evidence.callbackArtifacts,
+            failures: evidence.failures,
+          };
+          fs.appendFileSync(
+            summaryPath,
+            [
+              "## Calora native auth-link preflight",
+              "",
+              "```json",
+              JSON.stringify(summary, null, 2),
+              "```",
+              "",
+            ].join("\n"),
+          );
+          NODE

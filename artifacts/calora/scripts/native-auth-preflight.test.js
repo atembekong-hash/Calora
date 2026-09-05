@@ -83,3 +83,41 @@ test('evidence keeps callback cases explicit until device tests produce artifact
   assert.ok(evidence.callbackCases.every((entry) => entry.outcome === 'not-run'));
   assert.deepEqual(evidence.failureClasses, ['target_unavailable']);
 });
+
+test('evidence excludes runner paths and command output', () => {
+  const evidence = buildEvidence({
+    identity: { appName: 'CaloraApp', ios: {}, android: {} },
+    binaries: {
+      iOS: {
+        ok: false,
+        path: '/private/signing/Calora.ipa',
+        inspection: {
+          ok: false,
+          failureClass: 'build_mismatch',
+          reason: 'raw command output contains a signing credential',
+          stderr: 'private output',
+        },
+      },
+    },
+    targets: {},
+    callbackArtifacts: {
+      status: 'provided',
+      directory: '/private/callbacks',
+      files: [{ path: 'nested/callback-token.txt', sizeBytes: 10, modifiedAt: 'now' }],
+    },
+    failures: [
+      {
+        platform: 'iOS',
+        failureClass: 'build_mismatch',
+        reason: 'raw command output contains a signing credential',
+      },
+    ],
+    generatedAt: '2026-09-05T00:00:00.000Z',
+  });
+  const serialized = JSON.stringify(evidence);
+  assert.equal(serialized.includes('/private/signing/Calora.ipa'), false);
+  assert.equal(serialized.includes('raw command output'), false);
+  assert.equal(serialized.includes('private output'), false);
+  assert.equal(serialized.includes('/private/callbacks'), false);
+  assert.equal(serialized.includes('callback-token.txt'), true);
+});

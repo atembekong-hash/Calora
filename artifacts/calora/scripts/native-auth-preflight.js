@@ -25,6 +25,21 @@ const FAILURE_CLASSES = {
   ASSOCIATION_UNVERIFIED: 'association_unverified',
 };
 
+const SAFE_FAILURE_REASONS = {
+  [FAILURE_CLASSES.LOCAL_CONFIGURATION]:
+    'Native auth-link preflight configuration is incomplete.',
+  [FAILURE_CLASSES.TOOL_UNAVAILABLE]:
+    'A required native inspection tool is unavailable.',
+  [FAILURE_CLASSES.TARGET_UNAVAILABLE]:
+    'The explicitly selected native target is unavailable.',
+  [FAILURE_CLASSES.BINARY_UNAVAILABLE]:
+    'The selected native binary is unavailable or not installable.',
+  [FAILURE_CLASSES.BUILD_MISMATCH]:
+    'The selected native build does not match the expected release identity.',
+  [FAILURE_CLASSES.ASSOCIATION_UNVERIFIED]:
+    'The production Android callback association is not verified.',
+};
+
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
@@ -219,7 +234,7 @@ function extractIpaApp(binaryPath) {
   const extract = runCommand('unzip', ['-q', binaryPath, '-d', tempDir]);
   if (!extract.ok) {
     fs.rmSync(tempDir, { recursive: true, force: true });
-    throw new Error(`Could not inspect IPA: ${extract.stderr.trim() || 'unzip failed'}`);
+    throw new Error('Could not inspect the iOS archive for signed metadata.');
   }
   const payloadEntries = fs
     .readdirSync(path.join(tempDir, 'Payload'), { withFileTypes: true })
@@ -255,9 +270,7 @@ function inspectIosBinary(binary, identity) {
       return {
         ok: false,
         failureClass: FAILURE_CLASSES.BUILD_MISMATCH,
-        reason: `Could not inspect signed iOS metadata: ${
-          info.stderr.trim() || entitlements.stderr.trim() || 'codesign/plutil failed'
-        }`,
+        reason: 'Could not inspect signed iOS metadata with codesign and plutil.',
       };
     }
     const signedInfo = parseIosInfo(info.stdout);
@@ -318,12 +331,7 @@ function inspectAndroidBinary(binary, identity) {
     return {
       ok: false,
       failureClass: FAILURE_CLASSES.BUILD_MISMATCH,
-      reason: `Could not inspect signed Android metadata: ${
-        signature.stderr.trim() ||
-        badging.stderr.trim() ||
-        manifest.stderr.trim() ||
-        'Android build-tools failed'
-      }`,
+      reason: 'Could not inspect signed Android metadata with apksigner and aapt.',
     };
   }
   const signedInfo = parseAaptBadging(badging.stdout);
@@ -371,7 +379,7 @@ function checkIosTarget(targetId, identity) {
     return {
       ok: false,
       failureClass: FAILURE_CLASSES.TARGET_UNAVAILABLE,
-      reason: `Could not list booted iOS targets: ${devices.stderr.trim() || 'simctl failed'}`,
+      reason: 'Could not list booted iOS targets with xcrun simctl.',
     };
   }
   let parsed;
@@ -557,14 +565,107 @@ function collectCallbackArtifacts(env = process.env) {
 }
 
 function buildEvidence({ identity, binaries, targets, callbackArtifacts, failures, generatedAt }) {
+  const sanitizeInspection = (inspection) => {
+    if (!inspection) return null;
+    const sanitized = {
+      ok: Boolean(inspection.ok),
+      failureClass: inspection.failureClass || null,
+      reason: SAFE_FAILURE_REASONS[inspection.failureClass] || null,
+    };
+    if (inspection.signedInfo) {
+      sanitized.signedInfo = {
+        bundleIdentifier: inspection.signedInfo.bundleIdentifier || null,
+        packageName: inspection.signedInfo.packageName || null,
+        version: inspection.signedInfo.version || null,
+        versionCode: inspection.signedInfo.versionCode ?? null,
+        versionName: inspection.signedInfo.versionName || null,
+        buildNumber: inspection.signedInfo.buildNumber || null,
+      };
+    }
+    if (inspection.entitlements) {
+      sanitized.entitlements = {
+        associatedDomains: inspection.entitlements.associatedDomains || [],
+      };
+    }
+    if (inspection.callbackFilter) {
+      sanitized.callbackFilter = {
+        host: inspection.callbackFilter.host || null,
+        path: inspection.callbackFilter.path || null,
+        hasCallbackHost: Boolean(inspection.callbackFilter.hasCallbackHost),
+        hasCallbackPath: Boolean(inspection.callbackFilter.hasCallbackPath),
+      };
+    }
+    if (inspection.installedBuild) {
+      sanitized.installedBuild = {
+        bundleIdentifier: inspection.installedBuild.bundleIdentifier || null,
+        version: inspection.installedBuild.version || null,
+        buildNumber: inspection.installedBuild.buildNumber || null,
+      };
+    }
+    if (inspection.target) {
+      sanitized.target = {
+        id: inspection.target.id || null,
+        name: inspection.target.name || null,
+        state: inspection.target.state || null,
+        status: inspection.target.status || null,
+      };
+    }
+    if (inspection.installedPackage) {
+      sanitized.installedPackage = inspection.installedPackage;
+    }
+    if (inspection.installedVersionCode !== undefined) {
+      sanitized.installedVersionCode = inspection.installedVersionCode;
+    }
+    if (inspection.verifiedHost) {
+      sanitized.verifiedHost = {
+        host: inspection.verifiedHost.host || null,
+        verified: Boolean(inspection.verifiedHost.verified),
+      };
+    }
+    return sanitized;
+  };
+
+  const sanitizedBinaries = Object.fromEntries(
+    Object.entries(binaries || {}).map(([platform, binary]) => [
+      platform,
+      {
+        ok: Boolean(binary?.ok),
+        sizeBytes: binary?.sizeBytes ?? null,
+        modifiedAt: binary?.modifiedAt || null,
+        sha256: binary?.sha256 || null,
+        inspection: sanitizeInspection(binary?.inspection),
+      },
+    ]),
+  );
+  const sanitizedTargets = Object.fromEntries(
+    Object.entries(targets || {}).map(([platform, target]) => [
+      platform,
+      {
+        id: target?.id || null,
+        inspection: sanitizeInspection(target?.inspection),
+      },
+    ]),
+  );
+  const sanitizedCallbackArtifacts = {
+    status: callbackArtifacts?.status || 'not-provided',
+    directory: callbackArtifacts?.directory
+      ? path.basename(callbackArtifacts.directory)
+      : null,
+    files: (callbackArtifacts?.files || []).map((file) => ({
+      name: path.basename(file.path || ''),
+      sizeBytes: file.sizeBytes,
+      modifiedAt: file.modifiedAt,
+    })),
+  };
+
   return {
     schemaVersion: 1,
     generatedAt: generatedAt || new Date().toISOString(),
     result: failures.length === 0 ? 'passed' : 'blocked',
     failureClasses: [...new Set(failures.map((failure) => failure.failureClass))],
     build: identity || null,
-    binaries,
-    targets,
+    binaries: sanitizedBinaries,
+    targets: sanitizedTargets,
     callbackCases: callbackCases.flatMap((caseName) =>
       ['iOS', 'Android'].map((platform) => ({
         platform,
@@ -573,8 +674,14 @@ function buildEvidence({ identity, binaries, targets, callbackArtifacts, failure
         artifacts: [],
       })),
     ),
-    callbackArtifacts,
-    failures,
+    callbackArtifacts: sanitizedCallbackArtifacts,
+    failures: failures.map((failure) => ({
+      platform: failure.platform,
+      failureClass: failure.failureClass,
+      reason:
+        SAFE_FAILURE_REASONS[failure.failureClass] ||
+        'Native auth-link preflight check failed.',
+    })),
   };
 }
 
