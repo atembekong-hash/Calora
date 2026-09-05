@@ -16,6 +16,59 @@ permissions:
   contents: read
 
 jobs:
+  warn-production-release-gate:
+    name: Warn when production publish misses release verification
+    if: >-
+      github.event_name == 'deployment_status' &&
+      github.event.deployment_status.state != 'success' &&
+      (
+        github.event.deployment.environment == 'production' ||
+        endsWith(github.event.deployment.environment, ' / production')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DEPLOYMENT_SHA: ${{ github.event.deployment.sha }}
+      DEPLOYMENT_STATE: ${{ github.event.deployment_status.state }}
+      DEPLOYMENT_ENVIRONMENT: ${{ github.event.deployment.environment }}
+      DEPLOYMENT_URL: >-
+        ${{
+          github.event.deployment_status.target_url ||
+          github.event.deployment.environment_url ||
+          ''
+        }}
+    steps:
+      - name: Report missed production release gate
+        run: |
+          set -eu
+
+          commit_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${DEPLOYMENT_SHA}"
+          workflow_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          if [ -n "${DEPLOYMENT_URL}" ]; then
+            environment_link="[${DEPLOYMENT_ENVIRONMENT}](${DEPLOYMENT_URL})"
+            provider_line="- Provider deployment: [Open deployment](${DEPLOYMENT_URL})"
+          else
+            environment_link="\`${DEPLOYMENT_ENVIRONMENT}\`"
+            provider_line=""
+          fi
+
+          echo "::warning title=Production release verification not reached::The ${DEPLOYMENT_ENVIRONMENT} deployment for ${DEPLOYMENT_SHA} is ${DEPLOYMENT_STATE}; published-release verification did not run. See ${workflow_url}."
+
+          {
+            echo "## Production release verification not reached"
+            echo
+            echo "The success-only published-release verification job did not run because this production publish was not successful."
+            echo
+            echo "- Deployment status: \`${DEPLOYMENT_STATE}\`"
+            echo "- Deployment SHA: [\`${DEPLOYMENT_SHA}\`](${commit_url})"
+            echo "- Provider environment: ${environment_link}"
+            if [ -n "${provider_line}" ]; then
+              echo "${provider_line}"
+            fi
+            echo "- Monitoring workflow run: [Run #${GITHUB_RUN_NUMBER}](${workflow_url})"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
   verify:
     name: Verify production Universal Links and App Links
     if: github.event_name != 'deployment_status'
