@@ -10,6 +10,8 @@ appId: com.etiendem.caloraapp
 - tapOn: "Continue"
 - tapOn: "Continue"
 - tapOn: "Continue"
+- tapOn: "Continue"
+- tapOn: "Continue"
 - tapOn: "I understand and agree"
 - tapOn: "Enter CaloraApp"
 - assertVisible: "Macro balance"

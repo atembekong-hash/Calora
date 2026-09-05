@@ -1,5 +1,4 @@
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -108,7 +107,7 @@ function OnboardingIllustration({
           <View style={[styles.illustrationBar, styles.illustrationBarShort, { backgroundColor: colors.accent }]} />
         </View>
       </Animated.View>
-      <Animated.View entering={FadeInDown.delay(140).springify().damping(16)} style={[styles.illustrationBadge, styles.illustrationBadgeTop, { backgroundColor: colors.card, borderColor: colors.border }, floatingStyle]}>
+      <Animated.View entering={FadeInDown.delay(140).springify().damping(16)} style={[styles.illustrationBadge, styles.illustrationBadgeTop, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Feather name={details.secondaryIcon} size={14} color={colors.primary} />
         <Text style={[styles.illustrationBadgeText, { color: colors.foreground }]}>{details.secondaryLabel}</Text>
       </Animated.View>
@@ -311,6 +310,7 @@ export default function OnboardingScreen() {
           <View>
             <Text style={[styles.title, { color: colors.foreground }]}>What’s your goal?</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>You can change it anytime.</Text>
+            <OnboardingIllustration scene="goal" colors={colors} />
             <View style={styles.optionList}>{goals.map((item) => {
               const selected = goal === item.key;
               return <Pressable key={item.key} onPress={() => setGoal(item.key)} style={[styles.option, { backgroundColor: selected ? colors.accent : colors.card, borderColor: selected ? colors.primary : colors.border }]}>
