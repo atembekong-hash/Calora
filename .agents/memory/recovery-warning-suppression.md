@@ -16,13 +16,15 @@ stages, and states and must continue retrying independently.
 stage-aware values; hash again at the persistence boundary; use an atomic
 shared claim; and treat persistence failure as permission to emit the warning.
 
-Suppressed-cycle summaries are intentionally process-local and cadence-bound:
-they add operator visibility without turning the summary into a second
-cross-instance coordination table or a dependency for deletion retries.
+Suppressed-cycle summaries are cadence-bound and may persist only as a separate,
+bounded redacted cohort store so a restart does not erase operator visibility.
+This store is not a second suppression authority and is never a dependency for
+deletion retries.
 
 **Why:** The shared claim already decides which instance owns an immediate
-warning; durable aggregate counters would expand the sensitive operational
-state without improving recovery correctness.
+warning; durable summary state is useful only to preserve low-frequency
+visibility across restarts and must not expand into account or provider data.
 
-**How to apply:** Record only opaque cohort digests and validated redacted
-correlation keys, cap the buffer, and flush summaries on a slow timer.
+**How to apply:** Record only opaque cohort digests, validated redacted
+correlation keys, bounded counters, and timestamps; restore and flush
+best-effort, and drain queued writes during graceful shutdown.

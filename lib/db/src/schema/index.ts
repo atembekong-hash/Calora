@@ -439,6 +439,22 @@ export const recoveryWarningSuppressionsTable = pgTable("calora_recovery_warning
   expiresAtIndex: index("calora_recovery_warning_suppressions_expires_at_idx").on(table.expiresAt),
 }));
 
+/**
+ * Bounded redacted cohorts whose recovery warnings were suppressed.
+ *
+ * This is reporting state only. It never contains account identifiers,
+ * provider errors, or provider response details.
+ */
+export const recoveryWarningSummariesTable = pgTable("calora_recovery_warning_summaries", {
+  cohortKey: text("cohort_key").primaryKey(),
+  correlationKeys: jsonb("correlation_keys").$type<string[]>().notNull(),
+  suppressedCycleCount: integer("suppressed_cycle_count").notNull(),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+}, (table) => ({
+  updatedAtIndex: index("calora_recovery_warning_summaries_updated_at_idx").on(table.updatedAt),
+}));
+
 export const insertRecipeNutritionSchema = createInsertSchema(recipeNutritionTable);
 export type RecipeNutrition = typeof recipeNutritionTable.$inferSelect;
 

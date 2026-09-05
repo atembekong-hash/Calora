@@ -3,6 +3,8 @@ import {
   flushSuppressedRecoveryWarningSummary,
   logger,
   RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
+  restoreSuppressedRecoveryWarningSummary,
+  waitForRecoverySummaryPersistence,
 } from "./lib/logger";
 import { pool } from "@workspace/db";
 import { recoverPendingAccountDeletions } from "./routes/account";
@@ -70,7 +72,12 @@ const runAccountDeletionRecovery = () =>
     (err) => logger.error({ err }, "Account deletion recovery failed"),
   );
 
-void runAccountDeletionRecovery();
+async function startAccountDeletionRecovery(): Promise<void> {
+  await restoreSuppressedRecoveryWarningSummary();
+  await runAccountDeletionRecovery();
+}
+
+void startAccountDeletionRecovery();
 const accountRecoveryTimer = setInterval(
   () => void runAccountDeletionRecovery(),
   ACCOUNT_DELETION_RECOVERY_INTERVAL_MS,
@@ -126,6 +133,7 @@ function shutdown(reason: string, exitCode: number): void {
       }
 
       try {
+        await waitForRecoverySummaryPersistence();
         await pool.end();
       } catch (err) {
         finalExitCode = 1;
