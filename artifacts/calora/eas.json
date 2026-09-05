@@ -47,6 +47,7 @@
       "extends": "base",
       "environment": "production",
       "autoIncrement": true,
+      "credentialsSource": "remote",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://calorie-coach-pie35449.replit.app",
         "EXPO_PUBLIC_SUPABASE_URL": "https://pzdulhkpwbrbrgskwwwe.supabase.co",
@@ -56,6 +57,9 @@
       },
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {
+        "distribution": "store"
       }
     },
     "production-apk": {

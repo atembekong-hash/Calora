@@ -14,7 +14,9 @@
     "test:device:nutrition-goals": "maestro test tests/device/nutrition-goals.yaml",
     "test:device:meal-images": "maestro test tests/device/meal-images.yaml",
     "test:device:plus-recipes": "maestro test tests/device/plus-recipes-rapid-scroll.yaml",
-    "test:release:meal-images": "node scripts/meal-image-release-gate.js"
+    "test:release:meal-images": "node scripts/meal-image-release-gate.js",
+    "test:release:ios-signing": "node scripts/ios-signing-preflight.js",
+    "build:ios:production": "node scripts/ios-signing-preflight.js --queue-build"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

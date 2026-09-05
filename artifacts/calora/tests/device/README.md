@@ -111,6 +111,37 @@ fails. A failed card is reported by its meal identity and its observed
 `Fallback image active` or `Swapped image detected` state. A nonzero exit means
 the signed build is not cleared by this meal-image gate.
 
+## iOS signing preflight
+
+Before queuing a production iOS build, run the read-only signing preflight from
+`artifacts/calora`. It checks the EAS App Store credentials for
+`com.etiendem.caloraapp`, including the assigned distribution certificate and
+provisioning-profile validity:
+
+```sh
+pnpm test:release:ios-signing
+```
+
+The command needs an authenticated `EXPO_TOKEN` in the environment. Keep the
+token in the workspace or CI secret store; never put it in a shell transcript,
+source file, or chat message. A passing preflight does not start a build.
+
+To run the preflight and then queue the current revision non-interactively:
+
+```sh
+pnpm build:ios:production
+```
+
+The queue command uses the remote production credentials without attempting to
+repair them. If the preflight fails, run
+`eas credentials --platform ios` interactively from this app directory, choose
+**Build Credentials: Manage everything needed to build your project**, then
+**All: Set up all the required credentials to build your project**. If needed,
+use **Distribution Certificate: Use an existing one for your project** or
+**Distribution Certificate: Add a new one to your account** before retrying.
+The failure output is intentionally limited to status and expiration metadata
+and never prints certificate material, passwords, or tokens.
+
 ## Native Plus recipe rapid-scroll regression test
 
 `plus-recipes-rapid-scroll.yaml` protects the Plus catalogue while a user
