@@ -95,38 +95,51 @@ session is introduced.
 
 The expensive AI endpoints are the primary DoS/cost surface. Capture analyze is
 protected by the shared persistent 30/hour rate limiter keyed by verified user
-id (falling back to trusted-proxy IP); anonymous capture fails closed (503)
-when the limiter store is unavailable. Recipe generation, planner generation,
-and coach respond all require a verified account (closing the
-previously-unauthenticated planner/coach AI endpoints) and now also enforce
-persistent per-account quotas through a shared atomic limiter: planner 20/hr,
-coach 40/hr, recipe concepts 30/hr, recipe generation 30/hr — each returning
-429 + `Retry-After` before any provider call. Public recipe browsing/detail is
-per-IP rate-limited (120/hr), and nutrition cache misses are coalesced per meal
-id so concurrent anonymous requests share a single provider call.
+id (falling back to trusted-proxy IP); capture fails closed (503) for both
+anonymous and authenticated callers when the limiter store is unavailable.
+Recipe generation, planner generation, recipe-photo generation, and Coach Fact
+Context all require a verified account and enforce persistent per-account
+quotas through a shared atomic limiter: planner 20/hr, Coach Fact Context 40/hr,
+recipe generation 30/hr, and recipe photos 12/hr. Public recipe browsing/detail
+is per-IP rate-limited (120/hr), and nutrition cache misses are coalesced per
+meal id so concurrent anonymous requests share a single provider call.
 **Guarantee:** every endpoint that calls a paid AI provider MUST be rate-limited
 and either require authentication or (for deliberately public browsing) be
 IP-limited with cache-miss coalescing; anonymous paid-AI paths MUST fail closed
-when the limiter store is unavailable. **Residual:** authenticated limiters are
-intentionally fail-open on DB error (availability over strictness) — bounded to
-verified accounts; all anonymous paid-AI paths (public recipes, anonymous
-capture) fail closed (503). Monitor limiter DB errors.
+when the limiter store is unavailable. **Residual:** malformed requests are
+currently metered before schema validation on some AI routes, which can consume
+the caller's own quota without provider work. Monitor limiter DB errors and
+return generic provider failures to clients.
 
-The dependency audit has one remaining vulnerable package, `image-size`, with
-two high infinite-loop advisories covering ICNS and JXL/HEIF parsers. It is
-reachable only through Metro build tooling. No unaffected npm release exists as
-of 2026-08-19, so forcing an unsupported major cannot remove the risk.
+The current dependency audit has two high infinite-loop advisories for
+`image-size`, reachable only through Metro build tooling. No unaffected npm
+release exists as of 2026-09-05, so forcing an unsupported major cannot remove
+the risk.
 **Guarantee:** production request handling MUST NOT import or invoke Metro/image
 parsing tooling, and the Expo/Metro chain MUST be upgraded when a compatible
 fixed release becomes available.
 
-The `uuid` buffer-bounds advisory also remains on v3 and v7 copies in Expo's
-`@expo/ngrok` and `xcode` build-time chains. Pnpm rates it moderate while the
-Replit dependency scanner rates each installed copy high. The patched release
-is an incompatible major beyond the parent ranges, and the vulnerable buffered
-UUID-generation APIs are not part of deployed request handling. **Guarantee:**
-do not force those majors under Expo; upgrade them through a supported Expo
-toolchain release.
+The previous `uuid` build-chain advisory is resolved by a patched compatible
+override and no longer appears in the current dependency audit. The Expo/Metro
+chain still needs normal upgrades when its remaining parser advisory is fixed.
+
+### Authentication Callback and Export Privacy
+
+The mobile OAuth callback parser accepts only the exact configured
+`caloraapp://auth/callback` scheme, host, and path before reading authorization
+parameters; malformed or foreign URLs are rejected without consuming a code or
+token. The custom scheme remains claimable by other installed apps on platforms
+that do not enforce universal links, and legacy email confirmation links may
+still carry access/refresh tokens, so native release validation must cover
+provider redirect configuration and competing-app behavior.
+
+Data export is explicitly user initiated and now presents a warning before
+writing the broad wellness snapshot to a shareable file. The export includes
+profile, diary, health, memories, and Coach data by design; users must still
+choose a trusted destination. Raw-storage export remains an emergency recovery
+path shown only on hydration-parse failure. Local domain state is stored in
+AsyncStorage rather than encrypted storage, leaving device-backup/root-access
+exposure as a documented residual.
 
 ### Elevation of Privilege
 

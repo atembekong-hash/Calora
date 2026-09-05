@@ -218,7 +218,7 @@ describe("AI recipe creation endpoints", () => {
     }), expect.any(Object));
     expect(mockOpenAiImageGenerate.mock.calls[0][0].prompt).toContain("Lemony lentil bowl");
     expect(mockOpenAiImageGenerate.mock.calls[0][0].prompt).not.toContain("must-not-forward@example.com");
-    expect(checkRateLimit).toHaveBeenCalledWith(`recipes-photo:user:${USER.id}`, 12, 3600);
+    expect(checkRateLimit).toHaveBeenCalledWith(`recipes-photo:user:${USER.id}`, 12, 3600, { failClosed: true });
   });
 
   it("keeps a completed recipe usable when recipe-photo generation fails", async () => {

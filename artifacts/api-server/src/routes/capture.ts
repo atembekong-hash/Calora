@@ -34,9 +34,8 @@ const CAPTURE_RATE_WINDOW_SECS = 60 * 60; // 1 hour
 const CAPTURE_RATE_LIMIT = 30; // max requests per window
 
 // Quota enforcement uses the shared persistent limiter (../lib/rate-limit.ts).
-// Failure policy: verified users fail OPEN (availability); anonymous/IP-keyed
-// callers fail CLOSED so a limiter-store outage can never grant unmetered
-// anonymous access to paid provider calls.
+// All callers fail CLOSED so a limiter-store outage can never grant unmetered
+// access to paid provider calls.
 
 /**
  * Clears all persisted rate-limit buckets. Exported for use in tests only.
@@ -472,7 +471,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
     rateLimitKey(verifiedUser, req),
     CAPTURE_RATE_LIMIT,
     CAPTURE_RATE_WINDOW_SECS,
-    { failClosed: !verifiedUser },
+    { failClosed: true },
   );
   if (!rate.allowed) {
     res.setHeader("Retry-After", String(rate.retryAfterSecs));
@@ -726,7 +725,8 @@ router.post("/v1/capture/analyze", async (req, res) => {
        imageRetention: "delete_after_analysis",
     });
   } catch (error) {
-    res.status(502).json({ message: error instanceof Error ? error.message : "Capture provider unavailable" });
+    logger.error({ err: error }, "Capture provider request failed");
+    res.status(502).json({ message: "Capture provider unavailable. Please try again shortly." });
   }
 });
 

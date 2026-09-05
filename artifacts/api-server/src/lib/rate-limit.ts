@@ -10,13 +10,11 @@
  * `coach:user:<id>`, `capture:ip:<addr>`) so several endpoints can safely share
  * the same table without colliding.
  *
- * Failure policy is per-caller:
- * - Authenticated endpoints default to FAIL-OPEN (a transient DB outage must
- *   not block legitimate signed-in users of a paid feature; the window is
- *   bounded to verified accounts).
- * - Anonymous/public endpoints must pass `failClosed: true` so a DB outage
- *   (or induced DB unavailability) can never remove the only control between
- *   anonymous traffic and paid provider calls.
+ * Paid-provider endpoints should pass `failClosed: true`: a DB outage (or
+ * induced DB unavailability) must never remove the only control between a
+ * caller and a billable provider call. Callers that intentionally choose
+ * availability over metering may omit the option, but that is not appropriate
+ * for paid AI or entitlement-protected work.
  */
 
 import { pool } from "@workspace/db";
@@ -75,7 +73,8 @@ export async function checkRateLimit(
       );
       return { allowed: false, retryAfterSecs: 30, degraded: true };
     }
-    // Fail open — a DB outage should not block legitimate authenticated users.
+    // Fail open is reserved for non-billable callers that explicitly choose
+    // availability over metering. Paid-provider routes must use failClosed.
     logger.error(
       { err },
       "Rate-limit database check failed; verified request allowed fail-open",

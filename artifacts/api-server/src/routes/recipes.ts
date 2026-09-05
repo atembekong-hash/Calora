@@ -29,7 +29,7 @@ const RECIPE_PHOTO_TIMEOUT_MS = 30_000;
 const OBJECT_STORAGE_SIDECAR = "http://127.0.0.1:1106/object-storage/signed-object-url";
 
 async function enforceRecipeGenLimit(scope: string, userId: string, res: Response): Promise<boolean> {
-  const rate = await checkRateLimit(`${scope}:user:${userId}`, RECIPE_GEN_RATE_LIMIT, RECIPE_GEN_RATE_WINDOW_SECS);
+  const rate = await checkRateLimit(`${scope}:user:${userId}`, RECIPE_GEN_RATE_LIMIT, RECIPE_GEN_RATE_WINDOW_SECS, { failClosed: true });
   if (!rate.allowed) {
     res.setHeader("Retry-After", String(rate.retryAfterSecs));
     res.status(429).json({ message: "Too many recipe requests. Please wait before trying again.", retryAfterSecs: rate.retryAfterSecs });
@@ -239,7 +239,7 @@ router.post("/v1/recipes/generated", async (req, res) => {
 router.post("/v1/recipes/photo", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to create a recipe photo." });
-  const rate = await checkRateLimit(`recipes-photo:user:${user.id}`, RECIPE_PHOTO_RATE_LIMIT, RECIPE_GEN_RATE_WINDOW_SECS);
+  const rate = await checkRateLimit(`recipes-photo:user:${user.id}`, RECIPE_PHOTO_RATE_LIMIT, RECIPE_GEN_RATE_WINDOW_SECS, { failClosed: true });
   if (!rate.allowed) {
     res.setHeader("Retry-After", String(rate.retryAfterSecs));
     return res.status(429).json({ message: "You’ve reached the recipe photo limit. Please try again later.", retryAfterSecs: rate.retryAfterSecs });

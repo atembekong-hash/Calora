@@ -483,7 +483,7 @@ router.post("/v1/planner/generate", async (req, res) => {
     return;
   }
 
-  const rate = await checkRateLimit(`planner:user:${user.id}`, PLANNER_RATE_LIMIT, PLANNER_RATE_WINDOW_SECS);
+  const rate = await checkRateLimit(`planner:user:${user.id}`, PLANNER_RATE_LIMIT, PLANNER_RATE_WINDOW_SECS, { failClosed: true });
   if (!rate.allowed) {
     res.setHeader("Retry-After", String(rate.retryAfterSecs));
     res.status(429).json({ message: "Too many meal-plan requests. Please wait before trying again.", retryAfterSecs: rate.retryAfterSecs });

@@ -620,7 +620,8 @@ describe('POST /v1/capture/analyze', () => {
         .send({ mode: 'text', textInput: 'a banana' })
         .set('Content-Type', 'application/json');
       expect(res.status).toBe(502);
-      expect(res.body.message).toMatch(/provider|unavailable|timeout/i);
+      expect(res.body.message).toBe('Capture provider unavailable. Please try again shortly.');
+      expect(res.body.message).not.toContain('Provider timeout');
     });
 
     it('sets provenance to Text estimate (not verified) for text mode', async () => {
@@ -787,8 +788,8 @@ describe('POST /v1/capture/analyze', () => {
       expect(openai.audio.transcriptions.create).not.toHaveBeenCalled();
     });
 
-    it('fails OPEN for verified users when the limiter store is unavailable', async () => {
-      vi.mocked(verifyBearerToken).mockResolvedValue({ id: 'user-fail-open', email: null });
+    it('fails CLOSED for verified users when the limiter store is unavailable', async () => {
+      vi.mocked(verifyBearerToken).mockResolvedValue({ id: 'user-fail-closed', email: null });
       vi.mocked(pool.query).mockRejectedValueOnce(new Error('DB connection lost'));
 
       const res = await request(app)
@@ -796,9 +797,9 @@ describe('POST /v1/capture/analyze', () => {
         .send({ mode: 'voice' })
         .set('Content-Type', 'application/json');
 
-      // Not blocked by the limiter — proceeds to normal request validation.
-      expect(res.status).not.toBe(503);
-      expect(res.status).not.toBe(429);
+      expect(res.status).toBe(503);
+      expect(res.headers['retry-after']).toBeDefined();
+      expect(openai.audio.transcriptions.create).not.toHaveBeenCalled();
     });
 
     it('returns 429 after exceeding the per-IP request limit', async () => {

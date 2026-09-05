@@ -38,7 +38,10 @@ const HAS_LIVE_AUTH = Boolean(SUPABASE_URL && ANON_KEY && SERVICE_KEY && TEST_PA
 
 // ── Mock OpenAI and DB; leave supabase-auth un-mocked for real token validation
 
-const { mockOpenAiCreate } = vi.hoisted(() => ({ mockOpenAiCreate: vi.fn() }));
+const { mockOpenAiCreate, mockRateLimit } = vi.hoisted(() => ({
+  mockOpenAiCreate: vi.fn(),
+  mockRateLimit: vi.fn(),
+}));
 
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
   openai: { chat: { completions: { create: mockOpenAiCreate } } },
@@ -50,6 +53,13 @@ vi.mock("@workspace/db", () => ({
 }));
 
 vi.mock("drizzle-orm", () => ({ eq: vi.fn(() => ({})) }));
+
+// This suite mocks the database module to isolate live Supabase token
+// verification. Keep the shared quota gate deterministic so a missing mocked
+// pool cannot turn an auth-path test into a 429/503 quota test.
+vi.mock("../lib/rate-limit.js", () => ({
+  checkRateLimit: mockRateLimit,
+}));
 
 vi.mock("../lib/account-deletion-state.js", () => ({
   assertAccountWritable: vi.fn().mockResolvedValue(undefined),
@@ -123,6 +133,7 @@ describe.skipIf(!HAS_LIVE_AUTH)("recipe generation with real Supabase auth", () 
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
   });
 
   // ── Tests ─────────────────────────────────────────────────────────────────

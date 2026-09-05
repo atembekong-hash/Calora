@@ -193,6 +193,17 @@ describe('Auth Logic Verification', () => {
     expect(mockExchange).not.toHaveBeenCalled();
   });
 
+  it('rejects callbacks from an untrusted origin before consuming credentials', async () => {
+    const result = await handleOAuthCallbackUrl(
+      'https://attacker.example/auth/callback#access_token=attacker-token&refresh_token=attacker-refresh',
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.code).toBe('token');
+    expect(mockExchange).not.toHaveBeenCalled();
+    expect(mockSetSession).not.toHaveBeenCalled();
+  });
+
   it('rejects structurally malformed form email addresses before sign-in', () => {
     for (const value of ['user@', '@example.com', 'user @example.com', 'user@example', '']) {
       expect(isValidEmail(value)).toBe(false);

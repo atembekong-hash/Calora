@@ -24,7 +24,7 @@ a caller amplify provider cost. A finite upstream corpus does not bound
 fails open.
 
 **How to apply:** when adding or reviewing any route that awaits a provider
-call, check all three. Failure policy: authenticated limiters may fail open
-(availability tradeoff, bounded to verified accounts); anonymous paid-AI paths
-must fail CLOSED when the limiter store is unavailable. Monitor limiter DB
-errors.
+call, check all three. Failure policy: every paid-provider limiter must fail
+CLOSED when the limiter store is unavailable, including authenticated routes;
+otherwise a database outage becomes an unmetered provider-cost path. Monitor
+limiter DB errors and surface a bounded temporary-unavailable response.

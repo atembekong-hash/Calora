@@ -496,6 +496,17 @@ export default function ProfileScreen() {
       onError: () => Alert.alert('Export failed', 'Could not open the share sheet. Try again.'),
     },
   );
+  const handleExportRequest = () => {
+    if (!hasExportData || isExporting) return;
+    Alert.alert(
+      'Export sensitive wellness data?',
+      'This file may include your profile, diary, weight, mood, hydration, health connection, saved memories, and Coach history. Only share it with someone you trust.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Share export', onPress: () => { void handleExport(); } },
+      ],
+    );
+  };
 
   /** Delete */
   const handleDelete = () => { if (!isClearing) setPrivacyModal('delete'); };
@@ -1237,7 +1248,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
         {[
-          { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Portable JSON · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExport, disabled: !hasExportData || isExporting, isLoading: isExporting },
+          { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Portable JSON · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExportRequest, disabled: !hasExportData || isExporting, isLoading: isExporting },
            { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove diary and profile from this device.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
           { icon: 'shield' as const, title: 'Your food data', body: 'Export and delete controls.', onPress: () => setInfoModal('food-data'), disabled: false },
           { icon: 'eye-off' as const, title: 'No ad tracking', body: 'Meals are not used for ads.', onPress: () => setInfoModal('no-ads'), disabled: false },

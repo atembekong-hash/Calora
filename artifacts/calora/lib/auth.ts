@@ -8,6 +8,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
 export const OAUTH_REDIRECT_URI = 'caloraapp://auth/callback' as const;
+const OAUTH_REDIRECT_URL = new URL(OAUTH_REDIRECT_URI);
 
 export type AuthErrorCode =
   | 'cancelled'
@@ -29,6 +30,17 @@ export type AuthResult =
   | { success: false; error: AuthError };
 
 export type AuthStatusCallback = (message: string) => void;
+
+function isTrustedOAuthCallbackUrl(url: URL): boolean {
+  return (
+    url.protocol === OAUTH_REDIRECT_URL.protocol &&
+    url.hostname === OAUTH_REDIRECT_URL.hostname &&
+    url.port === OAUTH_REDIRECT_URL.port &&
+    url.pathname === OAUTH_REDIRECT_URL.pathname &&
+    !url.username &&
+    !url.password
+  );
+}
 
 const OAUTH_CODE_SUCCESS_TTL_MS = 60_000;
 const MAX_OAUTH_CODE_EXCHANGES = 8;
@@ -220,6 +232,12 @@ export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusC
 
   try {
     const urlObj = new URL(url.replace('#', '?'));
+    if (!isTrustedOAuthCallbackUrl(urlObj)) {
+      return {
+        success: false,
+        error: { code: 'token', message: 'This sign-in callback is not trusted.' },
+      };
+    }
     const code = urlObj.searchParams.get('code');
     const accessToken = urlObj.searchParams.get('access_token');
     const refreshToken = urlObj.searchParams.get('refresh_token');
