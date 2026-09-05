@@ -695,44 +695,6 @@ export default function ProfileScreen() {
           </Pressable>
         </Animated.View>
 
-        <Animated.View entering={enterMotion('screen', 1)} style={[styles.onboardingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={[styles.onboardingIcon, { backgroundColor: colors.accent }]}>
-            <Feather name="compass" size={18} color={colors.primary} />
-          </View>
-          <View style={styles.onboardingCopy}>
-            <Text style={[styles.onboardingTitle, { color: colors.foreground }]}>Onboarding</Text>
-            <Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>
-              {onboardingComplete
-                ? 'Your starting preferences are saved. Review them anytime.'
-                : onboardingStep > 0
-                  ? `Continue from step ${onboardingStep + 1} of 7.`
-                  : 'Finish setup to personalize your plan.'}
-            </Text>
-          </View>
-          {!onboardingComplete && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Resume onboarding"
-              testID="resume-onboarding"
-              onPress={() => router.push({ pathname: '/', params: { mode: 'resume' } })}
-              style={[styles.onboardingButton, { backgroundColor: colors.primary }]}
-            >
-              <Text style={[styles.onboardingButtonText, { color: colors.primaryForeground }]}>Resume</Text>
-            </Pressable>
-          )}
-          {onboardingComplete && (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Review onboarding"
-              testID="review-onboarding"
-              onPress={() => router.push({ pathname: '/', params: { mode: 'review' } })}
-              style={[styles.onboardingButton, { backgroundColor: colors.primary }]}
-            >
-              <Text style={[styles.onboardingButtonText, { color: colors.primaryForeground }]}>Review</Text>
-            </Pressable>
-          )}
-        </Animated.View>
-
         <SwipeableTabList
           items={PROFILE_TABS}
           activeItem={profileTab}
@@ -1211,6 +1173,44 @@ export default function ProfileScreen() {
           </View>
           <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
         </Pressable>
+
+        <Animated.View entering={enterMotion('screen', 5)} style={[styles.onboardingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.onboardingIcon, { backgroundColor: colors.accent }]}>
+            <Feather name="compass" size={18} color={colors.primary} />
+          </View>
+          <View style={styles.onboardingCopy}>
+            <Text style={[styles.onboardingTitle, { color: colors.foreground }]}>Onboarding</Text>
+            <Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>
+              {onboardingComplete
+                ? 'Your starting preferences are saved. Review them anytime.'
+                : onboardingStep > 0
+                  ? `Continue from step ${onboardingStep + 1} of 7.`
+                  : 'Finish setup to personalize your plan.'}
+            </Text>
+          </View>
+          {!onboardingComplete && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Resume onboarding"
+              testID="resume-onboarding"
+              onPress={() => router.push({ pathname: '/', params: { mode: 'resume' } })}
+              style={[styles.onboardingButton, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.onboardingButtonText, { color: colors.primaryForeground }]}>Resume</Text>
+            </Pressable>
+          )}
+          {onboardingComplete && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Review onboarding"
+              testID="review-onboarding"
+              onPress={() => router.push({ pathname: '/', params: { mode: 'review' } })}
+              style={[styles.onboardingButton, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.onboardingButtonText, { color: colors.primaryForeground }]}>Review</Text>
+            </Pressable>
+          )}
+        </Animated.View>
 
         </View>
 
@@ -1756,7 +1756,7 @@ function makeStyles(f: number) {
 
   // Profile card
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 23, padding: 16, marginBottom: 30 },
-  onboardingCard: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 18, padding: 13, marginTop: -16, marginBottom: 26 },
+  onboardingCard: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 18, padding: 13, marginTop: 26, marginBottom: 26 },
   onboardingIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   onboardingCopy: { flex: 1 },
   onboardingTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },

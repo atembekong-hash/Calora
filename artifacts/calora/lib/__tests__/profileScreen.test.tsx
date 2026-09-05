@@ -136,6 +136,7 @@ beforeEach(() => {
 describe('Profile rendered interactions', () => {
   it('offers a review path for completed onboarding without changing data first', () => {
     render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
     expect(screen.getByText('Your starting preferences are saved. Review them anytime.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Review onboarding' }));
     expect(harness.router.push).toHaveBeenCalledWith({ pathname: '/', params: { mode: 'review' } });
@@ -145,6 +146,7 @@ describe('Profile rendered interactions', () => {
     harness.calora.onboardingComplete = false;
     harness.calora.onboardingStep = 3;
     render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
     expect(screen.getByText('Continue from step 4 of 7.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Resume onboarding' }));
     expect(harness.router.push).toHaveBeenCalledWith({ pathname: '/', params: { mode: 'resume' } });
