@@ -164,15 +164,28 @@ update manifests, not installable native binaries; they were generated before
 the current Android `/auth/callback` intent filter and must not be used as
 evidence for this matrix.
 
-### Required completion run on a native host
+### Native matrix result
 
-The following is the exact remaining matrix. Use a disposable account and
-disposable targets only; do not use a personal production install.
+The following is the exact remaining matrix. This workspace cannot execute it:
+the dated **FAIL — not executed** result means the release gate is not
+satisfied, not that the provider or OS behavior was observed to fail. Use a
+disposable account and disposable targets only; do not use a personal
+production install.
 
 | Platform | Google sign-in | Email verification | Password recovery | Cold launch + force-quit HTTPS callback | `caloraapp`-only competitor |
 |---|---|---|---|---|---|
-| iOS | **PENDING** | **PENDING** | **PENDING** | **PENDING** | **PENDING** |
-| Android | **PENDING** | **PENDING** | **PENDING** | **PENDING** | **PENDING** |
+| iOS | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** |
+| Android | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** |
+
+**Common evidence for every failed cell:** no newly built/signed Calora
+binary, iOS simulator/device, or Android emulator/device was available in
+this workspace. `xcrun` and `adb` are not installed; Maestro reported zero
+connected devices. There are therefore no iOS UDID, Android serial, IPA/APK
+build ID, installed competitor ID, or disposable-account/provider-message
+identifiers to record. The source build identity available for the attempted
+preflight was CaloraApp `1.0.0`, iOS build `1`, Android version code `24`,
+bundle/package `com.etiendem.caloraapp`, Expo project
+`1f202325-5b9a-4260-978f-abbd3252b9ee`, and legacy scheme `caloraapp`.
 
 On the native host, install a newly built binary containing the current
 `app.json`, then capture the exact device IDs and run the platform-specific
@@ -190,5 +203,5 @@ app running, force-quit, and cold-launched. Install a competitor that claims
 only `caloraapp`, verify that a legacy custom-scheme callback never creates a
 Calora session, then uninstall/disable Calora and verify the HTTPS callback
 falls back to the browser rather than opening the competitor. Replace the
-`PENDING` cells with dated PASS/FAIL results and attach the build/device
-identifiers before release.
+these dated **FAIL — not executed** cells with observed PASS/FAIL results and
+attach the signed build/device identifiers before release.
