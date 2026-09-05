@@ -17,8 +17,9 @@ import request from 'supertest';
 // vi.hoisted ensures this is available inside the vi.mock factory (which
 // is hoisted to the top of the module by vitest).
 // ---------------------------------------------------------------------------
-const { mockRateBuckets, loggerWarn, loggerError } = vi.hoisted(() => ({
+const { mockRateBuckets, mockInsert, loggerWarn, loggerError } = vi.hoisted(() => ({
   mockRateBuckets: new Map<string, { count: number; reset_at: Date }>(),
+  mockInsert: vi.fn(),
   loggerWarn: vi.fn(),
   loggerError: vi.fn(),
 }));
@@ -60,11 +61,6 @@ vi.mock('@workspace/db', () => {
     }
 
     return { rows: [] };
-  });
-
-  // Minimal db stub — only insert is needed for persistCaptureSession
-  const mockInsert = vi.fn().mockReturnValue({
-    values: vi.fn().mockResolvedValue(undefined),
   });
 
   return {
@@ -122,6 +118,13 @@ vi.mock('@workspace/integrations-openai-ai-server', () => ({
 // ---------------------------------------------------------------------------
 vi.mock('../lib/supabase-auth.js', () => ({
   verifyBearerToken: vi.fn().mockResolvedValue(null),
+}));
+
+// Keep the capture route focused on session persistence in these tests. The
+// user-row bridge has its own coverage and would otherwise require a second
+// Drizzle query chain before the session insert can be exercised.
+vi.mock('../lib/user-rows.js', () => ({
+  ensureUserRow: vi.fn().mockResolvedValue('internal-user-id'),
 }));
 
 // ---------------------------------------------------------------------------
@@ -240,6 +243,9 @@ describe('POST /v1/capture/analyze', () => {
     mockFetch = vi.fn();
     vi.stubGlobal('fetch', mockFetch);
     vi.clearAllMocks();
+    mockInsert.mockReturnValue({
+      values: vi.fn().mockResolvedValue(undefined),
+    });
     // resetCaptureRateLimiter is async — it issues a DELETE against the
     // (mocked) DB table so the in-memory simulation is cleared before each test.
     await resetCaptureRateLimiter();
@@ -266,6 +272,47 @@ describe('POST /v1/capture/analyze', () => {
     );
     expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('55000');
     expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('account deletion is in progress');
+  });
+
+  it('returns a generic response and redacted signal when session persistence hits a PostgreSQL fence', async () => {
+    const userId = 'capture-fenced-user';
+    const email = 'capture-fenced@example.com';
+    const databaseMessage = 'account deletion is in progress';
+    const sessionInsert = {
+      values: vi.fn().mockRejectedValue({
+        code: '55000',
+        message: databaseMessage,
+      }),
+    };
+
+    vi.mocked(verifyBearerToken).mockResolvedValue({ id: userId, email });
+    mockInsert.mockReturnValueOnce(sessionInsert);
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({
+      choices: [{ message: { content: aiJsonResponse() } }],
+    } as any);
+
+    const res = await request(app)
+      .post('/v1/capture/analyze')
+      .send({ mode: 'text', textInput: 'a banana' })
+      .set('Authorization', 'Bearer valid-token')
+      .set('Content-Type', 'application/json');
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({
+      message: 'Capture is temporarily unavailable. Please try again shortly.',
+    });
+    expect(loggerWarn).toHaveBeenCalledTimes(1);
+    expect(loggerWarn).toHaveBeenCalledWith(
+      { errorClass: 'account_deletion_fence', route: '/v1/capture/analyze', count: 1 },
+      'Account deletion fence rejected capture write',
+    );
+    expect(loggerError).not.toHaveBeenCalled();
+
+    const exposed = JSON.stringify({ response: res.body, warnings: loggerWarn.mock.calls });
+    expect(exposed).not.toContain('55000');
+    expect(exposed).not.toContain(databaseMessage);
+    expect(exposed).not.toContain(userId);
+    expect(exposed).not.toContain(email);
   });
 
   // -------------------------------------------------------------------------
