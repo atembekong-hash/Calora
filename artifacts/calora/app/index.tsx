@@ -2,6 +2,20 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  Easing,
+  FadeInDown,
+  FadeInRight,
+  FadeOutLeft,
+  cancelAnimation,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect } from 'expo-router';
 import { useCalora, ActivityLevel, DietPreference, Goal, Profile } from '@/context/CaloraContext';
@@ -23,6 +37,88 @@ const activities: { key: ActivityLevel; label: string; body: string }[] = [
   { key: 'high', label: 'Very active', body: 'Training most days' },
 ];
 const diets: DietPreference[] = ['Everything', 'Vegetarian', 'Vegan', 'High protein'];
+const ONBOARDING_STEPS = 7;
+
+type IllustrationScene = 'welcome' | 'goal' | 'basics' | 'metrics' | 'activity' | 'food' | 'review';
+
+const illustrationScenes: Record<IllustrationScene, {
+  icon: keyof typeof Feather.glyphMap;
+  eyebrow: string;
+  title: string;
+  secondaryIcon: keyof typeof Feather.glyphMap;
+  secondaryLabel: string;
+}> = {
+  welcome: { icon: 'sunrise', eyebrow: 'A calmer way to track', title: 'Your day, in focus', secondaryIcon: 'shield', secondaryLabel: 'Private by default' },
+  goal: { icon: 'target', eyebrow: 'Your direction', title: 'Progress with purpose', secondaryIcon: 'trending-down', secondaryLabel: 'Small steps count' },
+  basics: { icon: 'user', eyebrow: 'Make it yours', title: 'A plan that knows you', secondaryIcon: 'edit-3', secondaryLabel: 'Change anytime' },
+  metrics: { icon: 'sliders', eyebrow: 'Your starting point', title: 'Numbers, made useful', secondaryIcon: 'bar-chart-2', secondaryLabel: 'A clear baseline' },
+  activity: { icon: 'activity', eyebrow: 'Your rhythm', title: 'Built around real life', secondaryIcon: 'zap', secondaryLabel: 'Flexible guidance' },
+  food: { icon: 'coffee', eyebrow: 'Your preferences', title: 'More you, less noise', secondaryIcon: 'heart', secondaryLabel: 'Personalized ideas' },
+  review: { icon: 'check-circle', eyebrow: 'Ready when you are', title: 'A thoughtful first day', secondaryIcon: 'lock', secondaryLabel: 'You stay in control' },
+};
+
+function OnboardingIllustration({
+  scene,
+  colors,
+}: {
+  scene: IllustrationScene;
+  colors: ReturnType<typeof useCalora>['colors'];
+}) {
+  const reducedMotion = useReducedMotion();
+  const drift = useSharedValue(0);
+  const details = illustrationScenes[scene];
+
+  React.useEffect(() => {
+    if (reducedMotion) {
+      drift.value = 0;
+      return;
+    }
+    drift.value = withRepeat(
+      withSequence(
+        withTiming(-6, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
+      ),
+      -1,
+      false,
+    );
+    return () => cancelAnimation(drift);
+  }, [drift, reducedMotion]);
+
+  const floatingStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: drift.value }],
+  }));
+
+  return (
+    <View style={[styles.illustration, { backgroundColor: colors.hero }]}>
+      <LinearGradient
+        colors={[colors.hero, colors.primary]}
+        end={{ x: 1, y: 1 }}
+        start={{ x: 0, y: 0 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View style={[styles.illustrationOrb, { backgroundColor: colors.accent }]} />
+      <Animated.View style={[styles.illustrationMainCard, { backgroundColor: colors.card, borderColor: colors.border }, floatingStyle]}>
+        <View style={[styles.illustrationIcon, { backgroundColor: colors.accent }]}>
+          <Feather name={details.icon} size={24} color={colors.primary} />
+        </View>
+        <Text style={[styles.illustrationEyebrow, { color: colors.mutedForeground }]}>{details.eyebrow}</Text>
+        <Text style={[styles.illustrationTitle, { color: colors.foreground }]}>{details.title}</Text>
+        <View style={styles.illustrationBars}>
+          <View style={[styles.illustrationBar, styles.illustrationBarLong, { backgroundColor: colors.primary }]} />
+          <View style={[styles.illustrationBar, styles.illustrationBarShort, { backgroundColor: colors.accent }]} />
+        </View>
+      </Animated.View>
+      <Animated.View entering={FadeInDown.delay(140).springify().damping(16)} style={[styles.illustrationBadge, styles.illustrationBadgeTop, { backgroundColor: colors.card, borderColor: colors.border }, floatingStyle]}>
+        <Feather name={details.secondaryIcon} size={14} color={colors.primary} />
+        <Text style={[styles.illustrationBadgeText, { color: colors.foreground }]}>{details.secondaryLabel}</Text>
+      </Animated.View>
+      <Animated.View entering={FadeInDown.delay(240).springify().damping(16)} style={[styles.illustrationBadge, styles.illustrationBadgeBottom, { backgroundColor: colors.accent }]}>
+        <View style={[styles.illustrationDot, { backgroundColor: colors.primary }]} />
+        <Text style={[styles.illustrationBadgeText, { color: colors.accentForeground }]}>Made for today</Text>
+      </Animated.View>
+    </View>
+  );
+}
 
 export default function OnboardingScreen() {
   const { colors, onboardingComplete, hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying, clearAllData, exportRawStorageData, completeOnboarding } = useCalora();
@@ -76,14 +172,14 @@ export default function OnboardingScreen() {
   };
 
   const next = () => {
-    if (step === 2) {
+    if (step === 3) {
       if (!validatedPersonalDetails.ok) {
         setPersonalDetailsError(validatedPersonalDetails.message);
         return;
       }
       setPersonalDetailsError('');
     }
-    setStep((current) => Math.min(current + 1, 4));
+    setStep((current) => Math.min(current + 1, ONBOARDING_STEPS - 1));
   };
 
   // Show generic loading only on the initial read — not during a retry, where
@@ -189,21 +285,19 @@ export default function OnboardingScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 22, paddingBottom: insets.bottom + 30 }]} keyboardShouldPersistTaps="handled">
-        <View style={styles.progressRow}>
+         <View style={styles.progressRow}>
           <View style={styles.brandMark}><Feather name="sun" size={18} color={colors.primaryForeground} /></View>
           <Text style={[styles.brand, { color: colors.foreground }]}>{BRAND.name}</Text>
-          <Text style={[styles.stepText, { color: colors.mutedForeground }]}>{step + 1} of 5</Text>
+           <Text style={[styles.stepText, { color: colors.mutedForeground }]}>{step + 1} of {ONBOARDING_STEPS}</Text>
         </View>
-        <View style={[styles.progressTrack, { backgroundColor: colors.muted }]}><View style={[styles.progressFill, { backgroundColor: colors.primary, width: `${((step + 1) / 5) * 100}%` }]} /></View>
+         <View style={[styles.progressTrack, { backgroundColor: colors.muted }]}><Animated.View entering={FadeInRight.duration(280)} style={[styles.progressFill, { backgroundColor: colors.primary, width: `${((step + 1) / ONBOARDING_STEPS) * 100}%` }]} /></View>
 
-        {step === 0 && (
+         <Animated.View key={`onboarding-step-${step}`} entering={FadeInRight.springify().damping(18).stiffness(150)} exiting={FadeOutLeft.duration(140)}>
+         {step === 0 && (
           <View>
             <Text style={[styles.title, { color: colors.foreground }]}>Food tracking, made simpler.</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>Set your goal and get a plan that fits your day.</Text>
-            <View style={styles.welcomeVisual}>
-              <Image source={require('../assets/images/calora-onboarding-visual.jpg')} contentFit="cover" style={StyleSheet.absoluteFillObject} />
-               <View style={styles.welcomeVisualOverlay}><Feather name="sunrise" size={13} color="#d4eadc" /></View>
-            </View>
+             <OnboardingIllustration scene="welcome" colors={colors} />
             <View style={[styles.welcomeCard, { backgroundColor: colors.hero }]}>
               <View style={[styles.welcomeIcon, { backgroundColor: 'rgba(157,215,189,0.16)' }]}><Feather name="shield" size={22} color={colors.heroMuted} /></View>
                <Text style={[styles.welcomeTitle, { color: colors.onHero }]}>Clear food data.</Text>
@@ -228,39 +322,61 @@ export default function OnboardingScreen() {
           </View>
         )}
 
-        {step === 2 && (
+         {step === 2 && (
+           <View>
+             <Text style={[styles.title, { color: colors.foreground }]}>Let’s make this personal.</Text>
+             <Text style={[styles.body, { color: colors.mutedForeground }]}>A few basics help Calora speak to you, not at you.</Text>
+             <OnboardingIllustration scene="basics" colors={colors} />
+             <View style={styles.formGrid}>
+               <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>What should we call you?</Text><TextInput value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
+               <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>Age</Text><TextInput value={age} onChangeText={(nextValue) => { setAge(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
+             </View>
+           </View>
+         )}
+
+         {step === 3 && (
           <View>
             <Text style={[styles.title, { color: colors.foreground }]}>Set your starting target.</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>These details create a starting estimate, not a medical recommendation.</Text>
+             <OnboardingIllustration scene="metrics" colors={colors} />
             <View style={styles.formGrid}>
-              <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>What should we call you?</Text><TextInput value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
-              {[['Age', age, setAge], ['Height (cm)', height, setHeight], ['Current weight (kg)', weight, setWeight], ['Goal weight (kg)', targetWeight, setTargetWeight]].map(([label, value, setter]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput value={value as string} onChangeText={(nextValue) => { (setter as (value: string) => void)(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: personalDetailsError ? colors.destructive : colors.input }]} /></View>)}
+               {[['Height (cm)', height, setHeight], ['Current weight (kg)', weight, setWeight], ['Goal weight (kg)', targetWeight, setTargetWeight]].map(([label, value, setter]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput value={value as string} onChangeText={(nextValue) => { (setter as (value: string) => void)(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: personalDetailsError ? colors.destructive : colors.input }]} /></View>)}
             </View>
              {!!personalDetailsError && <Text accessibilityRole="alert" style={[styles.personalDetailsError, { color: colors.destructive }]}>{personalDetailsError}</Text>}
              <View style={[styles.targetPreview, { backgroundColor: colors.accent }]}><Feather name="target" size={18} color={colors.accentForeground} /><Text style={[styles.targetText, { color: colors.accentForeground }]}>{calorieTarget === null ? 'Enter valid details to see your starting target.' : <>Starting target: <Text style={styles.targetBold}>{formatWhole(calorieTarget)} kcal/day</Text></>}</Text></View>
           </View>
         )}
 
-        {step === 3 && (
+         {step === 4 && (
           <View>
             <Text style={[styles.title, { color: colors.foreground }]}>How active are you?</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>This helps make your first estimate more useful.</Text>
+             <OnboardingIllustration scene="activity" colors={colors} />
             <View style={styles.optionList}>{activities.map((item) => {
               const selected = activity === item.key;
               return <Pressable key={item.key} onPress={() => setActivity(item.key)} style={[styles.option, { backgroundColor: selected ? colors.accent : colors.card, borderColor: selected ? colors.primary : colors.border }]}>
                 <View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: colors.foreground }]}>{item.label}</Text><Text style={[styles.optionBody, { color: colors.mutedForeground }]}>{item.body}</Text></View>
                 <Feather name={selected ? 'check-circle' : 'circle'} size={20} color={selected ? colors.primary : colors.mutedForeground} />
               </Pressable>;
-            })}</View>
-            <Text style={[styles.label, { color: colors.mutedForeground, marginTop: 20, marginBottom: 9 }]}>Food preference</Text>
-            <View style={styles.chipRow}>{diets.map((item) => <Pressable key={item} onPress={() => setDiet(item)} style={[styles.chip, { backgroundColor: diet === item ? colors.primary : colors.card, borderColor: diet === item ? colors.primary : colors.border }]}><Text style={[styles.chipText, { color: diet === item ? colors.primaryForeground : colors.mutedForeground }]}>{item}</Text></Pressable>)}</View>
+             })}</View>
           </View>
         )}
 
-        {step === 4 && (
+         {step === 5 && (
+           <View>
+             <Text style={[styles.title, { color: colors.foreground }]}>What sounds good to you?</Text>
+             <Text style={[styles.body, { color: colors.mutedForeground }]}>We’ll use this to keep suggestions closer to your taste.</Text>
+             <OnboardingIllustration scene="food" colors={colors} />
+             <Text style={[styles.label, { color: colors.mutedForeground, marginTop: 22, marginBottom: 9 }]}>Food preference</Text>
+             <View style={styles.chipRow}>{diets.map((item) => <Pressable key={item} onPress={() => setDiet(item)} style={[styles.chip, { backgroundColor: diet === item ? colors.primary : colors.card, borderColor: diet === item ? colors.primary : colors.border }]}><Text style={[styles.chipText, { color: diet === item ? colors.primaryForeground : colors.mutedForeground }]}>{item}</Text></Pressable>)}</View>
+           </View>
+         )}
+
+         {step === 6 && (
           <View>
             <Text style={[styles.title, { color: colors.foreground }]}>Review before you start.</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>{BRAND.name} is a wellness tool, not a doctor. Your data stays local in this preview and can be exported or deleted from settings.</Text>
+             <OnboardingIllustration scene="review" colors={colors} />
             <Pressable onPress={() => setConsent(!consent)} style={[styles.consentCard, { backgroundColor: consent ? colors.accent : colors.card, borderColor: consent ? colors.primary : colors.border }]}>
               <View style={[styles.consentCheck, { backgroundColor: consent ? colors.primary : colors.muted }]}><Feather name={consent ? 'check' : 'shield'} size={17} color={consent ? colors.primaryForeground : colors.mutedForeground} /></View>
               <View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: colors.foreground }]}>I understand and agree</Text><Text style={[styles.optionBody, { color: colors.mutedForeground }]}>I’ll review AI estimates before logging them and understand calorie targets are starting estimates.</Text></View>
@@ -271,10 +387,11 @@ export default function OnboardingScreen() {
             </View>
           </View>
         )}
+         </Animated.View>
 
         <View style={styles.bottomActions}>
           {step > 0 && <Pressable onPress={() => setStep((current) => current - 1)} style={styles.backButton}><Feather name="arrow-left" size={18} color={colors.mutedForeground} /><Text style={[styles.backText, { color: colors.mutedForeground }]}>Back</Text></Pressable>}
-          <Pressable disabled={step === 4 && !consent} onPress={step === 4 ? finish : next} style={[styles.continueButton, { backgroundColor: step === 4 && !consent ? colors.muted : colors.primary }]}><Text style={[styles.continueText, { color: step === 4 && !consent ? colors.mutedForeground : colors.primaryForeground }]}>{step === 4 ? `Enter ${BRAND.name}` : 'Continue'}</Text><Feather name="arrow-right" size={17} color={step === 4 && !consent ? colors.mutedForeground : colors.primaryForeground} /></Pressable>
+           <Pressable disabled={step === ONBOARDING_STEPS - 1 && !consent} onPress={step === ONBOARDING_STEPS - 1 ? finish : next} style={[styles.continueButton, { backgroundColor: step === ONBOARDING_STEPS - 1 && !consent ? colors.muted : colors.primary }]}><Text style={[styles.continueText, { color: step === ONBOARDING_STEPS - 1 && !consent ? colors.mutedForeground : colors.primaryForeground }]}>{step === ONBOARDING_STEPS - 1 ? `Enter ${BRAND.name}` : 'Continue'}</Text><Feather name="arrow-right" size={17} color={step === ONBOARDING_STEPS - 1 && !consent ? colors.mutedForeground : colors.primaryForeground} /></Pressable>
         </View>
       </ScrollView>
     </View>
@@ -300,12 +417,25 @@ const styles = StyleSheet.create({
   brandMark: { width: 31, height: 31, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ef6b4f' },
   brand: { fontFamily: 'Inter_700Bold', fontSize: 18, letterSpacing: -0.4, marginLeft: 8 },
   stepText: { fontFamily: 'Inter_500Medium', fontSize: 11, marginLeft: 'auto' },
-  progressTrack: { height: 5, borderRadius: 3, overflow: 'hidden', marginBottom: 46 },
+  progressTrack: { height: 5, borderRadius: 3, overflow: 'hidden', marginBottom: 34 },
   progressFill: { height: 5, borderRadius: 3 },
   title: { fontFamily: 'Inter_700Bold', fontSize: 31, lineHeight: 36, letterSpacing: -1, maxWidth: 340 },
   body: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 21, marginTop: 12, maxWidth: 340 },
-  welcomeVisual: { height: 128, borderRadius: 22, overflow: 'hidden', marginTop: 25, backgroundColor: '#1b3022' },
-  welcomeVisualOverlay: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 6, padding: 13, backgroundColor: 'rgba(18,34,24,0.22)' },
+  illustration: { height: 188, borderRadius: 24, overflow: 'hidden', marginTop: 24, marginBottom: 22, position: 'relative' },
+  illustrationOrb: { position: 'absolute', width: 150, height: 150, borderRadius: 75, right: -36, top: -52, opacity: 0.28 },
+  illustrationMainCard: { position: 'absolute', width: 194, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, padding: 14, left: 34, top: 24, shadowColor: '#07160e', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
+  illustrationIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  illustrationEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1, textTransform: 'uppercase' },
+  illustrationTitle: { fontFamily: 'Inter_700Bold', fontSize: 17, letterSpacing: -0.3, marginTop: 4 },
+  illustrationBars: { flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 16 },
+  illustrationBar: { height: 6, borderRadius: 4 },
+  illustrationBarLong: { width: 74 },
+  illustrationBarShort: { width: 30 },
+  illustrationBadge: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, paddingVertical: 8, shadowColor: '#07160e', shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  illustrationBadgeTop: { right: 12, top: 17 },
+  illustrationBadgeBottom: { left: 14, bottom: 16 },
+  illustrationBadgeText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 },
+  illustrationDot: { width: 7, height: 7, borderRadius: 4 },
   welcomeCard: { borderRadius: 24, padding: 20, marginTop: 38 },
   welcomeIcon: { width: 43, height: 43, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   welcomeTitle: { fontFamily: 'Inter_700Bold', fontSize: 19, marginBottom: 8 },
