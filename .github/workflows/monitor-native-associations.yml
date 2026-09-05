@@ -30,6 +30,7 @@ jobs:
     env:
       DEPLOYMENT_SHA: ${{ github.event.deployment.sha }}
       DEPLOYMENT_STATE: ${{ github.event.deployment_status.state }}
+      DEPLOYMENT_DESCRIPTION: ${{ github.event.deployment_status.description || '' }}
       DEPLOYMENT_ENVIRONMENT: ${{ github.event.deployment.environment }}
       DEPLOYMENT_URL: >-
         ${{
@@ -44,30 +45,53 @@ jobs:
 
           commit_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${DEPLOYMENT_SHA}"
           workflow_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          failure_report="production-release-failure.txt"
 
           if [ -n "${DEPLOYMENT_URL}" ]; then
             environment_link="[${DEPLOYMENT_ENVIRONMENT}](${DEPLOYMENT_URL})"
-            provider_line="- Provider deployment: [Open deployment](${DEPLOYMENT_URL})"
+            provider_line="- Provider failure link: [Open provider deployment](${DEPLOYMENT_URL})"
+            failure_link="${DEPLOYMENT_URL}"
           else
             environment_link="\`${DEPLOYMENT_ENVIRONMENT}\`"
-            provider_line=""
+            provider_line="- Provider failure link: unavailable"
+            failure_link="unavailable"
           fi
 
           echo "::warning title=Production release verification not reached::The ${DEPLOYMENT_ENVIRONMENT} deployment for ${DEPLOYMENT_SHA} is ${DEPLOYMENT_STATE}; published-release verification did not run. See ${workflow_url}."
+
+          {
+            printf '%s\n' "Production release failure evidence"
+            printf '%s\n' "Provider status: ${DEPLOYMENT_STATE}"
+            printf '%s\n' "Provider description: ${DEPLOYMENT_DESCRIPTION:-unavailable}"
+            printf '%s\n' "Deployment SHA: ${DEPLOYMENT_SHA}"
+            printf '%s\n' "Provider environment: ${DEPLOYMENT_ENVIRONMENT}"
+            printf '%s\n' "Failure link: ${failure_link}"
+            printf '%s\n' "Monitoring workflow run: ${workflow_url}"
+          } > "${failure_report}"
 
           {
             echo "## Production release verification not reached"
             echo
             echo "The success-only published-release verification job did not run because this production publish was not successful."
             echo
-            echo "- Deployment status: \`${DEPLOYMENT_STATE}\`"
+            echo "- Provider status: \`${DEPLOYMENT_STATE}\`"
+            echo "- Provider description: ${DEPLOYMENT_DESCRIPTION:-unavailable}"
             echo "- Deployment SHA: [\`${DEPLOYMENT_SHA}\`](${commit_url})"
             echo "- Provider environment: ${environment_link}"
-            if [ -n "${provider_line}" ]; then
-              echo "${provider_line}"
-            fi
+            echo "${provider_line}"
             echo "- Monitoring workflow run: [Run #${GITHUB_RUN_NUMBER}](${workflow_url})"
+            echo
+            echo "The failure evidence is retained in the \`production-release-failure\` workflow artifact."
           } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload production release failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release-failure
+          path: production-release-failure.txt
+          if-no-files-found: error
+          retention-days: 30
 
   verify:
     name: Verify production Universal Links and App Links
