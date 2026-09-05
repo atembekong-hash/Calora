@@ -19,6 +19,7 @@ import {
 describe("account deletion recovery state", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    execute.mockReset();
     transaction.mockImplementation(async (callback: (tx: { execute: typeof execute }) => Promise<unknown>) =>
       callback({ execute }),
     );
@@ -54,6 +55,29 @@ describe("account deletion recovery state", () => {
     await expect(
       claimRecoveryWarningSuppression("same recovery signature"),
     ).resolves.toBe(false);
+  });
+
+  it.each([
+    ["a suppression-table read fails", 1],
+    ["the suppression-table write fails", 4],
+  ])("fails open when %s", async (_description, failingCall) => {
+    for (let call = 1; call <= 4; call += 1) {
+      if (call === failingCall) {
+        execute.mockRejectedValueOnce(
+          new Error("provider error for raw-account-id"),
+        );
+      } else {
+        execute.mockResolvedValueOnce({ rows: [] });
+      }
+    }
+
+    await expect(
+      claimRecoveryWarningSuppression(
+        "provider error for raw-account-id",
+        new Date("2026-09-05T09:00:00.000Z"),
+      ),
+    ).resolves.toBe(true);
+    expect(JSON.stringify(execute.mock.calls)).not.toContain("raw-account-id");
   });
 
   it("normalizes PostgreSQL timestamp strings before recovery computes age", async () => {

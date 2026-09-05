@@ -51,39 +51,45 @@ export async function claimRecoveryWarningSuppression(
   const warningKey = createHash("sha256").update(warningSignature).digest("hex");
   const expiresAt = new Date(now.getTime() + RECOVERY_WARNING_COOLDOWN_MS);
 
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`
-      SELECT pg_advisory_xact_lock(hashtextextended(${RECOVERY_WARNING_LOCK_KEY}, 0))
-    `);
-    await tx.execute(sql`
-      DELETE FROM calora_recovery_warning_suppressions
-      WHERE expires_at <= ${now}
-    `);
-    await tx.execute(sql`
-      DELETE FROM calora_recovery_warning_suppressions
-      WHERE warning_key IN (
-        SELECT warning_key
-        FROM calora_recovery_warning_suppressions
-        ORDER BY emitted_at ASC
-        LIMIT GREATEST(
-          0,
-          (SELECT COUNT(*) FROM calora_recovery_warning_suppressions)
-            - ${RECOVERY_WARNING_MAX_RECORDS - 1}
+  try {
+    return await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        SELECT pg_advisory_xact_lock(hashtextextended(${RECOVERY_WARNING_LOCK_KEY}, 0))
+      `);
+      await tx.execute(sql`
+        DELETE FROM calora_recovery_warning_suppressions
+        WHERE expires_at <= ${now}
+      `);
+      await tx.execute(sql`
+        DELETE FROM calora_recovery_warning_suppressions
+        WHERE warning_key IN (
+          SELECT warning_key
+          FROM calora_recovery_warning_suppressions
+          ORDER BY emitted_at ASC
+          LIMIT GREATEST(
+            0,
+            (SELECT COUNT(*) FROM calora_recovery_warning_suppressions)
+              - ${RECOVERY_WARNING_MAX_RECORDS - 1}
+          )
         )
-      )
-    `);
-    const result = await tx.execute(sql`
-      INSERT INTO calora_recovery_warning_suppressions
-        (warning_key, emitted_at, expires_at)
-      VALUES (${warningKey}, ${now}, ${expiresAt})
-      ON CONFLICT (warning_key) DO UPDATE
-      SET emitted_at = EXCLUDED.emitted_at,
-          expires_at = EXCLUDED.expires_at
-      WHERE calora_recovery_warning_suppressions.expires_at <= ${now}
-      RETURNING warning_key
-    `);
-    return result.rows.length === 1;
-  });
+      `);
+      const result = await tx.execute(sql`
+        INSERT INTO calora_recovery_warning_suppressions
+          (warning_key, emitted_at, expires_at)
+        VALUES (${warningKey}, ${now}, ${expiresAt})
+        ON CONFLICT (warning_key) DO UPDATE
+        SET emitted_at = EXCLUDED.emitted_at,
+            expires_at = EXCLUDED.expires_at
+        WHERE calora_recovery_warning_suppressions.expires_at <= ${now}
+        RETURNING warning_key
+      `);
+      return result.rows.length === 1;
+    });
+  } catch {
+    // Cooldown storage is an observability optimization. If its table cannot
+    // be read or written, emit rather than hiding a recovery warning.
+    return true;
+  }
 }
 
 export interface RecoverableAccountDeletion {
