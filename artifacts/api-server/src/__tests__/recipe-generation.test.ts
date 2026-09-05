@@ -7,6 +7,7 @@ const { mockOpenAiCreate, mockOpenAiImageGenerate, verifyBearerToken, checkRateL
   verifyBearerToken: vi.fn(),
   checkRateLimit: vi.fn(),
 }));
+const loggerWarn = vi.hoisted(() => vi.fn());
 
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
   openai: { chat: { completions: { create: mockOpenAiCreate } }, images: { generate: mockOpenAiImageGenerate } },
@@ -25,6 +26,9 @@ vi.mock("../lib/supabase-auth.js", () => ({
 
 vi.mock("../lib/rate-limit.js", () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
+}));
+vi.mock("../lib/logger.js", () => ({
+  logger: { warn: loggerWarn, error: vi.fn() },
 }));
 
 import express from "express";
@@ -72,6 +76,42 @@ describe("AI recipe creation endpoints", () => {
     const keys = checkRateLimit.mock.calls.map((call) => call[0]);
     expect(keys).toContain(`recipes-concepts:user:${USER.id}`);
     expect(keys).toContain(`recipes-generated:user:${USER.id}`);
+  });
+
+  it("returns a generic response and redacted signal for a recipe deletion fence", async () => {
+    checkRateLimit.mockRejectedValueOnce({
+      code: "55000",
+      message: "account deletion is in progress",
+      detail: "raw account details",
+    });
+
+    const response = await request(app)
+      .post("/v1/recipes/concepts")
+      .send({ request: "A pasta dinner" });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({
+      message: "Recipe ideas are temporarily unavailable. Please try again shortly.",
+    });
+    expect(loggerWarn).toHaveBeenCalledWith(
+      { errorClass: "account_deletion_fence", route: "/v1/recipes/concepts", count: 1 },
+      "Account deletion fence rejected recipe request",
+    );
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain("55000");
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain("account deletion is in progress");
+    expect(mockOpenAiCreate).not.toHaveBeenCalled();
+  });
+
+  it("keeps an ordinary limiter failure generic without classifying it as a deletion fence", async () => {
+    checkRateLimit.mockResolvedValueOnce({ allowed: false, retryAfterSecs: 30, degraded: true });
+
+    const response = await request(app)
+      .post("/v1/recipes/concepts")
+      .send({ request: "A pasta dinner" });
+
+    expect(response.status).toBe(503);
+    expect(response.body.message).toMatch(/temporarily unavailable/i);
+    expect(loggerWarn).not.toHaveBeenCalled();
   });
 
   it("requires a signed-in user to generate concepts or a complete recipe", async () => {
@@ -218,7 +258,12 @@ describe("AI recipe creation endpoints", () => {
     }), expect.any(Object));
     expect(mockOpenAiImageGenerate.mock.calls[0][0].prompt).toContain("Lemony lentil bowl");
     expect(mockOpenAiImageGenerate.mock.calls[0][0].prompt).not.toContain("must-not-forward@example.com");
-    expect(checkRateLimit).toHaveBeenCalledWith(`recipes-photo:user:${USER.id}`, 12, 3600, { failClosed: true });
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      `recipes-photo:user:${USER.id}`,
+      12,
+      3600,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
   });
 
   it("keeps a completed recipe usable when recipe-photo generation fails", async () => {

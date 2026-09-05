@@ -6,6 +6,11 @@ import { db } from "@workspace/db";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
+import { logger } from "../lib/logger.js";
+import {
+  accountDeletionFenceSignal,
+  classifyAccountDeletionError,
+} from "../lib/account-deletion-state.js";
 import { hasCurrentCoachFactConsent } from "../lib/coach-fact-consent.js";
 import { getCoachFactRolloutDecision } from "../lib/coach-fact-rollout.js";
 
@@ -558,8 +563,19 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
   try {
     // Fact Context is a controlled paid-provider path, so a limiter outage must
     // deny execution rather than fall back to an unmetered authenticated call.
-    rate = await checkRateLimit(`coach-fact-context:user:${user.id}`, 40, 60 * 60, { failClosed: true });
-  } catch {
+    rate = await checkRateLimit(
+      `coach-fact-context:user:${user.id}`,
+      40,
+      60 * 60,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/coach/fact-context/respond"),
+        "Account deletion fence rejected Coach Fact Context request",
+      );
+    }
     res.status(503).json({ message: "Coach Fact Context request protection could not be verified." });
     return;
   }

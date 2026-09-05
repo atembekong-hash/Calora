@@ -7,6 +7,10 @@ const verifyBearerToken = vi.fn();
 vi.mock("../lib/supabase-auth.js", () => ({ verifyBearerToken: (...args: unknown[]) => verifyBearerToken(...args) }));
 const checkRateLimit = vi.fn();
 vi.mock("../lib/rate-limit.js", () => ({ checkRateLimit: (...args: unknown[]) => checkRateLimit(...args) }));
+const loggerWarn = vi.hoisted(() => vi.fn());
+vi.mock("../lib/logger.js", () => ({
+  logger: { warn: loggerWarn, error: vi.fn() },
+}));
 const hasCurrentCoachFactConsent = vi.fn();
 vi.mock("../lib/coach-fact-consent.js", () => ({ hasCurrentCoachFactConsent: (...args: unknown[]) => hasCurrentCoachFactConsent(...args) }));
 const getCoachFactRolloutDecision = vi.fn();
@@ -218,6 +222,28 @@ describe("dark Coach Fact Context path", () => {
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 
+  it("returns the generic response and redacted signal for a Coach deletion fence", async () => {
+    checkRateLimit.mockRejectedValueOnce({
+      code: "55000",
+      message: "account deletion is in progress",
+      detail: "raw account details",
+    });
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({
+      message: "Coach Fact Context request protection could not be verified.",
+    });
+    expect(loggerWarn).toHaveBeenCalledWith(
+      { errorClass: "account_deletion_fence", route: "/v1/coach/fact-context/respond", count: 1 },
+      "Account deletion fence rejected Coach Fact Context request",
+    );
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain("55000");
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain("account deletion is in progress");
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
   it("uses the fail-closed protection policy for Fact Context", async () => {
     checkRateLimit.mockResolvedValueOnce({ allowed: false, retryAfterSecs: 60 });
 
@@ -228,7 +254,7 @@ describe("dark Coach Fact Context path", () => {
       "coach-fact-context:user:user-a",
       40,
       60 * 60,
-      { failClosed: true },
+      { failClosed: true, rethrowAccountDeletionFence: true },
     );
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });

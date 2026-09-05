@@ -6,6 +6,11 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
+import { logger } from "../lib/logger.js";
+import {
+  accountDeletionFenceSignal,
+  classifyAccountDeletionError,
+} from "../lib/account-deletion-state.js";
 
 // Meal-plan generation is an expensive AI call. Cap per-account volume so a
 // signed-in caller cannot drive unbounded provider cost.
@@ -483,10 +488,33 @@ router.post("/v1/planner/generate", async (req, res) => {
     return;
   }
 
-  const rate = await checkRateLimit(`planner:user:${user.id}`, PLANNER_RATE_LIMIT, PLANNER_RATE_WINDOW_SECS, { failClosed: true });
+  let rate;
+  try {
+    rate = await checkRateLimit(
+      `planner:user:${user.id}`,
+      PLANNER_RATE_LIMIT,
+      PLANNER_RATE_WINDOW_SECS,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/planner/generate"),
+        "Account deletion fence rejected planner request",
+      );
+      res.status(503).json({ message: "Meal-plan generation is temporarily unavailable. Please try again shortly." });
+      return;
+    }
+    throw error;
+  }
   if (!rate.allowed) {
     res.setHeader("Retry-After", String(rate.retryAfterSecs));
-    res.status(429).json({ message: "Too many meal-plan requests. Please wait before trying again.", retryAfterSecs: rate.retryAfterSecs });
+    res.status(rate.degraded ? 503 : 429).json({
+      message: rate.degraded
+        ? "Meal-plan generation is temporarily unavailable. Please try again shortly."
+        : "Too many meal-plan requests. Please wait before trying again.",
+      retryAfterSecs: rate.retryAfterSecs,
+    });
     return;
   }
 

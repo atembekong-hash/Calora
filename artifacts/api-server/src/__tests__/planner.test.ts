@@ -21,6 +21,10 @@ const checkRateLimit = vi.fn();
 vi.mock("../lib/rate-limit.js", () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
 }));
+const loggerWarn = vi.hoisted(() => vi.fn());
+vi.mock("../lib/logger.js", () => ({
+  logger: { warn: loggerWarn, error: vi.fn() },
+}));
 
 import { openai } from "@workspace/integrations-openai-ai-server";
 import plannerRouter from "../routes/planner.js";
@@ -62,6 +66,38 @@ describe("POST /v1/planner/generate", () => {
 
     expect(response.status).toBe(429);
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("returns a generic response and redacted signal for a planner deletion fence", async () => {
+    checkRateLimit.mockRejectedValueOnce({
+      code: "55000",
+      message: "account deletion is in progress",
+      detail: "raw account details",
+    });
+
+    const response = await request(app).post("/v1/planner/generate").send(validBody());
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({
+      message: "Meal-plan generation is temporarily unavailable. Please try again shortly.",
+    });
+    expect(loggerWarn).toHaveBeenCalledWith(
+      { errorClass: "account_deletion_fence", route: "/v1/planner/generate", count: 1 },
+      "Account deletion fence rejected planner request",
+    );
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain("55000");
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain("account deletion is in progress");
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
+  it("keeps an ordinary limiter failure generic without classifying it as a deletion fence", async () => {
+    checkRateLimit.mockResolvedValueOnce({ allowed: false, retryAfterSecs: 30, degraded: true });
+
+    const response = await request(app).post("/v1/planner/generate").send(validBody());
+
+    expect(response.status).toBe(503);
+    expect(response.body.message).toMatch(/temporarily unavailable/i);
+    expect(loggerWarn).not.toHaveBeenCalled();
   });
 
   it("falls back to a starter week when the model is unavailable", async () => {

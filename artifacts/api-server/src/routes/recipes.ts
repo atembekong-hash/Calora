@@ -6,6 +6,10 @@ import { randomUUID } from "node:crypto";
 import { logger } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
+import {
+  accountDeletionFenceSignal,
+  classifyAccountDeletionError,
+} from "../lib/account-deletion-state.js";
 
 const router: IRouter = Router();
 
@@ -28,11 +32,39 @@ const RECIPE_PHOTO_URL_TTL_SECS = 60 * 60 * 24 * 6;
 const RECIPE_PHOTO_TIMEOUT_MS = 30_000;
 const OBJECT_STORAGE_SIDECAR = "http://127.0.0.1:1106/object-storage/signed-object-url";
 
-async function enforceRecipeGenLimit(scope: string, userId: string, res: Response): Promise<boolean> {
-  const rate = await checkRateLimit(`${scope}:user:${userId}`, RECIPE_GEN_RATE_LIMIT, RECIPE_GEN_RATE_WINDOW_SECS, { failClosed: true });
+async function enforceRecipeGenLimit(
+  scope: string,
+  route: string,
+  userId: string,
+  res: Response,
+): Promise<boolean> {
+  let rate;
+  try {
+    rate = await checkRateLimit(
+      `${scope}:user:${userId}`,
+      RECIPE_GEN_RATE_LIMIT,
+      RECIPE_GEN_RATE_WINDOW_SECS,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal(route),
+        "Account deletion fence rejected recipe request",
+      );
+      res.status(503).json({ message: "Recipe ideas are temporarily unavailable. Please try again shortly." });
+      return false;
+    }
+    throw error;
+  }
   if (!rate.allowed) {
     res.setHeader("Retry-After", String(rate.retryAfterSecs));
-    res.status(429).json({ message: "Too many recipe requests. Please wait before trying again.", retryAfterSecs: rate.retryAfterSecs });
+    res.status(rate.degraded ? 503 : 429).json({
+      message: rate.degraded
+        ? "Recipe ideas are temporarily unavailable. Please try again shortly."
+        : "Too many recipe requests. Please wait before trying again.",
+      retryAfterSecs: rate.retryAfterSecs,
+    });
     return false;
   }
   return true;
@@ -183,7 +215,7 @@ router.post("/v1/recipes/concepts", async (req, res) => {
     res.status(401).json({ message: "Please sign in to generate recipe ideas." });
     return;
   }
-  if (!(await enforceRecipeGenLimit("recipes-concepts", user.id, res))) return;
+  if (!(await enforceRecipeGenLimit("recipes-concepts", "/v1/recipes/concepts", user.id, res))) return;
   await generateConcepts(requestBody(req.body) as ConceptRequest, res);
 });
 
@@ -197,7 +229,7 @@ router.post("/v1/recipes/guest-concepts", async (req, res) => {
 router.post("/v1/recipes/generated", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to finish a recipe." });
-  if (!(await enforceRecipeGenLimit("recipes-generated", user.id, res))) return;
+  if (!(await enforceRecipeGenLimit("recipes-generated", "/v1/recipes/generated", user.id, res))) return;
   const body = requestBody(req.body);
   const title = conceptText(body.title, 100);
   const summary = conceptText(body.summary, 220);
@@ -239,10 +271,32 @@ router.post("/v1/recipes/generated", async (req, res) => {
 router.post("/v1/recipes/photo", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to create a recipe photo." });
-  const rate = await checkRateLimit(`recipes-photo:user:${user.id}`, RECIPE_PHOTO_RATE_LIMIT, RECIPE_GEN_RATE_WINDOW_SECS, { failClosed: true });
+  let rate;
+  try {
+    rate = await checkRateLimit(
+      `recipes-photo:user:${user.id}`,
+      RECIPE_PHOTO_RATE_LIMIT,
+      RECIPE_GEN_RATE_WINDOW_SECS,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/recipes/photo"),
+        "Account deletion fence rejected recipe photo request",
+      );
+      return res.status(503).json({ message: "Recipe photo generation is temporarily unavailable. Please try again shortly." });
+    }
+    throw error;
+  }
   if (!rate.allowed) {
     res.setHeader("Retry-After", String(rate.retryAfterSecs));
-    return res.status(429).json({ message: "You’ve reached the recipe photo limit. Please try again later.", retryAfterSecs: rate.retryAfterSecs });
+    return res.status(rate.degraded ? 503 : 429).json({
+      message: rate.degraded
+        ? "Recipe photo generation is temporarily unavailable. Please try again shortly."
+        : "You’ve reached the recipe photo limit. Please try again later.",
+      retryAfterSecs: rate.retryAfterSecs,
+    });
   }
 
   const body = requestBody(req.body);
