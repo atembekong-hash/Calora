@@ -14,6 +14,9 @@ export const AUTH_CALLBACK_PATH = "/auth/callback";
 const USER_AGENT = "calora-native-association-monitor/1.0";
 const REQUEST_TIMEOUT_MS = 10_000;
 const ANDROID_RELATION = "delegate_permission/common.handle_all_urls";
+const APPLE_ASSOCIATION_CDN = "https://app-site-association.cdn-apple.com/a/v1";
+const GOOGLE_STATEMENTS_ENDPOINT =
+  "https://digitalassetlinks.googleapis.com/v1/statements:list";
 
 function requiredValue(value, name) {
   const normalized = String(value ?? "").trim();
@@ -73,16 +76,20 @@ function expectedFingerprints(value) {
 }
 
 async function fetchJson(path, origin, fetchImpl) {
+  return fetchJsonUrl(`${origin}${path}`, path, fetchImpl);
+}
+
+async function fetchJsonUrl(url, label, fetchImpl) {
   let response;
   try {
-    response = await fetchImpl(`${origin}${path}`, {
+    response = await fetchImpl(url, {
       redirect: "error",
       headers: { "user-agent": USER_AGENT, accept: "application/json" },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
     throw new Error(
-      `${path} could not be fetched. Check production reachability and TLS. ${
+      `${label} could not be fetched. Check production reachability and TLS. ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
@@ -90,21 +97,21 @@ async function fetchJson(path, origin, fetchImpl) {
 
   if (!response.ok) {
     throw new Error(
-      `${path} returned HTTP ${response.status}. Verify the production deployment and its native association configuration.`,
+      `${label} returned HTTP ${response.status}. Verify the production deployment and its native association configuration.`,
     );
   }
 
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.toLowerCase().includes("json")) {
     throw new Error(
-      `${path} returned content type ${contentType || "(missing)"}, not JSON. Verify the well-known route and deployment.`,
+      `${label} returned content type ${contentType || "(missing)"}, not JSON. Verify the association endpoint and deployment.`,
     );
   }
 
   try {
     return await response.json();
   } catch {
-    throw new Error(`${path} returned invalid JSON. Verify the published association file.`);
+    throw new Error(`${label} returned invalid JSON. Verify the published association response.`);
   }
 }
 
@@ -144,6 +151,71 @@ function assertAndroidAssociation(document, fingerprints) {
       `Android asset links are missing the Calora package, expected signing fingerprint, or ${ANDROID_RELATION} relation. Check ANDROID_SHA256_FINGERPRINT and the production assetlinks response.`,
     );
   }
+}
+
+function assertGoogleStatements(document, fingerprints) {
+  const hasAppLink = Array.isArray(document?.statements)
+    ? document.statements.some((statement) => {
+        const relationMatches =
+          statement?.relation === ANDROID_RELATION ||
+          (Array.isArray(statement?.relation) &&
+            statement.relation.includes(ANDROID_RELATION));
+        const target = statement?.target?.androidApp ?? statement?.target;
+        const packageName = target?.packageName ?? target?.package_name;
+        const certificate = target?.certificate?.sha256Fingerprint;
+        const certificates = Array.isArray(target?.sha256_cert_fingerprints)
+          ? target.sha256_cert_fingerprints
+          : certificate
+            ? [certificate]
+            : [];
+
+        return (
+          relationMatches &&
+          packageName === PACKAGE_NAME &&
+          certificates
+            .map(normalizeFingerprint)
+            .some((fingerprint) => fingerprints.includes(fingerprint))
+        );
+      })
+    : false;
+
+  if (!hasAppLink) {
+    throw new Error(
+      `Google Digital Asset Links statements are missing the Calora package, expected signing fingerprint, or ${ANDROID_RELATION} relation. Check the published assetlinks response and signing configuration.`,
+    );
+  }
+}
+
+export async function checkAppleAndGoogleAssociationEvidence({
+  origin = process.env.NATIVE_ASSOCIATION_ORIGIN ?? DEFAULT_ORIGIN,
+  appleTeamId = process.env.APPLE_TEAM_ID,
+  androidFingerprint = process.env.ANDROID_SHA256_FINGERPRINT,
+  fetchImpl = fetch,
+} = {}) {
+  const normalizedOrigin = normalizeOrigin(origin);
+  const expectedAppId = `${requiredValue(appleTeamId, "APPLE_TEAM_ID")}.${BUNDLE_ID}`;
+  const fingerprints = expectedFingerprints(androidFingerprint);
+  const hostname = new URL(normalizedOrigin).hostname;
+  const appleUrl = `${APPLE_ASSOCIATION_CDN}/${hostname}`;
+  const googleUrl = new URL(GOOGLE_STATEMENTS_ENDPOINT);
+  googleUrl.searchParams.set("source.web.site", normalizedOrigin);
+  googleUrl.searchParams.set("relation", ANDROID_RELATION);
+
+  const [appleAssociation, googleStatements] = await Promise.all([
+    fetchJsonUrl(appleUrl, "Apple association CDN", fetchImpl),
+    fetchJsonUrl(googleUrl.toString(), "Google Digital Asset Links statements", fetchImpl),
+  ]);
+
+  assertAppleAssociation(appleAssociation, expectedAppId);
+  assertGoogleStatements(googleStatements, fingerprints);
+
+  return {
+    origin: normalizedOrigin,
+    checked: [
+      "Apple association CDN",
+      "Google Digital Asset Links statements",
+    ],
+  };
 }
 
 export async function checkNativeAssociations({

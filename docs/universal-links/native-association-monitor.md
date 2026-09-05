@@ -52,3 +52,22 @@ with:
 ```sh
 node --test scripts/monitor-native-associations.test.mjs
 ```
+
+## Release evidence
+
+The API package's public release verifier also checks the live API attestation
+against the current Git tree and queries the provider caches used by mobile
+operating systems:
+
+```sh
+APPLE_TEAM_ID='…' \
+ANDROID_SHA256_FINGERPRINT='…' \
+pnpm --filter @workspace/api-server run verify:public-release
+```
+
+The command fails if `/api/version` reports a different source tree, Apple’s
+association CDN does not claim the exact auth callback, or Google’s
+`statements:list` response does not claim the Calora package and expected
+signing certificate. On success it prints a short `PASS` report including the
+release ID and source tree; the provider response bodies and fingerprints are
+never logged.

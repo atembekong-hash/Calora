@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { checkAppleAndGoogleAssociationEvidence } from "../../../scripts/monitor-native-associations.mjs";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_ORIGIN = "https://calorie-coach-pie35449.replit.app";
@@ -24,6 +25,11 @@ const pages = [
   ["/api/legal/subscriptions", "Subscription Information"],
   ["/api/legal/help", "Help & Support"],
 ];
+
+const appleTeamId = process.env.APPLE_TEAM_ID || process.env.CALORA_APPLE_TEAM_ID;
+const androidFingerprint =
+  process.env.ANDROID_SHA256_FINGERPRINT ||
+  process.env.CALORA_ANDROID_SHA256_FINGERPRINT;
 
 async function git(...args) {
   const { stdout } = await execFileAsync("git", args, { cwd: new URL("../../..", import.meta.url) });
@@ -61,6 +67,16 @@ async function main() {
       `Live source tree ${String(version.sourceTree)} does not match current source tree ${expectedTree}.`,
     );
   }
+  console.info(`[PASS] Live API source tree matches ${expectedTree}.`);
+
+  const associationEvidence = await checkAppleAndGoogleAssociationEvidence({
+    origin,
+    appleTeamId,
+    androidFingerprint,
+  });
+  console.info(
+    `[PASS] ${associationEvidence.checked.join(" and ")} verified for ${origin}.`,
+  );
 
   const healthResponse = await fetchRequired("/api", "application/json");
   const health = await healthResponse.json();
@@ -83,11 +99,15 @@ async function main() {
   }
 
   console.info(
-    `Verified Calora public release ${version.releaseId} at ${origin} from source tree ${expectedTree}.`,
+    `Release verification: PASS — ${version.releaseId} at ${origin} from source tree ${expectedTree}.`,
   );
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(
+    `Release verification: FAIL — ${
+      error instanceof Error ? error.message : String(error)
+    }`,
+  );
   process.exitCode = 1;
 });

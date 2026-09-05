@@ -5,6 +5,7 @@ import {
   AUTH_CALLBACK_PATH,
   BUNDLE_ID,
   PACKAGE_NAME,
+  checkAppleAndGoogleAssociationEvidence,
   checkNativeAssociations,
 } from "./monitor-native-associations.mjs";
 
@@ -124,5 +125,85 @@ test("fails closed on a non-success or non-JSON response", async () => {
       }),
     }),
     /apple-app-site-association.*not JSON/,
+  );
+});
+
+test("passes when Apple CDN and Google statements contain the signed app", async () => {
+  const urls = [];
+  const result = await checkAppleAndGoogleAssociationEvidence({
+    origin: "https://example.com",
+    appleTeamId: teamId,
+    androidFingerprint: fingerprint.toLowerCase(),
+    fetchImpl: async (url) => {
+      urls.push(url);
+      if (url.startsWith("https://app-site-association.cdn-apple.com/")) {
+        return response({
+          applinks: {
+            details: [
+              {
+                appIDs: [`${teamId}.${BUNDLE_ID}`],
+                components: [{ "/": AUTH_CALLBACK_PATH }],
+              },
+            ],
+          },
+        });
+      }
+      return response({
+        statements: [
+          {
+            relation: "delegate_permission/common.handle_all_urls",
+            target: {
+              androidApp: {
+                packageName: PACKAGE_NAME,
+                certificate: { sha256Fingerprint: fingerprint },
+              },
+            },
+          },
+        ],
+      });
+    },
+  });
+
+  assert.equal(result.origin, "https://example.com");
+  assert.equal(urls.length, 2);
+  assert.ok(urls.some((url) => url.startsWith("https://app-site-association.cdn-apple.com/")));
+  assert.ok(urls.some((url) => url.startsWith("https://digitalassetlinks.googleapis.com/")));
+});
+
+test("fails when Google statements omit the expected package or certificate", async () => {
+  await assert.rejects(
+    checkAppleAndGoogleAssociationEvidence({
+      origin: "https://example.com",
+      appleTeamId: teamId,
+      androidFingerprint: fingerprint,
+      fetchImpl: async (url) => {
+        if (url.startsWith("https://app-site-association.cdn-apple.com/")) {
+          return response({
+            applinks: {
+              details: [
+                {
+                  appIDs: [`${teamId}.${BUNDLE_ID}`],
+                  components: [{ "/": AUTH_CALLBACK_PATH }],
+                },
+              ],
+            },
+          });
+        }
+        return response({
+          statements: [
+            {
+              relation: "delegate_permission/common.handle_all_urls",
+              target: {
+                androidApp: {
+                  packageName: "com.example.other",
+                  certificate: { sha256Fingerprint: fingerprint },
+                },
+              },
+            },
+          ],
+        });
+      },
+    }),
+    /Google Digital Asset Links statements are missing/,
   );
 });
