@@ -1,0 +1,709 @@
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+
+const projectRoot = path.resolve(__dirname, '..');
+const appConfigPath = path.join(projectRoot, 'app.json');
+const evidenceEnvName = 'CALORA_NATIVE_AUTH_EVIDENCE_PATH';
+const callbackArtifactDirEnvName = 'CALORA_CALLBACK_ARTIFACT_DIR';
+const callbackCases = [
+  'google-sign-in',
+  'email-verification',
+  'password-recovery',
+  'cold-launch-force-quit-https-callback',
+  'caloraapp-competitor',
+];
+
+const FAILURE_CLASSES = {
+  LOCAL_CONFIGURATION: 'local_configuration',
+  TOOL_UNAVAILABLE: 'tool_unavailable',
+  TARGET_UNAVAILABLE: 'target_unavailable',
+  BINARY_UNAVAILABLE: 'binary_unavailable',
+  BUILD_MISMATCH: 'build_mismatch',
+  ASSOCIATION_UNVERIFIED: 'association_unverified',
+};
+
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function loadBuildIdentity(configPath = appConfigPath) {
+  const appConfig = readJson(configPath);
+  const expo = appConfig?.expo;
+  const callbackOrigin = `https://${expo?.plugins?.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === 'expo-router',
+  )?.[1]?.origin
+    ?.replace(/^https?:\/\//, '')
+    ?.replace(/\/$/, '')}`;
+  const associatedDomain = expo?.ios?.associatedDomains?.find((domain) =>
+    domain.startsWith('applinks:'),
+  );
+  const androidCallbackFilter = expo?.android?.intentFilters?.find((filter) =>
+    filter.data?.some(
+      (data) => data.scheme === 'https' && data.pathPrefix === '/auth/callback',
+    ),
+  );
+  const callbackHost = androidCallbackFilter?.data?.find(
+    (data) => data.scheme === 'https' && data.pathPrefix === '/auth/callback',
+  )?.host;
+
+  const identity = {
+    appName: expo?.name,
+    version: expo?.version,
+    legacyScheme: expo?.scheme,
+    callback: {
+      origin: callbackOrigin === 'https://undefined' ? null : callbackOrigin,
+      path: '/auth/callback',
+    },
+    expoProjectId: expo?.extra?.eas?.projectId,
+    ios: {
+      bundleIdentifier: expo?.ios?.bundleIdentifier,
+      buildNumber: expo?.ios?.buildNumber,
+      associatedDomain: associatedDomain?.slice('applinks:'.length),
+    },
+    android: {
+      packageName: expo?.android?.package,
+      versionCode: expo?.android?.versionCode,
+      callbackHost,
+    },
+  };
+
+  const required = [
+    ['expo.name', identity.appName],
+    ['expo.version', identity.version],
+    ['expo.scheme', identity.legacyScheme],
+    ['expo.extra.eas.projectId', identity.expoProjectId],
+    ['expo.ios.bundleIdentifier', identity.ios.bundleIdentifier],
+    ['expo.ios.buildNumber', identity.ios.buildNumber],
+    ['expo.ios.associatedDomains', identity.ios.associatedDomain],
+    ['expo.android.package', identity.android.packageName],
+    ['expo.android.versionCode', identity.android.versionCode],
+    ['expo.android callback host', identity.android.callbackHost],
+  ];
+  const missing = required.filter(([, value]) => value === undefined || value === null || value === '');
+  if (missing.length > 0 || !identity.callback.origin) {
+    throw new Error(
+      `app.json is missing native-auth identity fields: ${[
+        ...missing.map(([name]) => name),
+        ...(!identity.callback.origin ? ['expo-router origin'] : []),
+      ].join(', ')}`,
+    );
+  }
+
+  return identity;
+}
+
+function runCommand(command, args, options = {}) {
+  const result = spawnSync(command, args, {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    input: options.input,
+    maxBuffer: 4 * 1024 * 1024,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  return {
+    command,
+    args,
+    status: result.status,
+    stdout: result.stdout || '',
+    stderr: result.stderr || '',
+    error: result.error || null,
+    ok: !result.error && result.status === 0,
+  };
+}
+
+function commandExists(command) {
+  const result = runCommand(command, ['--version']);
+  return !result.error;
+}
+
+function isInstallableBinary(binaryPath, platform) {
+  if (!binaryPath) {
+    return {
+      ok: false,
+      reason: `Set ${platform === 'ios' ? 'CALORA_IOS_BINARY' : 'CALORA_ANDROID_BINARY'} to a newly built installable binary.`,
+    };
+  }
+
+  const resolvedPath = path.resolve(binaryPath);
+  if (!fs.existsSync(resolvedPath)) {
+    return { ok: false, reason: `Binary does not exist: ${resolvedPath}` };
+  }
+
+  const stat = fs.statSync(resolvedPath);
+  const expectedExtension = platform === 'ios' ? ['.ipa', '.app'] : ['.apk'];
+  const isExpectedType =
+    (stat.isDirectory() && platform === 'ios' && resolvedPath.endsWith('.app')) ||
+    (stat.isFile() && expectedExtension.includes(path.extname(resolvedPath).toLowerCase()));
+  if (!isExpectedType) {
+    return {
+      ok: false,
+      reason: `${resolvedPath} is not an installable ${platform} binary (.${platform === 'ios' ? 'ipa or app' : 'apk'}). Static-build manifests are not native binaries.`,
+    };
+  }
+
+  if (stat.isFile() && stat.size === 0) {
+    return { ok: false, reason: `Binary is empty: ${resolvedPath}` };
+  }
+
+  return {
+    ok: true,
+    path: resolvedPath,
+    sizeBytes: stat.isFile() ? stat.size : null,
+    modifiedAt: new Date(stat.mtimeMs).toISOString(),
+    sha256: stat.isFile()
+      ? crypto.createHash('sha256').update(fs.readFileSync(resolvedPath)).digest('hex')
+      : null,
+  };
+}
+
+function parseAaptBadging(output) {
+  const packageMatch = output.match(
+    /package:\s+name='([^']+)'\s+versionCode='([^']+)'\s+versionName='([^']+)'/,
+  );
+  if (!packageMatch) {
+    return null;
+  }
+  return {
+    packageName: packageMatch[1],
+    versionCode: Number(packageMatch[2]),
+    versionName: packageMatch[3],
+  };
+}
+
+function parseEntitlements(output) {
+  const applicationIdentifier =
+    output.match(
+      /<key>application-identifier<\/key>\s*<string>([^<]+)<\/string>/,
+    )?.[1] || null;
+  const associatedDomainsBlock = output.match(
+    /<key>com\.apple\.developer\.associated-domains<\/key>\s*<array>([\s\S]*?)<\/array>/,
+  )?.[1];
+  const associatedDomains = associatedDomainsBlock
+    ? [...associatedDomainsBlock.matchAll(/<string>([^<]+)<\/string>/g)].map(
+        (match) => match[1],
+      )
+    : [];
+  return { applicationIdentifier, associatedDomains };
+}
+
+function parseIosInfo(output) {
+  return {
+    bundleIdentifier:
+      output.match(/"CFBundleIdentifier"\s*=>\s*"([^"]+)"/)?.[1] || null,
+    version:
+      output.match(/"CFBundleShortVersionString"\s*=>\s*"([^"]+)"/)?.[1] || null,
+    buildNumber: output.match(/"CFBundleVersion"\s*=>\s*"([^"]+)"/)?.[1] || null,
+  };
+}
+
+function parseAndroidVerifiedHost(output, host) {
+  const hostLine = output
+    .split(/\r?\n/)
+    .find((line) => line.includes(host));
+  return {
+    host,
+    observed: hostLine?.trim() || null,
+    verified: Boolean(hostLine && /\bverified\b/i.test(hostLine)),
+  };
+}
+
+function extractIpaApp(binaryPath) {
+  if (binaryPath.endsWith('.app')) {
+    return { appPath: binaryPath, cleanup: () => {} };
+  }
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'calora-native-auth-'));
+  const extract = runCommand('unzip', ['-q', binaryPath, '-d', tempDir]);
+  if (!extract.ok) {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    throw new Error(`Could not inspect IPA: ${extract.stderr.trim() || 'unzip failed'}`);
+  }
+  const payloadEntries = fs
+    .readdirSync(path.join(tempDir, 'Payload'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.endsWith('.app'));
+  if (payloadEntries.length !== 1) {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    throw new Error('IPA must contain exactly one Payload/*.app bundle.');
+  }
+  return {
+    appPath: path.join(tempDir, 'Payload', payloadEntries[0].name),
+    cleanup: () => fs.rmSync(tempDir, { recursive: true, force: true }),
+  };
+}
+
+function inspectIosBinary(binary, identity) {
+  if (!commandExists('codesign') || !commandExists('plutil')) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.TOOL_UNAVAILABLE,
+      reason: 'codesign and plutil are required to inspect the signed iOS entitlements.',
+    };
+  }
+
+  let extracted;
+  try {
+    extracted = extractIpaApp(binary.path);
+    const info = runCommand('plutil', ['-p', path.join(extracted.appPath, 'Info.plist')]);
+    const entitlements = runCommand(
+      'codesign',
+      ['-d', '--entitlements', ':-', extracted.appPath],
+    );
+    if (!info.ok || !entitlements.ok) {
+      return {
+        ok: false,
+        failureClass: FAILURE_CLASSES.BUILD_MISMATCH,
+        reason: `Could not inspect signed iOS metadata: ${
+          info.stderr.trim() || entitlements.stderr.trim() || 'codesign/plutil failed'
+        }`,
+      };
+    }
+    const signedInfo = parseIosInfo(info.stdout);
+    const signedEntitlements = parseEntitlements(
+      `${entitlements.stdout}\n${entitlements.stderr}`,
+    );
+    const identityMatch =
+      signedInfo.bundleIdentifier === identity.ios.bundleIdentifier &&
+      signedInfo.version === identity.version &&
+      signedInfo.buildNumber === String(identity.ios.buildNumber);
+    const entitlementsMatch = signedEntitlements.associatedDomains.includes(
+      `applinks:${identity.ios.associatedDomain}`,
+    );
+    if (!identityMatch || !entitlementsMatch) {
+      return {
+        ok: false,
+        failureClass: FAILURE_CLASSES.BUILD_MISMATCH,
+        reason:
+          'Signed iOS metadata does not match app.json or is missing the production associated domain.',
+        signedInfo,
+        entitlements: {
+          applicationIdentifier: signedEntitlements.applicationIdentifier,
+          associatedDomains: signedEntitlements.associatedDomains,
+        },
+      };
+    }
+    return {
+      ok: true,
+      signedInfo,
+      entitlements: {
+        applicationIdentifier: signedEntitlements.applicationIdentifier,
+        associatedDomains: signedEntitlements.associatedDomains,
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.BUILD_MISMATCH,
+      reason: error.message,
+    };
+  } finally {
+    extracted?.cleanup();
+  }
+}
+
+function inspectAndroidBinary(binary, identity) {
+  if (!commandExists('apksigner') || !commandExists('aapt')) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.TOOL_UNAVAILABLE,
+      reason: 'apksigner and aapt are required to inspect the signed Android APK.',
+    };
+  }
+  const signature = runCommand('apksigner', ['verify', '--verbose', binary.path]);
+  const badging = runCommand('aapt', ['dump', 'badging', binary.path]);
+  const manifest = runCommand('aapt', ['dump', 'xmltree', binary.path, 'AndroidManifest.xml']);
+  if (!signature.ok || !badging.ok || !manifest.ok) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.BUILD_MISMATCH,
+      reason: `Could not inspect signed Android metadata: ${
+        signature.stderr.trim() ||
+        badging.stderr.trim() ||
+        manifest.stderr.trim() ||
+        'Android build-tools failed'
+      }`,
+    };
+  }
+  const signedInfo = parseAaptBadging(badging.stdout);
+  const hasCallbackHost = manifest.stdout.includes(identity.android.callbackHost);
+  const hasCallbackPath = manifest.stdout.includes('/auth/callback');
+  const identityMatch =
+    signedInfo?.packageName === identity.android.packageName &&
+    signedInfo?.versionCode === Number(identity.android.versionCode) &&
+    hasCallbackHost &&
+    hasCallbackPath;
+  if (!identityMatch) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.BUILD_MISMATCH,
+      reason:
+        'Signed Android metadata does not match app.json or is missing the production HTTPS callback filter.',
+      signedInfo,
+      callbackFilter: { hasCallbackHost, hasCallbackPath },
+    };
+  }
+  return {
+    ok: true,
+    signedInfo,
+    callbackFilter: { host: identity.android.callbackHost, path: '/auth/callback' },
+  };
+}
+
+function checkIosTarget(targetId, identity) {
+  if (!targetId) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.TARGET_UNAVAILABLE,
+      reason: 'Set CALORA_IOS_DEVICE to one exact booted simulator UDID.',
+    };
+  }
+  if (!commandExists('xcrun')) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.TOOL_UNAVAILABLE,
+      reason: 'xcrun is required on the macOS host to inspect the selected iOS target.',
+    };
+  }
+  const devices = runCommand('xcrun', ['simctl', 'list', 'devices', 'booted', '--json']);
+  if (!devices.ok) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.TARGET_UNAVAILABLE,
+      reason: `Could not list booted iOS targets: ${devices.stderr.trim() || 'simctl failed'}`,
+    };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(devices.stdout);
+  } catch {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.TARGET_UNAVAILABLE,
+      reason: 'xcrun simctl returned malformed device JSON.',
+    };
+  }
+  const booted = Object.values(parsed.devices || {})
+    .flat()
+    .find((device) => device.udid === targetId && device.state === 'Booted');
+  if (!booted) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.TARGET_UNAVAILABLE,
+      reason: `iOS target ${targetId} is not an exact booted simulator reported by xcrun.`,
+    };
+  }
+  const appContainer = runCommand(
+    'xcrun',
+    ['simctl', 'get_app_container', targetId, identity.ios.bundleIdentifier, 'app'],
+  );
+  const installedAppPath = appContainer.stdout.trim();
+  if (!appContainer.ok || !installedAppPath || !fs.existsSync(installedAppPath)) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.BINARY_UNAVAILABLE,
+      reason: `Signed Calora build ${identity.ios.bundleIdentifier} is not installed on ${targetId}.`,
+    };
+  }
+  const installedInfo = commandExists('plutil')
+    ? runCommand('plutil', ['-p', path.join(installedAppPath, 'Info.plist')])
+    : null;
+  const installedIdentity = installedInfo?.ok ? parseIosInfo(installedInfo.stdout) : null;
+  if (
+    !installedIdentity ||
+    installedIdentity.bundleIdentifier !== identity.ios.bundleIdentifier ||
+    installedIdentity.version !== identity.version ||
+    installedIdentity.buildNumber !== String(identity.ios.buildNumber)
+  ) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.BUILD_MISMATCH,
+      reason: `Installed Calora build on ${targetId} does not match app.json.`,
+      installedIdentity,
+    };
+  }
+  return {
+    ok: true,
+    target: { id: targetId, name: booted.name, state: booted.state },
+    installedBuild: installedIdentity,
+  };
+}
+
+function checkAndroidTarget(targetId, identity) {
+  if (!targetId) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.TARGET_UNAVAILABLE,
+      reason: 'Set CALORA_ANDROID_DEVICE to one exact connected Android serial.',
+    };
+  }
+  if (!commandExists('adb')) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.TOOL_UNAVAILABLE,
+      reason: 'adb is required on the host to inspect the selected Android target.',
+    };
+  }
+  const devices = runCommand('adb', ['devices']);
+  const listed = devices.stdout
+    .split(/\r?\n/)
+    .some((line) => line.startsWith(`${targetId}\tdevice`));
+  if (!devices.ok || !listed) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.TARGET_UNAVAILABLE,
+      reason: `Android target ${targetId} is not an exact online device reported by adb.`,
+    };
+  }
+  const packagePath = runCommand('adb', [
+    '-s',
+    targetId,
+    'shell',
+    'pm',
+    'path',
+    identity.android.packageName,
+  ]);
+  if (!packagePath.ok || !packagePath.stdout.includes('package:')) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.BINARY_UNAVAILABLE,
+      reason: `Signed Calora package ${identity.android.packageName} is not installed on ${targetId}.`,
+    };
+  }
+  const packageDetails = runCommand('adb', [
+    '-s',
+    targetId,
+    'shell',
+    'dumpsys',
+    'package',
+    identity.android.packageName,
+  ]);
+  const installedVersionCode = packageDetails.stdout.match(/versionCode=(\d+)/)?.[1];
+  if (installedVersionCode !== String(identity.android.versionCode)) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.BUILD_MISMATCH,
+      reason: `Installed Calora build on ${targetId} does not match app.json versionCode.`,
+      installedVersionCode: installedVersionCode || null,
+    };
+  }
+  const appLinks = runCommand(
+    'adb',
+    ['-s', targetId, 'shell', 'pm', 'get-app-links', identity.android.packageName],
+  );
+  const verifiedHost = parseAndroidVerifiedHost(
+    `${appLinks.stdout}\n${appLinks.stderr}`,
+    identity.android.callbackHost,
+  );
+  if (!appLinks.ok || !verifiedHost.verified) {
+    return {
+      ok: false,
+      failureClass: FAILURE_CLASSES.ASSOCIATION_UNVERIFIED,
+      reason: `Android host ${identity.android.callbackHost} is not reported as verified by pm get-app-links.`,
+      verifiedHost,
+    };
+  }
+  return {
+    ok: true,
+    target: { id: targetId, status: 'device' },
+    installedPackage: identity.android.packageName,
+    installedVersionCode: Number(installedVersionCode),
+    verifiedHost,
+  };
+}
+
+function collectCallbackArtifacts(env = process.env) {
+  const configuredDir = env[callbackArtifactDirEnvName]?.trim();
+  if (!configuredDir) {
+    return {
+      status: 'not-provided',
+      directory: null,
+      files: [],
+      note: `Set ${callbackArtifactDirEnvName} to a directory containing sanitized screenshots/logs after running each callback case.`,
+    };
+  }
+  const directory = path.resolve(projectRoot, configuredDir);
+  if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) {
+    return {
+      status: 'missing',
+      directory,
+      files: [],
+      note: 'The configured callback artifact directory does not exist.',
+    };
+  }
+  const files = [];
+  const visit = (current) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const entryPath = path.join(current, entry.name);
+      if (entry.isDirectory()) visit(entryPath);
+      else if (entry.isFile()) {
+        const stat = fs.statSync(entryPath);
+        files.push({
+          path: path.relative(projectRoot, entryPath).split(path.sep).join('/'),
+          sizeBytes: stat.size,
+          modifiedAt: new Date(stat.mtimeMs).toISOString(),
+        });
+      }
+    }
+  };
+  visit(directory);
+  return {
+    status: files.length > 0 ? 'provided' : 'empty',
+    directory: path.relative(projectRoot, directory).split(path.sep).join('/'),
+    files,
+    note: 'Artifact names and metadata only; callback contents are not copied into this evidence record.',
+  };
+}
+
+function buildEvidence({ identity, binaries, targets, callbackArtifacts, failures, generatedAt }) {
+  return {
+    schemaVersion: 1,
+    generatedAt: generatedAt || new Date().toISOString(),
+    result: failures.length === 0 ? 'passed' : 'blocked',
+    failureClasses: [...new Set(failures.map((failure) => failure.failureClass))],
+    build: identity || null,
+    binaries,
+    targets,
+    callbackCases: callbackCases.flatMap((caseName) =>
+      ['iOS', 'Android'].map((platform) => ({
+        platform,
+        case: caseName,
+        outcome: 'not-run',
+        artifacts: [],
+      })),
+    ),
+    callbackArtifacts,
+    failures,
+  };
+}
+
+function writeEvidence(evidence) {
+  const configuredPath = process.env[evidenceEnvName]?.trim();
+  const serialized = `${JSON.stringify(evidence, null, 2)}\n`;
+  console.log(`[native-auth] RELEASE PREFLIGHT EVIDENCE ${serialized.trim()}`);
+  if (configuredPath) {
+    const evidencePath = path.resolve(projectRoot, configuredPath);
+    fs.mkdirSync(path.dirname(evidencePath), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(evidencePath, serialized, { mode: 0o600 });
+    console.log(`[native-auth] Evidence written to ${evidencePath}`);
+  }
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    fs.appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      ['## Calora native auth-link preflight', '', '```json', serialized.trim(), '```', ''].join(
+        '\n',
+      ),
+    );
+  }
+}
+
+function main() {
+  let identity;
+  const failures = [];
+  try {
+    identity = loadBuildIdentity();
+  } catch (error) {
+    failures.push({
+      platform: 'all',
+      failureClass: FAILURE_CLASSES.LOCAL_CONFIGURATION,
+      reason: error.message,
+    });
+  }
+
+  const binaries = {
+    iOS: { path: null, inspection: null },
+    Android: { path: null, inspection: null },
+  };
+  const targets = {
+    iOS: { id: process.env.CALORA_IOS_DEVICE?.trim() || null, inspection: null },
+    Android: { id: process.env.CALORA_ANDROID_DEVICE?.trim() || null, inspection: null },
+  };
+
+  if (identity) {
+    for (const [platform, key] of [
+      ['iOS', 'ios'],
+      ['Android', 'android'],
+    ]) {
+      const binary = isInstallableBinary(
+        process.env[key === 'ios' ? 'CALORA_IOS_BINARY' : 'CALORA_ANDROID_BINARY']?.trim(),
+        key,
+      );
+      binaries[platform] = { ...binary, inspection: null };
+      if (!binary.ok) {
+        failures.push({ platform, failureClass: FAILURE_CLASSES.BINARY_UNAVAILABLE, reason: binary.reason });
+        continue;
+      }
+      const inspection =
+        key === 'ios'
+          ? inspectIosBinary(binary, identity)
+          : inspectAndroidBinary(binary, identity);
+      binaries[platform].inspection = inspection;
+      if (!inspection.ok) {
+        failures.push({
+          platform,
+          failureClass: inspection.failureClass,
+          reason: inspection.reason,
+        });
+      }
+    }
+
+    const iosTarget = checkIosTarget(targets.iOS.id, identity);
+    const androidTarget = checkAndroidTarget(targets.Android.id, identity);
+    targets.iOS.inspection = iosTarget;
+    targets.Android.inspection = androidTarget;
+    for (const [platform, result] of [
+      ['iOS', iosTarget],
+      ['Android', androidTarget],
+    ]) {
+      if (!result.ok) failures.push({ platform, failureClass: result.failureClass, reason: result.reason });
+    }
+  }
+
+  const callbackArtifacts = collectCallbackArtifacts();
+  if (callbackArtifacts.status === 'missing') {
+    failures.push({
+      platform: 'all',
+      failureClass: FAILURE_CLASSES.LOCAL_CONFIGURATION,
+      reason: callbackArtifacts.note,
+    });
+  }
+
+  const evidence = buildEvidence({
+    identity,
+    binaries,
+    targets,
+    callbackArtifacts,
+    failures,
+  });
+  writeEvidence(evidence);
+  if (failures.length > 0) {
+    console.error('\n[native-auth] RELEASE PREFLIGHT BLOCKED');
+    for (const failure of failures) {
+      console.error(
+        `[native-auth] ${failure.platform}: ${failure.failureClass} — ${failure.reason}`,
+      );
+    }
+    return 1;
+  }
+  console.log(
+    '\n[native-auth] RELEASE PREFLIGHT PASSED: signed iOS and Android builds, exact targets, and Android host verification are ready for callback tests.',
+  );
+  return 0;
+}
+
+if (require.main === module) {
+  process.exit(main());
+}
+
+module.exports = {
+  FAILURE_CLASSES,
+  buildEvidence,
+  collectCallbackArtifacts,
+  isInstallableBinary,
+  loadBuildIdentity,
+  parseAaptBadging,
+  parseAndroidVerifiedHost,
+  parseEntitlements,
+  parseIosInfo,
+};

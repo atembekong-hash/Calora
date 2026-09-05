@@ -89,6 +89,71 @@ Until a signed build is installed and exercised on each platform, production
 association files and the cleaned Supabase allow-list prove the server-side
 contract but cannot prove OS handoff or provider delivery on a real device.
 
+## Repeatable native-device preflight
+
+Run the preflight from `artifacts/calora` on the native release host before
+running the callback matrix. It is intentionally fail-closed: it does not
+choose an arbitrary device, treat an Expo update manifest as an installable
+binary, or convert missing host tools into a blocked test pass.
+
+```sh
+# Fresh signed artifacts from the current app.json:
+export CALORA_IOS_BINARY="$RUNNER_TEMP/Calora.ipa"
+export CALORA_ANDROID_BINARY="$RUNNER_TEMP/Calora.apk"
+
+# Exact targets selected from the native host:
+export CALORA_IOS_DEVICE="<booted iOS simulator UDID>"
+export CALORA_ANDROID_DEVICE="<adb serial>"
+
+# Optional retained evidence location and sanitized callback artifacts:
+export CALORA_NATIVE_AUTH_EVIDENCE_PATH="$RUNNER_TEMP/calora-native-auth-preflight.json"
+export CALORA_CALLBACK_ARTIFACT_DIR="$RUNNER_TEMP/calora-native-auth-callbacks"
+
+pnpm test:release:native-auth-preflight
+```
+
+The command records a sanitized `RELEASE PREFLIGHT EVIDENCE` JSON object and
+returns nonzero unless all of these are true:
+
+1. `CALORA_IOS_BINARY` is a non-empty `.ipa` or `.app`, and
+   `CALORA_ANDROID_BINARY` is a non-empty `.apk`. The signed iOS
+   `CFBundleIdentifier`, version, build number, and
+   `applinks:calorie-coach-pie35449.replit.app` entitlement must match the
+   current `app.json`. The signed Android package, version code, HTTPS
+   `/auth/callback` manifest filter, and signature verification must match it.
+2. `xcrun` reports the exact `CALORA_IOS_DEVICE` as booted, and `adb` reports
+   the exact `CALORA_ANDROID_DEVICE` as online. The expected Calora package must
+   be installed on both targets.
+3. `adb shell pm get-app-links com.etiendem.caloraapp` reports
+   `calorie-coach-pie35449.replit.app` as `verified`.
+
+The evidence includes the Calora version/build identity, binary SHA-256 and
+safe metadata, signed iOS entitlements, Android callback-filter state, exact
+target IDs, failure classes, and ten explicit callback-case records (five
+cases for each platform). It never stores certificates, tokens, raw command
+output, credentials, or callback contents. If
+`CALORA_CALLBACK_ARTIFACT_DIR` is set, only sanitized artifact filenames, sizes,
+and timestamps are listed. The preflight does not claim the callback cases ran:
+each remains `not-run` until the device test runner records the observed
+`passed`/`failed` outcome and attaches its own screenshots or logs.
+
+Required host-tool failures are explicit:
+
+- `xcrun` unavailable or the requested iOS UDID is not booted:
+  `tool_unavailable` or `target_unavailable`.
+- `adb` unavailable or the requested Android serial is not online:
+  `tool_unavailable` or `target_unavailable`.
+- Missing, empty, stale-identity, or non-installable artifacts:
+  `binary_unavailable` or `build_mismatch`.
+- Android App Links not verified:
+  `association_unverified`.
+
+The current workspace should remain **BLOCKED**, rather than being interpreted
+as a native result, when it lacks `xcrun`, `adb`, signed binaries, or targets.
+Run this preflight again on the macOS/Android host after installing a newly
+built binary, then replace the corresponding blocked matrix cells below with
+the observed callback outcomes.
+
 ## 2026-09-05 disposable-matrix run record
 
 This run deliberately did not create a disposable Auth account. Without a
