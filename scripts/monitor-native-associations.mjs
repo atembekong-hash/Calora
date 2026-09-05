@@ -18,6 +18,13 @@ const APPLE_ASSOCIATION_CDN = "https://app-site-association.cdn-apple.com/a/v1";
 const GOOGLE_STATEMENTS_ENDPOINT =
   "https://digitalassetlinks.googleapis.com/v1/statements:list";
 
+// Freshness is advisory: a stale provider cache should be visible in a release
+// report, but it must not hide a content or identity validation failure.
+export const ASSOCIATION_FRESHNESS_POLICY = Object.freeze({
+  maxAgeSeconds: 24 * 60 * 60,
+  mode: "warn",
+});
+
 function requiredValue(value, name) {
   const normalized = String(value ?? "").trim();
   if (!normalized) {
@@ -65,7 +72,9 @@ function expectedFingerprints(value) {
 
   if (
     values.length === 0 ||
-    values.some((fingerprint) => !/^([A-F0-9]{2}:){31}[A-F0-9]{2}$/.test(fingerprint))
+    values.some(
+      (fingerprint) => !/^([A-F0-9]{2}:){31}[A-F0-9]{2}$/.test(fingerprint),
+    )
   ) {
     throw new Error(
       "ANDROID_SHA256_FINGERPRINT must contain one or more colon-separated SHA-256 certificate fingerprints.",
@@ -79,7 +88,12 @@ async function fetchJson(path, origin, fetchImpl) {
   return fetchJsonUrl(`${origin}${path}`, path, fetchImpl);
 }
 
-async function fetchJsonUrl(url, label, fetchImpl) {
+async function fetchJsonUrl(
+  url,
+  label,
+  fetchImpl,
+  { includeMetadata = false } = {},
+) {
   let response;
   try {
     response = await fetchImpl(url, {
@@ -109,9 +123,151 @@ async function fetchJsonUrl(url, label, fetchImpl) {
   }
 
   try {
-    return await response.json();
+    const body = await response.json();
+    return includeMetadata ? { body, headers: response.headers } : body;
   } catch {
-    throw new Error(`${label} returned invalid JSON. Verify the published association response.`);
+    throw new Error(
+      `${label} returned invalid JSON. Verify the published association response.`,
+    );
+  }
+}
+
+function headerValue(headers, name) {
+  return headers?.get?.(name) ?? null;
+}
+
+function parseSeconds(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  }
+
+  const normalized = String(value ?? "").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  // Google returns protobuf Duration values such as "86400s"; accepting a
+  // plain number also makes the parser tolerant of test fixtures and proxies.
+  const match = normalized.match(/^([0-9]+(?:\.[0-9]+)?)s?$/);
+  if (!match) {
+    return null;
+  }
+
+  const seconds = Number(match[1]);
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
+}
+
+function parseHeaderSeconds(value) {
+  const normalized = String(value ?? "").trim();
+  return /^\d+$/.test(normalized) ? Number(normalized) : null;
+}
+
+function parseCacheControlMaxAge(value) {
+  const normalized = String(value ?? "");
+  const directive = normalized
+    .split(",")
+    .map((part) => part.trim())
+    .find((part) => /^max-age\s*=/i.test(part));
+
+  if (!directive) {
+    return { present: false, seconds: null };
+  }
+
+  const rawValue = directive.replace(/^max-age\s*=\s*/i, "").trim();
+  const unquotedValue = rawValue.replace(/^"(.*)"$/, "$1");
+  return {
+    present: true,
+    seconds: parseHeaderSeconds(unquotedValue),
+  };
+}
+
+function addFreshnessWarning(warnings, message) {
+  warnings.push(message);
+}
+
+function inspectAppleFreshness(headers, warnings) {
+  const ageHeader = headerValue(headers, "age");
+  const cacheControl = headerValue(headers, "cache-control");
+  const agePresent = ageHeader !== null && ageHeader.trim() !== "";
+  const ageSeconds = agePresent ? parseHeaderSeconds(ageHeader) : null;
+  const cacheMaxAge = parseCacheControlMaxAge(cacheControl);
+
+  if (agePresent && ageSeconds === null) {
+    addFreshnessWarning(
+      warnings,
+      "Apple association CDN returned malformed Age metadata; freshness could not be verified.",
+    );
+  }
+  if (cacheMaxAge.present && cacheMaxAge.seconds === null) {
+    addFreshnessWarning(
+      warnings,
+      "Apple association CDN returned malformed Cache-Control max-age metadata; freshness could not be verified.",
+    );
+  }
+  if (
+    cacheMaxAge.seconds !== null &&
+    cacheMaxAge.seconds > ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds
+  ) {
+    addFreshnessWarning(
+      warnings,
+      `Apple association CDN advertised max-age (${cacheMaxAge.seconds}s) exceeds the ${ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds}s freshness policy.`,
+    );
+  }
+  if (!agePresent && !cacheMaxAge.present) {
+    addFreshnessWarning(
+      warnings,
+      "Apple association CDN did not return Age or Cache-Control max-age metadata; freshness could not be verified.",
+    );
+    return;
+  }
+  if (ageSeconds === null) {
+    addFreshnessWarning(
+      warnings,
+      "Apple association CDN freshness is unknown because its current cache age was not provided.",
+    );
+    return;
+  }
+
+  if (cacheMaxAge.seconds !== null && ageSeconds > cacheMaxAge.seconds) {
+    addFreshnessWarning(
+      warnings,
+      `Apple association CDN cache age (${ageSeconds}s) exceeds its advertised max-age (${cacheMaxAge.seconds}s).`,
+    );
+  }
+  if (ageSeconds > ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds) {
+    addFreshnessWarning(
+      warnings,
+      `Apple association CDN cache age (${ageSeconds}s) exceeds the ${ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds}s freshness policy.`,
+    );
+  }
+}
+
+function inspectGoogleFreshness(document, warnings) {
+  const hasMaxAge = Object.prototype.hasOwnProperty.call(
+    document ?? {},
+    "maxAge",
+  );
+  if (!hasMaxAge || document.maxAge === null || document.maxAge === "") {
+    addFreshnessWarning(
+      warnings,
+      "Google Digital Asset Links statements did not return maxAge metadata; freshness could not be verified.",
+    );
+    return;
+  }
+
+  const maxAgeSeconds = parseSeconds(document.maxAge, "Google maxAge");
+  if (maxAgeSeconds === null) {
+    addFreshnessWarning(
+      warnings,
+      "Google Digital Asset Links statements returned malformed maxAge metadata; freshness could not be verified.",
+    );
+    return;
+  }
+  if (maxAgeSeconds > ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds) {
+    addFreshnessWarning(
+      warnings,
+      `Google Digital Asset Links statements maxAge (${maxAgeSeconds}s) exceeds the ${ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds}s freshness policy.`,
+    );
   }
 }
 
@@ -121,7 +277,9 @@ function assertAppleAssociation(document, expectedAppId) {
       Array.isArray(detail?.appIDs) &&
       detail.appIDs.includes(expectedAppId) &&
       Array.isArray(detail?.components) &&
-      detail.components.some((component) => component?.["/"] === AUTH_CALLBACK_PATH),
+      detail.components.some(
+        (component) => component?.["/"] === AUTH_CALLBACK_PATH,
+      ),
   );
 
   if (!hasCallback) {
@@ -202,19 +360,27 @@ export async function checkAppleAndGoogleAssociationEvidence({
   googleUrl.searchParams.set("relation", ANDROID_RELATION);
 
   const [appleAssociation, googleStatements] = await Promise.all([
-    fetchJsonUrl(appleUrl, "Apple association CDN", fetchImpl),
-    fetchJsonUrl(googleUrl.toString(), "Google Digital Asset Links statements", fetchImpl),
+    fetchJsonUrl(appleUrl, "Apple association CDN", fetchImpl, {
+      includeMetadata: true,
+    }),
+    fetchJsonUrl(
+      googleUrl.toString(),
+      "Google Digital Asset Links statements",
+      fetchImpl,
+      { includeMetadata: true },
+    ),
   ]);
 
-  assertAppleAssociation(appleAssociation, expectedAppId);
-  assertGoogleStatements(googleStatements, fingerprints);
+  const warnings = [];
+  assertAppleAssociation(appleAssociation.body, expectedAppId);
+  assertGoogleStatements(googleStatements.body, fingerprints);
+  inspectAppleFreshness(appleAssociation.headers, warnings);
+  inspectGoogleFreshness(googleStatements.body, warnings);
 
   return {
     origin: normalizedOrigin,
-    checked: [
-      "Apple association CDN",
-      "Google Digital Asset Links statements",
-    ],
+    checked: ["Apple association CDN", "Google Digital Asset Links statements"],
+    warnings,
   };
 }
 
@@ -229,7 +395,11 @@ export async function checkNativeAssociations({
   const fingerprints = expectedFingerprints(androidFingerprint);
 
   const [appleAssociation, androidAssociation] = await Promise.all([
-    fetchJson("/.well-known/apple-app-site-association", normalizedOrigin, fetchImpl),
+    fetchJson(
+      "/.well-known/apple-app-site-association",
+      normalizedOrigin,
+      fetchImpl,
+    ),
     fetchJson("/.well-known/assetlinks.json", normalizedOrigin, fetchImpl),
   ]);
 

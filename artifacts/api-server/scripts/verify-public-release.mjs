@@ -11,8 +11,7 @@ const origin = (
   DEFAULT_ORIGIN
 ).replace(/\/+$/, "");
 const canonicalOrigin = (
-  process.env.PUBLIC_CANONICAL_ORIGIN ||
-  DEFAULT_ORIGIN
+  process.env.PUBLIC_CANONICAL_ORIGIN || DEFAULT_ORIGIN
 ).replace(/\/+$/, "");
 
 const pages = [
@@ -26,13 +25,16 @@ const pages = [
   ["/api/legal/help", "Help & Support"],
 ];
 
-const appleTeamId = process.env.APPLE_TEAM_ID || process.env.CALORA_APPLE_TEAM_ID;
+const appleTeamId =
+  process.env.APPLE_TEAM_ID || process.env.CALORA_APPLE_TEAM_ID;
 const androidFingerprint =
   process.env.ANDROID_SHA256_FINGERPRINT ||
   process.env.CALORA_ANDROID_SHA256_FINGERPRINT;
 
 async function git(...args) {
-  const { stdout } = await execFileAsync("git", args, { cwd: new URL("../../..", import.meta.url) });
+  const { stdout } = await execFileAsync("git", args, {
+    cwd: new URL("../../..", import.meta.url),
+  });
   return stdout.trim();
 }
 
@@ -46,7 +48,9 @@ async function fetchRequired(path, expectedContentType) {
   }
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes(expectedContentType)) {
-    throw new Error(`${path} returned unexpected content type ${contentType || "(missing)"}.`);
+    throw new Error(
+      `${path} returned unexpected content type ${contentType || "(missing)"}.`,
+    );
   }
   return response;
 }
@@ -60,7 +64,10 @@ async function main() {
     throw new Error("Public release verification requires a clean checkout.");
   }
 
-  const versionResponse = await fetchRequired("/api/version", "application/json");
+  const versionResponse = await fetchRequired(
+    "/api/version",
+    "application/json",
+  );
   const version = await versionResponse.json();
   if (version.sourceTree !== expectedTree) {
     throw new Error(
@@ -77,24 +84,36 @@ async function main() {
   console.info(
     `[PASS] ${associationEvidence.checked.join(" and ")} verified for ${origin}.`,
   );
+  for (const warning of associationEvidence.warnings ?? []) {
+    console.warn(`[WARN] ${warning}`);
+  }
 
   const healthResponse = await fetchRequired("/api", "application/json");
   const health = await healthResponse.json();
   if (health.status !== "ok") {
-    throw new Error(`/api returned unexpected health status ${JSON.stringify(health)}.`);
+    throw new Error(
+      `/api returned unexpected health status ${JSON.stringify(health)}.`,
+    );
   }
 
   for (const [path, expectedHeading] of pages) {
     const response = await fetchRequired(path, "text/html");
     const html = await response.text();
-    if (!html.includes(expectedHeading) && !html.includes(expectedHeading.replace("&", "&amp;"))) {
-      throw new Error(`${path} did not contain the expected heading ${expectedHeading}.`);
+    if (
+      !html.includes(expectedHeading) &&
+      !html.includes(expectedHeading.replace("&", "&amp;"))
+    ) {
+      throw new Error(
+        `${path} did not contain the expected heading ${expectedHeading}.`,
+      );
     }
     if (!html.includes(SUPPORT_EMAIL)) {
       throw new Error(`${path} did not publish the monitored support channel.`);
     }
     if (!html.includes(`rel="canonical" href="${canonicalOrigin}/api/legal/`)) {
-      throw new Error(`${path} did not publish a canonical URL on the confirmed origin.`);
+      throw new Error(
+        `${path} did not publish a canonical URL on the confirmed origin.`,
+      );
     }
   }
 
