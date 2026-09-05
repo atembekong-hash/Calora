@@ -18,6 +18,7 @@
     "test:release:meal-images": "node scripts/meal-image-release-gate.js",
     "test:release:encrypted-recovery": "node scripts/encrypted-recovery-release-gate.js",
     "test:release:ios-signing": "node scripts/ios-signing-preflight.js",
+    "test:release:ios-signing:apple": "node scripts/ios-signing-preflight.js --apple-rehearsal",
     "build:ios:production": "node scripts/ios-signing-preflight.js --queue-build"
   },
   "devDependencies": {

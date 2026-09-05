@@ -156,7 +156,8 @@ above and do not fabricate IDs or rely on an arbitrary connected device.
 Before queuing a production iOS build, run the read-only signing preflight from
 `artifacts/calora`. It checks the EAS App Store credentials for
 `com.etiendem.caloraapp`, including the assigned distribution certificate and
-provisioning-profile validity:
+provisioning-profile validity. This is an EAS-record check only; a passing
+result does not prove that Apple still accepts the stored certificate:
 
 ```sh
 pnpm test:release:ios-signing
@@ -179,8 +180,45 @@ repair them. If the preflight fails, run
 **All: Set up all the required credentials to build your project**. If needed,
 use **Distribution Certificate: Use an existing one for your project** or
 **Distribution Certificate: Add a new one to your account** before retrying.
-The failure output is intentionally limited to status and expiration metadata
-and never prints certificate material, passwords, or tokens.
+The failure output is intentionally limited to a failure class, safe status, and
+expiration metadata; it never prints certificate material, passwords, tokens, or
+raw EAS CLI output.
+
+### Apple certificate-state rehearsal (macOS only)
+
+Run this controlled rehearsal from a clean release-candidate checkout on a
+macOS release host. It first repeats the read-only EAS-record check, then
+waits for a production-profile EAS build to finish with the remote credentials.
+The build is not submitted to the App Store, but it does consume an EAS build
+and creates a signed production artifact:
+
+```sh
+test "$(uname -s)" = "Darwin"
+
+# Load EXPO_TOKEN from the workspace/CI secret store; never paste it into a
+# command, shell transcript, evidence file, or chat message.
+pnpm test:release:ios-signing:apple
+```
+
+The command deliberately stops before contacting Apple when the EAS record is
+missing, malformed, expired, or otherwise not ready:
+
+- `Failure class: EAS_RECORD` means the stored EAS credential record is the
+  problem. Apple-side certificate state was not tested.
+- `Failure class: APPLE_CERTIFICATE_STATE` means EAS reached the Apple signing
+  step and Apple rejected or invalidated the distribution certificate or
+  provisioning profile. This is the revoked/invalidated-certificate result.
+- `Failure class: EAS_BUILD` means the build failed without a recognizable
+  Apple certificate-state response; do not claim that Apple revocation was
+  proven.
+- `APPLE CERTIFICATE REHEARSAL PASSED` means the completed EAS build reached
+  the signing step without an Apple-side certificate rejection.
+
+Save only the command's prefixed summary lines as release evidence. Do not
+capture or paste raw EAS CLI output, certificate details, passwords, tokens,
+build environment dumps, or credential files. If the first read-only check
+reports `EAS_RECORD`, repair the EAS-managed credentials interactively and
+repeat the rehearsal; do not relabel that result as an Apple-side failure.
 
 ## Native Plus recipe rapid-scroll regression test
 
