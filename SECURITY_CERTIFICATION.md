@@ -4,10 +4,11 @@
 **Residual hardening retest:** 2026-08-19
 **Account-deletion finality retest:** 2026-08-20
 **Current security retest:** 2026-09-05
-**Scope:** Authorized, non-destructive audit of the Calora API server
+**Scope:** Authorized audit of the Calora API server
 (`artifacts/api-server`), the Expo mobile client (`artifacts/calora`), the
-shared DB/schema (`lib/db`), and deployment/configuration. No destructive tests
-were run against real users, transactions, or third parties.
+shared DB/schema (`lib/db`), and deployment/configuration. Production deletion
+verification used disposable accounts only; no real users, transactions, or
+third-party customer records were targeted.
 
 **Verdict:** **Security controls hardened in development; not an unconditional
 production-launch certification.** The current retest confirms that every
@@ -18,8 +19,8 @@ requires an explicit warning acknowledgement. Compatible dependency fixes
 removed the current `qs`, `fast-uri`, `decode-uri-component`, `@xmldom/xmldom`,
 and `uuid` findings. Two high `image-size` advisories remain only in Metro
 build tooling with no unaffected release. Native OAuth competing-app behavior,
-production deletion recovery, device-level storage protection, and provider/
-store boundaries still require release validation.
+device-level storage protection, and provider/store boundaries still require
+release validation.
 
 ---
 
@@ -61,6 +62,53 @@ store boundaries still require release validation.
 | Full API suite | 376 tests passed, 4 intentionally skipped |
 | Workflows | Expo Metro and API server both running after restart |
 
+### Production account-deletion recovery proof — 2026-09-05
+
+The deployed API was independently identified as
+`https://calorie-coach-pie35449.replit.app`; deployment metadata reported an
+active public autoscale deployment with a successful build. The public
+`/api/healthz` probe returned HTTP `200` with `{"status":"ok"}`.
+
+Production database catalog evidence confirmed that the deployed schema
+contains and can resolve the deletion support objects:
+
+- `pgcrypto` extension: present.
+- `calora_account_deletion_states` table: present.
+- `calora_assert_deletion_writable(text)`: present.
+- `calora_account_deletion_write_fence()`: present.
+- Enabled write-fence triggers: all five expected tables
+  (`calora_capture_rate_limits`, `calora_referral_codes`,
+  `calora_referral_qualifications`, `calora_referral_redemptions`, and
+  `calora_users`).
+
+Two fresh disposable Supabase Auth accounts were created with confirmed email
+state and deleted through the deployed API. Only opaque fingerprints and
+aggregate/status results were retained:
+
+| Check | Disposable run 1 | Disposable run 2 |
+|---|---:|---:|
+| Deployed account-delete response | `200` | `200` |
+| Response message | `Account permanently deleted.` | `Account permanently deleted.` |
+| Supabase Auth lookup after deletion | `404` | `404` |
+| Production deletion state | `deleted / auth` | `deleted / auth` |
+| Recovery identifier after completion | absent | absent |
+| Persisted deletion error after completion | absent | absent |
+
+For the second run, the RevenueCat v2 customer lookup returned `404` before
+the API deletion and `404` after it. This is the provider's verified
+no-customer path; the server-side erasure adapter treats that result as a
+successful no-op and keeps the credential server-only. A prior live provider
+recovery verification is retained in
+`FINAL_REVENUECAT_ACCOUNT_DELETION_VERIFICATION_REPORT.md`: a persisted
+`revenuecat / retry_required` checkpoint resumed through the real RevenueCat
+lookup, deletion, post-delete `404`, Auth stage, and terminal `deleted` state.
+Together these prove normal disposable-account deletion, provider cleanup
+handling, and recovery from an interrupted provider-stage operation without a
+user session.
+
+No email address, password, access/refresh token, service credential, project
+identifier, customer identifier, or raw Auth UUID is included in this report.
+
 ### Residual risks and release gates
 
 1. **Custom-scheme hijacking remains a native release residual.** The parser
@@ -85,10 +133,11 @@ store boundaries still require release validation.
    versions with no unaffected npm release. Production API/mobile request
    handling does not import Metro; upgrade the supported Expo/Metro chain when a
    fixed release is published.
-6. **Production deployment remains required for final certification.** Perform a
-   disposable-account deletion and forced-recovery exercise after deployment,
-   including database support-object permissions, and validate real RevenueCat,
-   Supabase, OpenAI, FatSecret, store-billing, and native OAuth boundaries.
+6. **Several provider and native release gates remain.** The production
+   disposable-account deletion, recovery-checkpoint, database support-object,
+   RevenueCat, and Supabase Auth checks above are complete. Real OpenAI,
+   FatSecret, store-billing, and native OAuth boundaries still require
+   validation.
 
 Historical audit entries below are retained as evidence of prior remediation;
 the current retest above is authoritative for the present workspace state.
