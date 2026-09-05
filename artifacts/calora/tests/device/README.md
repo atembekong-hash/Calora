@@ -110,3 +110,27 @@ device before each run, and continues to the second platform if the first
 fails. A failed card is reported by its meal identity and its observed
 `Fallback image active` or `Swapped image detected` state. A nonzero exit means
 the signed build is not cleared by this meal-image gate.
+
+## Native Plus recipe rapid-scroll regression test
+
+`plus-recipes-rapid-scroll.yaml` protects the Plus catalogue while a user
+rapidly scrolls through a paginated recipe grid. It requires a signed-in
+Calora Plus QA account on the selected native device because clearing app state
+would remove the authenticated session and make the catalogue unavailable.
+
+The flow verifies that the loaded grid stays mounted through repeated native
+swipes. If the provider fails the next page, it verifies that the existing grid
+and the retry action remain available, then retries the request. Stable grid and
+pagination-state test IDs make the flow independent of provider recipe names.
+
+Run it once with a booted iOS simulator/device and once with a booted Android
+emulator/device:
+
+```sh
+pnpm test:device:plus-recipes
+```
+
+The provider must return at least one full page for the pagination gesture to
+request another page. A failure state is asserted when the provider reproduces
+an error; successful runs still verify that the grid remains mounted after the
+request settles.

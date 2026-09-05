@@ -1,0 +1,77 @@
+appId: com.etiendem.caloraapp
+---
+# This flow runs against a signed-in Calora Plus QA account. Keep the
+# authenticated session on the selected device before starting it; clearing
+# state would remove the session and make the Plus catalogue inaccessible.
+- launchApp
+- tapOn:
+    text: "Recipes"
+- tapOn:
+    text: "Plus"
+
+# The first page must render a stable grid before the rapid gesture sequence.
+- extendedWaitUntil:
+    visible:
+      id: "plus-recipe-grid"
+    timeout: 30000
+- assertVisible:
+    id: "plus-recipe-catalogue"
+- assertVisible: "provider-supplied recipe information"
+
+# Several short native swipes model a user flicking toward the end of the
+# current page. The existing grid must remain mounted while the next page is
+# pending, rather than collapsing and clamping the parent scroll position.
+- swipe:
+    start: 50%, 82%
+    end: 50%, 28%
+    duration: 150
+- swipe:
+    start: 50%, 82%
+    end: 50%, 28%
+    duration: 150
+- swipe:
+    start: 50%, 82%
+    end: 50%, 28%
+    duration: 150
+- swipe:
+    start: 50%, 82%
+    end: 50%, 28%
+    duration: 150
+- assertVisible:
+    id: "plus-recipe-grid"
+
+# Capture the in-flight state when the provider is still resolving the next
+# page. The conditional keeps the flow usable with a warm provider cache while
+# still asserting that a visible grid accompanies an observed loading state.
+- runFlow:
+    when:
+      visible:
+        id: "plus-recipe-pagination-loading"
+    commands:
+      - assertVisible:
+          id: "plus-recipe-grid"
+
+# If the provider rejects the next page, loaded cards and a retry action must
+# remain available. This assertion is intentionally conditional in release
+# runs: the retry node only exists when the provider failure is reproduced.
+- runFlow:
+    when:
+      visible:
+        id: "plus-recipe-pagination-error"
+    commands:
+      - assertVisible:
+          id: "plus-recipe-grid"
+      - assertVisible:
+          id: "plus-recipe-pagination-retry"
+      - tapOn:
+          id: "plus-recipe-pagination-retry"
+      - extendedWaitUntil:
+          visible:
+            id: "plus-recipe-grid"
+          timeout: 30000
+
+# A successful request must append into the same grid. Reaching this point
+# with the grid still mounted protects against scroll-position collapse and
+# duplicate-page remounts during rapid native scrolling.
+- assertVisible:
+    id: "plus-recipe-grid"

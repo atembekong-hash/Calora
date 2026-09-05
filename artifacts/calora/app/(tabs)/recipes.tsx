@@ -561,7 +561,142 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
    if (data?.status === 'unavailable') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="link-2" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus source not connected</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message}</Text></View>;
   const recipes = loadedRecipes;
   const savedRecipes = mergeSavedPremiumRecipes(savedRecipeIds, knownSavedRecipes, fetchedSavedRecipes);
-  return <><View style={styles.premiumToolbar}><View style={[styles.searchBox, { flex: 1, backgroundColor: colors.card, borderColor: colors.input }]}><Feather name="search" size={17} color={colors.mutedForeground} /><TextInput accessibilityLabel="Search Plus recipes" value={search} onChangeText={setSearch} placeholder="Search Plus recipes" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} /></View><Pressable accessibilityLabel="Open Plus recipe filters" onPress={() => setFilterVisible(true)} style={[styles.filterButton, { backgroundColor: colors.muted }]}><Feather name="sliders" size={17} color={colors.foreground} /></Pressable></View><Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>{data?.provider} · provider-supplied recipe information</Text>{savedRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved Plus recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your Plus shortlist, ready when you are.</Text></View></View><SwipeGestureExclusion><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedRecipes.map((recipe) => <View key={recipe.id} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved imageHeight={160} onPress={() => onOpen(recipe)} onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }} /></View>)}</ScrollView></SwipeGestureExclusion></>}{recipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Plus recipes found</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{search || category ? 'Try a different search or filter.' : 'No Plus recipes are available from the provider right now.'}</Text></View> : <Animated.View entering={FadeInDown.springify().damping(20)} style={styles.recipeGrid}>{recipes.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact onPress={() => onOpen(recipe)} onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }} /></View>)}</Animated.View>}{query.isFetching && recipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text></View>}<BottomSheet visible={filterVisible} onRequestClose={() => setFilterVisible(false)} sheetStyle={[styles.bottomSheetContent, { backgroundColor: colors.background }]}><Text style={[styles.detailTitle, { color: colors.foreground }]}>Plus filters</Text><Text style={[styles.inputLabel, { color: colors.mutedForeground, marginTop: 16 }]}>Category</Text><TextInput accessibilityLabel="Plus recipe category filter" value={category} onChangeText={setCategory} placeholder="e.g. Dinner" placeholderTextColor={colors.mutedForeground} style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]} /><Pressable accessibilityLabel="Apply Plus recipe filters" onPress={() => setFilterVisible(false)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Apply filters</Text></Pressable></BottomSheet></>;
+  return (
+    <>
+      <View testID="plus-recipe-catalogue">
+        <View style={styles.premiumToolbar}>
+          <View style={[styles.searchBox, { flex: 1, backgroundColor: colors.card, borderColor: colors.input }]}>
+            <Feather name="search" size={17} color={colors.mutedForeground} />
+            <TextInput
+              accessibilityLabel="Search Plus recipes"
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search Plus recipes"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.searchInput, { color: colors.foreground }]}
+            />
+          </View>
+          <Pressable
+            accessibilityLabel="Open Plus recipe filters"
+            onPress={() => setFilterVisible(true)}
+            style={[styles.filterButton, { backgroundColor: colors.muted }]}
+          >
+            <Feather name="sliders" size={17} color={colors.foreground} />
+          </Pressable>
+        </View>
+        <Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginBottom: 12 }]}>
+          {data?.provider} · provider-supplied recipe information
+        </Text>
+        {savedRecipes.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved Plus recipes</Text>
+                <Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your Plus shortlist, ready when you are.</Text>
+              </View>
+            </View>
+            <SwipeGestureExclusion>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>
+                {savedRecipes.map((recipe) => (
+                  <View key={recipe.id} style={{ width: 220 }}>
+                    <RecipeCard
+                      recipe={recipe}
+                      colors={colors}
+                      saved
+                      imageHeight={160}
+                      onPress={() => onOpen(recipe)}
+                      onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }}
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+            </SwipeGestureExclusion>
+          </>
+        )}
+        {recipes.length === 0 ? (
+          <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Plus recipes found</Text>
+            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              {search || category ? 'Try a different search or filter.' : 'No Plus recipes are available from the provider right now.'}
+            </Text>
+          </View>
+        ) : (
+          <Animated.View
+            testID="plus-recipe-grid"
+            entering={FadeInDown.springify().damping(20)}
+            style={styles.recipeGrid}
+          >
+            {recipes.map((recipe) => (
+              <View
+                key={recipe.id}
+                testID={`plus-recipe-card-${recipe.sourceId}`}
+                style={styles.recipeGridCard}
+              >
+                <RecipeCard
+                  recipe={recipe}
+                  colors={colors}
+                  saved={savedRecipeIds.includes(recipe.id)}
+                  imageHeight={GRID_RECIPE_IMAGE_HEIGHT}
+                  fixedHeight={GRID_RECIPE_CARD_HEIGHT}
+                  compact
+                  onPress={() => onOpen(recipe)}
+                  onSave={() => { toggleSavedRecipe(recipe.id); onSave(recipe); }}
+                />
+              </View>
+            ))}
+          </Animated.View>
+        )}
+        {query.isError && recipes.length > 0 && (
+          <View
+            testID="plus-recipe-pagination-error"
+            style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <Feather name="wifi-off" size={14} color={colors.warning} />
+            <Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>
+              Plus recipes are still available. Try loading the next page again.
+            </Text>
+            <Pressable
+              testID="plus-recipe-pagination-retry"
+              accessibilityLabel="Retry loading Plus recipes"
+              onPress={() => query.refetch()}
+              style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}
+            >
+              <Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text>
+            </Pressable>
+          </View>
+        )}
+        {query.isFetching && recipes.length > 0 && (
+          <View testID="plus-recipe-pagination-loading" style={styles.loadMoreState}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text>
+          </View>
+        )}
+        <BottomSheet
+          visible={filterVisible}
+          onRequestClose={() => setFilterVisible(false)}
+          sheetStyle={[styles.bottomSheetContent, { backgroundColor: colors.background }]}
+        >
+          <Text style={[styles.detailTitle, { color: colors.foreground }]}>Plus filters</Text>
+          <Text style={[styles.inputLabel, { color: colors.mutedForeground, marginTop: 16 }]}>Category</Text>
+          <TextInput
+            accessibilityLabel="Plus recipe category filter"
+            value={category}
+            onChangeText={setCategory}
+            placeholder="e.g. Dinner"
+            placeholderTextColor={colors.mutedForeground}
+            style={[styles.createInput, { color: colors.foreground, borderColor: colors.border }]}
+          />
+          <Pressable
+            accessibilityLabel="Apply Plus recipe filters"
+            onPress={() => setFilterVisible(false)}
+            style={[styles.primaryAction, { backgroundColor: colors.primary }]}
+          >
+            <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>Apply filters</Text>
+          </Pressable>
+        </BottomSheet>
+      </View>
+    </>
+  );
 }
 
 function ReviewComponent({ component, colors, onChange }: { component: FoodMemoryComponent; colors: ReturnType<typeof useCalora>['colors']; onChange: (c: FoodMemoryComponent) => void }) {

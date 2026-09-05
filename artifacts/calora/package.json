@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:device:nutrition-goals": "maestro test tests/device/nutrition-goals.yaml",
     "test:device:meal-images": "maestro test tests/device/meal-images.yaml",
+    "test:device:plus-recipes": "maestro test tests/device/plus-recipes-rapid-scroll.yaml",
     "test:release:meal-images": "node scripts/meal-image-release-gate.js"
   },
   "devDependencies": {

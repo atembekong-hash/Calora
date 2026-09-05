@@ -86,8 +86,8 @@ describe('Recipes Discover layout contracts', () => {
       'utf8',
     );
 
-    expect(source).toContain('savedRecipes.map((recipe) => <View key={recipe.id} style={{ width: 220 }}><RecipeCard');
-    expect(source).toContain('recipes.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard');
+    expect(source).toContain('savedRecipes.map((recipe) => (');
+    expect(source).toContain('recipes.map((recipe) => (');
     expect(source).not.toContain('{recipeSourceLabel(recipe)}</Text>');
   });
 
@@ -102,5 +102,25 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact');
     expect(source).toContain('compactCardContent');
     expect(source).toContain('compactCardFooter');
+  });
+
+  it('keeps Plus cards mounted while pagination loads, retries failures, and deduplicates appended pages', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('placeholderData: offset > 0 ? (previousData) => previousData : undefined');
+    expect(source).toContain('const recipes = loadedRecipes');
+    expect(source).toContain('data.recipes : [...current, ...data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id))]');
+    expect(source).toContain('testID="plus-recipe-grid"');
+    expect(source).toContain('testID="plus-recipe-pagination-loading"');
+    expect(source).toContain('testID="plus-recipe-pagination-error"');
+    expect(source).toContain('testID="plus-recipe-pagination-retry"');
+    expect(source).toContain('query.isError && recipes.length > 0');
+    expect(source).toContain('onPress={() => query.refetch()}');
+    expect(source).toContain('if (data?.nextOffset == null || query.isFetching || loadingMoreRef.current) return;');
+    expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
+    expect(source).toContain('recipesScrollRef.current?.scrollTo({ y: section === \'discover\' ? discoverScrollYRef.current : 0, animated: false })');
   });
 });
