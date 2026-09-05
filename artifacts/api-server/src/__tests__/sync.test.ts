@@ -20,10 +20,27 @@ import { randomUUID } from 'node:crypto';
 // execute() resolves immediately with empty rows so we can assert on the
 // number and order of calls without managing async queues.
 
-const { executeCalls, transactions, failNextTransactionLedgerWrite, dbMock } = vi.hoisted(() => {
+const {
+  executeCalls,
+  transactions,
+  failNextTransactionLedgerWrite,
+  fenceNextTransactionWrites,
+  assertAccountWritable,
+  AccountDeletionInProgressError,
+  dbMock,
+  loggerWarn,
+  loggerError,
+} = vi.hoisted(() => {
   const executeCalls: unknown[] = [];
   const transactions: Array<{ statements: unknown[]; committed: boolean }> = [];
   const failNextTransactionLedgerWrite = { value: false };
+  const fenceNextTransactionWrites = { value: 0 };
+  const assertAccountWritable = vi.fn();
+  const AccountDeletionInProgressError = class AccountDeletionInProgressError extends Error {
+    readonly errorClass = 'account_deletion_fence';
+  };
+  const loggerWarn = vi.fn();
+  const loggerError = vi.fn();
 
   function makeSelectChain(rows: unknown[] = []) {
     const chain: Record<string, unknown> = {};
@@ -46,6 +63,13 @@ const { executeCalls, transactions, failNextTransactionLedgerWrite, dbMock } = v
       const tx = {
         execute: (stmt: unknown) => {
           transaction.statements.push(stmt);
+          if (fenceNextTransactionWrites.value > 0 && transaction.statements.length === 1) {
+            fenceNextTransactionWrites.value -= 1;
+            return Promise.reject({
+              code: '55000',
+              message: 'account deletion is in progress',
+            });
+          }
           if (failNextTransactionLedgerWrite.value && transaction.statements.length === 1) {
             failNextTransactionLedgerWrite.value = false;
             return Promise.reject(new Error('sync mutation ledger insert failed'));
@@ -81,7 +105,12 @@ const { executeCalls, transactions, failNextTransactionLedgerWrite, dbMock } = v
     executeCalls,
     transactions,
     failNextTransactionLedgerWrite,
+    fenceNextTransactionWrites,
+    assertAccountWritable,
+    AccountDeletionInProgressError,
     dbMock,
+    loggerWarn,
+    loggerError,
   };
 });
 
@@ -107,8 +136,25 @@ vi.mock('../lib/supabase-auth.js', () => ({
 }));
 
 vi.mock('../lib/account-deletion-state.js', () => ({
-  assertAccountWritable: vi.fn().mockResolvedValue(undefined),
-  AccountDeletionInProgressError: class AccountDeletionInProgressError extends Error {},
+  assertAccountWritable: (...args: unknown[]) => assertAccountWritable(...args),
+  ACCOUNT_DELETION_FENCE_ERROR_CLASS: 'account_deletion_fence',
+  classifyAccountDeletionError: (error: unknown) => {
+    if (error instanceof AccountDeletionInProgressError) return 'account_deletion_fence';
+    if (
+      error &&
+      typeof error === 'object' &&
+      (error as { code?: unknown }).code === '55000' &&
+      (error as { message?: unknown }).message === 'account deletion is in progress'
+    ) {
+      return 'account_deletion_fence';
+    }
+    return null;
+  },
+  AccountDeletionInProgressError,
+}));
+
+vi.mock('../lib/logger.js', () => ({
+  logger: { warn: loggerWarn, error: loggerError },
 }));
 
 // ── App setup ─────────────────────────────────────────────────────────────────
@@ -182,6 +228,10 @@ describe('POST /v1/sync', () => {
     executeCalls.length = 0;
     transactions.length = 0;
     failNextTransactionLedgerWrite.value = false;
+    fenceNextTransactionWrites.value = 0;
+    assertAccountWritable.mockResolvedValue(undefined);
+    loggerWarn.mockReset();
+    loggerError.mockReset();
   });
 
   // ── Auth ─────────────────────────────────────────────────────────────────
@@ -193,6 +243,69 @@ describe('POST /v1/sync', () => {
 
     expect(res.status).toBe(401);
     expect(executeCalls).toHaveLength(0);
+  });
+
+  it('returns a generic 503 and emits only a redacted fence signal', async () => {
+    verifyBearerToken.mockResolvedValue({
+      id: 'account-id-must-not-be-logged',
+      email: 'secret@example.com',
+    });
+    const fenceError = new (await import('../lib/account-deletion-state.js')).AccountDeletionInProgressError();
+    assertAccountWritable.mockRejectedValueOnce(fenceError);
+
+    const res = await request(app).post('/v1/sync').send(body([validUpsert()]));
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({
+      message: 'Sync is unavailable right now. Please try again later.',
+    });
+    expect(loggerWarn).toHaveBeenCalledOnce();
+    expect(loggerWarn).toHaveBeenCalledWith(
+      {
+        errorClass: 'account_deletion_fence',
+        route: '/v1/sync',
+        count: 1,
+      },
+      'Account deletion fence rejected sync request',
+    );
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('account-id-must-not-be-logged');
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('secret@example.com');
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
+  it('aggregates trigger-shaped fence rejections without logging database details', async () => {
+    verifyBearerToken.mockResolvedValue({
+      id: 'account-id-must-not-be-logged',
+      email: 'secret@example.com',
+    });
+    fenceNextTransactionWrites.value = 2;
+
+    const res = await request(app)
+      .post('/v1/sync')
+      .send(
+        body([
+          validUpsert({ clientId: 'first-entry' }, randomUUID()),
+          validUpsert({ clientId: 'second-entry' }, randomUUID()),
+        ]),
+      );
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({
+      message: 'Sync is unavailable right now. Please try again later.',
+    });
+    expect(loggerWarn).toHaveBeenCalledOnce();
+    expect(loggerWarn).toHaveBeenCalledWith(
+      {
+        errorClass: 'account_deletion_fence',
+        route: '/v1/sync',
+        count: 2,
+      },
+      'Account deletion fence rejected sync writes',
+    );
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('account-id-must-not-be-logged');
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('secret@example.com');
+    expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain('55000');
+    expect(loggerError).not.toHaveBeenCalled();
   });
 
   // ── Request validation ────────────────────────────────────────────────────

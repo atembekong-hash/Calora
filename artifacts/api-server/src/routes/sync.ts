@@ -26,6 +26,10 @@ import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 import { normalizeImageMetadata } from "../lib/image-metadata.js";
 import { logger } from "../lib/logger.js";
+import {
+  ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+  classifyAccountDeletionError,
+} from "../lib/account-deletion-state.js";
 
 const router: IRouter = Router();
 
@@ -400,6 +404,7 @@ async function claimDiaryMutation(
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 router.post("/v1/sync", async (req, res) => {
+  let deletionFenceRejectionCount = 0;
   try {
     const user = await verifyBearerToken(req);
     if (!user) {
@@ -577,12 +582,31 @@ router.post("/v1/sync", async (req, res) => {
           });
         }
       } catch (err) {
+        if (classifyAccountDeletionError(err) === ACCOUNT_DELETION_FENCE_ERROR_CLASS) {
+          deletionFenceRejectionCount += 1;
+          continue;
+        }
         logger.error({
           mutationId: mutation.mutationId,
           err,
         }, "Sync mutation failed");
         conflicts.push({ mutationId: mutation.mutationId, reason: "server_error" });
       }
+    }
+
+    if (deletionFenceRejectionCount > 0) {
+      logger.warn(
+        {
+          errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+          route: "/v1/sync",
+          count: deletionFenceRejectionCount,
+        },
+        "Account deletion fence rejected sync writes",
+      );
+      res
+        .status(503)
+        .json({ message: "Sync is unavailable right now. Please try again later." });
+      return;
     }
 
     const records = await db
@@ -598,6 +622,21 @@ router.post("/v1/sync", async (req, res) => {
       nextCursor: "",
     });
   } catch (err) {
+    const errorClass = classifyAccountDeletionError(err);
+    if (errorClass === ACCOUNT_DELETION_FENCE_ERROR_CLASS) {
+      logger.warn(
+        {
+          errorClass,
+          route: "/v1/sync",
+          count: Math.max(1, deletionFenceRejectionCount),
+        },
+        "Account deletion fence rejected sync request",
+      );
+      res
+        .status(503)
+        .json({ message: "Sync is unavailable right now. Please try again later." });
+      return;
+    }
     logger.error({ err }, "Sync request failed");
     res
       .status(503)

@@ -9,6 +9,10 @@ export type AccountDeletionClaim =
   | { kind: "in_progress" }
   | { kind: "claimed"; operationId: string; stage: AccountDeletionStage };
 
+export const ACCOUNT_DELETION_FENCE_ERROR_CLASS = "account_deletion_fence" as const;
+const ACCOUNT_DELETION_FENCE_SQLSTATE = "55000";
+const ACCOUNT_DELETION_FENCE_MESSAGE = "account deletion is in progress";
+
 const LEASE_SECONDS = 5 * 60;
 
 export interface RecoverableAccountDeletion {
@@ -152,7 +156,33 @@ export async function listRecoverableAccountDeletions(): Promise<RecoverableAcco
 }
 
 export class AccountDeletionInProgressError extends Error {
+  readonly errorClass = ACCOUNT_DELETION_FENCE_ERROR_CLASS;
+
   constructor() {
     super("Account deletion is in progress.");
   }
+}
+
+/**
+ * Converts both the application-side fence error and the PostgreSQL trigger
+ * error into one stable, internal classification. The trigger error is
+ * intentionally matched by its fixed SQLSTATE and message, not by arbitrary
+ * database error text that could contain account data.
+ */
+export function classifyAccountDeletionError(
+  error: unknown,
+): typeof ACCOUNT_DELETION_FENCE_ERROR_CLASS | null {
+  if (error instanceof AccountDeletionInProgressError) {
+    return ACCOUNT_DELETION_FENCE_ERROR_CLASS;
+  }
+
+  if (!error || typeof error !== "object") return null;
+  const candidate = error as { code?: unknown; message?: unknown };
+  if (
+    candidate.code === ACCOUNT_DELETION_FENCE_SQLSTATE &&
+    candidate.message === ACCOUNT_DELETION_FENCE_MESSAGE
+  ) {
+    return ACCOUNT_DELETION_FENCE_ERROR_CLASS;
+  }
+  return null;
 }

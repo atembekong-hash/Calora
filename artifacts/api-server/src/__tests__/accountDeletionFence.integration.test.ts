@@ -1,7 +1,32 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
+import {
+  ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+  AccountDeletionInProgressError,
+  classifyAccountDeletionError,
+} from "../lib/account-deletion-state.js";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
+
+describe("account deletion fence classification", () => {
+  it("normalizes application and trigger failures without accepting arbitrary database text", () => {
+    expect(classifyAccountDeletionError(new AccountDeletionInProgressError())).toBe(
+      ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+    );
+    expect(
+      classifyAccountDeletionError({
+        code: "55000",
+        message: "account deletion is in progress",
+      }),
+    ).toBe(ACCOUNT_DELETION_FENCE_ERROR_CLASS);
+    expect(
+      classifyAccountDeletionError({
+        code: "55000",
+        message: "account deletion is in progress for raw-account-id",
+      }),
+    ).toBeNull();
+  });
+});
 
 describe.skipIf(!HAS_DB)("account deletion database fence (real schema)", () => {
   let pool: typeof import("@workspace/db")["pool"];
