@@ -35,7 +35,11 @@ function argument(name) {
 function routeForRequest(record) {
   const url = record?.req?.url;
   if (typeof url !== "string" || !url.startsWith("/")) return null;
-  return url.split("?", 1)[0] || null;
+  const route = url.split("?", 1)[0] || null;
+  if (route === null) return null;
+  return route === "/api" ? "/" : route.startsWith("/api/")
+    ? route.slice("/api".length)
+    : route;
 }
 
 function isSafeRoute(route) {

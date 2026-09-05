@@ -29,7 +29,7 @@ test("counts sanitized deletion-fence events by route and separates sync 503s", 
     }),
     JSON.stringify({
       level: 30,
-      req: { method: "POST", url: "/v1/sync" },
+      req: { method: "POST", url: "/api/v1/sync" },
       res: { statusCode: 503 },
       msg: "request completed",
       accountId,
