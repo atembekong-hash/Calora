@@ -135,8 +135,8 @@ export async function listRecoverableAccountDeletions(): Promise<RecoverableAcco
     recovery_external_user_id: string;
     identity_fingerprint: string;
     stage: AccountDeletionStage;
-    requested_at: Date | null;
-    updated_at: Date;
+    requested_at: Date | string | null;
+    updated_at: Date | string;
   }>(sql`
     SELECT recovery_external_user_id, identity_fingerprint, stage, requested_at, updated_at
     FROM calora_account_deletion_states
@@ -150,8 +150,8 @@ export async function listRecoverableAccountDeletions(): Promise<RecoverableAcco
     externalUserId: row.recovery_external_user_id,
     identityFingerprint: row.identity_fingerprint,
     stage: row.stage,
-    requestedAt: row.requested_at,
-    updatedAt: row.updated_at,
+    requestedAt: row.requested_at ? new Date(row.requested_at) : null,
+    updatedAt: new Date(row.updated_at),
   }));
 }
 
