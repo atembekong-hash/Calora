@@ -3,8 +3,8 @@
 **Scope:** Calora sign-in, email verification, and password recovery  
 **Canonical callback:** `https://calorie-coach-pie35449.replit.app/auth/callback`  
 **Native identifiers:** `com.etiendem.caloraapp` / `com.etiendem.caloraapp`  
-**Status:** Source validation and Supabase Auth redirect cleanup complete;
-native-device execution remains a release gate.
+**Status:** Source validation, production association publishing, and Supabase
+Auth redirect cleanup complete; native-device execution remains a release gate.
 
 ## What is shipped in source
 
@@ -13,8 +13,8 @@ native-device execution remains a release gate.
 - `artifacts/calora/app.json` keeps `caloraapp` for referral deep links, while
   adding a verified Android HTTPS intent filter for `/auth/callback`.
 - `artifacts/api-server/src/routes/universal-links.ts` and the live association
-  contract claim `/auth/callback` for the iOS bundle. The server must be
-  redeployed before the production OS association cache can see this addition.
+  contract claim `/auth/callback` for the iOS bundle. The production API was
+  redeployed and the Apple association CDN now serves the updated contract.
 - `handleOAuthCallbackUrl()` accepts only the exact HTTPS origin and path. A
   `caloraapp://auth/callback` link, an attacker origin, a different path, or
   credentials on any of those URLs is rejected before Supabase is called.
@@ -29,7 +29,10 @@ authentication transport.
 | Expo native config resolves | **PASS** | `expo config --json` shows the production host, iOS associated domain, and Android `/auth/callback` filter. |
 | Callback parser fail-closed behavior | **PASS** | Unit coverage accepts the canonical HTTPS callback and rejects the old custom-scheme callback before `exchangeCodeForSession` or `setSession`. |
 | Association response source | **PASS** | API tests cover the `/auth/callback` AASA component. |
-| Production association response | **REDEPLOY REQUIRED** | The currently reachable response was captured before this source change and still showed only `/invite/*`; redeploy and re-fetch it before a release decision. |
+| Production association response | **PASS** | Production `/api/version` reports commit `dc195ae7eed9af9d6103f346c94d8b64af9bc2bf` and source tree `c49a8254e30c0dea37528fa2009ce2428c761c96`; live AASA returns the `B5344GJRMT.com.etiendem.caloraapp` app ID with both `/invite/*` and `/auth/callback`. |
+| Apple association checker | **PASS** | Apple’s association CDN returns HTTP 200 for the production host and includes the expected Calora app ID and `/auth/callback` component. |
+| Google Digital Asset Links checker | **PASS** | Google’s `statements:list` response returns `delegate_permission/common.handle_all_urls` for `com.etiendem.caloraapp` with the published SHA-256 certificate fingerprint. |
+| Android package and fingerprint alignment | **PASS** | Live asset links publish package `com.etiendem.caloraapp`; its certificate fingerprint matches the configured signing fingerprint and the Android native package identifier. |
 | Supabase redirect allow-list | **PASS** | Supabase Management API readback contains only `https://calorie-coach-pie35449.replit.app/auth/callback`. A disposable generated recovery link preserved the canonical callback, while `caloraapp://auth/callback` and an unrelated HTTPS URL fell back to the configured Site URL. The initial Google authorize endpoint returns a handoff `302` even for unlisted `redirect_to` values, so that status alone is not a final redirect-allow-list assertion. |
 | Disposable iOS build and three live auth flows | **NOT RUN** | This environment has no physical iOS device and the Expo guidance forbids invoking EAS CLI directly; run the `development-device`/internal native build through the supported Expo build flow. |
 | Disposable Android build and three live auth flows | **NOT RUN** | Same environment limitation; run an internal APK on a clean Android device or emulator with Play Services. |
@@ -79,6 +82,6 @@ claimable scheme. Supabase now retains only the canonical HTTPS callback in
 the Auth allow-list; legacy and unrelated recovery links fall back to the
 configured Site URL.
 
-Until a signed build is installed and the production AASA/assetlinks responses
-plus the cleaned Supabase allow-list are rechecked, source configuration alone
-cannot prove OS ownership or provider delivery.
+Until a signed build is installed and exercised on each platform, production
+association files and the cleaned Supabase allow-list prove the server-side
+contract but cannot prove OS handoff or provider delivery on a real device.
