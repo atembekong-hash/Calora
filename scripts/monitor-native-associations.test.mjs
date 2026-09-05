@@ -4,9 +4,14 @@ import test from "node:test";
 import {
   AUTH_CALLBACK_PATH,
   BUNDLE_ID,
+  DEFAULT_ASSOCIATION_MAX_AGE_SECONDS,
+  MAX_ASSOCIATION_MAX_AGE_SECONDS,
+  MIN_ASSOCIATION_MAX_AGE_SECONDS,
   PACKAGE_NAME,
   checkAppleAndGoogleAssociationEvidence,
   checkNativeAssociations,
+  formatAssociationFreshnessPolicy,
+  resolveAssociationFreshnessPolicy,
 } from "./monitor-native-associations.mjs";
 
 const teamId = "B5344GJRMT";
@@ -71,6 +76,44 @@ function fetchFor({
     );
   };
 }
+
+test("resolves the bounded freshness configuration and fails closed", () => {
+  assert.deepEqual(resolveAssociationFreshnessPolicy(undefined), {
+    maxAgeSeconds: DEFAULT_ASSOCIATION_MAX_AGE_SECONDS,
+    mode: "warn",
+    source: "default",
+  });
+  assert.deepEqual(resolveAssociationFreshnessPolicy("3600"), {
+    maxAgeSeconds: MIN_ASSOCIATION_MAX_AGE_SECONDS,
+    mode: "warn",
+    source: "configured",
+  });
+  assert.deepEqual(
+    resolveAssociationFreshnessPolicy(String(MAX_ASSOCIATION_MAX_AGE_SECONDS)),
+    {
+      maxAgeSeconds: MAX_ASSOCIATION_MAX_AGE_SECONDS,
+      mode: "warn",
+      source: "configured",
+    },
+  );
+
+  for (const value of ["not-a-number", "3599", "604801", "1.5", "1e4"]) {
+    const policy = resolveAssociationFreshnessPolicy(value);
+    assert.equal(policy.maxAgeSeconds, DEFAULT_ASSOCIATION_MAX_AGE_SECONDS);
+    assert.equal(policy.source, "default-invalid-configuration", value);
+  }
+});
+
+test("formats only the effective freshness policy", () => {
+  const output = formatAssociationFreshnessPolicy(
+    resolveAssociationFreshnessPolicy("172800"),
+  );
+  assert.equal(
+    output,
+    "Association freshness policy: warn when provider metadata exceeds 172800s (source: configured).",
+  );
+  assert.ok(!output.includes("AA:BB"));
+});
 
 test("passes when production files claim the callback and signed app", async () => {
   const result = await checkNativeAssociations({

@@ -35,6 +35,14 @@ The production origin is currently defined in the workflow as
 `https://calorie-coach-pie35449.replit.app`. Update that non-secret value if
 the canonical production host changes.
 
+The advisory freshness warning threshold can be adjusted for a documented
+provider migration window with the repository Actions variable
+`NATIVE_ASSOCIATION_FRESHNESS_MAX_AGE_SECONDS`. Values must be whole seconds
+between `3600` (one hour) and `604800` (seven days), inclusive. An unset,
+malformed, or out-of-range value fails closed to the default `86400` seconds
+(24 hours); the monitor reports only the effective threshold and whether it was
+configured or fell back to the default.
+
 ## Local check
 
 For a local or release check, provide the same values through the environment
@@ -43,6 +51,7 @@ without committing them:
 ```sh
 APPLE_TEAM_ID='…' \
 ANDROID_SHA256_FINGERPRINT='…' \
+NATIVE_ASSOCIATION_FRESHNESS_MAX_AGE_SECONDS='86400' \
 node scripts/monitor-native-associations.mjs
 ```
 
@@ -62,6 +71,7 @@ operating systems:
 ```sh
 APPLE_TEAM_ID='…' \
 ANDROID_SHA256_FINGERPRINT='…' \
+NATIVE_ASSOCIATION_FRESHNESS_MAX_AGE_SECONDS='86400' \
 pnpm --filter @workspace/api-server run verify:public-release
 ```
 

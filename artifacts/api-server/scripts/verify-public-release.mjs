@@ -1,6 +1,9 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { checkAppleAndGoogleAssociationEvidence } from "../../../scripts/monitor-native-associations.mjs";
+import {
+  checkAppleAndGoogleAssociationEvidence,
+  formatAssociationFreshnessPolicy,
+} from "../../../scripts/monitor-native-associations.mjs";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_ORIGIN = "https://calorie-coach-pie35449.replit.app";
@@ -85,6 +88,9 @@ async function main() {
   });
   console.info(
     `[PASS] ${associationEvidence.checked.join(" and ")} verified for ${origin}.`,
+  );
+  console.info(
+    formatAssociationFreshnessPolicy(associationEvidence.freshnessPolicy),
   );
   for (const warning of associationEvidence.warnings ?? []) {
     console.warn(`[WARN] ${warning}`);

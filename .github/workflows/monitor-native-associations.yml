@@ -23,6 +23,7 @@ jobs:
     timeout-minutes: 5
     env:
       NATIVE_ASSOCIATION_ORIGIN: https://calorie-coach-pie35449.replit.app
+      NATIVE_ASSOCIATION_FRESHNESS_MAX_AGE_SECONDS: ${{ vars.NATIVE_ASSOCIATION_FRESHNESS_MAX_AGE_SECONDS }}
       APPLE_TEAM_ID: ${{ secrets.CALORA_APPLE_TEAM_ID }}
       ANDROID_SHA256_FINGERPRINT: ${{ secrets.CALORA_ANDROID_SHA256_FINGERPRINT }}
     steps:
@@ -54,6 +55,7 @@ jobs:
     env:
       PUBLIC_VERIFY_ORIGIN: https://calorie-coach-pie35449.replit.app
       PUBLIC_CANONICAL_ORIGIN: https://calorie-coach-pie35449.replit.app
+      NATIVE_ASSOCIATION_FRESHNESS_MAX_AGE_SECONDS: ${{ vars.NATIVE_ASSOCIATION_FRESHNESS_MAX_AGE_SECONDS }}
       PUBLIC_VERIFY_EXPECTED_SOURCE_TREE: >-
         ${{
           inputs.simulate_release_failure &&

@@ -10,6 +10,11 @@ export const DEFAULT_ORIGIN = "https://calorie-coach-pie35449.replit.app";
 export const BUNDLE_ID = "com.etiendem.caloraapp";
 export const PACKAGE_NAME = "com.etiendem.caloraapp";
 export const AUTH_CALLBACK_PATH = "/auth/callback";
+export const ASSOCIATION_FRESHNESS_MAX_AGE_ENV =
+  "NATIVE_ASSOCIATION_FRESHNESS_MAX_AGE_SECONDS";
+export const DEFAULT_ASSOCIATION_MAX_AGE_SECONDS = 24 * 60 * 60;
+export const MIN_ASSOCIATION_MAX_AGE_SECONDS = 60 * 60;
+export const MAX_ASSOCIATION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
 const USER_AGENT = "calora-native-association-monitor/1.0";
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -21,9 +26,42 @@ const GOOGLE_STATEMENTS_ENDPOINT =
 // Freshness is advisory: a stale provider cache should be visible in a release
 // report, but it must not hide a content or identity validation failure.
 export const ASSOCIATION_FRESHNESS_POLICY = Object.freeze({
-  maxAgeSeconds: 24 * 60 * 60,
+  maxAgeSeconds: DEFAULT_ASSOCIATION_MAX_AGE_SECONDS,
   mode: "warn",
+  source: "default",
 });
+
+export function resolveAssociationFreshnessPolicy(
+  value = process.env[ASSOCIATION_FRESHNESS_MAX_AGE_ENV],
+) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) {
+    return ASSOCIATION_FRESHNESS_POLICY;
+  }
+
+  const maxAgeSeconds = Number(normalized);
+  if (
+    !/^[0-9]+$/.test(normalized) ||
+    !Number.isSafeInteger(maxAgeSeconds) ||
+    maxAgeSeconds < MIN_ASSOCIATION_MAX_AGE_SECONDS ||
+    maxAgeSeconds > MAX_ASSOCIATION_MAX_AGE_SECONDS
+  ) {
+    return Object.freeze({
+      ...ASSOCIATION_FRESHNESS_POLICY,
+      source: "default-invalid-configuration",
+    });
+  }
+
+  return Object.freeze({
+    maxAgeSeconds,
+    mode: "warn",
+    source: "configured",
+  });
+}
+
+export function formatAssociationFreshnessPolicy(policy) {
+  return `Association freshness policy: ${policy.mode} when provider metadata exceeds ${policy.maxAgeSeconds}s (source: ${policy.source}).`;
+}
 
 function requiredValue(value, name) {
   const normalized = String(value ?? "").trim();
@@ -185,7 +223,7 @@ function addFreshnessWarning(warnings, message) {
   warnings.push(message);
 }
 
-function inspectAppleFreshness(headers, warnings) {
+function inspectAppleFreshness(headers, warnings, freshnessPolicy) {
   const ageHeader = headerValue(headers, "age");
   const cacheControl = headerValue(headers, "cache-control");
   const agePresent = ageHeader !== null && ageHeader.trim() !== "";
@@ -206,11 +244,11 @@ function inspectAppleFreshness(headers, warnings) {
   }
   if (
     cacheMaxAge.seconds !== null &&
-    cacheMaxAge.seconds > ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds
+    cacheMaxAge.seconds > freshnessPolicy.maxAgeSeconds
   ) {
     addFreshnessWarning(
       warnings,
-      `Apple association CDN advertised max-age (${cacheMaxAge.seconds}s) exceeds the ${ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds}s freshness policy.`,
+      `Apple association CDN advertised max-age (${cacheMaxAge.seconds}s) exceeds the ${freshnessPolicy.maxAgeSeconds}s freshness policy.`,
     );
   }
   if (!agePresent && !cacheMaxAge.present) {
@@ -234,15 +272,15 @@ function inspectAppleFreshness(headers, warnings) {
       `Apple association CDN cache age (${ageSeconds}s) exceeds its advertised max-age (${cacheMaxAge.seconds}s).`,
     );
   }
-  if (ageSeconds > ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds) {
+  if (ageSeconds > freshnessPolicy.maxAgeSeconds) {
     addFreshnessWarning(
       warnings,
-      `Apple association CDN cache age (${ageSeconds}s) exceeds the ${ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds}s freshness policy.`,
+      `Apple association CDN cache age (${ageSeconds}s) exceeds the ${freshnessPolicy.maxAgeSeconds}s freshness policy.`,
     );
   }
 }
 
-function inspectGoogleFreshness(document, warnings) {
+function inspectGoogleFreshness(document, warnings, freshnessPolicy) {
   const hasMaxAge = Object.prototype.hasOwnProperty.call(
     document ?? {},
     "maxAge",
@@ -263,10 +301,10 @@ function inspectGoogleFreshness(document, warnings) {
     );
     return;
   }
-  if (maxAgeSeconds > ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds) {
+  if (maxAgeSeconds > freshnessPolicy.maxAgeSeconds) {
     addFreshnessWarning(
       warnings,
-      `Google Digital Asset Links statements maxAge (${maxAgeSeconds}s) exceeds the ${ASSOCIATION_FRESHNESS_POLICY.maxAgeSeconds}s freshness policy.`,
+      `Google Digital Asset Links statements maxAge (${maxAgeSeconds}s) exceeds the ${freshnessPolicy.maxAgeSeconds}s freshness policy.`,
     );
   }
 }
@@ -349,6 +387,7 @@ export async function checkAppleAndGoogleAssociationEvidence({
   appleTeamId = process.env.APPLE_TEAM_ID,
   androidFingerprint = process.env.ANDROID_SHA256_FINGERPRINT,
   fetchImpl = fetch,
+  freshnessPolicy = resolveAssociationFreshnessPolicy(),
 } = {}) {
   const normalizedOrigin = normalizeOrigin(origin);
   const expectedAppId = `${requiredValue(appleTeamId, "APPLE_TEAM_ID")}.${BUNDLE_ID}`;
@@ -374,13 +413,14 @@ export async function checkAppleAndGoogleAssociationEvidence({
   const warnings = [];
   assertAppleAssociation(appleAssociation.body, expectedAppId);
   assertGoogleStatements(googleStatements.body, fingerprints);
-  inspectAppleFreshness(appleAssociation.headers, warnings);
-  inspectGoogleFreshness(googleStatements.body, warnings);
+  inspectAppleFreshness(appleAssociation.headers, warnings, freshnessPolicy);
+  inspectGoogleFreshness(googleStatements.body, warnings, freshnessPolicy);
 
   return {
     origin: normalizedOrigin,
     checked: ["Apple association CDN", "Google Digital Asset Links statements"],
     warnings,
+    freshnessPolicy,
   };
 }
 
@@ -425,6 +465,9 @@ async function main() {
   );
   console.info(
     `Provider association evidence passed for ${providerEvidence.origin}: ${providerEvidence.checked.join("; ")}.`,
+  );
+  console.info(
+    formatAssociationFreshnessPolicy(providerEvidence.freshnessPolicy),
   );
   for (const warning of providerEvidence.warnings ?? []) {
     console.warn(`[WARN] ${warning}`);
