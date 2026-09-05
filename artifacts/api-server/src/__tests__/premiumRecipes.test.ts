@@ -7,6 +7,7 @@ const { verifyBearerTokenMock, hasActivePremiumEntitlementMock, checkRateLimitMo
   hasActivePremiumEntitlementMock: vi.fn(),
   checkRateLimitMock: vi.fn(),
 }));
+const loggerWarnMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../lib/supabase-auth.js", () => ({
   verifyBearerToken: verifyBearerTokenMock,
@@ -19,6 +20,10 @@ vi.mock("../lib/revenuecat.js", async (importOriginal) => ({
 
 vi.mock("../lib/rate-limit.js", () => ({
   checkRateLimit: checkRateLimitMock,
+}));
+
+vi.mock("../lib/logger.js", () => ({
+  logger: { warn: loggerWarnMock, error: vi.fn() },
 }));
 
 const originalNodeEnv = process.env.NODE_ENV;
@@ -50,6 +55,7 @@ beforeEach(() => {
   verifyBearerTokenMock.mockResolvedValue({ id: "premium-user", email: "premium@example.com" });
   hasActivePremiumEntitlementMock.mockResolvedValue(true);
   checkRateLimitMock.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+  loggerWarnMock.mockReset();
 });
 
 async function appWithProvider(url?: string) {
@@ -169,13 +175,65 @@ describe("Premium recipe routes", () => {
 
     expect(res.status).toBe(429);
     expect(res.headers["retry-after"]).toBe("23");
-    expect(checkRateLimitMock).toHaveBeenCalledWith("premium-recipes:user:premium-user", 60, 60 * 60);
+    expect(checkRateLimitMock).toHaveBeenCalledWith(
+      "premium-recipes:user:premium-user",
+      60,
+      60 * 60,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
     expect(checkRateLimitMock).toHaveBeenCalledWith(
       expect.stringMatching(/^premium-recipes:ip:/),
       120,
       60 * 60,
       { failClosed: true },
     );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a generic response and redacted signal for an account deletion fence", async () => {
+    checkRateLimitMock.mockRejectedValueOnce({
+      code: "55000",
+      message: "account deletion is in progress",
+      detail: "raw account details",
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const res = await request(app).get("/v1/premium-recipes");
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({
+      message: "Premium recipes are temporarily unavailable. Please try again shortly.",
+    });
+    expect(checkRateLimitMock).toHaveBeenCalledWith(
+      "premium-recipes:user:premium-user",
+      60,
+      60 * 60,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      { errorClass: "account_deletion_fence", route: "/v1/premium-recipes", count: 1 },
+      "Account deletion fence rejected premium recipe request",
+    );
+    expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain("55000");
+    expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain("account deletion is in progress");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps an ordinary account limiter failure generic without classifying it as a deletion fence", async () => {
+    checkRateLimitMock.mockRejectedValueOnce(new Error("limiter unavailable"));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const res = await request(app).get("/v1/premium-recipes");
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({
+      message: "Premium recipes are temporarily unavailable. Please try again shortly.",
+    });
+    expect(loggerWarnMock).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

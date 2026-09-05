@@ -4,6 +4,10 @@ import { logger } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth";
 import { hasActivePremiumEntitlement } from "../lib/revenuecat";
 import { checkRateLimit } from "../lib/rate-limit";
+import {
+  accountDeletionFenceSignal,
+  classifyAccountDeletionError,
+} from "../lib/account-deletion-state";
 
 const router: IRouter = Router();
 const RATE_WINDOW_SECONDS = 60 * 60;
@@ -18,7 +22,7 @@ function requestIp(req: Request): string {
   return req.ip ?? req.socket?.remoteAddress ?? "unknown";
 }
 
-async function authorizePremiumAccess(req: Request): Promise<PremiumAccess> {
+async function authorizePremiumAccess(req: Request, route: string): Promise<PremiumAccess> {
   let user;
   try {
     user = await verifyBearerToken(req);
@@ -38,10 +42,36 @@ async function authorizePremiumAccess(req: Request): Promise<PremiumAccess> {
     return { allowed: false, status: 503, message: "Premium recipes are temporarily unavailable. Please try again shortly." };
   }
 
-  const [accountRate, ipRate] = await Promise.all([
-    checkRateLimit(`premium-recipes:user:${user.id}`, ACCOUNT_RATE_LIMIT, RATE_WINDOW_SECONDS),
-    checkRateLimit(`premium-recipes:ip:${requestIp(req)}`, IP_RATE_LIMIT, RATE_WINDOW_SECONDS, { failClosed: true }),
-  ]);
+  let accountRate;
+  let ipRate;
+  try {
+    [accountRate, ipRate] = await Promise.all([
+      checkRateLimit(
+        `premium-recipes:user:${user.id}`,
+        ACCOUNT_RATE_LIMIT,
+        RATE_WINDOW_SECONDS,
+        { failClosed: true, rethrowAccountDeletionFence: true },
+      ),
+      checkRateLimit(
+        `premium-recipes:ip:${requestIp(req)}`,
+        IP_RATE_LIMIT,
+        RATE_WINDOW_SECONDS,
+        { failClosed: true },
+      ),
+    ]);
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal(route),
+        "Account deletion fence rejected premium recipe request",
+      );
+    }
+    return {
+      allowed: false,
+      status: 503,
+      message: "Premium recipes are temporarily unavailable. Please try again shortly.",
+    };
+  }
   const deniedRate = !accountRate.allowed ? accountRate : !ipRate.allowed ? ipRate : null;
   if (deniedRate) {
     return {
@@ -57,7 +87,8 @@ async function authorizePremiumAccess(req: Request): Promise<PremiumAccess> {
 }
 
 async function requirePremiumAccess(req: Request, res: Response): Promise<boolean> {
-  const access = await authorizePremiumAccess(req);
+  const route = req.params.sourceId ? "/v1/premium-recipes/:sourceId" : "/v1/premium-recipes";
+  const access = await authorizePremiumAccess(req, route);
   if (access.allowed) return true;
   if (access.retryAfterSecs) res.setHeader("Retry-After", String(access.retryAfterSecs));
   res.status(access.status).json({ message: access.message });

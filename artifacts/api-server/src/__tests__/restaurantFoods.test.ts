@@ -6,6 +6,7 @@ const { verifyBearerTokenMock, checkRateLimitMock } = vi.hoisted(() => ({
   verifyBearerTokenMock: vi.fn(),
   checkRateLimitMock: vi.fn(),
 }));
+const loggerWarnMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../lib/supabase-auth.js", () => ({
   verifyBearerToken: verifyBearerTokenMock,
@@ -15,9 +16,14 @@ vi.mock("../lib/rate-limit.js", () => ({
   checkRateLimit: checkRateLimitMock,
 }));
 
+vi.mock("../lib/logger.js", () => ({
+  logger: { warn: loggerWarnMock, error: vi.fn() },
+}));
+
 beforeEach(() => {
   verifyBearerTokenMock.mockResolvedValue(null);
   checkRateLimitMock.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+  loggerWarnMock.mockReset();
 });
 
 afterEach(() => {
@@ -109,6 +115,7 @@ describe("Restaurant food routes", () => {
       "restaurant-foods:user:user-123",
       80,
       3600,
+      { failClosed: true, rethrowAccountDeletionFence: true },
     );
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/foods/search/v5");
   });
@@ -212,5 +219,56 @@ describe("Restaurant food routes", () => {
     expect(JSON.stringify(res.body)).not.toContain("provider rejected");
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://gateway.example/fatsecret/foods/detail");
     expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ sourceId: "fatsecret-food:321" }));
+  });
+
+  it("returns a generic response and redacted signal for an account deletion fence", async () => {
+    verifyBearerTokenMock.mockResolvedValue({ id: "user-123", email: "test@example.com" });
+    checkRateLimitMock.mockRejectedValueOnce({
+      code: "55000",
+      message: "account deletion is in progress",
+      detail: "raw account details",
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { default: router } = await import("../routes/restaurantFoods.js");
+    const app = express();
+    app.use(express.json());
+    app.use(router);
+
+    const res = await request(app).get("/v1/restaurant-foods?query=burger");
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ message: "Restaurant search is temporarily unavailable." });
+    expect(checkRateLimitMock).toHaveBeenCalledWith(
+      "restaurant-foods:user:user-123",
+      80,
+      3600,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      { errorClass: "account_deletion_fence", route: "/v1/restaurant-foods", count: 1 },
+      "Account deletion fence rejected restaurant food request",
+    );
+    expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain("55000");
+    expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain("account deletion is in progress");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps an ordinary account limiter failure generic without classifying it as a deletion fence", async () => {
+    verifyBearerTokenMock.mockResolvedValue({ id: "user-123", email: "test@example.com" });
+    checkRateLimitMock.mockRejectedValueOnce(new Error("limiter unavailable"));
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { default: router } = await import("../routes/restaurantFoods.js");
+    const app = express();
+    app.use(express.json());
+    app.use(router);
+
+    const res = await request(app).get("/v1/restaurant-foods?query=burger");
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ message: "Restaurant search is temporarily unavailable." });
+    expect(loggerWarnMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -7,12 +7,17 @@ import {
   listRestaurantFoods,
   restaurantProviderStatus,
 } from "../lib/premiumRecipes.js";
+import {
+  accountDeletionFenceSignal,
+  classifyAccountDeletionError,
+} from "../lib/account-deletion-state.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 const WINDOW_SECONDS = 60 * 60;
 const REQUEST_LIMIT = 80;
 
-async function authorizeAndLimit(req: Request) {
+async function authorizeAndLimit(req: Request, route: string) {
   let user: VerifiedUser | null = null;
   try {
     user = await verifyBearerToken(req);
@@ -20,7 +25,23 @@ async function authorizeAndLimit(req: Request) {
     user = null;
   }
   if (!user) return { status: 401 as const, retryAfterSecs: 0 };
-  const rate = await checkRateLimit(`restaurant-foods:user:${user.id}`, REQUEST_LIMIT, WINDOW_SECONDS);
+  let rate;
+  try {
+    rate = await checkRateLimit(
+      `restaurant-foods:user:${user.id}`,
+      REQUEST_LIMIT,
+      WINDOW_SECONDS,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal(route),
+        "Account deletion fence rejected restaurant food request",
+      );
+    }
+    return { status: 503 as const, retryAfterSecs: 0 };
+  }
   return rate.allowed
     ? { status: 200 as const, retryAfterSecs: 0 }
     : { status: rate.degraded ? 503 as const : 429 as const, retryAfterSecs: rate.retryAfterSecs };
@@ -58,7 +79,7 @@ function safeProviderState(error: unknown) {
 }
 
 router.get("/v1/restaurant-foods", async (req, res) => {
-  const access = await authorizeAndLimit(req);
+  const access = await authorizeAndLimit(req, "/v1/restaurant-foods");
   if (access.status !== 200) {
     if (access.retryAfterSecs) res.setHeader("Retry-After", String(access.retryAfterSecs));
     res.status(access.status).json({ message: access.status === 401 ? "Sign in to search restaurant foods." : "Restaurant search is temporarily unavailable." });
@@ -79,7 +100,7 @@ router.get("/v1/restaurant-foods", async (req, res) => {
 });
 
 router.get("/v1/restaurant-foods/:sourceId", async (req, res) => {
-  const access = await authorizeAndLimit(req);
+  const access = await authorizeAndLimit(req, "/v1/restaurant-foods/:sourceId");
   if (access.status !== 200) {
     if (access.retryAfterSecs) res.setHeader("Retry-After", String(access.retryAfterSecs));
     res.status(access.status).json({ message: access.status === 401 ? "Sign in to view restaurant nutrition." : "Restaurant nutrition is temporarily unavailable." });
