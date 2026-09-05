@@ -285,5 +285,70 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
         }
       }
     });
+
+    it("rolls back functions and earlier triggers when a later fenced table is missing", async () => {
+      const { pool } = await import("@workspace/db");
+      const { provisionDatabaseSupportObjects } =
+        await import("../../../../lib/db/src/provision-support-objects.js");
+      const client = await pool.connect();
+      const schemaName = `calora_fence_${randomUUID().replaceAll("-", "")}`;
+      const quotedSchemaName = `"${schemaName}"`;
+
+      try {
+        await client.query(`CREATE SCHEMA ${quotedSchemaName}`);
+        await client.query(`SET search_path TO ${quotedSchemaName}`);
+        await client.query(`
+        CREATE TABLE calora_account_deletion_states (
+          identity_fingerprint text PRIMARY KEY,
+          state text NOT NULL
+        );
+        CREATE TABLE calora_users (external_id text);
+        CREATE TABLE calora_referral_codes (user_id text);
+        CREATE TABLE calora_referral_redemptions (
+          referrer_user_id text,
+          referred_user_id text
+        );
+      `);
+
+        await expect(
+          provisionDatabaseSupportObjects(client),
+        ).rejects.toMatchObject({
+          code: "42P01",
+        });
+
+        const functions = await client.query(
+          `SELECT routine_name
+         FROM information_schema.routines
+         WHERE routine_schema = $1
+           AND routine_name IN (
+             'calora_assert_deletion_writable',
+             'calora_account_deletion_write_fence'
+           )`,
+          [schemaName],
+        );
+        const triggers = await client.query(
+          `SELECT trigger_name
+         FROM information_schema.triggers
+         WHERE trigger_schema = $1
+           AND trigger_name = 'calora_account_deletion_write_fence_trigger'`,
+          [schemaName],
+        );
+
+        expect(functions.rows).toEqual([]);
+        expect(triggers.rows).toEqual([]);
+      } finally {
+        try {
+          await client.query("RESET search_path");
+        } finally {
+          try {
+            await client.query(
+              `DROP SCHEMA IF EXISTS ${quotedSchemaName} CASCADE`,
+            );
+          } finally {
+            client.release();
+          }
+        }
+      }
+    });
   },
 );

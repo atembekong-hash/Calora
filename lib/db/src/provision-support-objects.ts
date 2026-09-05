@@ -3,14 +3,7 @@ import type { PoolClient } from "pg";
 
 type SupportObjectClient = Pick<PoolClient, "query">;
 
-/**
- * Applies version-controlled PostgreSQL support objects after Drizzle has
- * created the typed tables. This runs only from the managed development
- * post-merge lifecycle, never from API startup or a production build.
- */
-export async function provisionDatabaseSupportObjects(
-  client: SupportObjectClient = pool,
-): Promise<void> {
+async function applySupportObjects(client: SupportObjectClient): Promise<void> {
   await client.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`);
   await client.query(`
     CREATE OR REPLACE FUNCTION calora_assert_deletion_writable(external_user_id TEXT)
@@ -70,6 +63,44 @@ export async function provisionDatabaseSupportObjects(
       BEFORE INSERT OR UPDATE ON ${table}
       FOR EACH ROW EXECUTE FUNCTION calora_account_deletion_write_fence()
     `);
+  }
+}
+
+/**
+ * Applies version-controlled PostgreSQL support objects after Drizzle has
+ * created the typed tables. This runs only from the managed development
+ * post-merge lifecycle, never from API startup or a production build.
+ */
+export async function provisionDatabaseSupportObjects(
+  providedClient?: SupportObjectClient,
+): Promise<void> {
+  const client = providedClient ?? (await pool.connect());
+  const ownedClient = providedClient ? undefined : (client as PoolClient);
+  let transactionStarted = false;
+  let releaseError: Error | undefined;
+
+  try {
+    await client.query("BEGIN");
+    transactionStarted = true;
+    await applySupportObjects(client);
+    await client.query("COMMIT");
+    transactionStarted = false;
+  } catch (error) {
+    if (transactionStarted) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackError) {
+        releaseError =
+          rollbackError instanceof Error
+            ? rollbackError
+            : new Error("Support-object transaction rollback failed");
+      }
+    }
+    throw error;
+  } finally {
+    if (ownedClient) {
+      ownedClient.release(releaseError);
+    }
   }
 }
 

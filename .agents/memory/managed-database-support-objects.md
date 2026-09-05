@@ -9,6 +9,12 @@ Drizzle's managed schema push covers the typed relational schema but does not by
 
 **How to apply:** When adding database-enforced behavior beyond tables, columns, indexes, and foreign keys, identify its supported development and production application path before relying on it. Add a real-database behavioral test and inventory proof; do not claim a production security gate passes from application-level ownership checks or development-only setup.
 
+Support-object provisioning must run all extension, function, and trigger DDL on one database connection inside one transaction; if rollback fails, do not return that owned connection to the pool.
+
+**Why:** Sequential pooled DDL can commit early support objects before a later table or statement fails, leaving a partially enforced schema; a failed rollback can also leave a connection in an unsafe transaction state.
+
+**How to apply:** Acquire one client for the managed provision command, commit only after every support object succeeds, roll back on the first error, and destroy the owned client when rollback cannot complete. Preserve injected clients for callers that need a session-local schema.
+
 For safety-sensitive Calora domain tables, retain a committed, forward-only
 Drizzle migration and its development journal; never treat `drizzle-kit push`
 as production deployment authority. Replit-managed production schema changes
