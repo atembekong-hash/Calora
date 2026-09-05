@@ -49,5 +49,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify fresh-schema deletion fences
+      - name: Create the typed Calora schema
+        run: pnpm --filter @workspace/db run push-force
+
+      - name: Apply immutable Calora migrations
+        run: pnpm --filter @workspace/db run migrate
+
+      - name: Provision Calora support objects
+        run: pnpm --filter @workspace/db run provision-support-objects
+
+      - name: Verify migrated-schema deletion fences
         run: pnpm --filter @workspace/api-server run test:account-deletion-fence

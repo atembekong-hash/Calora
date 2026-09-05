@@ -176,31 +176,43 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
 
     afterAll(async () => {
       if (!pool) return;
-      await pool.query(
-        `DELETE FROM calora_referral_redemptions
-       WHERE referrer_user_id = $1 OR referred_user_id = $2`,
-        [externalUserId, referredUserId],
-      );
-      await pool.query(
-        `DELETE FROM calora_referral_qualifications
-       WHERE external_user_id = $1 OR capture_session_id = $2`,
-        [externalUserId, qualificationSessionId],
-      );
-      await pool.query(`DELETE FROM calora_referral_codes WHERE user_id = $1`, [
-        externalUserId,
-      ]);
-      await pool.query(
-        `DELETE FROM calora_capture_rate_limits WHERE key = $1`,
-        [rateLimitKey],
-      );
-      await pool.query(`DELETE FROM calora_users WHERE external_id = $1`, [
-        externalUserId,
-      ]);
-      await pool.query(
-        `DELETE FROM calora_account_deletion_states
-       WHERE identity_fingerprint = encode(digest($1, 'sha256'), 'hex')`,
-        [externalUserId],
-      );
+      const cleanupClient = await pool.connect();
+      try {
+        await cleanupClient.query("BEGIN");
+        await cleanupClient.query(
+          `DELETE FROM calora_referral_redemptions
+         WHERE referrer_user_id = $1 OR referred_user_id = $2`,
+          [externalUserId, referredUserId],
+        );
+        await cleanupClient.query(
+          `DELETE FROM calora_referral_qualifications
+         WHERE external_user_id = $1 OR capture_session_id = $2`,
+          [externalUserId, qualificationSessionId],
+        );
+        await cleanupClient.query(
+          `DELETE FROM calora_referral_codes WHERE user_id = $1`,
+          [externalUserId],
+        );
+        await cleanupClient.query(
+          `DELETE FROM calora_capture_rate_limits WHERE key = $1`,
+          [rateLimitKey],
+        );
+        await cleanupClient.query(
+          `DELETE FROM calora_users WHERE external_id = $1`,
+          [externalUserId],
+        );
+        await cleanupClient.query(
+          `DELETE FROM calora_account_deletion_states
+         WHERE identity_fingerprint = encode(digest($1, 'sha256'), 'hex')`,
+          [externalUserId],
+        );
+        await cleanupClient.query("COMMIT");
+      } catch (error) {
+        await cleanupClient.query("ROLLBACK");
+        throw error;
+      } finally {
+        cleanupClient.release();
+      }
     });
   },
 );

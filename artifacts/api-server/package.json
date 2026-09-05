@@ -9,7 +9,7 @@
     "verify:release": "node ../../scripts/verify-api-release.mjs",
     "verify:release-identity": "node ../../scripts/verify-api-runtime-identity.mjs",
     "verify:public-release": "node ./scripts/verify-public-release.mjs",
-    "test:account-deletion-fence": "vitest run src/__tests__/accountDeletionFence.integration.test.ts --testNamePattern='account deletion fence provisioning'",
+    "test:account-deletion-fence": "vitest run src/__tests__/accountDeletionFence.integration.test.ts --testNamePattern='account deletion fence'",
     "test:monitoring": "node --test ../../scripts/monitor-account-deletion-fence.test.mjs",
     "test:release-attestation": "node --test ../../scripts/provider-package-attestation.test.mjs ../../scripts/verify-api-release.test.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
