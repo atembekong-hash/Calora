@@ -18,7 +18,16 @@ export const RECOVERY_WARNING_COOLDOWN_MS = 15 * 60 * 1000;
 const RECOVERY_WARNING_MAX_RECORDS = 128;
 const RECOVERY_WARNING_LOCK_KEY = "calora:recovery-warning-suppression";
 
-export function accountDeletionFenceSignal(route: string, count = 1) {
+export interface AccountDeletionFenceSignal {
+  errorClass: typeof ACCOUNT_DELETION_FENCE_ERROR_CLASS;
+  route: string;
+  count: number;
+}
+
+export function accountDeletionFenceSignal(
+  route: string,
+  count = 1,
+): AccountDeletionFenceSignal {
   return {
     errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
     route,

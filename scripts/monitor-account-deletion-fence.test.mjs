@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
   MONITOR_SCHEMA_VERSION,
   summarizeAccountDeletionFenceLogs,
 } from "./monitor-account-deletion-fence.mjs";
+
+const workspaceDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 
 test("counts sanitized deletion-fence events by route and separates sync 503s", () => {
   const accountId = "disposable-account-must-not-be-retained";
@@ -140,4 +148,76 @@ test("fails closed on malformed structured fence signals", () => {
     () => summarizeAccountDeletionFenceLogs("{not-json}"),
     /invalid JSON on line 1/,
   );
+});
+
+test("keeps the shared builder and representative sync call sites monitor-compatible", async () => {
+  const [stateSource, syncSource] = await Promise.all([
+    readFile(
+      path.join(
+        workspaceDir,
+        "artifacts",
+        "api-server",
+        "src",
+        "lib",
+        "account-deletion-state.ts",
+      ),
+      "utf8",
+    ),
+    readFile(
+      path.join(
+        workspaceDir,
+        "artifacts",
+        "api-server",
+        "src",
+        "routes",
+        "sync.ts",
+      ),
+      "utf8",
+    ),
+  ]);
+
+  assert.match(
+    stateSource,
+    /return\s*\{\s*errorClass:\s*ACCOUNT_DELETION_FENCE_ERROR_CLASS,\s*route,\s*count,\s*\}/s,
+  );
+  assert.match(
+    stateSource,
+    /interface AccountDeletionFenceSignal[\s\S]*errorClass[\s\S]*route:\s*string[\s\S]*count:\s*number/,
+  );
+
+  const syncSignals = syncSource
+    .split("\n")
+    .filter((line) => line.includes("accountDeletionFenceSignal("))
+    .map((line) => line.trim());
+  assert.deepEqual(syncSignals, [
+    "accountDeletionFenceSignal(\"/v1/sync\", deletionFenceRejectionCount),",
+    "accountDeletionFenceSignal(\"/v1/sync\", Math.max(1, deletionFenceRejectionCount)),",
+  ]);
+  assert.doesNotMatch(
+    syncSource,
+    /logger\.warn\(\s*\{\s*errorClass:\s*ACCOUNT_DELETION_FENCE_ERROR_CLASS/s,
+  );
+
+  const report = summarizeAccountDeletionFenceLogs(
+    [
+      JSON.stringify({
+        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+        route: "/v1/sync",
+        count: 2,
+      }),
+      JSON.stringify({
+        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+        route: "/v1/sync",
+        count: 1,
+      }),
+    ].join("\n"),
+  );
+  assert.deepEqual(report.deletionFence, {
+    eventCount: 2,
+    rejectionCount: 3,
+    routes: { "/v1/sync": 3 },
+  });
+  assert.equal(JSON.stringify(report).includes("raw-account-id"), false);
+  assert.equal(JSON.stringify(report).includes("Bearer disposable-credential"), false);
+  assert.equal(JSON.stringify(report).includes("database error text"), false);
 });

@@ -10,6 +10,8 @@ vi.mock("@workspace/db", () => ({
 }));
 
 import {
+  ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+  accountDeletionFenceSignal,
   claimRecoveryWarningSuppression,
   listRecoverableAccountDeletions,
 } from "../lib/account-deletion-state.js";
@@ -79,8 +81,21 @@ describe("account deletion recovery state", () => {
     expect(deletion?.requestedAt).toBeInstanceOf(Date);
     expect(deletion?.updatedAt).toBeInstanceOf(Date);
   });
-});
 
-const { execute } = vi.hoisted(() => ({
-  execute: vi.fn(),
-}));
+  it("builds monitor-compatible deletion-fence signals", () => {
+    const signals = [
+      accountDeletionFenceSignal("/v1/sync", 2),
+      accountDeletionFenceSignal("/v1/diary"),
+    ];
+
+    for (const signal of signals) {
+      expect(signal).toEqual({
+        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+        route: expect.any(String),
+        count: expect.any(Number),
+      });
+      expect(signal.count).toBeGreaterThan(0);
+      expect(Object.keys(signal).sort()).toEqual(["count", "errorClass", "route"]);
+    }
+  });
+});
