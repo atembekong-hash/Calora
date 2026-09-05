@@ -12,7 +12,8 @@
  *      storage after the removeItem has executed.
  */
 
-import { parseStorageValue } from './hydrationGuard';
+import { EncryptedStorageError } from './encryptedStorage';
+import { ParseHydrationError, parseStorageValue } from './hydrationGuard';
 
 export interface StorageAdapter {
   getItem(key: string): Promise<string | null>;
@@ -74,7 +75,16 @@ export class PersistenceManager {
    * string on any JSON parse failure.
    */
   async read<T>(): Promise<{ state: T | null; error: string | null }> {
-    const raw = await this.storage.getItem(this.key);
-    return parseStorageValue<T>(raw);
+    try {
+      const raw = await this.storage.getItem(this.key);
+      return parseStorageValue<T>(raw);
+    } catch (error) {
+      if (error instanceof EncryptedStorageError) {
+        throw new ParseHydrationError(
+          'Encrypted local data could not be authenticated. The saved copy was not changed.',
+        );
+      }
+      throw error;
+    }
   }
 }

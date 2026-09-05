@@ -56,3 +56,4 @@
 - [Onboarding resumption and review](onboarding-resumption.md) — incomplete setup resumes from bounded local progress; completed users review saved values without a destructive reset.
 - [Native notification account lifecycle](native-notification-account-lifecycle.md) — device-wide schedules must be serialized so only the hydrated active account owns Calora reminders.
 - [Destructive clear async gate](destructive-clear-async-gate.md) — clear must invalidate old background work and block new work until durable and auxiliary cleanup finishes.
+- [Expo native bridge in tests](expo-native-bridge-in-tests.md) — keep SecureStore lazy in app modules and mock its async key contract before provider tests run under Vitest.

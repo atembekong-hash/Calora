@@ -102,7 +102,7 @@ export function useHydrationEffect<T>(
         if (err instanceof ParseHydrationError) {
           setHydrationErrorKind('parse');
           setHydrationError(
-            'Your saved data could not be read — the file may be corrupt. Your data is still on device and can be exported before retrying.',
+            'Your saved data could not be read — the encrypted copy may be corrupt and remains on this device. Export it before retrying.',
           );
         } else {
           setHydrationErrorKind('io');

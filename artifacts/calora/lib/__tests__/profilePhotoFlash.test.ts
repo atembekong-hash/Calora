@@ -152,6 +152,14 @@ const ACCOUNT_PROFILE = {
   heightCm: 170, weightKg: 80, targetWeightKg: 70, age: 30, calorieTarget: 2000,
 };
 
+async function readPersistedSnapshot(key: string): Promise<Record<string, any> | null> {
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  const { EncryptedStorageAdapter } = await import('../encryptedStorage');
+  const { secureStoreKeyAdapter } = await import('../secureStoreKeyAdapter');
+  const raw = await new EncryptedStorageAdapter(AsyncStorage, secureStoreKeyAdapter).getItem(key);
+  return raw ? JSON.parse(raw) : null;
+}
+
 // ---------------------------------------------------------------------------
 // Wrapper — provides the REAL CaloraProvider to every renderHook call.
 // ---------------------------------------------------------------------------
@@ -808,9 +816,8 @@ describe('real CaloraProvider — transactional notifications and live export', 
     await act(async () => {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
-    const persistedRaw = _asyncStore[STORAGE_KEY];
-    if (persistedRaw) {
-      const persisted = JSON.parse(persistedRaw);
+    const persisted = await readPersistedSnapshot(STORAGE_KEY);
+    if (persisted) {
       expect(persisted.weights).toEqual([]);
       expect(persisted.activityLogs).toEqual({});
       expect(persisted.activityMinutesLogs).toEqual({});
@@ -882,9 +889,8 @@ describe('real CaloraProvider — transactional notifications and live export', 
     expect(exported.weights).toEqual([]);
     expect(exported.activityLogs).toEqual({});
     expect(exported.activityMinutesLogs).toEqual({});
-    const persistedRaw = _asyncStore[STORAGE_KEY];
-    if (persistedRaw) {
-      const persisted = JSON.parse(persistedRaw);
+    const persisted = await readPersistedSnapshot(STORAGE_KEY);
+    if (persisted) {
       expect(persisted.weights).toEqual([]);
       expect(persisted.activityLogs).toEqual({});
       expect(persisted.activityMinutesLogs).toEqual({});
@@ -1054,9 +1060,9 @@ describe('real CaloraProvider — account switch during hydration', () => {
       await new Promise<void>((res) => setTimeout(res, 0));
     });
 
-    const userAState = _asyncStore[storageKeyForAccount('user-a')] ?? '';
-    const userBState = _asyncStore[storageKeyForAccount('user-b')] ?? '';
-    expect(userAState).toContain('User A');
-    expect(userBState).not.toContain('User A');
+    const userAState = await readPersistedSnapshot(storageKeyForAccount('user-a'));
+    const userBState = await readPersistedSnapshot(storageKeyForAccount('user-b'));
+    expect(userAState?.profile?.name).toBe('User A');
+    expect(userBState?.profile?.name).not.toBe('User A');
   });
 });

@@ -377,7 +377,7 @@ describe('useHydrationEffect (production hook) — hydrationError and hydrationE
     const { handle } = await renderAndAwaitHydration(storage);
 
     expect(handle.result.current.hydrationErrorKind).toBe('parse');
-    expect(handle.result.current.hydrationError).toContain('corrupt');
+    expect(handle.result.current.hydrationError).toContain('encrypted');
     expect(handle.result.current.hydrationError).not.toContain('temporarily unavailable');
   });
 

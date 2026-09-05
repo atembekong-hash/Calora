@@ -264,7 +264,7 @@ export default function OnboardingScreen() {
         {showExport && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Export raw storage data"
+            accessibilityLabel="Export encrypted recovery data"
             onPress={() => handleParseErrorExport({
               exportRawStorageData,
               share: Share.share.bind(Share),
@@ -273,7 +273,7 @@ export default function OnboardingScreen() {
             style={[styles.exportButton, { backgroundColor: colors.muted }]}
           >
             <Feather name="share" size={14} color={colors.mutedForeground} style={{ marginRight: 6 }} />
-            <Text style={[styles.exportButtonText, { color: colors.mutedForeground }]}>Export raw data</Text>
+            <Text style={[styles.exportButtonText, { color: colors.mutedForeground }]}>Export encrypted recovery data</Text>
           </Pressable>
         )}
         {(showTryAgain || isRetrying) && (

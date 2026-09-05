@@ -61,6 +61,8 @@ import {
 import type { PlannerAck } from '@/lib/plannerAck';
 import { normalizePlannerPreferences } from '@/lib/planType';
 import { quarantineLegacyStorage, storageKeyForAccount } from '@/lib/accountStorage';
+import { EncryptedStorageAdapter } from '@/lib/encryptedStorage';
+import { secureStoreKeyAdapter } from '@/lib/secureStoreKeyAdapter';
 import {
   buildDailyIntelligenceFacts,
   createIntelligenceContext,
@@ -623,7 +625,8 @@ export function CaloraProvider({
       void coachFactConsentCache.clear(accountId ?? null);
     };
   }, [accountId]);
-  const pm = useRef(new PersistenceManager(AsyncStorage, storageKey));
+  const encryptedStorage = useRef(new EncryptedStorageAdapter(AsyncStorage, secureStoreKeyAdapter)).current;
+  const pm = useRef(new PersistenceManager(encryptedStorage, storageKey));
   /** Guard that prevents a second tap from entering clearAllData while the first is in progress. */
   const clearingRef = useRef(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -871,7 +874,7 @@ export function CaloraProvider({
   // The former device-wide key had no reliable owner. Never attach it to an
   // account automatically; quarantine it only after a successful raw copy.
   useEffect(() => {
-    quarantineLegacyStorage(AsyncStorage).catch((error) => {
+    quarantineLegacyStorage(encryptedStorage).catch((error) => {
       console.warn('[Calora][storage] Could not quarantine legacy local data:', error);
     });
   }, []);
@@ -1659,7 +1662,7 @@ export function CaloraProvider({
       patchExportSnapshot({ outbox: [] });
       setOutbox([]);
     },
-      exportRawStorageData: () => readRawStorageData(AsyncStorage.getItem.bind(AsyncStorage), storageKey),
+      exportRawStorageData: () => readRawStorageData(encryptedStorage.getRawItem.bind(encryptedStorage), storageKey),
       exportData: async () => {
         if (!exportSnapshotRef.current) {
           throw new Error('Export state is not initialized.');

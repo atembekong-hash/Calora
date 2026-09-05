@@ -581,14 +581,14 @@ describe('I/O error recovery: pm.read() surfaces and then clears an AsyncStorage
     const IO_ERROR_MESSAGE =
       'Storage is temporarily unavailable. This is usually a momentary issue.';
     const PARSE_ERROR_MESSAGE =
-      'Your saved data could not be read — the file may be corrupt. Your data is still on device and can be exported before retrying.';
+      'Your saved data could not be read — the encrypted copy may be corrupt and remains on this device. Export it before retrying.';
 
     // The io message must not suggest data corruption.
     expect(IO_ERROR_MESSAGE).not.toMatch(/corrupt/i);
 
-    // The parse message must mention corruption so it correctly warns the
-    // user their data may need attention.
-    expect(PARSE_ERROR_MESSAGE).toMatch(/corrupt/i);
+    // The parse message must identify the protected on-device copy so users
+    // understand that export is a protected recovery package.
+    expect(PARSE_ERROR_MESSAGE).toMatch(/encrypted/i);
 
     // The two messages are distinct — the error screen's copy differs by kind.
     expect(IO_ERROR_MESSAGE).not.toBe(PARSE_ERROR_MESSAGE);

@@ -20,7 +20,7 @@ export interface ShareOptions {
 }
 
 export interface ParseErrorExportDeps {
-  /** Returns the raw storage string, or null when storage is empty. */
+  /** Returns the encrypted recovery envelope, or null when storage is empty. */
   exportRawStorageData: () => Promise<string | null>;
   /** OS share sheet (Share.share from react-native). */
   share: (opts: ShareOptions) => Promise<unknown>;
@@ -32,7 +32,7 @@ export interface ParseErrorExportDeps {
  * Runs the "Export raw data" flow for the parse-error screen:
  *   1. Reads raw bytes via exportRawStorageData.
  *   2. If null → shows "Nothing to export" Alert (storage genuinely empty).
- *   3. If non-null → passes bytes verbatim to Share.share.
+ *   3. If non-null → passes the encrypted recovery envelope to Share.share.
  *   4. On unexpected error → shows "Export failed" Alert.
  */
 export async function handleParseErrorExport(deps: ParseErrorExportDeps): Promise<void> {
@@ -42,7 +42,7 @@ export async function handleParseErrorExport(deps: ParseErrorExportDeps): Promis
       deps.alert('Nothing to export', 'Storage appears empty.');
       return;
     }
-    await deps.share({ message: raw, title: `${BRAND.name} raw storage data` });
+    await deps.share({ message: raw, title: `${BRAND.name} encrypted recovery data` });
   } catch {
     deps.alert('Export failed', 'Could not read raw storage data.');
   }

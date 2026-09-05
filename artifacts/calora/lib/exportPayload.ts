@@ -73,11 +73,11 @@ export function buildExportPayload(schemaVersion: number, state: CaloraExportSta
 }
 
 /**
- * Read the raw storage bytes for a given key.  Returns null when the key is
- * absent (e.g. after a clear) or when the storage is genuinely empty.
+ * Read the protected storage envelope for a given key. Returns null when the
+ * key is absent (e.g. after a clear) or when the storage is genuinely empty.
  *
  * This is the exact body of CaloraContext.exportRawStorageData — extracted here
- * so tests can call it directly using the injected StorageAdapter's getItem.
+ * so tests can call it directly using the injected adapter's raw-read method.
  */
 export async function readRawStorageData(
   getItem: (key: string) => Promise<string | null>,
