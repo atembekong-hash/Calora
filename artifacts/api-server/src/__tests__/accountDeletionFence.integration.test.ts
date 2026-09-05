@@ -15,12 +15,15 @@ describe.skipIf(!HAS_DB)("account deletion database fence (real schema)", () => 
       [externalUserId],
     );
 
-    await expect(
-      pool.query(
-        `INSERT INTO calora_users (external_id, email) VALUES ($1, $2)`,
-        [externalUserId, `${externalUserId}@example.com`],
-      ),
-    ).rejects.toThrow("account deletion is in progress");
+    const write = pool.query(
+      `INSERT INTO calora_users (external_id, email) VALUES ($1, $2)`,
+      [externalUserId, `${externalUserId}@example.com`],
+    );
+
+    await expect(write).rejects.toMatchObject({
+      code: "55000",
+      message: expect.stringContaining("account deletion is in progress"),
+    });
   });
 
   afterAll(async () => {

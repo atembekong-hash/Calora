@@ -31,6 +31,7 @@
 - [RevenueCat v2 entitlement checks](revenuecat-v2-entitlement-checks.md) — entitlement authorization must use v2 active-entitlement records when the connector does not authorize legacy v1 subscribers.
 - [RevenueCat customer erasure scope](revenuecat-customer-erasure-scope.md) — existing-customer deletion stays pending until the provider grants customer read/write permission.
 - [Managed database support objects](managed-database-support-objects.md) — Drizzle table pushes do not establish PostgreSQL functions or triggers; production propagation must be proven separately.
+- [Account-deletion production fence](account-deletion-production-fence.md) — a generic sync 503 needs deployment-log correlation to prove the PostgreSQL deletion fence, not a service outage.
 - [Supabase Auth boundary](supabase-auth-boundary.md) — Calora’s configured Supabase project currently provides Auth, while Calora domain data remains in managed PostgreSQL.
 - [PostgreSQL tenant isolation](postgres-tenant-isolation.md) — current API predicates are tested, but the shared superuser pool cannot enforce database tenant isolation.
 - [Restricted Phase 2A boundary](restricted-phase-2a-boundary.md) — future contextual insights must remain transient, deterministic, and account-isolated until stronger controls are proven.
