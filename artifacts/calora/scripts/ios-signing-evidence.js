@@ -6,6 +6,7 @@ const projectRoot = path.resolve(__dirname, '..');
 const preflightPath = path.join(__dirname, 'ios-signing-preflight.js');
 const evidenceFileName = 'calora-ios-signing-evidence.json';
 const IOS_SIGNING_PREFIX = '[ios-signing] ';
+const EVIDENCE_STORAGE_FAILURE_CLASS = 'EVIDENCE_STORAGE';
 
 function extractPrefixedSummaryLines(output) {
   return String(output)
@@ -61,8 +62,8 @@ function writeEvidence(evidence, evidencePath) {
   return evidencePath;
 }
 
-function appendStepSummary(evidence) {
-  const summaryPath = process.env.GITHUB_STEP_SUMMARY?.trim();
+function appendStepSummary(evidence, env = process.env) {
+  const summaryPath = env.GITHUB_STEP_SUMMARY?.trim();
   if (!summaryPath) {
     return;
   }
@@ -80,8 +81,27 @@ function appendStepSummary(evidence) {
   );
 }
 
-function run() {
-  const result = spawnSync(process.execPath, [preflightPath, ...process.argv.slice(2)], {
+function getStorageErrorCode(error) {
+  const code = typeof error?.code === 'string' ? error.code.toUpperCase() : '';
+  return /^[A-Z][A-Z0-9_]*$/.test(code) ? code : 'UNKNOWN';
+}
+
+function formatStorageFailure(error, destination = 'the configured evidence destination') {
+  return [
+    `[ios-signing] Evidence archive failed: required sanitized evidence artifact could not be archived to ${destination}.`,
+    `[ios-signing] Evidence archive failure class: ${EVIDENCE_STORAGE_FAILURE_CLASS}`,
+    `[ios-signing] Evidence archive diagnostic: ${getStorageErrorCode(error)}.`,
+  ];
+}
+
+function run({
+  spawn = spawnSync,
+  env = process.env,
+  write = writeEvidence,
+  appendSummary = appendStepSummary,
+  output = console,
+} = {}) {
+  const result = spawn(process.execPath, [preflightPath, ...process.argv.slice(2)], {
     cwd: projectRoot,
     encoding: 'utf8',
     maxBuffer: 4 * 1024 * 1024,
@@ -94,20 +114,43 @@ function run() {
     exitCode,
     signal: result.signal,
   });
-  const evidencePath = writeEvidence(evidence, resolveEvidencePath());
 
   for (const line of evidence.summaryLines) {
-    console.log(line);
+    output.log(line);
   }
   if (evidence.summaryLines.length === 0) {
-    console.error('[ios-signing] No sanitized preflight summary was emitted.');
+    output.error('[ios-signing] No sanitized preflight summary was emitted.');
   }
-  if (evidencePath) {
-    console.log(`[ios-signing] Evidence written to ${evidencePath}`);
-  }
-  appendStepSummary(evidence);
+  output.log(`[ios-signing] Preflight exit status: ${exitCode}`);
 
-  return exitCode;
+  const resolvedEvidencePath = resolveEvidencePath(env);
+  let evidencePath = null;
+  let evidenceWriteError = null;
+  try {
+    evidencePath = write(evidence, resolvedEvidencePath);
+  } catch (error) {
+    evidenceWriteError = error;
+    for (const line of formatStorageFailure(error)) {
+      output.error(line);
+    }
+  }
+
+  if (evidencePath) {
+    output.log(`[ios-signing] Evidence written to ${evidencePath}`);
+  }
+
+  try {
+    appendSummary(evidence, env);
+  } catch (error) {
+    for (const line of formatStorageFailure(error, 'the GitHub step summary')) {
+      output.error(line);
+    }
+  }
+
+  // A failed preflight remains the primary result and must keep its original
+  // status. A successful preflight is not releasable when its required
+  // evidence artifact could not be archived.
+  return exitCode === 0 && resolvedEvidencePath && evidenceWriteError ? 1 : exitCode;
 }
 
 if (require.main === module) {
@@ -115,9 +158,13 @@ if (require.main === module) {
 }
 
 module.exports = {
+  EVIDENCE_STORAGE_FAILURE_CLASS,
   IOS_SIGNING_PREFIX,
   buildEvidence,
   extractFailureClass,
   extractPrefixedSummaryLines,
+  formatStorageFailure,
+  getStorageErrorCode,
   resolveEvidencePath,
+  run,
 };
