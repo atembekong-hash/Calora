@@ -63,3 +63,4 @@
 - [Expo native bridge in tests](expo-native-bridge-in-tests.md) — keep SecureStore lazy in app modules and mock its async key contract before provider tests run under Vitest.
 - [Supabase redirect probes](supabase-redirect-probes.md) — authorize 302s and recovery 200s do not prove an Auth redirect is allow-listed; inspect generated-link destinations.
 - [Association provider evidence](association-provider-evidence.md) — Apple CDN and Google statements responses are distinct provider caches and must be checked by their own response shapes.
+- [Disposable provider failure rehearsal](disposable-provider-failure-rehearsal.md) — stage live erasure failures per customer; never invalidate the global provider credential.
