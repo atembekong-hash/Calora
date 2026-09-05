@@ -23,9 +23,11 @@ import { useAuth } from '@/context/AuthContext';
 import { type MealType, useCalora } from '@/context/CaloraContext';
 import { dateKey } from '@/lib/dates';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
+import { restaurantFoodImageSource } from '@/lib/restaurantFoodImages';
 import { restaurantFoodReviewState } from '@/lib/restaurantFoodReview';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { Image } from 'expo-image';
 
 const popularChains = ["McDonald's", 'Burger King', "Wendy's", 'Chipotle'];
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -254,9 +256,12 @@ export default function RestaurantsScreen() {
                 onPress={() => setSelectedFood(food)}
                 style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               >
-                <View style={[styles.resultIcon, { backgroundColor: colors.accent }]}>
-                  <Feather name="shopping-bag" size={18} color={colors.accentForeground} />
-                </View>
+                <Image
+                  accessibilityLabel={`${food.name} food photo`}
+                  contentFit="cover"
+                  source={restaurantFoodImageSource(food)}
+                  style={styles.resultImage}
+                />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.resultBrand, { color: colors.primary }]}>{food.brandName ?? 'Branded food'}</Text>
                   <Text style={[styles.resultName, { color: colors.foreground }]}>{food.name}</Text>
@@ -396,7 +401,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 },
   resultCount: { fontFamily: 'Inter_500Medium', fontSize: 10 },
   resultCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  resultIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  resultImage: { width: 52, height: 52, borderRadius: 15, backgroundColor: '#e7ece5' },
   resultBrand: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 0.4, textTransform: 'uppercase' },
   resultName: { fontFamily: 'Inter_600SemiBold', fontSize: 13, marginTop: 2 },
   resultServing: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 3 },
@@ -412,6 +417,7 @@ const styles = StyleSheet.create({
   detailHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   detailBrand: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
   detailTitle: { fontFamily: 'Inter_700Bold', fontSize: 23, letterSpacing: -0.5, marginTop: 5 },
+  detailImage: { width: '100%', height: 178, borderRadius: 20, marginTop: 16, backgroundColor: '#e7ece5' },
   nutritionCard: { borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 17 },
   macroValueLarge: { fontFamily: 'Inter_700Bold', fontSize: 24 },
   macroValue: { fontFamily: 'Inter_700Bold', fontSize: 15, textAlign: 'center' },
