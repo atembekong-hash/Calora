@@ -170,6 +170,16 @@ to the workflow summary. A missing target, missing Maestro installation, or
 failed platform writes a failed record when an evidence path is provided and
 keeps the command nonzero.
 
+The repository workflow `.github/workflows/native-encrypted-recovery.yml` runs
+this gate on a labeled native runner and uploads only that sanitized JSON,
+including after a failed gate. The workflow enables an installed-build
+preflight: it checks the selected iOS target with `xcrun simctl` and the
+selected Android target with `adb` before Maestro starts. A missing target or
+signed build is recorded in the summary and keeps the workflow nonzero; the
+remaining platform is still checked. The runner must already have the signed
+Calora build installed with application ID `com.etiendem.caloraapp` on both
+selected disposable targets.
+
 ## iOS signing preflight
 
 Before queuing a production iOS build, run the read-only signing preflight from

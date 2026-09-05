@@ -42,11 +42,36 @@ exit 0
   return executablePath;
 }
 
+function writeFakeNativeTools(directory) {
+  fs.writeFileSync(
+    path.join(directory, 'xcrun'),
+    `#!/bin/sh
+if [ "\${FAKE_MISSING_BUILD_PLATFORM:-}" = "iOS" ]; then
+  exit 1
+fi
+printf '%s\\n' '/tmp/Calora.app'
+`,
+    { mode: 0o700 },
+  );
+  fs.writeFileSync(
+    path.join(directory, 'adb'),
+    `#!/bin/sh
+if [ "\${FAKE_MISSING_BUILD_PLATFORM:-}" = "Android" ]; then
+  exit 1
+fi
+printf '%s\\n' 'package:/data/app/com.etiendem.caloraapp/base.apk'
+`,
+    { mode: 0o700 },
+  );
+}
+
 function runGate({
   iosDevice = 'ios-simulator-001',
   androidDevice = 'android-emulator-001',
   failDevice,
   maestro = 'available',
+  buildCheck = false,
+  missingBuildPlatform,
 }) {
   const fixtureDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'calora-encrypted-recovery-gate-'),
@@ -58,6 +83,9 @@ function runGate({
   if (maestro === 'available') {
     writeFakeMaestro(maestroDirectory);
   }
+  if (buildCheck) {
+    writeFakeNativeTools(maestroDirectory);
+  }
 
   const result = spawnSync(process.execPath, [gatePath], {
     cwd: projectRoot,
@@ -66,6 +94,8 @@ function runGate({
       CALORA_IOS_DEVICE: iosDevice,
       CALORA_ANDROID_DEVICE: androidDevice,
       CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH: evidencePath,
+      CALORA_ENCRYPTED_RECOVERY_BUILD_CHECK: buildCheck ? 'true' : '',
+      FAKE_MISSING_BUILD_PLATFORM: missingBuildPlatform || '',
       FAKE_MAESTRO_FAIL_DEVICE: failDevice || '',
       PATH:
         maestro === 'available'
@@ -229,5 +259,38 @@ test('writes failed evidence and exits nonzero when Maestro is unavailable', (t)
     'failed',
     'maestro_unavailable',
   );
+  assertEvidenceLineIsSanitized(result.stdout, result.evidence);
+});
+
+test('records a missing native build without running Maestro', (t) => {
+  const result = runGate({
+    buildCheck: true,
+    missingBuildPlatform: 'iOS',
+  });
+  t.after(() =>
+    fs.rmSync(result.fixtureDirectory, { recursive: true, force: true }),
+  );
+
+  assert.equal(result.status, 1);
+  assertEvidenceSchema(
+    result.evidence,
+    [
+      {
+        platform: 'iOS',
+        targetId: 'ios-simulator-001',
+        outcome: 'failed',
+        exitCode: 1,
+      },
+      {
+        platform: 'Android',
+        targetId: 'android-emulator-001',
+        outcome: 'passed',
+        exitCode: 0,
+      },
+    ],
+    'failed',
+    'missing_build',
+  );
+  assert.match(result.stderr, /iOS build missing/);
   assertEvidenceLineIsSanitized(result.stdout, result.evidence);
 });

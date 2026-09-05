@@ -1,0 +1,56 @@
+name: Native encrypted-recovery release gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      ios_device:
+        description: "Exact booted iOS simulator/device ID"
+        required: false
+        type: string
+      android_device:
+        description: "Exact booted Android emulator/device ID"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  encrypted-recovery:
+    name: Verify encrypted recovery on signed native builds
+    # This runner must have one disposable booted iOS target, one disposable
+    # booted Android target, xcrun, adb, and Maestro 1.40 available.
+    runs-on: [self-hosted, calora-native]
+    timeout-minutes: 30
+    env:
+      CALORA_IOS_DEVICE: ${{ inputs.ios_device }}
+      CALORA_ANDROID_DEVICE: ${{ inputs.android_device }}
+      CALORA_ENCRYPTED_RECOVERY_BUILD_CHECK: "true"
+      CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH: ${{ runner.temp }}/calora-encrypted-recovery-evidence.json
+    steps:
+      - name: Check out release candidate
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Run native encrypted-recovery release gate
+        working-directory: artifacts/calora
+        run: pnpm test:release:encrypted-recovery
+
+      - name: Upload sanitized encrypted-recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calora-encrypted-recovery-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/calora-encrypted-recovery-evidence.json
+          if-no-files-found: error
+          retention-days: 30

@@ -10,6 +10,8 @@ const targets = [
   { platform: 'Android', envName: 'CALORA_ANDROID_DEVICE' },
 ];
 const evidencePath = process.env.CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH?.trim();
+const buildCheckEnabled =
+  process.env.CALORA_ENCRYPTED_RECOVERY_BUILD_CHECK === 'true';
 const platformResults = new Map();
 
 function readAppId() {
@@ -88,6 +90,24 @@ function printUsage() {
   );
 }
 
+function checkInstalledBuild(platform, device) {
+  const command =
+    platform === 'iOS'
+      ? ['xcrun', ['simctl', 'get_app_container', device, appId, 'app']]
+      : ['adb', ['-s', device, 'shell', 'pm', 'path', appId]];
+  const result = spawnSync(command[0], command[1], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+
+  if (result.error || result.status !== 0) {
+    return false;
+  }
+
+  return Boolean(result.stdout?.trim());
+}
+
 const missingTargets = targets.filter(({ envName }) => !process.env[envName]?.trim());
 if (missingTargets.length > 0) {
   console.error(
@@ -118,6 +138,27 @@ const failures = [];
 for (const { platform, envName } of targets) {
   const device = process.env[envName].trim();
   console.log(`\n[encrypted-recovery] ${platform} target: ${device}`);
+
+  if (buildCheckEnabled && !checkInstalledBuild(platform, device)) {
+    platformResults.set(platform, {
+      outcome: 'failed',
+      exitCode: 1,
+    });
+    failures.push({
+      platform,
+      device,
+      status: 1,
+      error: new Error(
+        'The signed Calora build is not installed on the selected target.',
+      ),
+      failureClass: 'missing_build',
+    });
+    console.error(
+      `[encrypted-recovery] ${platform} build missing on ${device}; skipping Maestro.`,
+    );
+    continue;
+  }
+
   console.log(`[encrypted-recovery] Running ${flowPath}`);
 
   const result = spawnSync(
@@ -157,7 +198,12 @@ if (failures.length > 0) {
       : `Maestro exited with status ${failure.status}`;
     console.error(`- ${failure.platform} (${failure.device}): ${reason}`);
   }
-  writeEvidence(buildEvidence('failed', 'platform_failure'));
+  const failureClass = failures.some(
+    (failure) => failure.failureClass === 'missing_build',
+  )
+    ? 'missing_build'
+    : 'platform_failure';
+  writeEvidence(buildEvidence('failed', failureClass));
   process.exit(1);
 }
 
