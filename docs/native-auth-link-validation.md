@@ -167,17 +167,17 @@ evidence for this matrix.
 ### Native matrix result
 
 The following is the exact remaining matrix. This workspace cannot execute it:
-the dated **FAIL — not executed** result means the release gate is not
+the dated **BLOCKED — no native target** result means the release gate is not
 satisfied, not that the provider or OS behavior was observed to fail. Use a
 disposable account and disposable targets only; do not use a personal
 production install.
 
 | Platform | Google sign-in | Email verification | Password recovery | Cold launch + force-quit HTTPS callback | `caloraapp`-only competitor |
 |---|---|---|---|---|---|
-| iOS | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** |
-| Android | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** | **FAIL — 2026-09-05, not executed** |
+| iOS | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** |
+| Android | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** |
 
-**Common evidence for every failed cell:** no newly built/signed Calora
+**Common evidence for every blocked cell:** no newly built/signed Calora
 binary, iOS simulator/device, or Android emulator/device was available in
 this workspace. `xcrun` and `adb` are not installed; Maestro reported zero
 connected devices. There are therefore no iOS UDID, Android serial, IPA/APK
@@ -202,6 +202,6 @@ email/provider flows. For iOS, verify the signed entitlements contain
 app running, force-quit, and cold-launched. Install a competitor that claims
 only `caloraapp`, verify that a legacy custom-scheme callback never creates a
 Calora session, then uninstall/disable Calora and verify the HTTPS callback
-falls back to the browser rather than opening the competitor. Replace the
-these dated **FAIL — not executed** cells with observed PASS/FAIL results and
+falls back to the browser rather than opening the competitor. Replace these
+dated **BLOCKED — no native target** cells with observed PASS/FAIL results and
 attach the signed build/device identifiers before release.
