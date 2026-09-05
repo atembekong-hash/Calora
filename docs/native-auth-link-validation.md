@@ -37,8 +37,8 @@ authentication transport.
 | Google Digital Asset Links checker | **PASS** | Google’s `statements:list` response returns `delegate_permission/common.handle_all_urls` for `com.etiendem.caloraapp` with the published SHA-256 certificate fingerprint. |
 | Android package and fingerprint alignment | **PASS** | Live asset links publish package `com.etiendem.caloraapp`; its certificate fingerprint matches the configured signing fingerprint and the Android native package identifier. |
 | Supabase redirect allow-list | **PASS** | Supabase Management API readback contains only `https://calorie-coach-pie35449.replit.app/auth/callback`. A disposable generated recovery link preserved the canonical callback, while `caloraapp://auth/callback` and an unrelated HTTPS URL fell back to the configured Site URL. The initial Google authorize endpoint returns a handoff `302` even for unlisted `redirect_to` values, so that status alone is not a final redirect-allow-list assertion. |
-| Disposable iOS build and three live auth flows | **BLOCKED** | Attempted on 2026-09-05. `xcrun simctl list devices booted` cannot run because `xcrun` is not installed; no signed IPA or simulator/device was available. Google sign-in, email verification, password recovery, cold launch, force-quit callback, and competing-app cases remain unexecuted. |
-| Disposable Android build and three live auth flows | **BLOCKED** | Attempted on 2026-09-05. `adb devices` cannot run because `adb` is not installed; Maestro confirms zero connected devices. No signed APK or emulator/device was available. Google sign-in, email verification, password recovery, cold launch, force-quit callback, and competing-app cases remain unexecuted. |
+| Disposable iOS build and native auth-link matrix | **BLOCKED** | Attempted on 2026-09-05. `xcrun simctl list devices booted` cannot run because `xcrun` is not installed; no signed IPA or simulator/device was available. Google sign-in, email verification, password recovery, cold launch, force-quit callback, and competing-app cases remain unexecuted. |
+| Disposable Android build and native auth-link matrix | **BLOCKED** | Attempted on 2026-09-05. `adb devices` cannot run because `adb` is not installed; Maestro confirms zero connected devices. No signed APK or emulator/device was available. Google sign-in, email verification, password recovery, cold launch, force-quit callback, and competing-app cases remain unexecuted. |
 
 ## Competing-app / custom-scheme test
 
@@ -149,10 +149,15 @@ adb devices
 xcrun simctl list devices booted
 # BLOCKED — xcrun: command not found (exit 127)
 
+maestro --version
+# PASS — 1.40.0
+
+cd artifacts/calora
 MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true \
-  maestro test tests/device/nutrition-goals.yaml
-# BLOCKED — “Not enough devices connected (1) to run the requested number of
-# shards (1).” (exit 1)
+  maestro test tests/device/meal-images.yaml
+# BLOCKED — “Want to use 0 devices, which is not enough to run 1 shards.
+# Missing 1 device(s). Not enough devices connected (1) to run the requested
+# number of shards (1).” (exit 1)
 ```
 
 The Expo project does have `development-device` and internal APK profiles in
