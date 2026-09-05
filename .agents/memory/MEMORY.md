@@ -32,6 +32,7 @@
 - [RevenueCat customer erasure scope](revenuecat-customer-erasure-scope.md) — existing-customer deletion stays pending until the provider grants customer read/write permission.
 - [Managed database support objects](managed-database-support-objects.md) — Drizzle table pushes do not establish PostgreSQL functions or triggers; production propagation must be proven separately.
 - [Account-deletion production fence](account-deletion-production-fence.md) — a generic sync 503 needs deployment-log correlation to prove the PostgreSQL deletion fence, not a service outage.
+- [Published deletion-monitor logs](deletion-monitor-log-export.md) — deployment log exports are formatted text and public request URLs include the `/api` mount.
 - [Account-deletion timestamp boundary](account-deletion-timestamp-boundary.md) — normalize raw PostgreSQL recovery timestamps at the state-reader boundary before age calculations.
 - [Recovery warning suppression](recovery-warning-suppression.md) — shared cooldowns are hashed, bounded operational state and must never gate deletion retries.
 - [Supabase Auth boundary](supabase-auth-boundary.md) — Calora’s configured Supabase project currently provides Auth, while Calora domain data remains in managed PostgreSQL.

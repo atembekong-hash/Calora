@@ -1,0 +1,1 @@
+{"schemaVersion":"calora.account-deletion-fence-monitor.v1","verified":true,"deletionFence":{"eventCount":1,"rejectionCount":1,"routes":{"/v1/sync":1}},"unrelatedSync503":{"eventCount":0,"routes":{}}}
