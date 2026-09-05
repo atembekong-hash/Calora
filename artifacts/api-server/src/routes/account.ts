@@ -27,6 +27,7 @@ import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 const RECOVERY_STUCK_AFTER_MS = 15 * 60 * 1000;
+const RECOVERY_WARNING_COOLDOWN_MS = 15 * 60 * 1000;
 const CORRELATION_KEY_LENGTH = 16;
 
 type RecoverySignalRecord = Pick<
@@ -53,6 +54,53 @@ function correlationKeys(records: RecoverySignalRecord[]): string[] {
   return [...new Set(
     records.map((record) => record.identityFingerprint.slice(0, CORRELATION_KEY_LENGTH)),
   )];
+}
+
+/**
+ * Recovery runs once a minute, but an unchanged provider outage should not
+ * create one warning per run. The key is made only from the same redacted
+ * values used in the warning and includes stage/status so a new account or
+ * recovery state always creates a new signal.
+ */
+const recoveryWarningEmittedAt = new Map<string, number>();
+
+function recoveryWarningKey(
+  failed: RecoverySignalRecord[],
+  overdue: RecoverySignalRecord[],
+): string {
+  return [
+    ...failed.map((record) => [
+      "failed",
+      record.identityFingerprint.slice(0, CORRELATION_KEY_LENGTH),
+      record.stage,
+    ].join(":")),
+    ...overdue.map((record) => [
+      "overdue",
+      record.identityFingerprint.slice(0, CORRELATION_KEY_LENGTH),
+      record.stage,
+    ].join(":")),
+  ].sort().join("|");
+}
+
+function shouldEmitRecoveryWarning(
+  failed: RecoverySignalRecord[],
+  overdue: RecoverySignalRecord[],
+  now: number,
+): boolean {
+  const key = recoveryWarningKey(failed, overdue);
+  for (const [storedKey, emittedAt] of recoveryWarningEmittedAt) {
+    if (now - emittedAt >= RECOVERY_WARNING_COOLDOWN_MS) {
+      recoveryWarningEmittedAt.delete(storedKey);
+    }
+  }
+
+  const emittedAt = recoveryWarningEmittedAt.get(key);
+  if (emittedAt !== undefined && now - emittedAt < RECOVERY_WARNING_COOLDOWN_MS) {
+    return false;
+  }
+
+  recoveryWarningEmittedAt.set(key, now);
+  return true;
 }
 
 /**
@@ -181,7 +229,10 @@ export async function recoverPendingAccountDeletions(): Promise<void> {
   const overdue = unresolved.filter(
     (deletion) => ageSeconds(deletion, now) * 1000 >= RECOVERY_STUCK_AFTER_MS,
   );
-  if (failed.length > 0 || overdue.length > 0) {
+  if (
+    (failed.length > 0 || overdue.length > 0)
+    && shouldEmitRecoveryWarning(failed, overdue, now)
+  ) {
     logger.warn(
       {
         event: "account_deletion_recovery",

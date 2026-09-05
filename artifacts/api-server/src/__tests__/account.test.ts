@@ -257,4 +257,73 @@ describe("account deletion recovery signals", () => {
     expect(JSON.stringify(fields)).not.toContain("raw-auth-uuid-that-must-not-be-logged");
     expect(JSON.stringify(fields)).not.toContain("provider failed");
   });
+
+  it("rate-limits an unchanged recovery cohort", async () => {
+    const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+    listRecoverableDeletions.mockResolvedValue([
+      {
+        externalUserId: "raw-auth-uuid-that-must-not-be-logged",
+        identityFingerprint: "c".repeat(64),
+        stage: "revenuecat",
+        requestedAt,
+        updatedAt: requestedAt,
+      },
+    ]);
+    claimDeletion.mockRejectedValue(new Error("provider unavailable"));
+
+    await recoverPendingAccountDeletions();
+    await recoverPendingAccountDeletions();
+
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it("emits a fresh signal when a recovery stage changes", async () => {
+    const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+    const deletion = {
+      externalUserId: "raw-auth-uuid-that-must-not-be-logged",
+      identityFingerprint: "d".repeat(64),
+      stage: "revenuecat" as const,
+      requestedAt,
+      updatedAt: requestedAt,
+    };
+    listRecoverableDeletions.mockResolvedValue([deletion]);
+    claimDeletion.mockRejectedValue(new Error("provider unavailable"));
+
+    await recoverPendingAccountDeletions();
+    listRecoverableDeletions.mockResolvedValue([{ ...deletion, stage: "auth" }]);
+    await recoverPendingAccountDeletions();
+
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn.mock.calls[0][0]).toMatchObject({
+      overdueStages: { application: 0, revenuecat: 1, auth: 0 },
+    });
+    expect(warn.mock.calls[1][0]).toMatchObject({
+      overdueStages: { application: 0, revenuecat: 0, auth: 1 },
+    });
+  });
+
+  it("emits the same cohort again after the warning cooldown", async () => {
+    vi.useFakeTimers();
+    try {
+      const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+      listRecoverableDeletions.mockResolvedValue([
+        {
+          externalUserId: "raw-auth-uuid-that-must-not-be-logged",
+          identityFingerprint: "e".repeat(64),
+          stage: "revenuecat",
+          requestedAt,
+          updatedAt: requestedAt,
+        },
+      ]);
+      claimDeletion.mockRejectedValue(new Error("provider unavailable"));
+
+      await recoverPendingAccountDeletions();
+      vi.advanceTimersByTime(15 * 60 * 1000);
+      await recoverPendingAccountDeletions();
+
+      expect(warn).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
