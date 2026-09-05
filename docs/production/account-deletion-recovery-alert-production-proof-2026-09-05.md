@@ -80,7 +80,8 @@ The final aggregate database check reported:
 
 This verifies the controlled failure signal, quiet successful recovery, and
 cleanup of disposable deletion data in the current production-mode runtime.
-
+The live deployment closure below provides the separate deployed-runtime
+evidence and does not rely on this local rehearsal alone.
 ## Live deployment closure
 
 The API was then published from source tree

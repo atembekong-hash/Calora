@@ -80,3 +80,7 @@ describe("account deletion recovery state", () => {
     expect(deletion?.updatedAt).toBeInstanceOf(Date);
   });
 });
+
+const { execute } = vi.hoisted(() => ({
+  execute: vi.fn(),
+}));
