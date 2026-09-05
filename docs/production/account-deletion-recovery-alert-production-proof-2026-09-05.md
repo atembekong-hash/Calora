@@ -80,5 +80,49 @@ The final aggregate database check reported:
 
 This verifies the controlled failure signal, quiet successful recovery, and
 cleanup of disposable deletion data in the current production-mode runtime.
-It does not replace a live deployment-log check after the current source is
-published.
+
+## Live deployment closure
+
+The API was then published from source tree
+`708dd836f6b97849bce00839cda3d995de1c61fe`. The canonical `/api/version`
+response reported release `calora-api-8fdb5226bb19-20260905101425616`, proving
+that the deployed runtime included the timestamp normalization and sanitized
+recovery warning source used by this rehearsal.
+
+One new disposable Auth account and one disposable RevenueCat customer were
+used to exercise the deployed `DELETE /api/v1/account` route. A bounded,
+customer-specific recreation race caused provider post-delete verification to
+fail once without changing the global provider credential or touching another
+customer. The route returned one HTTP `502` and retained a retryable
+`revenuecat` checkpoint.
+
+The next deployed recovery cycle emitted exactly one structured warning:
+
+| Warning field | Aggregate result |
+|---|---:|
+| Attempted | 1 |
+| Failed | 1 |
+| Failure stage | `revenuecat` |
+| Unresolved | 1 |
+| Overdue | 0 |
+| Oldest age | 55 seconds |
+| Correlation keys | 1 × 16-character fingerprint prefix |
+
+The recovery warning contained the event name, a random cycle identifier,
+aggregate counts, stage counts, age, and the redacted correlation prefix. It
+contained no Auth UUID, email address, access token, provider customer ID,
+credential, or provider error text.
+
+The disposable provider customer was then removed through the real configured
+provider path. The following recovery cycle emitted no warning and completed
+Auth erasure. A final read-only aggregate production check reported:
+
+| Check | Aggregate result |
+|---|---:|
+| Rows remaining in `deleting` state | 0 |
+| Rows retaining a recovery external ID | 0 |
+| Terminal deleted rows retaining an error marker | 0 |
+| Recovery warning after provider restoration | none |
+
+This closes the prior deployment evidence gap while retaining only sanitized,
+aggregate operational proof.
