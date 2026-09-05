@@ -6,6 +6,7 @@ import {
   EncryptedStorageError,
 } from '../encryptedStorage';
 import type { StorageAdapter } from '../persistenceManager';
+import { secureStoreOptions } from '../secureStoreKeyAdapter';
 
 class MemoryStorage implements StorageAdapter {
   readonly values: Record<string, string> = {};
@@ -36,6 +37,17 @@ class MemorySecureStore {
 }
 
 describe('EncryptedStorageAdapter', () => {
+  it('does not send the iOS-only keychain option to Android SecureStore', () => {
+    const secureStore = {
+      AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 1,
+    } as typeof import('expo-secure-store');
+
+    expect(secureStoreOptions(secureStore, 'android')).toEqual({});
+    expect(secureStoreOptions(secureStore, 'ios')).toEqual({
+      keychainAccessible: 1,
+    });
+  });
+
   it('stores an authenticated encrypted envelope and decrypts it on hydration', async () => {
     const backing = new MemoryStorage();
     const secure = new MemorySecureStore();

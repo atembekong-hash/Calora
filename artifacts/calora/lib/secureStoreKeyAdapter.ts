@@ -1,4 +1,5 @@
 import type { SecureKeyAdapter } from './encryptedStorage';
+import { Platform } from 'react-native';
 
 /**
  * The domain snapshot is too large for SecureStore, so only this 256-bit
@@ -25,15 +26,31 @@ function webKeyStore() {
   return globalThis.localStorage;
 }
 
+type NativeSecureStoreModule = SecureStoreModule & {
+  AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY?: number;
+};
+
+/**
+ * keychainAccessible is an iOS-only SecureStore option. Android's native
+ * SecureStore record rejects unknown fields in some release builds, so never
+ * send the iOS option across that bridge.
+ */
+export function secureStoreOptions(
+  secureStore: NativeSecureStoreModule,
+  platform: typeof Platform.OS = Platform.OS,
+): Record<string, number> {
+  if (platform !== 'ios') return {};
+  const accessibility = secureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY;
+  return accessibility === undefined ? {} : { keychainAccessible: accessibility };
+}
+
 export const secureStoreKeyAdapter: SecureKeyAdapter = {
   getItem: async (key) => {
     if (isWebRuntime()) {
       return webKeyStore().getItem(`${WEB_KEY_PREFIX}${key}`);
     }
     const secureStore = await loadSecureStore();
-    return secureStore.getItemAsync(key, {
-      keychainAccessible: secureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
-    });
+    return secureStore.getItemAsync(key, secureStoreOptions(secureStore));
   },
   setItem: async (key, value) => {
     if (isWebRuntime()) {
@@ -41,8 +58,6 @@ export const secureStoreKeyAdapter: SecureKeyAdapter = {
       return;
     }
     const secureStore = await loadSecureStore();
-    return secureStore.setItemAsync(key, value, {
-      keychainAccessible: secureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
-    });
+    return secureStore.setItemAsync(key, value, secureStoreOptions(secureStore));
   },
 };
