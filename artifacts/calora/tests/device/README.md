@@ -145,6 +145,13 @@ CALORA_ANDROID_DEVICE="<exact booted Android device ID>" \
   pnpm test:release:encrypted-recovery
 ```
 
+The release gate first writes a native-runner preflight to the GitHub Actions
+step summary. It reports the observed `xcrun`, `adb`, and Maestro versions,
+whether each exact target is booted/connected, and whether the signed app is
+installed. Maestro must be version 1.40.x. A stale target, missing app, missing
+tool, or unsupported Maestro version fails the gate before any Maestro flow
+starts; the summary includes the repair diagnosis.
+
 The gate requires both IDs, runs iOS first and Android second, and fails if
 either target fails. Install the signed Calora build with application ID
 `com.etiendem.caloraapp` on both disposable targets before running it. Maestro
@@ -165,10 +172,11 @@ CALORA_ANDROID_DEVICE="<exact booted Android device ID>" \
   pnpm test:release:encrypted-recovery
 ```
 
-When `GITHUB_STEP_SUMMARY` is available, the same sanitized JSON is appended
-to the workflow summary. A missing target, missing Maestro installation, or
-failed platform writes a failed record when an evidence path is provided and
-keeps the command nonzero.
+When `GITHUB_STEP_SUMMARY` is available, the preflight diagnosis and same
+sanitized JSON are appended to the workflow summary. A missing target, missing
+Maestro installation, unsupported toolchain, missing signed app, or failed
+platform writes a failed record when an evidence path is provided and keeps
+the command nonzero.
 
 The repository workflow `.github/workflows/native-encrypted-recovery.yml` runs
 this gate on a labeled native runner and uploads only that sanitized JSON,

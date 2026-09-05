@@ -13,6 +13,7 @@ const evidencePath = process.env.CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH?.trim()
 const buildCheckEnabled =
   process.env.CALORA_ENCRYPTED_RECOVERY_BUILD_CHECK === 'true';
 const platformResults = new Map();
+const supportedMaestroVersion = /^1\.40(?:\.\d+)?$/;
 
 function readAppId() {
   const flowSource = fs.readFileSync(path.join(projectRoot, flowPath), 'utf8');
@@ -77,6 +78,146 @@ function writeEvidence(evidence) {
   }
 }
 
+function runCommand(command, args) {
+  const result = spawnSync(command, args, {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return {
+    ...result,
+    output: `${result.stdout || ''}\n${result.stderr || ''}`,
+  };
+}
+
+function parseVersion(output) {
+  return output.match(/\b\d+\.\d+(?:\.\d+)?\b/)?.[0] || null;
+}
+
+function checkTool(name, args, versionPattern) {
+  const displayName = name === 'maestro' ? 'Maestro' : name;
+  const result = runCommand(name, args);
+  if (result.error || result.status !== 0) {
+    return {
+      name,
+      status: 'failed',
+      version: null,
+      detail: `${displayName} is unavailable on PATH`,
+    };
+  }
+
+  const version = parseVersion(result.output);
+  if (!version) {
+    return {
+      name,
+      status: 'failed',
+      version: null,
+      detail: `${displayName} returned no recognizable version`,
+    };
+  }
+
+  if (versionPattern && !versionPattern.test(version)) {
+    return {
+      name,
+      status: 'failed',
+      version,
+      detail: `${displayName} ${version} is unsupported; required Maestro 1.40.x`,
+    };
+  }
+
+  return {
+    name,
+    status: 'ready',
+    version,
+    detail: `${displayName} ${version}`,
+  };
+}
+
+function checkTargetAvailable(platform, device) {
+  if (platform === 'iOS') {
+    const result = runCommand('xcrun', [
+      'simctl',
+      'list',
+      'devices',
+      'booted',
+      '--json',
+    ]);
+    if (result.error || result.status !== 0) {
+      return false;
+    }
+
+    try {
+      const deviceList = JSON.parse(result.stdout);
+      return Object.values(deviceList.devices || {})
+        .flat()
+        .some(
+          (candidate) =>
+            candidate.udid === device && candidate.state === 'Booted',
+        );
+    } catch {
+      return false;
+    }
+  }
+
+  const result = runCommand('adb', ['-s', device, 'get-state']);
+  return !result.error && result.status === 0 && result.stdout.trim() === 'device';
+}
+
+function writePreflightSummary(preflight, diagnoses) {
+  if (!process.env.GITHUB_STEP_SUMMARY) {
+    return;
+  }
+
+  const lines = [
+    '## Native encrypted-recovery runner preflight',
+    '',
+    '| Requirement | Status | Observed |',
+    '| --- | --- | --- |',
+    ...preflight.tools.map(
+      ({ name, status, version, detail }) =>
+        `| ${name === 'maestro' ? 'Maestro' : name} | ${
+          status === 'ready' ? '✅ Ready' : '❌ Failed'
+        } | ${
+          version || detail
+        } |`,
+    ),
+    ...preflight.targets.map(
+      ({ platform, device, available, appInstalled }) => {
+        const targetStatus =
+          available === null
+            ? '⚪ Not checked'
+            : available
+              ? '✅ Ready'
+              : '❌ Failed';
+        const appStatus =
+          appInstalled === null
+            ? 'not checked'
+            : appInstalled
+              ? 'installed'
+              : 'missing';
+        return `| ${platform} target${device ? ` (${device})` : ''} | ${targetStatus} | app ${appStatus} |`;
+      },
+    ),
+    '',
+  ];
+
+  if (diagnoses.length > 0) {
+    lines.push('### Diagnosis', '', ...diagnoses.map((diagnosis) => `- ❌ ${diagnosis}`), '');
+  } else {
+    lines.push(
+      buildCheckEnabled
+        ? 'All required runner tools, disposable targets, and signed apps are ready.'
+        : 'All required runner tools and disposable targets are ready.',
+      '',
+    );
+  }
+
+  fs.mkdirSync(path.dirname(process.env.GITHUB_STEP_SUMMARY), {
+    recursive: true,
+  });
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`);
+}
+
 function printUsage() {
   console.error(
     [
@@ -109,55 +250,135 @@ function checkInstalledBuild(platform, device) {
 }
 
 const missingTargets = targets.filter(({ envName }) => !process.env[envName]?.trim());
+const failures = [];
+const diagnoses = [];
+const preflightTools = [
+  checkTool('xcrun', ['--version']),
+  checkTool('adb', ['version']),
+  checkTool('maestro', ['--version'], supportedMaestroVersion),
+];
+const preflight = {
+  tools: preflightTools,
+  targets: targets.map(({ platform, envName }) => {
+    const device = process.env[envName]?.trim() || null;
+    if (!device) {
+      return {
+        platform,
+        device,
+        available: false,
+        appInstalled: null,
+      };
+    }
+
+    const platformToolName = platform === 'iOS' ? 'xcrun' : 'adb';
+    const platformTool = preflightTools.find(
+      (tool) => tool.name === platformToolName,
+    );
+    const available =
+      platformTool.status === 'ready'
+        ? checkTargetAvailable(platform, device)
+        : null;
+    const appInstalled =
+      available && buildCheckEnabled
+        ? checkInstalledBuild(platform, device)
+        : null;
+    return { platform, device, available, appInstalled };
+  }),
+};
+
 if (missingTargets.length > 0) {
-  console.error(
+  diagnoses.push(
     `Missing required target selection: ${missingTargets
       .map(({ envName }) => envName)
       .join(', ')}`,
   );
-  printUsage();
-  writeEvidence(buildEvidence('failed', 'missing_target_selection'));
-  process.exit(1);
 }
 
-const versionCheck = spawnSync('maestro', ['--version'], {
-  cwd: projectRoot,
-  encoding: 'utf8',
-});
-if (versionCheck.error) {
-  console.error(
-    'Maestro is required for the encrypted-recovery release gate but was not found on PATH.',
-  );
-  console.error('Install Maestro before running this release validation.');
-  writeEvidence(buildEvidence('failed', 'maestro_unavailable'));
-  process.exit(1);
+for (const tool of preflight.tools) {
+  if (tool.status !== 'ready') {
+    diagnoses.push(tool.detail);
+  }
 }
 
-const failures = [];
-
-for (const { platform, envName } of targets) {
-  const device = process.env[envName].trim();
-  console.log(`\n[encrypted-recovery] ${platform} target: ${device}`);
-
-  if (buildCheckEnabled && !checkInstalledBuild(platform, device)) {
-    platformResults.set(platform, {
-      outcome: 'failed',
-      exitCode: 1,
-    });
+for (const target of preflight.targets) {
+  if (!target.device) {
+    continue;
+  }
+  if (target.available === false) {
+    diagnoses.push(
+      `${target.platform} target ${target.device} is not booted or connected; select a disposable target reported by the native platform tool.`,
+    );
+    platformResults.set(target.platform, { outcome: 'failed', exitCode: 1 });
     failures.push({
-      platform,
-      device,
+      platform: target.platform,
+      device: target.device,
+      status: 1,
+      error: new Error('The selected disposable target is not available.'),
+      failureClass: 'target_unavailable',
+    });
+  } else if (buildCheckEnabled && !target.appInstalled) {
+    diagnoses.push(
+      `${target.platform} build missing on ${target.device}; the signed Calora build is not installed on the selected target.`,
+    );
+    platformResults.set(target.platform, { outcome: 'failed', exitCode: 1 });
+    failures.push({
+      platform: target.platform,
+      device: target.device,
       status: 1,
       error: new Error(
         'The signed Calora build is not installed on the selected target.',
       ),
       failureClass: 'missing_build',
     });
-    console.error(
-      `[encrypted-recovery] ${platform} build missing on ${device}; skipping Maestro.`,
-    );
-    continue;
   }
+}
+
+function determineFailureClass() {
+  if (missingTargets.length > 0) {
+    return 'missing_target_selection';
+  }
+
+  const maestroTool = preflight.tools.find((tool) => tool.name === 'maestro');
+  if (maestroTool.status !== 'ready') {
+    return maestroTool.detail.includes('unsupported')
+      ? 'maestro_unsupported'
+      : 'maestro_unavailable';
+  }
+
+  if (
+    preflight.tools.some(
+      (tool) => tool.name === 'xcrun' && tool.status !== 'ready',
+    )
+  ) {
+    return 'xcrun_unavailable';
+  }
+  if (
+    preflight.tools.some(
+      (tool) => tool.name === 'adb' && tool.status !== 'ready',
+    )
+  ) {
+    return 'adb_unavailable';
+  }
+  if (failures.some((failure) => failure.failureClass === 'missing_build')) {
+    return 'missing_build';
+  }
+  return 'target_unavailable';
+}
+
+writePreflightSummary(preflight, diagnoses);
+
+if (diagnoses.length > 0) {
+  for (const diagnosis of diagnoses) {
+    console.error(`[encrypted-recovery] PREFLIGHT FAILED: ${diagnosis}`);
+  }
+  printUsage();
+  writeEvidence(buildEvidence('failed', determineFailureClass()));
+  process.exit(1);
+}
+
+for (const { platform, envName } of targets) {
+  const device = process.env[envName].trim();
+  console.log(`\n[encrypted-recovery] ${platform} target: ${device}`);
 
   console.log(`[encrypted-recovery] Running ${flowPath}`);
 

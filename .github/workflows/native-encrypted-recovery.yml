@@ -42,7 +42,7 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Run native encrypted-recovery release gate
+      - name: Preflight native runner and run encrypted-recovery release gate
         working-directory: artifacts/calora
         run: pnpm test:release:encrypted-recovery
 

@@ -27,7 +27,7 @@ function writeFakeMaestro(directory) {
     executablePath,
     `#!/bin/sh
 if [ "$1" = "--version" ]; then
-  printf '%s\\n' '1.40.0'
+   printf '%s\\n' "\${FAKE_MAESTRO_VERSION:-1.40.0}"
   exit 0
 fi
 
@@ -46,6 +46,18 @@ function writeFakeNativeTools(directory) {
   fs.writeFileSync(
     path.join(directory, 'xcrun'),
     `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf '%s\\n' 'xcrun version 1.0'
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "list" ]; then
+  if [ "\${FAKE_UNAVAILABLE_PLATFORM:-}" = "iOS" ]; then
+    printf '%s\\n' '{"devices":{"iOS":{"udid":"other-ios-device","state":"Booted"}}}'
+    exit 0
+  fi
+  printf '%s\\n' '{"devices":{"iOS":{"udid":"ios-simulator-001","state":"Booted"}}}'
+  exit 0
+fi
 if [ "\${FAKE_MISSING_BUILD_PLATFORM:-}" = "iOS" ]; then
   exit 1
 fi
@@ -56,6 +68,18 @@ printf '%s\\n' '/tmp/Calora.app'
   fs.writeFileSync(
     path.join(directory, 'adb'),
     `#!/bin/sh
+if [ "$1" = "version" ]; then
+  printf '%s\\n' 'Android Debug Bridge version 1.0.41'
+  exit 0
+fi
+if [ "$3" = "get-state" ]; then
+  if [ "\${FAKE_UNAVAILABLE_PLATFORM:-}" = "Android" ]; then
+    printf '%s\\n' 'offline'
+    exit 0
+  fi
+  printf '%s\\n' 'device'
+  exit 0
+fi
 if [ "\${FAKE_MISSING_BUILD_PLATFORM:-}" = "Android" ]; then
   exit 1
 fi
@@ -70,22 +94,25 @@ function runGate({
   androidDevice = 'android-emulator-001',
   failDevice,
   maestro = 'available',
+  maestroVersion = '1.40.0',
   buildCheck = false,
   missingBuildPlatform,
+  unavailablePlatform,
+  summary = true,
 }) {
   const fixtureDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'calora-encrypted-recovery-gate-'),
   );
   const maestroDirectory = path.join(fixtureDirectory, 'bin');
   const evidencePath = path.join(fixtureDirectory, 'release', 'evidence.json');
+  const summaryPath = path.join(fixtureDirectory, 'release', 'summary.md');
   fs.mkdirSync(maestroDirectory);
+  fs.mkdirSync(path.dirname(summaryPath), { recursive: true });
 
   if (maestro === 'available') {
     writeFakeMaestro(maestroDirectory);
   }
-  if (buildCheck) {
-    writeFakeNativeTools(maestroDirectory);
-  }
+  writeFakeNativeTools(maestroDirectory);
 
   const result = spawnSync(process.execPath, [gatePath], {
     cwd: projectRoot,
@@ -96,11 +123,14 @@ function runGate({
       CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH: evidencePath,
       CALORA_ENCRYPTED_RECOVERY_BUILD_CHECK: buildCheck ? 'true' : '',
       FAKE_MISSING_BUILD_PLATFORM: missingBuildPlatform || '',
+      FAKE_UNAVAILABLE_PLATFORM: unavailablePlatform || '',
+      FAKE_MAESTRO_VERSION: maestroVersion,
+      GITHUB_STEP_SUMMARY: summary ? summaryPath : '',
       FAKE_MAESTRO_FAIL_DEVICE: failDevice || '',
       PATH:
         maestro === 'available'
           ? `${maestroDirectory}:${process.env.PATH || ''}`
-          : path.join(fixtureDirectory, 'missing-bin'),
+          : `${maestroDirectory}:/usr/bin:/bin`,
     },
     encoding: 'utf8',
   });
@@ -110,6 +140,7 @@ function runGate({
     ...result,
     evidence,
     evidenceText: fs.readFileSync(evidencePath, 'utf8'),
+    summaryText: summary ? fs.readFileSync(summaryPath, 'utf8') : '',
     fixtureDirectory,
   };
 }
@@ -151,7 +182,7 @@ function assertEvidenceSchema(evidence, expectedTargets, expectedResult, failure
 }
 
 test('records sanitized evidence for a passing iOS and Android run', (t) => {
-  const result = runGate({});
+  const result = runGate({ buildCheck: true });
   t.after(() => fs.rmSync(result.fixtureDirectory, { recursive: true, force: true }));
 
   assert.equal(result.status, 0);
@@ -175,6 +206,14 @@ test('records sanitized evidence for a passing iOS and Android run', (t) => {
   );
   assertEvidenceLineIsSanitized(result.stdout, result.evidence);
   assert.equal(result.evidenceText.includes(sensitiveOutput), false);
+  assert.match(result.summaryText, /\| xcrun \| ✅ Ready \| 1\.0 \|/);
+  assert.match(result.summaryText, /\| adb \| ✅ Ready \| 1\.0\.41 \|/);
+  assert.match(result.summaryText, /\| Maestro \| ✅ Ready \| 1\.40\.0 \|/);
+  assert.match(result.summaryText, /iOS target \(ios-simulator-001\).*app installed/);
+  assert.match(
+    result.summaryText,
+    /Android target \(android-emulator-001\).*app installed/,
+  );
 });
 
 test('records the failed platform and preserves the sanitized boundary', (t) => {
@@ -284,8 +323,8 @@ test('records a missing native build without running Maestro', (t) => {
       {
         platform: 'Android',
         targetId: 'android-emulator-001',
-        outcome: 'passed',
-        exitCode: 0,
+        outcome: 'not-run',
+        exitCode: null,
       },
     ],
     'failed',
@@ -293,4 +332,70 @@ test('records a missing native build without running Maestro', (t) => {
   );
   assert.match(result.stderr, /iOS build missing/);
   assertEvidenceLineIsSanitized(result.stdout, result.evidence);
+});
+
+test('rejects an unsupported Maestro version before running the flow', (t) => {
+  const result = runGate({ maestroVersion: '1.39.2' });
+  t.after(() =>
+    fs.rmSync(result.fixtureDirectory, { recursive: true, force: true }),
+  );
+
+  assert.equal(result.status, 1);
+  assertEvidenceSchema(
+    result.evidence,
+    [
+      {
+        platform: 'iOS',
+        targetId: 'ios-simulator-001',
+        outcome: 'not-run',
+        exitCode: null,
+      },
+      {
+        platform: 'Android',
+        targetId: 'android-emulator-001',
+        outcome: 'not-run',
+        exitCode: null,
+      },
+    ],
+    'failed',
+    'maestro_unsupported',
+  );
+  assert.match(result.stderr, /Maestro 1\.39\.2 is unsupported/);
+  assert.match(result.summaryText, /Maestro \| ❌ Failed \| 1\.39\.2 \|/);
+  assert.match(result.summaryText, /required Maestro 1\.40\.x/);
+  assert.equal(result.stdout.includes(sensitiveOutput), false);
+  assert.equal(result.evidenceText.includes(sensitiveOutput), false);
+});
+
+test('rejects a stale disposable target before running Maestro', (t) => {
+  const result = runGate({ unavailablePlatform: 'Android' });
+  t.after(() =>
+    fs.rmSync(result.fixtureDirectory, { recursive: true, force: true }),
+  );
+
+  assert.equal(result.status, 1);
+  assertEvidenceSchema(
+    result.evidence,
+    [
+      {
+        platform: 'iOS',
+        targetId: 'ios-simulator-001',
+        outcome: 'not-run',
+        exitCode: null,
+      },
+      {
+        platform: 'Android',
+        targetId: 'android-emulator-001',
+        outcome: 'failed',
+        exitCode: 1,
+      },
+    ],
+    'failed',
+    'target_unavailable',
+  );
+  assert.match(result.stderr, /Android target android-emulator-001 is not booted or connected/);
+  assert.match(result.summaryText, /Android target \(android-emulator-001\) \| ❌ Failed/);
+  assert.match(result.summaryText, /select a disposable target/);
+  assert.equal(result.stdout.includes(sensitiveOutput), false);
+  assert.equal(result.evidenceText.includes(sensitiveOutput), false);
 });
