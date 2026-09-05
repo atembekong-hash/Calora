@@ -1351,6 +1351,7 @@ export default function RecipesScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
+        leftAlignTitle
         title="Recipes"
         action={(
           <Pressable

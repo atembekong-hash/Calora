@@ -1608,6 +1608,7 @@ export default function InsightsScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
+        leftAlignTitle
         title="Progress"
         action={
           <View style={styles.headerActions}>

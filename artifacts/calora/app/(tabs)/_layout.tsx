@@ -35,7 +35,7 @@ function ClassicTabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: false,
-        tabBarLabelStyle: styles.leftShiftedTabLabel,
+        tabBarLabelStyle: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
         tabBarStyle: {
           position: 'absolute',
           backgroundColor: isIOS ? 'transparent' : colors.background,
@@ -121,7 +121,6 @@ function ClassicTabLayout() {
         name="planner"
         options={{
           title: 'Plan',
-          tabBarLabelStyle: styles.tabBarLabel,
           tabBarIcon: ({ color, focused }) => (
             <AnimatedTabIcon focused={focused}>
               {isIOS ? <SymbolView name="calendar" tintColor={color} size={23} /> : <Feather name="calendar" size={22} color={color} />}
@@ -159,10 +158,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     fontSize: 10,
     marginTop: 2,
-    transform: [{ translateX: -14 }],
   },
-  tabBarLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  leftShiftedTabLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11, transform: [{ translateX: -14 }] },
 });
 
 export default function TabLayout() {

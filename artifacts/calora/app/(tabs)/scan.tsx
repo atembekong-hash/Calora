@@ -386,6 +386,7 @@ export default function ScanScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
+        leftAlignTitle
         title="Scan"
         action={
           <Pressable

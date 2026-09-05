@@ -1448,6 +1448,7 @@ export default function HomeScreen() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <AppHeader
+        leftAlignTitle
         title="Today"
         action={
           <View style={styles.homeHeaderActions}>
