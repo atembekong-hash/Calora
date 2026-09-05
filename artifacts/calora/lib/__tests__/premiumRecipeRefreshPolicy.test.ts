@@ -7,6 +7,7 @@ describe("PREMIUM_RECIPE_REFRESH_POLICY", () => {
       refetchOnMount: "always",
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
+      retry: false,
     });
     expect(PREMIUM_RECIPE_REFRESH_POLICY).not.toHaveProperty("refetchInterval");
   });

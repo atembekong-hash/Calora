@@ -3,4 +3,5 @@ export const PREMIUM_RECIPE_REFRESH_POLICY = {
   refetchOnMount: "always",
   refetchOnWindowFocus: false,
   refetchOnReconnect: false,
+  retry: false,
 } as const;

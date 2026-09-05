@@ -458,13 +458,25 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     hasVerifiedCurrentAccount,
   });
   const data = canDisplayCatalogue ? query.data : undefined;
+  const appStateRef = useRef(AppState.currentState);
+  const queryFetchingRef = useRef(query.isFetching);
+  useEffect(() => {
+    queryFetchingRef.current = query.isFetching;
+  }, [query.isFetching]);
   useEffect(() => {
     if (!accessDenied) return;
     queryClient.removeQueries({ queryKey: premiumQueryKey, exact: true });
   }, [accessDenied, premiumQueryKey, queryClient]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void query.refetch();
+      const previousState = appStateRef.current;
+      appStateRef.current = state;
+      // The initial active event can arrive while the mount request is
+      // already in flight. Only refresh after a real background -> active
+      // transition, and never restart an existing entitlement/provider call.
+      if (state === 'active' && previousState !== 'active' && !queryFetchingRef.current) {
+        void query.refetch();
+      }
     });
     return () => subscription.remove();
   }, [query.refetch]);
