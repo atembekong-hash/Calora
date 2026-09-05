@@ -11,6 +11,14 @@ export type AccountDeletionClaim =
 
 const LEASE_SECONDS = 5 * 60;
 
+export interface RecoverableAccountDeletion {
+  externalUserId: string;
+  identityFingerprint: string;
+  stage: AccountDeletionStage;
+  requestedAt: Date | null;
+  updatedAt: Date;
+}
+
 function identityFingerprint(externalUserId: string): string {
   return createHash("sha256").update(externalUserId).digest("hex");
 }
@@ -118,9 +126,15 @@ export async function completeAccountDeletion(externalUserId: string, operationI
   return result.rows.length === 1;
 }
 
-export async function listRecoverableAccountDeletions(): Promise<string[]> {
-  const rows = await db.execute<{ recovery_external_user_id: string }>(sql`
-    SELECT recovery_external_user_id
+export async function listRecoverableAccountDeletions(): Promise<RecoverableAccountDeletion[]> {
+  const rows = await db.execute<{
+    recovery_external_user_id: string;
+    identity_fingerprint: string;
+    stage: AccountDeletionStage;
+    requested_at: Date | null;
+    updated_at: Date;
+  }>(sql`
+    SELECT recovery_external_user_id, identity_fingerprint, stage, requested_at, updated_at
     FROM calora_account_deletion_states
     WHERE state = 'deleting'
       AND recovery_external_user_id IS NOT NULL
@@ -128,7 +142,13 @@ export async function listRecoverableAccountDeletions(): Promise<string[]> {
     ORDER BY updated_at ASC
     LIMIT 25
   `);
-  return rows.rows.map((row) => row.recovery_external_user_id);
+  return rows.rows.map((row) => ({
+    externalUserId: row.recovery_external_user_id,
+    identityFingerprint: row.identity_fingerprint,
+    stage: row.stage,
+    requestedAt: row.requested_at,
+    updatedAt: row.updated_at,
+  }));
 }
 
 export class AccountDeletionInProgressError extends Error {

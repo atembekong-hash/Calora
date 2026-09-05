@@ -19,10 +19,41 @@ import {
   completeAccountDeletion,
   listRecoverableAccountDeletions,
   markAccountDeletionFailed,
+  type AccountDeletionStage,
+  type RecoverableAccountDeletion,
 } from "../lib/account-deletion-state.js";
 import { deleteRevenueCatSubscriber } from "../lib/revenuecat.js";
+import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
+const RECOVERY_STUCK_AFTER_MS = 15 * 60 * 1000;
+const CORRELATION_KEY_LENGTH = 16;
+
+type RecoverySignalRecord = Pick<
+  RecoverableAccountDeletion,
+  "identityFingerprint" | "stage" | "requestedAt" | "updatedAt"
+>;
+
+function ageSeconds(record: RecoverySignalRecord, now: number): number {
+  const startedAt = record.requestedAt?.getTime() ?? record.updatedAt.getTime();
+  return Math.max(0, Math.floor((now - startedAt) / 1000));
+}
+
+function countStages(records: RecoverySignalRecord[]): Record<AccountDeletionStage, number> {
+  return records.reduce<Record<AccountDeletionStage, number>>(
+    (counts, record) => {
+      counts[record.stage] += 1;
+      return counts;
+    },
+    { application: 0, revenuecat: 0, auth: 0 },
+  );
+}
+
+function correlationKeys(records: RecoverySignalRecord[]): string[] {
+  return [...new Set(
+    records.map((record) => record.identityFingerprint.slice(0, CORRELATION_KEY_LENGTH)),
+  )];
+}
 
 /**
  * Remove data that is linked directly to a Supabase Auth id before deleting
@@ -131,13 +162,43 @@ export async function runAccountDeletion(externalUserId: string): Promise<"compl
  */
 export async function recoverPendingAccountDeletions(): Promise<void> {
   const pending = await listRecoverableAccountDeletions();
-  for (const externalUserId of pending) {
+  const failed: RecoverySignalRecord[] = [];
+  const unresolved: RecoverySignalRecord[] = [];
+  const now = Date.now();
+
+  for (const deletion of pending) {
     try {
-      await runAccountDeletion(externalUserId);
+      const outcome = await runAccountDeletion(deletion.externalUserId);
+      if (outcome !== "completed") unresolved.push(deletion);
     } catch {
       // The operation retains its retry checkpoint and will be retried after
       // the lease expires. Individual failures must not block other accounts.
+      failed.push(deletion);
+      unresolved.push(deletion);
     }
+  }
+
+  const overdue = unresolved.filter(
+    (deletion) => ageSeconds(deletion, now) * 1000 >= RECOVERY_STUCK_AFTER_MS,
+  );
+  if (failed.length > 0 || overdue.length > 0) {
+    logger.warn(
+      {
+        event: "account_deletion_recovery",
+        recoveryCycleId: randomUUID(),
+        attemptedCount: pending.length,
+        failureCount: failed.length,
+        failureStages: countStages(failed),
+        unresolvedCount: unresolved.length,
+        overdueCount: overdue.length,
+        overdueStages: countStages(overdue),
+        oldestAgeSeconds: unresolved.length
+          ? Math.max(...unresolved.map((deletion) => ageSeconds(deletion, now)))
+          : 0,
+        correlationKeys: correlationKeys([...failed, ...overdue]),
+      },
+      "Account deletion recovery needs attention",
+    );
   }
 }
 

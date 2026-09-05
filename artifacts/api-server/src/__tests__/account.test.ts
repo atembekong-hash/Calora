@@ -5,10 +5,12 @@ import request from "supertest";
 const {
   transaction, execute, deleteWhere, deleteUser, getUser, advisoryQuery,
   claimDeletion, checkpointDeletion, completeDeletion, failedDeletion, deleteRevenueCatSubscriber,
+  listRecoverableDeletions, warn,
 } = vi.hoisted(() => {
   const execute = vi.fn();
   const deleteWhere = vi.fn();
   const advisoryQuery = vi.fn().mockResolvedValue({ rows: [{ locked: true }] });
+  const warn = vi.fn();
   const tx = {
     execute,
     delete: () => ({ where: deleteWhere }),
@@ -25,6 +27,8 @@ const {
     failedDeletion: vi.fn(),
     deleteRevenueCatSubscriber: vi.fn(),
     advisoryQuery,
+    listRecoverableDeletions: vi.fn(),
+    warn,
   };
 });
 
@@ -48,14 +52,18 @@ vi.mock("../lib/account-deletion-state.js", () => ({
   checkpointAccountDeletion: (...args: unknown[]) => checkpointDeletion(...args),
   completeAccountDeletion: (...args: unknown[]) => completeDeletion(...args),
   markAccountDeletionFailed: (...args: unknown[]) => failedDeletion(...args),
-  listRecoverableAccountDeletions: vi.fn().mockResolvedValue([]),
+  listRecoverableAccountDeletions: (...args: unknown[]) => listRecoverableDeletions(...args),
 }));
 
 vi.mock("../lib/revenuecat.js", () => ({
   deleteRevenueCatSubscriber: (...args: unknown[]) => deleteRevenueCatSubscriber(...args),
 }));
 
-import accountRouter from "../routes/account.js";
+vi.mock("../lib/logger.js", () => ({
+  logger: { warn },
+}));
+
+import accountRouter, { recoverPendingAccountDeletions } from "../routes/account.js";
 
 function buildApp() {
   const app = express();
@@ -77,6 +85,7 @@ describe("DELETE /v1/account", () => {
     completeDeletion.mockResolvedValue(true);
     failedDeletion.mockResolvedValue(undefined);
     deleteRevenueCatSubscriber.mockResolvedValue(undefined);
+    listRecoverableDeletions.mockResolvedValue([]);
   });
 
   it("removes application data before deleting the authenticated Auth identity", async () => {
@@ -188,5 +197,64 @@ describe("DELETE /v1/account", () => {
     expect(deleteRevenueCatSubscriber).not.toHaveBeenCalled();
     expect(deleteUser).not.toHaveBeenCalled();
     expect(transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("account deletion recovery signals", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listRecoverableDeletions.mockResolvedValue([]);
+    advisoryQuery.mockResolvedValue({ rows: [{ locked: true }] });
+    claimDeletion.mockResolvedValue({ kind: "completed" });
+  });
+
+  it("stays quiet when all recoverable deletions complete", async () => {
+    listRecoverableDeletions.mockResolvedValue([
+      {
+        externalUserId: "auth-user-1",
+        identityFingerprint: "a".repeat(64),
+        stage: "auth",
+        requestedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+
+    await recoverPendingAccountDeletions();
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("emits an aggregate redacted signal for a failed, overdue recovery", async () => {
+    const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+    listRecoverableDeletions.mockResolvedValue([
+      {
+        externalUserId: "raw-auth-uuid-that-must-not-be-logged",
+        identityFingerprint: "b".repeat(64),
+        stage: "revenuecat",
+        requestedAt,
+        updatedAt: requestedAt,
+      },
+    ]);
+    claimDeletion.mockRejectedValueOnce(
+      new Error("provider failed for raw-auth-uuid-that-must-not-be-logged"),
+    );
+
+    await recoverPendingAccountDeletions();
+
+    expect(warn).toHaveBeenCalledOnce();
+    const [fields, message] = warn.mock.calls[0];
+    expect(message).toBe("Account deletion recovery needs attention");
+    expect(fields).toMatchObject({
+      event: "account_deletion_recovery",
+      attemptedCount: 1,
+      failureCount: 1,
+      failureStages: { application: 0, revenuecat: 1, auth: 0 },
+      unresolvedCount: 1,
+      overdueCount: 1,
+      overdueStages: { application: 0, revenuecat: 1, auth: 0 },
+      correlationKeys: ["b".repeat(16)],
+    });
+    expect(JSON.stringify(fields)).not.toContain("raw-auth-uuid-that-must-not-be-logged");
+    expect(JSON.stringify(fields)).not.toContain("provider failed");
   });
 });
