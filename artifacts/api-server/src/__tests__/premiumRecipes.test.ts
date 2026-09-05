@@ -194,6 +194,33 @@ describe("Premium recipe routes", () => {
     expect(String(fetchMock.mock.calls[1][0])).toContain("/recipes/search/v3");
   });
 
+  it("continues FatSecret pagination when the provider omits total_results", async () => {
+    process.env.FATSECRET_CLIENT_ID = "test-id";
+    process.env.FATSECRET_CLIENT_SECRET = "test-secret";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "token", expires_in: 3600 }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          recipes: {
+            recipe: Array.from({ length: 18 }, (_, index) => ({
+              recipe_id: String(index + 1),
+              recipe_name: `FatSecret recipe ${index + 1}`,
+              recipe_url: `https://foods.fatsecret.com/recipes/${index + 1}`,
+            })),
+          },
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider();
+
+    const res = await request(app).get("/v1/premium-recipes?limit=18&offset=0");
+
+    expect(res.status).toBe(200);
+    expect(res.body.recipes).toHaveLength(18);
+    expect(res.body.nextOffset).toBe(18);
+  });
+
   it("uses the configured FatSecret gateway before direct credentials", async () => {
     process.env.FATSECRET_CLIENT_ID = "direct-client-id";
     process.env.FATSECRET_CLIENT_SECRET = "direct-client-secret";

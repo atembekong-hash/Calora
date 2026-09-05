@@ -471,8 +471,11 @@ export async function listPremiumRecipes(input: { query?: string; category?: str
     const search = payload.recipes && typeof payload.recipes === "object" ? payload.recipes as Record<string, unknown> : {};
     const rows = Array.isArray(search.recipe) ? search.recipe : search.recipe ? [search.recipe] : [];
     const recipes = rows.map(fatSecretRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe));
-    const total = fatSecretNumber(search.total_results) ?? 0;
-    return { ...status, recipes, nextOffset: input.offset + recipes.length < total ? input.offset + recipes.length : null };
+    const total = fatSecretNumber(search.total_results);
+    const nextOffset = total != null
+      ? input.offset + recipes.length < total ? input.offset + recipes.length : null
+      : recipes.length === input.limit ? input.offset + recipes.length : null;
+    return { ...status, recipes, nextOffset };
   }
   const payload = await providerFetch("/recipes", input);
   const recipes = (payload?.recipes ?? []).map(normalizePremiumRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe));
