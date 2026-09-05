@@ -70,6 +70,7 @@ export interface ClearAllDataCtx {
   getToday: () => string;
   // State setters — in production these are React useState dispatchers
   setOnboardingComplete: Setter;
+  setOnboardingStep?: Setter;
   setProfile: Setter;
   setLogs: Setter;
   setWeights: Setter;
@@ -128,6 +129,7 @@ export async function performClearAllData(ctx: ClearAllDataCtx): Promise<void> {
   ctx.setSavedRecipeIds([]);
   ctx.setProfile(null);
   ctx.setOnboardingComplete(false);
+  ctx.setOnboardingStep?.(0);
   ctx.setConsentAccepted(false);
   ctx.setOutbox([]);
   // Reset to the current week so the planner opens on the right week after a

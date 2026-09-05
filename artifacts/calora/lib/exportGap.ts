@@ -69,6 +69,7 @@ export function makeClearedExportSnapshot(opts: ClearExportSnapshotOpts): Calora
   const reminders = legacyReminderMirrors(notificationPreferences);
   return {
     onboardingComplete:    false,
+    onboardingStep:        0,
     profile:              null,
     logs:                 [],
     weights:              [],

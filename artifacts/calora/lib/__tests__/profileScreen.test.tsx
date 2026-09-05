@@ -39,7 +39,7 @@ const harness = vi.hoisted(() => {
   };
   const updateNotificationPreferences = vi.fn((updater: any) => updater(notificationPreferences));
   const calora = {
-     colors, themePreference: 'system', setThemePreference: vi.fn(), profile, onboardingComplete: true, updateProfile: vi.fn(),
+     colors, themePreference: 'system', setThemePreference: vi.fn(), setOnboardingStep: vi.fn(), profile, onboardingComplete: true, onboardingStep: 0, updateProfile: vi.fn(),
     healthConnected: true, healthConnection: { provider: 'health-connect', authorization: 'partial', granted: ['steps'] },
     connectHealth: vi.fn(async () => undefined),
     syncHealth: vi.fn(async (): Promise<HealthSyncOutcome> => ({ status: 'synced', syncedAt: '2026-09-04T05:00:00.000Z' })),
@@ -113,6 +113,8 @@ beforeEach(() => {
   harness.calora.savedMeals = harness.state.savedMeals;
   harness.calora.healthConnected = true;
   harness.calora.healthConnection = { provider: 'health-connect', authorization: 'partial', granted: ['steps'] };
+  harness.calora.onboardingComplete = true;
+  harness.calora.onboardingStep = 0;
   harness.useSubscription.mockReturnValue({
     offerings: {
       current: {
@@ -137,6 +139,15 @@ describe('Profile rendered interactions', () => {
     expect(screen.getByText('Your starting preferences are saved. Review them anytime.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Review onboarding' }));
     expect(harness.router.push).toHaveBeenCalledWith({ pathname: '/', params: { mode: 'review' } });
+  });
+
+  it('offers a resume path with the saved onboarding step when setup is incomplete', () => {
+    harness.calora.onboardingComplete = false;
+    harness.calora.onboardingStep = 3;
+    render(<ProfileScreen />);
+    expect(screen.getByText('Continue from step 4 of 7.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Resume onboarding' }));
+    expect(harness.router.push).toHaveBeenCalledWith({ pathname: '/', params: { mode: 'resume' } });
   });
 
   it('switches between You, Membership, and Account tabs', () => {

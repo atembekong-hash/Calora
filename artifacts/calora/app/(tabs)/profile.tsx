@@ -91,7 +91,7 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const {
     colors, themePreference, setThemePreference,
-    profile, onboardingComplete, updateProfile,
+    profile, onboardingComplete, onboardingStep, updateProfile,
     healthConnected, healthConnection, connectHealth, syncHealth, disconnectHealth,
     exportData, clearAllData, isClearing, syncState,
     savedMeals, saveMeal, deleteSavedMeal,
@@ -704,9 +704,22 @@ export default function ProfileScreen() {
             <Text style={[styles.onboardingBody, { color: colors.mutedForeground }]}>
               {onboardingComplete
                 ? 'Your starting preferences are saved. Review them anytime.'
-                : 'Finish setup to personalize your plan.'}
+                : onboardingStep > 0
+                  ? `Continue from step ${onboardingStep + 1} of 7.`
+                  : 'Finish setup to personalize your plan.'}
             </Text>
           </View>
+          {!onboardingComplete && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Resume onboarding"
+              testID="resume-onboarding"
+              onPress={() => router.push({ pathname: '/', params: { mode: 'resume' } })}
+              style={[styles.onboardingButton, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.onboardingButtonText, { color: colors.primaryForeground }]}>Resume</Text>
+            </Pressable>
+          )}
           {onboardingComplete && (
             <Pressable
               accessibilityRole="button"

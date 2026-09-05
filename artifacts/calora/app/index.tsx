@@ -124,6 +124,8 @@ export default function OnboardingScreen() {
   const {
     colors,
     onboardingComplete,
+    onboardingStep,
+    setOnboardingStep,
     profile: existingProfile,
     hydrated,
     hydrationError,
@@ -136,7 +138,7 @@ export default function OnboardingScreen() {
   } = useCalora();
   const insets = useSafeAreaInsets();
   const isReviewMode = mode === 'review' && onboardingComplete && !!existingProfile;
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => onboardingStep);
   const [goal, setGoal] = useState<Goal>(() => existingProfile?.goal ?? 'lose');
   const [activity, setActivity] = useState<ActivityLevel>(() => existingProfile?.activity ?? 'moderate');
   const [diet, setDiet] = useState<DietPreference>(() => existingProfile?.diet ?? 'Everything');
@@ -150,6 +152,19 @@ export default function OnboardingScreen() {
   const [consent, setConsent] = useState(isReviewMode);
   const [personalDetailsError, setPersonalDetailsError] = useState('');
   const reviewSeededRef = useRef(false);
+  const stepSeededRef = useRef(false);
+
+  const moveToStep = (nextStep: number) => {
+    setStep(nextStep);
+    if (!isReviewMode) setOnboardingStep(nextStep);
+  };
+
+  useEffect(() => {
+    if (!hydrated || stepSeededRef.current) return;
+    stepSeededRef.current = true;
+    const savedStep = isReviewMode ? 0 : onboardingStep;
+    setStep(savedStep);
+  }, [hydrated, isReviewMode, onboardingStep]);
 
   // Hydration can finish after this route first mounts. Seed review fields once
   // at that boundary so the review form never replaces saved values with the
@@ -188,7 +203,7 @@ export default function OnboardingScreen() {
     }, 'metric');
     if (!validation.ok) {
       setPersonalDetailsError(validation.message);
-      setStep(2);
+      moveToStep(2);
       return;
     }
     const profile: Profile = {
@@ -213,7 +228,7 @@ export default function OnboardingScreen() {
       }
       setPersonalDetailsError('');
     }
-    setStep((current) => Math.min(current + 1, ONBOARDING_STEPS - 1));
+    moveToStep(Math.min(step + 1, ONBOARDING_STEPS - 1));
   };
 
   // Show generic loading only on the initial read — not during a retry, where
@@ -425,7 +440,7 @@ export default function OnboardingScreen() {
          </Animated.View>
 
         <View style={styles.bottomActions}>
-          {step > 0 && <Pressable onPress={() => setStep((current) => current - 1)} style={styles.backButton}><Feather name="arrow-left" size={18} color={colors.mutedForeground} /><Text style={[styles.backText, { color: colors.mutedForeground }]}>Back</Text></Pressable>}
+           {step > 0 && <Pressable onPress={() => moveToStep(step - 1)} style={styles.backButton}><Feather name="arrow-left" size={18} color={colors.mutedForeground} /><Text style={[styles.backText, { color: colors.mutedForeground }]}>Back</Text></Pressable>}
            <Pressable disabled={step === ONBOARDING_STEPS - 1 && !consent} onPress={step === ONBOARDING_STEPS - 1 ? finish : next} style={[styles.continueButton, { backgroundColor: step === ONBOARDING_STEPS - 1 && !consent ? colors.muted : colors.primary }]}><Text style={[styles.continueText, { color: step === ONBOARDING_STEPS - 1 && !consent ? colors.mutedForeground : colors.primaryForeground }]}>{step === ONBOARDING_STEPS - 1 ? `Enter ${BRAND.name}` : 'Continue'}</Text><Feather name="arrow-right" size={17} color={step === ONBOARDING_STEPS - 1 && !consent ? colors.mutedForeground : colors.primaryForeground} /></Pressable>
         </View>
       </ScrollView>

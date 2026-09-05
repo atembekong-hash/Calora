@@ -21,6 +21,7 @@
 // ---------------------------------------------------------------------------
 export interface CaloraExportState {
   onboardingComplete: boolean;
+  onboardingStep?: number;
   profile: unknown;
   logs: unknown[];
   weights: unknown[];
