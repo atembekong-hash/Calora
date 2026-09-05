@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { PoolClient } from "pg";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 const DATABASE_REQUIRED =
@@ -149,6 +151,130 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
           }
         }
       },
+    );
+  },
+);
+
+describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+  "recovery warning suppression claims (disposable schema)",
+  () => {
+    it(
+      "allows exactly one of two concurrent API instances to claim a warning",
+      async () => {
+        const { pool } = await import("@workspace/db");
+        const { claimRecoveryWarningSuppression } =
+          await import("../lib/account-deletion-state.js");
+        const schemaName = `calora_recovery_claim_${randomUUID().replaceAll("-", "")}`;
+        const quotedSchemaName = `"${schemaName}"`;
+        const warningSignature =
+          "failed:0123456789abcdef:revenuecat|overdue:fedcba9876543210:application";
+        const warningKey = createHash("sha256")
+          .update(warningSignature)
+          .digest("hex");
+        const now = new Date("2026-09-05T09:00:00.000Z");
+
+        async function configurePoolSearchPath(): Promise<void> {
+          const maxClients = pool.options.max ?? 10;
+          const clients: PoolClient[] = [];
+          try {
+            for (let index = 0; index < maxClients; index += 1) {
+              const client = await pool.connect();
+              clients.push(client);
+              await client.query(
+                `SET search_path TO ${quotedSchemaName}, public`,
+              );
+            }
+          } finally {
+            for (const client of clients) {
+              client.release();
+            }
+          }
+        }
+
+        async function resetPoolSearchPath(): Promise<void> {
+          const maxClients = pool.options.max ?? 10;
+          const resetClients: PoolClient[] = [];
+          const releasedClients = new Set<PoolClient>();
+          try {
+            for (let index = 0; index < maxClients; index += 1) {
+              resetClients.push(await pool.connect());
+            }
+            for (const client of resetClients) {
+              try {
+                await client.query("RESET search_path");
+              } finally {
+                client.release();
+                releasedClients.add(client);
+              }
+            }
+          } catch (error) {
+            for (const client of resetClients) {
+              if (!releasedClients.has(client)) {
+                client.release();
+              }
+            }
+            throw error;
+          }
+        }
+
+        try {
+          const setupClient = await pool.connect();
+          try {
+            await setupClient.query(`CREATE SCHEMA ${quotedSchemaName}`);
+            await setupClient.query(`SET search_path TO ${quotedSchemaName}`);
+            await setupClient.query(MIGRATION_SQL);
+            await setupClient.query("RESET search_path");
+          } finally {
+            setupClient.release();
+          }
+
+          await configurePoolSearchPath();
+
+          const claims = await Promise.all([
+            claimRecoveryWarningSuppression(warningSignature, now),
+            claimRecoveryWarningSuppression(warningSignature, now),
+          ]);
+
+          expect(claims.sort()).toEqual([false, true]);
+
+          const verificationClient = await pool.connect();
+          try {
+            const rows = await verificationClient.query<{
+              warning_key: string;
+              emitted_at: Date;
+              expires_at: Date;
+            }>(
+              `SELECT warning_key, emitted_at, expires_at
+               FROM calora_recovery_warning_suppressions`,
+            );
+
+            expect(rows.rows).toHaveLength(1);
+            expect(rows.rows[0]).toMatchObject({
+              warning_key: warningKey,
+              emitted_at: now,
+              expires_at: new Date(
+                now.getTime() + 15 * 60 * 1000,
+              ),
+            });
+            expect(JSON.stringify(rows.rows)).not.toContain(
+              warningSignature,
+            );
+          } finally {
+            verificationClient.release();
+          }
+        } finally {
+          await resetPoolSearchPath();
+          const cleanupClient = await pool.connect();
+          try {
+            await cleanupClient.query(
+              `DROP SCHEMA IF EXISTS ${quotedSchemaName} CASCADE`,
+            );
+          } finally {
+            cleanupClient.release();
+          }
+        }
+      },
+      30_000,
     );
   },
 );
