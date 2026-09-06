@@ -541,7 +541,7 @@ export const listRecipesQueryOffsetMin = 0;
 
 
 export const ListRecipesQueryParams = zod.object({
-  "query": zod.coerce.string().max(listRecipesQueryQueryMax).optional(),
+  "query": zod.coerce.string().max(listRecipesQueryQueryMax).optional().describe('Search meal names. For TheMealDB Premium V2 ingredient matching, provide two to four comma-separated ingredients.'),
   "category": zod.coerce.string().max(listRecipesQueryCategoryMax).optional(),
   "limit": zod.coerce.number().int().min(1).max(listRecipesQueryLimitMax).default(listRecipesQueryLimitDefault),
   "offset": zod.coerce.number().int().min(listRecipesQueryOffsetMin).default(listRecipesQueryOffsetDefault)

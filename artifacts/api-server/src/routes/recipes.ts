@@ -133,10 +133,17 @@ async function enforceGuestRecipeLimit(req: Request, res: Response): Promise<boo
   }
   return true;
 }
-const API_ROOT = "https://www.themealdb.com/api/json/v1/1";
+// TheMealDB Premium V2 keeps the key in the server-only URL path. Keep the
+// legacy developer endpoint as a local/test fallback so a missing deployment
+// secret never becomes a key-like value in a client response.
+const theMealDbApiKey = process.env.THEMEALDB_API_KEY?.trim();
+const API_ROOT = theMealDbApiKey
+  ? `https://www.themealdb.com/api/json/v2/${encodeURIComponent(theMealDbApiKey)}`
+  : "https://www.themealdb.com/api/json/v1/1";
 const SOURCE = "TheMealDB";
 const SOURCE_URL = "https://www.themealdb.com/";
 const CONCEPT_TIMEOUT_MS = 8_000;
+const THEMEALDB_TIMEOUT_MS = 8_000;
 
 // ─── Nutrition estimation ────────────────────────────────────────────────────
 
@@ -696,6 +703,21 @@ type Meal = {
   [key: string]: string | null | undefined;
 };
 
+function isMeal(value: unknown): value is Meal {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const raw = value as Record<string, unknown>;
+  return typeof raw.idMeal === "string" && Boolean(raw.idMeal.trim())
+    && typeof raw.strMeal === "string" && Boolean(raw.strMeal.trim());
+}
+
+function multiIngredientFilter(query: string): string[] | null {
+  const ingredients = query.split(",").map((value) => value.trim()).filter(Boolean);
+  // V2 documents multi-ingredient filtering for up to four comma-separated
+  // values. A normal one-word search must retain name-search behavior.
+  if (ingredients.length < 2 || ingredients.length > 4) return null;
+  return ingredients.map((ingredient) => ingredient.slice(0, 80));
+}
+
 function toRecipe(meal: Meal) {
   const ingredients = Array.from({ length: 20 }, (_, index) => {
     const ingredient = meal[`strIngredient${index + 1}`]?.trim();
@@ -724,9 +746,30 @@ function toRecipe(meal: Meal) {
 }
 
 async function fetchJson(url: string) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Recipe provider returned ${response.status}`);
-  return response.json() as Promise<{ meals?: Meal[] | null }>;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), THEMEALDB_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error("Recipe provider unavailable");
+    const payload: unknown = await response.json().catch(() => {
+      throw new Error("Recipe provider returned invalid data");
+    });
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("Recipe provider returned invalid data");
+    }
+    const meals = (payload as { meals?: unknown }).meals;
+    if (meals !== undefined && meals !== null && !Array.isArray(meals)) {
+      throw new Error("Recipe provider returned invalid data");
+    }
+    return { meals: (meals ?? []).filter(isMeal) };
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Recipe provider timed out");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function buildCategoryPool(categories: readonly string[]): Promise<Meal[]> {
@@ -792,7 +835,10 @@ router.get("/v1/recipes", async (req, res) => {
 
     let meals: Meal[];
     if (query) {
-      const data = await fetchJson(`${API_ROOT}/search.php?s=${encodeURIComponent(query)}`);
+      const ingredients = multiIngredientFilter(query);
+      const data = ingredients
+        ? await fetchJson(`${API_ROOT}/filter.php?i=${encodeURIComponent(ingredients.join(","))}`)
+        : await fetchJson(`${API_ROOT}/search.php?s=${encodeURIComponent(query)}`);
       meals = data.meals ?? [];
     } else if (category) {
       const mealTimeCategories = MEAL_TIME_CATEGORIES[category];
@@ -818,8 +864,8 @@ router.get("/v1/recipes", async (req, res) => {
     // has not yet populated estimates for the first page of results.
     const warmupPending = !warmupDone;
     res.json({ source: SOURCE, recipes, warmupPending });
-  } catch (error) {
-    res.status(502).json({ message: error instanceof Error ? error.message : "Recipe provider unavailable" });
+  } catch {
+    res.status(502).json({ message: "Recipe provider unavailable. Please try again shortly." });
   }
 });
 
@@ -872,8 +918,8 @@ router.get("/v1/recipes/:recipeId", async (req, res) => {
     }
     res.json({ ...base, nutritionPending: true });
     return;
-  } catch (error) {
-    res.status(502).json({ message: error instanceof Error ? error.message : "Recipe provider unavailable" });
+  } catch {
+    res.status(502).json({ message: "Recipe provider unavailable. Please try again shortly." });
     return;
   }
 });

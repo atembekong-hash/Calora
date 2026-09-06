@@ -1,5 +1,6 @@
 - [Calora launch boundary](calora-launch-boundary.md) — the mobile preview is local-first and must keep native billing, health, and authenticated sync states explicit until integrations are connected.
 - [Recipe provenance](recipe-provenance.md) — open-source recipes, user recipes, and verified nutrition must remain visibly distinct.
+- [TheMealDB Premium V2 boundary](themealdb-premium-v2-boundary.md) — V2 expands open discovery through a server-only key without changing Calora’s nutrition trust boundary.
 - [Capture provider matching](capture-provider-matching.md) — barcode nutrition requires an exact UPC match, never a broad text-search hit.
 - [Planner generation fallback](planner-generation-fallback.md) — AI meal planning needs a bounded request with an explicit local starter-week fallback.
 - [Food Memory compatibility](food-memory-compatibility.md) — accepted memories coexist with legacy diary logs while snapshots keep historical nutrition stable.

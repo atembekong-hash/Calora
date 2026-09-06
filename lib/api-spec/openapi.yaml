@@ -261,6 +261,7 @@ paths:
         - name: query
           in: query
           required: false
+          description: Search meal names. For TheMealDB Premium V2 ingredient matching, provide two to four comma-separated ingredients.
           schema: { type: string, maxLength: 120 }
         - name: category
           in: query
@@ -357,7 +358,10 @@ paths:
       summary: Browse a configured Premium recipe provider
       security: [{ bearerAuth: [] }]
       parameters:
-        - { name: query, in: query, required: false, schema: { type: string, maxLength: 120 } }
+        - name: query
+          in: query
+          required: false
+          schema: { type: string, maxLength: 120 }
         - { name: category, in: query, required: false, schema: { type: string, maxLength: 80 } }
         - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 30, default: 18 } }
         - { name: offset, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
