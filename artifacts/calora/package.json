@@ -22,6 +22,7 @@
     "test:release:ios-signing": "node scripts/ios-signing-preflight.js",
     "test:release:ios-signing:monitor": "node scripts/ios-signing-preflight.js --warn-days ${IOS_SIGNING_WARNING_DAYS:-30}",
     "test:release:ios-signing:apple": "node scripts/ios-signing-evidence.js --apple-rehearsal",
+    "test:release:ios-signing:apple:contract": "node scripts/ios-signing-apple-rehearsal-contract.js",
     "test:release:ios-signing:evidence": "node scripts/ios-signing-evidence.js",
     "build:ios:production": "node scripts/ios-signing-preflight.js --queue-build"
   },
