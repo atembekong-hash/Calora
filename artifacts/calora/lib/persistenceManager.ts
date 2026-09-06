@@ -51,6 +51,15 @@ export class PersistenceManager {
   }
 
   /**
+   * Wait for all writes queued before this call to finish. Explicit commit
+   * boundaries (such as completing onboarding) use this before navigating so
+   * a close immediately after the confirmation cannot lose their state.
+   */
+  async flush(): Promise<void> {
+    await this.queue;
+  }
+
+  /**
    * Enqueue a storage clear AFTER any pending write, then await the result.
    * This guarantees clear() always wins — no queued write can resurrect the
    * key after it returns.  The clearingCount is incremented for the full

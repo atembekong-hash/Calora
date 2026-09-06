@@ -197,7 +197,7 @@ export default function OnboardingScreen() {
     [activity, goal, validatedPersonalDetails],
   );
 
-  const finish = () => {
+  const finish = async () => {
     const validation = validatePersonalDetails({
       age, height, weight, targetWeight, activity, diet, goal,
     }, 'metric');
@@ -216,8 +216,15 @@ export default function OnboardingScreen() {
       }),
       targetMode: 'automatic',
     };
-    completeOnboarding(profile, consent);
-    if (isReviewMode) router.replace('/(tabs)/profile');
+    try {
+      await completeOnboarding(profile, consent);
+      if (isReviewMode) router.replace('/(tabs)/profile');
+    } catch {
+      Alert.alert(
+        'Couldn’t save your setup',
+        'Your setup is still open. Check your device storage and try again before leaving this screen.',
+      );
+    }
   };
 
   const next = () => {

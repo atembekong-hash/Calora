@@ -373,7 +373,7 @@ type CaloraContextValue = {
   toggleSavedRecipe: (recipeId: string) => void;
   setThemePreference: (preference: ThemePreference) => void;
   setOnboardingStep: (step: number) => void;
-  completeOnboarding: (profile: Profile, consentAccepted: boolean) => void;
+  completeOnboarding: (profile: Profile, consentAccepted: boolean) => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => void;
   setHealthConnected: (connected: boolean) => void;
   connectHealth: () => Promise<HealthConnection>;
@@ -1569,7 +1569,23 @@ export function CaloraProvider({
       patchExportSnapshot({ onboardingStep: nextStep });
       setOnboardingStepState(nextStep);
     },
-    completeOnboarding: (nextProfile, consent) => {
+    completeOnboarding: async (nextProfile, consent) => {
+       const currentSnapshot = exportSnapshotRef.current;
+       if (!currentSnapshot) {
+         throw new Error('Your onboarding data is still loading. Please try again.');
+       }
+       // This is an explicit durable commit boundary. Do not redirect based on
+       // in-memory completion and leave the write for a later autosave effect:
+       // a close, process kill, or reload immediately after "Enter Calora"
+       // would otherwise make the next launch look like a first run.
+       enqueueAutosave(pm.current, {
+         ...currentSnapshot,
+         profile: nextProfile,
+         consentAccepted: consent,
+         onboardingComplete: true,
+         onboardingStep: 0,
+       });
+       await pm.current.flush();
       patchExportSnapshot({ profile: nextProfile, consentAccepted: consent, onboardingComplete: true, onboardingStep: 0 });
       profileRef.current = nextProfile;
       setProfile(nextProfile);
