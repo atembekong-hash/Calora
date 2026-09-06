@@ -13,6 +13,7 @@ const {
   extractPrefixedSummaryLines,
   formatStorageFailure,
   getStorageErrorCode,
+  removeExistingEvidence,
   resolveEvidencePath,
   run,
 } = require('./ios-signing-evidence');
@@ -165,6 +166,54 @@ test('fails a successful release when its required artifact cannot be archived',
 
   assert.equal(result, 1);
   assert.ok(stderr.some((line) => line.includes('required sanitized evidence artifact')));
+});
+
+test('removes a pre-existing artifact before a failed archive attempt', () => {
+  const fixtureDirectory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'calora-ios-signing-stale-evidence-'),
+  );
+  const evidencePath = path.join(fixtureDirectory, 'evidence.json');
+  fs.writeFileSync(evidencePath, '{"result":"passed","run":"older"}\n');
+
+  try {
+    const stderr = [];
+    const result = run({
+      env: { CALORA_IOS_SIGNING_EVIDENCE_PATH: evidencePath },
+      spawn: () => ({
+        stdout: '[ios-signing] RELEASE PREFLIGHT FAILED',
+        stderr: '[ios-signing] Failure class: APPLE_CERTIFICATE_STATE',
+        status: 17,
+        signal: null,
+      }),
+      write: () => {
+        throw Object.assign(new Error('archive failed'), { code: 'EACCES' });
+      },
+      appendSummary: () => {},
+      output: {
+        log: () => {},
+        error: (line) => stderr.push(line),
+      },
+    });
+
+    assert.equal(result, 17);
+    assert.equal(fs.existsSync(evidencePath), false);
+    assert.ok(
+      stderr.some((line) =>
+        line.includes(`could not be archived to ${evidencePath}.`),
+      ),
+    );
+  } finally {
+    fs.rmSync(fixtureDirectory, { recursive: true, force: true });
+  }
+});
+
+test('ignores a missing artifact when clearing an evidence destination', () => {
+  const evidencePath = path.join(
+    os.tmpdir(),
+    'calora-ios-signing-missing-evidence',
+    'evidence.json',
+  );
+  assert.equal(removeExistingEvidence(evidencePath), evidencePath);
 });
 
 function writeFixtureEasCli(directory, fixture) {

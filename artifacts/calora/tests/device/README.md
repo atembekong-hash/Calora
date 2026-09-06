@@ -271,7 +271,11 @@ CALORA_IOS_SIGNING_EVIDENCE_PATH="$RUNNER_TEMP/calora-ios-signing-evidence.json"
 `test:release:ios-signing:apple` runs through the release-evidence wrapper. It
 passes the preflight's exit code through unchanged and writes
 `calora-ios-signing-evidence.json` with the result, exit code, failure class,
-and only lines beginning with `[ios-signing]`. On a CI runner, omit
+and only lines beginning with `[ios-signing]`. Before attempting the archive,
+the wrapper removes any prior file at the destination, so a failed rerun cannot
+leave older evidence looking like the current run. If cleanup or archiving
+fails, the wrapper reports an `EVIDENCE_STORAGE` failure and leaves no current
+evidence file at that path. On a CI runner, omit
 `CALORA_IOS_SIGNING_EVIDENCE_PATH` to write automatically under `RUNNER_TEMP`;
 set it explicitly on a local macOS host if the evidence needs to be retained:
 
@@ -296,11 +300,16 @@ so the failure class and exit code remain reviewable:
   if: always()
   uses: actions/upload-artifact@v4
   with:
-    name: calora-ios-signing-evidence
+    name: calora-ios-signing-evidence-${{ github.run_id }}
     path: ${{ runner.temp }}/calora-ios-signing-evidence.json
     if-no-files-found: error
     retention-days: 30
 ```
+
+The run-scoped artifact name prevents evidence from being confused across CI
+runs. `if-no-files-found: error` intentionally reports that no current
+artifact exists when the wrapper could not archive one; never upload or reuse a
+file left by an earlier rehearsal.
 
 Review the artifact during release sign-off: confirm `result`, `exitCode`, and
 `failureClass`, then review the prefixed lines for the matching repair or
