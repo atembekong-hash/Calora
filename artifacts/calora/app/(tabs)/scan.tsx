@@ -89,16 +89,16 @@ function ProcessingPhoto({ colors, uri }: { colors: ReturnType<typeof useCalora>
   return (
     <View style={StyleSheet.absoluteFillObject}>
       <Image source={{ uri }} resizeMode="cover" style={StyleSheet.absoluteFillObject} />
-      <View style={styles.processingShade} pointerEvents="none" />
-      <View style={styles.scannerTrack} pointerEvents="none">
+      <View style={styles.processingShade} />
+      <View style={styles.scannerTrack}>
         <Animated.View style={[styles.scannerGlow, { backgroundColor: colors.accent }, scannerStyle]} />
         <Animated.View style={[styles.scannerBeam, { backgroundColor: colors.accent }, scannerStyle]} />
       </View>
-      <View style={[styles.processingBadge, { backgroundColor: colors.hero }]} pointerEvents="none">
-        <Feather name="scan" size={14} color={colors.accent} />
+      <View style={[styles.processingBadge, { backgroundColor: colors.hero }]}>
+        <Feather name="activity" size={14} color={colors.accent} />
         <Text style={[styles.processingBadgeText, { color: colors.onHero }]}>ANALYZING MEAL</Text>
       </View>
-      <View style={[styles.processingFooter, { backgroundColor: colors.hero }]} pointerEvents="none">
+      <View style={[styles.processingFooter, { backgroundColor: colors.hero }]}>
         <ActivityIndicator size="small" color={colors.accent} />
         <Text style={[styles.processingFooterText, { color: colors.onHero }]}>Reading ingredients and portions</Text>
       </View>
@@ -347,14 +347,17 @@ export default function ScanScreen() {
     try {
       const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.75, skipProcessing: Platform.OS === 'android' });
       if (photo?.base64) {
+        setCapturedPhotoUri(photo.uri ?? null);
         const captureMode = receiptCapture ? 'receipt' : mode === 'barcode' ? 'food' : mode === 'label' ? 'nutrition_label' : mode;
         await analyze({ mode: captureMode, imageBase64: photo.base64 });
         return;
       }
       setHasScanned(false);
+      setCapturedPhotoUri(null);
       Alert.alert('Photo unavailable', `${BRAND.name} could not read that photo. Try again or choose a photo from your library.`);
     } catch (error) {
       setHasScanned(false);
+      setCapturedPhotoUri(null);
       Alert.alert('Photo unavailable', error instanceof Error ? error.message : `${BRAND.name} could not capture that photo. Try again or choose a photo from your library.`);
     }
   };
@@ -364,16 +367,20 @@ export default function ScanScreen() {
     setHasScanned(true);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75, base64: true });
-      const base64 = result.canceled ? undefined : result.assets[0]?.base64;
+      const asset = result.canceled ? undefined : result.assets[0];
+      const base64 = asset?.base64;
       if (base64) {
+        setCapturedPhotoUri(asset.uri ?? null);
         const captureMode = requestedMode ?? (receiptCapture ? 'receipt' : mode === 'label' ? 'nutrition_label' : 'food');
         await analyze({ mode: captureMode, imageBase64: base64 });
       } else {
         setHasScanned(false);
+        setCapturedPhotoUri(null);
         if (!result.canceled) setAltCaptureBanner('That image could not be read. Choose another receipt or food photo.');
       }
     } catch (error) {
       setHasScanned(false);
+      setCapturedPhotoUri(null);
       setAltCaptureBanner(error instanceof Error ? error.message : `${BRAND.name} could not open that image. Choose another photo or try the camera.`);
     }
   };
@@ -400,6 +407,7 @@ export default function ScanScreen() {
     setAnalysis(null);
     setReviewDraftId(null);
     setHasScanned(false);
+    setCapturedPhotoUri(null);
     router.replace({ pathname: '/(tabs)/scan', params: { date: entryDate } });
   };
 
@@ -408,6 +416,7 @@ export default function ScanScreen() {
     setAnalysis(null);
     setReviewDraftId(null);
     setHasScanned(false);
+    setCapturedPhotoUri(null);
     setShowTextEntry(false);
     setAltCaptureBanner(null);
     router.replace({ pathname: '/(tabs)/scan', params: { date: entryDate } });
@@ -421,6 +430,7 @@ export default function ScanScreen() {
     if (mode === 'receipt') return 'RECEIPT SCAN';
     return 'PHOTO REVIEW';
   };
+  const photoAnalysisPending = analyzeCapture.isPending && Boolean(capturedPhotoUri);
 
   if (!permission) {
     return <View style={[styles.page, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primary} /></View>;
@@ -466,16 +476,20 @@ export default function ScanScreen() {
         ) : (
           <>
             <View style={[styles.cameraFrame, { borderColor: colors.border }]}>
-              <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" mode={cameraMode} onBarcodeScanned={cameraMode === 'video' || mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned} barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] }} />
-              <View style={styles.cameraOverlay}>
-                <Animated.View style={[StyleSheet.absoluteFillObject, cornerPulseStyle]} pointerEvents="none">
-                  <View style={[styles.corner, styles.cornerTL, { borderColor: colors.onHero }]} />
-                  <View style={[styles.corner, styles.cornerTR, { borderColor: colors.onHero }]} />
-                  <View style={[styles.corner, styles.cornerBL, { borderColor: colors.onHero }]} />
-                  <View style={[styles.corner, styles.cornerBR, { borderColor: colors.onHero }]} />
-                </Animated.View>
-                <View style={[styles.scanHint, { backgroundColor: 'rgba(20,63,52,0.78)' }]}><CaloraFeatureIcon name={mode === 'barcode' ? 'barcode' : 'camera'} size={22} primaryColor={colors.heroMuted} accentColor={colors.accent} foregroundColor={colors.onHero} highlightColor={colors.onHero} /><Text style={[styles.scanHintText, { color: colors.onHero }]}>{receiptCapture ? 'Keep receipt lines flat and readable' : mode === 'food' ? 'Frame your food or meal' : mode === 'label' ? 'Frame the nutrition label' : 'Point at a barcode or food'}</Text></View>
-              </View>
+              {photoAnalysisPending ? <ProcessingPhoto colors={colors} uri={capturedPhotoUri!} /> : (
+                <>
+                  <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" mode={cameraMode} onBarcodeScanned={cameraMode === 'video' || mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned} barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] }} />
+                  <View style={styles.cameraOverlay}>
+                    <Animated.View style={[StyleSheet.absoluteFillObject, cornerPulseStyle]} pointerEvents="none">
+                      <View style={[styles.corner, styles.cornerTL, { borderColor: colors.onHero }]} />
+                      <View style={[styles.corner, styles.cornerTR, { borderColor: colors.onHero }]} />
+                      <View style={[styles.corner, styles.cornerBL, { borderColor: colors.onHero }]} />
+                      <View style={[styles.corner, styles.cornerBR, { borderColor: colors.onHero }]} />
+                    </Animated.View>
+                    <View style={[styles.scanHint, { backgroundColor: 'rgba(20,63,52,0.78)' }]}><CaloraFeatureIcon name={mode === 'barcode' ? 'barcode' : 'camera'} size={22} primaryColor={colors.heroMuted} accentColor={colors.accent} foregroundColor={colors.onHero} highlightColor={colors.onHero} /><Text style={[styles.scanHintText, { color: colors.onHero }]}>{receiptCapture ? 'Keep receipt lines flat and readable' : mode === 'food' ? 'Frame your food or meal' : mode === 'label' ? 'Frame the nutrition label' : 'Point at a barcode or food'}</Text></View>
+                  </View>
+                </>
+              )}
             </View>
             <View style={[styles.modePicker, { backgroundColor: colors.muted }]}>
               {(['auto', 'barcode', 'food', 'label'] as ScanMode[]).map((item) => <Pressable key={item} accessibilityLabel={`Scan mode ${item}`} onPress={() => { setMode(item); setHasScanned(false); }} style={[styles.modeButton, mode === item && { backgroundColor: colors.card }]}>{item === 'barcode' ? <CaloraFeatureIcon name="barcode" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : item === 'food' ? <CaloraFeatureIcon name="food" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : <Feather name={item === 'auto' ? 'zap' : 'file-text'} size={14} color={mode === item ? colors.primary : colors.mutedForeground} />}<Text style={[styles.modeText, { color: mode === item ? colors.foreground : colors.mutedForeground }]}>{item === 'auto' ? 'Auto' : item === 'barcode' ? 'Barcode' : item === 'food' ? 'Food' : 'Label'}</Text></Pressable>)}
@@ -531,6 +545,14 @@ const styles = StyleSheet.create({
   liveText: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 0.8 },
   cameraFrame: { height: 390, marginHorizontal: 20, borderRadius: 25, overflow: 'hidden', borderWidth: 1, backgroundColor: '#10251f' },
   cameraOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  processingShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,20,14,0.24)' },
+  scannerTrack: { position: 'absolute', top: 20, left: 0, right: 0, height: 350 },
+  scannerGlow: { position: 'absolute', top: -20, left: 18, right: 18, height: 48, borderRadius: 24, opacity: 0.22 },
+  scannerBeam: { position: 'absolute', top: 0, left: 18, right: 18, height: 3, borderRadius: 2, shadowColor: '#f4a261', shadowOpacity: 0.95, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 6 },
+  processingBadge: { position: 'absolute', top: 20, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 },
+  processingBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1.1 },
+  processingFooter: { position: 'absolute', bottom: 18, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 15, paddingHorizontal: 12, paddingVertical: 8 },
+  processingFooterText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   corner: { position: 'absolute', width: 42, height: 42, borderWidth: 3 },
   cornerTL: { top: 70, left: 42, borderRightWidth: 0, borderBottomWidth: 0 },
   cornerTR: { top: 70, right: 42, borderLeftWidth: 0, borderBottomWidth: 0 },
