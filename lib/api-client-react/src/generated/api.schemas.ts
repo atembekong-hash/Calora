@@ -1647,6 +1647,7 @@ to?: string;
 
 export type ListRecipesParams = {
 /**
+ * Search meal names. For TheMealDB Premium V2 ingredient matching, provide two to four comma-separated ingredients.
  * @maxLength 120
  */
 query?: string;

@@ -64,3 +64,17 @@ mtime_ms = 1788454950472
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/4899b76f-67c8-4dca-adb1-b6c409f8983b/a946f7d3-c621-46a2-a256-1f83dedd068e"
 storage_version_token = "1788454988466076"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "QVsUdeRGP4dqEKC5atI10"
+uri = "file://PREMIUM_THEMEALDB_V2_INTEGRATION_REPORT.md"
+type = "text"
+title = "TheMealDB Premium V2 integration report"
+description = "Architecture, security, validation, limitations, and no-push status for the Calora upgrade."
+logical_id = "90d71ed5-45ea-44dd-a368-ede44058cb47"
+content_hash = "sha256:bae65945a91afd9180ea9ce5488fb05532e8af17f2ce2f561b3e89597b676a16"
+size = 3934
+mtime_ms = 1788655336288
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/90d71ed5-45ea-44dd-a368-ede44058cb47/b7ed6f31-3abf-467b-9ae2-7ff326ea479f"
+storage_version_token = "1788655344643506"
+content_type = "text/markdown"
