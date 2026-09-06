@@ -52,13 +52,41 @@ function writeEvidence(evidence, evidencePath) {
     return null;
   }
 
-  fs.mkdirSync(path.dirname(evidencePath), {
+  const evidenceDirectory = path.dirname(evidencePath);
+  const evidenceFile = path.basename(evidencePath);
+  fs.mkdirSync(evidenceDirectory, {
     recursive: true,
     mode: 0o700,
   });
-  fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, {
-    mode: 0o600,
-  });
+
+  const temporaryDirectory = fs.mkdtempSync(
+    path.join(evidenceDirectory, `.${evidenceFile}.`),
+  );
+  const temporaryPath = path.join(temporaryDirectory, evidenceFile);
+  try {
+    fs.writeFileSync(temporaryPath, `${JSON.stringify(evidence, null, 2)}\n`, {
+      mode: 0o600,
+    });
+    fs.renameSync(temporaryPath, evidencePath);
+  } finally {
+    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+  }
+
+  return evidencePath;
+}
+
+function removeExistingEvidence(evidencePath) {
+  if (!evidencePath) {
+    return null;
+  }
+
+  try {
+    fs.unlinkSync(evidencePath);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      throw error;
+    }
+  }
   return evidencePath;
 }
 
@@ -98,6 +126,7 @@ function run({
   spawn = spawnSync,
   env = process.env,
   write = writeEvidence,
+  remove = removeExistingEvidence,
   appendSummary = appendStepSummary,
   output = console,
 } = {}) {
@@ -127,10 +156,11 @@ function run({
   let evidencePath = null;
   let evidenceWriteError = null;
   try {
+    remove(resolvedEvidencePath);
     evidencePath = write(evidence, resolvedEvidencePath);
   } catch (error) {
     evidenceWriteError = error;
-    for (const line of formatStorageFailure(error)) {
+    for (const line of formatStorageFailure(error, resolvedEvidencePath)) {
       output.error(line);
     }
   }
@@ -165,6 +195,7 @@ module.exports = {
   extractPrefixedSummaryLines,
   formatStorageFailure,
   getStorageErrorCode,
+  removeExistingEvidence,
   resolveEvidencePath,
   run,
 };
