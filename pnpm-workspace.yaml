@@ -75,6 +75,9 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  # image-size has no published release beyond the vulnerable 2.0.2 line.
+  # Use the narrowly patched, local-compatible package until upstream ships one.
+  image-size: "file:vendor/image-size"
   # minimatch 10 accepts brace-expansion 5.x; pin its patched DoS release.
   "minimatch@10.2.5>brace-expansion": "5.0.9"
   # Pin known compatible fixes for high-severity transitive advisories.
