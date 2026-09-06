@@ -1,6 +1,7 @@
 # TheMealDB Premium V2 integration report
 
-**Verdict:** PASS — scoped TheMealDB Premium V2 validation completed.
+**Verdict:** BLOCKED — the validated implementation is present locally, but the
+requested scoped push cannot proceed safely from the current branch state.
 
 ## Architecture and scope
 
@@ -77,6 +78,15 @@ every ingredient or that a recipe satisfies dietary/allergen requirements.
 
 ## GitHub status
 
-No implementation commit or push has been made. All scoped validations passed;
-the user’s no-push-until-validation requirement is satisfied. A normal,
-non-force push remains a separate explicit action.
+- Existing local TheMealDB integration commit: `16090def64aa468411d49891d7316372e1a48b8e`
+- Branch: `main`
+- Staged unrelated changes: none.
+- Secret review: `THEMEALDB_API_KEY` appears only as a server environment
+  reference and in the test's deliberate fake sentinel; no configured secret
+  value is present in the tracked content.
+- Push result: **BLOCKED — not attempted.**
+- Remote synchronization: **BLOCKED.** Local `main` is eight commits ahead of
+  `origin/main`, and those commits include unrelated recovery, mockup, and
+  signing changes. A normal push of the current branch would publish all of
+  them, violating the requested scope.
+- No force push, history rewrite, Expo/EAS build, or deployment was performed.
