@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { PassThrough } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { connect, query } = vi.hoisted(() => ({
@@ -13,6 +14,7 @@ vi.mock("@workspace/db", () => ({
 describe("recovery warning summaries", () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
     connect.mockReset();
     query.mockReset();
@@ -186,5 +188,90 @@ describe("recovery warning summaries", () => {
     expect(serializedFields).not.toContain("provider error");
     expect(serializedFields).not.toContain("subscriber response details");
     expect(flushSuppressedRecoveryWarningSummary).toBeTypeOf("function");
+  });
+
+  it("keeps the production summary line machine-readable and sanitized", async () => {
+    const startedAt = new Date("2026-09-06T10:00:00.000Z");
+    const accountIdentifier = "account-production-log-123";
+    const providerErrorText = "RevenueCat customer lookup failed with HTTP 500";
+    const providerResponseDetails =
+      '{"subscriber":{"entitlements":{"premium":{"expires_date":"secret"}}}}';
+    vi.stubEnv("NODE_ENV", "production");
+    vi.useFakeTimers();
+    vi.setSystemTime(startedAt);
+
+    const output = new PassThrough();
+    const chunks: string[] = [];
+    output.on("data", (chunk: Buffer) => chunks.push(chunk.toString()));
+
+    const {
+      createLogger,
+      flushSuppressedRecoveryWarningSummary,
+      noteSuppressedRecoveryWarning,
+      RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
+    } = await import("../lib/logger.js");
+    const productionLogger = createLogger(output);
+    const rawCohortKey = [
+      accountIdentifier,
+      providerErrorText,
+      providerResponseDetails,
+    ].join(":");
+
+    noteSuppressedRecoveryWarning({
+      cohortKey: rawCohortKey,
+      correlationKeys: [
+        accountIdentifier,
+        providerErrorText,
+        providerResponseDetails,
+        "a".repeat(16),
+      ],
+    });
+    noteSuppressedRecoveryWarning({
+      cohortKey: rawCohortKey,
+      correlationKeys: ["a".repeat(16)],
+    });
+
+    flushSuppressedRecoveryWarningSummary(
+      startedAt.getTime() + RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
+      productionLogger,
+    );
+    vi.useRealTimers();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    const serializedLine = chunks.join("").trim();
+    expect(serializedLine).not.toBe("");
+    const parsed = JSON.parse(serializedLine) as {
+      event: string;
+      level: number;
+      msg: string;
+      suppressedCycleCount: number;
+      suppressedCohortCount: number;
+      cohorts: Array<{
+        cohortKey: string;
+        correlationKeys: string[];
+        suppressedCycleCount: number;
+      }>;
+    };
+    expect(parsed).toMatchObject({
+      event: "account_deletion_recovery_suppressed_summary",
+      level: 40,
+      msg: "Account deletion recovery warnings remain suppressed",
+      suppressedCycleCount: 2,
+      suppressedCohortCount: 1,
+      cohorts: [{
+        cohortKey: createHash("sha256").update(rawCohortKey).digest("hex"),
+        correlationKeys: ["a".repeat(16)],
+        suppressedCycleCount: 2,
+      }],
+    });
+    expect(parsed.cohorts).toHaveLength(1);
+    expect(parsed.cohorts[0].cohortKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(parsed.cohorts[0].correlationKeys).toEqual(["a".repeat(16)]);
+    expect(serializedLine).not.toContain(accountIdentifier);
+    expect(serializedLine).not.toContain(providerErrorText);
+    expect(serializedLine).not.toContain(providerResponseDetails);
+
+    productionLogger.flush();
+    output.destroy();
   });
 });
