@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
@@ -67,6 +67,45 @@ function PermissionState({ colors, onRequest }: { colors: ReturnType<typeof useC
   );
 }
 
+function ProcessingPhoto({ colors, uri }: { colors: ReturnType<typeof useCalora>['colors']; uri: string }) {
+  const scannerProgress = useSharedValue(0);
+
+  useEffect(() => {
+    scannerProgress.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+    return () => cancelAnimation(scannerProgress);
+  }, [scannerProgress]);
+
+  const scannerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: scannerProgress.value * 326 }],
+  }));
+
+  return (
+    <View style={StyleSheet.absoluteFillObject}>
+      <Image source={{ uri }} resizeMode="cover" style={StyleSheet.absoluteFillObject} />
+      <View style={styles.processingShade} pointerEvents="none" />
+      <View style={styles.scannerTrack} pointerEvents="none">
+        <Animated.View style={[styles.scannerGlow, { backgroundColor: colors.accent }, scannerStyle]} />
+        <Animated.View style={[styles.scannerBeam, { backgroundColor: colors.accent }, scannerStyle]} />
+      </View>
+      <View style={[styles.processingBadge, { backgroundColor: colors.hero }]} pointerEvents="none">
+        <Feather name="scan" size={14} color={colors.accent} />
+        <Text style={[styles.processingBadgeText, { color: colors.onHero }]}>ANALYZING MEAL</Text>
+      </View>
+      <View style={[styles.processingFooter, { backgroundColor: colors.hero }]} pointerEvents="none">
+        <ActivityIndicator size="small" color={colors.accent} />
+        <Text style={[styles.processingFooterText, { color: colors.onHero }]}>Reading ingredients and portions</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function ScanScreen() {
   const { colors, foodDrafts, createFoodMemoryDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory } = useCalora();
   const insets = useSafeAreaInsets();
@@ -118,6 +157,7 @@ export default function ScanScreen() {
   const [receiptCapture, setReceiptCapture] = useState(false);
   const [voiceRecording, setVoiceRecording] = useState(false);
   const [cameraMode, setCameraMode] = useState<CameraMode>('picture');
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | null>(null);
   const voiceCaptureInFlight = useRef(false);
   const voiceLaunchRequested = useRef(false);
   const voicePendingAfterCameraPermission = useRef(false);
@@ -155,6 +195,7 @@ export default function ScanScreen() {
     } catch (error) {
       Alert.alert('Scan unavailable', error instanceof Error ? error.message : 'Try again or use search.');
       setHasScanned(false);
+      setCapturedPhotoUri(null);
       return null;
     }
   };
@@ -163,6 +204,7 @@ export default function ScanScreen() {
     const text = textEntry.trim();
     if (!text || analyzeCapture.isPending) return;
     setHasScanned(true);
+    setCapturedPhotoUri(null);
     setAltCaptureBanner(null);
     const next = await analyze({ mode: 'text', textInput: text });
     if (next?.status === 'review') {
@@ -193,6 +235,7 @@ export default function ScanScreen() {
         const audioBase64 = await FileSystem.readAsStringAsync(recording.uri, { encoding: FileSystem.EncodingType.Base64 });
         if (!audioBase64) throw new Error('The recording could not be read');
         setHasScanned(true);
+        setCapturedPhotoUri(null);
         const next = await analyze({ mode: 'voice', audioBase64, audioFormat: 'mp4' });
         if (next?.status === 'transcript' && next.transcript) {
           setTextEntry(next.transcript);
