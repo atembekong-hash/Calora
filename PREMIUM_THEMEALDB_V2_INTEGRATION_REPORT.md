@@ -78,15 +78,16 @@ every ingredient or that a recipe satisfies dietary/allergen requirements.
 
 ## GitHub status
 
-- Existing local TheMealDB integration commit: `16090def64aa468411d49891d7316372e1a48b8e`
-- Branch: `main`
-- Staged unrelated changes: none.
+- Curated local TheMealDB integration commit:
+  `ec770ab09ec7fdcba693e7ec4b07f46ed0c61245`
+- Branch: `reconciliation/curated-calora-publish`
+- The curated branch excludes `.agents/agent_assets_metadata.toml`.
 - Secret review: `THEMEALDB_API_KEY` appears only as a server environment
   reference and in the test's deliberate fake sentinel; no configured secret
   value is present in the tracked content.
-- Push result: **BLOCKED — not attempted.**
-- Remote synchronization: **BLOCKED.** Local `main` is eight commits ahead of
-  `origin/main`, and those commits include unrelated recovery, mockup, and
-  signing changes. A normal push of the current branch would publish all of
-  them, violating the requested scope.
+- Push result: **NOT ATTEMPTED — this reconciliation stage is explicitly
+  local-only.**
+- Remote synchronization: `origin/main` remains at
+  `4599c51840540863d90ba3df71f4baa6175119cb`; the curated branch is local-only
+  and has not been pushed.
 - No force push, history rewrite, Expo/EAS build, or deployment was performed.
