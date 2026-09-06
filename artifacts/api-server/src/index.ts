@@ -5,6 +5,7 @@ import {
   RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
   restoreSuppressedRecoveryWarningSummary,
   waitForRecoverySummaryPersistence,
+  noteSuppressedRecoveryWarning,
 } from "./lib/logger";
 import { pool } from "@workspace/db";
 import { recoverPendingAccountDeletions } from "./routes/account";
@@ -28,7 +29,9 @@ if (Number.isNaN(port) || port <= 0) {
 // - task merge applies Drizzle's development schema through the managed setup;
 // - Publish diffs the development and production schemas through Replit.
 // The API must never mutate database structure during boot.
-logger.info("Database schema is managed by the Drizzle source and Replit lifecycle");
+logger.info(
+  "Database schema is managed by the Drizzle source and Replit lifecycle",
+);
 
 // node-postgres emits idle-client failures on the Pool. Without a listener,
 // EventEmitter treats them as uncaught errors and can terminate the process.
@@ -67,13 +70,26 @@ async function cleanupExpiredRateLimitRows(): Promise<void> {
 }
 
 const runAccountDeletionRecovery = () =>
-  runSafeBackgroundTask(
-    recoverPendingAccountDeletions,
-    (err) => logger.error({ err }, "Account deletion recovery failed"),
+  runSafeBackgroundTask(recoverPendingAccountDeletions, (err) =>
+    logger.error({ err }, "Account deletion recovery failed"),
   );
 
 async function startAccountDeletionRecovery(): Promise<void> {
   await restoreSuppressedRecoveryWarningSummary();
+  // This opt-in hook is only used by the process-level recovery rehearsal.
+  // It is deliberately unavailable to normal development and production
+  // starts, and it exercises the same persistence queue as a real suppressed
+  // recovery cycle.
+  if (
+    process.env.NODE_ENV === "test" &&
+    process.env.CALORA_RECOVERY_SUMMARY_REHEARSAL_SEED
+  ) {
+    noteSuppressedRecoveryWarning({
+      cohortKey: process.env.CALORA_RECOVERY_SUMMARY_REHEARSAL_SEED,
+      correlationKeys: ["0123456789abcdef"],
+    });
+    await waitForRecoverySummaryPersistence();
+  }
   await runAccountDeletionRecovery();
 }
 
@@ -140,7 +156,10 @@ function shutdown(reason: string, exitCode: number): void {
         logger.error({ err }, "Database pool close failed");
       } finally {
         clearTimeout(hardShutdownTimer);
-        logger.info({ reason, exitCode: finalExitCode }, "API shutdown complete");
+        logger.info(
+          { reason, exitCode: finalExitCode },
+          "API shutdown complete",
+        );
         process.exit(finalExitCode);
       }
     })();
