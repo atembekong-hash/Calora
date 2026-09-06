@@ -1,25 +1,32 @@
 import { createHash } from "node:crypto";
-import pino from "pino";
+import pino, { type DestinationStream } from "pino";
 import { pool } from "@workspace/db";
 
-const isProduction = process.env.NODE_ENV === "production";
+export function createLogger(destination?: DestinationStream) {
+  const isProduction = process.env.NODE_ENV === "production";
 
-export const logger = pino({
-  level: process.env.LOG_LEVEL ?? "info",
-  redact: [
-    "req.headers.authorization",
-    "req.headers.cookie",
-    "res.headers['set-cookie']",
-  ],
-  ...(isProduction
-    ? {}
-    : {
-        transport: {
-          target: "pino-pretty",
-          options: { colorize: true },
-        },
-      }),
-});
+  return pino(
+    {
+      level: process.env.LOG_LEVEL ?? "info",
+      redact: [
+        "req.headers.authorization",
+        "req.headers.cookie",
+        "res.headers['set-cookie']",
+      ],
+      ...(isProduction
+        ? {}
+        : {
+            transport: {
+              target: "pino-pretty",
+              options: { colorize: true },
+            },
+          }),
+    },
+    destination,
+  );
+}
+
+export const logger = createLogger();
 
 export const RECOVERY_WARNING_SUMMARY_INTERVAL_MS = 15 * 60 * 1000;
 const MAX_SUPPRESSED_RECOVERY_COHORTS = 128;
@@ -239,7 +246,10 @@ export function noteSuppressedRecoveryWarning(input: {
  * waiting in real time. No account identifiers, provider errors, or provider
  * response details are accepted by this boundary.
  */
-export function flushSuppressedRecoveryWarningSummary(now = Date.now()): void {
+export function flushSuppressedRecoveryWarningSummary(
+  now = Date.now(),
+  outputLogger = logger,
+): void {
   if (
     suppressedRecoveryCohorts.size === 0
     || now - suppressedRecoverySummaryStartedAt < RECOVERY_WARNING_SUMMARY_INTERVAL_MS
@@ -253,7 +263,7 @@ export function flushSuppressedRecoveryWarningSummary(now = Date.now()): void {
     0,
   );
 
-  logger.warn(
+  outputLogger.warn(
     {
       event: "account_deletion_recovery_suppressed_summary",
       suppressedCycleCount,
