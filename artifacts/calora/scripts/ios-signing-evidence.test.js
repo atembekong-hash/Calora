@@ -255,17 +255,50 @@ function startFixtureServer(responses) {
 }
 
 function runEvidenceWrapper(fixture, evidencePath, easCliPath, easGraphqlUrl) {
+  return runEvidenceWrapperWithUmask(
+    fixture,
+    evidencePath,
+    easCliPath,
+    easGraphqlUrl,
+    null,
+  );
+}
+
+function runEvidenceWrapperWithUmask(
+  fixture,
+  evidencePath,
+  easCliPath,
+  easGraphqlUrl,
+  umask,
+) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [evidenceWrapperPath, ...fixture.args], {
-      cwd: projectRoot,
-      env: {
-        ...process.env,
-        CALORA_IOS_SIGNING_EVIDENCE_PATH: evidencePath,
-        EAS_CLI_COMMAND: easCliPath,
-        EAS_GRAPHQL_URL: easGraphqlUrl,
-        EXPO_TOKEN: 'fixture-eas-token',
+    const launcher = [
+      'const [requestedUmask, wrapperPath, ...wrapperArgs] = process.argv.slice(1);',
+      'if (requestedUmask !== "-") process.umask(parseInt(requestedUmask, 8));',
+      'process.argv = [process.argv[0], wrapperPath, ...wrapperArgs];',
+      'const { run } = require(wrapperPath);',
+      'process.exit(run());',
+    ].join('\n');
+    const child = spawn(
+      process.execPath,
+      [
+        '-e',
+        launcher,
+        umask === null ? '-' : umask.toString(8),
+        evidenceWrapperPath,
+        ...fixture.args,
+      ],
+      {
+        cwd: projectRoot,
+        env: {
+          ...process.env,
+          CALORA_IOS_SIGNING_EVIDENCE_PATH: evidencePath,
+          EAS_CLI_COMMAND: easCliPath,
+          EAS_GRAPHQL_URL: easGraphqlUrl,
+          EXPO_TOKEN: 'fixture-eas-token',
+        },
       },
-    });
+    );
     let stdout = '';
     let stderr = '';
     child.stdout.setEncoding('utf8');
@@ -280,6 +313,49 @@ function runEvidenceWrapper(fixture, evidencePath, easCliPath, easGraphqlUrl) {
     child.once('close', (status, signal) => resolve({ status, signal, stdout, stderr }));
   });
 }
+
+test('keeps the evidence directory and file private across runner umasks', async () => {
+  const fixture = signingFixtures.find((candidate) => candidate.expected.exitCode === 0);
+  assert.ok(fixture, 'a successful signing fixture is required');
+
+  for (const umask of [0o000, 0o022, 0o027, 0o077]) {
+    const fixtureDirectory = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'calora-ios-signing-permissions-'),
+    );
+    const evidenceDirectory = path.join(fixtureDirectory, 'release');
+    const evidencePath = path.join(evidenceDirectory, 'evidence.json');
+    fs.mkdirSync(evidenceDirectory, { mode: 0o755 });
+    fs.chmodSync(evidenceDirectory, 0o755);
+    const easCliPath = writeFixtureEasCli(
+      fixtureDirectory,
+      fixture.easCli || { status: 0 },
+    );
+    const fixtureServer = await startFixtureServer(fixture.responses);
+
+    try {
+      const result = await runEvidenceWrapperWithUmask(
+        fixture,
+        evidencePath,
+        easCliPath,
+        fixtureServer.url,
+        umask,
+      );
+      assert.equal(
+        result.status,
+        0,
+        `umask ${umask.toString(8)} stderr:\n${result.stderr}\nstdout:\n${result.stdout}`,
+      );
+      assert.equal(result.signal, null);
+      assert.equal(fs.statSync(evidenceDirectory).mode & 0o777, 0o700);
+      assert.equal(fs.statSync(evidencePath).mode & 0o777, 0o600);
+    } finally {
+      await new Promise((resolve, reject) =>
+        fixtureServer.server.close((error) => (error ? reject(error) : resolve())),
+      );
+      fs.rmSync(fixtureDirectory, { recursive: true, force: true });
+    }
+  }
+});
 
 test('archives the exact sanitized contract for every preflight child-process fixture', async (t) => {
   for (const fixture of signingFixtures) {

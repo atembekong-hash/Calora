@@ -58,6 +58,10 @@ function writeEvidence(evidence, evidencePath) {
     recursive: true,
     mode: 0o700,
   });
+  // mkdir's mode is ignored when the destination already exists, and the
+  // runner's umask can otherwise leave a newly-created directory less
+  // restrictive than the evidence contract requires.
+  fs.chmodSync(evidenceDirectory, 0o700);
 
   const temporaryDirectory = fs.mkdtempSync(
     path.join(evidenceDirectory, `.${evidenceFile}.`),
@@ -68,6 +72,10 @@ function writeEvidence(evidence, evidencePath) {
       mode: 0o600,
     });
     fs.renameSync(temporaryPath, evidencePath);
+    // Keep the final artifact private even when the runner's umask is
+    // permissive. The temporary file is unique, so this does not widen an
+    // existing artifact's permissions.
+    fs.chmodSync(evidencePath, 0o600);
   } finally {
     fs.rmSync(temporaryDirectory, { recursive: true, force: true });
   }
