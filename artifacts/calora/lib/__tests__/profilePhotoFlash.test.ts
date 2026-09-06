@@ -950,6 +950,18 @@ describe('real CaloraProvider — cross-session guarantee: photo flash is preven
 });
 
 describe('real CaloraProvider — account switch during hydration', () => {
+  it('treats a legacy saved profile without onboardingComplete as already onboarded', async () => {
+    _asyncStore[STORAGE_KEY] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      profile: ACCOUNT_PROFILE,
+    });
+
+    const handle = await renderAndAwaitHydration();
+
+    expect(handle.result.current.onboardingComplete).toBe(true);
+    expect(handle.result.current.profile?.name).toBe('User A');
+  });
+
   it('does not apply User A hydration after the provider switches to User B', async () => {
     const userAKey = storageKeyForAccount('user-a');
     const userBKey = storageKeyForAccount('user-b');

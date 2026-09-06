@@ -714,7 +714,11 @@ export function CaloraProvider({
       pendingNotificationUpdatesRef.current = [];
       return;
     }
-    if (saved.onboardingComplete !== undefined) setOnboardingComplete(saved.onboardingComplete);
+    // Older completed snapshots may have a profile but predate the explicit
+    // onboardingComplete flag. Preserve the completed flow in that case while
+    // still respecting an explicit false for an in-progress snapshot.
+    const restoredOnboardingComplete = saved.onboardingComplete ?? Boolean(saved.profile);
+    setOnboardingComplete(restoredOnboardingComplete);
     if (saved.onboardingStep !== undefined) {
       setOnboardingStepState(normalizeOnboardingStep(saved.onboardingStep));
     }
@@ -801,7 +805,7 @@ export function CaloraProvider({
        }));
        exportSnapshotRef.current = {
          ...base,
-          onboardingComplete: saved.onboardingComplete ?? base.onboardingComplete,
+           onboardingComplete: saved.onboardingComplete ?? (Boolean(saved.profile) || base.onboardingComplete),
           onboardingStep: saved.onboardingStep !== undefined
             ? normalizeOnboardingStep(saved.onboardingStep)
             : base.onboardingStep,
