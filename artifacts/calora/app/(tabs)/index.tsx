@@ -35,23 +35,44 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { PlannerPeek } from '@/components/PlannerPeek';
 import { formatLogTime } from '@/lib/dates';
+import { recipeImageRole } from '@/lib/recipeImagePresentation';
 
 function RecipeWidgetImage({ recipe }: { recipe: Recipe }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     setFailed(false);
   }, [recipe.id, recipe.image]);
+  const fallbackRole = recipeImageRole({
+    name: recipe.name,
+    category: recipe.category,
+    tags: recipe.tags,
+  });
+  const fallbackImages = {
+    breakfast: require('../../assets/images/food-fallback-breakfast.jpg'),
+    drink: require('../../assets/images/food-fallback-drink.jpg'),
+    main: require('../../assets/images/food-fallback-main.jpg'),
+    snack: require('../../assets/images/food-fallback-snack.jpg'),
+  } as const;
+  const fallbackActive = !recipe.image || failed;
   return (
-    <Image
-      accessibilityLabel={`${recipe.name} recipe image`}
-      source={recipe.image && !failed ? { uri: recipe.image } : require('../../assets/images/calora-recipes-header.jpg')}
-      contentFit="cover"
-      cachePolicy="memory-disk"
-      onError={() => setFailed(true)}
-      placeholder={require('../../assets/images/calora-recipes-header.jpg')}
-      recyclingKey={`${recipe.id}:${recipe.image ?? 'fallback'}`}
-      style={styles.recipeWidgetImage}
-    />
+    <View style={styles.recipeWidgetImageFrame}>
+      <Image
+        accessibilityLabel={`${recipe.name} ${fallbackActive ? `${fallbackRole} fallback image` : 'recipe image'}`}
+        source={recipe.image && !failed ? { uri: recipe.image } : fallbackImages[fallbackRole]}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        onError={() => setFailed(true)}
+        placeholder={fallbackImages[fallbackRole]}
+        recyclingKey={`${recipe.id}:${recipe.image ?? `fallback-${fallbackRole}`}`}
+        style={styles.recipeWidgetImage}
+      />
+      {fallbackActive && (
+        <View accessible accessibilityLabel={`${recipe.name} is using a ${fallbackRole} fallback image`} style={styles.recipeWidgetImageNotice}>
+          <Feather name="image" size={11} color="#ffffff" />
+          <Text style={styles.recipeWidgetImageNoticeText}>Fallback image</Text>
+        </View>
+      )}
+    </View>
   );
 }
 import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
@@ -1776,7 +1797,10 @@ function makeStyles(f: number) {
   recipeWidgetNavButton: { width: 30, height: 30, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   recipeWidgetPages: { },
   recipeWidgetCard: { width: 322, height: 146, borderRadius: 18, overflow: 'hidden', position: 'relative' },
+  recipeWidgetImageFrame: { ...StyleSheet.absoluteFillObject },
   recipeWidgetImage: { ...StyleSheet.absoluteFillObject },
+  recipeWidgetImageNotice: { position: 'absolute', top: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10, backgroundColor: 'rgba(18,34,24,0.72)' },
+  recipeWidgetImageNoticeText: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 9 * f },
   recipeWidgetCopy: { flex: 1, justifyContent: 'flex-end', padding: 14 },
   recipeWidgetEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase' },
   recipeWidgetTitle: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 20 * f, lineHeight: 24, letterSpacing: -0.4, maxWidth: 260 },

@@ -34,6 +34,7 @@ import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy'
 import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
+import { recipeImageRole } from '@/lib/recipeImagePresentation';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -95,11 +96,12 @@ function httpStatus(error: unknown): number | null {
 }
 
 function recipeFallbackImage(recipe: BrowseRecipe) {
-  const searchable = [recipe.name, recipe.category, recipeMealType(recipe), ...(recipe.tags ?? [])].filter(Boolean).join(' ').toLowerCase();
-  if (/\b(drink|smoothie|juice|tea|coffee|cocktail)\b/.test(searchable)) return RECIPE_FALLBACK_IMAGES.drink;
-  if (/\b(snack|appetizer|starter|dip)\b/.test(searchable)) return RECIPE_FALLBACK_IMAGES.snack;
-  if (/\b(breakfast|brunch|oat|egg|pancake|waffle)\b/.test(searchable)) return RECIPE_FALLBACK_IMAGES.breakfast;
-  return RECIPE_FALLBACK_IMAGES.main;
+  return RECIPE_FALLBACK_IMAGES[recipeImageRole({
+    name: recipe.name,
+    category: recipe.category,
+    mealType: recipeMealType(recipe),
+    tags: recipe.tags,
+  })];
 }
 
 function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: number }) {
