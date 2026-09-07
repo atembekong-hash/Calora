@@ -67,7 +67,8 @@ function makeLog(overrides: Partial<{
   confidence: number;
   notes: string;
   imageUrl: string;
-  imageSource: 'provider' | 'recipe' | 'planner';
+  imageSource: 'provider' | 'recipe' | 'planner' | 'restaurant_representative';
+  imageAssetKey: string;
   nutritionSnapshot: { calories: number; proteinG: number; carbsG: number; fatG: number; capturedAt: string } | undefined;
   syncUpdatedAt: string;
 }> = {}) {
@@ -389,6 +390,25 @@ describe('syncDiaryLogs: image metadata', () => {
     const secondPayload = mockSyncOutbox.mock.calls[1][0].mutations[0].payload;
     expect(secondPayload.imageUrl).toBe('https://images.openfoodfacts.org/chicken.jpg');
     expect(secondPayload.imageSource).toBe('provider');
+  });
+
+  it('round-trips a stable local image identity with the diary mutation', async () => {
+    const { syncDiaryLogs } = await freshDiarySync();
+    mockSyncOutbox.mockImplementation(async (request: { mutations: Array<{ mutationId: string }> }) => ({
+      accepted: request.mutations.map((mutation) => mutation.mutationId),
+      conflicts: [],
+      nextCursor: '',
+    }));
+
+    await syncDiaryLogs([makeLog({
+      id: 'log-restaurant-image',
+      imageAssetKey: 'restaurant:tacos',
+      imageSource: 'restaurant_representative',
+    })]);
+
+    const payload = mockSyncOutbox.mock.calls[0][0].mutations[0].payload;
+    expect(payload.imageAssetKey).toBe('restaurant:tacos');
+    expect(payload.imageSource).toBe('restaurant_representative');
   });
 
   it('uses a new mutation id for a later edit of the same diary record', async () => {

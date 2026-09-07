@@ -303,7 +303,7 @@ export function sourceComponentsToDraft(input: {
     correctionIds: [],
     imageAssetKey: input.imageAssetKey,
     imageUrl,
-    imageSource: imageUrl ? (directImage.imageSource ?? 'provider') : undefined,
+    imageSource: directImage.imageSource ?? (imageUrl ? 'provider' : undefined),
   };
 }
 

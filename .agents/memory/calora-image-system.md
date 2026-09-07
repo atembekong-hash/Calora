@@ -15,11 +15,11 @@ Planner meal photos must resolve from the visible canonical meal name, not from 
 
 **How to apply:** Keep client and server name aliases aligned with the planner catalog, normalize planner meals at hydration and mutation boundaries, and test every catalog entry plus a complete seven-day starter week.
 
-Diary thumbnails must always render a bundled category fallback unless a durable HTTPS URL from an allowlisted food-image provider is available. Normalize image metadata before every local or server persistence boundary; never retain camera, file, blob, data, or arbitrary-host URLs.
+Diary thumbnails must always render a bundled category fallback unless a durable HTTPS URL from an allowlisted food-image provider is available. Exact curated/local identities persist as stable keys in diary sync metadata, while remote metadata is normalized at every persistence boundary.
 
 **Why:** Guaranteed local fallbacks keep every diary row visual offline and after remote failures, while write-time normalization prevents temporary captures or untrusted URLs from leaking into persisted nutrition records.
 
-**How to apply:** When adding an image provider, update the client and server host allowlists and their rejection tests together. Store only the URL and provenance class; never store image bytes in diary data.
+**How to apply:** When adding an image provider, update the shared food-image host policy and its client/server rejection tests together. Store only validated URLs, provenance, and stable local keys; never store image bytes in diary data.
 
 Curated foods with bundled canonical assets should not carry remote provider image URLs, and provider recipe pages should clear a reused normalized image URL from later recipes so a fallback is shown instead of a misleading dish photo.
 

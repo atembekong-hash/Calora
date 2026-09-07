@@ -1,6 +1,5 @@
 import { ApiError, useGeneratePlanner, type PlannerMeal } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
@@ -25,7 +24,6 @@ import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
-import { plannerImageSource } from '@/lib/mealImages';
 import { PROGRAM_HERO_MEAL_IDS } from '@workspace/api-zod/planner-program-pools';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
@@ -1209,13 +1207,17 @@ export default function PlannerScreen() {
             ) : (
               detail && (
                 <>
-                  <Image
-                    source={plannerImageSource(detail.imageAssetKey, detail.image) ?? require('../../assets/images/calora-plan-header.jpg')}
-                    contentFit="cover"
+                  <PlannerMealImage
+                    meal={detail}
                     style={styles.detailImage}
+                    auditId="planner-detail"
                   />
                   <Text style={[styles.detailImageProvenance, { color: colors.mutedForeground }]}>
-                    {detail.imageAssetKey ? 'Canonical meal image' : detail.image ? 'Provider meal image' : 'Fallback image · no meal photo available'}
+                    {detail.imageAssetKey
+                      ? 'Canonical meal image · identity checked against meal name'
+                      : detail.image
+                        ? 'Provider meal image'
+                        : 'Fallback image · no meal photo available'}
                   </Text>
                   <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.detailBody, { paddingBottom: 34 }]}>
                     <View style={styles.detailTitleRow}>

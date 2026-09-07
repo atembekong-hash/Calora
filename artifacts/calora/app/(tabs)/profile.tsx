@@ -23,6 +23,7 @@ import { reconcileUserNotificationPlan } from '@/lib/notificationLifecycle';
 import type { NotificationReconciliationResult } from '@/lib/notificationReconciliation';
 import * as FileSystem from 'expo-file-system/legacy';
 import { copyProfilePhoto, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
+import { ProfilePhoto } from '@/components/ProfilePhoto';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import Animated from 'react-native-reanimated';
@@ -689,9 +690,12 @@ export default function ProfileScreen() {
         {/* ── Profile card ── */}
         <Animated.View entering={enterMotion('screen', 0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
           <View style={[styles.largeAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}>
-            {profilePhotoUri
-              ? <Image source={{ uri: profilePhotoUri }} style={{ width: 47, height: 47 }} contentFit="cover" />
-              : <Text style={[styles.largeAvatarText, { color: colors.primaryForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
+            <ProfilePhoto
+              uri={profilePhotoUri}
+              size={47}
+              accessibilityLabel="Profile photo"
+              fallback={<Text style={[styles.largeAvatarText, { color: colors.primaryForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
+            />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.profileName, { color: colors.onHero }]}>{profile?.name ?? 'Your profile'}</Text>
@@ -1547,9 +1551,12 @@ export default function ProfileScreen() {
             {/* Photo picker */}
             <Pressable accessibilityLabel="Change profile photo" onPress={handlePhotoTap} style={styles.editAvatarWrap}>
               <View style={[styles.editAvatar, { backgroundColor: colors.muted, overflow: 'hidden' }]}>
-                {editPhotoUri
-                  ? <Image source={{ uri: editPhotoUri }} style={{ width: 72, height: 72 }} contentFit="cover" />
-                  : <Feather name="user" size={30} color={colors.mutedForeground} />}
+                <ProfilePhoto
+                  uri={editPhotoUri}
+                  size={72}
+                  accessibilityLabel="Profile photo preview"
+                  fallback={<Feather name="user" size={30} color={colors.mutedForeground} />}
+                />
               </View>
               <View style={[styles.editAvatarBadge, { backgroundColor: colors.primary }]}>
                 <Feather name="camera" size={11} color={colors.primaryForeground} />

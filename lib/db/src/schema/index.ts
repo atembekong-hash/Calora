@@ -123,6 +123,7 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
     memoryId?: string;
     plannerMealId?: string;
     sourceRecipeId?: string;
+    imageAssetKey?: string;
   }>().default({}).notNull(),
   clientUpdatedAt: timestamp("client_updated_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

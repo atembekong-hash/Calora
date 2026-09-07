@@ -152,6 +152,8 @@ export type CaloraRecipe = {
   imageId?: string | null;
   imageUrlExpiresAt?: string | null;
   imageStatus?: 'pending' | 'ready' | 'failed';
+  /** Durable classification for a generated/private recipe photo. */
+  imageProvenance?: 'generated' | 'provider' | 'fallback';
   category?: string | null;
   area?: string | null;
   description?: string | null;

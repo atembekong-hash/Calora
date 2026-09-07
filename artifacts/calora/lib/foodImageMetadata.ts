@@ -1,14 +1,8 @@
-export type FoodImageSource = 'provider' | 'recipe' | 'planner';
+import { normalizeTrustedFoodImageUrl } from '@workspace/api-zod/image-source-policy';
+
+export type FoodImageSource = 'provider' | 'recipe' | 'planner' | 'restaurant_representative';
 
 export type FoodImageCategory = 'breakfast' | 'main' | 'snack' | 'drink';
-
-const TRUSTED_IMAGE_DOMAINS = [
-  'openfoodfacts.org',
-  'unsplash.com',
-  'themealdb.com',
-  'fatsecret.com',
-  'ftscrt.com',
-] as const;
 
 const DRINK_WORDS = /\b(water|coffee|tea|juice|smoothie|shake|milk|latte|soda|drink|beverage)\b/i;
 const SNACK_WORDS = /\b(apple|banana|berry|berries|fruit|nuts?|yogurt|snack|bar|cookie|chips?|popcorn)\b/i;
@@ -19,20 +13,7 @@ const BREAKFAST_WORDS = /\b(oats?|cereal|egg|toast|pancake|waffle|breakfast|gran
  * data, blob, and file URIs must never escape the capture review flow.
  */
 export function normalizeFoodImageUrl(value: unknown): string | undefined {
-  if (typeof value !== 'string') return undefined;
-  const trimmed = value.trim();
-  if (!/^https:\/\//i.test(trimmed) || trimmed.length > 2048) return undefined;
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.protocol !== 'https:' || !parsed.hostname) return undefined;
-    const hostname = parsed.hostname.toLowerCase();
-    const trusted = TRUSTED_IMAGE_DOMAINS.some(
-      (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
-    );
-    return trusted ? parsed.toString() : undefined;
-  } catch {
-    return undefined;
-  }
+  return normalizeTrustedFoodImageUrl(value);
 }
 
 export function normalizeFoodImageMetadata(
@@ -40,12 +21,22 @@ export function normalizeFoodImageMetadata(
   imageSource: unknown,
 ): { imageUrl?: string; imageSource?: FoodImageSource } {
   const normalizedUrl = normalizeFoodImageUrl(imageUrl);
-  const normalizedSource = imageSource === 'provider' || imageSource === 'recipe' || imageSource === 'planner'
+  const normalizedSource = imageSource === 'provider'
+    || imageSource === 'recipe'
+    || imageSource === 'planner'
+    || imageSource === 'restaurant_representative'
     ? imageSource
     : undefined;
   return {
     imageUrl: normalizedUrl,
-    imageSource: normalizedUrl ? normalizedSource : undefined,
+    // A representative bundled restaurant asset has no URL by design. Keep
+    // that provenance label so the local identity remains truthful after
+    // diary restore; URL-backed sources still require a validated URL.
+    imageSource: normalizedSource === 'restaurant_representative'
+      ? normalizedSource
+      : normalizedUrl
+        ? normalizedSource
+        : undefined,
   };
 }
 

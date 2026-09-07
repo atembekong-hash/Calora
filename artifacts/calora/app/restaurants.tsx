@@ -139,6 +139,7 @@ export default function RestaurantsScreen() {
       assumptions: ['Restaurant preparation and serving size can vary by location.'],
       reviewQuestions: component.reviewQuestions,
       imageAssetKey: restaurantFoodImageAssetKey(providerDetail),
+      imageSource: 'restaurant_representative',
     });
     setSelectedFood(null);
     router.replace({

@@ -1489,7 +1489,7 @@ export default function RecipesScreen() {
     updateRecipe(recipe.id, { imageStatus: 'pending' });
     try {
       const photo = await requestGeneratedRecipePhoto({ title: recipe.name, description: recipe.description ?? '' });
-      updateRecipe(recipe.id, { image: photo.imageUrl, imageId: photo.imageId, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready' });
+      updateRecipe(recipe.id, { image: photo.imageUrl, imageId: photo.imageId, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready', imageProvenance: 'generated' });
     } catch {
       updateRecipe(recipe.id, { imageStatus: 'failed' });
     } finally {
@@ -1507,7 +1507,7 @@ export default function RecipesScreen() {
       if (!recipe.imageId || photoRefreshesRef.current.has(recipe.id)) return;
       photoRefreshesRef.current.add(recipe.id);
       void requestGeneratedRecipePhotoUrl({ imageId: recipe.imageId })
-        .then((photo) => updateRecipe(recipe.id, { image: photo.imageUrl, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready' }))
+        .then((photo) => updateRecipe(recipe.id, { image: photo.imageUrl, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready', imageProvenance: 'generated' }))
         .catch(() => updateRecipe(recipe.id, { imageStatus: 'failed' }))
         .finally(() => photoRefreshesRef.current.delete(recipe.id));
     });

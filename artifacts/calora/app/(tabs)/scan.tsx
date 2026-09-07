@@ -69,6 +69,11 @@ function PermissionState({ colors, onRequest }: { colors: ReturnType<typeof useC
 
 function ProcessingPhoto({ colors, uri }: { colors: ReturnType<typeof useCalora>['colors']; uri: string }) {
   const scannerProgress = useSharedValue(0);
+  const [imageFailed, setImageFailed] = useState(!isSafeCaptureImageUri(uri));
+
+  useEffect(() => {
+    setImageFailed(!isSafeCaptureImageUri(uri));
+  }, [uri]);
 
   useEffect(() => {
     scannerProgress.value = withRepeat(
@@ -88,7 +93,26 @@ function ProcessingPhoto({ colors, uri }: { colors: ReturnType<typeof useCalora>
 
   return (
     <View style={StyleSheet.absoluteFillObject}>
-      <Image source={{ uri }} resizeMode="cover" style={StyleSheet.absoluteFillObject} />
+      {imageFailed ? (
+        <View style={[StyleSheet.absoluteFillObject, styles.processingImageFallback, { backgroundColor: colors.muted }]}>
+          <Feather name="image" size={28} color={colors.mutedForeground} />
+          <Text accessibilityLabel="Capture preview unavailable" style={[styles.processingImageFallbackText, { color: colors.mutedForeground }]}>
+            Capture preview unavailable
+          </Text>
+        </View>
+      ) : (
+        <Image
+          accessibilityLabel="Captured meal being analyzed"
+          source={{ uri }}
+          resizeMode="cover"
+          onError={() => setImageFailed(true)}
+          onLoad={(event) => {
+            const { width, height } = event.nativeEvent.source;
+            if (width * height > 20_000_000) setImageFailed(true);
+          }}
+          style={StyleSheet.absoluteFillObject}
+        />
+      )}
       <View style={styles.processingShade} />
       <View style={styles.scannerTrack}>
         <Animated.View style={[styles.scannerGlow, { backgroundColor: colors.accent }, scannerStyle]} />
@@ -104,6 +128,10 @@ function ProcessingPhoto({ colors, uri }: { colors: ReturnType<typeof useCalora>
       </View>
     </View>
   );
+}
+
+function isSafeCaptureImageUri(uri: string): boolean {
+  return uri.length <= 2048 && /^(file|content|ph|assets-library):/i.test(uri);
 }
 
 export default function ScanScreen() {
@@ -546,6 +574,8 @@ const styles = StyleSheet.create({
   cameraFrame: { height: 390, marginHorizontal: 20, borderRadius: 25, overflow: 'hidden', borderWidth: 1, backgroundColor: '#10251f' },
   cameraOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   processingShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5,20,14,0.24)' },
+  processingImageFallback: { alignItems: 'center', justifyContent: 'center', gap: 8 },
+  processingImageFallbackText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
   scannerTrack: { position: 'absolute', top: 20, left: 0, right: 0, height: 350 },
   scannerGlow: { position: 'absolute', top: -20, left: 18, right: 18, height: 48, borderRadius: 24, opacity: 0.22 },
   scannerBeam: { position: 'absolute', top: 0, left: 18, right: 18, height: 3, borderRadius: 2, shadowColor: '#f4a261', shadowOpacity: 0.95, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 6 },

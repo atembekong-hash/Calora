@@ -30,6 +30,13 @@ describe('normalizeFoodImageUrl', () => {
       imageSource: undefined,
     });
   });
+
+  it('preserves representative restaurant provenance without inventing a remote URL', () => {
+    expect(normalizeFoodImageMetadata(undefined, 'restaurant_representative')).toEqual({
+      imageUrl: undefined,
+      imageSource: 'restaurant_representative',
+    });
+  });
 });
 
 describe('foodImageCategory', () => {
