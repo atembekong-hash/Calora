@@ -10,15 +10,20 @@ permissions:
 
 jobs:
   verify:
-    name: Verify fresh-schema deletion fences
+    name: Verify fresh-schema deletion fences (PostgreSQL ${{ matrix.postgres_major }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres_major:
+          - "16"
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/calora_deletion_fence_ci
       ACCOUNT_DELETION_FENCE_REQUIRE_DATABASE: "true"
     services:
       postgres:
-        image: postgres:16
+        image: postgres:${{ matrix.postgres_major }}
         env:
           POSTGRES_DB: calora_deletion_fence_ci
           POSTGRES_USER: postgres
@@ -60,3 +65,57 @@ jobs:
 
       - name: Verify migrated-schema deletion fences
         run: pnpm --filter @workspace/api-server run test:account-deletion-fence
+
+      - name: Capture sanitized PostgreSQL diagnostics
+        if: failure()
+        env:
+          POSTGRES_MAJOR: ${{ matrix.postgres_major }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+          DIAGNOSTICS_PATH: ${{ runner.temp }}/account-deletion-fence-postgres-${{ matrix.postgres_major }}-${{ github.run_id }}.log
+        run: |
+          set -o pipefail
+          mkdir -p "$(dirname "$DIAGNOSTICS_PATH")"
+
+          {
+            printf 'Account-deletion fence PostgreSQL diagnostics\n'
+            printf 'PostgreSQL major: %s\n' "$POSTGRES_MAJOR"
+            printf 'Workflow run: %s\n\n' "$WORKFLOW_RUN_ID"
+
+            container_ids="$(
+              docker ps --all --quiet \
+                --filter 'label=com.github.actions.service=postgres' \
+                || true
+            )"
+            if [ -z "$container_ids" ]; then
+              container_ids="$(
+                docker ps --all --quiet \
+                  --filter "ancestor=postgres:${POSTGRES_MAJOR}" \
+                  || true
+              )"
+            fi
+
+            if [ -z "$container_ids" ]; then
+              printf 'PostgreSQL service container was not discoverable on the runner.\n'
+            else
+              while IFS= read -r container_id; do
+                [ -n "$container_id" ] || continue
+                printf '%s\n' "--- PostgreSQL service container ${container_id} ---"
+                docker logs "$container_id" 2>&1 || true
+              done <<< "$container_ids"
+            fi
+          } | sed -E \
+            -e 's#postgres(ql)?://[^[:space:]]+#[redacted connection string]#gi' \
+            -e 's#([[:alnum:]_-]*(password|passwd|pwd|secret|token|api[_-]?key))=[^[:space:],;]+#\1=[redacted]#gi' \
+            -e 's#([[:alnum:]_-]*(user|username|role|database|dbname))=[^[:space:],;]+#\1=[redacted]#gi' \
+            -e 's#[[:alnum:]._%+-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}#[redacted identity]#g' \
+            -e 's#[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}#[redacted identity]#g' \
+            > "$DIAGNOSTICS_PATH"
+
+      - name: Upload sanitized PostgreSQL diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: account-deletion-fence-postgres-${{ matrix.postgres_major }}-run-${{ github.run_id }}
+          path: ${{ runner.temp }}/account-deletion-fence-postgres-${{ matrix.postgres_major }}-${{ github.run_id }}.log
+          if-no-files-found: error
+          retention-days: 30
