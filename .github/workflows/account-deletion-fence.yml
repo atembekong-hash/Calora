@@ -66,6 +66,9 @@ jobs:
       - name: Verify migrated-schema deletion fences
         run: pnpm --filter @workspace/api-server run test:account-deletion-fence
 
+      - name: Verify built API deletion-fence release guard
+        run: pnpm --filter @workspace/api-server run test:built-deletion-fence-release
+
       - name: Capture sanitized PostgreSQL diagnostics
         if: failure()
         env:

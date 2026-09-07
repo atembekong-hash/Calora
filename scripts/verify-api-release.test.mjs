@@ -13,6 +13,9 @@ import {
 } from "./lib/provider-package-attestation.mjs";
 
 const verifier = path.join(path.dirname(fileURLToPath(import.meta.url)), "verify-api-release.mjs");
+const workspaceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const apiDirectory = path.join(workspaceDir, "artifacts", "api-server");
+const apiBuild = path.join(apiDirectory, "build.mjs");
 let fixture;
 
 function sha256(value) {
@@ -226,6 +229,7 @@ after(async () => {
   await rm(fixture.root, { recursive: true, force: true });
 });
 
+
 describe("verify-api-release CLI", () => {
   it("retains a verification record for signed evidence and matching live service", async () => {
     const evidencePath = path.join(fixture.evidenceDirectory, "valid.json");
@@ -315,5 +319,60 @@ describe("verify-api-release CLI", () => {
     const result = await run({ evidencePath });
     assert.equal(result.status, 1, result.stderr);
     assert.equal(await readFile(evidencePath, "utf8"), protectedRecord);
+  });
+});
+
+describe("built API deletion-fence validation", () => {
+  it("keeps the shared schema in the API bundle and rejects invalid emitted signals", async () => {
+    const result = await new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, [apiBuild], {
+        cwd: apiDirectory,
+        env: { ...process.env, NODE_ENV: "test" },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => { stdout += chunk; });
+      child.stderr.on("data", (chunk) => { stderr += chunk; });
+      child.on("error", reject);
+      child.on("close", (status) => resolve({ status, stdout, stderr }));
+    });
+    assert.equal(result.status, 0, result.stderr);
+
+    const graph = JSON.parse(await readFile(path.join(apiDirectory, "dist", "module-graph.json"), "utf8"));
+    const apiOutput = Object.entries(graph.outputs).find(([output]) => output === "dist/index.mjs");
+    assert.ok(apiOutput, "Release build did not emit the API entry bundle.");
+    const apiInputs = Object.keys(apiOutput[1].inputs);
+    assert.ok(
+      apiInputs.some((input) => input.endsWith("account-deletion-fence-schema.mjs")),
+      "Release API bundle omitted the shared account-deletion fence schema.",
+    );
+    assert.ok(
+      apiInputs.some((input) => input.endsWith("account-deletion-fence-signal.ts")) &&
+        apiInputs.some((input) => input.endsWith("account-deletion-state.ts")),
+      "Release API bundle replaced the shared deletion-fence signal construction path.",
+    );
+    assert.equal(
+      apiInputs.filter((input) => input.endsWith("account-deletion-fence-schema.mjs")).length,
+      1,
+      "Release API bundle includes multiple deletion-fence schema implementations.",
+    );
+
+    const probe = await import(
+      `${path.join(apiDirectory, "dist", "release-validation.mjs")}?release-test=${Date.now()}`,
+    );
+    assert.deepEqual(probe.accountDeletionFenceSignal("/v1/sync", 2), {
+      errorClass: "account_deletion_fence",
+      route: "/v1/sync",
+      count: 2,
+    });
+    assert.throws(
+      () => probe.accountDeletionFenceSignal("https://unsafe.example/v1/sync", 1),
+      /Invalid account-deletion fence signal/,
+    );
+    assert.throws(
+      () => probe.accountDeletionFenceSignal("/v1/sync", 0),
+      /Invalid account-deletion fence signal/,
+    );
   });
 });

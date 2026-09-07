@@ -3,9 +3,9 @@ import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
-  createAccountDeletionFenceSignal,
 } from "./account-deletion-fence-schema.mjs";
 import type { AccountDeletionFenceSignal } from "./account-deletion-fence-schema.mjs";
+import { accountDeletionFenceSignal } from "./account-deletion-fence-signal";
 
 export type AccountDeletionState = "active" | "deleting" | "deleted";
 export type AccountDeletionStage = "application" | "revenuecat" | "auth";
@@ -25,12 +25,7 @@ const RECOVERY_WARNING_LOCK_KEY = "calora:recovery-warning-suppression";
 
 export type { AccountDeletionFenceSignal };
 
-export function accountDeletionFenceSignal(
-  route: string,
-  count = 1,
-): AccountDeletionFenceSignal {
-  return createAccountDeletionFenceSignal(route, count);
-}
+export { accountDeletionFenceSignal };
 
 /**
  * Atomically claim a shared recovery-warning cooldown record.
