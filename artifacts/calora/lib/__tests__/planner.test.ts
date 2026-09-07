@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildShoppingItems, createStarterPlannerMeals, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalogForProgram, plannerDate, shoppingChecksByName } from '@/data/planner';
+import { plannerImageKeyForMeal } from '@/lib/mealImageIdentity';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
 const meal = (id: string, ingredients: string[], day = '2026-08-06'): PlannerMeal => ({
@@ -201,6 +202,31 @@ describe('planner identity', () => {
         .join('|'),
     );
     expect(new Set(signatures).size).toBe(programs.length);
+  });
+
+  it('gives every Program chooser hero a different canonical image', () => {
+    const programs = [
+      'balanced-nutrition',
+      'high-protein-power',
+      'low-carb-living',
+      'mediterranean-diet',
+      'plant-based-week',
+      'keto-kickstart',
+      'intermittent-fasting',
+      'budget-friendly',
+      'quick-and-easy',
+      'athletic-performance',
+      'anti-inflammatory',
+      'healthy-habits-week',
+    ] as const;
+    const heroImages = programs.map((programId) => {
+      const heroMeal = plannerCatalogForProgram(programId)[0];
+      return heroMeal ? plannerImageKeyForMeal(heroMeal.id, heroMeal.name) : null;
+    });
+
+    console.log(programs.map((programId, index) => `${programId}: ${heroImages[index]}`));
+    expect(heroImages.every(Boolean)).toBe(true);
+    expect(new Set(heroImages).size).toBe(programs.length);
   });
 
   it('preserves local calendar week dates', () => {
