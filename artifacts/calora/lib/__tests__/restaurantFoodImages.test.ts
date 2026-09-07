@@ -27,6 +27,8 @@ describe('restaurantFoodImageKey', () => {
     expect(restaurantFoodImageKey({ name: 'Side Salad' })).toBe('salad');
     expect(restaurantFoodImageKey({ name: 'Chicken Burrito Bowl' })).toBe('bowl');
     expect(restaurantFoodImageKey({ name: 'Coffee Cake' })).toBe('snack');
+    expect(restaurantFoodImageKey({ name: 'Hash Browns' })).toBe('breakfast');
+    expect(restaurantFoodImageKey({ name: 'Whopper' })).toBe('main');
   });
 
   it('round-trips a stable representative asset identity for diary thumbnails', () => {

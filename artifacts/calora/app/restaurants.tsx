@@ -257,6 +257,9 @@ export default function RestaurantsScreen() {
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Matches</Text>
               <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{searchResult.data?.foods.length ?? 0} items</Text>
             </View>
+            <Text style={[styles.resultDisclosure, { color: colors.mutedForeground }]}>
+              Representative images · exact menu photography unavailable
+            </Text>
             {searchResult.data?.foods.map((food) => (
               <Pressable
                 key={food.id}
@@ -420,6 +423,7 @@ const styles = StyleSheet.create({
   resultsHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 },
   resultCount: { fontFamily: 'Inter_500Medium', fontSize: 10 },
+  resultDisclosure: { fontFamily: 'Inter_500Medium', fontSize: 10, lineHeight: 14, marginTop: -2, marginBottom: 2 },
   resultCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
   resultVisual: { width: 70, height: 70, position: 'relative' },
   resultImage: { width: 70, height: 70, borderRadius: 15, backgroundColor: '#e7ece5' },

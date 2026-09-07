@@ -7,6 +7,7 @@ import {
 } from './restaurantFoodImageSelection';
 
 const FALLBACK_MAIN = require('../assets/images/food-fallback-main.jpg');
+const RESTAURANT_GENERIC = require('../assets/images/icon.png');
 const FALLBACK_DRINK = require('../assets/images/food-fallback-drink.jpg');
 const FALLBACK_SNACK = require('../assets/images/food-fallback-snack.jpg');
 const BREAKFAST = require('../assets/images/foods/eggs-sourdough.jpg');
@@ -19,7 +20,9 @@ const TACOS = require('../assets/images/foods/shrimp-tacos.jpg');
 const PASTA = require('../assets/images/foods/whole-wheat-pasta-primavera.jpg');
 
 const RESTAURANT_IMAGES: Record<RestaurantFoodImageKey, ImageSource> = {
-  main: FALLBACK_MAIN,
+  // An uncategorized branded item must not inherit a salad or entrée photo.
+  // Use a neutral local mark until a trustworthy food category is known.
+  main: RESTAURANT_GENERIC,
   drink: FALLBACK_DRINK,
   snack: FALLBACK_SNACK,
   breakfast: BREAKFAST,

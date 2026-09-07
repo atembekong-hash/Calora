@@ -25,7 +25,7 @@ export function restaurantFoodImageKey(food: RestaurantFoodImageInput): Restaura
 
   if (/\b(cookie|brownie|cake|pie|donut|doughnut|dessert|ice cream)\b/.test(text)) return 'snack';
   if (/\b(water|coffee|tea|latte|lemonade|juice|smoothie|shake|soda|drink|beverage)\b/.test(text)) return 'drink';
-  if (/\b(egg|oatmeal|oats|pancake|waffle|breakfast)\b/.test(text)) return 'breakfast';
+  if (/\b(egg|oatmeal|oats|pancake|waffle|breakfast|hash brown(s)?|muffin|biscuit)\b/.test(text)) return 'breakfast';
   if (/\b(salad|greens)\b/.test(text)) return 'salad';
   if (/\b(soup|chili)\b/.test(text)) return 'soup';
   if (/\b(bowl|rice|poke)\b/.test(text)) return 'bowl';
