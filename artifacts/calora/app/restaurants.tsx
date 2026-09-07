@@ -23,12 +23,9 @@ import { useAuth } from '@/context/AuthContext';
 import { type MealType, useCalora } from '@/context/CaloraContext';
 import { dateKey } from '@/lib/dates';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
-import { restaurantFoodImageSource } from '@/lib/restaurantFoodImages';
-import { restaurantFoodImageAssetKey, restaurantFoodImageLabel } from '@/lib/restaurantFoodImageSelection';
 import { restaurantFoodReviewState } from '@/lib/restaurantFoodReview';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { BottomSheet } from '@/components/BottomSheet';
-import { Image } from 'expo-image';
 
 const popularChains = ["McDonald's", 'Burger King', "Wendy's", 'Chipotle'];
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -138,8 +135,6 @@ export default function RestaurantsScreen() {
       provenance: 'verified_restaurant',
       assumptions: ['Restaurant preparation and serving size can vary by location.'],
       reviewQuestions: component.reviewQuestions,
-      imageAssetKey: restaurantFoodImageAssetKey(providerDetail),
-      imageSource: 'restaurant_representative',
     });
     setSelectedFood(null);
     router.replace({
@@ -258,9 +253,6 @@ export default function RestaurantsScreen() {
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Matches</Text>
               <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{searchResult.data?.foods.length ?? 0} items</Text>
             </View>
-            <Text style={[styles.resultDisclosure, { color: colors.mutedForeground }]}>
-              Representative images · exact menu photography unavailable
-            </Text>
             {searchResult.data?.foods.map((food) => (
               <Pressable
                 key={food.id}
@@ -268,17 +260,6 @@ export default function RestaurantsScreen() {
                 onPress={() => setSelectedFood(food)}
                 style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               >
-                <View style={styles.resultVisual}>
-                  <Image
-                    accessibilityLabel={restaurantFoodImageLabel(food)}
-                    contentFit="cover"
-                    source={restaurantFoodImageSource(food)}
-                    style={styles.resultImage}
-                  />
-                  <View style={[styles.resultImageBadge, { backgroundColor: colors.hero }]}>
-                    <Text style={[styles.resultImageBadgeText, { color: colors.onHero }]}>REPRESENTATIVE</Text>
-                  </View>
-                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.resultBrand, { color: colors.primary }]}>{food.brandName ?? 'Branded food'}</Text>
                   <Text style={[styles.resultName, { color: colors.foreground }]}>{food.name}</Text>
@@ -314,13 +295,6 @@ export default function RestaurantsScreen() {
                   </Pressable>
                 </View>
 
-                <Image
-                  accessibilityLabel={restaurantFoodImageLabel(detail)}
-                  contentFit="cover"
-                  source={restaurantFoodImageSource(detail)}
-                  style={styles.detailImage}
-                />
-                <Text style={[styles.imageProvenance, { color: colors.mutedForeground }]}>Representative image · exact menu photography unavailable</Text>
                 {detailResult.isFetching ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} /> : null}
                 <View style={[styles.nutritionCard, { backgroundColor: colors.hero }]}>
                   <View><Text style={[styles.macroValueLarge, { color: colors.onHero }]}>{selectedServing?.calories !== null ? Math.round(selectedServing?.calories ?? 0) : '—'}</Text><Text style={[styles.macroLabel, { color: colors.heroMuted }]}>kcal</Text></View>
@@ -424,12 +398,7 @@ const styles = StyleSheet.create({
   resultsHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 },
   resultCount: { fontFamily: 'Inter_500Medium', fontSize: 10 },
-  resultDisclosure: { fontFamily: 'Inter_500Medium', fontSize: 10, lineHeight: 14, marginTop: -2, marginBottom: 2 },
   resultCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  resultVisual: { width: 70, height: 70, position: 'relative' },
-  resultImage: { width: 70, height: 70, borderRadius: 15, backgroundColor: '#e7ece5' },
-  resultImageBadge: { position: 'absolute', left: 4, right: 4, bottom: 4, borderRadius: 6, paddingVertical: 3 },
-  resultImageBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 6, letterSpacing: 0.25, textAlign: 'center' },
   resultBrand: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 0.4, textTransform: 'uppercase' },
   resultName: { fontFamily: 'Inter_600SemiBold', fontSize: 13, marginTop: 2 },
   resultServing: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 3 },
@@ -445,8 +414,6 @@ const styles = StyleSheet.create({
   detailHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   detailBrand: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
   detailTitle: { fontFamily: 'Inter_700Bold', fontSize: 23, letterSpacing: -0.5, marginTop: 5 },
-  detailImage: { width: '100%', height: 178, borderRadius: 20, marginTop: 16, backgroundColor: '#e7ece5' },
-  imageProvenance: { fontFamily: 'Inter_500Medium', fontSize: 10, lineHeight: 14, marginTop: 7 },
   nutritionCard: { borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 17 },
   macroValueLarge: { fontFamily: 'Inter_700Bold', fontSize: 24 },
   macroValue: { fontFamily: 'Inter_700Bold', fontSize: 15, textAlign: 'center' },

@@ -1,12 +1,11 @@
 import { Image, type ImageSource } from 'expo-image';
 import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import type { FoodLog } from '@/context/CaloraContext';
 import { foodImageCategory, normalizeFoodImageUrl } from '@/lib/foodImageMetadata';
 import { foodImageKeyForName } from '@/lib/mealImageIdentity';
 import { foodImageSource } from '@/lib/mealImages';
-import { restaurantFoodImageSourceForAssetKey } from '@/lib/restaurantFoodImages';
-import { restaurantFoodImageAssetKey } from '@/lib/restaurantFoodImageSelection';
 
 const FALLBACK_IMAGES: Record<ReturnType<typeof foodImageCategory>, ImageSource> = {
   breakfast: require('../assets/images/food-fallback-breakfast.jpg'),
@@ -24,16 +23,25 @@ export function FoodLogThumbnail({
   size?: number;
   borderRadius?: number;
 }) {
+  const isRestaurantItem = log.source === 'Restaurant verified'
+    || log.imageSource === 'restaurant_representative'
+    || log.imageAssetKey?.startsWith('restaurant:');
+
+  if (isRestaurantItem) {
+    return (
+      <View
+        accessibilityLabel={`${log.name} restaurant item`}
+        style={[styles.restaurantMarker, { width: size, height: size, borderRadius }]}
+      >
+        <Feather name="map-pin" size={Math.max(14, Math.round(size * 0.38))} color="#426052" />
+      </View>
+    );
+  }
+
   const remoteUrl = normalizeFoodImageUrl(log.imageUrl);
   const canonicalImageKey = foodImageKeyForName(log.name);
-  const restaurantAssetKey = log.imageAssetKey?.startsWith('restaurant:')
-    ? log.imageAssetKey
-    : log.source === 'Restaurant verified'
-      ? restaurantFoodImageAssetKey({ name: log.name })
-      : undefined;
   const resolvedImageKey = canonicalImageKey ?? log.imageAssetKey;
-  const restaurantImage = restaurantFoodImageSourceForAssetKey(restaurantAssetKey);
-  const localImage = restaurantImage ?? foodImageSource(resolvedImageKey);
+  const localImage = foodImageSource(resolvedImageKey);
   // A valid item-specific remote image outranks any bundled canonical or
   // restaurant-category asset. Planner-curated local identity is the one
   // intentional exception because its local mapping is authoritative.
@@ -55,21 +63,16 @@ export function FoodLogThumbnail({
   return (
     <View style={[styles.frame, { width: size, height: size, borderRadius }]}>
       <Image
-          accessibilityLabel={restaurantImage ? `Representative image for ${log.name}; exact menu photography unavailable` : `${log.name} food image`}
+        accessibilityLabel={`${log.name} food image`}
         cachePolicy="memory-disk"
         contentFit="cover"
         onError={() => setRemoteFailed(true)}
         placeholder={fallback}
-        recyclingKey={`${log.id}:${restaurantAssetKey ?? resolvedImageKey ?? remoteUrl ?? 'fallback'}`}
+        recyclingKey={`${log.id}:${resolvedImageKey ?? remoteUrl ?? 'fallback'}`}
         source={source}
         style={StyleSheet.absoluteFill}
         transition={120}
       />
-      {restaurantImage && !(preferRemote && remoteUrl && !remoteFailed) ? (
-        <View style={styles.representativeBadge}>
-          <Text style={styles.representativeBadgeText}>REP</Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -79,20 +82,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#e7ece5',
     overflow: 'hidden',
   },
-  representativeBadge: {
-    position: 'absolute',
-    left: 3,
-    right: 3,
-    bottom: 3,
-    borderRadius: 4,
-    paddingVertical: 2,
-    backgroundColor: 'rgba(16, 67, 55, 0.88)',
-  },
-  representativeBadgeText: {
-    color: '#ffffff',
-    fontFamily: 'Inter_700Bold',
-    fontSize: 6,
-    letterSpacing: 0.35,
-    textAlign: 'center',
+  restaurantMarker: {
+    alignItems: 'center',
+    backgroundColor: '#e7ece5',
+    justifyContent: 'center',
   },
 });
