@@ -7,4 +7,4 @@ Calora Coach is a local conversation feature with bounded context. The server mu
 
 **Why:** Coach handles nutrition and wellness context where fabricated certainty, unsafe restriction advice, or arbitrary model-generated navigation would break Calora's trust boundary.
 
-**How to apply:** Keep context deterministic and explicit about missing data. Show evidence/confidence and limitations in the UI. Require a deliberate product decision before adding any Coach mutation action or medical capability.
+**How to apply:** Keep context deterministic and explicit about missing data. Show evidence/confidence and limitations in the UI. Guest Coach may provide only local, general guidance with no personal context, persistence, or provider request; signed-in Coach remains the only personalized path. Require a deliberate product decision before adding any Coach mutation action or medical capability.
