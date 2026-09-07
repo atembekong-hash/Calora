@@ -86,6 +86,95 @@ function programEncouragement(programId: PlanTypeId): string {
   }
 }
 
+type ProgramPresentation = {
+  focus: string;
+  rhythm: string;
+  fit: string;
+  tags: readonly string[];
+};
+
+const PROGRAM_PRESENTATION: Record<PlanTypeId, ProgramPresentation> = {
+  'balanced-nutrition': {
+    focus: 'Macro balance',
+    rhythm: 'Four varied meals',
+    fit: 'You want a flexible, well-rounded week without cutting out any food group.',
+    tags: ['Balanced macros', 'Everyday variety', 'Whole-food mix'],
+  },
+  'high-protein-power': {
+    focus: 'Protein forward',
+    rhythm: 'Recovery-ready meals',
+    fit: 'You want more protein and satisfying meals to support training or steady hunger.',
+    tags: ['Protein anchors', 'Satiety focused', 'Muscle support'],
+  },
+  'low-carb-living': {
+    focus: 'Lower carb',
+    rhythm: 'Steady-energy meals',
+    fit: 'You prefer fewer refined carbs with lean proteins, healthy fats, and vegetables.',
+    tags: ['Lower carb', 'Non-starchy veg', 'Steady energy'],
+  },
+  'mediterranean-diet': {
+    focus: 'Colorful produce',
+    rhythm: 'Fish, grains, legumes',
+    fit: 'You want a bright, produce-rich pattern inspired by Mediterranean kitchens.',
+    tags: ['Olive oil style', 'Fish + legumes', 'Colorful plates'],
+  },
+  'plant-based-week': {
+    focus: 'Plant protein',
+    rhythm: 'Legumes, grains, produce',
+    fit: 'You want a fully plant-forward week with satisfying meals and no meat or fish.',
+    tags: ['Plant protein', 'Fully meat-free', 'Fiber rich'],
+  },
+  'keto-kickstart': {
+    focus: 'Very low carb',
+    rhythm: 'Healthy fats + protein',
+    fit: 'You want a strict lower-carb rhythm that minimizes grains and added sugars.',
+    tags: ['Very low carb', 'Healthy fats', 'Grain-light'],
+  },
+  'intermittent-fasting': {
+    focus: 'Eating-window support',
+    rhythm: 'Lighter mornings',
+    fit: 'You prefer nutrition concentrated into fewer, more satisfying meals.',
+    tags: ['Lighter breakfast', 'Satisfying mains', 'Window focused'],
+  },
+  'budget-friendly': {
+    focus: 'Affordable staples',
+    rhythm: 'Simple, low-waste meals',
+    fit: 'You want nourishing meals built around practical ingredients and lower grocery cost.',
+    tags: ['Budget staples', 'Low waste', 'Simple recipes'],
+  },
+  'quick-and-easy': {
+    focus: '20-minute meals',
+    rhythm: 'Busy-day friendly',
+    fit: 'You need a realistic plan that keeps prep short without giving up nutrition.',
+    tags: ['20 min or less', 'Simple prep', 'Busy-day ready'],
+  },
+  'athletic-performance': {
+    focus: 'Training fuel',
+    rhythm: 'Energy + recovery',
+    fit: 'You want more fuel around active days, with ample protein and carbohydrates.',
+    tags: ['Higher fuel', 'Training support', 'Recovery ready'],
+  },
+  'anti-inflammatory': {
+    focus: 'Recovery-supporting foods',
+    rhythm: 'Fish, berries, greens',
+    fit: 'You want more omega-3-rich foods, colorful produce, nuts, and seeds.',
+    tags: ['Omega-3 foods', 'Colorful produce', 'Whole-food focus'],
+  },
+  'healthy-habits-week': {
+    focus: 'Gentle whole foods',
+    rhythm: 'Simple, familiar meals',
+    fit: 'You want an approachable starting point with nourishing meals and no extremes.',
+    tags: ['No extremes', 'Easy to follow', 'Fresh start'],
+  },
+};
+
+function programPreviewMeals(programId: PlanTypeId): PlannerMeal[] {
+  const catalog = plannerCatalogForProgram(programId);
+  return plannerMealTypes
+    .map((mealType) => catalog.find((meal) => meal.meal === mealType))
+    .filter((meal): meal is PlannerMeal => Boolean(meal));
+}
+
 function MealCard({
   meal,
   colors,
@@ -400,6 +489,8 @@ export default function PlannerScreen() {
     : plannerPreferences
       ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary
       : 'Choose a Program';
+  const programDetailPresentation = programDetail ? PROGRAM_PRESENTATION[programDetail.id] : null;
+  const programDetailMeals = programDetail ? programPreviewMeals(programDetail.id) : [];
 
   const renderPlannerDay = (day: string) => {
     const mealsForDay = plannerMeals.filter((meal) => meal.day === day);
@@ -1297,6 +1388,7 @@ export default function PlannerScreen() {
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planTypeList}>
                 {PLAN_TYPES.map((pt) => {
                   const isSelected = plannerPreferences?.primary === pt.id;
+                  const previewMeal = programPreviewMeals(pt.id)[0];
                   return (
                     <Pressable
                       key={pt.id}
@@ -1308,7 +1400,14 @@ export default function PlannerScreen() {
                       }]}
                     >
                       <View style={[styles.planTypeOptionIcon, { backgroundColor: isSelected ? colors.primary : colors.muted }]}>
-                        <Feather name={pt.icon as React.ComponentProps<typeof Feather>['name']} size={18} color={isSelected ? colors.primaryForeground : colors.foreground} />
+                        {previewMeal ? (
+                          <PlannerMealImage meal={previewMeal} style={styles.planTypeOptionImage} />
+                        ) : (
+                          <Feather name={pt.icon as React.ComponentProps<typeof Feather>['name']} size={18} color={isSelected ? colors.primaryForeground : colors.foreground} />
+                        )}
+                        <View style={[styles.planTypeOptionIconBadge, { backgroundColor: isSelected ? colors.primary : colors.hero }]}>
+                          <Feather name={pt.icon as React.ComponentProps<typeof Feather>['name']} size={10} color={colors.onHero} />
+                        </View>
                       </View>
                       <View style={styles.planTypeOptionCopy}>
                         <Text style={[styles.planTypeOptionLabel, { color: colors.foreground }]}>{pt.label}</Text>
@@ -1328,12 +1427,56 @@ export default function PlannerScreen() {
         <BottomSheet visible={programDetail !== null} onRequestClose={() => setProgramDetail(null)} onBackdropPress={() => setProgramDetail(null)} sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planDetailContent}>
-              {programDetail && <>
+              {programDetail && programDetailPresentation && <>
                 <SheetHeader eyebrow="PROGRAM DETAILS" title={programDetail.label} onClose={() => setProgramDetail(null)} colors={colors} />
+                {programDetailMeals[0] && (
+                  <View style={[styles.programHero, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                    <PlannerMealImage meal={programDetailMeals[0]} style={styles.programHeroImage} />
+                    <View style={[styles.programHeroBadge, { backgroundColor: colors.hero }]}>
+                      <Feather name={programDetail.icon as React.ComponentProps<typeof Feather>['name']} size={12} color={colors.onHero} />
+                      <Text style={[styles.programHeroBadgeText, { color: colors.onHero }]}>A taste of this week</Text>
+                    </View>
+                  </View>
+                )}
                 <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>{programDetail.description}</Text>
+                <View style={styles.programStatRow}>
+                  <View style={[styles.programStat, { backgroundColor: colors.accent }]}>
+                    <Text style={[styles.programStatLabel, { color: colors.primary }]}>FOCUS</Text>
+                    <Text style={[styles.programStatValue, { color: colors.foreground }]}>{programDetailPresentation.focus}</Text>
+                  </View>
+                  <View style={[styles.programStat, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
+                    <Text style={[styles.programStatLabel, { color: colors.primary }]}>RHYTHM</Text>
+                    <Text style={[styles.programStatValue, { color: colors.foreground }]}>{programDetailPresentation.rhythm}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.programSectionLabel, { color: colors.primary }]}>WHY IT MAY FIT YOU</Text>
+                <View style={[styles.programFitCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={[styles.programFitIcon, { backgroundColor: colors.accent }]}>
+                    <Feather name="compass" size={16} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.programFitText, { color: colors.foreground }]}>{programDetailPresentation.fit}</Text>
+                </View>
+                <View style={styles.programTagRow}>
+                  {programDetailPresentation.tags.map((tag) => (
+                    <View key={tag} style={[styles.programTag, { backgroundColor: colors.muted }]}>
+                      <Feather name="check" size={11} color={colors.primary} />
+                      <Text style={[styles.programTagText, { color: colors.foreground }]}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={[styles.programSectionLabel, { color: colors.primary }]}>A TASTE OF YOUR WEEK</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.programPreviewRow}>
+                  {programDetailMeals.map((meal) => (
+                    <View key={meal.id} style={[styles.programPreviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                      <PlannerMealImage meal={meal} style={styles.programPreviewImage} />
+                      <Text style={[styles.programPreviewType, { color: colors.primary }]}>{meal.meal}</Text>
+                      <Text numberOfLines={2} style={[styles.programPreviewName, { color: colors.foreground }]}>{meal.name}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
                 <View style={[styles.programDetailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Text style={[styles.programDetailLabel, { color: colors.primary }]}>HOW IT SHAPES YOUR PLAN</Text>
-                   <Text style={[styles.programDetailText, { color: colors.foreground }]}>Shapes generated meals, nutrition guidance, and this week’s generated meals.</Text>
+                  <Text style={[styles.programDetailText, { color: colors.foreground }]}>Shapes generated meals, nutrition guidance, and this week’s generated meals.</Text>
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Recipes and custom meals you add remain yours.</Text>
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Your calorie target and dietary preferences stay in control.</Text>
                 </View>
@@ -1453,9 +1596,6 @@ function makeStyles(f: number) {
   summaryMacroLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 2 },
      dayPager: { width: '100%' },
     programEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1.1, marginBottom: 4 },
-   programDetailCard: { borderRadius: 15, borderWidth: 1, padding: 13, marginTop: 16, gap: 7 },
-   programDetailLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 0.9 },
-   programDetailText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f },
   generationStatus: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 14 },
   generationStatusText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 },
   generationRetry: { paddingVertical: 6, paddingHorizontal: 4 },
@@ -1633,12 +1773,37 @@ function makeStyles(f: number) {
    planTypeList: { gap: 9, paddingBottom: 28 },
    planDetailContent: { paddingBottom: 28 },
   planTypeOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, borderRadius: 18, borderWidth: 1 },
-  planTypeOptionIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+   planTypeOptionIcon: { width: 48, height: 48, borderRadius: 14, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', position: 'relative' },
+   planTypeOptionImage: { ...StyleSheet.absoluteFillObject },
+   planTypeOptionIconBadge: { width: 22, height: 22, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
   planTypeOptionCopy: { flex: 1 },
   planTypeOptionLabel: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   planTypeOptionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 15, marginTop: 2 },
   planTypeOptionDesc: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 14, marginTop: 5 },
   planTypeCheck: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+   programHero: { height: 150, borderRadius: 20, overflow: 'hidden', borderWidth: 1, marginBottom: 14, position: 'relative' },
+   programHeroImage: { ...StyleSheet.absoluteFillObject },
+   programHeroBadge: { position: 'absolute', left: 12, bottom: 12, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 6 },
+   programHeroBadgeText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
+   programStatRow: { flexDirection: 'row', gap: 9, marginTop: 1, marginBottom: 17 },
+   programStat: { flex: 1, minHeight: 66, borderRadius: 15, padding: 11 },
+   programStatLabel: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 1.1 },
+   programStatValue: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, lineHeight: 15, marginTop: 7 },
+   programSectionLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.2, marginBottom: 8 },
+   programFitCard: { borderRadius: 16, borderWidth: 1, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+   programFitIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+   programFitText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 11 * f, lineHeight: 16 },
+   programTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 18 },
+   programTag: { borderRadius: 12, paddingHorizontal: 9, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 5 },
+   programTagText: { fontFamily: 'Inter_600SemiBold', fontSize: 9.5 * f },
+   programPreviewRow: { gap: 9, paddingBottom: 4, marginBottom: 17 },
+   programPreviewCard: { width: 126, borderRadius: 15, borderWidth: 1, overflow: 'hidden', paddingBottom: 9 },
+   programPreviewImage: { width: 126, height: 78 },
+   programPreviewType: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.7, marginTop: 8, marginHorizontal: 9 },
+   programPreviewName: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, lineHeight: 14, marginTop: 4, marginHorizontal: 9 },
+   programDetailCard: { borderRadius: 17, borderWidth: 1, padding: 13, marginTop: 1 },
+   programDetailLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1, marginBottom: 7 },
+   programDetailText: { fontFamily: 'Inter_400Regular', fontSize: 10.5 * f, lineHeight: 16, marginTop: 4 },
   });
 }
 const styles = makeStyles(1.0);

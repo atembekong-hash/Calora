@@ -44,3 +44,9 @@ Restaurant diary entries may carry a stable local asset identity in the `restaur
 **Why:** A late provider response or a generic canonical-food lookup must not replace the selected restaurant item with another item's photo, and FatSecret attribution should not be silently collapsed into a different provider.
 
 **How to apply:** Build the asset identity from the selected provider detail, validate the detail against the selected source before accepting it, and reject malformed FatSecret source IDs before provider egress.
+
+Program discovery sheets should use the selected Program's preferred planner pool for the hero and meal preview strip, while keeping the copy and nutrition controls authoritative.
+
+**Why:** Program-specific visual examples make strategy selection concrete without inventing separate nutrition data or implying that photography is a nutritional claim.
+
+**How to apply:** Resolve one preview meal per meal type through the canonical planner catalog, use the existing bundled-image and fallback pipeline, and keep the previews representative rather than authoritative.
