@@ -32,3 +32,9 @@ Dashboard inspiration cards should support native horizontal swiping plus visibl
 **Why:** Nested horizontal gestures are inconsistent in browser previews, while the shared detail flow preserves attribution, nutrition confidence, and review behavior.
 
 **How to apply:** Keep the card itself swipeable, make “View details” the explicit navigation target, and clear the recipe handoff after the Recipes screen consumes it.
+
+Restaurant representative-image categories must be derived from the menu item name only, never the restaurant brand, and the representative disclaimer must be visible on result cards as well as detail views.
+
+**Why:** Brand names such as coffee shops or taco chains can misclassify unrelated menu items, while an accessibility-only disclaimer is not visible to most users before selection.
+
+**How to apply:** Give serving-format matches priority over ingredient keywords, keep provider nutrition separate from local presentation imagery, and show a compact visible representative badge wherever a restaurant photo appears.

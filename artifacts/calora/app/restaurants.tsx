@@ -257,12 +257,17 @@ export default function RestaurantsScreen() {
                 onPress={() => setSelectedFood(food)}
                 style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               >
-                <Image
-                  accessibilityLabel={restaurantFoodImageLabel(food)}
-                  contentFit="cover"
-                  source={restaurantFoodImageSource(food)}
-                  style={styles.resultImage}
-                />
+                <View style={styles.resultVisual}>
+                  <Image
+                    accessibilityLabel={restaurantFoodImageLabel(food)}
+                    contentFit="cover"
+                    source={restaurantFoodImageSource(food)}
+                    style={styles.resultImage}
+                  />
+                  <View style={[styles.resultImageBadge, { backgroundColor: colors.hero }]}>
+                    <Text style={[styles.resultImageBadgeText, { color: colors.onHero }]}>REPRESENTATIVE</Text>
+                  </View>
+                </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.resultBrand, { color: colors.primary }]}>{food.brandName ?? 'Branded food'}</Text>
                   <Text style={[styles.resultName, { color: colors.foreground }]}>{food.name}</Text>
@@ -409,7 +414,10 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 },
   resultCount: { fontFamily: 'Inter_500Medium', fontSize: 10 },
   resultCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  resultImage: { width: 52, height: 52, borderRadius: 15, backgroundColor: '#e7ece5' },
+  resultVisual: { width: 70, height: 70, position: 'relative' },
+  resultImage: { width: 70, height: 70, borderRadius: 15, backgroundColor: '#e7ece5' },
+  resultImageBadge: { position: 'absolute', left: 4, right: 4, bottom: 4, borderRadius: 6, paddingVertical: 3 },
+  resultImageBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 6, letterSpacing: 0.25, textAlign: 'center' },
   resultBrand: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 0.4, textTransform: 'uppercase' },
   resultName: { fontFamily: 'Inter_600SemiBold', fontSize: 13, marginTop: 2 },
   resultServing: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 3 },

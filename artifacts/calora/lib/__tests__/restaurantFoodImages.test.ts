@@ -16,6 +16,13 @@ describe('restaurantFoodImageKey', () => {
     expect(drink).toBe('drink');
   });
 
+  it('does not let restaurant brand names misclassify the menu item photo', () => {
+    expect(restaurantFoodImageKey({ brandName: 'Coffee Bean & Tea Leaf', name: 'Turkey Sandwich' }))
+      .toBe('wrap');
+    expect(restaurantFoodImageKey({ brandName: 'Taco Bell', name: 'Cheeseburger' }))
+      .toBe('main');
+  });
+
   it('labels local category imagery as representative instead of exact dish photography', () => {
     expect(restaurantFoodImageLabel({ brandName: 'Local Restaurant', name: 'Garden Salad' }))
       .toBe('Representative salad image for Garden Salad');

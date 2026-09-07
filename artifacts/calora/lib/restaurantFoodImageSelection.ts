@@ -17,7 +17,9 @@ export type RestaurantFoodImageKey =
   | 'pasta';
 
 export function restaurantFoodImageKey(food: RestaurantFoodImageInput): RestaurantFoodImageKey {
-  const text = `${food.brandName ?? ''} ${food.name}`.toLowerCase();
+  // Brand names describe the source, not the food. A chain such as a coffee
+  // shop or taco restaurant can otherwise misclassify every item it sells.
+  const text = food.name.toLowerCase();
 
   if (/\b(water|coffee|tea|latte|lemonade|juice|smoothie|shake|soda|drink|beverage)\b/.test(text)) return 'drink';
   if (/\b(cookie|brownie|cake|pie|donut|doughnut|dessert|ice cream|chips?|fries|side)\b/.test(text)) return 'snack';
@@ -26,8 +28,8 @@ export function restaurantFoodImageKey(food: RestaurantFoodImageInput): Restaura
   if (/\b(soup|chili)\b/.test(text)) return 'soup';
   if (/\b(taco|tacos|burrito|quesadilla|nacho)\b/.test(text)) return 'tacos';
   if (/\b(pasta|spaghetti|mac ?and ?cheese)\b/.test(text)) return 'pasta';
-  if (/\b(chicken|nugget|tender|wing|turkey)\b/.test(text)) return 'chicken';
   if (/\b(wrap|sub|hoagie|sandwich)\b/.test(text)) return 'wrap';
+  if (/\b(chicken|nugget|tender|wing|turkey)\b/.test(text)) return 'chicken';
   if (/\b(bowl|rice|poke)\b/.test(text)) return 'bowl';
 
   return 'main';
