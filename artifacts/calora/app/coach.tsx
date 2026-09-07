@@ -204,7 +204,7 @@ export default function CoachScreen() {
     })));
   }, [coachMessages, hydrated, hydrationGeneration, user?.id]);
 
-  const sendMessage = async (value = composer.trim()) => {
+  const sendMessage = async (value = composer.trim(), consentAcceptedOverride = coachConsentAccepted) => {
     if (!value || isSending) return;
     const userMessage: CoachMessage = { role: 'user', content: value.slice(0, 3000) };
     // Capture current messages synchronously before any await so we use the
@@ -253,7 +253,10 @@ export default function CoachScreen() {
       accountId: user?.id ?? null,
       hydrationGeneration,
       hydrated,
-      consentAccepted: coachConsentAccepted,
+      // The consent CTA starts the first request in the same event as the
+      // consent state update. Use the explicit override so the lifecycle
+      // epoch does not discard that request when React commits the update.
+      consentAccepted: consentAcceptedOverride,
       facts: frozenFacts,
     };
 
@@ -309,7 +312,7 @@ export default function CoachScreen() {
 
   const startCoach = () => {
     setCoachConsentAccepted(true);
-    void sendMessage('Give me a calm, useful read on my nutrition and wellness this week.');
+    void sendMessage('Give me a calm, useful read on my nutrition and wellness this week.', true);
   };
 
   const clearConversation = () => {
