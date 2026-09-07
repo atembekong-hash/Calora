@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildShoppingItems, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalogForProgram, plannerDate, shoppingChecksByName } from '@/data/planner';
+import { buildShoppingItems, createStarterPlannerMeals, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalogForProgram, plannerDate, shoppingChecksByName } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
 const meal = (id: string, ingredients: string[], day = '2026-08-06'): PlannerMeal => ({
@@ -165,6 +165,16 @@ describe('planner identity', () => {
       ['berry-oats', 'egg-toast', 'yogurt-parfait', 'smoothie-bowl', 'banana-pancakes', 'chia-pudding', 'lentil-soup', 'greek-salad', 'chickpea-bowl', 'stir-fry', 'med-pasta', 'apple-almond', 'edamame', 'trail-mix', 'hummus-veggies', 'banana-pb'].includes(item.id),
     )).toBe(true);
     expect(plannerCatalogForProgram('quick-and-easy').every((item) => (item.prepMinutes ?? 0) <= 20)).toBe(true);
+  });
+
+  it('makes local starter weeks reflect the selected Program', () => {
+    const balanced = createStarterPlannerMeals('2026-08-03', 'balanced-nutrition');
+    const highProtein = createStarterPlannerMeals('2026-08-03', 'high-protein-power');
+    const mediterranean = createStarterPlannerMeals('2026-08-03', 'mediterranean-diet');
+
+    expect(highProtein.map((item) => item.name)).not.toEqual(balanced.map((item) => item.name));
+    expect(mediterranean.map((item) => item.name)).not.toEqual(balanced.map((item) => item.name));
+    expect(highProtein.slice(0, 4).every((item) => item.day === '2026-08-03')).toBe(true);
   });
 
   it('preserves local calendar week dates', () => {

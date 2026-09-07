@@ -475,7 +475,47 @@ export function plannerCatalogForProgram(programId?: PlanTypeId): PlannerMeal[] 
   if (programId === 'quick-and-easy') {
     return plannerCatalog.filter((meal) => (meal.prepMinutes ?? 0) <= 20);
   }
-  return plannerCatalog;
+
+  if (!programId || programId === 'balanced-nutrition' || programId === 'healthy-habits-week') {
+    return plannerCatalog;
+  }
+
+  const textFor = (meal: PlannerMeal) =>
+    `${meal.name} ${meal.ingredients.join(' ')}`.toLocaleLowerCase();
+  const containsAny = (text: string, terms: string[]) => terms.some((term) => text.includes(term));
+  const scoreFor = (meal: PlannerMeal): number => {
+    const text = textFor(meal);
+    switch (programId) {
+      case 'high-protein-power':
+        return meal.proteinG * 100 - meal.carbsG;
+      case 'low-carb-living':
+      case 'keto-kickstart':
+        return meal.fatG * 10 - meal.carbsG * 100;
+      case 'mediterranean-diet':
+        return containsAny(text, ['salmon', 'tuna', 'prawn', 'lentil', 'chickpea', 'greek', 'quinoa', 'olive', 'hummus', 'feta', 'berry'])
+          ? 100
+          : 0;
+      case 'intermittent-fasting':
+        return meal.meal === 'Breakfast' ? -meal.calories : meal.calories;
+      case 'budget-friendly':
+        return containsAny(text, ['egg', 'lentil', 'oat', 'bean', 'chickpea', 'rice', 'banana', 'hummus', 'vegetable'])
+          ? 100
+          : 0;
+      case 'athletic-performance':
+        return meal.calories + meal.proteinG * 20 + meal.carbsG * 5;
+      case 'anti-inflammatory':
+        return containsAny(text, ['salmon', 'berry', 'blueberr', 'chia', 'walnut', 'almond', 'spinach', 'greens', 'olive', 'avocado', 'turmeric'])
+          ? 100
+          : 0;
+      default:
+        return 0;
+    }
+  };
+
+  return plannerCatalog
+    .map((meal, index) => ({ meal, index }))
+    .sort((a, b) => scoreFor(b.meal) - scoreFor(a.meal) || a.index - b.index)
+    .map(({ meal }) => meal);
 }
 
 export function createStarterPlannerMeals(weekStart = getPlannerWeekStart(), programId?: PlanTypeId): PlannerMeal[] {

@@ -8,10 +8,11 @@ import { Surface } from '@/components/Surface';
 import { PlannerMealImage } from '@/components/PlannerMealImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
+import { useAuth } from '@/context/AuthContext';
 import { BRAND } from '@/lib/brand';
 import { formatCalories, formatGrams, formatWhole } from '@/lib/formatters';
 import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
-import { applyIdentityReplace, applySlotReplace, buildShoppingItems, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate, plannerMealTypes, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
+import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate, plannerMealTypes, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { PLAN_TYPES, clearProgramApplication, findPlanType, isStarterFallbackProvider, planTypeForGeneration, programAppliedToWeek, recordGenerationOutcome, resolveGenerationRecording, selectPrimaryProgram, type PlanType, type PlanTypeId } from '@/lib/planType';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
@@ -206,6 +207,7 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
 
 export default function PlannerScreen() {
   const { colors, profile, logs, updateLog, plannerWeekStart, plannerMeals, plannerRevision, plannerPreferences, updatePlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck, fontScale } = useCalora();
+  const { session } = useAuth();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const generatePlanner = useGeneratePlanner();
@@ -382,6 +384,33 @@ export default function PlannerScreen() {
       setSaveMessage(null);
       saveTimerRef.current = null;
     }, duration);
+  };
+
+  const applyOfflineProgram = (programId: PlanTypeId, weekStart: string, weekDays: string[]) => {
+    const latestMeals = plannerMealsRef.current;
+    const loggedMealIds = new Set(logsRef.current.map((log) => log.plannerMealId).filter((id): id is string => Boolean(id)));
+    const generated = createStarterPlannerMeals(weekStart, programId);
+    const merged = mergeGeneratedWeek(latestMeals, generated, weekDays, {
+      mode: 'rebuild',
+      protectedIds: loggedMealIds,
+    });
+    setPlannerMeals(weekStart, merged.meals);
+    updatePlannerPreferences((prev) => recordGenerationOutcome(prev, {
+      weekStart,
+      programId,
+      appliedAt: new Date().toISOString(),
+      source: 'offline-fallback',
+    }, 'rebuild'));
+    // Invalidate any still-pending network response so it cannot overwrite
+    // the local Program choice after a timeout or auth failure.
+    generationEpochRef.current += 1;
+    setViewWeekStart(weekStart);
+    setSelectedDay(weekStart);
+    setGenerationError(false);
+    const label = findPlanType(programId)?.label ?? 'Program';
+    setGenerationMessage(`${label} applied locally. Sign in to unlock a personalized AI week.`);
+    setGenerating(false);
+    generationInFlightRef.current = false;
   };
 
   const shiftWeek = (offset: number) => {
@@ -673,6 +702,10 @@ export default function PlannerScreen() {
     // clobbered by a stale snapshot; programId is captured only for the API
     // request and the historical record.
     if (confirmedProgram) updatePlannerPreferences((prev) => selectPrimaryProgram(prev, confirmedProgram));
+    if (confirmedProgram && !session) {
+      applyOfflineProgram(confirmedProgram, requestedWeekStart, requestedWeekDays);
+      return;
+    }
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       const request = generatePlanner.mutateAsync({
@@ -745,6 +778,10 @@ export default function PlannerScreen() {
       if (!confirmedProgram) setWeekOverviewVisible(true);
       acknowledge('Week saved.');
     } catch (error) {
+      if (confirmedProgram && error instanceof ApiError && error.status === 401) {
+        applyOfflineProgram(confirmedProgram, requestedWeekStart, requestedWeekDays);
+        return;
+      }
       // HTTP, auth, validation, timeout, and transport failures must not
       // replace the user's current plan with fabricated success data.
       setGenerationError(true);
