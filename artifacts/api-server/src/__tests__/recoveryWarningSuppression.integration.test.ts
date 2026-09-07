@@ -1,9 +1,29 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { PoolClient } from "pg";
+
+const { deleteUser, warn } = vi.hoisted(() => ({
+  deleteUser: vi.fn(),
+  warn: vi.fn(),
+}));
+
+vi.mock("../lib/supabase-admin.js", () => ({
+  getSupabaseAdmin: () => ({
+    auth: { admin: { deleteUser } },
+  }),
+}));
+
+vi.mock("../lib/revenuecat.js", () => ({
+  deleteRevenueCatSubscriber: vi.fn(),
+}));
+
+vi.mock("../lib/logger.js", () => ({
+  logger: { warn },
+  noteSuppressedRecoveryWarning: vi.fn(),
+}));
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 const DATABASE_REQUIRED =
@@ -273,6 +293,163 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
             cleanupClient.release();
           }
         }
+      },
+      30_000,
+    );
+  },
+);
+
+describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+  "recovery warning suppression outage (disposable schema)",
+  () => {
+    let pool: (typeof import("@workspace/db"))["pool"];
+    let schemaName: string;
+    let quotedSchemaName: string;
+
+    async function configurePoolSearchPath(): Promise<void> {
+      const maxClients = pool.options.max ?? 10;
+      const clients: PoolClient[] = [];
+      try {
+        for (let index = 0; index < maxClients; index += 1) {
+          const client = await pool.connect();
+          clients.push(client);
+          await client.query(
+            `SET search_path TO ${quotedSchemaName}, public`,
+          );
+        }
+      } finally {
+        for (const client of clients) client.release();
+      }
+    }
+
+    async function resetPoolSearchPath(): Promise<void> {
+      const maxClients = pool.options.max ?? 10;
+      const clients: PoolClient[] = [];
+      try {
+        for (let index = 0; index < maxClients; index += 1) {
+          clients.push(await pool.connect());
+        }
+        for (const client of clients) {
+          await client.query("RESET search_path");
+          client.release();
+        }
+      } catch (error) {
+        for (const client of clients) client.release();
+        throw error;
+      }
+    }
+
+    beforeAll(async () => {
+      ({ pool } = await import("@workspace/db"));
+      schemaName = `calora_recovery_outage_${randomUUID().replaceAll("-", "")}`;
+      quotedSchemaName = `"${schemaName}"`;
+
+      const client = await pool.connect();
+      try {
+        await client.query(`CREATE SCHEMA ${quotedSchemaName}`);
+        await client.query(`
+          CREATE TABLE ${quotedSchemaName}.calora_account_deletion_states (
+            identity_fingerprint text PRIMARY KEY NOT NULL,
+            state text NOT NULL,
+            operation_id uuid,
+            stage text NOT NULL DEFAULT 'application',
+            lease_expires_at timestamptz,
+            recovery_external_user_id text,
+            requested_at timestamptz,
+            completed_at timestamptz,
+            updated_at timestamptz NOT NULL DEFAULT now(),
+            last_error text
+          )
+        `);
+        // Shadow the public suppression table with a relation that cannot be
+        // deleted from. This forces the actual cooldown claim to receive a
+        // database error while leaving the recovery-state tables available.
+        await client.query(`
+          CREATE MATERIALIZED VIEW ${quotedSchemaName}.calora_recovery_warning_suppressions
+          AS SELECT 'unavailable'::text AS warning_key
+        `);
+      } finally {
+        client.release();
+      }
+
+      await configurePoolSearchPath();
+    });
+
+    afterAll(async () => {
+      await resetPoolSearchPath();
+      await pool.query(`DROP SCHEMA IF EXISTS ${quotedSchemaName} CASCADE`);
+    });
+
+    it(
+      "emits redacted warning metadata and completes a later retry when the cooldown table is unavailable",
+      async () => {
+        const rawAccountId = "raw-auth-id-that-must-not-be-logged";
+        const fingerprint = createHash("sha256")
+          .update(rawAccountId)
+          .digest("hex");
+        const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+        warn.mockReset();
+        deleteUser.mockReset();
+        deleteUser
+          .mockRejectedValueOnce(
+            new Error(`provider failed for ${rawAccountId}`),
+          )
+          .mockResolvedValueOnce({ error: null });
+
+        await pool.query(
+          `INSERT INTO ${quotedSchemaName}.calora_account_deletion_states (
+             identity_fingerprint, state, stage, recovery_external_user_id,
+             requested_at, updated_at, lease_expires_at
+           ) VALUES ($1, 'deleting', 'auth', $2, $3, $3, NOW() - INTERVAL '1 second')`,
+          [fingerprint, rawAccountId, requestedAt],
+        );
+
+        const { recoverPendingAccountDeletions, runAccountDeletion } =
+          await import("../routes/account.js");
+        await recoverPendingAccountDeletions();
+
+        expect(deleteUser).toHaveBeenCalledOnce();
+        expect(warn).toHaveBeenCalledOnce();
+        const [fields, message] = warn.mock.calls[0];
+        expect(message).toBe("Account deletion recovery needs attention");
+        expect(fields).toMatchObject({
+          event: "account_deletion_recovery",
+          attemptedCount: 1,
+          failureCount: 1,
+          failureStages: { application: 0, revenuecat: 0, auth: 1 },
+          unresolvedCount: 1,
+          overdueCount: 1,
+          overdueStages: { application: 0, revenuecat: 0, auth: 1 },
+          correlationKeys: [fingerprint.slice(0, 16)],
+        });
+        expect(JSON.stringify(fields)).not.toContain(rawAccountId);
+        expect(JSON.stringify(fields)).not.toContain("provider failed");
+
+        // A failed worker renews no lease; make the following attempt
+        // unambiguously eligible without waiting for the recovery timer.
+        await pool.query(
+          `UPDATE ${quotedSchemaName}.calora_account_deletion_states
+           SET lease_expires_at = NOW() - INTERVAL '1 second'
+           WHERE identity_fingerprint = $1`,
+          [fingerprint],
+        );
+        await expect(runAccountDeletion(rawAccountId)).resolves.toBe("completed");
+
+        expect(deleteUser).toHaveBeenCalledTimes(2);
+        const recoveryState = await pool.query(
+          `SELECT state, recovery_external_user_id, last_error, lease_expires_at
+           FROM ${quotedSchemaName}.calora_account_deletion_states
+           WHERE identity_fingerprint = $1`,
+          [fingerprint],
+        );
+        expect(recoveryState.rows).toEqual([
+          {
+            state: "deleted",
+            recovery_external_user_id: null,
+            last_error: null,
+            lease_expires_at: null,
+          },
+        ]);
       },
       30_000,
     );
