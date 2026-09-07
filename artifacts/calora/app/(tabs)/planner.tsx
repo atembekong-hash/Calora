@@ -51,7 +51,7 @@ function parseNutritionValue(value: string, label: string): number | null {
 
 function plannerGenerationError(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.status === 401) return 'Please sign in before building a week. Your current plan is unchanged.';
+    if (error.status === 401) return 'Sign in to build a personalized week. Your current plan is unchanged.';
     if (error.status === 429) return 'Plan building is temporarily limited. Please wait a moment and try again. Your current plan is unchanged.';
     if (error.status === 400) return 'The planner could not use the current profile settings. Your current plan is unchanged.';
   }
@@ -175,7 +175,7 @@ function SummaryBar({ meals, target, colors }: { meals: PlannerMeal[]; target: n
 {/*@ts-ignore*/}
       <View style={styles.summaryTop}>
         <View>
-          <Text style={[styles.summaryEyebrow, { color: colors.heroMuted }]}>WEEKLY NUTRITION</Text>
+          <Text style={[styles.summaryEyebrow, { color: colors.heroMuted }]}>WEEKLY NUTRITION · 7-DAY AVERAGE</Text>
            <Text style={[styles.summaryTitle, { color: colors.onHero }]}>{formatWhole(dailyCalories)} kcal <Text style={[styles.summaryTarget, { color: colors.heroMuted }]}>/ {formatWhole(target)} daily</Text></Text>
         </View>
         <View style={[styles.goalRing, { borderColor: colors.primary }]}><Text style={[styles.goalRingText, { color: colors.onHero }]}>{Math.round(goalProgress * 100)}%</Text></View>
