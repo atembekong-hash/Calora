@@ -81,3 +81,23 @@ export const PROGRAM_MEAL_POOLS = {
 } as const;
 
 export type PlannerProgramId = keyof typeof PROGRAM_MEAL_POOLS;
+
+/**
+ * The chooser/detail hero is a deliberate visual anchor, not a nutrition
+ * decision. Each ID stays inside its Program pool while keeping the 12
+ * Program entry points visually distinct.
+ */
+export const PROGRAM_HERO_MEAL_IDS: Record<PlannerProgramId, string> = {
+  'balanced-nutrition': 'berry-oats',
+  'high-protein-power': 'chicken-rice',
+  'low-carb-living': 'edamame',
+  'mediterranean-diet': 'salmon-quinoa',
+  'plant-based-week': 'smoothie-bowl',
+  'keto-kickstart': 'hummus-veggies',
+  'intermittent-fasting': 'yogurt-parfait',
+  'budget-friendly': 'lentil-soup',
+  'quick-and-easy': 'prawn-stirfry',
+  'athletic-performance': 'beef-tacos',
+  'anti-inflammatory': 'chia-pudding',
+  'healthy-habits-week': 'apple-almond',
+};

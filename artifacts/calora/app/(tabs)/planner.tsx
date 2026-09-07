@@ -26,6 +26,7 @@ import { SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { plannerImageSource } from '@/lib/mealImages';
+import { PROGRAM_HERO_MEAL_IDS } from '@workspace/api-zod/planner-program-pools';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
@@ -173,6 +174,12 @@ function programPreviewMeals(programId: PlanTypeId): PlannerMeal[] {
   return plannerMealTypes
     .map((mealType) => catalog.find((meal) => meal.meal === mealType))
     .filter((meal): meal is PlannerMeal => Boolean(meal));
+}
+
+function programHeroMeal(programId: PlanTypeId): PlannerMeal | undefined {
+  const catalog = plannerCatalogForProgram(programId);
+  const preferredHero = catalog.find((meal) => meal.id === PROGRAM_HERO_MEAL_IDS[programId]);
+  return preferredHero ?? programPreviewMeals(programId)[0];
 }
 
 function MealCard({
@@ -491,6 +498,7 @@ export default function PlannerScreen() {
       : 'Choose a Program';
   const programDetailPresentation = programDetail ? PROGRAM_PRESENTATION[programDetail.id] : null;
   const programDetailMeals = programDetail ? programPreviewMeals(programDetail.id) : [];
+  const programDetailHero = programDetail ? programHeroMeal(programDetail.id) : undefined;
 
   const renderPlannerDay = (day: string) => {
     const mealsForDay = plannerMeals.filter((meal) => meal.day === day);
@@ -1388,7 +1396,7 @@ export default function PlannerScreen() {
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planTypeList}>
                 {PLAN_TYPES.map((pt) => {
                   const isSelected = plannerPreferences?.primary === pt.id;
-                  const previewMeal = programPreviewMeals(pt.id)[0];
+                  const previewMeal = programHeroMeal(pt.id);
                   return (
                     <Pressable
                       key={pt.id}
@@ -1429,9 +1437,9 @@ export default function PlannerScreen() {
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planDetailContent}>
               {programDetail && programDetailPresentation && <>
                 <SheetHeader eyebrow="PROGRAM DETAILS" title={programDetail.label} onClose={() => setProgramDetail(null)} colors={colors} />
-                {programDetailMeals[0] && (
+                {programDetailHero && (
                   <View style={[styles.programHero, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                    <PlannerMealImage meal={programDetailMeals[0]} style={styles.programHeroImage} />
+                    <PlannerMealImage meal={programDetailHero} style={styles.programHeroImage} />
                     <View style={[styles.programHeroBadge, { backgroundColor: colors.hero }]}>
                       <Feather name={programDetail.icon as React.ComponentProps<typeof Feather>['name']} size={12} color={colors.onHero} />
                       <Text style={[styles.programHeroBadgeText, { color: colors.onHero }]}>A taste of this week</Text>

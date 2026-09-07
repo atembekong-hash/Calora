@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildShoppingItems, createStarterPlannerMeals, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalogForProgram, plannerDate, shoppingChecksByName } from '@/data/planner';
 import { plannerImageKeyForMeal } from '@/lib/mealImageIdentity';
+import { PROGRAM_HERO_MEAL_IDS } from '@workspace/api-zod/planner-program-pools';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
 const meal = (id: string, ingredients: string[], day = '2026-08-06'): PlannerMeal => ({
@@ -220,11 +221,10 @@ describe('planner identity', () => {
       'healthy-habits-week',
     ] as const;
     const heroImages = programs.map((programId) => {
-      const heroMeal = plannerCatalogForProgram(programId)[0];
+      const heroMeal = plannerCatalogForProgram(programId).find((meal) => meal.id === PROGRAM_HERO_MEAL_IDS[programId]);
       return heroMeal ? plannerImageKeyForMeal(heroMeal.id, heroMeal.name) : null;
     });
 
-    console.log(programs.map((programId, index) => `${programId}: ${heroImages[index]}`));
     expect(heroImages.every(Boolean)).toBe(true);
     expect(new Set(heroImages).size).toBe(programs.length);
   });

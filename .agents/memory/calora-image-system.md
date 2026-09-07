@@ -50,3 +50,9 @@ Program discovery sheets should use the selected Program's preferred planner poo
 **Why:** Program-specific visual examples make strategy selection concrete without inventing separate nutrition data or implying that photography is a nutritional claim.
 
 **How to apply:** Resolve one preview meal per meal type through the canonical planner catalog, use the existing bundled-image and fallback pipeline, and keep the previews representative rather than authoritative.
+
+Program chooser heroes need an explicit unique meal identity for each Program, selected from that Program's filtered pool rather than simply taking the first ranked catalog meal.
+
+**Why:** Ranking scores can legitimately converge on the same top meal across different strategies, which makes distinct Programs look visually interchangeable.
+
+**How to apply:** Keep the hero identity map shared with the planner pool definitions, validate every mapped meal remains available after Program filters, and test canonical image-key uniqueness across the complete Program set.
