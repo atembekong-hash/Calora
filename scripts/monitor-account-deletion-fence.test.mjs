@@ -12,6 +12,8 @@ import {
 import {
   ACCOUNT_DELETION_FENCE_MAX_COUNT,
   ACCOUNT_DELETION_FENCE_MAX_ROUTE_LENGTH,
+  ACCOUNT_DELETION_FENCE_SIGNAL_SCHEMA_VERSION,
+  ACCOUNT_DELETION_FENCE_SUPPORTED_SIGNAL_SCHEMA_VERSIONS,
   createAccountDeletionFenceSignal,
   parseAccountDeletionFenceSignal,
 } from "../artifacts/api-server/src/lib/account-deletion-fence-schema.mjs";
@@ -417,20 +419,71 @@ test("fails closed on malformed structured fence signals", () => {
   );
 });
 
+test("keeps legacy signals readable while rejecting unsafe schema revisions", () => {
+  const rawLogContent = "raw deployment log content must not be retained";
+  const legacySignal = {
+    errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+    route: "/v1/sync",
+    count: 2,
+    rawLogContent,
+  };
+  const report = summarizeAccountDeletionFenceLogs(JSON.stringify(legacySignal));
+
+  assert.deepEqual(ACCOUNT_DELETION_FENCE_SUPPORTED_SIGNAL_SCHEMA_VERSIONS, [
+    undefined,
+    ACCOUNT_DELETION_FENCE_SIGNAL_SCHEMA_VERSION,
+  ]);
+  assert.deepEqual(report.deletionFence, {
+    eventCount: 1,
+    rejectionCount: 2,
+    routes: { "/v1/sync": 2 },
+  });
+  assert.equal(JSON.stringify(report).includes(rawLogContent), false);
+
+  for (const schemaVersion of [
+    "calora.account-deletion-fence-signal.v2",
+    rawLogContent,
+    1,
+    null,
+  ]) {
+    assert.throws(
+      () =>
+        summarizeAccountDeletionFenceLogs(
+          JSON.stringify({
+            ...legacySignal,
+            schemaVersion,
+          }),
+        ),
+      /Deletion-fence signal on line 1 has an invalid route or count/,
+    );
+  }
+
+  assert.throws(
+    () =>
+      sanitizeHostedDeploymentLogExport(
+        `prefix {"errorClass":"${ACCOUNT_DELETION_FENCE_ERROR_CLASS}","schemaVersion":"calora.account-deletion-fence-signal.v2","route":"/v1/sync","count":1,"message":"${rawLogContent}"}`,
+      ),
+    /Hosted deletion-fence signal on line 1 has an invalid route or count/,
+  );
+});
+
 test("uses one shared fence schema for API construction and monitor parsing", () => {
   assert.deepEqual(createAccountDeletionFenceSignal("/v1/sync", 2), {
+    schemaVersion: ACCOUNT_DELETION_FENCE_SIGNAL_SCHEMA_VERSION,
     errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
     route: "/v1/sync",
     count: 2,
   });
   assert.deepEqual(
     parseAccountDeletionFenceSignal({
+      schemaVersion: ACCOUNT_DELETION_FENCE_SIGNAL_SCHEMA_VERSION,
       errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
       route: `/v1/${"a".repeat(ACCOUNT_DELETION_FENCE_MAX_ROUTE_LENGTH - 4)}`,
       count: ACCOUNT_DELETION_FENCE_MAX_COUNT,
       accountId: "must-not-be-retained",
     }),
     {
+      schemaVersion: ACCOUNT_DELETION_FENCE_SIGNAL_SCHEMA_VERSION,
       errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
       route: `/v1/${"a".repeat(ACCOUNT_DELETION_FENCE_MAX_ROUTE_LENGTH - 4)}`,
       count: ACCOUNT_DELETION_FENCE_MAX_COUNT,
@@ -603,6 +656,17 @@ test("keeps every API deletion-fence call site monitor-compatible", async () => 
     ),
     "utf8",
   );
+  const signalSource = await readFile(
+    path.join(
+      workspaceDir,
+      "artifacts",
+      "api-server",
+      "src",
+      "lib",
+      "account-deletion-fence-signal.ts",
+    ),
+    "utf8",
+  );
   const routeEntries = await readdir(routesDir, { withFileTypes: true });
   const routeFiles = routeEntries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
@@ -614,14 +678,16 @@ test("keeps every API deletion-fence call site monitor-compatible", async () => 
     })),
   );
 
-  assert.match(stateSource, /createAccountDeletionFenceSignal/);
-  assert.match(stateSource, /account-deletion-fence-schema\.mjs/);
+  assert.match(stateSource, /accountDeletionFenceSignal/);
+  assert.match(stateSource, /account-deletion-fence-signal/);
+  assert.match(signalSource, /createAccountDeletionFenceSignal/);
+  assert.match(signalSource, /account-deletion-fence-schema\.mjs/);
   assert.doesNotMatch(
     stateSource,
     /ACCOUNT_DELETION_FENCE_ERROR_CLASS\s*=\s*"account_deletion_fence"/,
   );
   assert.match(
-    stateSource,
+    signalSource,
     /accountDeletionFenceSignal\(\s*route:\s*string,\s*count\s*=\s*1/,
   );
 

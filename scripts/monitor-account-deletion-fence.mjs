@@ -12,6 +12,10 @@
  * and the allowlisted identity from the published API attestation. It never
  * copies log records, account identifiers, credentials, or database error text
  * into its report.
+ *
+ * Its accepted signal revisions are defined by the shared schema contract:
+ * legacy unversioned v0 and explicitly tagged v1 only. Future revisions must
+ * be added to that contract deliberately; unknown revisions fail closed.
  */
 import { readFile, writeFile } from "node:fs/promises";
 import {
@@ -20,10 +24,12 @@ import {
 } from "./lib/public-release-attestation.mjs";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+  ACCOUNT_DELETION_FENCE_SUPPORTED_SIGNAL_SCHEMA_VERSIONS,
   parseAccountDeletionFenceSignal,
 } from "../artifacts/api-server/src/lib/account-deletion-fence-schema.mjs";
 
 export { ACCOUNT_DELETION_FENCE_ERROR_CLASS };
+export { ACCOUNT_DELETION_FENCE_SUPPORTED_SIGNAL_SCHEMA_VERSIONS };
 export const MONITOR_SCHEMA_VERSION =
   "calora.account-deletion-fence-monitor.v1";
 
