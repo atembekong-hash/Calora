@@ -1133,9 +1133,13 @@ function CalorieGauge({
   const cardInnerW = windowWidth - 60;
   const gaugeW     = Math.min(cardInnerW, 340);
   const baseGaugeH = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE * MERGED_WIDGET_HEIGHT_SCALE;
-  const maxResizeOffset = Math.max(
-    110,
-    Math.min(DEFAULT_CALORIE_GAUGE_RESIZE_MAX, gaugeW * 0.46),
+  const maxShrinkOffset = Math.max(
+    48,
+    Math.min(
+      DEFAULT_CALORIE_GAUGE_RESIZE_MAX,
+      baseGaugeH * 0.52,
+      Math.max(48, baseGaugeH - 42),
+    ),
   );
   const [resizeOpen, setResizeOpen] = useState(false);
   const [resizeOffset, setResizeOffset] = useState(0);
@@ -1144,7 +1148,7 @@ function CalorieGauge({
   resizeOffsetRef.current = resizeOffset;
 
   const updateResizeOffset = (offset: number) => {
-    const nextOffset = clampCalorieGaugeResizeOffset(offset, 0, maxResizeOffset);
+    const nextOffset = clampCalorieGaugeResizeOffset(offset, 0, maxShrinkOffset);
     resizeOffsetRef.current = nextOffset;
     setResizeOffset(nextOffset);
   };
@@ -1159,21 +1163,26 @@ function CalorieGauge({
         resizeStartRef.current = resizeOffsetRef.current;
       },
       onPanResponderMove: (_event, gesture) => {
-        updateResizeOffset(resizeStartRef.current + gesture.dy);
+        // The existing widget starts at its maximum height. An upward drag
+        // increases the shrink amount; a downward drag returns it toward the
+        // unchanged default height.
+        updateResizeOffset(resizeStartRef.current - gesture.dy);
       },
       onPanResponderRelease: () => undefined,
       onPanResponderTerminate: () => undefined,
       onPanResponderTerminationRequest: () => false,
     }),
-    [maxResizeOffset],
+    [maxShrinkOffset],
   );
 
-  const gaugeH = baseGaugeH + resizeOffset;
+  const gaugeH = baseGaugeH - resizeOffset;
   const ringW      = gaugeW * CALORIE_RING_SCALE;
   const ringH      = gaugeH * CALORIE_RING_SCALE;
   const ringLeft   = (gaugeW - ringW) / 2;
   const ringTop    = gaugeH - ringH;
-  const rollerProgress = calorieGaugeResizeProgress(resizeOffset, maxResizeOffset);
+  // The handle begins at the bottom because the unchanged widget is the
+  // maximum height. Pulling it upward makes the widget shorter.
+  const rollerProgress = 1 - calorieGaugeResizeProgress(resizeOffset, maxShrinkOffset);
   const rollerTravel = 82;
   const rollerThumbTop = rollerProgress * rollerTravel;
 
@@ -1237,9 +1246,9 @@ function CalorieGauge({
                 accessibilityHint="Drag up to make the widget shorter or down to make it taller."
                 accessibilityValue={{
                   min: 0,
-                  max: maxResizeOffset,
+                  max: maxShrinkOffset,
                   now: resizeOffset,
-                  text: `${Math.round(resizeOffset)} points taller`,
+                  text: `${Math.round(gaugeH)} points tall`,
                 }}
                 accessibilityActions={[
                   { name: 'increment', label: 'Make calorie ring taller' },
@@ -1247,9 +1256,9 @@ function CalorieGauge({
                 ]}
                 onAccessibilityAction={(event) => {
                   if (event.nativeEvent.actionName === 'increment') {
-                    updateResizeOffset(resizeOffsetRef.current + 16);
-                  } else if (event.nativeEvent.actionName === 'decrement') {
                     updateResizeOffset(resizeOffsetRef.current - 16);
+                  } else if (event.nativeEvent.actionName === 'decrement') {
+                    updateResizeOffset(resizeOffsetRef.current + 16);
                   }
                 }}
                 style={[
