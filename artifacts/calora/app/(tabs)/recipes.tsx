@@ -33,6 +33,7 @@ import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/pr
 import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
 import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
+import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -490,7 +491,12 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   }, [query.refetch]);
   useEffect(() => {
     if (!data?.recipes) return;
-    setLoadedRecipes((current) => offset === 0 || loadedForUserId !== userId ? data.recipes : [...current, ...data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id))]);
+    setLoadedRecipes((current) => {
+      const nextRecipes = offset === 0 || loadedForUserId !== userId
+        ? data.recipes
+        : [...current, ...data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id))];
+      return clearDuplicatePremiumRecipeImages(nextRecipes);
+    });
     setLoadedForUserId(userId);
     loadingMoreRef.current = false;
   }, [data?.recipes, loadedForUserId, offset, userId]);

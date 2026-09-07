@@ -25,7 +25,7 @@ Curated foods with bundled canonical assets should not carry remote provider ima
 
 **Why:** Query-string variants can point to the same underlying photo, and a remote image that does not belong to the named food weakens trust even when the nutrition data is correct.
 
-**How to apply:** Compare provider URLs after removing query/hash variants, keep the first recipe image, and mark later duplicates unavailable; keep bundled curated food imagery local and canonical.
+**How to apply:** Compare provider URLs after removing query/hash variants, keep the first recipe image across the accumulated paginated catalogue, and mark later duplicates unavailable; keep bundled curated food imagery local and canonical.
 
 Dashboard inspiration cards should support native horizontal swiping plus visible previous/next controls for web reliability; detail actions should hand off through a one-time route parameter and open the existing recipe detail sheet.
 

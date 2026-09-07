@@ -13,6 +13,7 @@ import {
   plannerImageKeyForMealId,
 } from '@/lib/mealImageIdentity';
 import { findDuplicateImageAssignments } from '@/lib/mealImageAudit';
+import { IMAGE_SURFACE_AUDIT_ROWS } from '@/lib/mealImageAudit';
 
 describe('curated meal image identity', () => {
   it('assigns a generated asset to every planner catalog meal', () => {
@@ -90,6 +91,20 @@ describe('curated meal image identity', () => {
         ]),
       }),
     ]);
+  });
+
+  it('covers every user-visible image surface with an explicit provenance rule', () => {
+    expect(IMAGE_SURFACE_AUDIT_ROWS.map((row) => row.surface)).toEqual([
+      'Planner',
+      'Foods',
+      'Diary',
+      'Memory',
+      'Discover recipes',
+      'Plus recipes',
+      'Saved recipes',
+      'Restaurants',
+    ]);
+    expect(IMAGE_SURFACE_AUDIT_ROWS.every((row) => row.rule.length > 20)).toBe(true);
   });
 
   it('keeps every planner catalog identity in the shared contract', () => {

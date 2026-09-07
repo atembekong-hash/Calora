@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { PlannerMealImage } from '@/components/PlannerMealImage';
-import { getMealImageAuditCases, findDuplicateImageAssignments } from '@/lib/mealImageAudit';
+import { getMealImageAuditCases, findDuplicateImageAssignments, IMAGE_SURFACE_AUDIT_ROWS } from '@/lib/mealImageAudit';
 import { plannerCatalog } from '@/data/planner';
 import { verifiedFoods } from '@/data/foods';
 
@@ -73,6 +73,18 @@ export default function MealImagePreviewScreen() {
             ? 'No cross-name bundled or normalized URL duplicates detected.'
             : `${duplicateCount} duplicate image assignment${duplicateCount === 1 ? '' : 's'} detected. Review the affected catalog entries.`}
         </Text>
+      </View>
+      <View style={styles.surfaceAudit} testID="image-surface-audit">
+        <Text style={styles.auditSummaryTitle}>Surface provenance audit</Text>
+        {IMAGE_SURFACE_AUDIT_ROWS.map((row) => (
+          <View key={row.surface} style={styles.surfaceAuditRow}>
+            <View style={styles.surfaceAuditHeader}>
+              <Text style={styles.surfaceName}>{row.surface}</Text>
+              <Text style={styles.surfaceRole}>{row.role}</Text>
+            </View>
+            <Text style={styles.surfaceRule}>{row.rule}</Text>
+          </View>
+        ))}
       </View>
 
       <View style={styles.cardList}>
@@ -147,6 +159,42 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     marginTop: 4,
+  },
+  surfaceAudit: {
+    backgroundColor: '#ffffff',
+    borderColor: '#dfe6df',
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 13,
+  },
+  surfaceAuditRow: {
+    borderTopColor: '#edf1ed',
+    borderTopWidth: 1,
+    marginTop: 9,
+    paddingTop: 9,
+  },
+  surfaceAuditHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  surfaceName: {
+    color: '#17231f',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  surfaceRole: {
+    color: '#1d5a3b',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  surfaceRule: {
+    color: '#617068',
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 3,
   },
   image: {
     height: 150,

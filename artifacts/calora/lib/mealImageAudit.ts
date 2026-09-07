@@ -97,3 +97,20 @@ export function findDuplicateImageAssignments(
       assignments,
     }));
 }
+
+export type ImageSurfaceAuditRow = {
+  surface: string;
+  role: 'canonical' | 'provider' | 'generated' | 'representative' | 'fallback';
+  rule: string;
+};
+
+export const IMAGE_SURFACE_AUDIT_ROWS: readonly ImageSurfaceAuditRow[] = [
+  { surface: 'Planner', role: 'canonical', rule: 'Visible canonical meal name owns the bundled image identity.' },
+  { surface: 'Foods', role: 'canonical', rule: 'Verified food name owns the bundled image identity; no remote URL is carried.' },
+  { surface: 'Diary', role: 'fallback', rule: 'FoodLogThumbnail prefers canonical food imagery, then trusted provider imagery, then a meal fallback.' },
+  { surface: 'Memory', role: 'canonical', rule: 'Food memories reuse the diary image contract; non-food memories stay image-free.' },
+  { surface: 'Discover recipes', role: 'provider', rule: 'Provider imagery is used only when available; failed or missing photos show a classified fallback.' },
+  { surface: 'Plus recipes', role: 'provider', rule: 'Normalized provider image duplicates are cleared before the accumulated catalogue renders.' },
+  { surface: 'Saved recipes', role: 'generated', rule: 'Saved recipes preserve their source provenance; generated photos never replace user or provider imagery.' },
+  { surface: 'Restaurants', role: 'representative', rule: 'Category imagery is labeled representative because exact menu photography is not guaranteed.' },
+];

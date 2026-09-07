@@ -112,7 +112,8 @@ describe('Recipes Discover layout contracts', () => {
 
     expect(source).toContain('placeholderData: offset > 0 ? (previousData) => previousData : undefined');
     expect(source).toContain('const recipes = loadedRecipes');
-    expect(source).toContain('data.recipes : [...current, ...data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id))]');
+    expect(source).toContain('const nextRecipes = offset === 0 || loadedForUserId !== userId');
+    expect(source).toContain('return clearDuplicatePremiumRecipeImages(nextRecipes)');
     expect(source).toContain('testID="plus-recipe-grid"');
     expect(source).toContain('testID="plus-recipe-scroll"');
     expect(source).toContain('testID="plus-recipe-pagination-loading"');
