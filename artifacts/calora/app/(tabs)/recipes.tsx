@@ -427,6 +427,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { session } = useAuth();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [offset, setOffset] = useState(0);
@@ -548,6 +549,22 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const fetchedSavedRecipes = missingSavedQueries
     .filter((savedQuery) => savedQuery.isSuccess && !savedQuery.error && savedQuery.data)
     .map((savedQuery) => savedQuery.data as PremiumRecipe);
+  const premiumScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
+  const loadMorePremiumRecipesIfAtEnd = () => {
+    const { offsetY, viewportHeight, contentHeight } = premiumScrollMetricsRef.current;
+    if (viewportHeight > 0 && offsetY + viewportHeight >= contentHeight - PREMIUM_RECIPE_PREFETCH_DISTANCE) {
+      onLoadMoreRef.current?.();
+    }
+  };
+  const handlePremiumScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    premiumScrollMetricsRef.current = {
+      offsetY: contentOffset.y,
+      viewportHeight: layoutMeasurement.height,
+      contentHeight: contentSize.height,
+    };
+    loadMorePremiumRecipesIfAtEnd();
+  };
   if (!visible) return null;
   if (!session) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Plus sources require sign-in.</Text><Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text></Pressable></View>;
   if (accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="award" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{accessDeniedStatus === 401 ? 'Sign in for Plus recipes' : 'Plus required'}</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{accessDeniedStatus === 401 ? 'Your session ended. Sign in again.' : 'An active Calora Plus membership is required.'}</Text><Pressable accessibilityLabel={accessDeniedStatus === 401 ? 'Sign in to access Plus recipes' : 'View Plus membership options'} onPress={() => accessDeniedStatus === 401 ? router.push('/auth/sign-in') : router.push({ pathname: '/(tabs)/profile', params: { tab: 'membership' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>{accessDeniedStatus === 401 ? 'Sign in' : 'View membership'}</Text></Pressable></View>;
@@ -562,7 +579,24 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const recipes = loadedRecipes;
   const savedRecipes = mergeSavedPremiumRecipes(savedRecipeIds, knownSavedRecipes, fetchedSavedRecipes);
   return (
-    <>
+    <ScrollView
+      testID="plus-recipe-scroll"
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
+      showsVerticalScrollIndicator={false}
+      onLayout={(event) => {
+        premiumScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
+        loadMorePremiumRecipesIfAtEnd();
+      }}
+      onContentSizeChange={(_, contentHeight) => {
+        premiumScrollMetricsRef.current.contentHeight = contentHeight;
+        loadMorePremiumRecipesIfAtEnd();
+      }}
+      onScroll={handlePremiumScroll}
+      onMomentumScrollEnd={handlePremiumScroll}
+      scrollEventThrottle={16}
+      decelerationRate="normal"
+    >
       <View testID="plus-recipe-catalogue">
         <View style={styles.premiumToolbar}>
           <View style={[styles.searchBox, { flex: 1, backgroundColor: colors.card, borderColor: colors.input }]}>
@@ -695,7 +729,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
           </Pressable>
         </BottomSheet>
       </View>
-    </>
+    </ScrollView>
   );
 }
 
@@ -1389,7 +1423,6 @@ export default function RecipesScreen() {
   const photoRefreshesRef = useRef(new Set<string>());
   const recipesScrollRef = useRef<ScrollView | null>(null);
   const discoverScrollYRef = useRef(0);
-  const recipeScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
   const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
   useEffect(() => {
     setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current);
@@ -1488,27 +1521,8 @@ export default function RecipesScreen() {
     loadingMoreRef.current = true;
     setRemoteOffset((current) => current + RECIPE_PAGE_SIZE);
   };
-  const loadMorePremiumRecipesIfAtEnd = () => {
-    const { offsetY, viewportHeight, contentHeight } = recipeScrollMetricsRef.current;
-    if (
-      activeSection === 'premium'
-      && viewportHeight > 0
-      && offsetY + viewportHeight >= contentHeight - PREMIUM_RECIPE_PREFETCH_DISTANCE
-    ) {
-      premiumLoadMoreRef.current?.();
-    }
-  };
   const handleRecipeScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
-    if (activeSection === 'premium') {
-      recipeScrollMetricsRef.current = {
-        offsetY: contentOffset.y,
-        viewportHeight: layoutMeasurement.height,
-        contentHeight: contentSize.height,
-      };
-      loadMorePremiumRecipesIfAtEnd();
-      return;
-    }
     if (activeSection !== 'discover') return;
     discoverScrollYRef.current = contentOffset.y;
     if (contentOffset.y + layoutMeasurement.height >= contentSize.height - RECIPE_PREFETCH_DISTANCE) loadMoreRecipes();
@@ -1563,24 +1577,18 @@ export default function RecipesScreen() {
         testID="recipes-section-content"
         style={{ flex: 1 }}
       >
-      <ScrollView
-        ref={recipesScrollRef}
-        contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
-        showsVerticalScrollIndicator={false}
-        onLayout={(event) => {
-          recipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
-          loadMorePremiumRecipesIfAtEnd();
-        }}
-        onContentSizeChange={(_, contentHeight) => {
-          recipeScrollMetricsRef.current.contentHeight = contentHeight;
-          loadMorePremiumRecipesIfAtEnd();
-        }}
-        onScroll={handleRecipeScroll}
-        onMomentumScrollEnd={handleRecipeScroll}
-        scrollEventThrottle={16}
-        decelerationRate="normal"
-      >
-         <PremiumCatalogue visible={activeSection === 'premium'} colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} />
+      {activeSection === 'premium' ? (
+        <PremiumCatalogue visible colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} />
+      ) : (
+        <ScrollView
+          ref={recipesScrollRef}
+          contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleRecipeScroll}
+          onMomentumScrollEnd={handleRecipeScroll}
+          scrollEventThrottle={16}
+          decelerationRate="normal"
+        >
          {activeSection === 'discover' ? <>
         <View style={styles.recipeHeader}>
            <Image key={recipesHeaderImage.hourSlot} source={recipesHeaderImage.source} contentFit="cover" transition={450} style={StyleSheet.absoluteFillObject} />
@@ -1609,8 +1617,9 @@ export default function RecipesScreen() {
          <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length} quick meals from loaded recipes` : `${visibleRemote.length + visibleLocal.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
          {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recipes are offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Saved and personal recipes are still available. Try again when connected.</Text></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Create a recipe to see it here.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create recipe</Text></Pressable></View>}<Animated.View entering={FadeInDown.springify().damping(20).delay(80)} style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</Animated.View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Offline—showing loaded recipes.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text></View>}</>}
         <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is curated for your collection. Recipes remain attributed to their source when opened; {BRAND.name}'s nutrition confidence is shown separately.</Text>
-          </> : activeSection === 'create' ? <CreateConcepts colors={colors} onOpenRecipe={(recipe) => { setSelected(recipe); void createRecipePhoto(recipe); }} /> : null}
-      </ScrollView>
+           </> : activeSection === 'create' ? <CreateConcepts colors={colors} onOpenRecipe={(recipe) => { setSelected(recipe); void createRecipePhoto(recipe); }} /> : null}
+        </ScrollView>
+      )}
       </SwipeableSectionPager>
       <RecipeDetailModal
         recipe={selectedRecipe}

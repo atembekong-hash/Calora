@@ -114,6 +114,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('const recipes = loadedRecipes');
     expect(source).toContain('data.recipes : [...current, ...data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id))]');
     expect(source).toContain('testID="plus-recipe-grid"');
+    expect(source).toContain('testID="plus-recipe-scroll"');
     expect(source).toContain('testID="plus-recipe-pagination-loading"');
     expect(source).toContain('testID="plus-recipe-pagination-error"');
     expect(source).toContain('testID="plus-recipe-pagination-retry"');
@@ -123,6 +124,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = () => {');
     expect(source).toContain('onContentSizeChange={(_, contentHeight) => {');
     expect(source).toContain('loadMorePremiumRecipesIfAtEnd();');
+    expect(source).toContain("activeSection === 'premium' ? (");
     expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
     expect(source).toContain('recipesScrollRef.current?.scrollTo({ y: section === \'discover\' ? discoverScrollYRef.current : 0, animated: false })');
   });
