@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildShoppingItems, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate } from '@/data/planner';
+import { buildShoppingItems, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalogForProgram, plannerDate, shoppingChecksByName } from '@/data/planner';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
 const meal = (id: string, ingredients: string[], day = '2026-08-06'): PlannerMeal => ({
@@ -170,6 +170,12 @@ describe('planner identity', () => {
   it('preserves local calendar week dates', () => {
     expect(plannerDate('2026-08-03', 6)).toBe('2026-08-09');
   });
+
+  it('normalizes persisted dates to a valid Monday week start', () => {
+    expect(normalizePlannerWeekStart('2026-08-09', '2026-08-03')).toBe('2026-08-03');
+    expect(normalizePlannerWeekStart('not-a-date', '2026-08-03')).toBe('2026-08-03');
+    expect(normalizePlannerWeekStart('2026-02-30', '2026-08-03')).toBe('2026-08-03');
+  });
 });
 
 describe('planner image rendering contract', () => {
@@ -262,5 +268,18 @@ describe('buildShoppingItems — day attribution', () => {
     const garlic = items.find((i) => i.name === 'garlic');
     expect(garlic?.quantity).toBe(3);
     expect(garlic?.days).toHaveLength(3);
+  });
+});
+
+describe('shopping checks — viewed-week scope', () => {
+  it('keeps the same ingredient independent across planner weeks', () => {
+    const items = buildShoppingItems(
+      [meal('m1', ['oats'], '2026-08-03'), meal('m2', ['oats'], '2026-08-10')],
+      new Map([['oats', false]]),
+      new Map([['oats', { '2026-08-03': true }]]),
+    );
+
+    expect(shoppingChecksByName(items, '2026-08-03').get('oats')).toBe(true);
+    expect(shoppingChecksByName(items, '2026-08-10').get('oats')).toBe(false);
   });
 });

@@ -18,7 +18,7 @@ import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
 import type { HydrationReminderPrefs } from '@/lib/hydrationReminders';
 import { type MealReminderPrefs, DEFAULT_MEAL_REMINDER_PREFS } from '@/lib/mealReminders';
 import { type GoalReminderPrefs, DEFAULT_GOAL_REMINDER_PREFS } from '@/lib/goalReminder';
-import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, normalizePlannerMealImageIdentities, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
+import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, normalizePlannerMealImageIdentities, normalizePlannerWeekStart, shoppingChecksByName, shoppingNameKey, shoppingWeekChecksByName } from '@/data/planner';
 import {
   type AcceptedFoodMemory,
   type FoodMemoryCorrection,
@@ -176,7 +176,16 @@ export type CaloraRecipe = {
   createdAt?: string;
   updatedAt?: string;
 };
-export type ShoppingItem = { id: string; name: string; quantity: number; checked: boolean; sourceMealIds?: string[]; days?: string[]; recipeSource?: boolean };
+export type ShoppingItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  checked: boolean;
+  checkedByWeek?: Record<string, boolean>;
+  sourceMealIds?: string[];
+  days?: string[];
+  recipeSource?: boolean;
+};
 
 export type Profile = {
   name: string;
@@ -466,7 +475,7 @@ type CaloraContextValue = {
   updatePlannerMeals: (meals: PlannerMeal[]) => void;
   movePlannerMeal: (mealId: string, day: string, copy: boolean) => void;
   toggleShoppingItem: (itemId: string) => void;
-  toggleShoppingItemByName: (name: string) => void;
+  toggleShoppingItemByName: (name: string, weekStart?: string) => void;
   addIngredientsToShopping: (ingredients: string[], sourceId: string) => void;
 };
 
@@ -754,6 +763,12 @@ export function CaloraProvider({
       pendingNotificationUpdatesRef.current = [];
       return;
     }
+    const base = exportSnapshotRef.current;
+    const effectivePlannerMeals: PlannerMeal[] = saved.plannerMeals
+      ? normalizePlannerMealImageIdentities(saved.plannerMeals as PlannerMeal[]) as PlannerMeal[]
+      : (base?.plannerMeals as PlannerMeal[] | undefined) ?? plannerMeals;
+    const effectivePlannerWeekStart = normalizePlannerWeekStart(saved.plannerWeekStart ?? base?.plannerWeekStart);
+    const effectiveShoppingItems = saved.shoppingItems ?? buildShoppingItems(effectivePlannerMeals);
     // Older completed snapshots may have a profile but predate the explicit
     // onboardingComplete flag. Preserve the completed flow in that case while
     // still respecting an explicit false for an in-progress snapshot.
@@ -787,7 +802,7 @@ export function CaloraProvider({
         waterLogs: saved.waterLogs ?? {},
         moodLogs: saved.moodLogs ?? {},
         activityLogs: saved.activityLogs ?? {},
-        plannerMeals: saved.plannerMeals ?? [],
+        plannerMeals: effectivePlannerMeals,
       })));
     if (saved.weights) setWeights(saved.weights);
      if (saved.waterLogs) setWaterLogs(saved.waterLogs);
@@ -809,9 +824,10 @@ export function CaloraProvider({
       outboxRef.current = diaryOutbox;
       setOutbox(diaryOutbox);
     }
-    if (saved.plannerWeekStart) setPlannerWeekStart(saved.plannerWeekStart);
-    if (saved.plannerMeals) setPlannerMealsState(normalizePlannerMealImageIdentities(saved.plannerMeals));
-    if (saved.shoppingItems) setShoppingItems(saved.shoppingItems);
+    setPlannerWeekStart(effectivePlannerWeekStart);
+    setPlannerMealsState(effectivePlannerMeals);
+    shoppingItemsRef.current = effectiveShoppingItems;
+    setShoppingItems(effectiveShoppingItems);
     let normalizedNotificationPreferences = normalizeNotificationPreferences(saved.notificationPreferences, saved);
     for (const update of pendingNotificationUpdatesRef.current) {
       normalizedNotificationPreferences = normalizeNotificationPreferences(update(normalizedNotificationPreferences));
@@ -830,7 +846,6 @@ export function CaloraProvider({
      if (saved.plannerPreferences !== undefined) setPlannerPreferencesState(normalizePlannerPreferences(saved.plannerPreferences));
      if (saved.fontSizeScale) setFontSizeScaleState(saved.fontSizeScale as 'small' | 'default' | 'large' | 'xlarge');
      if (saved.profilePhotoUri) setProfilePhotoUriState(saved.profilePhotoUri);
-     const base = exportSnapshotRef.current;
      if (base) {
        const hydratedHealthConnection = saved.healthConnection
          ? normalizeHealthConnection(saved.healthConnection)
@@ -842,7 +857,7 @@ export function CaloraProvider({
          waterLogs: saved.waterLogs ?? {},
          moodLogs: saved.moodLogs ?? {},
          activityLogs: saved.activityLogs ?? {},
-         plannerMeals: saved.plannerMeals ?? [],
+         plannerMeals: effectivePlannerMeals,
        }));
        exportSnapshotRef.current = {
          ...base,
@@ -865,9 +880,9 @@ export function CaloraProvider({
          healthConnection: hydratedHealthConnection,
          consentAccepted: saved.consentAccepted ?? base.consentAccepted,
          outbox: saved.outbox ?? base.outbox,
-         plannerWeekStart: saved.plannerWeekStart ?? base.plannerWeekStart,
-         plannerMeals: saved.plannerMeals ? normalizePlannerMealImageIdentities(saved.plannerMeals) : base.plannerMeals,
-         shoppingItems: saved.shoppingItems ?? base.shoppingItems,
+         plannerWeekStart: effectivePlannerWeekStart,
+         plannerMeals: effectivePlannerMeals,
+         shoppingItems: effectiveShoppingItems,
          foodDrafts: migratedMemories.foodDrafts.map(normalizeMemoryImageMetadata),
          foodMemories: migratedMemories.foodMemories.map(normalizeMemoryImageMetadata),
          repeatPatterns: migratedMemories.repeatPatterns,
@@ -1853,8 +1868,9 @@ export function CaloraProvider({
         const normalizedMeals = normalizePlannerMealImageIdentities(meals);
        const currentShoppingItems = shoppingItemsRef.current;
        const previousChecks = shoppingChecksByName(currentShoppingItems);
+       const previousWeekChecks = shoppingWeekChecksByName(currentShoppingItems);
        const recipeItems = currentShoppingItems.filter((item) => item.recipeSource);
-       const plannerBuilt = buildShoppingItems(normalizedMeals, previousChecks);
+       const plannerBuilt = buildShoppingItems(normalizedMeals, previousChecks, previousWeekChecks);
        const plannerNames = new Set(plannerBuilt.map((i) => shoppingNameKey(i.name)));
        const nextShopping = [...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))];
        shoppingItemsRef.current = nextShopping;
@@ -1871,8 +1887,9 @@ export function CaloraProvider({
         const normalizedMeals = normalizePlannerMealImageIdentities(meals);
        const currentShoppingItems = shoppingItemsRef.current;
        const previousChecks = shoppingChecksByName(currentShoppingItems);
+       const previousWeekChecks = shoppingWeekChecksByName(currentShoppingItems);
        const recipeItems = currentShoppingItems.filter((item) => item.recipeSource);
-       const plannerBuilt = buildShoppingItems(normalizedMeals, previousChecks);
+       const plannerBuilt = buildShoppingItems(normalizedMeals, previousChecks, previousWeekChecks);
        const plannerNames = new Set(plannerBuilt.map((i) => shoppingNameKey(i.name)));
        const nextShopping = [...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))];
        shoppingItemsRef.current = nextShopping;
@@ -1887,22 +1904,25 @@ export function CaloraProvider({
     movePlannerMeal: (mealId, day, copy) => {
       const existing = plannerMeals.find((meal) => meal.id === mealId);
       if (!existing) return;
-      // Always deduplicate: remove any existing meal occupying the destination slot
-      // before placing the moved/copied meal there. This prevents two meals of the
-      // same type appearing in the same (day, mealType) slot.
+      const destination = plannerMeals.find(
+        (meal) => meal.day === day && meal.meal === existing.meal && meal.id !== mealId,
+      );
+      // A move/copy is a non-destructive action. Replacements have their own
+      // explicit flow, so never silently remove an occupied destination slot.
+      if (destination) return;
       const next = copy
         ? [
-            ...plannerMeals.filter((meal) => !(meal.day === day && meal.meal === existing.meal)),
             { ...existing, id: makeId('planned'), day },
           ]
         : [
-            ...plannerMeals.filter((meal) => meal.id !== mealId && !(meal.day === day && meal.meal === existing.meal)),
+            ...plannerMeals.filter((meal) => meal.id !== mealId),
             { ...existing, day },
           ];
        const currentShoppingItems = shoppingItemsRef.current;
        const previousChecks = shoppingChecksByName(currentShoppingItems);
+       const previousWeekChecks = shoppingWeekChecksByName(currentShoppingItems);
        const recipeItems = currentShoppingItems.filter((item) => item.recipeSource);
-      const plannerBuilt = buildShoppingItems(next, previousChecks);
+      const plannerBuilt = buildShoppingItems(next, previousChecks, previousWeekChecks);
        const plannerNames = new Set(plannerBuilt.map((i) => shoppingNameKey(i.name)));
       const nextShopping = [...plannerBuilt, ...recipeItems.filter((r) => !plannerNames.has(shoppingNameKey(r.name))).map((r) => ({ ...r, checked: previousChecks.get(shoppingNameKey(r.name)) ?? r.checked }))];
       shoppingItemsRef.current = nextShopping;
@@ -1920,11 +1940,21 @@ export function CaloraProvider({
       setShoppingItems((items) => items.map((item) => item.id === itemId ? { ...item, checked: !item.checked } : item));
       queueMutation('settings', 'upsert');
     },
-    toggleShoppingItemByName: (name) => {
+    toggleShoppingItemByName: (name, weekStart) => {
        const key = shoppingNameKey(name);
-       updateExportField('shoppingItems', (current) => (current as ShoppingItem[]).map((item) => shoppingNameKey(item.name) === key ? { ...item, checked: !item.checked } : item));
-       shoppingItemsRef.current = shoppingItemsRef.current.map((item) => shoppingNameKey(item.name) === key ? { ...item, checked: !item.checked } : item);
-       setShoppingItems((items) => items.map((item) => shoppingNameKey(item.name) === key ? { ...item, checked: !item.checked } : item));
+       const scopedWeek = weekStart ? normalizePlannerWeekStart(weekStart) : undefined;
+       const toggle = (item: ShoppingItem): ShoppingItem => {
+         if (shoppingNameKey(item.name) !== key) return item;
+         if (!scopedWeek || item.recipeSource) return { ...item, checked: !item.checked };
+         const current = item.checkedByWeek?.[scopedWeek] ?? item.checked;
+         return {
+           ...item,
+           checkedByWeek: { ...(item.checkedByWeek ?? {}), [scopedWeek]: !current },
+         };
+       };
+       updateExportField('shoppingItems', (current) => (current as ShoppingItem[]).map(toggle));
+       shoppingItemsRef.current = shoppingItemsRef.current.map(toggle);
+       setShoppingItems((items) => items.map(toggle));
       queueMutation('settings', 'upsert');
     },
     addIngredientsToShopping: (ingredients, sourceId) => {

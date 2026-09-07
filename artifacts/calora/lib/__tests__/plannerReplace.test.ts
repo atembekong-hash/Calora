@@ -147,9 +147,11 @@ describe('applyIdentityReplace – catalog Replace sheet', () => {
     const result = applyIdentityReplace([target, other], next, target);
 
     expect(countInSlot(result, '2026-08-10', 'Dinner')).toBe(1);
-    const replaced = result.find((m) => m.id === 'old-dinner');
+    const replaced = result.find((m) => m.name === 'Grilled Salmon');
     expect(replaced?.name).toBe('Grilled Salmon');
-    // Catalog id must be overwritten with target.id
+    expect(replaced?.id).toBe('planned-replacement-old-dinner-catalog-dinner');
+    // The old identity is no longer the active planner meal.
+    expect(result.find((m) => m.id === 'old-dinner')).toBeUndefined();
     expect(result.find((m) => m.id === 'catalog-dinner')).toBeUndefined();
     assertNoDuplicateSlots(result);
   });
@@ -161,9 +163,10 @@ describe('applyIdentityReplace – catalog Replace sheet', () => {
 
     const result = applyIdentityReplace([target], next, target);
 
-    const entry = result.find((m) => m.id === 'mon-dinner');
+    const entry = result.find((m) => m.name === 'Steak Bowl');
     expect(entry?.day).toBe('2026-08-10');
     expect(entry?.name).toBe('Steak Bowl');
+    expect(entry?.id).toBe('planned-replacement-mon-dinner-catalog-item');
   });
 
   it('leaves all other meals untouched', () => {

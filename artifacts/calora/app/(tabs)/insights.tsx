@@ -1590,7 +1590,7 @@ export default function InsightsScreen() {
     [shoppingWeekStart],
   );
   const visibleShoppingItems = useMemo(() => {
-    const checkedByName = shoppingChecksByName(shoppingItems);
+    const checkedByName = shoppingChecksByName(shoppingItems, shoppingWeekStart);
     const plannedWeek = plannerMeals.filter((meal) => shoppingWeekDays.includes(meal.day));
     const plannerItems = buildShoppingItems(plannedWeek, checkedByName);
     const plannerKeys = new Set(plannerItems.map((item) => shoppingNameKey(item.name)));
@@ -2318,7 +2318,7 @@ export default function InsightsScreen() {
         items={visibleShoppingItems}
         weekDays={shoppingWeekDays}
         onClose={() => setShoppingVisible(false)}
-        onToggleItem={toggleShoppingItemByName}
+          onToggleItem={(name) => toggleShoppingItemByName(name, shoppingWeekStart)}
       />
       {/* Undo-delete snackbar — rendered outside the chart/modal so it survives modal close */}
       {pendingDelete !== null && (

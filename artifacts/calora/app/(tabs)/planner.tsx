@@ -265,6 +265,15 @@ export default function PlannerScreen() {
   useEffect(() => { viewWeekStartRef.current = viewWeekStart; }, [viewWeekStart]);
   const plannerReviewDraft = plannerReviewDraftId ? (foodDrafts.find((d) => d.id === plannerReviewDraftId) ?? null) : null;
 
+  // Hydration, account reset, and generated-week commits can change the
+  // persisted week while this tab remains mounted. Keep the local browsing
+  // state attached to that canonical week instead of showing a stale range.
+  useEffect(() => {
+    const nextWeekDays = Array.from({ length: 7 }, (_, index) => plannerDate(plannerWeekStart, index));
+    setViewWeekStart(plannerWeekStart);
+    setSelectedDay((current) => nextWeekDays.includes(current) ? current : nextWeekDays.includes(today) ? today : plannerWeekStart);
+  }, [plannerWeekStart, today]);
+
   // Keep context in sync with the day the user is viewing so recipe plan-picker can default to it
   useEffect(() => {
     setPlannerViewedDay(selectedDay);
@@ -347,7 +356,7 @@ export default function PlannerScreen() {
   const plannedWeek = plannerMeals.filter((meal) => weekDays.includes(meal.day));
   const visibleShoppingItems = useMemo(
     () => {
-      const checkedByName = shoppingChecksByName(shoppingItems);
+      const checkedByName = shoppingChecksByName(shoppingItems, viewWeekStart);
       const plannerItems = buildShoppingItems(plannedWeek, checkedByName);
       const plannerKeys = new Set(plannerItems.map((item) => shoppingNameKey(item.name)));
       const recipeItems = shoppingItems
@@ -355,7 +364,7 @@ export default function PlannerScreen() {
         .map((item) => ({ ...item, checked: checkedByName.get(shoppingNameKey(item.name)) ?? item.checked }));
       return [...plannerItems, ...recipeItems];
     },
-    [plannedWeek, shoppingItems],
+    [plannedWeek, shoppingItems, viewWeekStart],
   );
   const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
   const actionMealLogged = actionMeal ? logs.some((log) => log.plannerMealId === actionMeal.id) : false;
@@ -385,20 +394,20 @@ export default function PlannerScreen() {
 
   const replaceMealInPlan = (nextMeal: PlannerMeal, target: PlannerMeal) => {
     const next = applyIdentityReplace(plannerMeals, nextMeal, target);
+    const replacement = next.find((meal) => meal.day === target.day && meal.meal === target.meal && meal.id !== target.id);
+    if (!replacement) return;
+    logs.filter((log) => log.plannerMealId === target.id).forEach((log) => updateLog(log.id, { plannerMealId: replacement.id }));
     updatePlannerMeals(next);
     setReplaceMeal(null);
     setActionMeal(null);
-    const replacement = next.find((meal) => meal.id === target.id);
-    if (replacement) {
-      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-      setUndoMeal(null);
-      setUndoMoveMeal(null);
-      setUndoSwapMeal({ newMeal: replacement, originalMeal: target });
-      undoTimerRef.current = setTimeout(() => {
-        setUndoSwapMeal(null);
-        undoTimerRef.current = null;
-      }, 6000);
-    }
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoMeal(null);
+    setUndoMoveMeal(null);
+    setUndoSwapMeal({ newMeal: replacement, originalMeal: target });
+    undoTimerRef.current = setTimeout(() => {
+      setUndoSwapMeal(null);
+      undoTimerRef.current = null;
+    }, 6000);
     acknowledge(`${target.meal} replaced. Tap Undo to restore.`, 6000);
   };
 
@@ -514,6 +523,7 @@ export default function PlannerScreen() {
     };
     if (customMealReplaceTarget) {
       // Replace path: swap the specific meal by id, then slot-deduplicate.
+      logs.filter((log) => log.plannerMealId === customMealReplaceTarget.id).forEach((log) => updateLog(log.id, { plannerMealId: custom.id }));
       updatePlannerMeals([...plannerMeals.filter((meal) => meal.id !== customMealReplaceTarget.id && !(meal.day === targetDay && meal.meal === customMealType)), custom]);
       setCustomMealReplaceTarget(null);
     } else {
@@ -555,6 +565,15 @@ export default function PlannerScreen() {
 
   const moveOrCopyMeal = (day: string, copy: boolean) => {
     if (!actionMeal) return;
+    const displacedMeal = plannerMeals.find(
+      (meal) => meal.day === day && meal.meal === actionMeal.meal && meal.id !== actionMeal.id,
+    );
+    if (displacedMeal) {
+      setActionMeal(null);
+      setActionMode(null);
+      acknowledge(`${dayFormatter.format(parseDate(day))} already has ${displacedMeal.name}. Replace or remove it first.`);
+      return;
+    }
     if (!copy) {
       // Capture original day before the move so user can undo
       const originalDay = actionMeal.day;
@@ -562,9 +581,6 @@ export default function PlannerScreen() {
       const mealName = actionMeal.name;
       // Capture any existing meal occupying the destination slot (same meal type)
       // so undo can restore it rather than orphaning it.
-      const displacedMeal = plannerMeals.find(
-        (m) => m.day === day && m.meal === actionMeal.meal && m.id !== actionMeal.id,
-      );
       // Clear any remove-undo or swap-undo so only one undo affordance is active
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
       setUndoMeal(null);
@@ -764,6 +780,7 @@ export default function PlannerScreen() {
   const dismissPlannerReview = () => {
     if (plannerReviewDraft) rejectFoodMemory(plannerReviewDraft.id);
     setPlannerReviewDraftId(null);
+    setDetail(null);
   };
 
   return (
@@ -885,14 +902,14 @@ export default function PlannerScreen() {
           </View>
           <View style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}</View>
         </SwipeableSectionPager>
-        {generationMessage && <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.generationStatus, { backgroundColor: generationError ? colors.muted : colors.accent, borderColor: generationError ? colors.warning : 'transparent', borderWidth: generationError ? 1 : 0 }]}><Feather name={generationError ? 'alert-circle' : 'check-circle'} size={16} color={generationError ? colors.warning : colors.success} /><Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generationMessage}</Text></View>}
+        {(generating || generationMessage) && <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.generationStatus, { backgroundColor: generationError ? colors.muted : colors.accent, borderColor: generationError ? colors.warning : 'transparent', borderWidth: generationError ? 1 : 0 }]}>{generating ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name={generationError ? 'alert-circle' : 'check-circle'} size={16} color={generationError ? colors.warning : colors.success} />}<Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generating ? 'Building your week…' : generationMessage}</Text>{generationError && <Pressable accessibilityLabel="Retry building the week" onPress={() => void generate()} style={styles.generationRetry}><Text style={[styles.generationRetryText, { color: colors.primary }]}>Retry</Text></Pressable>}</View>}
           <MotivationalQuote colors={colors} style={{ marginTop: 16, marginBottom: 8 }} />
           <View style={{ marginTop: 20 }}><SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} /></View>
         </>}
 
       </ScrollView>
        <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal || undoMoveMeal || undoSwapMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undoMoveMeal ? undoMove : undoSwapMeal ? undoSwap : undefined} countdownDuration={undoMeal || undoMoveMeal || undoSwapMeal ? 6000 : undefined} />
-      <BottomSheet visible={detail !== null} onRequestClose={() => { dismissPlannerReview(); setDetail(null); }} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
+      <BottomSheet visible={detail !== null} onRequestClose={() => { dismissPlannerReview(); setDetail(null); }} onBackdropPress={() => { dismissPlannerReview(); setDetail(null); }} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
             {detail && plannerReviewDraft ? (
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 34 }}>
@@ -991,9 +1008,9 @@ export default function PlannerScreen() {
           weekDays={weekDays}
           initialDayFilter={shoppingDayFilter}
           onClose={() => setShoppingVisible(false)}
-          onToggleItem={toggleShoppingItemByName}
+          onToggleItem={(name) => toggleShoppingItemByName(name, viewWeekStart)}
         />
-       <BottomSheet visible={actionMeal !== null} onRequestClose={() => { setActionMeal(null); setActionMode(null); }} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
+       <BottomSheet visible={actionMeal !== null} onRequestClose={() => { setActionMeal(null); setActionMode(null); }} onBackdropPress={() => { setActionMeal(null); setActionMode(null); }} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.actionSheetContent}>
              {actionMeal && !actionMode && (
@@ -1045,15 +1062,16 @@ export default function PlannerScreen() {
                 <View style={styles.dayChoiceList}>
                    {weekDays.map((day) => {
                      const isCurrent = day === actionMeal.day;
-                      const isDisabled = isCurrent;
-                     return <ScalePressable key={day} accessibilityLabel={`${actionMode === 'copy' ? 'Copy' : 'Move'} to ${dayFormatter.format(parseDate(day))}`} disabled={isDisabled} onPress={() => moveOrCopyMeal(day, actionMode === 'copy')} scale={isDisabled ? 1 : 0.98} haptic="none" style={[styles.dayChoice, { backgroundColor: colors.card, borderColor: colors.border, opacity: isDisabled ? 0.45 : 1 }]}><View style={[styles.dayChoiceIcon, { backgroundColor: isCurrent ? colors.accent : colors.muted }]}><Feather name={isCurrent ? 'check' : 'calendar'} size={15} color={isCurrent ? colors.accentForeground : colors.foreground} /></View><View style={styles.dayChoiceCopy}><Text style={[styles.dayChoiceName, { color: colors.foreground }]}>{dayFormatter.format(parseDate(day))}</Text><Text style={[styles.dayChoiceDate, { color: colors.mutedForeground }]}>{dateFormatter.format(parseDate(day))}{isCurrent ? ' · current day' : ''}</Text></View><Feather name="chevron-right" size={16} color={colors.mutedForeground} /></ScalePressable>;
+                       const occupiedMeal = plannerMeals.find((meal) => meal.day === day && meal.meal === actionMeal.meal && meal.id !== actionMeal.id);
+                       const isDisabled = isCurrent || Boolean(occupiedMeal);
+                      return <ScalePressable key={day} accessibilityLabel={occupiedMeal ? `${actionMode === 'copy' ? 'Cannot copy' : 'Cannot move'} to ${dayFormatter.format(parseDate(day))}; ${occupiedMeal.name} already occupies this slot` : `${actionMode === 'copy' ? 'Copy' : 'Move'} to ${dayFormatter.format(parseDate(day))}`} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} onPress={() => moveOrCopyMeal(day, actionMode === 'copy')} scale={isDisabled ? 1 : 0.98} haptic="none" style={[styles.dayChoice, { backgroundColor: colors.card, borderColor: colors.border, opacity: isDisabled ? 0.45 : 1 }]}><View style={[styles.dayChoiceIcon, { backgroundColor: isCurrent ? colors.accent : colors.muted }]}><Feather name={isCurrent ? 'check' : 'calendar'} size={15} color={isCurrent ? colors.accentForeground : colors.foreground} /></View><View style={styles.dayChoiceCopy}><Text style={[styles.dayChoiceName, { color: colors.foreground }]}>{dayFormatter.format(parseDate(day))}</Text><Text style={[styles.dayChoiceDate, { color: colors.mutedForeground }]}>{dateFormatter.format(parseDate(day))}{isCurrent ? ' · current day' : occupiedMeal ? ` · occupied by ${occupiedMeal.name}` : ''}</Text></View><Feather name="chevron-right" size={16} color={colors.mutedForeground} /></ScalePressable>;
                    })}
                 </View>
                </>
              )}
               </ScrollView>
        </BottomSheet>
-       <BottomSheet visible={addingMealType !== null} onRequestClose={() => setAddingMealType(null)} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
+       <BottomSheet visible={addingMealType !== null} onRequestClose={() => setAddingMealType(null)} onBackdropPress={() => setAddingMealType(null)} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
               <SheetHeader eyebrow={`${dayFormatter.format(parseDate(selectedDay)).toUpperCase()} · ${addingMealType ?? ''}`} title="Add a meal" onClose={() => setAddingMealType(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a meal or add your own.</Text>
@@ -1075,7 +1093,7 @@ export default function PlannerScreen() {
                <Pressable accessibilityLabel={`Create custom ${addingMealType}`} onPress={() => openCustomMeal(addingMealType!)} style={[styles.customMealButton, { borderColor: colors.primary }]}><Feather name="edit-3" size={15} color={colors.primary} /><Text style={[styles.customMealButtonText, { color: colors.primary }]}>Custom meal</Text></Pressable>
               <Pressable accessibilityLabel={`Leave ${addingMealType} open`} onPress={() => { setAddingMealType(null); acknowledge(`${addingMealType} left open.`); }} style={styles.leaveOpenButton}><Text style={[styles.leaveOpenText, { color: colors.mutedForeground }]}>Leave open</Text></Pressable>
        </BottomSheet>
-       <BottomSheet visible={replaceMeal !== null} onRequestClose={() => setReplaceMeal(null)} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
+        <BottomSheet visible={replaceMeal !== null} onRequestClose={() => setReplaceMeal(null)} onBackdropPress={() => setReplaceMeal(null)} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />
              <SheetHeader eyebrow="REPLACE MEAL" title={replaceMeal?.name ?? ''} onClose={() => setReplaceMeal(null)} colors={colors} />
               <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Choose a {replaceMeal?.meal.toLowerCase()} for {dateFormatter.format(parseDate(replaceMeal?.day ?? selectedDay))}.</Text>
@@ -1099,7 +1117,7 @@ export default function PlannerScreen() {
               <Pressable accessibilityLabel={`Create custom ${replaceMeal?.meal ?? 'meal'} to replace ${replaceMeal?.name ?? 'meal'}`} onPress={() => replaceMeal && openCustomMeal(replaceMeal.meal, replaceMeal)} style={[styles.customMealButton, { borderColor: colors.primary }]}><Feather name="edit-3" size={15} color={colors.primary} /><Text style={[styles.customMealButtonText, { color: colors.primary }]}>Custom meal</Text></Pressable>
              <Pressable accessibilityLabel="Cancel replace meal" onPress={() => setReplaceMeal(null)} style={styles.leaveOpenButton}><Text style={[styles.leaveOpenText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
        </BottomSheet>
-        <BottomSheet visible={editMeal !== null} onRequestClose={() => setEditMeal(null)} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
+         <BottomSheet visible={editMeal !== null} onRequestClose={() => setEditMeal(null)} onBackdropPress={() => setEditMeal(null)} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <SheetHeader eyebrow="EDIT PLANNED MEAL" title={editMeal?.name ?? ''} onClose={() => setEditMeal(null)} colors={colors} />
               <KeyboardAwareScrollViewCompat
@@ -1122,7 +1140,7 @@ export default function PlannerScreen() {
               </KeyboardAwareScrollViewCompat>
         </BottomSheet>
          {/* Program discovery sheet — applying a selection rebuilds the viewed week immediately. */}
-        <BottomSheet visible={planTypeVisible} onRequestClose={() => setPlanTypeVisible(false)} sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
+         <BottomSheet visible={planTypeVisible} onRequestClose={() => setPlanTypeVisible(false)} onBackdropPress={() => setPlanTypeVisible(false)} sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <View style={styles.planTypeSheetHeader}>
                 <View style={{ flex: 1 }}>
@@ -1165,7 +1183,7 @@ export default function PlannerScreen() {
                 })}
               </ScrollView>
         </BottomSheet>
-        <BottomSheet visible={programDetail !== null} onRequestClose={() => setProgramDetail(null)} sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
+        <BottomSheet visible={programDetail !== null} onRequestClose={() => setProgramDetail(null)} onBackdropPress={() => setProgramDetail(null)} sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planDetailContent}>
               {programDetail && <>
@@ -1177,13 +1195,13 @@ export default function PlannerScreen() {
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Recipes and custom meals you add remain yours.</Text>
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Your calorie target and dietary preferences stay in control.</Text>
                 </View>
-                <ScalePressable accessibilityLabel={`Apply ${programDetail.label} to this week`} onPress={() => { const program = programDetail; setProgramDetail(null); setPlanTypeVisible(false); void generate(program.id); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10 }]}>
-                  <Feather name="zap" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Apply to this week</Text>
+                <ScalePressable accessibilityLabel={generating ? 'Building this week' : `Apply ${programDetail.label} to this week`} disabled={generating} onPress={() => { const program = programDetail; setProgramDetail(null); setPlanTypeVisible(false); void generate(program.id); }} scale={generating ? 1 : 0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10, opacity: generating ? 0.7 : 1 }]}>
+                  {generating ? <ActivityIndicator size="small" color={colors.primaryForeground} /> : <Feather name="zap" size={16} color={colors.primaryForeground} />}<Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>{generating ? 'Building…' : 'Apply to this week'}</Text>
                 </ScalePressable>
               </>}
               </ScrollView>
         </BottomSheet>
-        <BottomSheet visible={customMealType !== null} onRequestClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
+        <BottomSheet visible={customMealType !== null} onRequestClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} onBackdropPress={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
               <SheetHeader eyebrow={`${customMealType?.toUpperCase() ?? ''} · ${dateFormatter.format(parseDate(customMealReplaceTarget?.day ?? selectedDay))}`} title="Create a custom meal" onClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} colors={colors} />
               <KeyboardAwareScrollViewCompat
@@ -1298,6 +1316,8 @@ function makeStyles(f: number) {
    programDetailText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f },
   generationStatus: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 14 },
   generationStatusText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 },
+  generationRetry: { paddingVertical: 6, paddingHorizontal: 4 },
+  generationRetryText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
   dayDivider: { paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },
    daySummaryRow: { position: 'relative', flexDirection: 'row', alignItems: 'flex-start' },
    daySummaryCopy: { flexShrink: 0 },
@@ -1355,7 +1375,7 @@ function makeStyles(f: number) {
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 6 },
   sheetSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16, marginBottom: 15 },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  actionTile: { width: '48%', minHeight: 104, borderRadius: 16, borderWidth: 1, padding: 13 },
+  actionTile: { width: '47%', minHeight: 104, borderRadius: 16, borderWidth: 1, padding: 13 },
   actionTileTitle: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, marginTop: 13 },
   actionTileBody: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, lineHeight: 13, marginTop: 4 },
   removeAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 9 },

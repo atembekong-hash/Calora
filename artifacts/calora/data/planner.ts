@@ -430,6 +430,21 @@ export function getPlannerWeekStart(date = new Date()) {
   return `${local.getFullYear()}-${`${local.getMonth() + 1}`.padStart(2, '0')}-${`${local.getDate()}`.padStart(2, '0')}`;
 }
 
+export function normalizePlannerWeekStart(value: string | null | undefined, fallback = getPlannerWeekStart()): string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return fallback;
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(year, month - 1, day, 12);
+  if (
+    parsed.getFullYear() !== year
+    || parsed.getMonth() !== month - 1
+    || parsed.getDate() !== day
+    || Number.isNaN(parsed.getTime())
+  ) {
+    return fallback;
+  }
+  return getPlannerWeekStart(parsed);
+}
+
 export function plannerDate(weekStart: string, offset: number) {
   return addDays(weekStart, offset);
 }
@@ -501,16 +516,21 @@ export function applySlotReplace(
 /**
  * Identity-based replace — used by the catalog "Replace meal" sheet in the planner.
  *
- * Swaps the meal whose id matches target.id, preserving target.id and
- * target.day so the slot position is never changed by the incoming recipe data.
+ * Swaps the meal whose id matches target.id, assigning the replacement a
+ * distinct identity while preserving target.day and target.meal. Callers can
+ * repoint any diary log explicitly instead of silently changing the meaning
+ * of a historical plannerMealId.
  */
 export function applyIdentityReplace(
   plannerMeals: PlannerMeal[],
   nextMeal: PlannerMeal,
   target: PlannerMeal,
 ): PlannerMeal[] {
+  if (nextMeal.meal !== target.meal) return plannerMeals;
   return plannerMeals.map((meal) =>
-    meal.id === target.id ? { ...nextMeal, id: target.id, day: target.day } : meal,
+    meal.id === target.id
+      ? { ...nextMeal, id: `planned-replacement-${target.id}-${nextMeal.id}`, day: target.day, meal: target.meal }
+      : meal,
   );
 }
 
@@ -573,11 +593,28 @@ export function shoppingNameKey(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
-export function shoppingChecksByName(items: readonly ShoppingItem[]): Map<string, boolean> {
-  return new Map(items.map((item) => [shoppingNameKey(item.name), item.checked]));
+export function shoppingChecksByName(items: readonly ShoppingItem[], weekStart?: string): Map<string, boolean> {
+  return new Map(items.map((item) => [
+    shoppingNameKey(item.name),
+    weekStart && item.checkedByWeek?.[weekStart] !== undefined
+      ? item.checkedByWeek[weekStart]
+      : item.checked,
+  ]));
 }
 
-export function buildShoppingItems(meals: PlannerMeal[], checkedByName = new Map<string, boolean>()): ShoppingItem[] {
+export function shoppingWeekChecksByName(items: readonly ShoppingItem[]): Map<string, Record<string, boolean>> {
+  return new Map(
+    items
+      .filter((item) => item.checkedByWeek && Object.keys(item.checkedByWeek).length > 0)
+      .map((item) => [shoppingNameKey(item.name), item.checkedByWeek!] as const),
+  );
+}
+
+export function buildShoppingItems(
+  meals: PlannerMeal[],
+  checkedByName = new Map<string, boolean>(),
+  checkedByWeek = new Map<string, Record<string, boolean>>(),
+): ShoppingItem[] {
   const normalizedChecks = new Map(
     Array.from(checkedByName.entries()).map(([name, checked]) => [shoppingNameKey(name), checked] as const),
   );
@@ -600,5 +637,6 @@ export function buildShoppingItems(meals: PlannerMeal[], checkedByName = new Map
       sourceMealIds: item.sourceMealIds,
       days: Array.from(item.sourceDays).sort(),
        checked: normalizedChecks.get(key) ?? false,
+       ...(checkedByWeek.get(key) ? { checkedByWeek: checkedByWeek.get(key) } : {}),
     }));
 }
