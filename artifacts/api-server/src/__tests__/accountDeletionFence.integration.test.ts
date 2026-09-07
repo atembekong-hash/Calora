@@ -344,6 +344,14 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
             FOR EACH ROW
             EXECUTE FUNCTION calora_account_deletion_write_fence();
         `);
+        await client.query(`
+          CREATE OR REPLACE FUNCTION calora_account_deletion_write_fence()
+          RETURNS TRIGGER AS $$
+          BEGIN
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql
+        `);
 
         await provisionDatabaseSupportObjects(client);
 
@@ -371,6 +379,18 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
          ORDER BY relation.relname`,
           [schemaName],
         );
+        const functionCatalog = await client.query<{
+          definition: string;
+        }>(
+          `SELECT pg_get_functiondef(procedure.oid) AS definition
+           FROM pg_proc AS procedure
+           JOIN pg_namespace AS namespace ON namespace.oid = procedure.pronamespace
+           WHERE namespace.nspname = $1
+             AND procedure.proname = 'calora_account_deletion_write_fence'
+             AND pg_get_function_identity_arguments(procedure.oid) = ''
+          `,
+          [schemaName],
+        );
 
         expect(catalog.rows).toEqual(
           EXPECTED_FENCED_TABLES.map((tableName) => ({
@@ -382,6 +402,26 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
             on_update: true,
           })),
         );
+        expect(functionCatalog.rows).toHaveLength(1);
+        expect(functionCatalog.rows[0]?.definition).toContain(
+          "calora_assert_deletion_writable",
+        );
+
+        const externalUserId = `repaired-fence-${randomUUID()}`;
+        await client.query(
+          `INSERT INTO calora_account_deletion_states
+             (identity_fingerprint, state)
+           VALUES (encode(digest($1, 'sha256'), 'hex'), 'deleting')`,
+          [externalUserId],
+        );
+        await expect(
+          client.query(`INSERT INTO calora_users (external_id) VALUES ($1)`, [
+            externalUserId,
+          ]),
+        ).rejects.toMatchObject({
+          code: "55000",
+          message: "account deletion is in progress",
+        });
       } finally {
         try {
           await client.query("RESET search_path");
