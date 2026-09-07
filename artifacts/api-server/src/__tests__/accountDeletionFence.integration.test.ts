@@ -419,7 +419,73 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
           referrer_user_id text,
           referred_user_id text
         );
+        CREATE TABLE calora_referral_qualifications (external_user_id text);
+        CREATE TABLE calora_capture_rate_limits (key text);
       `);
+
+        await provisionDatabaseSupportObjects(client);
+
+        await client.query(`
+          CREATE OR REPLACE FUNCTION calora_assert_deletion_writable(external_user_id TEXT)
+          RETURNS VOID AS $$
+          BEGIN
+            RAISE NOTICE 'rollback sentinel';
+            IF EXISTS (
+              SELECT 1 FROM calora_account_deletion_states
+              WHERE identity_fingerprint = encode(digest(external_user_id, 'sha256'), 'hex')
+                AND state <> 'active'
+            ) THEN
+              RAISE EXCEPTION 'account deletion is in progress' USING ERRCODE = '55000';
+            END IF;
+          END;
+          $$ LANGUAGE plpgsql
+        `);
+
+        const functionsBeforeFailure = await client.query<{
+          routine_name: string;
+          object_id: string;
+          xmin: string;
+          definition: string;
+        }>(
+          `SELECT
+             procedure.proname AS routine_name,
+             procedure.oid::text AS object_id,
+             procedure.xmin::text AS xmin,
+             pg_get_functiondef(procedure.oid) AS definition
+           FROM pg_proc AS procedure
+           JOIN pg_namespace AS namespace
+             ON namespace.oid = procedure.pronamespace
+           WHERE namespace.nspname = $1
+             AND procedure.proname IN (
+               'calora_assert_deletion_writable',
+               'calora_account_deletion_write_fence'
+             )
+           ORDER BY procedure.proname`,
+          [schemaName],
+        );
+
+        const triggersBeforeFailure = await client.query<{
+          table_name: string;
+          object_id: string;
+          xmin: string;
+          definition: string;
+        }>(
+          `SELECT
+             relation.relname AS table_name,
+             trigger.oid::text AS object_id,
+             trigger.xmin::text AS xmin,
+             pg_get_triggerdef(trigger.oid) AS definition
+           FROM pg_trigger AS trigger
+           JOIN pg_class AS relation ON relation.oid = trigger.tgrelid
+           JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+           WHERE namespace.nspname = $1
+             AND trigger.tgname = 'calora_account_deletion_write_fence_trigger'
+             AND NOT trigger.tgisinternal
+           ORDER BY relation.relname`,
+          [schemaName],
+        );
+
+        await client.query(`DROP TABLE calora_capture_rate_limits`);
 
         await expect(
           provisionDatabaseSupportObjects(client),
@@ -427,26 +493,55 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
           code: "42P01",
         });
 
-        const functions = await client.query(
-          `SELECT routine_name
-         FROM information_schema.routines
-         WHERE routine_schema = $1
-           AND routine_name IN (
-             'calora_assert_deletion_writable',
-             'calora_account_deletion_write_fence'
-           )`,
+        const functionsAfterFailure = await client.query<{
+          routine_name: string;
+          object_id: string;
+          xmin: string;
+          definition: string;
+        }>(
+          `SELECT
+             procedure.proname AS routine_name,
+             procedure.oid::text AS object_id,
+             procedure.xmin::text AS xmin,
+             pg_get_functiondef(procedure.oid) AS definition
+           FROM pg_proc AS procedure
+           JOIN pg_namespace AS namespace
+             ON namespace.oid = procedure.pronamespace
+           WHERE namespace.nspname = $1
+             AND procedure.proname IN (
+               'calora_assert_deletion_writable',
+               'calora_account_deletion_write_fence'
+             )
+           ORDER BY procedure.proname`,
           [schemaName],
         );
-        const triggers = await client.query(
-          `SELECT trigger_name
-         FROM information_schema.triggers
-         WHERE trigger_schema = $1
-           AND trigger_name = 'calora_account_deletion_write_fence_trigger'`,
+        const triggersAfterFailure = await client.query<{
+          table_name: string;
+          object_id: string;
+          xmin: string;
+          definition: string;
+        }>(
+          `SELECT
+             relation.relname AS table_name,
+             trigger.oid::text AS object_id,
+             trigger.xmin::text AS xmin,
+             pg_get_triggerdef(trigger.oid) AS definition
+           FROM pg_trigger AS trigger
+           JOIN pg_class AS relation ON relation.oid = trigger.tgrelid
+           JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+           WHERE namespace.nspname = $1
+             AND trigger.tgname = 'calora_account_deletion_write_fence_trigger'
+             AND NOT trigger.tgisinternal
+           ORDER BY relation.relname`,
           [schemaName],
         );
 
-        expect(functions.rows).toEqual([]);
-        expect(triggers.rows).toEqual([]);
+        expect(functionsAfterFailure.rows).toEqual(functionsBeforeFailure.rows);
+        expect(triggersAfterFailure.rows).toEqual(
+          triggersBeforeFailure.rows.filter(
+            ({ table_name }) => table_name !== "calora_capture_rate_limits",
+          ),
+        );
       } finally {
         try {
           await client.query("RESET search_path");
