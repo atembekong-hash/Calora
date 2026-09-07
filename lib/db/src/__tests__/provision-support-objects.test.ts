@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { connect, query, release } = vi.hoisted(() => ({
   connect: vi.fn(),
@@ -15,6 +15,10 @@ const { provisionDatabaseSupportObjects } = await import(
 );
 
 describe("provisionDatabaseSupportObjects", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
   it("releases the owned connection as broken when rollback fails", async () => {
     const provisionError = new Error("support-object DDL failed");
     const rollbackError = new Error("rollback failed");
@@ -38,5 +42,29 @@ describe("provisionDatabaseSupportObjects", () => {
     expect(query).not.toHaveBeenCalledWith("COMMIT");
     expect(release).toHaveBeenCalledOnce();
     expect(release).toHaveBeenCalledWith(rollbackError);
+  });
+
+  it("preserves an injected client when provisioning and rollback fail", async () => {
+    const provisionError = new Error("support-object DDL failed");
+    const rollbackError = new Error("rollback failed");
+    const injectedRelease = vi.fn();
+    const client = { query, release: injectedRelease };
+
+    query
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(provisionError)
+      .mockRejectedValueOnce(rollbackError);
+
+    await expect(provisionDatabaseSupportObjects(client)).rejects.toBe(
+      provisionError,
+    );
+
+    expect(connect).not.toHaveBeenCalled();
+    expect(query).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(query.mock.calls[1][0]).toContain("CREATE EXTENSION");
+    expect(query).toHaveBeenNthCalledWith(4, "ROLLBACK");
+    expect(query).not.toHaveBeenCalledWith("COMMIT");
+    expect(injectedRelease).not.toHaveBeenCalled();
   });
 });
