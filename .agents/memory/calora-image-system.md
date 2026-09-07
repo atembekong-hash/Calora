@@ -56,3 +56,9 @@ Program chooser heroes need an explicit unique meal identity for each Program, s
 **Why:** Ranking scores can legitimately converge on the same top meal across different strategies, which makes distinct Programs look visually interchangeable.
 
 **How to apply:** Keep the hero identity map shared with the planner pool definitions, validate every mapped meal remains available after Program filters, and test canonical image-key uniqueness across the complete Program set.
+
+Reusable meal-image wrappers must apply caller layout styles after their internal surface styles so full-bleed `absoluteFill` callers retain absolute positioning.
+
+**Why:** A base `position: relative` style applied last can collapse an absolutely filled hero wrapper while overlays continue to render, producing an empty-looking image card.
+
+**How to apply:** Put the component’s structural surface styles first in the style array and the caller-provided layout style second; cover full-bleed image surfaces in visual verification.
