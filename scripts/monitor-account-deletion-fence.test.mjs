@@ -14,11 +14,113 @@ import {
   createAccountDeletionFenceSignal,
   parseAccountDeletionFenceSignal,
 } from "../artifacts/api-server/src/lib/account-deletion-fence-schema.mjs";
+import { fetchPublishedReleaseAttestation } from "./lib/public-release-attestation.mjs";
+import { fetchPublishedReleaseAttestation as fetchVerifierPublishedReleaseAttestation } from "../artifacts/api-server/scripts/verify-public-release.mjs";
 
 const workspaceDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
+const PUBLISHED_ORIGIN = "https://calora.example";
+
+function publishedAttestation(overrides = {}) {
+  return {
+    schemaVersion: "calora.release-attestation.v1",
+    gitCommit: "a".repeat(40),
+    sourceTree: "b".repeat(40),
+    sourceDigest: "c".repeat(64),
+    buildTimestamp: "2026-09-05T10:14:25.616Z",
+    releaseId: "calora-api-aaaaaaaaaaaa-20260905101425616",
+    ...overrides,
+  };
+}
+
+function mockVersionResponse(
+  body,
+  { status = 200, url = `${PUBLISHED_ORIGIN}/api/version`, headers = {} } = {},
+) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    type: "basic",
+    url,
+    headers: new Headers(headers),
+    async json() {
+      if (body instanceof Error) throw body;
+      return body;
+    },
+  };
+}
+
+async function withMockedFetch(response, callback) {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (...args) => {
+    calls.push(args);
+    return response;
+  };
+  try {
+    return await callback(calls);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+test("shared published-attestation fetcher rejects malformed /api/version payloads", async () => {
+  for (const body of [
+    new Error("invalid JSON"),
+    null,
+    {
+      ...publishedAttestation(),
+      sourceTree: "not-a-sha",
+    },
+  ]) {
+    await withMockedFetch(mockVersionResponse(body), async () => {
+      await assert.rejects(
+        fetchVerifierPublishedReleaseAttestation(PUBLISHED_ORIGIN),
+        /(?:did not return valid JSON|invalid shape)/,
+      );
+    });
+  }
+});
+
+test("shared published-attestation fetcher rejects off-origin redirects", async () => {
+  await withMockedFetch(
+    mockVersionResponse(null, {
+      status: 302,
+      headers: { location: "https://attacker.example/api/version" },
+    }),
+    async (calls) => {
+      await assert.rejects(
+        fetchPublishedReleaseAttestation(PUBLISHED_ORIGIN),
+        /redirected off the canonical origin/,
+      );
+      assert.equal(calls[0][0], `${PUBLISHED_ORIGIN}/api/version`);
+      assert.equal(calls[0][1].redirect, "manual");
+    },
+  );
+});
+
+test("shared published-attestation fetcher keeps only the sanitized allowlist", async () => {
+  const response = await withMockedFetch(
+    mockVersionResponse(
+      publishedAttestation({
+        credential: "must-not-be-retained",
+        deployment: {
+          provider: "must-not-be-retained",
+          secret: "must-not-be-retained",
+        },
+      }),
+    ),
+    async () => fetchVerifierPublishedReleaseAttestation(PUBLISHED_ORIGIN),
+  );
+
+  assert.deepEqual(response, publishedAttestation());
+  assert.strictEqual(
+    fetchPublishedReleaseAttestation,
+    fetchVerifierPublishedReleaseAttestation,
+  );
+});
 
 test("counts sanitized deletion-fence events by route and separates sync 503s", () => {
   const accountId = "disposable-account-must-not-be-retained";
@@ -427,10 +529,7 @@ test("keeps every API deletion-fence call site monitor-compatible", async () => 
   );
 
   assert.match(stateSource, /createAccountDeletionFenceSignal/);
-  assert.match(
-    stateSource,
-    /account-deletion-fence-schema\.mjs/,
-  );
+  assert.match(stateSource, /account-deletion-fence-schema\.mjs/);
   assert.doesNotMatch(
     stateSource,
     /ACCOUNT_DELETION_FENCE_ERROR_CLASS\s*=\s*"account_deletion_fence"/,

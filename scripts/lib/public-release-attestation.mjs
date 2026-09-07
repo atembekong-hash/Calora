@@ -58,11 +58,27 @@ export async function fetchPublishedReleaseAttestation(origin) {
     signal: AbortSignal.timeout(10_000),
     headers: { "user-agent": "calora-public-release-verifier/1.0" },
   });
+  const location = response.headers.get("location");
+  let responseOrigin;
+  let locationOrigin;
+  try {
+    responseOrigin = new URL(response.url).origin;
+    locationOrigin = location
+      ? new URL(location, canonicalOrigin).origin
+      : canonicalOrigin;
+  } catch {
+    throw new Error(
+      "Published release attestation redirected off the canonical origin.",
+    );
+  }
   if (
     response.type === "opaqueredirect" ||
-    new URL(response.url).origin !== canonicalOrigin
+    responseOrigin !== canonicalOrigin ||
+    locationOrigin !== canonicalOrigin
   ) {
-    throw new Error("Published release attestation redirected off the canonical origin.");
+    throw new Error(
+      "Published release attestation redirected off the canonical origin.",
+    );
   }
   if (!response.ok) {
     throw new Error(`/api/version returned HTTP ${response.status}.`);
