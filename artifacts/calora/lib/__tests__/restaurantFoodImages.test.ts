@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { restaurantFoodImageKey } from '../restaurantFoodImageSelection';
+import { restaurantFoodImageKey, restaurantFoodImageLabel } from '../restaurantFoodImageSelection';
 
 describe('restaurantFoodImageKey', () => {
   it('assigns representative photos to branded menu items', () => {
@@ -14,5 +14,10 @@ describe('restaurantFoodImageKey', () => {
 
     expect(salad).toBe('salad');
     expect(drink).toBe('drink');
+  });
+
+  it('labels local category imagery as representative instead of exact dish photography', () => {
+    expect(restaurantFoodImageLabel({ brandName: 'Local Restaurant', name: 'Garden Salad' }))
+      .toBe('Representative salad image for Garden Salad');
   });
 });

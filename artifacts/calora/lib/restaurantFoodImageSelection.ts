@@ -32,3 +32,8 @@ export function restaurantFoodImageKey(food: RestaurantFoodImageInput): Restaura
 
   return 'main';
 }
+
+export function restaurantFoodImageLabel(food: RestaurantFoodImageInput): string {
+  const category = restaurantFoodImageKey(food);
+  return `Representative ${category} image for ${food.name}`;
+}

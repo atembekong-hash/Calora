@@ -42,12 +42,10 @@ describe('foodImageCategory', () => {
 });
 
 describe('curated Add suggestions', () => {
-  it('provides a distinct trusted image for every selectable dish', () => {
-    const imageUrls = verifiedFoods.map((food) => food.imageUrl);
-
-    expect(imageUrls).toHaveLength(verifiedFoods.length);
-    expect(new Set(imageUrls).size).toBe(verifiedFoods.length);
-    expect(imageUrls.every((imageUrl) => normalizeFoodImageUrl(imageUrl))).toBe(true);
-    expect(verifiedFoods.every((food) => food.imageSource === 'provider')).toBe(true);
+  it('uses canonical bundled imagery instead of ambiguous provider URLs', () => {
+    expect(verifiedFoods).toHaveLength(20);
+    expect(verifiedFoods.every((food) => food.imageAssetKey)).toBe(true);
+    expect(verifiedFoods.every((food) => food.imageUrl === undefined)).toBe(true);
+    expect(verifiedFoods.every((food) => food.imageSource === undefined)).toBe(true);
   });
 });

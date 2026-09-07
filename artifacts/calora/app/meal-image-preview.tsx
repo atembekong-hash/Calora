@@ -3,7 +3,9 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { PlannerMealImage } from '@/components/PlannerMealImage';
-import { getMealImageAuditCases } from '@/lib/mealImageAudit';
+import { getMealImageAuditCases, findDuplicateImageAssignments } from '@/lib/mealImageAudit';
+import { plannerCatalog } from '@/data/planner';
+import { verifiedFoods } from '@/data/foods';
 
 const QA_MISSING_IMAGE_KEY = 'qa-missing-planner-image';
 
@@ -11,6 +13,23 @@ export default function MealImagePreviewScreen() {
   const insets = useSafeAreaInsets();
   const { scenario } = useLocalSearchParams<{ scenario?: string }>();
   const isFallbackScenario = scenario === 'fallback';
+  const plannerDuplicates = findDuplicateImageAssignments(
+    plannerCatalog.map((meal) => ({
+      identity: meal.name,
+      imageUrl: meal.image,
+      imageAssetKey: meal.imageAssetKey,
+      source: 'planner',
+    })),
+  );
+  const foodDuplicates = findDuplicateImageAssignments(
+    verifiedFoods.map((food) => ({
+      identity: food.name,
+      imageUrl: food.imageUrl,
+      imageAssetKey: food.imageAssetKey,
+      source: 'verified-food',
+    })),
+  );
+  const duplicateCount = plannerDuplicates.length + foodDuplicates.length;
   const auditCases = getMealImageAuditCases().map((auditCase) => {
     if (!isFallbackScenario) return auditCase;
 
@@ -47,6 +66,14 @@ export default function MealImagePreviewScreen() {
           ? 'QA fixture for unavailable and mismatched images. Fallback states must remain visible and accessible.'
           : 'Representative planner cards for iOS and Android. Each card must report a bundled image ready state.'}
       </Text>
+      <View style={styles.auditSummary} testID="meal-image-audit-summary">
+        <Text style={styles.auditSummaryTitle}>Catalog identity audit</Text>
+        <Text style={styles.auditSummaryBody}>
+          {duplicateCount === 0
+            ? 'No cross-name bundled or normalized URL duplicates detected.'
+            : `${duplicateCount} duplicate image assignment${duplicateCount === 1 ? '' : 's'} detected. Review the affected catalog entries.`}
+        </Text>
+      </View>
 
       <View style={styles.cardList}>
         {auditCases.map(({ auditId, meal, expectedImageKey }) => (
@@ -101,6 +128,25 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
+  },
+  auditSummary: {
+    backgroundColor: '#e7f3ec',
+    borderColor: '#b8dbc6',
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 18,
+    padding: 13,
+  },
+  auditSummaryTitle: {
+    color: '#1d5a3b',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  auditSummaryBody: {
+    color: '#47705a',
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 4,
   },
   image: {
     height: 150,

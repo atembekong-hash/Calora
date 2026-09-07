@@ -41,3 +41,59 @@ export function getMealImageAuditCases(catalog: readonly PlannerMeal[] = planner
     };
   });
 }
+
+export type CuratedImageAssignment = {
+  identity: string;
+  imageUrl?: string | null;
+  imageAssetKey?: string | null;
+  source: string;
+};
+
+export type DuplicateImageAssignment = {
+  normalizedUrl?: string;
+  imageAssetKey?: string;
+  assignments: CuratedImageAssignment[];
+};
+
+/**
+ * Query parameters usually only change the requested size/quality. They do
+ * not make two provider photos different, so duplicate checks compare the
+ * stable URL path instead of the rendered variant.
+ */
+export function normalizeImageIdentityUrl(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value.trim());
+    url.hash = '';
+    url.search = '';
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+export function findDuplicateImageAssignments(
+  assignments: readonly CuratedImageAssignment[],
+): DuplicateImageAssignment[] {
+  const byIdentity = new Map<string, CuratedImageAssignment[]>();
+
+  for (const assignment of assignments) {
+    const normalizedUrl = normalizeImageIdentityUrl(assignment.imageUrl);
+    if (normalizedUrl) {
+      const key = `url:${normalizedUrl}`;
+      byIdentity.set(key, [...(byIdentity.get(key) ?? []), assignment]);
+    }
+
+    if (assignment.imageAssetKey) {
+      const key = `asset:${assignment.imageAssetKey}`;
+      byIdentity.set(key, [...(byIdentity.get(key) ?? []), assignment]);
+    }
+  }
+
+  return [...byIdentity.entries()]
+    .filter(([, grouped]) => new Set(grouped.map((assignment) => assignment.identity)).size > 1)
+    .map(([key, assignments]) => ({
+      ...(key.startsWith('url:') ? { normalizedUrl: key.slice(4) } : { imageAssetKey: key.slice(6) }),
+      assignments,
+    }));
+}

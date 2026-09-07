@@ -24,6 +24,7 @@ import { type MealType, useCalora } from '@/context/CaloraContext';
 import { dateKey } from '@/lib/dates';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { restaurantFoodImageSource } from '@/lib/restaurantFoodImages';
+import { restaurantFoodImageLabel } from '@/lib/restaurantFoodImageSelection';
 import { restaurantFoodReviewState } from '@/lib/restaurantFoodReview';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -257,7 +258,7 @@ export default function RestaurantsScreen() {
                 style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               >
                 <Image
-                  accessibilityLabel={`${food.name} food photo`}
+                  accessibilityLabel={restaurantFoodImageLabel(food)}
                   contentFit="cover"
                   source={restaurantFoodImageSource(food)}
                   style={styles.resultImage}
@@ -298,11 +299,12 @@ export default function RestaurantsScreen() {
                 </View>
 
                 <Image
-                  accessibilityLabel={`${detail.name} food photo`}
+                  accessibilityLabel={restaurantFoodImageLabel(detail)}
                   contentFit="cover"
                   source={restaurantFoodImageSource(detail)}
                   style={styles.detailImage}
                 />
+                <Text style={[styles.imageProvenance, { color: colors.mutedForeground }]}>Representative image · exact menu photography unavailable</Text>
                 {detailResult.isFetching ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} /> : null}
                 <View style={[styles.nutritionCard, { backgroundColor: colors.hero }]}>
                   <View><Text style={[styles.macroValueLarge, { color: colors.onHero }]}>{selectedServing?.calories !== null ? Math.round(selectedServing?.calories ?? 0) : '—'}</Text><Text style={[styles.macroLabel, { color: colors.heroMuted }]}>kcal</Text></View>
@@ -424,6 +426,7 @@ const styles = StyleSheet.create({
   detailBrand: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
   detailTitle: { fontFamily: 'Inter_700Bold', fontSize: 23, letterSpacing: -0.5, marginTop: 5 },
   detailImage: { width: '100%', height: 178, borderRadius: 20, marginTop: 16, backgroundColor: '#e7ece5' },
+  imageProvenance: { fontFamily: 'Inter_500Medium', fontSize: 10, lineHeight: 14, marginTop: 7 },
   nutritionCard: { borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 17 },
   macroValueLarge: { fontFamily: 'Inter_700Bold', fontSize: 24 },
   macroValue: { fontFamily: 'Inter_700Bold', fontSize: 15, textAlign: 'center' },

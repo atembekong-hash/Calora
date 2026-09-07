@@ -68,6 +68,21 @@ async function appWithProvider(url?: string) {
 }
 
 describe("Premium recipe routes", () => {
+  it("clears reused provider photos from later recipes", async () => {
+    const { clearDuplicateRecipeImages } = await import("../lib/premiumRecipes.js");
+    const recipes = [
+      { id: "one", image: "https://images.example/meal.jpg?w=320", name: "First", sourceUrl: "https://provider.example/one" },
+      { id: "two", image: "https://images.example/meal.jpg?q=80", name: "Second", sourceUrl: "https://provider.example/two" },
+      { id: "three", image: "https://images.example/other.jpg", name: "Third", sourceUrl: "https://provider.example/three" },
+    ] as any;
+
+    expect(clearDuplicateRecipeImages(recipes).map((recipe) => recipe.image)).toEqual([
+      "https://images.example/meal.jpg?w=320",
+      null,
+      "https://images.example/other.jpg",
+    ]);
+  });
+
   it("rejects anonymous requests before entitlement, quota, or provider work", async () => {
     verifyBearerTokenMock.mockResolvedValue(null);
     const fetchMock = vi.fn();

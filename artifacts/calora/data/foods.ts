@@ -17,9 +17,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 65,
     source: 'USDA verified',
     confidence: 99,
-    imageUrl:
-      'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Salmon rice bowl',
@@ -34,9 +31,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 580,
     source: 'USDA verified',
     confidence: 97,
-    imageUrl:
-      'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Eggs on sourdough',
@@ -51,9 +45,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 510,
     source: 'USDA verified',
     confidence: 98,
-    imageUrl:
-      'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Avocado toast',
@@ -68,9 +59,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 390,
     source: 'Brand verified',
     confidence: 94,
-    imageUrl:
-      'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Overnight oats',
@@ -85,9 +73,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 180,
     source: 'USDA verified',
     confidence: 96,
-    imageUrl:
-      'https://images.unsplash.com/photo-1571748982800-fa51082c2224?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Berry protein smoothie',
@@ -102,9 +87,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 150,
     source: 'USDA verified',
     confidence: 95,
-    imageUrl:
-      'https://images.unsplash.com/photo-1553530666-ba11a7da3888?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Chicken rice bowl',
@@ -119,9 +101,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 620,
     source: 'USDA verified',
     confidence: 97,
-    imageUrl:
-      'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Turkey avocado wrap',
@@ -136,9 +115,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 740,
     source: 'USDA verified',
     confidence: 95,
-    imageUrl:
-      'https://images.unsplash.com/photo-1565299507177-b0ac66763828?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Lentil quinoa salad',
@@ -153,9 +129,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 390,
     source: 'USDA verified',
     confidence: 94,
-    imageUrl:
-      'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Tomato basil soup',
@@ -170,9 +143,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 680,
     source: 'USDA verified',
     confidence: 93,
-    imageUrl:
-      'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Grilled chicken with vegetables',
@@ -187,9 +157,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 510,
     source: 'USDA verified',
     confidence: 97,
-    imageUrl:
-      'https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Shrimp tacos',
@@ -204,9 +171,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 810,
     source: 'USDA verified',
     confidence: 95,
-    imageUrl:
-      'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Tofu vegetable stir-fry',
@@ -221,9 +185,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 720,
     source: 'USDA verified',
     confidence: 94,
-    imageUrl:
-      'https://images.unsplash.com/photo-1512003867696-6d5ce6835040?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Whole wheat pasta primavera',
@@ -238,9 +199,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 480,
     source: 'USDA verified',
     confidence: 95,
-    imageUrl:
-      'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Beef and bean chili',
@@ -255,9 +213,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 860,
     source: 'USDA verified',
     confidence: 96,
-    imageUrl:
-      'https://images.unsplash.com/photo-1574484284002-952d92456975?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Cottage cheese and berries',
@@ -272,9 +227,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 360,
     source: 'USDA verified',
     confidence: 96,
-    imageUrl:
-      'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=321&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Apple with almond butter',
@@ -289,9 +241,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 5,
     source: 'USDA verified',
     confidence: 95,
-    imageUrl:
-      'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Hummus and vegetables',
@@ -306,9 +255,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 430,
     source: 'USDA verified',
     confidence: 94,
-    imageUrl:
-      'https://images.unsplash.com/photo-1577805947697-89e18249d767?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Trail mix',
@@ -323,9 +269,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 80,
     source: 'USDA verified',
     confidence: 92,
-    imageUrl:
-      'https://images.unsplash.com/photo-1599599810694-b5ac4dd8c8b2?auto=format&fit=crop&w=320&q=80',
-    imageSource: 'provider',
   },
   {
     name: 'Tuna cucumber crackers',
@@ -340,9 +283,6 @@ const verifiedFoodDefinitions: FoodSuggestion[] = [
     sodium: 590,
     source: 'USDA verified',
     confidence: 93,
-    imageUrl:
-      'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=321&q=80',
-    imageSource: 'provider',
   },
 ];
 
@@ -369,9 +309,11 @@ const verifiedFoodImageKeys: Record<string, FoodImageKey> = {
   'Tuna cucumber crackers': 'tuna-cucumber-crackers',
 };
 
-export const verifiedFoods: FoodSuggestion[] = verifiedFoodDefinitions.map((food) => ({
-  ...food,
-  imageAssetKey: verifiedFoodImageKeys[food.name],
-}));
+export const verifiedFoods: FoodSuggestion[] = verifiedFoodDefinitions.map((food) => {
+  return {
+    ...food,
+    imageAssetKey: verifiedFoodImageKeys[food.name],
+  };
+});
 
 export const mealOrder: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];

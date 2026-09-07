@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { FoodLog } from '@/context/CaloraContext';
 import { foodImageCategory, normalizeFoodImageUrl } from '@/lib/foodImageMetadata';
+import { foodImageKeyForName } from '@/lib/mealImageIdentity';
 import { foodImageSource } from '@/lib/mealImages';
 
 const FALLBACK_IMAGES: Record<ReturnType<typeof foodImageCategory>, ImageSource> = {
@@ -22,13 +23,15 @@ export function FoodLogThumbnail({
   borderRadius?: number;
 }) {
   const remoteUrl = normalizeFoodImageUrl(log.imageUrl);
-  const localImage = foodImageSource(log.imageAssetKey);
+  const canonicalImageKey = foodImageKeyForName(log.name);
+  const resolvedImageKey = canonicalImageKey ?? log.imageAssetKey;
+  const localImage = foodImageSource(resolvedImageKey);
   const fallback = FALLBACK_IMAGES[foodImageCategory(log)];
   const [remoteFailed, setRemoteFailed] = useState(false);
 
   useEffect(() => {
     setRemoteFailed(false);
-  }, [log.imageAssetKey, remoteUrl]);
+  }, [resolvedImageKey, remoteUrl]);
 
   const source = useMemo<ImageSource>(
     () => localImage ?? (remoteUrl && !remoteFailed ? { uri: remoteUrl } : fallback),
@@ -43,7 +46,7 @@ export function FoodLogThumbnail({
         contentFit="cover"
         onError={() => setRemoteFailed(true)}
         placeholder={fallback}
-        recyclingKey={`${log.id}:${log.imageAssetKey ?? remoteUrl ?? 'fallback'}`}
+        recyclingKey={`${log.id}:${resolvedImageKey ?? remoteUrl ?? 'fallback'}`}
         source={source}
         style={StyleSheet.absoluteFill}
         transition={120}

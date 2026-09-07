@@ -21,6 +21,12 @@ Diary thumbnails must always render a bundled category fallback unless a durable
 
 **How to apply:** When adding an image provider, update the client and server host allowlists and their rejection tests together. Store only the URL and provenance class; never store image bytes in diary data.
 
+Curated foods with bundled canonical assets should not carry remote provider image URLs, and provider recipe pages should clear a reused normalized image URL from later recipes so a fallback is shown instead of a misleading dish photo.
+
+**Why:** Query-string variants can point to the same underlying photo, and a remote image that does not belong to the named food weakens trust even when the nutrition data is correct.
+
+**How to apply:** Compare provider URLs after removing query/hash variants, keep the first recipe image, and mark later duplicates unavailable; keep bundled curated food imagery local and canonical.
+
 Dashboard inspiration cards should support native horizontal swiping plus visible previous/next controls for web reliability; detail actions should hand off through a one-time route parameter and open the existing recipe detail sheet.
 
 **Why:** Nested horizontal gestures are inconsistent in browser previews, while the shared detail flow preserves attribution, nutrition confidence, and review behavior.
