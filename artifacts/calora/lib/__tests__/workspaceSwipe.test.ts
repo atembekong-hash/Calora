@@ -125,3 +125,24 @@ describe('nested horizontal gesture boundaries', () => {
     expect(boundaryEnd).toBeGreaterThan(chartScrollEnd);
   });
 });
+
+describe('planner day pager rendering', () => {
+  it('renders adjacent day panes so the meal content follows the finger', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const plannerSource = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/planner.tsx'),
+      'utf8',
+    );
+    const pagerSource = readFileSync(
+      resolve(__dirname, '../../components/SwipeableTabList.tsx'),
+      'utf8',
+    );
+
+    expect(plannerSource).toContain('renderItem={renderPlannerDay}');
+    expect(plannerSource).not.toContain('disableAnimation');
+    expect(pagerSource).toContain('styles.pagerTrack');
+    expect(pagerSource).toContain('const pageOffset = renderItemRef.current');
+    expect(pagerSource).toContain('translateX.value = pageOffset + dragOffset');
+  });
+});

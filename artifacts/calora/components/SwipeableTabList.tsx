@@ -246,7 +246,6 @@ export function SwipeableSectionPager<T extends string>({
     // When renderItem is provided, adjacent pages are already beside the active
     // page, so the release animation only needs to finish the drag to its target.
     // The legacy children mode keeps its short directional entrance animation.
-    translateX.value = targetOffset;
     opacity.value = 0.92;
     translateX.value = withTiming(targetOffset, {
       duration: 220,
@@ -295,7 +294,7 @@ export function SwipeableSectionPager<T extends string>({
           ? -currentIndex * widthRef.current
           : 0;
         translateX.value = pageOffset + dragOffset;
-        opacity.value = Math.max(0.84, 1 - Math.abs(translateX.value) / Math.max(widthRef.current, 1) * 0.16);
+        opacity.value = Math.max(0.84, 1 - Math.abs(dragOffset) / Math.max(widthRef.current, 1) * 0.16);
       },
       onPanResponderRelease: (_event, gesture) => {
         const currentItems = itemsRef.current;
