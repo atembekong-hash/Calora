@@ -4,9 +4,15 @@ const { execute, transaction } = vi.hoisted(() => ({
   execute: vi.fn(),
   transaction: vi.fn(),
 }));
+const { noteRecoveryWarningCooldownStorageUnavailable } = vi.hoisted(() => ({
+  noteRecoveryWarningCooldownStorageUnavailable: vi.fn(),
+}));
 
 vi.mock("@workspace/db", () => ({
   db: { execute, transaction },
+}));
+vi.mock("../lib/logger.js", () => ({
+  noteRecoveryWarningCooldownStorageUnavailable,
 }));
 
 import {
@@ -20,6 +26,7 @@ describe("account deletion recovery state", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     execute.mockReset();
+    noteRecoveryWarningCooldownStorageUnavailable.mockReset();
     transaction.mockImplementation(async (callback: (tx: { execute: typeof execute }) => Promise<unknown>) =>
       callback({ execute }),
     );
@@ -78,6 +85,8 @@ describe("account deletion recovery state", () => {
       ),
     ).resolves.toBe(true);
     expect(JSON.stringify(execute.mock.calls)).not.toContain("raw-account-id");
+    expect(noteRecoveryWarningCooldownStorageUnavailable).toHaveBeenCalledOnce();
+    expect(noteRecoveryWarningCooldownStorageUnavailable).toHaveBeenCalledWith();
   });
 
   it("normalizes PostgreSQL timestamp strings before recovery computes age", async () => {
@@ -117,9 +126,15 @@ describe("account deletion recovery state", () => {
         errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
         route: expect.any(String),
         count: expect.any(Number),
+        schemaVersion: "calora.account-deletion-fence-signal.v1",
       });
       expect(signal.count).toBeGreaterThan(0);
-      expect(Object.keys(signal).sort()).toEqual(["count", "errorClass", "route"]);
+      expect(Object.keys(signal).sort()).toEqual([
+        "count",
+        "errorClass",
+        "route",
+        "schemaVersion",
+      ]);
     }
   });
 });

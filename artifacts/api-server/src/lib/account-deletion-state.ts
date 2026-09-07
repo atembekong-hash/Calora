@@ -6,6 +6,7 @@ import {
 } from "./account-deletion-fence-schema.mjs";
 import type { AccountDeletionFenceSignal } from "./account-deletion-fence-schema.mjs";
 import { accountDeletionFenceSignal } from "./account-deletion-fence-signal";
+import { noteRecoveryWarningCooldownStorageUnavailable } from "./logger.js";
 
 export type AccountDeletionState = "active" | "deleting" | "deleted";
 export type AccountDeletionStage = "application" | "revenuecat" | "auth";
@@ -83,6 +84,7 @@ export async function claimRecoveryWarningSuppression(
   } catch {
     // Cooldown storage is an observability optimization. If its table cannot
     // be read or written, emit rather than hiding a recovery warning.
+    noteRecoveryWarningCooldownStorageUnavailable();
     return true;
   }
 }

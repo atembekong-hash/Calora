@@ -84,6 +84,63 @@ describe("recovery warning summaries", () => {
     expect(serializedFields).not.toContain(providerResponseDetails);
   });
 
+  it("reports unavailable cooldown storage with a bounded, sanitized signal", async () => {
+    const startedAt = new Date("2026-09-05T10:00:00.000Z");
+    const accountIdentifier = "account-raw-123";
+    const providerErrorText = "RevenueCat customer lookup failed with HTTP 500";
+    vi.useFakeTimers();
+    vi.setSystemTime(startedAt);
+    const {
+      logger,
+      noteRecoveryWarningCooldownStorageUnavailable,
+      RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
+    } = await import("../lib/logger.js");
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
+
+    noteRecoveryWarningCooldownStorageUnavailable(startedAt.getTime());
+    noteRecoveryWarningCooldownStorageUnavailable(
+      startedAt.getTime() + RECOVERY_WARNING_SUMMARY_INTERVAL_MS - 1,
+    );
+
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn.mock.calls[0]).toEqual([
+      {
+        event: "account_deletion_recovery_warning_cooldown_unavailable",
+        cooldownStorageFailureCount: 1,
+      },
+      "Account deletion recovery warning cooldown storage is unavailable",
+    ]);
+
+    noteRecoveryWarningCooldownStorageUnavailable(
+      startedAt.getTime() + RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
+    );
+
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn.mock.calls[1][0]).toEqual({
+      event: "account_deletion_recovery_warning_cooldown_unavailable",
+      cooldownStorageFailureCount: 2,
+    });
+    const serializedWarnings = JSON.stringify(warn.mock.calls);
+    expect(serializedWarnings).not.toContain(accountIdentifier);
+    expect(serializedWarnings).not.toContain(providerErrorText);
+  });
+
+  it("never lets cooldown-storage signal output interrupt recovery", async () => {
+    const { noteRecoveryWarningCooldownStorageUnavailable } =
+      await import("../lib/logger.js");
+    const failingLogger = {
+      warn: () => {
+        throw new Error("raw storage error");
+      },
+    };
+
+    expect(() =>
+      noteRecoveryWarningCooldownStorageUnavailable(
+        Date.now() + 60 * 60 * 1000,
+        failingLogger as never,
+      )).not.toThrow();
+  });
+
   it("keeps cohort and correlation-key structures bounded", async () => {
     const startedAt = new Date("2026-09-05T10:00:00.000Z");
     vi.useFakeTimers();

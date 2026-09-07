@@ -31,8 +31,11 @@ export const logger = createLogger();
 export const RECOVERY_WARNING_SUMMARY_INTERVAL_MS = 15 * 60 * 1000;
 const MAX_SUPPRESSED_RECOVERY_COHORTS = 128;
 const MAX_CORRELATION_KEYS_PER_COHORT = 128;
+const MAX_RECOVERY_WARNING_COOLDOWN_FAILURES_PER_INTERVAL = 128;
 const RECOVERY_SUMMARY_RETENTION_MS = 60 * 60 * 1000;
 const RECOVERY_SUMMARY_LOCK_KEY = "calora:recovery-warning-summary";
+let recoveryWarningCooldownFailureCount = 0;
+let recoveryWarningCooldownSignalNextAt = 0;
 
 interface SuppressedRecoveryCohort {
   cohortKey: string;
@@ -66,6 +69,43 @@ function queueRecoverySummaryPersistence(operation: () => Promise<void>): void {
  */
 export async function waitForRecoverySummaryPersistence(): Promise<void> {
   await recoverySummaryPersistenceQueue;
+}
+
+/**
+ * Report that recovery-warning cooldown storage is unavailable without
+ * allowing observability to affect account-deletion recovery.
+ *
+ * The event deliberately contains only a fixed classification and a bounded
+ * count. It never accepts storage or provider errors, warning signatures, or
+ * account-related data.
+ */
+export function noteRecoveryWarningCooldownStorageUnavailable(
+  now = Date.now(),
+  outputLogger = logger,
+): void {
+  recoveryWarningCooldownFailureCount = Math.min(
+    recoveryWarningCooldownFailureCount + 1,
+    MAX_RECOVERY_WARNING_COOLDOWN_FAILURES_PER_INTERVAL,
+  );
+  if (now < recoveryWarningCooldownSignalNextAt) {
+    return;
+  }
+
+  const cooldownStorageFailureCount = recoveryWarningCooldownFailureCount;
+  recoveryWarningCooldownFailureCount = 0;
+  recoveryWarningCooldownSignalNextAt = now + RECOVERY_WARNING_SUMMARY_INTERVAL_MS;
+
+  try {
+    outputLogger.warn(
+      {
+        event: "account_deletion_recovery_warning_cooldown_unavailable",
+        cooldownStorageFailureCount,
+      },
+      "Account deletion recovery warning cooldown storage is unavailable",
+    );
+  } catch {
+    // Logging is operational-only and must never interrupt recovery retries.
+  }
 }
 
 async function persistSuppressedRecoveryWarning(
