@@ -30,7 +30,7 @@ export const MONITOR_SCHEMA_VERSION =
 function usage(message) {
   if (message) console.error(`Error: ${message}\n`);
   console.error(
-    "Usage: node scripts/monitor-account-deletion-fence.mjs --log-file <ndjson-file> --release-url <https-origin> [--window-start <ISO-8601> --window-end <ISO-8601>] [--report-file <json-file>] [--require-fence]",
+    "Usage: node scripts/monitor-account-deletion-fence.mjs --log-file <log-file> --release-url <https-origin> [--log-format ndjson|hosted] [--window-start <ISO-8601> --window-end <ISO-8601>] [--report-file <json-file>] [--require-fence]",
   );
   process.exit(2);
 }
@@ -86,6 +86,94 @@ function emptySync503Aggregate() {
     eventCount: 0,
     routes: {},
   };
+}
+
+function jsonSuffixFromHostedLine(line) {
+  const trimmed = line.trim();
+  for (
+    let start = trimmed.indexOf("{");
+    start >= 0;
+    start = trimmed.indexOf("{", start + 1)
+  ) {
+    try {
+      const record = JSON.parse(trimmed.slice(start));
+      if (record !== null && typeof record === "object" && !Array.isArray(record)) {
+        return record;
+      }
+    } catch {
+      // Hosted log lines have a human-readable prefix. Keep looking for the
+      // JSON record rather than treating braces in that prefix as a record.
+    }
+  }
+  return null;
+}
+
+function hostedExportText(exportText) {
+  try {
+    const response = JSON.parse(exportText);
+    if (
+      response !== null &&
+      typeof response === "object" &&
+      typeof response.logs === "string"
+    ) {
+      return response.logs;
+    }
+  } catch {
+    // The normal input is the platform's plain `logs` string, not its
+    // response envelope.
+  }
+  return exportText;
+}
+
+/**
+ * Convert the deployment platform's formatted log export into the tiny
+ * sanitized NDJSON contract consumed by the monitor.
+ *
+ * Hosted exports prefix each JSON record with platform text and include
+ * operational fields such as host, pid, request headers, and error details.
+ * Only the validated deletion-fence signal and the route/status pair needed
+ * to identify unrelated sync 503s leave this adapter.
+ *
+ * @param {string} exportText
+ * @returns {string}
+ */
+export function sanitizeHostedDeploymentLogExport(exportText) {
+  if (typeof exportText !== "string") {
+    throw new TypeError("Hosted deployment log export must be a string.");
+  }
+
+  const sanitizedRecords = [];
+  const lines = hostedExportText(exportText).split(/\r?\n/);
+  for (const [index, line] of lines.entries()) {
+    if (!line.trim()) continue;
+
+    const record = jsonSuffixFromHostedLine(line);
+    if (record === null) continue;
+
+    if (record.errorClass === ACCOUNT_DELETION_FENCE_ERROR_CLASS) {
+      const signal = parseAccountDeletionFenceSignal(record);
+      if (signal === null) {
+        throw new Error(
+          `Hosted deletion-fence signal on line ${index + 1} has an invalid route or count.`,
+        );
+      }
+      sanitizedRecords.push(JSON.stringify(signal));
+      continue;
+    }
+
+    const statusCode = record?.res?.statusCode ?? record?.statusCode;
+    const route = routeForRequest(record);
+    if (statusCode === 503 && route === "/v1/sync") {
+      sanitizedRecords.push(
+        JSON.stringify({
+          statusCode: 503,
+          req: { url: "/v1/sync" },
+        }),
+      );
+    }
+  }
+
+  return sanitizedRecords.join("\n");
 }
 
 /**
@@ -195,6 +283,12 @@ export function summarizeAccountDeletionFenceLogs(ndjson, options = {}) {
 async function main() {
   const logPath = argument("--log-file");
   const releaseOrigin = argument("--release-url");
+  const logFormat = process.argv.includes("--log-format")
+    ? argument("--log-format")
+    : "ndjson";
+  if (logFormat !== "ndjson" && logFormat !== "hosted") {
+    usage(`Unsupported --log-format: ${logFormat}.`);
+  }
   const reportPath = process.argv.includes("--report-file")
     ? argument("--report-file")
     : null;
@@ -204,14 +298,21 @@ async function main() {
   if (hasWindowStart !== hasWindowEnd) {
     usage("--window-start and --window-end must be provided together.");
   }
-  const input = await readFile(logPath, "utf8");
+  const rawInput = await readFile(logPath, "utf8");
+  const input =
+    logFormat === "hosted"
+      ? sanitizeHostedDeploymentLogExport(rawInput)
+      : rawInput;
   const releaseAttestation = await fetchPublishedReleaseAttestation(releaseOrigin);
   const runWindow =
     hasWindowStart && hasWindowEnd
       ? {
           startedAt: validWindowTimestamp(argument("--window-start"), "Run-window start"),
           endedAt: validWindowTimestamp(argument("--window-end"), "Run-window end"),
-          source: "bounded-log-export",
+          source:
+            logFormat === "hosted"
+              ? "bounded-hosted-log-export"
+              : "bounded-log-export",
         }
       : undefined;
   const report = summarizeAccountDeletionFenceLogs(input, {

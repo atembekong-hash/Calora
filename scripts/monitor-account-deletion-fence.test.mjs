@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
   MONITOR_SCHEMA_VERSION,
+  sanitizeHostedDeploymentLogExport,
   summarizeAccountDeletionFenceLogs,
 } from "./monitor-account-deletion-fence.mjs";
 import {
@@ -241,6 +242,91 @@ test("accepts explicit bounded run windows without retaining log records", () =>
     source: "bounded-log-export",
   });
   assert.equal(JSON.stringify(report).includes("raw deployment record"), false);
+});
+
+test("sanitizes the hosted formatted export into monitor-compatible records", () => {
+  const accountId = "hosted-account-must-not-be-retained";
+  const credential = "Bearer hosted-credential-must-not-be-retained";
+  const hostedExport = [
+    `2026-09-07T10:00:01.000Z INFO api {"hostname":"api","pid":42,"errorClass":"${ACCOUNT_DELETION_FENCE_ERROR_CLASS}","route":"/v1/sync","count":2,"accountId":"${accountId}"}`,
+    `2026-09-07T10:00:02.000Z INFO api {"hostname":"api","pid":42,"req":{"method":"POST","url":"/api/v1/sync","headers":{"authorization":"${credential}"}},"res":{"statusCode":503},"err":{"message":"database deletion is in progress for ${accountId}"}}`,
+    `2026-09-07T10:00:03.000Z INFO api {"hostname":"api","pid":42,"req":{"url":"/api/v1/sync"},"res":{"statusCode":200}}`,
+    `2026-09-07T10:00:04.000Z INFO api {"hostname":"api","pid":42,"message":"not a monitored event"}`,
+  ].join("\n");
+
+  const sanitized = sanitizeHostedDeploymentLogExport(hostedExport);
+
+  assert.deepEqual(
+    sanitized.split("\n").map((line) => JSON.parse(line)),
+    [
+      {
+        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+        route: "/v1/sync",
+        count: 2,
+      },
+      {
+        statusCode: 503,
+        req: { url: "/v1/sync" },
+      },
+    ],
+  );
+  assert.equal(sanitized.includes(accountId), false);
+  assert.equal(sanitized.includes(credential), false);
+  assert.equal(sanitized.includes("hostname"), false);
+  assert.equal(sanitized.includes("pid"), false);
+});
+
+test("accepts the hosted export response envelope without retaining it", () => {
+  const response = JSON.stringify({
+    found: true,
+    logs: `platform prefix {"errorClass":"${ACCOUNT_DELETION_FENCE_ERROR_CLASS}","route":"/v1/diary","count":1}`,
+  });
+
+  assert.equal(
+    sanitizeHostedDeploymentLogExport(response),
+    JSON.stringify({
+      errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+      route: "/v1/diary",
+      count: 1,
+    }),
+  );
+});
+
+test("fails closed on malformed hosted deletion-fence signals", () => {
+  assert.throws(
+    () =>
+      sanitizeHostedDeploymentLogExport(
+        `platform prefix {"errorClass":"${ACCOUNT_DELETION_FENCE_ERROR_CLASS}","route":"/v1/sync","count":0}`,
+      ),
+    /Hosted deletion-fence signal on line 1 has an invalid route or count/,
+  );
+});
+
+test("hosted sanitized records produce the bounded report contract", () => {
+  const sanitized = sanitizeHostedDeploymentLogExport(
+    [
+      `prefix {"errorClass":"${ACCOUNT_DELETION_FENCE_ERROR_CLASS}","route":"/v1/sync","count":1}`,
+      'prefix {"req":{"url":"/api/v1/sync"},"res":{"statusCode":503},"err":{"message":"must not be retained"}}',
+    ].join("\n"),
+  );
+  const report = summarizeAccountDeletionFenceLogs(sanitized, {
+    runWindow: {
+      startedAt: "2026-09-07T10:00:00Z",
+      endedAt: "2026-09-07T10:30:00Z",
+      source: "bounded-hosted-log-export",
+    },
+  });
+
+  assert.deepEqual(report.deletionFence, {
+    eventCount: 1,
+    rejectionCount: 1,
+    routes: { "/v1/sync": 1 },
+  });
+  assert.deepEqual(report.unrelatedSync503, {
+    eventCount: 1,
+    routes: { "/v1/sync": 1 },
+  });
+  assert.equal(JSON.stringify(report).includes("must not be retained"), false);
 });
 
 test("aggregates multiple sanitized routes without persisting record contents", () => {
