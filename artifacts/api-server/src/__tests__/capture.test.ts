@@ -514,6 +514,44 @@ describe('POST /v1/capture/analyze', () => {
       // Only one fetch call (OFF), not two
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
+
+    it('returns the server-issued session ID after an authenticated barcode capture is saved', async () => {
+      const userId = 'barcode-capture-success-user';
+      const email = 'barcode-capture-success@example.com';
+      const clientSessionId = 'client-barcode-fallback-session';
+      const sessionInsert = {
+        values: vi.fn().mockResolvedValue(undefined),
+      };
+      const candidateInsert = {
+        values: vi.fn().mockResolvedValue(undefined),
+      };
+
+      vi.mocked(verifyBearerToken).mockResolvedValueOnce({ id: userId, email });
+      mockInsert.mockReturnValueOnce(sessionInsert).mockReturnValueOnce(candidateInsert);
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({
+          mode: 'barcode',
+          barcode: BARCODE,
+          clientSessionId,
+        })
+        .set('Authorization', 'Bearer valid-token')
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(200);
+      expect(mockInsert).toHaveBeenCalledTimes(2);
+      expect(sessionInsert.values).toHaveBeenCalledTimes(1);
+      expect(candidateInsert.values).toHaveBeenCalledTimes(1);
+
+      const sessionValues = sessionInsert.values.mock.calls[0][0] as { id: string };
+      expect(sessionValues.id).toEqual(expect.any(String));
+      expect(res.body.sessionId).toBe(sessionValues.id);
+      expect(res.body.sessionId).not.toBe(clientSessionId);
+      expect(candidateInsert.values).toHaveBeenCalledWith([
+        expect.objectContaining({ sessionId: sessionValues.id }),
+      ]);
+    });
   });
 
   // -------------------------------------------------------------------------
