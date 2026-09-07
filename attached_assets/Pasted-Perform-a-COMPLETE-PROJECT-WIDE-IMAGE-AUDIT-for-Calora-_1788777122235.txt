@@ -1,0 +1,266 @@
+Perform a COMPLETE PROJECT-WIDE IMAGE AUDIT for Calora.
+
+MISSION
+
+Scan the entire application, frontend, backend, APIs, seed/mock data, database integrations, image utilities, assets, recipe systems, restaurant systems, planner systems, logging flows, and every user-facing screen.
+
+The objective is to determine exactly:
+
+1. Everywhere images are currently used.
+2. Everywhere images should reasonably be used but currently are not.
+3. Every place where an image does not accurately represent the meal, food, restaurant item, recipe, ingredient, feature, or role attached to it.
+4. Every image that is reused for multiple unrelated foods/items.
+5. Every generic/fallback/placeholder image currently being presented as though it represents a specific food.
+6. Every case where different meals or menu items incorrectly resolve to the same image.
+7. Every item that has no reliable image source.
+8. Where each image originates: local asset, hardcoded URL, API, database, fallback mapping, generated data, seed data, cache, or other source.
+
+CORE IMAGE RULE
+
+For food, meal, recipe, and restaurant content:
+
+THE IMAGE MUST MATCH THE ITEM IT REPRESENTS.
+
+A photo displayed for:
+"McChicken"
+must visually represent a McChicken or an appropriately verified equivalent.
+
+A photo displayed for:
+"World Famous Fries - Small"
+must represent fries.
+
+A photo displayed for:
+"Whopper"
+must represent a Whopper or verified Whopper image.
+
+A photo displayed for:
+"Black Beans"
+must represent black beans.
+
+Do not use a generic salad/bowl/meal photograph simply because a correct image is unavailable.
+
+The same generic image must not silently represent multiple unrelated foods.
+
+IMAGE UNIQUENESS
+
+Treat image identity as part of the content identity.
+
+Each distinct recipe, prepared meal, restaurant menu item, or other food entity should have an image specifically associated with that entity whenever a suitable image is available.
+
+Different serving sizes or variants may intentionally share an image ONLY when they are genuinely the same food product and the image remains accurate. Example: Small, Medium, and Large McDonald's fries may legitimately use the same verified fries image.
+
+Do not flag legitimate variant reuse as an error.
+
+However:
+McChicken ≠ McDouble
+Whopper ≠ Cheeseburger
+Chicken Nuggets ≠ Chicken Sandwich
+Cheese ≠ Black Beans
+Chicken ≠ Rice
+and unrelated items must not share generic food imagery.
+
+AUDIT THE ENTIRE APP
+
+Do not restrict the audit to the screenshots or Restaurant and Weekly Planner screens.
+
+Inspect every relevant feature and screen, including but not limited to:
+
+- Home/Dashboard
+- Food logging
+- Search
+- Restaurant logging
+- Restaurant search results
+- Restaurant item details
+- Recipes
+- Recipe search/results
+- Recipe details
+- Premium recipes
+- User-created/AI-created recipes
+- Weekly Planner
+- Every planner day
+- Breakfast
+- Lunch
+- Dinner
+- Snacks
+- Shopping-related food surfaces
+- Scan/camera results
+- Barcode results where relevant
+- Food details
+- Progress surfaces where imagery would improve comprehension
+- Coach/contextual insight surfaces where imagery has a genuine UX purpose
+- Onboarding
+- Profile/settings
+- Empty states
+- Loading/error states
+- Cards, recommendations, suggestions, favorites, history, recent foods, and any other content surfaces discovered during the scan.
+
+Also inspect screens that currently contain NO images and determine whether imagery would materially improve usability, recognition, comprehension, or visual quality.
+
+Do not recommend images merely as decoration. Recommend them only where they serve a clear product purpose.
+
+RESTAURANT AUDIT
+
+Pay special attention to restaurant data.
+
+The current UI visibly contains suspicious repeated generic images across unrelated menu items.
+
+Determine:
+
+- Why these duplicates occur.
+- Whether the upstream API supplies real item-specific images.
+- Whether Calora is discarding valid image URLs.
+- Whether fallback logic is overriding images.
+- Whether restaurant data has been hardcoded or seeded.
+- Whether images are mapped by category instead of actual food identity.
+- Whether the database schema supports item-level image identity.
+- Whether caching causes incorrect images.
+- Whether there are licensing or API restrictions affecting image availability.
+
+Do not invent restaurant photography.
+
+PLANNER AND RECIPE AUDIT
+
+Verify that every displayed planner meal image corresponds to the actual meal name.
+
+Check the complete week and all available plan types, not merely the currently selected day.
+
+Verify recipe cards and recipe details the same way.
+
+Detect cases where:
+- one image represents several unrelated recipes,
+- image URLs are repeated,
+- images and titles disagree,
+- fallback images hide missing data,
+- dynamically generated meal names retain an old image,
+- changing diet/plan type changes text but leaves mismatched imagery.
+
+IMAGE OPPORTUNITY AUDIT
+
+Create a second inventory for places where images are absent.
+
+For each candidate, classify it as:
+
+REQUIRED
+An image is important to understanding or identifying the content.
+
+RECOMMENDED
+An image would substantially improve the experience.
+
+OPTIONAL
+An image could help but is not necessary.
+
+NOT APPROPRIATE
+Adding imagery would create clutter or provide little value.
+
+Do not force imagery into every interface.
+
+DATA AND ARCHITECTURE AUDIT
+
+Trace the complete image pipeline:
+
+source/API/database
+→ backend normalization
+→ image URL/storage
+→ caching
+→ frontend model
+→ fallback behavior
+→ rendered component.
+
+Identify the exact root cause of duplicate or mismatched images.
+
+Search for:
+- hardcoded image URLs
+- repeated asset imports
+- static image maps
+- placeholder URLs
+- fallback arrays
+- category-level image assignments
+- random image selection
+- default meal images
+- duplicate database URLs
+- image URL transformations
+- API fields that exist but are ignored
+- seed/mock/demo image data leaking into production
+- image-generation logic
+- stale cache behavior.
+
+IMPORTANT
+
+This mission begins as READ-ONLY FORENSIC AUDIT.
+
+Do NOT replace images yet.
+Do NOT generate images yet.
+Do NOT redesign screens.
+Do NOT remove existing functionality.
+Do NOT trigger an Expo/EAS build.
+Do NOT make speculative fixes.
+
+First establish the complete scope and root causes.
+
+Produce a persistent report in the repository named:
+
+IMAGE_AUDIT_01_COMPLETE_PROJECT_IMAGE_FORENSIC_REPORT.md
+
+The report must contain:
+
+1. Executive summary
+2. Complete inventory of current image usage
+3. Complete inventory of screens/components without images
+4. Areas where images should be added
+5. Areas where images should NOT be added
+6. Duplicate-image findings
+7. Mismatched-image findings
+8. Placeholder/fallback-image findings
+9. Restaurant-specific findings
+10. Recipe-specific findings
+11. Weekly Planner findings
+12. Other food/logging findings
+13. Non-food image opportunities
+14. Exact source of every image system discovered
+15. API/database image capabilities
+16. Root causes of incorrect/repeated images
+17. Relevant files/components/functions/database tables
+18. Classification of each issue by severity
+19. Recommended production architecture for item-specific images
+20. Proposed remediation plan in implementation order
+21. Cases where intentional image reuse is valid
+22. Cases where a verified image cannot currently be obtained
+23. Licensing/API limitations or risks
+24. Tests that should be added
+25. Final verdict
+
+Where practical, include tables containing:
+
+Screen | Component | Item | Current Image Source | Image Correct? | Duplicate? | Should Have Image? | Problem | Recommended Action
+
+Also produce quantitative totals:
+
+- Number of image-rendering surfaces
+- Number of distinct food/menu/recipe entities audited
+- Number with correct unique images
+- Number with incorrect images
+- Number with duplicate images
+- Number using fallbacks/placeholders
+- Number missing images
+- Number of legitimate image reuses
+- Number of recommended new image surfaces
+
+Do not stop after finding the first examples.
+
+Search the entire repository systematically and provide file paths, component names, functions, data sources, and evidence supporting the findings.
+
+Do not claim an image visually matches a food unless this can actually be established from available evidence.
+
+At the end, give one of these verdicts:
+
+PASS — image system is production-ready
+PARTIAL — architecture is sound but remediation is required
+FAIL — image identity/integrity is not production-ready
+
+Save the full report to the repository and then give me only:
+1. the report filename,
+2. the final verdict,
+3. the five most important findings,
+4. whether it is safe to proceed to remediation.
+
+Do not begin remediation until I review and approve the audit.
