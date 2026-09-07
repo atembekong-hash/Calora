@@ -386,7 +386,7 @@ export default function PlannerScreen() {
     }, duration);
   };
 
-  const applyOfflineProgram = (programId: PlanTypeId, weekStart: string, weekDays: string[]) => {
+  const prepareOfflineProgram = (programId: PlanTypeId, weekStart: string, weekDays: string[]) => {
     const latestMeals = plannerMealsRef.current;
     const loggedMealIds = new Set(logsRef.current.map((log) => log.plannerMealId).filter((id): id is string => Boolean(id)));
     const generated = createStarterPlannerMeals(weekStart, programId);
@@ -401,14 +401,21 @@ export default function PlannerScreen() {
       appliedAt: new Date().toISOString(),
       source: 'offline-fallback',
     }, 'rebuild'));
-    // Invalidate any still-pending network response so it cannot overwrite
-    // the local Program choice after a timeout or auth failure.
-    generationEpochRef.current += 1;
+    // setPlannerMeals increments the context revision asynchronously. Keep
+    // the request guard aligned immediately so the optimistic Program build
+    // is treated as the baseline rather than as an unrelated user edit.
+    plannerRevisionRef.current += 1;
     setViewWeekStart(weekStart);
     setSelectedDay(weekStart);
+    return findPlanType(programId)?.label ?? 'Program';
+  };
+
+  const finishOfflineProgram = (programId: PlanTypeId, personalizedUnavailable = false) => {
     setGenerationError(false);
     const label = findPlanType(programId)?.label ?? 'Program';
-    setGenerationMessage(`${label} applied locally. Sign in to unlock a personalized AI week.`);
+    setGenerationMessage(personalizedUnavailable
+      ? `${label} applied locally. Your personalized AI week is unavailable right now.`
+      : `${label} applied locally. Sign in to unlock a personalized AI week.`);
     setGenerating(false);
     generationInFlightRef.current = false;
   };
@@ -675,7 +682,7 @@ export default function PlannerScreen() {
     generationEpochRef.current = generationEpoch;
     const requestedWeekStart = viewWeekStart;
     const requestedWeekDays = Array.from({ length: 7 }, (_, index) => plannerDate(requestedWeekStart, index));
-    const requestedPlannerRevision = plannerRevisionRef.current;
+    let requestedPlannerRevision = plannerRevisionRef.current;
     setGenerating(true);
     setGenerationMessage(null);
     setGenerationError(false);
@@ -702,8 +709,12 @@ export default function PlannerScreen() {
     // clobbered by a stale snapshot; programId is captured only for the API
     // request and the historical record.
     if (confirmedProgram) updatePlannerPreferences((prev) => selectPrimaryProgram(prev, confirmedProgram));
+    if (confirmedProgram) {
+      prepareOfflineProgram(confirmedProgram, requestedWeekStart, requestedWeekDays);
+      requestedPlannerRevision = plannerRevisionRef.current;
+    }
     if (confirmedProgram && !session) {
-      applyOfflineProgram(confirmedProgram, requestedWeekStart, requestedWeekDays);
+      finishOfflineProgram(confirmedProgram);
       return;
     }
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -731,6 +742,14 @@ export default function PlannerScreen() {
       if (plannerRevisionRef.current !== requestedPlannerRevision) {
         setGenerationError(true);
         setGenerationMessage('Your plan changed while it was building, so your edits were kept. Build again when you are ready.');
+        return;
+      }
+      // The API intentionally returns a 200 starter response when its AI
+      // provider is unavailable. A confirmed Program already has an
+      // optimistic Program-shaped local week; never replace it with generic
+      // starter meals.
+      if (confirmedProgram && isStarterFallbackProvider(result.provider)) {
+        finishOfflineProgram(confirmedProgram);
         return;
       }
       const latestMeals = plannerMealsRef.current;
@@ -778,8 +797,8 @@ export default function PlannerScreen() {
       if (!confirmedProgram) setWeekOverviewVisible(true);
       acknowledge('Week saved.');
     } catch (error) {
-      if (confirmedProgram && error instanceof ApiError && error.status === 401) {
-        applyOfflineProgram(confirmedProgram, requestedWeekStart, requestedWeekDays);
+      if (confirmedProgram) {
+        finishOfflineProgram(confirmedProgram, Boolean(session));
         return;
       }
       // HTTP, auth, validation, timeout, and transport failures must not

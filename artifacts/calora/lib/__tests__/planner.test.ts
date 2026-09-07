@@ -174,6 +174,8 @@ describe('planner identity', () => {
 
     expect(highProtein.map((item) => item.name)).not.toEqual(balanced.map((item) => item.name));
     expect(mediterranean.map((item) => item.name)).not.toEqual(balanced.map((item) => item.name));
+    expect(highProtein.map((item) => item.imageAssetKey)).not.toEqual(balanced.map((item) => item.imageAssetKey));
+    expect(mediterranean.map((item) => item.imageAssetKey)).not.toEqual(balanced.map((item) => item.imageAssetKey));
     expect(highProtein.slice(0, 4).every((item) => item.day === '2026-08-03')).toBe(true);
   });
 
