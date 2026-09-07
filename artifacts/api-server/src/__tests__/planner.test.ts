@@ -137,6 +137,29 @@ describe("POST /v1/planner/generate", () => {
     )).toBe(true);
   });
 
+  it("limits AI selections to the selected Program pool", async () => {
+    const days = Array.from({ length: 7 }, () => ({
+      breakfast: "berry-oats",
+      lunch: "harvest-salad",
+      dinner: "spaghetti-bol",
+      snack: "hummus-veggies",
+    }));
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({
+      choices: [{ message: { content: JSON.stringify({ days }) } }],
+    } as never);
+
+    const response = await request(app).post("/v1/planner/generate").send({
+      ...validBody(),
+      planType: "high-protein-power",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.meals.every((meal: { id: string }) =>
+      ["egg-toast", "avo-toast-egg", "yogurt-parfait", "harvest-salad", "salmon-quinoa", "tuna-poke", "hummus-wrap", "chicken-rice", "prawn-stirfry", "beef-tacos", "stir-fry", "edamame", "banana-pb", "trail-mix"]
+        .some((id) => meal.id.includes(`-${id}-`)),
+    )).toBe(true);
+  });
+
   it("keeps Quick & Easy fallback meals at or below 20 minutes", async () => {
     vi.mocked(openai.chat.completions.create).mockRejectedValueOnce(new Error("provider down"));
 

@@ -3,6 +3,7 @@ import type { ShoppingItem } from '@/context/CaloraContext';
 import { addDays, dateFromKey, dateKey } from '@/lib/dates';
 import type { PlanTypeId } from '@/lib/planType';
 import { plannerImageKeyForMeal, plannerImageKeyForMealId } from '@/lib/mealImageIdentity';
+import { PROGRAM_MEAL_POOLS } from '@workspace/api-zod/planner-program-pools';
 
 export const plannerMealTypes: PlannerMeal['meal'][] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -469,15 +470,23 @@ const PLANT_BASED_MEAL_IDS = new Set([
 ]);
 
 export function plannerCatalogForProgram(programId?: PlanTypeId): PlannerMeal[] {
+  let candidates = plannerCatalog;
   if (programId === 'plant-based-week') {
-    return plannerCatalog.filter((meal) => PLANT_BASED_MEAL_IDS.has(meal.id));
+    candidates = candidates.filter((meal) => PLANT_BASED_MEAL_IDS.has(meal.id));
+  } else if (programId === 'quick-and-easy') {
+    candidates = candidates.filter((meal) => (meal.prepMinutes ?? 0) <= 20);
   }
-  if (programId === 'quick-and-easy') {
-    return plannerCatalog.filter((meal) => (meal.prepMinutes ?? 0) <= 20);
+
+  const preferredIds = programId ? PROGRAM_MEAL_POOLS[programId as keyof typeof PROGRAM_MEAL_POOLS] : undefined;
+  if (preferredIds) {
+    const rank = new Map<string, number>(preferredIds.map((id, index) => [id, index]));
+    candidates = candidates
+      .filter((meal) => rank.has(meal.id))
+      .sort((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER));
   }
 
   if (!programId || programId === 'balanced-nutrition' || programId === 'healthy-habits-week') {
-    return plannerCatalog;
+    return candidates;
   }
 
   const textFor = (meal: PlannerMeal) =>
@@ -512,7 +521,7 @@ export function plannerCatalogForProgram(programId?: PlanTypeId): PlannerMeal[] 
     }
   };
 
-  return plannerCatalog
+  return candidates
     .map((meal, index) => ({ meal, index }))
     .sort((a, b) => scoreFor(b.meal) - scoreFor(a.meal) || a.index - b.index)
     .map(({ meal }) => meal);

@@ -179,6 +179,30 @@ describe('planner identity', () => {
     expect(highProtein.slice(0, 4).every((item) => item.day === '2026-08-03')).toBe(true);
   });
 
+  it('gives each Program a distinct first-day meal and image signature', () => {
+    const programs = [
+      'balanced-nutrition',
+      'high-protein-power',
+      'low-carb-living',
+      'mediterranean-diet',
+      'plant-based-week',
+      'keto-kickstart',
+      'intermittent-fasting',
+      'budget-friendly',
+      'quick-and-easy',
+      'athletic-performance',
+      'anti-inflammatory',
+      'healthy-habits-week',
+    ] as const;
+    const signatures = programs.map((programId) =>
+      createStarterPlannerMeals('2026-08-03', programId)
+        .slice(0, 4)
+        .map((item) => item.imageAssetKey)
+        .join('|'),
+    );
+    expect(new Set(signatures).size).toBe(programs.length);
+  });
+
   it('preserves local calendar week dates', () => {
     expect(plannerDate('2026-08-03', 6)).toBe('2026-08-09');
   });

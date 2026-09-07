@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { GeneratePlannerBody } from "@workspace/api-zod";
 import { plannerImageKeyForMeal, type PlannerImageKey } from "@workspace/api-zod/planner-image-identity";
+import { PROGRAM_MEAL_POOLS } from "@workspace/api-zod/planner-program-pools";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
@@ -465,13 +466,25 @@ function makeMeal(meal: CatalogMeal, day: string, index: number) {
 }
 
 function catalogForPlanType(meals: CatalogMeal[], planType: string | null): CatalogMeal[] {
+  let candidates = meals;
   if (planType === "plant-based-week") {
-    return meals.filter((meal) => meal.diets.includes("Vegetarian") || meal.diets.includes("Vegan"));
+    candidates = candidates.filter((meal) => meal.diets.includes("Vegetarian") || meal.diets.includes("Vegan"));
+  } else if (planType === "quick-and-easy") {
+    candidates = candidates.filter((meal) => meal.prepMinutes <= 20);
   }
-  if (planType === "quick-and-easy") {
-    return meals.filter((meal) => meal.prepMinutes <= 20);
-  }
-  return meals;
+
+  const preferredIds = planType && Object.prototype.hasOwnProperty.call(PROGRAM_MEAL_POOLS, planType)
+    ? PROGRAM_MEAL_POOLS[planType as keyof typeof PROGRAM_MEAL_POOLS]
+    : undefined;
+  if (!preferredIds) return candidates;
+
+  const rank = new Map<string, number>(preferredIds.map((id, index) => [id, index]));
+  const preferred = candidates
+    .filter((meal) => rank.has(meal.id))
+    .sort((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+  // Keep dietary filtering authoritative. If a narrow profile leaves too few
+  // preferred choices, use the filtered catalog rather than inventing meals.
+  return preferred.length >= 4 ? preferred : candidates;
 }
 
 function parseSelection(content: string) {
