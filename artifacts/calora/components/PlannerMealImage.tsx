@@ -66,7 +66,7 @@ export function PlannerMealImage({
   }, [meal.id, meal.image, resolvedImageKey]);
 
   const image = (
-    <View style={[style as StyleProp<ViewStyle>, styles.imageSurface]}>
+    <View style={[styles.imageSurface, style as StyleProp<ViewStyle>]}>
       <Image
         accessibilityLabel={imageLabel}
         cachePolicy="memory-disk"
