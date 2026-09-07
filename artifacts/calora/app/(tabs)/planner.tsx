@@ -380,7 +380,6 @@ export default function PlannerScreen() {
   // Program already applied to the week the user is looking at — distinct from the
   // Program merely selected for a future build (plannerPreferences.primary).
   const appliedProgramForViewedWeek = useMemo(() => programAppliedToWeek(plannerPreferences, viewWeekStart), [plannerPreferences, viewWeekStart]);
-  const selectedMeals = plannerMeals.filter((meal) => meal.day === selectedDay);
   const plannedWeek = plannerMeals.filter((meal) => weekDays.includes(meal.day));
   const visibleShoppingItems = useMemo(
     () => {
@@ -396,12 +395,67 @@ export default function PlannerScreen() {
   );
   const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
   const actionMealLogged = actionMeal ? logs.some((log) => log.plannerMealId === actionMeal.id) : false;
-  const selectedMealLabel = dayFormatter.format(parseDate(selectedDay));
   const selectedProgramLabel = appliedProgramForViewedWeek
     ? findPlanType(appliedProgramForViewedWeek.programId)?.label ?? appliedProgramForViewedWeek.programId
     : plannerPreferences
       ? findPlanType(plannerPreferences.primary)?.label ?? plannerPreferences.primary
       : 'Choose a Program';
+
+  const renderPlannerDay = (day: string) => {
+    const mealsForDay = plannerMeals.filter((meal) => meal.day === day);
+    const dayLabel = dayFormatter.format(parseDate(day));
+
+    return (
+      <>
+        <View style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
+          <View style={styles.daySummaryRow}>
+            <View style={styles.daySummaryCopy}>
+              <Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{dayLabel}</Text>
+              {mealsForDay.length < 4 && <Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{4 - mealsForDay.length} open</Text>}
+            </View>
+            <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(mealsForDay.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
+            <View accessibilityLabel={`Meal program: ${selectedProgramLabel}`} style={styles.dayProgramInline}>
+              <Text numberOfLines={1} style={[styles.dayProgramName, { color: colors.foreground }]}>{selectedProgramLabel}</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.mealList}>
+          {plannerMealTypes.map((type) => {
+            const meal = mealsForDay.find((item) => item.meal === type);
+            return meal ? (
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                colors={colors}
+                editMode={editMode}
+                isLogged={logs.some((log) => log.plannerMealId === meal.id)}
+                onPress={() => setDetail(meal)}
+                onLog={() => addToDiary(meal)}
+                onEdit={() => beginEditMeal(meal)}
+                onActions={() => { setActionMeal(meal); setActionMode(null); }}
+              />
+            ) : (
+              <Pressable
+                key={type}
+                accessibilityLabel={`Add ${type} to ${dayLabel}`}
+                onPress={() => { setSelectedDay(day); setAddingMealType(type); }}
+                style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}
+              >
+                <View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}>
+                  <Feather name="plus" size={15} color={colors.accentForeground} />
+                </View>
+                <View style={styles.emptyMealCopy}>
+                  <Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text>
+                  <Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text>
+                </View>
+                <Feather name="chevron-right" size={15} color={colors.mutedForeground} />
+              </Pressable>
+            );
+          })}
+        </View>
+      </>
+    );
+  };
 
   const acknowledge = (message: string, duration = 2600) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -973,27 +1027,13 @@ export default function PlannerScreen() {
           items={weekDays}
           activeItem={selectedDay}
           onChange={setSelectedDay}
+          renderItem={renderPlannerDay}
           accessibilityLabel="Planned meal days"
           accessibilityHint="Swipe left or right to switch days"
           lockGesture
-          disableAnimation
           testID="planner-day-pager"
           style={styles.dayPager}
-        >
-          <View style={[styles.dayDivider, { borderBottomColor: colors.border }]}>
-            <View style={styles.daySummaryRow}>
-              <View style={styles.daySummaryCopy}>
-                <Text style={[styles.dayHeadingTitle, { color: colors.foreground }]}>{selectedMealLabel}</Text>
-                {selectedMeals.length < 4 && <Text style={[styles.daySubheading, { color: colors.mutedForeground }]}>{4 - selectedMeals.length} open</Text>}
-              </View>
-              <Text style={[styles.dayTotal, { color: colors.mutedForeground }]}>{formatCalories(selectedMeals.reduce((sum, meal) => sum + meal.calories, 0))}</Text>
-              <View accessibilityLabel={`Meal program: ${selectedProgramLabel}`} style={styles.dayProgramInline}>
-                <Text numberOfLines={1} style={[styles.dayProgramName, { color: colors.foreground }]}>{selectedProgramLabel}</Text>
-              </View>
-            </View>
-          </View>
-          <View style={styles.mealList}>{plannerMealTypes.map((type) => { const meal = selectedMeals.find((item) => item.meal === type); return meal ? <MealCard key={meal.id} meal={meal} colors={colors} editMode={editMode} isLogged={logs.some((log) => log.plannerMealId === meal.id)} onPress={() => setDetail(meal)} onLog={() => addToDiary(meal)} onEdit={() => beginEditMeal(meal)} onActions={() => { setActionMeal(meal); setActionMode(null); }} /> : <Pressable key={type} accessibilityLabel={`Add ${type} to ${dayFormatter.format(parseDate(selectedDay))}`} onPress={() => setAddingMealType(type)} style={[styles.emptyMeal, { borderColor: colors.border, backgroundColor: colors.card }]}><View style={[styles.emptySlotIcon, { backgroundColor: colors.accent }]}><Feather name="plus" size={15} color={colors.accentForeground} /></View><View style={styles.emptyMealCopy}><Text style={[styles.emptyMealLabel, { color: colors.foreground }]}>{type}</Text><Text style={[styles.emptyMealText, { color: colors.mutedForeground }]}>Add a meal, browse recipes, or leave open.</Text></View><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></Pressable>; })}</View>
-        </SwipeableSectionPager>
+        />
         {(generating || generationMessage) && <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.generationStatus, { backgroundColor: generationError ? colors.muted : colors.accent, borderColor: generationError ? colors.warning : 'transparent', borderWidth: generationError ? 1 : 0 }]}>{generating ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name={generationError ? 'alert-circle' : 'check-circle'} size={16} color={generationError ? colors.warning : colors.success} />}<Text style={[styles.generationStatusText, { color: colors.foreground }]}>{generating ? 'Building your week…' : generationMessage}</Text>{generationError && <Pressable accessibilityLabel="Retry building the week" onPress={() => void generate()} style={styles.generationRetry}><Text style={[styles.generationRetryText, { color: colors.primary }]}>Retry</Text></Pressable>}</View>}
           <MotivationalQuote colors={colors} style={{ marginTop: 16, marginBottom: 8 }} />
           <View style={{ marginTop: 20 }}><SummaryBar meals={plannedWeek} target={profile?.calorieTarget ?? 2000} colors={colors} /></View>
