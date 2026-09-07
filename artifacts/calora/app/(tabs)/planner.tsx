@@ -16,6 +16,7 @@ import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStart
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { PLAN_TYPES, clearProgramApplication, findPlanType, isStarterFallbackProvider, planTypeForGeneration, programAppliedToWeek, recordGenerationOutcome, resolveGenerationRecording, selectPrimaryProgram, type PlanType, type PlanTypeId } from '@/lib/planType';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { ProgramAppliedCelebration } from '@/components/ProgramAppliedCelebration';
 import { BottomSheet } from '@/components/BottomSheet';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -60,6 +61,29 @@ function plannerGenerationError(error: unknown): string {
     return 'Plan building took too long. Check your connection and try again. Your current plan is unchanged.';
   }
   return 'Could not build your week right now. Check your connection and try again. Your current plan is unchanged.';
+}
+
+function programEncouragement(programId: PlanTypeId): string {
+  switch (programId) {
+    case 'mediterranean-diet':
+      return 'Fresh, balanced choices are ready. One meal at a time.';
+    case 'high-protein-power':
+      return 'Strong choices are ready. Keep building momentum.';
+    case 'low-carb-living':
+      return 'Your next good choice is already planned.';
+    case 'plant-based-week':
+      return 'Plants first, progress forward. You’ve got this.';
+    case 'athletic-performance':
+      return 'Fuel your training and let consistency do the work.';
+    case 'budget-friendly':
+      return 'Smart, satisfying choices are ready for your week.';
+    case 'anti-inflammatory':
+      return 'Nourishing choices are ready. Small steps add up.';
+    case 'quick-and-easy':
+      return 'Simple choices are ready for busy days.';
+    default:
+      return 'A clear plan makes the next good choice easier.';
+  }
 }
 
 function MealCard({
@@ -248,6 +272,7 @@ export default function PlannerScreen() {
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState(false);
+  const [programCelebration, setProgramCelebration] = useState<{ key: number; programId: PlanTypeId; label: string; message: string } | null>(null);
   const [weekOverviewVisible, setWeekOverviewVisible] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [undoMeal, setUndoMeal] = useState<PlannerMeal | null>(null);
@@ -257,6 +282,7 @@ export default function PlannerScreen() {
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const generationInFlightRef = useRef(false);
   const generationEpochRef = useRef(0);
+  const programCelebrationKeyRef = useRef(0);
   const plannerMealsRef = useRef(plannerMeals);
   const logsRef = useRef(logs);
   const plannerRevisionRef = useRef(plannerRevision);
@@ -407,8 +433,18 @@ export default function PlannerScreen() {
     plannerRevisionRef.current += 1;
     setViewWeekStart(weekStart);
     setSelectedDay(weekStart);
-    return findPlanType(programId)?.label ?? 'Program';
+    const label = findPlanType(programId)?.label ?? 'Program';
+    setProgramCelebration({
+      key: ++programCelebrationKeyRef.current,
+      programId,
+      label,
+      message: programEncouragement(programId),
+    });
   };
+
+  const dismissProgramCelebration = useCallback(() => {
+    setProgramCelebration(null);
+  }, []);
 
   const finishOfflineProgram = (programId: PlanTypeId, personalizedUnavailable = false) => {
     setGenerationError(false);
@@ -964,6 +1000,16 @@ export default function PlannerScreen() {
         </>}
 
       </ScrollView>
+       {programCelebration && (
+         <ProgramAppliedCelebration
+           key={programCelebration.key}
+           visible
+           programLabel={programCelebration.label}
+           message={programCelebration.message}
+           colors={colors}
+           onDismiss={dismissProgramCelebration}
+         />
+       )}
        <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal || undoMoveMeal || undoSwapMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undoMoveMeal ? undoMove : undoSwapMeal ? undoSwap : undefined} countdownDuration={undoMeal || undoMoveMeal || undoSwapMeal ? 6000 : undefined} />
       <BottomSheet visible={detail !== null} onRequestClose={() => { dismissPlannerReview(); setDetail(null); }} onBackdropPress={() => { dismissPlannerReview(); setDetail(null); }} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
