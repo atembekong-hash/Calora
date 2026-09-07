@@ -546,9 +546,16 @@ export async function listRestaurantFoods(input: { query: string; limit: number;
   return { ...status, foods, nextOffset: nextProviderOffset < total ? nextProviderOffset : null };
 }
 
+export function normalizeRestaurantSourceId(sourceId: string): string | null {
+  const rawId = sourceId.trim().replace(/^fatsecret-food:/, '');
+  return /^\d+$/.test(rawId) ? `fatsecret-food:${rawId}` : null;
+}
+
 export async function getRestaurantFood(sourceId: string) {
   const status = restaurantProviderStatus();
   if (status.status !== "available") return null;
-  const payload = await fatSecretFetch("/food/v4", { food_id: sourceId.replace(/^fatsecret-food:/, "") });
+  const normalizedSourceId = normalizeRestaurantSourceId(sourceId);
+  if (!normalizedSourceId) return null;
+  const payload = await fatSecretFetch("/food/v4", { food_id: normalizedSourceId.replace(/^fatsecret-food:/, "") });
   return normalizeFatSecretFood(payload.food);
 }

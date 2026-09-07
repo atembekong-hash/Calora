@@ -38,3 +38,9 @@ Restaurant representative-image categories must be derived from the menu item na
 **Why:** Brand names such as coffee shops or taco chains can misclassify unrelated menu items, while an accessibility-only disclaimer is not visible to most users before selection.
 
 **How to apply:** Give serving-format matches priority over ingredient keywords, keep provider nutrition separate from local presentation imagery, and show a compact visible representative badge wherever a restaurant photo appears.
+
+Restaurant diary entries may carry a stable local asset identity in the `restaurant:<category>` namespace so the diary repeats the same representative category image without persisting a provider URL. The diary thumbnail must keep the representative badge and accessibility wording; restaurant nutrition must remain labeled as Restaurant verified rather than USDA verified.
+
+**Why:** A late provider response or a generic canonical-food lookup must not replace the selected restaurant item with another item's photo, and FatSecret attribution should not be silently collapsed into a different provider.
+
+**How to apply:** Build the asset identity from the selected provider detail, validate the detail against the selected source before accepting it, and reject malformed FatSecret source IDs before provider egress.

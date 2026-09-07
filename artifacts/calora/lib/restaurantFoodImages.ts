@@ -1,5 +1,10 @@
 import { type ImageSource } from 'expo-image';
-import { restaurantFoodImageKey, type RestaurantFoodImageInput, type RestaurantFoodImageKey } from './restaurantFoodImageSelection';
+import {
+  restaurantFoodImageKey,
+  RESTAURANT_IMAGE_ASSET_PREFIX,
+  type RestaurantFoodImageInput,
+  type RestaurantFoodImageKey,
+} from './restaurantFoodImageSelection';
 
 const FALLBACK_MAIN = require('../assets/images/food-fallback-main.jpg');
 const FALLBACK_DRINK = require('../assets/images/food-fallback-drink.jpg');
@@ -13,24 +18,33 @@ const SOUP = require('../assets/images/foods/tomato-basil-soup.jpg');
 const TACOS = require('../assets/images/foods/shrimp-tacos.jpg');
 const PASTA = require('../assets/images/foods/whole-wheat-pasta-primavera.jpg');
 
+const RESTAURANT_IMAGES: Record<RestaurantFoodImageKey, ImageSource> = {
+  main: FALLBACK_MAIN,
+  drink: FALLBACK_DRINK,
+  snack: FALLBACK_SNACK,
+  breakfast: BREAKFAST,
+  bowl: BOWL,
+  chicken: CHICKEN,
+  wrap: WRAP,
+  salad: SALAD,
+  soup: SOUP,
+  tacos: TACOS,
+  pasta: PASTA,
+};
+
 /**
  * Restaurant providers do not consistently return a food photo for every
  * branded result. Keep the nutrition source independent from presentation and
  * assign a stable, representative local photo for every menu item instead.
  */
 export function restaurantFoodImageSource(food: RestaurantFoodImageInput): ImageSource {
-  const images: Record<RestaurantFoodImageKey, ImageSource> = {
-    main: FALLBACK_MAIN,
-    drink: FALLBACK_DRINK,
-    snack: FALLBACK_SNACK,
-    breakfast: BREAKFAST,
-    bowl: BOWL,
-    chicken: CHICKEN,
-    wrap: WRAP,
-    salad: SALAD,
-    soup: SOUP,
-    tacos: TACOS,
-    pasta: PASTA,
-  };
-  return images[restaurantFoodImageKey(food)];
+  return RESTAURANT_IMAGES[restaurantFoodImageKey(food)];
+}
+
+export function restaurantFoodImageSourceForAssetKey(assetKey: string | null | undefined): ImageSource | undefined {
+  if (!assetKey?.startsWith(RESTAURANT_IMAGE_ASSET_PREFIX)) return undefined;
+  const category = assetKey.slice(RESTAURANT_IMAGE_ASSET_PREFIX.length) as RestaurantFoodImageKey;
+  return Object.prototype.hasOwnProperty.call(RESTAURANT_IMAGES, category)
+    ? RESTAURANT_IMAGES[category]
+    : undefined;
 }

@@ -5,6 +5,7 @@ import {
   FatSecretProviderError,
   getRestaurantFood,
   listRestaurantFoods,
+  normalizeRestaurantSourceId,
   restaurantProviderStatus,
 } from "../lib/premiumRecipes.js";
 import {
@@ -108,6 +109,10 @@ router.get("/v1/restaurant-foods/:sourceId", async (req, res) => {
   }
   if (restaurantProviderStatus().status !== "available") {
     res.status(503).json({ message: "Restaurant nutrition is not connected yet." });
+    return;
+  }
+  if (!normalizeRestaurantSourceId(req.params.sourceId)) {
+    res.status(400).json({ message: "Invalid restaurant food identifier." });
     return;
   }
   try {

@@ -107,7 +107,7 @@ describe('nutritionForComponents', () => {
 });
 
 describe('restaurant source drafts', () => {
-  it('preserves the selected date, meal, serving, and verified provider source', () => {
+  it('preserves the selected date, meal, serving, and restaurant image identity', () => {
     const component = makeComponent({
       id: 'fatsecret-123-456',
       name: 'Cheeseburger',
@@ -117,7 +117,7 @@ describe('restaurant source drafts', () => {
       proteinG: 17,
       carbsG: 31,
       fatG: 15,
-      provenance: 'verified_provider',
+      provenance: 'verified_restaurant',
       sourceLabel: 'FatSecret nutrition data',
       confidence: 94,
     });
@@ -128,7 +128,8 @@ describe('restaurant source drafts', () => {
       meal: 'Lunch',
       components: [component],
       sourceLabel: 'FatSecret nutrition data',
-      provenance: 'verified_provider',
+      provenance: 'verified_restaurant',
+      imageAssetKey: 'restaurant:main',
       now: '2026-08-18T12:00:00.000Z',
     });
 
@@ -137,7 +138,8 @@ describe('restaurant source drafts', () => {
       meal: 'Lunch',
       title: 'Example Burger Cheeseburger',
       sourceLabel: 'FatSecret nutrition data',
-      provenance: 'verified_provider',
+      provenance: 'verified_restaurant',
+      imageAssetKey: 'restaurant:main',
     });
     expect(draft.components[0]).toMatchObject({
       serving: '1 burger',

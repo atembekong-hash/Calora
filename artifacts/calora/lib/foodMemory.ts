@@ -9,7 +9,7 @@ export const FOOD_MEMORY_SCHEMA_VERSION = 1;
 
 export type FoodMemoryInputType = 'barcode' | 'photo' | 'nutrition_label' | 'text' | 'voice' | 'receipt' | 'recipe' | 'saved_meal' | 'repeat' | 'manual' | 'planner';
 export type FoodMemoryStatus = 'draft' | 'accepted' | 'rejected';
-export type FoodMemoryProvenance = 'verified_barcode' | 'verified_label' | 'verified_provider' | 'photo_estimate' | 'personal_history' | 'recipe_imported' | 'recipe_personal' | 'manual' | 'planner_estimate';
+export type FoodMemoryProvenance = 'verified_barcode' | 'verified_label' | 'verified_provider' | 'verified_restaurant' | 'photo_estimate' | 'personal_history' | 'recipe_imported' | 'recipe_personal' | 'manual' | 'planner_estimate';
 export type ImageRetentionState = 'not_collected' | 'delete_after_analysis' | 'local_only' | 'retained_with_consent';
 
 export type NutritionSnapshot = {
@@ -116,6 +116,7 @@ const clamp = (value: number, low: number, high: number) => Math.min(Math.max(va
 
 export function provenanceForCapture(value: string, inputType: FoodMemoryInputType): FoodMemoryProvenance {
   if (value === 'Barcode verified') return 'verified_barcode';
+  if (value === 'Restaurant verified') return 'verified_restaurant';
   if (value === 'USDA verified' || value === 'Brand verified') return 'verified_provider';
   if (value === 'Nutrition label') return 'verified_label';
   if (inputType === 'nutrition_label') return 'verified_label';
@@ -266,6 +267,7 @@ export function sourceComponentsToDraft(input: {
   reviewQuestions?: string[];
   imageUrl?: string | null;
   imageSource?: FoodImageSource;
+  imageAssetKey?: string;
   now?: string;
 }): FoodMemoryDraft {
   const now = input.now ?? new Date().toISOString();
@@ -299,6 +301,7 @@ export function sourceComponentsToDraft(input: {
     createdAt: now,
     updatedAt: now,
     correctionIds: [],
+    imageAssetKey: input.imageAssetKey,
     imageUrl,
     imageSource: imageUrl ? (directImage.imageSource ?? 'provider') : undefined,
   };

@@ -116,6 +116,9 @@ describe('foodSourceForMemory', () => {
   it('verified_provider → USDA verified', () => {
     expect(foodSourceForMemory('verified_provider')).toBe('USDA verified');
   });
+  it('verified_restaurant → Restaurant verified', () => {
+    expect(foodSourceForMemory('verified_restaurant')).toBe('Restaurant verified');
+  });
   it('verified_label → USDA verified', () => {
     expect(foodSourceForMemory('verified_label')).toBe('USDA verified');
   });

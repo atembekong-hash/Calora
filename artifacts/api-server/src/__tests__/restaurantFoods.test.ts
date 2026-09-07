@@ -111,6 +111,8 @@ describe("Restaurant food routes", () => {
       }],
       nextOffset: 2,
     });
+    expect(res.body.foods[0]).not.toHaveProperty("imageUrl");
+    expect(res.body.foods[0]).not.toHaveProperty("foodImage");
     expect(checkRateLimitMock).toHaveBeenCalledWith(
       "restaurant-foods:user:user-123",
       80,
@@ -219,6 +221,24 @@ describe("Restaurant food routes", () => {
     expect(JSON.stringify(res.body)).not.toContain("provider rejected");
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://gateway.example/fatsecret/foods/detail");
     expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ sourceId: "fatsecret-food:321" }));
+  });
+
+  it("rejects malformed restaurant source identifiers before contacting FatSecret", async () => {
+    process.env.FATSECRET_CLIENT_ID = "test-id";
+    process.env.FATSECRET_CLIENT_SECRET = "test-secret";
+    verifyBearerTokenMock.mockResolvedValue({ id: "user-123", email: "test@example.com" });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { default: router } = await import("../routes/restaurantFoods.js");
+    const app = express();
+    app.use(express.json());
+    app.use(router);
+
+    const res = await request(app).get("/v1/restaurant-foods/not-a-fatsecret-id");
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ message: "Invalid restaurant food identifier." });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("returns a generic response and redacted signal for an account deletion fence", async () => {

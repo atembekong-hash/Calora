@@ -1,10 +1,11 @@
 import { Image, type ImageSource } from 'expo-image';
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { FoodLog } from '@/context/CaloraContext';
 import { foodImageCategory, normalizeFoodImageUrl } from '@/lib/foodImageMetadata';
 import { foodImageKeyForName } from '@/lib/mealImageIdentity';
 import { foodImageSource } from '@/lib/mealImages';
+import { restaurantFoodImageSourceForAssetKey } from '@/lib/restaurantFoodImages';
 
 const FALLBACK_IMAGES: Record<ReturnType<typeof foodImageCategory>, ImageSource> = {
   breakfast: require('../assets/images/food-fallback-breakfast.jpg'),
@@ -25,7 +26,8 @@ export function FoodLogThumbnail({
   const remoteUrl = normalizeFoodImageUrl(log.imageUrl);
   const canonicalImageKey = foodImageKeyForName(log.name);
   const resolvedImageKey = canonicalImageKey ?? log.imageAssetKey;
-  const localImage = foodImageSource(resolvedImageKey);
+  const restaurantImage = restaurantFoodImageSourceForAssetKey(log.imageAssetKey);
+  const localImage = restaurantImage ?? foodImageSource(resolvedImageKey);
   const fallback = FALLBACK_IMAGES[foodImageCategory(log)];
   const [remoteFailed, setRemoteFailed] = useState(false);
 
@@ -41,7 +43,7 @@ export function FoodLogThumbnail({
   return (
     <View style={[styles.frame, { width: size, height: size, borderRadius }]}>
       <Image
-        accessibilityLabel={`${log.name} food image`}
+          accessibilityLabel={restaurantImage ? `Representative image for ${log.name}` : `${log.name} food image`}
         cachePolicy="memory-disk"
         contentFit="cover"
         onError={() => setRemoteFailed(true)}
@@ -51,6 +53,11 @@ export function FoodLogThumbnail({
         style={StyleSheet.absoluteFill}
         transition={120}
       />
+      {restaurantImage ? (
+        <View style={styles.representativeBadge}>
+          <Text style={styles.representativeBadgeText}>REP</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -59,5 +66,21 @@ const styles = StyleSheet.create({
   frame: {
     backgroundColor: '#e7ece5',
     overflow: 'hidden',
+  },
+  representativeBadge: {
+    position: 'absolute',
+    left: 3,
+    right: 3,
+    bottom: 3,
+    borderRadius: 4,
+    paddingVertical: 2,
+    backgroundColor: 'rgba(16, 67, 55, 0.88)',
+  },
+  representativeBadgeText: {
+    color: '#ffffff',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 6,
+    letterSpacing: 0.35,
+    textAlign: 'center',
   },
 });

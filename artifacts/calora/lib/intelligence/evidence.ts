@@ -25,6 +25,7 @@ export function evidenceOriginForLog(log: FoodLog): EvidenceOrigin {
   switch (log.source as string) {
     case 'USDA verified':
     case 'Brand verified':
+    case 'Restaurant verified':
       return 'provider';
     case 'Barcode verified':
       return 'barcode';

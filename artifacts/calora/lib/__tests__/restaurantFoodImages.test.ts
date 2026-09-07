@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { restaurantFoodImageKey, restaurantFoodImageLabel } from '../restaurantFoodImageSelection';
+import { restaurantFoodImageAssetKey, restaurantFoodImageKey, restaurantFoodImageLabel } from '../restaurantFoodImageSelection';
 
 describe('restaurantFoodImageKey', () => {
   it('assigns representative photos to branded menu items', () => {
-    expect(restaurantFoodImageKey({ brandName: 'Chipotle', name: 'Chicken Burrito Bowl' })).toBe('tacos');
+    expect(restaurantFoodImageKey({ brandName: 'Chipotle', name: 'Chicken Burrito Bowl' })).toBe('bowl');
     expect(restaurantFoodImageKey({ brandName: "Wendy's", name: 'Dave’s Single' })).toBe('main');
     expect(restaurantFoodImageKey({ brandName: 'Burger King', name: 'Whopper' })).toBe('main');
   });
@@ -21,6 +21,17 @@ describe('restaurantFoodImageKey', () => {
       .toBe('wrap');
     expect(restaurantFoodImageKey({ brandName: 'Taco Bell', name: 'Cheeseburger' }))
       .toBe('main');
+  });
+
+  it('keeps compound menu names in the most specific visual category', () => {
+    expect(restaurantFoodImageKey({ name: 'Side Salad' })).toBe('salad');
+    expect(restaurantFoodImageKey({ name: 'Chicken Burrito Bowl' })).toBe('bowl');
+    expect(restaurantFoodImageKey({ name: 'Coffee Cake' })).toBe('snack');
+  });
+
+  it('round-trips a stable representative asset identity for diary thumbnails', () => {
+    const assetKey = restaurantFoodImageAssetKey({ name: 'Garden Salad' });
+    expect(assetKey).toBe('restaurant:salad');
   });
 
   it('labels local category imagery as representative instead of exact dish photography', () => {

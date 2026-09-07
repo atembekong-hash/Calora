@@ -24,7 +24,7 @@ import { type MealType, useCalora } from '@/context/CaloraContext';
 import { dateKey } from '@/lib/dates';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { restaurantFoodImageSource } from '@/lib/restaurantFoodImages';
-import { restaurantFoodImageLabel } from '@/lib/restaurantFoodImageSelection';
+import { restaurantFoodImageAssetKey, restaurantFoodImageLabel } from '@/lib/restaurantFoodImageSelection';
 import { restaurantFoodReviewState } from '@/lib/restaurantFoodReview';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -70,17 +70,21 @@ export default function RestaurantsScreen() {
     { query: { queryKey: getListRestaurantFoodsQueryKey({ query: searchQuery || 'restaurant', limit: 20, offset: 0 }), enabled: canSearch, staleTime: 60_000, retry: false } },
   );
   const detailResult = useGetRestaurantFood(
-    selectedFood?.sourceId ?? '',
-    { query: { queryKey: getGetRestaurantFoodQueryKey(selectedFood?.sourceId ?? ''), enabled: Boolean(session && selectedFood), staleTime: 5 * 60_000, retry: false } },
+    selectedFood?.id ?? '',
+    { query: { queryKey: getGetRestaurantFoodQueryKey(selectedFood?.id ?? ''), enabled: Boolean(session && selectedFood), staleTime: 5 * 60_000, retry: false } },
   );
-  const detail = detailResult.data ?? selectedFood;
+  const matchingDetail = detailResult.data?.sourceId === selectedFood?.sourceId
+    ? detailResult.data
+    : undefined;
+  const detail = matchingDetail ?? selectedFood;
   const servings = useMemo(
     () => detail ? (detail.servings.length > 0 ? detail.servings : [primaryServing(detail)]) : [],
     [detail],
   );
-  const selectedServing = servings[selectedServingIndex] ?? servings[0] ?? null;
+  const effectiveServingIndex = selectedServingIndex < servings.length ? selectedServingIndex : 0;
+  const selectedServing = servings[effectiveServingIndex] ?? null;
   const reviewState = restaurantFoodReviewState({
-    detail: detailResult.data,
+    detail: matchingDetail,
     serving: selectedServing,
     isFetching: detailResult.isFetching,
     isError: detailResult.isError,
@@ -96,11 +100,18 @@ export default function RestaurantsScreen() {
   };
 
   const beginReview = () => {
-    const providerDetail = detailResult.data;
+    const providerDetail = matchingDetail;
     if (reviewState !== 'ready' || !providerDetail || !selectedServing) return;
-    const confidence = 94;
+    const detailedServingConfidence = selectedServing.servingId ? 92 : 84;
+    const confidenceDimensions = {
+      identity: 96,
+      portion: detailedServingConfidence,
+      nutritionSource: providerDetail.nutritionConfidence === 'verified' ? 96 : 84,
+      preparation: 78,
+    };
+    const confidence = Math.min(...Object.values(confidenceDimensions));
     const component: FoodMemoryComponent = {
-      id: `fatsecret-${providerDetail.sourceId}-${selectedServing.servingId ?? selectedServingIndex}`,
+      id: `fatsecret-${providerDetail.sourceId}-${selectedServing.servingId ?? effectiveServingIndex}`,
       name: providerDetail.name,
       brand: providerDetail.brandName,
       serving: selectedServing.description,
@@ -110,15 +121,10 @@ export default function RestaurantsScreen() {
       fatG: selectedServing.fatG ?? 0,
       included: true,
       eatenFraction: 1,
-      provenance: 'verified_provider',
+      provenance: 'verified_restaurant',
       sourceLabel: providerDetail.nutritionSource,
       confidence,
-      confidenceDimensions: {
-        identity: 96,
-        portion: 86,
-        nutritionSource: 96,
-        preparation: 88,
-      },
+      confidenceDimensions,
       assumptions: [],
       reviewQuestions: ['Confirm this serving matches the item and portion you ate.'],
     };
@@ -129,9 +135,10 @@ export default function RestaurantsScreen() {
       meal,
       components: [component],
       sourceLabel: providerDetail.nutritionSource,
-      provenance: 'verified_provider',
+      provenance: 'verified_restaurant',
       assumptions: ['Restaurant preparation and serving size can vary by location.'],
       reviewQuestions: component.reviewQuestions,
+      imageAssetKey: restaurantFoodImageAssetKey(providerDetail),
     });
     setSelectedFood(null);
     router.replace({
@@ -325,7 +332,7 @@ export default function RestaurantsScreen() {
                       key={serving.servingId ?? `${serving.description}-${index}`}
                       accessibilityLabel={`Use serving ${serving.description}`}
                       onPress={() => setSelectedServingIndex(index)}
-                      style={[styles.servingChip, { backgroundColor: selectedServingIndex === index ? colors.accent : colors.card, borderColor: selectedServingIndex === index ? colors.accent : colors.border }]}
+                      style={[styles.servingChip, { backgroundColor: effectiveServingIndex === index ? colors.accent : colors.card, borderColor: effectiveServingIndex === index ? colors.accent : colors.border }]}
                     >
                       <Text style={[styles.servingText, { color: selectedServingIndex === index ? colors.accentForeground : colors.foreground }]}>{serving.description}</Text>
                     </Pressable>

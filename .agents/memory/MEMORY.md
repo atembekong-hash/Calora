@@ -4,7 +4,7 @@
 - [Capture provider matching](capture-provider-matching.md) — barcode nutrition requires an exact UPC match, never a broad text-search hit.
 - [Planner generation fallback](planner-generation-fallback.md) — AI meal planning needs a bounded request with an explicit local starter-week fallback.
 - [Food Memory compatibility](food-memory-compatibility.md) — accepted memories coexist with legacy diary logs while snapshots keep historical nutrition stable.
-- [Calora image system](calora-image-system.md) — use editorial, food, and branded fallback imagery by surface, with data and trust always remaining primary.
+- [Calora image system](calora-image-system.md) — use menu-name classification, stable local restaurant asset identities, and visible representative labels; keep imagery separate from nutrition trust.
 - [Daily wellness tracking](daily-wellness-tracking.md) — water and mood are optional per-day local entries; meal count is derived from approved diary logs.
 - [Progress motion](progress-motion.md) — Progress uses restrained entrance, fill, pulse, and bar animations around trustworthy weekly signals.
 - [Local save feedback](local-save-feedback.md) — local wellness actions should acknowledge saves briefly without blocking the logging flow.
