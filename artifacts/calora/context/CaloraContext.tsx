@@ -196,6 +196,23 @@ export type Profile = {
   units?: 'metric' | 'imperial';
 };
 
+/**
+ * Raw values collected before a profile has passed final onboarding validation.
+ * This is intentionally separate from Profile so an abandoned setup can never
+ * be mistaken for a completed account.
+ */
+export type OnboardingDraft = {
+  name: string;
+  age: string;
+  height: string;
+  weight: string;
+  targetWeight: string;
+  goal: Goal;
+  activity: ActivityLevel;
+  diet: DietPreference;
+  consent: boolean;
+};
+
 export type SyncState = 'offline' | 'local' | 'synced' | 'needs-connection';
 export type OutboxMutation = {
   id: string;
@@ -209,6 +226,7 @@ type CaloraState = {
   schemaVersion?: number;
   onboardingComplete: boolean;
   onboardingStep?: number;
+  onboardingDraft?: OnboardingDraft | null;
   profile: Profile | null;
   logs: FoodLog[];
   weights: WeightEntry[];
@@ -264,6 +282,25 @@ function normalizeOnboardingStep(value: unknown): number {
   return Math.min(ONBOARDING_STEP_COUNT - 1, Math.max(0, Math.floor(value)));
 }
 
+function normalizeOnboardingDraft(value: unknown): OnboardingDraft | null {
+  if (!value || typeof value !== 'object') return null;
+  const draft = value as Partial<OnboardingDraft>;
+  if (
+    typeof draft.name !== 'string'
+    || typeof draft.age !== 'string'
+    || typeof draft.height !== 'string'
+    || typeof draft.weight !== 'string'
+    || typeof draft.targetWeight !== 'string'
+    || typeof draft.consent !== 'boolean'
+    || !['lose', 'maintain', 'gain'].includes(draft.goal ?? '')
+    || !['low', 'moderate', 'high'].includes(draft.activity ?? '')
+    || !['Everything', 'Vegetarian', 'Vegan', 'High protein'].includes(draft.diet ?? '')
+  ) {
+    return null;
+  }
+  return draft as OnboardingDraft;
+}
+
 function normalizeMemoryImageMetadata<T extends FoodMemoryDraft>(memory: T): T {
   return {
     ...memory,
@@ -288,6 +325,7 @@ type CaloraContextValue = {
   profile: Profile | null;
   onboardingComplete: boolean;
   onboardingStep: number;
+  onboardingDraft: OnboardingDraft | null;
   hydrated: boolean;
   hydrationError: string | null;
   hydrationErrorKind: HydrationErrorKind | null;
@@ -373,6 +411,7 @@ type CaloraContextValue = {
   toggleSavedRecipe: (recipeId: string) => void;
   setThemePreference: (preference: ThemePreference) => void;
   setOnboardingStep: (step: number) => void;
+  setOnboardingDraft: (draft: OnboardingDraft | null) => void;
   completeOnboarding: (profile: Profile, consentAccepted: boolean) => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => void;
   setHealthConnected: (connected: boolean) => void;
@@ -537,6 +576,7 @@ export function CaloraProvider({
   const systemScheme = useColorScheme();
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [onboardingStep, setOnboardingStepState] = useState(0);
+  const [onboardingDraft, setOnboardingDraftState] = useState<OnboardingDraft | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const profileRef = useRef<Profile | null>(null);
   const [logs, setLogs] = useState<FoodLog[]>(starterLogs);
@@ -722,6 +762,7 @@ export function CaloraProvider({
     if (saved.onboardingStep !== undefined) {
       setOnboardingStepState(normalizeOnboardingStep(saved.onboardingStep));
     }
+    setOnboardingDraftState(restoredOnboardingComplete ? null : normalizeOnboardingDraft(saved.onboardingDraft));
     if (saved.profile) {
       const hydratedProfile = { ...saved.profile, targetMode: saved.profile.targetMode ?? 'custom' } as Profile;
       profileRef.current = hydratedProfile;
@@ -1042,6 +1083,7 @@ export function CaloraProvider({
     const state: CaloraState = {
       onboardingComplete,
       onboardingStep,
+      onboardingDraft,
       profile,
       logs,
       weights,
@@ -1077,7 +1119,7 @@ export function CaloraProvider({
       profilePhotoUri: profilePhotoUri ?? undefined,
     };
      enqueueAutosave(pm.current, state);
-  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, onboardingStep, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs]);
+  }, [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationReminders, livingMemory, localRecipes, logs, mealReminders, memoryCorrections, moodLogs, notificationPreferences, onboardingComplete, onboardingDraft, onboardingStep, outbox, plannerMeals, plannerPreferences, plannerWeekStart, profile, profilePhotoUri, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs]);
 
   const mode = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
   const queueMutation = (entity: OutboxMutation['entity'], operation: OutboxMutation['operation']) => {
@@ -1205,6 +1247,7 @@ export function CaloraProvider({
     profile,
     onboardingComplete,
     onboardingStep,
+    onboardingDraft,
     hydrated,
     hydrationError,
     hydrationErrorKind,
@@ -1569,6 +1612,7 @@ export function CaloraProvider({
       patchExportSnapshot({ onboardingStep: nextStep });
       setOnboardingStepState(nextStep);
     },
+    setOnboardingDraft: setOnboardingDraftState,
     completeOnboarding: async (nextProfile, consent) => {
        const currentSnapshot = exportSnapshotRef.current;
        if (!currentSnapshot) {
@@ -1592,6 +1636,7 @@ export function CaloraProvider({
       setConsentAccepted(consent);
       setOnboardingComplete(true);
       setOnboardingStepState(0);
+       setOnboardingDraftState(null);
       queueMutation('profile', 'upsert');
     },
     updateProfile: (patch) => {
@@ -1715,6 +1760,7 @@ export function CaloraProvider({
         getToday: dateKey,
         setOnboardingComplete,
          setOnboardingStep: setOnboardingStepState,
+        setOnboardingDraft: setOnboardingDraftState,
         setProfile,
         setLogs,
         setWeights,
@@ -1939,7 +1985,7 @@ export function CaloraProvider({
        patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
        setGoalCelebrationSeenTargetKg(null);
      },
-       }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingStep, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+       }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

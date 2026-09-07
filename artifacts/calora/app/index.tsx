@@ -17,7 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useCalora, ActivityLevel, DietPreference, Goal, Profile } from '@/context/CaloraContext';
+import { useCalora, ActivityLevel, DietPreference, Goal, OnboardingDraft, Profile } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
 import { formatWhole } from '@/lib/formatters';
 import { handleParseErrorExport } from '@/lib/parseErrorExportHandler';
@@ -125,7 +125,9 @@ export default function OnboardingScreen() {
     colors,
     onboardingComplete,
     onboardingStep,
+    onboardingDraft,
     setOnboardingStep,
+    setOnboardingDraft,
     profile: existingProfile,
     hydrated,
     hydrationError,
@@ -153,6 +155,7 @@ export default function OnboardingScreen() {
   const [personalDetailsError, setPersonalDetailsError] = useState('');
   const reviewSeededRef = useRef(false);
   const stepSeededRef = useRef(false);
+  const draftSeededRef = useRef(false);
 
   const moveToStep = (nextStep: number) => {
     setStep(nextStep);
@@ -165,6 +168,31 @@ export default function OnboardingScreen() {
     const savedStep = isReviewMode ? 0 : onboardingStep;
     setStep(savedStep);
   }, [hydrated, isReviewMode, onboardingStep]);
+
+  // An incomplete setup has no Profile yet. Restore its raw draft separately
+  // so reopening at a later step never replaces typed answers with defaults.
+  useEffect(() => {
+    if (!hydrated || isReviewMode || draftSeededRef.current) return;
+    draftSeededRef.current = true;
+    if (!onboardingDraft) return;
+    setGoal(onboardingDraft.goal);
+    setActivity(onboardingDraft.activity);
+    setDiet(onboardingDraft.diet);
+    setName(onboardingDraft.name);
+    setAge(onboardingDraft.age);
+    setHeight(onboardingDraft.height);
+    setWeight(onboardingDraft.weight);
+    setTargetWeight(onboardingDraft.targetWeight);
+    setConsent(onboardingDraft.consent);
+  }, [hydrated, isReviewMode, onboardingDraft]);
+
+  useEffect(() => {
+    if (!hydrated || isReviewMode || onboardingComplete || !draftSeededRef.current) return;
+    const draft: OnboardingDraft = {
+      goal, activity, diet, name, age, height, weight, targetWeight, consent,
+    };
+    setOnboardingDraft(draft);
+  }, [activity, age, consent, diet, goal, height, hydrated, isReviewMode, name, onboardingComplete, setOnboardingDraft, targetWeight, weight]);
 
   // Hydration can finish after this route first mounts. Seed review fields once
   // at that boundary so the review form never replaces saved values with the
