@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { customFetch, setBaseUrl } from '../../../../lib/api-client-react/src/custom-fetch';
+import { customFetch, setAuthTokenGetter, setAuthTokenRefresher, setBaseUrl } from '../../../../lib/api-client-react/src/custom-fetch';
 
 describe('API client networking', () => {
   afterEach(() => {
     setBaseUrl(null);
+    setAuthTokenGetter(null);
+    setAuthTokenRefresher(null);
     vi.unstubAllGlobals();
   });
 
@@ -51,5 +53,28 @@ describe('API client networking', () => {
         errorName: 'TypeError',
       }),
     );
+  });
+
+  it('refreshes an attached bearer token once after a 401 and retries the request', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'expired' }), {
+        status: 401,
+        headers: { 'content-type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+    setBaseUrl('https://api.calora.example');
+    setAuthTokenGetter(() => 'stale-token');
+    setAuthTokenRefresher(() => 'refreshed-token');
+
+    await expect(customFetch('/api/v1/planner/generate', { method: 'POST', responseType: 'json' }))
+      .resolves.toEqual({ ok: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][1].headers.get('authorization')).toBe('Bearer stale-token');
+    expect(fetchMock.mock.calls[1][1].headers.get('authorization')).toBe('Bearer refreshed-token');
   });
 });
