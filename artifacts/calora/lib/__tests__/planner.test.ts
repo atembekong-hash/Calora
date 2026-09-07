@@ -222,6 +222,7 @@ describe('planner identity', () => {
     ] as const;
     const heroImages = programs.map((programId) => {
       const heroMeal = plannerCatalogForProgram(programId).find((meal) => meal.id === PROGRAM_HERO_MEAL_IDS[programId]);
+      expect(heroMeal, `${programId} hero must satisfy its eligibility contract`).toBeDefined();
       return heroMeal ? plannerImageKeyForMeal(heroMeal.id, heroMeal.name) : null;
     });
 

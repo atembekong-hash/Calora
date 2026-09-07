@@ -236,7 +236,7 @@ describe("dark Coach Fact Context path", () => {
       message: "Coach Fact Context request protection could not be verified.",
     });
     expect(loggerWarn).toHaveBeenCalledWith(
-      { errorClass: "account_deletion_fence", route: "/v1/coach/fact-context/respond", count: 1 },
+      { errorClass: "account_deletion_fence", route: "/v1/coach/fact-context/respond", count: 1, schemaVersion: "calora.account-deletion-fence-signal.v1" },
       "Account deletion fence rejected Coach Fact Context request",
     );
     expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain("55000");

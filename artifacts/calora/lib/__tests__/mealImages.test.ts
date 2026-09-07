@@ -17,7 +17,7 @@ import { IMAGE_SURFACE_AUDIT_ROWS } from '@/lib/mealImageAudit';
 
 describe('curated meal image identity', () => {
   it('assigns a generated asset to every planner catalog meal', () => {
-    expect(plannerCatalog).toHaveLength(26);
+    expect(plannerCatalog).toHaveLength(28);
     expect(plannerCatalog.every((meal) => meal.imageAssetKey)).toBe(true);
     expect(new Set(plannerCatalog.map((meal) => meal.imageAssetKey)).size).toBe(plannerCatalog.length);
   });
@@ -28,7 +28,7 @@ describe('curated meal image identity', () => {
         mealType,
         plannerCatalog.filter((meal) => meal.meal === mealType).length,
       ]),
-    )).toEqual({ Breakfast: 7, Lunch: 7, Dinner: 7, Snack: 5 });
+    )).toEqual({ Breakfast: 7, Lunch: 7, Dinner: 9, Snack: 5 });
   });
 
   it('assigns distinct generated assets to every verified food suggestion', () => {

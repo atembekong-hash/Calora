@@ -6,7 +6,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./planner-image-identity": "./src/planner-image-identity.ts",
+    "./planner-catalog": "./src/planner-catalog.ts",
     "./planner-program-pools": "./src/planner-program-pools.ts",
+    "./planner-program-eligibility": "./src/planner-program-eligibility.ts",
     "./image-source-policy": "./src/image-source-policy.ts"
   },
   "dependencies": {

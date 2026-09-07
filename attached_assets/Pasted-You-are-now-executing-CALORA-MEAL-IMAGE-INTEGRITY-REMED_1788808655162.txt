@@ -1,0 +1,671 @@
+You are now executing CALORA MEAL + IMAGE INTEGRITY REMEDIATION MISSION 03.
+
+MISSION GOAL
+
+Do not stop at auditing.
+
+Do not stop at partial fixes.
+
+Continue until the planner meal system, image system, diet-program assignment system, diary image behavior, and related tests are either:
+
+PASS
+
+or
+
+BLOCKED by a genuinely external dependency that cannot be solved inside the repository.
+
+The objective is to eliminate the root cause behind the screenshots and prior audit findings.
+
+The visible symptoms are:
+
+- The same meals recur heavily across different diet programs.
+- The same exact meal images recur across many different days and programs.
+- Different programs appear to draw from a small shared meal/image pool.
+- Some meals may not satisfy the diet program they are assigned to.
+- Some logged foods can show representative or mismatched imagery.
+- The system can look personalized while reusing the same underlying catalog.
+- Image correctness and diet-program correctness are currently not enforced strongly enough as one system.
+
+This mission must fix the architecture, not merely swap a few images.
+
+BASELINE REPORTS
+
+Use these existing project reports as evidence and starting context:
+
+1. IMAGE_AUDIT_01_COMPLETE_PROJECT_IMAGE_FORENSIC_REPORT.md
+2. IMAGE_REMEDIATION_02_FINAL_IMPLEMENTATION_REPORT.md
+
+Do not throw away previous remediation.
+
+Preserve all correct fixes already made unless stronger evidence shows a safer implementation is needed.
+
+==================================================
+NON-NEGOTIABLE SUCCESS CRITERIA
+==================================================
+
+The mission is complete only when all feasible criteria below are satisfied.
+
+1. Every planner meal has a stable canonical identity.
+
+2. Every planner meal has a stable canonical image identity.
+
+3. A meal image must semantically match that meal.
+
+4. Different unrelated meals must not silently share the same exact image.
+
+5. The same meal may reuse the same canonical image across occurrences only when it is truly the same meal identity.
+
+6. Representative/fallback images must never be presented as exact images.
+
+7. Every diet program must contain only meals that satisfy that program’s documented rules.
+
+8. Program membership must be based on explicit meal attributes/ingredients/tags/rules, not arbitrary manual grouping.
+
+9. Repetition inside a weekly plan must be controlled and intentional.
+
+10. Cross-program meal overlap must be measurable and constrained.
+
+11. Personalization must not amount to merely rearranging the same small meal pool.
+
+12. Diary and restored logs must preserve correct image identity and provenance.
+
+13. Restaurant representative imagery must remain truthful unless exact provider imagery is available.
+
+14. Existing image security protections must remain intact.
+
+15. Planner, Recipes, Scan, Home, Profile, Diary, Memory, Restaurants, Saved Recipes, and related flows must not regress.
+
+==================================================
+PHASE 1 — FORENSIC INVENTORY OF THE ACTUAL MEAL SYSTEM
+==================================================
+
+Inspect the entire meal and planner data architecture.
+
+Locate every source that can define or influence:
+
+- meal ID
+- meal name
+- meal category
+- breakfast/lunch/dinner/snack role
+- ingredients
+- calories
+- macros
+- tags
+- diet compatibility
+- program membership
+- planner pools
+- program generation
+- replacement meals
+- add-meal catalogs
+- AI/personalized planner fallback
+- imageAssetKey
+- image URL
+- image source
+- fallback image
+- diary image reconstruction
+- recipe image identity
+- restaurant representative image identity
+
+Build one machine-readable inventory of all current planner meals.
+
+For every meal, collect at minimum:
+
+- canonicalMealId
+- name
+- normalizedName
+- mealRole
+- calories
+- protein
+- carbs
+- fat if available
+- ingredients or ingredient list
+- dietary tags
+- allergens if available
+- source
+- imageAssetKey
+- image URL if any
+- image provenance
+- programs containing the meal
+- number of weekly occurrences by program
+- exact-image identity
+- representative/fallback status
+
+Save the inventory in the repository in a durable audit artifact.
+
+==================================================
+PHASE 2 — DEFINE DIET PROGRAM RULES EXPLICITLY
+==================================================
+
+Find every planner program currently available.
+
+Examples observed include:
+
+- High Protein Power
+- Low Carb Living
+- Plant-Based Week
+- Anti-Inflammatory
+
+Do not assume these are the only programs.
+
+Enumerate all programs from the codebase.
+
+For every program, define a testable eligibility contract.
+
+Examples:
+
+HIGH PROTEIN
+- minimum protein criteria or protein-density rule
+- no meal admitted merely because it sounds healthy
+
+LOW CARB
+- explicit carb threshold or carb-density rule
+- avoid meals that clearly contradict low-carb positioning
+
+PLANT-BASED
+- no meat
+- no poultry
+- no fish
+- no shellfish
+- no dairy unless explicitly plant-based
+- no egg unless product definition explicitly allows it
+- ingredients such as feta or yogurt must be plant-based if used
+
+ANTI-INFLAMMATORY
+- define explicit ingredient/tag eligibility
+- do not rely on vague naming
+- exclusions and inclusions must be documented and testable
+
+If the product already defines different rules, preserve the intended product meaning and codify it.
+
+Do not silently invent medical claims.
+
+The program rules are product-content rules, not medical treatment advice.
+
+Create a shared program eligibility function or equivalent source of truth.
+
+==================================================
+PHASE 3 — AUDIT EVERY MEAL AGAINST EVERY PROGRAM
+==================================================
+
+For every planner meal:
+
+1. Evaluate it against every program’s rules.
+2. Record eligible programs.
+3. Record ineligible programs and exact reasons.
+4. Identify all current invalid assignments.
+
+Examples of violations to look for:
+
+- dairy meal inside strict plant-based program
+- high-carb meal inside low-carb program
+- weak-protein meal inside high-protein program
+- ingredients inconsistent with anti-inflammatory program rules
+- incompatible tags
+- missing ingredient data that makes eligibility unverifiable
+
+Do not fix by changing only the display label.
+
+Fix the actual program pools and source data.
+
+If a meal’s ingredient data is too incomplete to validate program eligibility, mark it unverified and remove it from strict program pools until it can be verified.
+
+==================================================
+PHASE 4 — MEAL DIVERSITY AND REPETITION CONTROL
+==================================================
+
+Measure repetition mathematically.
+
+For every program, calculate:
+
+- total distinct meals
+- distinct breakfast meals
+- distinct lunch meals
+- distinct dinner meals
+- distinct snacks
+- duplicate meals within the same 7-day week
+- duplicate exact-image identities within the same 7-day week
+- overlap percentage with every other program
+- repeated meal count
+- repeated meal-image count
+
+Implement explicit diversity constraints.
+
+At minimum:
+
+- Do not repeat the same meal excessively inside a single week.
+- Prefer unique meals within each meal role across the 7-day period where inventory allows.
+- If inventory cannot support full uniqueness, cap recurrence and distribute repeats intentionally.
+- Avoid consecutive-day repetition of the same meal.
+- Avoid visually identical daily combinations.
+- Do not let every program resolve to substantially the same catalog.
+
+Create a deterministic diversity scorer or equivalent selection logic.
+
+The planner should balance:
+
+- diet eligibility
+- calorie fit
+- macro fit
+- user preferences
+- exclusions
+- meal-role fit
+- diversity
+- image diversity
+- preparation practicality
+
+Do not weaken dietary correctness to increase visual variety.
+
+==================================================
+PHASE 5 — EXPAND THE MEAL CATALOG IF NECESSARY
+==================================================
+
+If the current meal catalog is too small to satisfy program correctness plus diversity:
+
+DO NOT hide the limitation.
+
+Expand the catalog safely.
+
+New meals must have:
+
+- unique canonical ID
+- clear name
+- ingredient list
+- nutrition data
+- meal role
+- program eligibility tags
+- exact canonical image identity
+- semantic image match
+- preparation time
+- any existing required planner fields
+
+Do not create duplicate meals with cosmetic name changes.
+
+Do not create fake variety such as:
+
+- “Chicken Bowl”
+- “Chicken Bowl Deluxe”
+- “Chicken Power Bowl”
+
+if they are effectively the same meal and image.
+
+Each new meal must be meaningfully distinct.
+
+==================================================
+PHASE 6 — IMAGE IDENTITY AND SEMANTIC CORRECTNESS
+==================================================
+
+Audit every planner and verified-food image mapping.
+
+For each exact meal image:
+
+- confirm one canonical meal identity
+- confirm the image visually depicts the named meal
+- confirm unrelated meals do not share that exact image identity
+- confirm the same meal consistently resolves to the same canonical image
+- confirm stale imageAssetKey values cannot override visible meal identity
+- confirm restored data reconstructs the same image
+
+Distinguish:
+
+EXACT
+REPRESENTATIVE
+FALLBACK
+
+Do not use arbitrary uniqueness.
+
+A random unique photograph is worse than a truthful fallback.
+
+If visual semantic verification is possible in the environment, inspect all curated assets directly.
+
+Create contact sheets if useful.
+
+Any questionable mapping must be marked and corrected.
+
+==================================================
+PHASE 7 — IMAGE DUPLICATION ANALYSIS
+==================================================
+
+Check all image forms:
+
+- bundled file hashes
+- local asset keys
+- remote URLs
+- normalized remote URLs
+- generated image IDs
+- restaurant representative keys
+- recipe image URLs
+- planner image identities
+- diary image identities
+
+Detect:
+
+1. exact duplicate bytes
+2. same image assigned to unrelated meals
+3. same remote image attached to unrelated recipes
+4. category representative image being treated as exact
+5. stale image identity after meal replacement/edit
+6. image key drift between client and API
+7. image loss after sync/restore
+
+Create automated tests for these conditions.
+
+==================================================
+PHASE 8 — PROGRAM PERSONALIZATION INTEGRITY
+==================================================
+
+Inspect how Planner programs are generated.
+
+Determine whether program selection currently means:
+
+- true rule-based meal filtering
+
+or
+
+- choosing from prebuilt pools
+
+or
+
+- rearranging a shared catalog
+
+or
+
+- local fallback when AI personalization is unavailable
+
+The screenshots show messages such as personalized AI week being unavailable and a plan applied locally.
+
+Audit that local fallback path carefully.
+
+The local fallback must still produce a genuinely program-correct plan.
+
+It must not merely display a different program title over largely the same meal set.
+
+Create tests proving that two materially different programs produce materially different eligible meal distributions.
+
+Define a measurable overlap threshold.
+
+Choose a defensible threshold based on current catalog size and product behavior.
+
+Document it.
+
+==================================================
+PHASE 9 — TODAY’S LOG / DIARY IMAGE CORRECTNESS
+==================================================
+
+Audit the Today's Log screenshots symptom.
+
+Restaurant items must not silently display unrelated salad imagery.
+
+For every diary item:
+
+- exact provider/user image should win when trustworthy
+- canonical exact local image should be used only for that exact entity
+- restaurant representative imagery must stay representative
+- fallback imagery must remain fallback
+- restored logs must preserve provenance
+
+Test restaurant examples and generic diary items.
+
+Do not fake exact restaurant photography.
+
+==================================================
+PHASE 10 — RECIPE AND SAVED RECIPE IMAGE CROSS-CHECK
+==================================================
+
+Preserve the strong existing recipe-image behavior.
+
+Verify:
+
+- accumulated pagination dedupe
+- exact image not reused across unrelated recipes
+- generated provenance persists
+- signed URLs refresh correctly
+- saved recipes keep the right image
+- fallback disclosure remains truthful
+
+No random image replacement.
+
+==================================================
+PHASE 11 — SHARED SOURCE OF TRUTH
+==================================================
+
+Reduce duplicated authorities.
+
+Where possible, establish one shared source for:
+
+- planner meal definitions
+- planner program eligibility
+- image identity
+- image provenance
+- program membership rules
+
+Client and API should not independently maintain conflicting copies of the same meal catalog.
+
+Prefer generated/shared contracts over hand-maintained mirrors.
+
+Do not perform a dangerous broad rewrite if a smaller shared architecture is safer.
+
+==================================================
+PHASE 12 — REQUIRED AUTOMATED TESTS
+==================================================
+
+Add or strengthen tests covering at minimum:
+
+1. Every canonical planner meal has a unique canonical ID.
+2. Every canonical planner meal has an image identity.
+3. Every exact image identity maps to only the intended meal identity.
+4. Unrelated meals cannot share the same exact image.
+5. Same meal can safely reuse its own exact image.
+6. No stale imageAssetKey can override canonical meal identity.
+7. Every program contains only eligible meals.
+8. Plant-based rules reject animal-derived ingredients where required.
+9. Low-carb rules reject meals above the defined threshold.
+10. High-protein rules enforce the defined protein requirement.
+11. Anti-inflammatory program membership follows explicit rules.
+12. Every 7-day plan satisfies repetition limits.
+13. No consecutive duplicate meal unless explicitly allowed and documented.
+14. Program overlap stays under the defined threshold where inventory permits.
+15. Local fallback planner still respects the chosen program.
+16. Diary restore preserves image identity.
+17. Restaurant representative provenance survives restore.
+18. Exact remote item image outranks representative image.
+19. Recipe image dedupe works across pages.
+20. Generated image provenance survives persistence.
+21. Trusted image host policy remains enforced.
+22. Broken profile image falls back safely.
+23. Broken Scan image falls back safely.
+24. Planner detail image matches meal identity.
+25. Every referenced image asset exists.
+26. No orphan image keys.
+27. No broken planner program references.
+28. Client/API shared contracts remain consistent.
+
+==================================================
+PHASE 13 — FULL TEST EXECUTION
+==================================================
+
+Run all relevant:
+
+- TypeScript checks
+- unit tests
+- integration tests
+- planner tests
+- image identity tests
+- diary sync tests
+- recipe tests
+- restaurant tests
+- API server tests
+- lint/static checks where available
+- git diff --check
+
+Do not stop because one test fails.
+
+Fix the root cause and rerun.
+
+Continue until all relevant tests pass.
+
+Do not trigger Expo/EAS build.
+
+Do not deploy.
+
+Do not modify production data.
+
+==================================================
+PHASE 14 — HUMAN-VISIBLE VALIDATION DATA
+==================================================
+
+Generate a validation artifact showing sample 7-day plans for every program.
+
+For each program include:
+
+- day
+- breakfast
+- lunch
+- dinner
+- snack
+- calories
+- macros
+- meal IDs
+- image keys
+- program eligibility reason
+- duplicate markers
+- overlap indicators
+
+Also calculate:
+
+- within-week duplicate rate
+- cross-program overlap
+- image reuse rate
+- diet-rule violation count
+
+The violation count must be zero for PASS.
+
+==================================================
+PHASE 15 — STOP CONDITIONS
+==================================================
+
+You are NOT allowed to stop with:
+
+- “mostly fixed”
+- “core issue fixed”
+- “tests mostly pass”
+- “some remaining cleanup”
+- “manual follow-up recommended”
+- “partial remediation complete”
+
+Continue working.
+
+Stop only when one of these is true:
+
+PASS
+
+All feasible code/data issues are fixed, all required relevant tests pass, no known diet-rule violations remain, no known exact-image identity violations remain, and diversity constraints are enforced.
+
+OR
+
+BLOCKED
+
+A remaining issue depends on an external provider, credential, license, unavailable API capability, or product decision that cannot be safely resolved inside the repository.
+
+If BLOCKED:
+
+- everything else must still be fully fixed
+- blockers must be isolated
+- no unrelated unresolved defects may remain
+- the exact external dependency must be identified
+- a safe fallback must remain in place
+
+PARTIAL is not an acceptable stopping verdict for this mission unless the only remaining issues are genuine external blockers. In that case use BLOCKED, not PARTIAL.
+
+==================================================
+MANDATORY FINAL REPORT
+==================================================
+
+Create and save:
+
+IMAGE_MEAL_INTEGRITY_03_FINAL_REMEDIATION_REPORT.md
+
+The report must include:
+
+- executive summary
+- root causes
+- all programs discovered
+- formal rules for every program
+- complete meal inventory summary
+- invalid program assignments found
+- invalid assignments fixed
+- meal catalog expansion performed
+- image mismatches found
+- image mismatches fixed
+- duplicate meal analysis
+- duplicate image analysis
+- within-program repetition analysis
+- cross-program overlap analysis
+- local fallback planner analysis
+- diary image analysis
+- restaurant image analysis
+- recipe image analysis
+- files inspected
+- files modified
+- architecture changes
+- data changes
+- tests added
+- tests run
+- exact test results
+- remaining external blockers
+- before/after metrics
+- Git status
+- commit status
+- final verdict
+
+The report must contain before/after numbers.
+
+At minimum include:
+
+- total canonical planner meals
+- total programs
+- total exact image identities
+- exact-image collisions between unrelated meals
+- diet-rule violations
+- average within-week duplicate rate
+- maximum within-week duplicate rate
+- cross-program overlap matrix
+- number of meals added
+- number of image mappings corrected
+- number of invalid program assignments removed
+- number of tests passed
+- number of tests failed
+
+==================================================
+FINAL VERDICT RULE
+==================================================
+
+Return only one of:
+
+PASS
+BLOCKED
+FAIL
+
+PASS means the repository is internally consistent and fully tested for this mission.
+
+BLOCKED means every repository-fixable issue is complete, but one or more named external dependencies prevent full product capability.
+
+FAIL means the mission could not be completed safely.
+
+Do not declare PASS because screenshots look good.
+
+Do not declare PASS because images are unique.
+
+PASS requires meal correctness, diet correctness, image correctness, diversity control, persistence correctness, and passing tests.
+
+When finished, present:
+
+1. saved report filename
+2. final verdict
+3. exact remaining blockers, if any
+4. exact test totals
+5. whether Git is clean
+6. whether anything was pushed
+
+Do not trigger a build.
+Do not deploy.
+Do not push to GitHub unless explicitly instructed.

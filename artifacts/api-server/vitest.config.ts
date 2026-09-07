@@ -18,9 +18,17 @@ export default defineConfig({
         __dirname,
         '../../lib/api-zod/src/planner-image-identity.ts',
       ),
+      '@workspace/api-zod/planner-catalog': path.resolve(
+        __dirname,
+        '../../lib/api-zod/src/planner-catalog.ts',
+      ),
       '@workspace/api-zod/planner-program-pools': path.resolve(
         __dirname,
         '../../lib/api-zod/src/planner-program-pools.ts',
+      ),
+      '@workspace/api-zod/planner-program-eligibility': path.resolve(
+        __dirname,
+        '../../lib/api-zod/src/planner-program-eligibility.ts',
       ),
       '@workspace/api-zod/image-source-policy': path.resolve(
         __dirname,

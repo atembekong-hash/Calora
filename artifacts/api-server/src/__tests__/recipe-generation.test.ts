@@ -94,7 +94,7 @@ describe("AI recipe creation endpoints", () => {
       message: "Recipe ideas are temporarily unavailable. Please try again shortly.",
     });
     expect(loggerWarn).toHaveBeenCalledWith(
-      { errorClass: "account_deletion_fence", route: "/v1/recipes/concepts", count: 1 },
+      { errorClass: "account_deletion_fence", route: "/v1/recipes/concepts", count: 1, schemaVersion: "calora.account-deletion-fence-signal.v1" },
       "Account deletion fence rejected recipe request",
     );
     expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain("55000");

@@ -228,7 +228,7 @@ describe("Premium recipe routes", () => {
       { failClosed: true, rethrowAccountDeletionFence: true },
     );
     expect(loggerWarnMock).toHaveBeenCalledWith(
-      { errorClass: "account_deletion_fence", route: "/v1/premium-recipes", count: 1 },
+      { errorClass: "account_deletion_fence", route: "/v1/premium-recipes", count: 1, schemaVersion: "calora.account-deletion-fence-signal.v1" },
       "Account deletion fence rejected premium recipe request",
     );
     expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain("55000");

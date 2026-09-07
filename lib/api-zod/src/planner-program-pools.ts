@@ -39,7 +39,7 @@ export const PROGRAM_MEAL_POOLS = {
   'keto-kickstart': [
     'egg-toast', 'yogurt-parfait', 'chia-pudding',
     'tuna-poke', 'greek-salad', 'hummus-wrap',
-    'prawn-stirfry', 'chicken-rice', 'stir-fry',
+    'prawn-stirfry', 'keto-chicken-zucchini', 'keto-salmon-olive', 'chicken-rice', 'stir-fry',
     'apple-almond', 'hummus-veggies', 'banana-pb',
   ],
   'intermittent-fasting': [
@@ -96,7 +96,7 @@ export const PROGRAM_HERO_MEAL_IDS: Record<PlannerProgramId, string> = {
   'keto-kickstart': 'hummus-veggies',
   'intermittent-fasting': 'yogurt-parfait',
   'budget-friendly': 'lentil-soup',
-  'quick-and-easy': 'prawn-stirfry',
+  'quick-and-easy': 'hummus-wrap',
   'athletic-performance': 'beef-tacos',
   'anti-inflammatory': 'chia-pudding',
   'healthy-habits-week': 'apple-almond',
