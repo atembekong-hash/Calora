@@ -1,10 +1,37 @@
-import { afterAll, describe, expect, it } from "vitest";
+import express from "express";
+import request from "supertest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
   AccountDeletionInProgressError,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
+
+const {
+  verifyBearerTokenMock,
+  hasActivePremiumEntitlementMock,
+  loggerWarnMock,
+} = vi.hoisted(() => ({
+  verifyBearerTokenMock: vi.fn(),
+  hasActivePremiumEntitlementMock: vi.fn(),
+  loggerWarnMock: vi.fn(),
+}));
+
+vi.mock("../lib/supabase-auth.js", () => ({
+  verifyBearerToken: verifyBearerTokenMock,
+}));
+
+vi.mock("../lib/revenuecat.js", () => ({
+  hasActivePremiumEntitlement: hasActivePremiumEntitlementMock,
+}));
+
+vi.mock("../lib/logger.js", () => ({
+  logger: {
+    warn: loggerWarnMock,
+    error: vi.fn(),
+  },
+}));
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 const DATABASE_REQUIRED =
@@ -41,6 +68,127 @@ describe("account deletion fence classification", () => {
     ).toBeNull();
   });
 });
+
+describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+  "account deletion fence provider routes (real limiter and trigger)",
+  () => {
+    it("returns generic unavailable responses without provider calls or account details", async () => {
+      const { pool } = await import("@workspace/db");
+      const { default: premiumRecipesRouter } =
+        await import("../routes/premiumRecipes.js");
+      const { default: restaurantFoodsRouter } =
+        await import("../routes/restaurantFoods.js");
+      const run = randomUUID().slice(0, 8);
+      const externalUserId = `premium-fence-${run}`;
+      const premiumAccountKey = `premium-recipes:user:${externalUserId}`;
+      const restaurantAccountKey = `restaurant-foods:user:${externalUserId}`;
+      const premiumIpKey = "premium-recipes:ip:198.51.100.42";
+      const accountKeys = [
+        premiumAccountKey,
+        restaurantAccountKey,
+        premiumIpKey,
+      ];
+
+      verifyBearerTokenMock.mockResolvedValue({
+        id: externalUserId,
+        email: `${externalUserId}@example.com`,
+      });
+      hasActivePremiumEntitlementMock.mockResolvedValue(true);
+      loggerWarnMock.mockReset();
+      const providerFetchMock = vi.fn();
+      vi.stubGlobal("fetch", providerFetchMock);
+      vi.stubEnv("PREMIUM_RECIPE_PROVIDER_URL", "https://provider.example");
+      vi.stubEnv("FATSECRET_GATEWAY_URL", "https://gateway.example");
+      vi.stubEnv("FATSECRET_GATEWAY_SECRET", "test-gateway-secret");
+
+      const app = express();
+      app.set("trust proxy", 1);
+      app.use(express.json());
+      app.use(premiumRecipesRouter);
+      app.use(restaurantFoodsRouter);
+
+      try {
+        await pool.query(
+          `INSERT INTO calora_account_deletion_states (identity_fingerprint, state)
+           VALUES (encode(digest($1, 'sha256'), 'hex'), 'deleting')`,
+          [externalUserId],
+        );
+
+        const premiumResponse = await request(app)
+          .get("/v1/premium-recipes?query=breakfast")
+          .set("X-Forwarded-For", "198.51.100.42");
+        const restaurantResponse = await request(app)
+          .get("/v1/restaurant-foods?query=burger")
+          .set("X-Forwarded-For", "198.51.100.42");
+
+        expect(premiumResponse.status).toBe(503);
+        expect(premiumResponse.body).toEqual({
+          message:
+            "Premium recipes are temporarily unavailable. Please try again shortly.",
+        });
+        expect(restaurantResponse.status).toBe(503);
+        expect(restaurantResponse.body).toEqual({
+          message: "Restaurant search is temporarily unavailable.",
+        });
+        expect(providerFetchMock).not.toHaveBeenCalled();
+        expect(
+          `${JSON.stringify(premiumResponse.body)}${JSON.stringify(
+            restaurantResponse.body,
+          )}`,
+        ).not.toContain(externalUserId);
+
+        const rateLimitRows = await pool.query<{ key: string }>(
+          `SELECT key
+             FROM calora_capture_rate_limits
+            WHERE key = ANY($1::text[])
+            ORDER BY key`,
+          [accountKeys],
+        );
+        expect(rateLimitRows.rows.map(({ key }) => key)).toEqual([
+          premiumIpKey,
+        ]);
+
+        expect(loggerWarnMock.mock.calls).toEqual([
+          [
+            {
+              errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+              route: "/v1/premium-recipes",
+              count: 1,
+            },
+            "Account deletion fence rejected premium recipe request",
+          ],
+          [
+            {
+              errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+              route: "/v1/restaurant-foods",
+              count: 1,
+            },
+            "Account deletion fence rejected restaurant food request",
+          ],
+        ]);
+        expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain(
+          externalUserId,
+        );
+        expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain(
+          "account deletion is in progress",
+        );
+      } finally {
+        await pool.query(
+          `DELETE FROM calora_capture_rate_limits WHERE key = ANY($1::text[])`,
+          [accountKeys],
+        );
+        await pool.query(
+          `DELETE FROM calora_account_deletion_states
+            WHERE identity_fingerprint = encode(digest($1, 'sha256'), 'hex')`,
+          [externalUserId],
+        );
+        vi.unstubAllGlobals();
+        vi.unstubAllEnvs();
+        vi.clearAllMocks();
+      }
+    });
+  },
+);
 
 describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
   "account deletion database fence (real schema)",
