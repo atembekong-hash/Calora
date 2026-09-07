@@ -309,6 +309,58 @@ describe("account deletion recovery signals", () => {
     expect(JSON.stringify(fields)).not.toContain("provider failed");
   });
 
+  it("counts an in-progress deletion as unresolved alongside a failed retry", async () => {
+    const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+    listRecoverableDeletions.mockResolvedValue([
+      {
+        externalUserId: "raw-failed-auth-uuid-that-must-not-be-logged",
+        identityFingerprint: "3".repeat(64),
+        stage: "revenuecat",
+        requestedAt,
+        updatedAt: requestedAt,
+      },
+      {
+        externalUserId: "raw-in-progress-auth-uuid-that-must-not-be-logged",
+        identityFingerprint: "4".repeat(64),
+        stage: "auth",
+        requestedAt,
+        updatedAt: requestedAt,
+      },
+    ]);
+    claimDeletion
+      .mockRejectedValueOnce(
+        new Error("provider failed for raw-failed-auth-uuid-that-must-not-be-logged"),
+      )
+      .mockResolvedValueOnce({ kind: "in_progress" });
+
+    await recoverPendingAccountDeletions();
+
+    expect(claimDeletion).toHaveBeenNthCalledWith(
+      1,
+      "raw-failed-auth-uuid-that-must-not-be-logged",
+    );
+    expect(claimDeletion).toHaveBeenNthCalledWith(
+      2,
+      "raw-in-progress-auth-uuid-that-must-not-be-logged",
+    );
+    expect(warn).toHaveBeenCalledOnce();
+    const [fields, message] = warn.mock.calls[0];
+    expect(message).toBe("Account deletion recovery needs attention");
+    expect(fields).toMatchObject({
+      event: "account_deletion_recovery",
+      attemptedCount: 2,
+      failureCount: 1,
+      failureStages: { application: 0, revenuecat: 1, auth: 0 },
+      unresolvedCount: 2,
+      overdueCount: 2,
+      overdueStages: { application: 0, revenuecat: 1, auth: 1 },
+      correlationKeys: ["3".repeat(16), "4".repeat(16)],
+    });
+    expect(JSON.stringify(fields)).not.toContain("raw-failed-auth-uuid-that-must-not-be-logged");
+    expect(JSON.stringify(fields)).not.toContain("raw-in-progress-auth-uuid-that-must-not-be-logged");
+    expect(JSON.stringify(fields)).not.toContain("provider failed");
+  });
+
   it("fails open when suppression is unavailable without blocking recovery retries", async () => {
     const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
     listRecoverableDeletions.mockResolvedValue([
