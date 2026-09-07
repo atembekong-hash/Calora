@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   AccessibilityInfo,
   FlatList,
-  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -30,11 +29,6 @@ import { useListRecipes, type Recipe } from '@workspace/api-client-react';
 import { useCalora, FoodLog, MealType, Mood } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
 import { enterMotion } from '@/lib/motion';
-import {
-  calorieGaugeResizeProgress,
-  clampCalorieGaugeResizeOffset,
-  DEFAULT_CALORIE_GAUGE_RESIZE_MAX,
-} from '@/lib/calorieGaugeResize';
 import { mealOrder, verifiedFoods } from '@/data/foods';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -1132,59 +1126,11 @@ function CalorieGauge({
   //   gauge fills the full inner card width (Eaten/Burned move below)
   const cardInnerW = windowWidth - 60;
   const gaugeW     = Math.min(cardInnerW, 340);
-  const baseGaugeH = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE * MERGED_WIDGET_HEIGHT_SCALE;
-  const maxShrinkOffset = Math.max(
-    48,
-    Math.min(
-      DEFAULT_CALORIE_GAUGE_RESIZE_MAX,
-      baseGaugeH * 0.52,
-      Math.max(48, baseGaugeH - 42),
-    ),
-  );
-  const [resizeOpen, setResizeOpen] = useState(false);
-  const [resizeOffset, setResizeOffset] = useState(0);
-  const resizeOffsetRef = useRef(0);
-  const resizeStartRef = useRef(0);
-  resizeOffsetRef.current = resizeOffset;
-
-  const updateResizeOffset = (offset: number) => {
-    const nextOffset = clampCalorieGaugeResizeOffset(offset, 0, maxShrinkOffset);
-    resizeOffsetRef.current = nextOffset;
-    setResizeOffset(nextOffset);
-  };
-
-  const resizePanResponder = useMemo(
-    () => PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onStartShouldSetPanResponderCapture: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponderCapture: () => true,
-      onPanResponderGrant: () => {
-        resizeStartRef.current = resizeOffsetRef.current;
-      },
-      onPanResponderMove: (_event, gesture) => {
-        // The existing widget starts at its maximum height. An upward drag
-        // increases the shrink amount; a downward drag returns it toward the
-        // unchanged default height.
-        updateResizeOffset(resizeStartRef.current - gesture.dy);
-      },
-      onPanResponderRelease: () => undefined,
-      onPanResponderTerminate: () => undefined,
-      onPanResponderTerminationRequest: () => false,
-    }),
-    [maxShrinkOffset],
-  );
-
-  const gaugeH = baseGaugeH - resizeOffset;
+  const gaugeH     = gaugeW * (GAUGE_VBH / GAUGE_VBW) * GAUGE_HEIGHT_SCALE * MERGED_WIDGET_HEIGHT_SCALE;
   const ringW      = gaugeW * CALORIE_RING_SCALE;
   const ringH      = gaugeH * CALORIE_RING_SCALE;
   const ringLeft   = (gaugeW - ringW) / 2;
   const ringTop    = gaugeH - ringH;
-  // The handle begins at the bottom because the unchanged widget is the
-  // maximum height. Pulling it upward makes the widget shorter.
-  const rollerProgress = 1 - calorieGaugeResizeProgress(resizeOffset, maxShrinkOffset);
-  const rollerTravel = 82;
-  const rollerThumbTop = rollerProgress * rollerTravel;
 
   // Animate the fill arc via strokeDashoffset
   const dashOffset = useSharedValue(GAUGE_ARC_LEN);
@@ -1209,74 +1155,7 @@ function CalorieGauge({
   const overlayTop = ((GAUGE_CY - GAUGE_R + GAUGE_STROKE / 2 + 32) / GAUGE_VBH) * gaugeH * CALORIE_RING_SCALE + ringTop;
 
   return (
-    <View style={[gaugeStyles.container, { width: gaugeW }]}>
-      <View style={[gaugeStyles.resizeDock, { top: Math.max(24, gaugeH * 0.14) }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={resizeOpen ? 'Close calorie ring resize roller' : 'Open calorie ring resize roller'}
-          accessibilityHint="Opens a control for continuously resizing the calorie ring widget."
-          testID="calorie-gauge-resize-toggle"
-          onPress={() => setResizeOpen((open) => !open)}
-          style={[gaugeStyles.resizeTrigger, { backgroundColor: colors.muted }]}
-        >
-          <Feather name={resizeOpen ? 'chevron-right' : 'more-vertical'} size={17} color={colors.foreground} />
-        </Pressable>
-        {resizeOpen ? (
-          <View
-            style={[
-              gaugeStyles.resizeRoller,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-          >
-            <Feather name="chevrons-up" size={12} color={colors.mutedForeground} />
-            <View style={[gaugeStyles.resizeTrack, { backgroundColor: colors.border }]}>
-              <View
-                style={[
-                  gaugeStyles.resizeTrackFill,
-                  {
-                    height: rollerThumbTop + 12,
-                    backgroundColor: colors.primary,
-                  },
-                ]}
-              />
-              <View
-                {...resizePanResponder.panHandlers}
-                accessibilityRole="adjustable"
-                accessibilityLabel="Calorie ring height"
-                accessibilityHint="Drag up to make the widget shorter or down to make it taller."
-                accessibilityValue={{
-                  min: 0,
-                  max: maxShrinkOffset,
-                  now: resizeOffset,
-                  text: `${Math.round(gaugeH)} points tall`,
-                }}
-                accessibilityActions={[
-                  { name: 'increment', label: 'Make calorie ring taller' },
-                  { name: 'decrement', label: 'Make calorie ring shorter' },
-                ]}
-                onAccessibilityAction={(event) => {
-                  if (event.nativeEvent.actionName === 'increment') {
-                    updateResizeOffset(resizeOffsetRef.current - 16);
-                  } else if (event.nativeEvent.actionName === 'decrement') {
-                    updateResizeOffset(resizeOffsetRef.current + 16);
-                  }
-                }}
-                style={[
-                  gaugeStyles.resizeThumb,
-                  {
-                    top: rollerThumbTop,
-                    backgroundColor: colors.primary,
-                    borderColor: colors.primaryForeground,
-                  },
-                ]}
-              >
-                <Feather name="move" size={14} color={colors.primaryForeground} />
-              </View>
-            </View>
-            <Feather name="chevrons-down" size={12} color={colors.mutedForeground} />
-          </View>
-        ) : null}
-      </View>
+    <View style={gaugeStyles.container}>
       {/* ── Full-width SVG arc + centred text ── */}
       <View style={[gaugeStyles.arcWrap, { width: gaugeW, height: gaugeH }]}>
         <View pointerEvents="none" style={[gaugeStyles.ringLayer, { width: ringW, height: ringH, left: ringLeft, top: ringTop }]}>
@@ -1350,60 +1229,9 @@ function CalorieGauge({
 
 function makeGaugeStyles(f: number) {
   return StyleSheet.create({
-  container: { position: 'relative' as const, marginTop: 14 * MERGED_WIDGET_HEIGHT_SCALE, marginBottom: 4 * MERGED_WIDGET_HEIGHT_SCALE, alignItems: 'center' },
+  container: { marginTop: 14 * MERGED_WIDGET_HEIGHT_SCALE, marginBottom: 4 * MERGED_WIDGET_HEIGHT_SCALE, alignItems: 'center' },
   arcWrap:   { position: 'relative' as const },
   ringLayer: { position: 'absolute' as const },
-  resizeDock: {
-    position: 'absolute' as const,
-    right: -6,
-    zIndex: 4,
-    alignItems: 'center' as const,
-  },
-  resizeTrigger: {
-    width: 32,
-    height: 36,
-    borderRadius: 16,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  resizeRoller: {
-    width: 42,
-    height: 124,
-    marginTop: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 20,
-    alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
-    paddingVertical: 8,
-    shadowColor: '#17231f',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  resizeTrack: {
-    width: 5,
-    height: 94,
-    borderRadius: 3,
-    position: 'relative' as const,
-  },
-  resizeTrackFill: {
-    position: 'absolute' as const,
-    left: 0,
-    top: 0,
-    width: 5,
-    borderRadius: 3,
-  },
-  resizeThumb: {
-    position: 'absolute' as const,
-    left: -9,
-    width: 23,
-    height: 23,
-    borderRadius: 12,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    borderWidth: 2,
-  },
   textOverlay: {
     position: 'absolute' as const,
     left: 0,

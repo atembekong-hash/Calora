@@ -65,8 +65,5 @@ description: Four-tier animation architecture across all Calora screens — patt
 - Bezier/line sparkline: possible with SVG path interpolation but complex.
 - Shared element drill-down: no shared-element library.
 
-**Continuous resize controls:**
-- For touch-driven height changes, capture the gesture only from the dedicated handle, clamp the value at meaningful bounds, and expose increment/decrement accessibility actions. Do not let the resize handle compete with the parent ScrollView.
-
 **Why:**
 Restrained motion makes the app feel alive without being distracting. All animations are gated on meaningful state transitions (no idle loops except the scan viewfinder), spring physics match platform conventions, and haptics are scoped to confirmatory actions (save, toggle) rather than navigation taps.
