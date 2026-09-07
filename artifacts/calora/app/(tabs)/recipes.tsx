@@ -1389,6 +1389,7 @@ export default function RecipesScreen() {
   const photoRefreshesRef = useRef(new Set<string>());
   const recipesScrollRef = useRef<ScrollView | null>(null);
   const discoverScrollYRef = useRef(0);
+  const recipeScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
   const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
   useEffect(() => {
     setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current);
@@ -1487,10 +1488,25 @@ export default function RecipesScreen() {
     loadingMoreRef.current = true;
     setRemoteOffset((current) => current + RECIPE_PAGE_SIZE);
   };
+  const loadMorePremiumRecipesIfAtEnd = () => {
+    const { offsetY, viewportHeight, contentHeight } = recipeScrollMetricsRef.current;
+    if (
+      activeSection === 'premium'
+      && viewportHeight > 0
+      && offsetY + viewportHeight >= contentHeight - PREMIUM_RECIPE_PREFETCH_DISTANCE
+    ) {
+      premiumLoadMoreRef.current?.();
+    }
+  };
   const handleRecipeScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     if (activeSection === 'premium') {
-      if (contentOffset.y + layoutMeasurement.height >= contentSize.height - PREMIUM_RECIPE_PREFETCH_DISTANCE) premiumLoadMoreRef.current?.();
+      recipeScrollMetricsRef.current = {
+        offsetY: contentOffset.y,
+        viewportHeight: layoutMeasurement.height,
+        contentHeight: contentSize.height,
+      };
+      loadMorePremiumRecipesIfAtEnd();
       return;
     }
     if (activeSection !== 'discover') return;
@@ -1547,7 +1563,23 @@ export default function RecipesScreen() {
         testID="recipes-section-content"
         style={{ flex: 1 }}
       >
-      <ScrollView ref={recipesScrollRef} contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false} onScroll={handleRecipeScroll} onMomentumScrollEnd={handleRecipeScroll} scrollEventThrottle={16} decelerationRate="normal">
+      <ScrollView
+        ref={recipesScrollRef}
+        contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
+        showsVerticalScrollIndicator={false}
+        onLayout={(event) => {
+          recipeScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
+          loadMorePremiumRecipesIfAtEnd();
+        }}
+        onContentSizeChange={(_, contentHeight) => {
+          recipeScrollMetricsRef.current.contentHeight = contentHeight;
+          loadMorePremiumRecipesIfAtEnd();
+        }}
+        onScroll={handleRecipeScroll}
+        onMomentumScrollEnd={handleRecipeScroll}
+        scrollEventThrottle={16}
+        decelerationRate="normal"
+      >
          <PremiumCatalogue visible={activeSection === 'premium'} colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} />
          {activeSection === 'discover' ? <>
         <View style={styles.recipeHeader}>
