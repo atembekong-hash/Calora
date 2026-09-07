@@ -23,6 +23,7 @@ import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
+import { plannerImageSource } from '@/lib/mealImages';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
@@ -951,13 +952,13 @@ export default function PlannerScreen() {
               detail && (
                 <>
                   <Image
-                    source={[
-                      ...(detail.image ? [{ uri: detail.image }] : []),
-                      require('../../assets/images/calora-plan-header.jpg'),
-                    ]}
+                    source={plannerImageSource(detail.imageAssetKey, detail.image) ?? require('../../assets/images/calora-plan-header.jpg')}
                     contentFit="cover"
                     style={styles.detailImage}
                   />
+                  <Text style={[styles.detailImageProvenance, { color: colors.mutedForeground }]}>
+                    {detail.imageAssetKey ? 'Canonical meal image' : detail.image ? 'Provider meal image' : 'Fallback image · no meal photo available'}
+                  </Text>
                   <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.detailBody, { paddingBottom: 34 }]}>
                     <View style={styles.detailTitleRow}>
                       <View style={{ flex: 1 }}>
@@ -1391,6 +1392,7 @@ function makeStyles(f: number) {
   formSaveText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   formCancelButton: { alignItems: 'center', paddingVertical: 14 },
   detailImage: { height: 220, width: '100%' },
+  detailImageProvenance: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginHorizontal: 18, marginTop: 7 },
   detailBody: { padding: 20 },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#b7c5bc', alignSelf: 'center', marginVertical: 11 },
   detailTitleRow: { flexDirection: 'row', alignItems: 'flex-start' },
