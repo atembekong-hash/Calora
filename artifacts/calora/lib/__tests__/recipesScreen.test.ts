@@ -129,4 +129,14 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
     expect(source).toContain('recipesScrollRef.current?.scrollTo({ y: section === \'discover\' ? discoverScrollYRef.current : 0, animated: false })');
   });
+
+  it('keeps every recipe submenu inside a bounded vertical scroll viewport', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('style={styles.recipeScroll}');
+    expect(source).toContain('recipeScroll: { flex: 1, minHeight: 0 }');
+  });
 });

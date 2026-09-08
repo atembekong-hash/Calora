@@ -1585,6 +1585,7 @@ export default function RecipesScreen() {
       ) : (
         <ScrollView
           ref={recipesScrollRef}
+          style={styles.recipeScroll}
           contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
           showsVerticalScrollIndicator={false}
           onScroll={handleRecipeScroll}
@@ -1708,6 +1709,7 @@ function makeStyles(f: number) {
   categoryRow: { gap: 8, paddingVertical: 14, paddingRight: 20 },
   categoryChip: { borderWidth: 1, borderRadius: 18, paddingHorizontal: 13, paddingVertical: 8 },
   categoryText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
+   recipeScroll: { flex: 1, minHeight: 0 },
   fitCard: { borderRadius: 24, padding: 18, marginBottom: 25 },
   fitIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   fitEyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.2, marginBottom: 6 },

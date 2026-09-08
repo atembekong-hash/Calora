@@ -368,7 +368,7 @@ export function SwipeableSectionPager<T extends string>({
             ))}
           </Animated.View>
         ) : (
-          <Animated.View style={animatedStyle}>{children}</Animated.View>
+          <Animated.View style={[styles.pagerContent, animatedStyle]}>{children}</Animated.View>
         )}
       </Animated.View>
     </SwipeGestureExclusionContext.Provider>
@@ -378,7 +378,12 @@ export function SwipeableSectionPager<T extends string>({
 const styles = StyleSheet.create({
   gestureSurface: {
     overflow: 'hidden',
+    minHeight: 0,
     userSelect: 'none',
+  },
+  pagerContent: {
+    flex: 1,
+    minHeight: 0,
   },
   pagerTrack: {
     flexDirection: 'row',
