@@ -1,0 +1,1474 @@
+CALORA — FINAL INSTALLED RELEASE CANDIDATE DEEP VERIFICATION MISSION
+
+CONTEXT
+
+The owner has completed the following release chain:
+
+- Phase 4 branded-domain/auth/deep-link/native URL migration verified.
+- Recipes scrolling repair verified.
+- Full reconciliation completed.
+- GitHub authentication repaired.
+- Verified release candidate pushed successfully.
+- Local and GitHub remote were independently verified identical.
+- Android production build was triggered from GitHub branch:
+
+  release/calora-onboarding-and-plus
+
+- The resulting Android build has now been downloaded and physically installed on the owner’s Android device.
+
+This mission is the FINAL DEEP RELEASE-CANDIDATE VERIFICATION before any further code change or release decision.
+
+IMPORTANT
+
+THIS IS A VERIFICATION MISSION.
+
+DO NOT:
+- modify application source;
+- modify configuration;
+- modify database schema;
+- modify Supabase;
+- modify Cloudflare;
+- modify RevenueCat;
+- modify DNS;
+- modify authentication settings;
+- modify Apple/Google configuration;
+- change bundle/package identifiers;
+- change environment variables;
+- republish Replit;
+- trigger Expo/EAS;
+- trigger a native build;
+- push to GitHub;
+- commit fixes;
+- silently repair defects;
+- rewrite Git history.
+
+If a defect is discovered, DOCUMENT IT.
+
+Do not fix it during this mission unless the owner explicitly authorizes a separate remediation task afterward.
+
+AUTHORITATIVE RELEASE IDENTITY
+
+Product:
+Calora
+
+Publisher:
+Etiendem Technologies
+
+Production domain:
+https://mycaloraapp.com
+
+Production API origin:
+https://mycaloraapp.com
+
+Production API namespace:
+/api
+
+Auth callback:
+https://mycaloraapp.com/auth/callback
+
+Android package:
+com.etiendem.caloraapp
+
+iOS bundle:
+com.etiendem.caloraapp
+
+Native scheme:
+caloraapp
+
+iOS associated domain:
+applinks:mycaloraapp.com
+
+GitHub branch:
+release/calora-onboarding-and-plus
+
+The currently installed Android binary was built from that verified branch.
+
+MISSION OBJECTIVE
+
+Deeply verify the complete installed-release-candidate surface and supporting production systems.
+
+The goal is to determine whether this release candidate is internally coherent, production-safe, functionally complete, and ready for final owner device testing/release consideration.
+
+Use every safe verification mechanism available:
+
+- source inspection;
+- deterministic tests;
+- integration tests;
+- static analysis;
+- TypeScript checks;
+- production HTTP probes;
+- Supabase behavioral probes where non-destructive;
+- Replit deployment health;
+- GitHub state verification;
+- server/API testing;
+- security scans;
+- configuration inspection;
+- Expo/native configuration inspection;
+- association-provider validation;
+- existing screenshots/reports/test evidence;
+- local web/mobile preview where useful.
+
+DO NOT CLAIM PHYSICAL DEVICE SUCCESS FOR ANYTHING THAT REPLIT CANNOT ACTUALLY OBSERVE.
+
+Clearly separate:
+
+A. independently verified by Replit;
+B. verified through production/backend behavior;
+C. verified by deterministic source/tests;
+D. requires owner physical-device confirmation.
+
+==================================================
+1. RELEASE PROVENANCE AND BUILD INPUT INTEGRITY
+==================================================
+
+Verify the release branch still points to the accepted release candidate.
+
+Check:
+
+- branch:
+  release/calora-onboarding-and-plus
+- remote:
+  https://github.com/atembekong-hash/Calora.git
+- local/remote relationship where available;
+- no unexpected post-push source/config drift;
+- production eas.json;
+- app.json;
+- package/bundle IDs;
+- Expo project identity;
+- scheme;
+- production API URL;
+- environment-profile selection;
+- version/versionCode/buildNumber values;
+- release profile configuration;
+- no development-only hostname in production profile;
+- no debug-only feature unintentionally enabled;
+- no dev menu/debug endpoint enabled for production.
+
+Document the exact release-source SHA if it can be independently resolved.
+
+==================================================
+2. COLD LAUNCH / BOOT PATH
+==================================================
+
+Audit everything involved in first app launch and subsequent cold launches.
+
+Inspect/test:
+
+- root layout;
+- providers;
+- fonts/assets;
+- persisted state hydration;
+- authentication session restoration;
+- RevenueCat initialization;
+- Supabase initialization;
+- API URL initialization;
+- navigation initialization;
+- onboarding state;
+- feature-flag loading;
+- contextual intelligence initialization;
+- Coach initialization;
+- network/bootstrap calls;
+- error boundaries.
+
+Look for conditions that could produce:
+
+- startup crash;
+- white/blank screen;
+- infinite splash;
+- dead navigation;
+- hydration race;
+- auth race;
+- provider-order failure;
+- null-session crash;
+- unresolved Promise;
+- unhandled rejection;
+- missing environment variable;
+- bad asset path;
+- production-only initialization failure.
+
+Run available startup/bootstrap tests.
+
+If physical cold-launch confirmation cannot be performed, explicitly mark:
+
+OWNER DEVICE CONFIRMATION REQUIRED
+
+==================================================
+3. AUTHENTICATION
+==================================================
+
+Deep verify all auth paths.
+
+Cover:
+
+- existing session restoration;
+- email/password sign-in if present;
+- Google OAuth;
+- sign-out;
+- session persistence;
+- token refresh;
+- expired access token;
+- refresh-token handling;
+- duplicate callback arbitration;
+- PKCE exchange;
+- callback host/path validation;
+- auth error handling;
+- browser-to-app handoff;
+- account switching;
+- auth cancellation;
+- recovery/password reset;
+- email verification;
+- resend verification;
+- invalid/expired callback;
+- deleted-account behavior;
+- tombstone behavior;
+- unauthorized API requests.
+
+Verify production callback:
+
+https://mycaloraapp.com/auth/callback
+
+Verify:
+
+- HTTP 200;
+- no-store;
+- noindex;
+- no token/code echo;
+- no redirect loop;
+- correct branded content;
+- safe caloraapp:// fallback.
+
+Verify Supabase branded redirect acceptance non-destructively.
+
+Verify Google OAuth authorize handoff still reaches Google.
+
+Do not create permanent test accounts or leave test data behind.
+
+==================================================
+4. HOME / DASHBOARD
+==================================================
+
+Audit the complete Home/Dashboard implementation.
+
+Verify:
+
+- screen loads;
+- calorie totals;
+- calorie ring;
+- macros;
+- meal totals;
+- progress data;
+- hydration/wellness data where applicable;
+- daily summary;
+- contextual insights;
+- Coach entry points;
+- Progress entry point;
+- dashboard header;
+- empty states;
+- partial-data states;
+- first-time user state;
+- loading state;
+- error state;
+- stale-state handling;
+- state persistence;
+- date changes;
+- timezone/date-boundary behavior;
+- pull/refresh behavior if present;
+- navigation from every dashboard card/widget.
+
+Inspect for:
+
+- incorrect totals;
+- duplicated meal contributions;
+- stale memoized calculations;
+- NaN/undefined values;
+- broken cards;
+- clipped content;
+- bad safe-area padding;
+- overlapping bottom navigation;
+- light/dark mode issues.
+
+==================================================
+5. FOOD LOGGING
+==================================================
+
+Deep verify all supported food logging paths.
+
+Cover where present:
+
+- manual search;
+- generic food;
+- branded food;
+- restaurant food;
+- recent foods;
+- saved/favorite foods;
+- meal selection;
+- quantity;
+- serving size;
+- units;
+- calories;
+- protein;
+- carbs;
+- fat;
+- micronutrients where applicable;
+- add;
+- edit;
+- delete;
+- duplicate;
+- move between meals;
+- date selection;
+- undo if supported.
+
+Verify API/backend behavior for:
+
+- valid search;
+- no-result search;
+- malformed search;
+- provider timeout;
+- provider failure;
+- rate limit;
+- fallback behavior;
+- unauthorized request;
+- malformed nutrition payload.
+
+Verify logging does not:
+
+- double-count calories;
+- silently lose entries;
+- create duplicates;
+- accept invalid negative quantities;
+- produce NaN;
+- mismatch serving/calorie math.
+
+==================================================
+6. BARCODE / CAMERA / VOICE / SMART SCAN
+==================================================
+
+Where implemented, verify:
+
+- camera permissions;
+- barcode parsing;
+- invalid barcode;
+- unknown barcode;
+- duplicate scans;
+- camera cancellation;
+- image capture;
+- Smart Scan review step;
+- confidence values;
+- user confirmation;
+- nutrition estimation boundary;
+- user ability to correct AI results;
+- no auto-finalization without intended review;
+- voice permissions;
+- voice transcription;
+- voice cancellation;
+- malformed transcription;
+- API failure;
+- retry behavior.
+
+Do not claim physical camera/microphone success unless actually observable.
+
+Mark device-only validation clearly.
+
+==================================================
+7. RESTAURANT FOOD LOGGING
+==================================================
+
+Deep verify restaurant flows.
+
+Cover:
+
+- restaurant search;
+- restaurant selection;
+- menu item search;
+- item details;
+- serving data;
+- nutrition values;
+- images;
+- provider provenance;
+- fallback handling;
+- logging to correct meal;
+- no-result state;
+- provider outage;
+- rate limiting;
+- invalid provider payload;
+- branded vs generic distinctions.
+
+Confirm representative restaurant images do not imply verified nutrition provenance where that distinction is intentional.
+
+==================================================
+8. RECIPES — DISCOVER
+==================================================
+
+Deep verify Discover.
+
+Test:
+
+- initial load;
+- vertical scrolling;
+- top-to-bottom reachability;
+- short content;
+- long content;
+- images;
+- recipe names;
+- calories/macros;
+- detail navigation;
+- back navigation;
+- loading;
+- error;
+- empty state;
+- pagination/load more where applicable;
+- category filtering;
+- searching;
+- saving;
+- unsaving;
+- opening from saved state;
+- recipe instructions;
+- ingredient list;
+- minimum method/instruction requirements if enforced;
+- image-to-recipe semantic correctness.
+
+Specifically verify the recently repaired vertical scroll contract:
+
+- Recipes vertical ScrollView has bounded viewport;
+- flex: 1;
+- minHeight: 0;
+- safe-area padding;
+- bottom-tab clearance;
+- no nested-scroll deadlock;
+- no horizontal pager gesture stealing vertical scroll;
+- no content clipping.
+
+==================================================
+9. RECIPES — PLUS
+==================================================
+
+Deep verify Plus/Premium Recipes.
+
+Cover:
+
+- scrolling;
+- loading;
+- unavailable state;
+- restricted state;
+- entitlement-gated state;
+- subscribed state;
+- pagination;
+- saved recipes;
+- opening details;
+- image loading;
+- failure/fallback;
+- subscription gating;
+- RevenueCat entitlement linkage;
+- no accidental premium access without entitlement;
+- no accidental lockout for entitled users.
+
+Verify Plus retains its independent vertical ScrollView and remains bounded by the shared pager.
+
+==================================================
+10. RECIPES — CREATE
+==================================================
+
+Deep verify Create-your-own recipe flow.
+
+Cover:
+
+- input fields;
+- available ingredients;
+- shopping-list integration where supported;
+- AI generation;
+- validation;
+- long forms;
+- generated results;
+- recipe image behavior;
+- instructions;
+- nutrition;
+- save;
+- edit;
+- retry;
+- failure;
+- malformed generation output;
+- empty ingredients;
+- extremely long inputs;
+- keyboard behavior;
+- multiline fields;
+- vertical scroll;
+- bottom navigation clearance.
+
+Verify generated recipes do not silently claim exact medical/nutritional certainty where outputs are estimates.
+
+==================================================
+11. RECIPE IMAGE INTEGRITY
+==================================================
+
+Perform a dedicated image integrity audit.
+
+Verify that:
+
+- each recipe image semantically matches the recipe;
+- duplicate images are not reused across unrelated meals unless intentionally generic;
+- no image is mapped to contradictory meal names;
+- no breakfast image appears on unrelated dinner recipes without justification;
+- no placeholder/test image leaks into production;
+- no broken image URLs;
+- no development image host;
+- no accidental image hotlink to unstable sources;
+- image fallback behavior is sensible;
+- image metadata does not falsely imply verified nutritional provenance.
+
+Look for duplicate asset hashes and repeated remote image URLs.
+
+Produce counts for:
+
+- total recipe images reviewed;
+- duplicate image groups;
+- semantic mismatch candidates;
+- broken references;
+- placeholder references.
+
+==================================================
+12. PLANNER
+==================================================
+
+Deep verify Planner.
+
+Cover:
+
+- opening Planner;
+- day/week navigation;
+- diet selection;
+- plan generation;
+- existing-plan display;
+- loading;
+- empty state;
+- generation failure;
+- editing meals;
+- replacing meals;
+- moving meals;
+- recipe-to-Planner linking;
+- Planner-to-recipe navigation;
+- quantities;
+- nutrition totals;
+- acknowledgement flow;
+- generated-plan persistence;
+- refresh;
+- day pager;
+- swipe navigation;
+- scroll behavior;
+- bottom navigation;
+- state restoration.
+
+Verify shared pager modifications did not regress Planner horizontal day paging.
+
+==================================================
+13. SHOPPING LIST
+==================================================
+
+Where implemented, verify:
+
+- generation from Planner;
+- ingredient aggregation;
+- quantity aggregation;
+- duplicate ingredient merging;
+- units;
+- manually added items;
+- checked items;
+- persistence;
+- deletion;
+- regeneration;
+- recipe linkage;
+- empty list;
+- large list;
+- navigation;
+- scroll behavior.
+
+==================================================
+14. COACH
+==================================================
+
+Deep verify the currently active Coach architecture.
+
+Verify:
+
+- active Fact Context path;
+- consent requirement;
+- eligibility;
+- rollout gate;
+- bounded contextual information;
+- server-side authorization;
+- response delivery;
+- loading;
+- failure;
+- timeout;
+- cancellation;
+- retry;
+- guest Coach behavior;
+- signed-in Coach behavior;
+- unsupported/unsafe request boundaries;
+- no exposure of hidden sensitive context;
+- no accidental use of deprecated legacy endpoint.
+
+Confirm the legacy Coach route intentionally remains terminal where designed.
+
+Verify current client uses the active supported route.
+
+Test multiple representative Coach scenarios deterministically.
+
+==================================================
+15. CONTEXTUAL INTELLIGENCE / INSIGHTS
+==================================================
+
+Deep verify:
+
+- Dashboard insights;
+- Planner suggestions;
+- recipe recommendations;
+- progress insights;
+- Coach contextual prompts;
+- notifications where implemented;
+- consent boundaries;
+- data derivation;
+- stale data handling;
+- missing data;
+- first-time user;
+- sparse-history user;
+- contradictory data;
+- no hallucinated user facts presented as stored truth.
+
+Verify Insights screen:
+
+- scroll;
+- charts;
+- nested horizontal controls;
+- loading;
+- empty state;
+- dates;
+- calculated values;
+- swipe gesture protection;
+- light/dark mode.
+
+==================================================
+16. PROGRESS
+==================================================
+
+Deep verify Progress.
+
+Cover:
+
+- calorie trends;
+- macro trends;
+- meal rhythm;
+- weight/progress data where supported;
+- weekly patterns;
+- date ranges;
+- empty states;
+- insufficient-data state;
+- chart scaling;
+- labels;
+- navigation;
+- data consistency against diary/log totals.
+
+Check for:
+
+- divide-by-zero;
+- NaN;
+- misleading percentages;
+- duplicated days;
+- timezone/date rollover errors.
+
+==================================================
+17. PROFILE
+==================================================
+
+Deep verify:
+
+- profile load;
+- account information;
+- preferences;
+- goals;
+- diet;
+- units;
+- notifications;
+- Coach preferences;
+- subscription/membership status;
+- billing links;
+- account deletion;
+- sign out;
+- support/legal links;
+- safe-area padding;
+- scroll;
+- modal/sheet behavior;
+- persistence.
+
+Verify no stale “CaloraApp” public branding remains where public display should say “Calora”.
+
+==================================================
+18. SETTINGS / PREFERENCES
+==================================================
+
+Where implemented, verify:
+
+- theme;
+- light mode;
+- dark mode;
+- units;
+- nutrition goals;
+- dietary preferences;
+- notification settings;
+- accessibility settings;
+- Coach settings;
+- language;
+- persistence after restart;
+- invalid-state prevention.
+
+==================================================
+19. REVENUECAT / CALORA PRO
+==================================================
+
+Deep verify the subscription integration WITHOUT making a real purchase.
+
+Cover:
+
+- SDK initialization;
+- user identification;
+- entitlement resolution;
+- offering fetch;
+- product fetch;
+- monthly/annual offering display;
+- paywall load;
+- entitlement gating;
+- restore purchases path;
+- error state;
+- offline state;
+- signed-in vs signed-out state;
+- account switching;
+- deletion cleanup;
+- referral reward interaction;
+- premium recipe entitlement;
+- Coach/premium boundaries where applicable.
+
+Verify:
+
+- client uses only public RevenueCat keys;
+- server secret remains server-side;
+- no server secret in bundle/source/history;
+- no obsolete subscription product IDs active in runtime;
+- UI copy matches actual configured products/entitlements;
+- referral reward is 30 days everywhere it is user-facing.
+
+Do not claim actual purchase success without sandbox/physical transaction evidence.
+
+==================================================
+20. REFERRAL / INVITE
+==================================================
+
+Verify:
+
+https://mycaloraapp.com/invite
+https://mycaloraapp.com/invite/<code>
+
+and:
+
+caloraapp://invite/<code>
+
+Cover:
+
+- valid code;
+- invalid code;
+- malformed code;
+- special characters;
+- expired code where supported;
+- share generation;
+- OG metadata;
+- branded domain;
+- web fallback;
+- native fallback;
+- pending referral storage;
+- authenticated referral application;
+- reward qualification;
+- reward duration;
+- duplicate application prevention.
+
+Verify all user-facing referral copy says the authoritative reward:
+
+30 days of Pro
+
+No old “1 week” copy may remain in runtime/public output.
+
+==================================================
+21. LEGAL / SUPPORT / ACCOUNT ROUTES
+==================================================
+
+Verify live production routes:
+
+https://mycaloraapp.com/
+https://mycaloraapp.com/privacy
+https://mycaloraapp.com/terms
+https://mycaloraapp.com/support
+https://mycaloraapp.com/contact
+https://mycaloraapp.com/delete-account
+https://mycaloraapp.com/subscriptions
+https://mycaloraapp.com/help
+https://mycaloraapp.com/auth/callback
+https://mycaloraapp.com/invite/test
+https://mycaloraapp.com/robots.txt
+https://mycaloraapp.com/sitemap.xml
+https://mycaloraapp.com/site.webmanifest
+
+Verify:
+
+- HTTP response;
+- content type;
+- canonical host;
+- branding;
+- support email;
+- no placeholder page;
+- no Replit preview URL;
+- no localhost;
+- no retired calora.app;
+- no debug output;
+- no secrets.
+
+==================================================
+22. ACCOUNT DELETION
+==================================================
+
+Deep verify the account-deletion architecture.
+
+Cover:
+
+- authentication required;
+- authorization;
+- fencing;
+- advisory lock;
+- retries;
+- transactional cleanup;
+- Supabase Auth deletion;
+- application-data cleanup;
+- RevenueCat deletion/erasure behavior;
+- tombstones;
+- partially completed deletion recovery;
+- repeated deletion request;
+- error reporting;
+- no deletion of another user;
+- post-deletion login behavior.
+
+Do not delete the owner’s real production account.
+
+Use deterministic tests/test fixtures only.
+
+==================================================
+23. NETWORK CONDITIONS
+==================================================
+
+Audit application behavior under:
+
+- normal connection;
+- slow response;
+- timeout;
+- offline;
+- API 401;
+- API 403;
+- API 404;
+- API 429;
+- API 500;
+- Supabase failure;
+- third-party provider failure;
+- image failure;
+- RevenueCat failure.
+
+Verify:
+
+- no infinite spinner;
+- no crash;
+- retry is bounded;
+- errors are understandable;
+- local data is not corrupted;
+- failed writes do not silently look successful;
+- authentication refresh does not loop forever.
+
+Physical Wi-Fi ↔ cellular switching must be marked as OWNER DEVICE CONFIRMATION REQUIRED unless Replit can genuinely test it.
+
+==================================================
+24. OFFLINE / LOCAL-FIRST BEHAVIOR
+==================================================
+
+Where applicable, verify:
+
+- previously loaded diary remains accessible;
+- local state survives restart;
+- pending sync behavior;
+- duplicate sync prevention;
+- conflict behavior;
+- retry;
+- stale state;
+- offline error messaging;
+- transition back online.
+
+==================================================
+25. NAVIGATION
+==================================================
+
+Audit every active navigation destination.
+
+Confirm bottom navigation and secondary navigation do not produce:
+
+- dead route;
+- duplicate route;
+- blank page;
+- wrong tab;
+- hidden inaccessible feature;
+- stack corruption;
+- broken back navigation;
+- deep-link routing conflict.
+
+Current intended primary navigation must remain coherent with the latest app structure.
+
+==================================================
+26. SCROLL / GESTURE AUDIT
+==================================================
+
+Perform a project-wide scroll/gesture audit, not only Recipes.
+
+Search every:
+
+- ScrollView;
+- FlatList;
+- SectionList;
+- FlashList;
+- pager;
+- gesture handler;
+- modal;
+- bottom sheet;
+- nested horizontal list;
+- keyboard-aware container.
+
+Look for:
+
+- unbounded ScrollView;
+- nested same-direction scrolling conflict;
+- missing flex;
+- missing minHeight: 0 where required;
+- bottom-content clipping;
+- gesture interception;
+- safe-area errors;
+- keyboard obstruction;
+- horizontal pager stealing vertical gestures.
+
+Pay special attention to:
+
+- Recipes;
+- Planner;
+- Insights;
+- Profile;
+- Dashboard;
+- Coach;
+- Progress;
+- shopping list;
+- modal/sheet forms.
+
+==================================================
+27. UI / RESPONSIVENESS / ACCESSIBILITY
+==================================================
+
+Audit:
+
+- small phones;
+- tall phones;
+- Android;
+- iOS configuration;
+- light mode;
+- dark mode;
+- font scaling;
+- keyboard open;
+- safe areas;
+- bottom tabs;
+- modal sizing;
+- long localized strings;
+- empty states;
+- text clipping;
+- button accessibility;
+- touch target sizes;
+- screen-reader labels where implemented;
+- color-independent status communication.
+
+Do not redesign anything.
+
+Only document issues.
+
+==================================================
+28. LOCALIZATION
+==================================================
+
+Audit localization architecture.
+
+Verify:
+
+- no missing-key crash;
+- fallback language works;
+- English US works;
+- interpolation values safe;
+- long strings do not obviously break layout;
+- date/number/unit formatting;
+- pluralization;
+- no untranslated internal/debug keys visible to users.
+
+Do not claim all 35+ languages are linguistically correct unless actual translations are reviewed.
+
+==================================================
+29. IMAGE / ASSET SAFETY
+==================================================
+
+Audit all production assets for:
+
+- broken paths;
+- accidental screenshots used as runtime assets;
+- development preview URLs;
+- duplicate large assets;
+- EXIF metadata;
+- secrets;
+- personally identifying information;
+- test placeholders;
+- accidental Telegram/Chrome QA images in runtime bundles.
+
+Distinguish:
+
+- attached QA/reference assets;
+- runtime application assets.
+
+==================================================
+30. SECURITY
+==================================================
+
+Perform a deep security verification.
+
+Cover:
+
+- authentication;
+- authorization;
+- IDOR;
+- CORS;
+- input validation;
+- rate limiting;
+- file uploads;
+- image URLs;
+- callback validation;
+- redirect safety;
+- SSRF risk;
+- SQL injection;
+- API request validation;
+- privilege escalation;
+- service-role isolation;
+- secrets;
+- logs;
+- error messages;
+- production debug exposure;
+- dependency vulnerabilities;
+- private keys;
+- OAuth client secrets;
+- Cloudflare token;
+- RevenueCat server secret;
+- signing credentials;
+- GitHub credentials;
+- .env leakage.
+
+Run:
+
+- dependency audit;
+- available SAST;
+- available privacy/security scanner;
+- tracked-secret scan;
+- unpublished/current history scan where relevant.
+
+Do not print secrets.
+
+==================================================
+31. API DEEP VERIFICATION
+==================================================
+
+Verify production API behavior.
+
+At minimum:
+
+https://mycaloraapp.com/api/healthz
+
+and representative protected routes.
+
+Verify:
+
+- health 200;
+- protected request 401 without auth;
+- malformed token rejection;
+- unrelated Origin rejected;
+- branded Origin allowed;
+- preflight behavior;
+- no wildcard credentialed CORS;
+- no preview host required;
+- no double /api construction.
+
+Inspect representative routes for:
+
+- diary;
+- Planner;
+- Coach;
+- referrals;
+- recipes;
+- restaurants;
+- account deletion;
+- premium/subscription-related state.
+
+==================================================
+32. UNIVERSAL LINKS / APP LINKS
+==================================================
+
+Reverify:
+
+https://mycaloraapp.com/.well-known/apple-app-site-association
+
+Verify:
+
+- 200;
+- JSON;
+- no redirect;
+- correct bundle/application identity;
+- /auth/callback;
+- /invite/*.
+
+Reverify:
+
+https://mycaloraapp.com/.well-known/assetlinks.json
+
+Verify:
+
+- 200;
+- JSON;
+- no redirect;
+- package:
+  com.etiendem.caloraapp
+- SHA-256 signing fingerprint present;
+- correct delegate relation.
+
+Use Apple/Google association-provider checks where available.
+
+Do not claim physical-device link opening unless actually tested by owner.
+
+==================================================
+33. PRODUCTION BRANDING / URL LEAKAGE
+==================================================
+
+Perform repo-wide and runtime scans for production-facing:
+
+- CaloraApp where public brand must be Calora;
+- calora.app;
+- api.mycaloraapp.com;
+- localhost;
+- 127.0.0.1;
+- replit.dev;
+- preview domains;
+- old Railway URL;
+- old Replit URL;
+- debug URLs.
+
+Classify each result as:
+
+- legitimate development-only;
+- legitimate historical/report;
+- legitimate server-internal;
+- compatibility fallback;
+- production leak.
+
+No production leak should remain.
+
+==================================================
+34. PERFORMANCE / RESOURCE RISK
+==================================================
+
+Audit for:
+
+- obvious render loops;
+- expensive unbounded map/filter on every render;
+- excessive context rerenders;
+- uncontrolled timers;
+- intervals not cleaned up;
+- subscriptions/listeners not removed;
+- image-memory pressure;
+- massive lists without virtualization;
+- repeated API polling;
+- excessive retry loops;
+- duplicate network requests;
+- expensive startup requests;
+- missing pagination;
+- large bundle assets.
+
+Do not perform speculative micro-optimizations.
+
+Document material risks only.
+
+==================================================
+35. DATABASE / DATA INTEGRITY
+==================================================
+
+Use non-destructive inspection only.
+
+Verify:
+
+- schema expectations match code;
+- no obvious orphan-state assumptions;
+- user scoping;
+- authorization;
+- uniqueness constraints where relied upon;
+- referral data integrity;
+- Planner records;
+- diary entries;
+- deletion state;
+- Coach consent/context state;
+- subscription-related user state where applicable.
+
+Do not mutate production data.
+
+==================================================
+36. ERROR / LOG HYGIENE
+==================================================
+
+Inspect production-visible errors and logging.
+
+Verify:
+
+- no tokens;
+- no service keys;
+- no auth codes;
+- no full sensitive user payloads;
+- no stack traces exposed publicly;
+- no debug logs leaking to UI;
+- production errors are bounded and actionable.
+
+==================================================
+37. REGRESSION TESTING
+==================================================
+
+Run the strongest deterministic suite available without a new build.
+
+At minimum:
+
+- complete Calora tests;
+- complete API server tests;
+- workspace typechecks;
+- Recipes tests;
+- Recipes scrolling regression;
+- shared pager tests;
+- auth/deep-link tests;
+- Coach tests;
+- restaurant/food tests;
+- Planner tests;
+- saved/premium recipes tests;
+- Insights/Profile tests;
+- RevenueCat tests;
+- account-deletion tests;
+- referral tests;
+- Universal/App Link tests;
+- CORS/security tests;
+- git diff --check.
+
+Report exact:
+
+- test files passed;
+- tests passed;
+- skipped;
+- failures;
+- typecheck results;
+- warnings.
+
+Do not hide warnings.
+
+==================================================
+38. PHYSICAL DEVICE OWNER CHECKLIST
+==================================================
+
+Create a concise device checklist for things Replit cannot truthfully verify itself.
+
+At minimum include:
+
+- cold launch;
+- force-close/reopen;
+- Google sign-in;
+- sign-out/sign-in;
+- session persistence;
+- Dashboard;
+- manual food logging;
+- barcode;
+- camera/Smart Scan;
+- voice;
+- restaurant food;
+- Recipes Discover scroll;
+- Recipes Plus scroll;
+- Recipes Create scroll;
+- open recipe;
+- save/unsave;
+- Planner;
+- recipe-to-Planner;
+- shopping list;
+- Coach;
+- Insights;
+- Progress;
+- Profile;
+- dark mode;
+- light mode;
+- keyboard behavior;
+- RevenueCat paywall;
+- restore purchases if safe;
+- referral link;
+- Android App Link;
+- Wi-Fi to cellular switch;
+- offline/reconnect;
+- notifications if applicable.
+
+For every device-only item provide:
+
+PASS
+FAIL
+NOT TESTED
+
+as an owner-fillable field.
+
+==================================================
+39. DEFECT CLASSIFICATION
+==================================================
+
+Any discovered issue must be classified:
+
+P0 — release-stopping/security/data-loss/crash/auth failure
+P1 — major functional failure or major production regression
+P2 — important but non-blocking defect
+P3 — cosmetic/minor issue
+OBSERVATION — not confirmed defect
+OWNER DEVICE TEST REQUIRED — cannot be independently verified by Replit
+
+For every defect include:
+
+- ID;
+- severity;
+- area;
+- exact symptom;
+- reproduction path;
+- affected files/components/routes;
+- evidence;
+- likely root cause;
+- whether deterministic;
+- release impact;
+- recommended remediation;
+- regression test needed.
+
+DO NOT FIX IT IN THIS MISSION.
+
+==================================================
+40. FINAL RELEASE DECISION
+==================================================
+
+Do not declare the release candidate ready simply because automated tests pass.
+
+The verdict must consider:
+
+- source integrity;
+- production API;
+- auth;
+- security;
+- data integrity;
+- deep links;
+- Recipes;
+- scroll behavior;
+- Planner;
+- Coach;
+- subscriptions;
+- referral;
+- images;
+- public/legal routes;
+- deployment topology;
+- deterministic tests;
+- unresolved P0/P1 defects;
+- owner-only device validation still pending.
+
+REQUIRED REPORT
+
+Create and save in the project root:
+
+13_CALORA_FINAL_INSTALLED_RC_DEEP_VERIFICATION_REPORT.md
+
+The report MUST include:
+
+1. Executive summary
+2. Exact release branch and SHA
+3. Verification methodology
+4. Areas independently verified
+5. Areas requiring owner physical-device validation
+6. Cold-launch audit
+7. Authentication audit
+8. Dashboard audit
+9. Food logging audit
+10. Barcode/camera/voice audit
+11. Restaurant audit
+12. Recipes Discover audit
+13. Recipes Plus audit
+14. Recipes Create audit
+15. Recipe image-integrity audit
+16. Planner audit
+17. Shopping-list audit
+18. Coach audit
+19. Contextual Intelligence/Insights audit
+20. Progress audit
+21. Profile/settings audit
+22. RevenueCat/Calora Pro audit
+23. Referral/invite audit
+24. Legal/support/account routes
+25. Account-deletion audit
+26. Network/offline audit
+27. Navigation audit
+28. Scroll/gesture audit
+29. Accessibility/responsiveness audit
+30. Localization audit
+31. Asset/image safety audit
+32. Security audit
+33. Production API verification
+34. Universal Links/App Links verification
+35. Production URL/branding scan
+36. Performance/resource audit
+37. Database/data-integrity audit
+38. Logging/error hygiene
+39. Comprehensive test results
+40. Exact warnings/skips/failures
+41. Full defect register with severity
+42. Owner physical-device checklist
+43. Remaining blockers
+44. Exact recommended next action
+45. Final verdict
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+FINAL RC AUTOMATED VERIFICATION PASSED — OWNER DEVICE VALIDATION REQUIRED
+
+FINAL RC VERIFIED READY FOR RELEASE
+
+FINAL RC HAS P1/P0 BLOCKERS — DO NOT RELEASE
+
+FINAL RC VERIFICATION INCOMPLETE — DO NOT RELEASE
+
+IMPORTANT VERDICT RULE:
+
+Use:
+
+FINAL RC VERIFIED READY FOR RELEASE
+
+ONLY if every release-critical item, including required physical-device tests, has genuinely been completed with evidence.
+
+Since Replit normally cannot independently observe the owner’s physical Android device, the expected successful automated verdict will normally be:
+
+FINAL RC AUTOMATED VERIFICATION PASSED — OWNER DEVICE VALIDATION REQUIRED
+
+Do not fabricate physical-device success.
+
+NO SOURCE CHANGES.
+NO PUSH.
+NO BUILD.
+NO REPUBLISH.
+
+Continue until every safely verifiable area above has been investigated, tested, classified, and documented.
+
+Stop only after the complete report has been created.
