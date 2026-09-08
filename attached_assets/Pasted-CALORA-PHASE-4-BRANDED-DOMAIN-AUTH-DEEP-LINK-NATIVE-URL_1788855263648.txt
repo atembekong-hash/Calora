@@ -1,0 +1,406 @@
+CALORA PHASE 4 — BRANDED DOMAIN AUTH, DEEP-LINK & NATIVE URL MIGRATION
+
+AUTHORITATIVE REFERENCES
+
+Use:
+- 01_CALORA_FINAL_METADATA_SPECIFICATION.md
+- 02_CALORA_CLOUDFLARE_DOMAIN_FOUNDATION_REPORT.md
+- 03_CALORA_REPLIT_PRODUCTION_RESTORE_REPORT.md
+- 04_CALORA_BRANDED_DOMAIN_CONNECTION_REPORT.md
+
+CURRENT VERIFIED FOUNDATION
+
+The following is already complete and MUST be preserved:
+
+- Public product: Calora
+- Publisher: Etiendem Technologies
+- Canonical production domain:
+  https://mycaloraapp.com
+- mycaloraapp.com is the verified primary Replit production URL.
+- Original Replit URL remains healthy:
+  https://calorie-coach-pie35449.replit.app
+- Cloudflare DNS and TLS are verified.
+- Existing email DNS is preserved.
+- Complete branded web route matrix passes.
+- Phase 3C final verdict:
+  BRANDED DOMAIN CONNECTION COMPLETE
+
+MISSION
+
+Complete the controlled migration of Calora's production-facing native/auth/deep-link/domain references to the branded domain WITHOUT breaking authentication, API access, invites, existing users, or current production availability.
+
+IMPORTANT
+
+Do not perform broad refactoring.
+
+Do not rename compatibility-sensitive technical identifiers.
+
+Preserve:
+- Android package:
+  com.etiendem.caloraapp
+- iOS bundle ID:
+  com.etiendem.caloraapp
+- Expo slug:
+  calora
+- custom URL scheme:
+  caloraapp
+- existing EAS project identifiers
+- subscription product identifiers
+- database identifiers
+- existing local-state keys
+- notification identifiers unless a real compatibility issue requires otherwise
+
+DO NOT trigger an Expo/EAS build unless explicitly authorized later.
+
+DO NOT push to GitHub.
+
+DO NOT change Cloudflare DNS unless a newly verified requirement makes it strictly necessary.
+
+PHASE 4A — INVENTORY CURRENT PRODUCTION REFERENCES
+
+Perform a repo-wide runtime-impact inventory for:
+
+- mycaloraapp.com
+- www.mycaloraapp.com
+- api.mycaloraapp.com
+- calorie-coach-pie35449.replit.app
+- calora.app
+- caloraapp://
+- auth callback URLs
+- Supabase redirect URLs
+- OAuth callback URLs
+- password recovery URLs
+- email verification URLs
+- invite URLs
+- referral URLs
+- Universal Links
+- Android App Links
+- associatedDomains
+- intentFilters
+- Expo Router origin
+- API base URLs
+- CORS allowlists
+- public/legal absolute URLs
+- notification links
+- email-template links
+- share links
+- deep-link fallback URLs
+
+Classify every live reference as:
+
+- KEEP
+- MIGRATE NOW
+- DEFER
+- HISTORICAL ONLY
+- REMOVE FROM PRODUCTION OUTPUT
+
+Do not modify anything until this inventory is complete.
+
+PHASE 4B — VERIFY ACTUAL BACKEND TOPOLOGY
+
+Before changing native API URLs, determine the true production backend architecture.
+
+Verify:
+
+- what hostname the production mobile app should use for API calls
+- whether https://mycaloraapp.com/api/... is already the correct production API surface
+- whether api.mycaloraapp.com is actually necessary
+- whether any currently configured api.mycaloraapp.com value is speculative or inactive
+- whether CORS, auth, cookies, session handling, webhooks, and health checks work on the branded apex
+
+IMPORTANT:
+
+Do NOT create api.mycaloraapp.com simply because old configuration references it.
+
+If the branded apex safely serves the API under /api, prefer the verified working architecture unless there is a documented technical reason to separate the API hostname.
+
+Document the decision before modifying client configuration.
+
+PHASE 4C — AUTH CALLBACK MIGRATION
+
+Inspect the complete production authentication flow.
+
+Cover at minimum:
+
+- Supabase Google OAuth
+- email verification
+- password recovery
+- magic-link flow if present
+- sign-in callback
+- sign-up callback
+- mobile deep-link return
+- browser-to-app callback
+- account-deletion reauthentication if applicable
+
+Approved branded web callback target:
+
+https://mycaloraapp.com/auth/callback
+
+Preserve the mobile custom scheme:
+
+caloraapp://
+
+Update only the required source/configuration references.
+
+DO NOT delete the old verified Replit callback immediately if it is still needed as a temporary compatibility fallback.
+
+Determine the safest transition strategy.
+
+SUPABASE EXTERNAL CONFIGURATION
+
+If Supabase redirect allowlist or OAuth provider configuration must be changed:
+
+1. Inspect current values first.
+2. Never remove a currently working redirect before the branded replacement is verified.
+3. Add the branded callback first where authorized.
+4. Preserve old callback temporarily if necessary.
+5. Independently verify auth configuration afterward.
+6. If Replit cannot mutate the required Supabase dashboard setting safely, document the exact owner action instead of guessing.
+
+PHASE 4D — IOS UNIVERSAL LINKS
+
+Inspect current:
+
+- associatedDomains
+- AASA route
+- app identifiers
+- team/application identifiers
+- auth/invite paths
+- existing deep-link tests
+
+Target branded domain:
+
+applinks:mycaloraapp.com
+
+Verify the production AASA endpoint at:
+
+https://mycaloraapp.com/.well-known/apple-app-site-association
+
+The file must:
+
+- return valid JSON
+- use correct content type
+- contain no redirect
+- contain the correct application identifier
+- expose only intended paths
+- support the required auth/invite routes
+
+DO NOT guess Apple Team ID or application identifier.
+
+If an externally verified Team ID is unavailable, document the exact blocker.
+
+Do not claim Universal Links fully working unless the server file and native configuration are both verifiable.
+
+PHASE 4E — ANDROID APP LINKS
+
+Inspect:
+
+- Android intent filters
+- host/path matching
+- assetlinks route
+- package name
+- signing certificate fingerprints
+- production signing identity
+
+Target:
+
+https://mycaloraapp.com/.well-known/assetlinks.json
+
+The file must:
+
+- return valid JSON
+- use correct content type
+- contain no redirect
+- reference:
+  com.etiendem.caloraapp
+- use the actual production signing SHA-256 certificate fingerprint
+
+DO NOT invent or infer the fingerprint.
+
+If final production signing fingerprint cannot be independently obtained, document the blocker and prepare everything else without fabricating it.
+
+PHASE 4F — INVITES AND REFERRALS
+
+Migrate production-facing invite/referral URLs to:
+
+https://mycaloraapp.com/invite
+https://mycaloraapp.com/invite/<code>
+
+Preserve mobile fallback where appropriate:
+
+caloraapp://invite/<code>
+
+Verify:
+
+- generated invite links
+- share flows
+- referral parsing
+- web fallback
+- app-open behavior
+- expired/invalid invite handling
+- canonical/OG metadata
+- no calora.app output
+- no Replit preview URL in user-facing invitations
+
+Do not remove historical references from reports/tests unless they affect runtime or public output.
+
+PHASE 4G — NATIVE API URL
+
+Based on Phase 4B findings:
+
+If the verified production API is correctly available through:
+
+https://mycaloraapp.com/api
+
+then configure the production native client to use the verified branded endpoint.
+
+Do not migrate to api.mycaloraapp.com unless that hostname is independently configured, live, TLS-valid, and necessary.
+
+Verify:
+
+- API health
+- auth requests
+- authenticated requests
+- CORS behavior
+- mobile request construction
+- upload endpoints
+- Coach endpoints
+- food/recipe APIs routed through backend where applicable
+- no preview/development hostname in production config
+
+PHASE 4H — PUBLIC/LEGAL/EMAIL ABSOLUTE URL CONSISTENCY
+
+Verify and normalize production-facing absolute URLs for:
+
+- privacy
+- terms
+- support
+- contact
+- delete-account
+- subscriptions
+- help
+- auth callback
+- invite
+- email verification
+- password recovery
+- transactional emails
+- account/security emails
+- share metadata
+- app-store metadata source files
+
+Target host:
+
+https://mycaloraapp.com
+
+Do not alter provider-specific URLs that are supposed to remain external.
+
+PHASE 4I — SECURITY & REGRESSION TESTING
+
+Required tests:
+
+1. Production API health
+2. Public branded routes
+3. auth callback endpoint
+4. invalid auth callback behavior
+5. invite link parsing
+6. invalid invite behavior
+7. AASA endpoint
+8. assetlinks endpoint
+9. CORS allowlist behavior
+10. no localhost/preview host leakage
+11. no calora.app public output
+12. no secret leakage
+13. no broken Replit production URL
+14. existing legal/support routes
+15. API client production URL resolution
+16. deep-link fallback parsing
+17. email-link generation
+18. build/typecheck/tests relevant to changed files
+
+Run deterministic tests wherever possible.
+
+Do NOT claim native device-level Universal Link/App Link success unless actually tested with a signed build.
+
+PHASE 4J — ROLLBACK SAFETY
+
+Before finalizing, document rollback for:
+
+- auth callbacks
+- Supabase redirects
+- native API base URL
+- Universal Links
+- Android App Links
+- invite URLs
+- public absolute URLs
+
+Preserve temporary compatibility paths where needed.
+
+Do not remove a working old route until the branded replacement is independently verified.
+
+STOP CONDITIONS
+
+Do not declare COMPLETE unless:
+
+- branded auth callback configuration is verified or exact external blocker documented
+- native production API hostname decision is verified
+- branded public URLs are internally consistent
+- invite/referral URLs are branded
+- AASA endpoint is valid or external identifier blocker documented
+- assetlinks endpoint is valid or production fingerprint blocker documented
+- no preview/localhost/calora.app leakage remains in production-facing output
+- existing production web/API remains healthy
+- no unrelated DNS/email/payment configuration was damaged
+
+NO EXPO/EAS BUILD.
+
+NO GITHUB PUSH.
+
+REQUIRED REPORT
+
+Create in the project root:
+
+05_CALORA_PHASE4_AUTH_DEEPLINK_NATIVE_MIGRATION_REPORT.md
+
+Include:
+
+- executive summary
+- repo-wide runtime URL inventory
+- backend topology decision
+- API hostname decision
+- auth callback inventory
+- Supabase redirect status
+- OAuth callback status
+- iOS Universal Links status
+- AASA evidence
+- Android App Links status
+- assetlinks evidence
+- production signing fingerprint status
+- invite/referral migration
+- production API client configuration
+- legal/public/email URL normalization
+- exact files changed
+- external settings changed
+- external owner actions required
+- deterministic test results
+- security checks
+- regression results
+- rollback plan
+- remaining blockers
+- exact next recommended phase
+- final verdict
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+PHASE 4 MIGRATION COMPLETE
+
+OWNER SUPABASE ACTION REQUIRED
+
+OWNER APPLE IDENTIFIER ACTION REQUIRED
+
+OWNER ANDROID SIGNING ACTION REQUIRED
+
+OWNER MULTIPLE EXTERNAL ACTIONS REQUIRED
+
+BLOCKED
+
+Do not stop until all safely actionable Phase 4 work is complete and every remaining blocker is explicitly documented with the smallest exact owner action required.
