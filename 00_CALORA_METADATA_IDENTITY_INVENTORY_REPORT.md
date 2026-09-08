@@ -1,16 +1,44 @@
 # Calora Official Metadata & Brand Identity Inventory Report
 
 **Audit date:** September 7, 2026  
+**Post-merge update:** September 8, 2026
 **Audit mode:** Read-only repository and public-endpoint inspection  
 **Requested output:** Factual baseline for a future final metadata specification  
-**Final verdict:** **NOT READY FOR FINAL METADATA SPECIFICATION**
+**Original audit verdict:** **NOT READY FOR FINAL METADATA SPECIFICATION**
+**Current post-merge verdict:** **READY FOR FINAL METADATA SPECIFICATION**
 
 ---
 
 ## 1. Executive Summary
 
-Calora has a substantial metadata foundation, but it does not yet have one
-fully reconciled official identity package.
+The original audit found a substantial but unreconciled metadata foundation.
+The implementation merge that followed resolved the source-level identity
+decisions and applied the approved public metadata package.
+
+### Post-merge status update — September 8, 2026
+
+The authoritative Phase 2 specification,
+`01_CALORA_FINAL_METADATA_SPECIFICATION.md`, is complete. The approved
+customer-facing identity is now:
+
+- **Product:** Calora
+- **Publisher:** Etiendem Technologies
+- **Tagline:** Eat Smarter. Live Better.
+- **Descriptor:** AI Nutrition & Calorie Tracker
+- **Premium tier:** Calora Pro
+- **Long-term public domain:** `https://mycaloraapp.com`
+
+The repository now implements this identity across the mobile brand constants,
+API brand constants, native display metadata, branded legal/support routes,
+store-copy drafts, landing-page metadata, SEO route generation, JSON-LD,
+association documentation, invite metadata, CORS defaults, and production API
+configuration. Technical identifiers such as package IDs, bundle IDs, Expo
+slug, URL scheme, EAS project identifiers, internal IDs, and subscription IDs
+remain preserved.
+
+The status below distinguishes **implemented in source** from **verified on a
+live deployment, signed build, or store console**. The latter items remain
+open and are not silently treated as complete.
 
 The repository consistently identifies the publisher as **Etiendem
 Technologies** and consistently uses the native application identifiers
@@ -19,27 +47,32 @@ Technologies** and consistently uses the native application identifiers
 - a canonical product metadata document;
 - client and server brand constants;
 - Apple App Store and Google Play listing drafts;
-- live legal, support, subscription, and account-deletion pages;
-- live Apple Universal Link and Android App Link association responses;
+- historical live legal, support, subscription, and account-deletion pages;
+- historical live Apple Universal Link and Android App Link association
+  responses;
 - a 1024 × 1024 application icon;
 - a 1024 × 500 Google Play feature graphic;
 - a defined English store-listing narrative.
 
-The audit also found unresolved conflicts and material gaps:
+The original audit found unresolved conflicts and material gaps:
 
-1. The supplied baseline calls the product **Calora**, while current canonical
-   repository sources and native display configuration call it
-   **CaloraApp**.
-2. The supplied baseline calls `mycaloraapp.com` the primary website, but
-   `mycaloraapp.com`, `www.mycaloraapp.com`, and `api.mycaloraapp.com` did not
-   resolve during this audit.
-3. Current production-facing configuration uses
-   `calorie-coach-pie35449.replit.app`, a working Replit-hosted origin.
+1. The supplied baseline called the product **Calora**, while pre-merge
+   repository sources and native display configuration called it
+   **CaloraApp**. **Resolved in source by the implementation merge.**
+2. The supplied baseline called `mycaloraapp.com` the primary website, but
+   the branded DNS records were not present during the audit. **The approved
+   domain is now implemented in source; DNS and deployment remain
+   unverified.**
+3. Pre-merge production-facing configuration used
+   `calorie-coach-pie35449.replit.app`. **Source configuration now targets the
+   approved branded domain and `api.mycaloraapp.com`; the temporary host
+   remains relevant only as historical/live-probe evidence.**
 4. No live App Store or Google Play listing was established from repository
    evidence. The package-based Google Play listing URL returned HTTP 404.
-5. General website SEO is incomplete: no `robots.txt`, sitemap, web manifest,
-   JSON-LD, Organization schema, SoftwareApplication schema, general Open
-   Graph image, or social-profile inventory exists.
+5. General website SEO was incomplete at audit time. Source now generates
+   `robots.txt`, a sitemap, a web manifest, branded page metadata, and
+   JSON-LD/application organization data. **Live public verification remains
+   outstanding.**
 6. The sole app icon is reused as the splash image and favicon. Separate
    adaptive Android, monochrome, notification, and platform splash assets are
    absent.
@@ -47,9 +80,10 @@ The audit also found unresolved conflicts and material gaps:
 8. Business address, public phone, store seller names, social profiles, and
    externally verified developer-account identities are not established.
 
-The current repository is therefore suitable as an input to an owner decision
-and remediation phase, but it is not sufficient to produce the final official
-metadata package without guessing.
+The current repository is therefore sufficient to use the completed Phase 2
+specification as the official metadata source. It is not yet sufficient to
+claim that branded DNS, deployment, signed-build associations, store
+listings, final store assets, or platform questionnaires have been verified.
 
 ---
 
@@ -119,43 +153,27 @@ manifests were specifically needed.
 
 ## 4. Existing Official Identity
 
-### Repository-stated canonical identity
+### Post-merge repository-stated canonical identity
 
 | Field | Current repository value | Evidence | Status |
 |---|---|---|---|
-| Product name | CaloraApp | `artifacts/calora/lib/brand.ts`; `docs/CALORAAPP_PRODUCT_METADATA.md`; `replit.md` | **EXISTS** |
-| Short name | CaloraApp | `artifacts/calora/lib/brand.ts` | **EXISTS** |
-| Supplied baseline product name | Calora | Audit brief | **CONFLICTING** |
-| Publisher/company | Etiendem Technologies | `artifacts/calora/lib/brand.ts`; `docs/CALORAAPP_PRODUCT_METADATA.md`; public legal pages | **EXISTS** |
+| Product name | Calora | `artifacts/calora/lib/brand.ts`; `01_CALORA_FINAL_METADATA_SPECIFICATION.md` | **EXISTS — IMPLEMENTED** |
+| Short name | Calora | `artifacts/calora/lib/brand.ts` | **EXISTS — IMPLEMENTED** |
+| Supplied baseline product name | Calora | Audit brief and Phase 2 specification | **ALIGNED** |
+| Publisher/company | Etiendem Technologies | `artifacts/calora/lib/brand.ts`; Phase 2 specification; public legal pages | **EXISTS** |
 | Tagline | Eat Smarter. Live Better. | `artifacts/calora/lib/brand.ts`; `replit.md`; store feature graphic | **EXISTS** |
 | Descriptor | AI Nutrition & Calorie Tracker | `artifacts/calora/lib/brand.ts`; `replit.md`; App Store subtitle | **EXISTS** |
-| Premium tier name | CaloraApp Pro | `artifacts/calora/lib/brand.ts`; public subscription page | **EXISTS** |
+| Premium tier name | Calora Pro | `artifacts/calora/lib/brand.ts`; Phase 2 specification | **EXISTS — IMPLEMENTED** |
 | Copyright | © 2026 Etiendem Technologies | `artifacts/calora/lib/brand.ts`; public-page footer | **EXISTS** |
 | Primary category | Health & Fitness | Canonical metadata and store drafts | **EXISTS** |
 | Secondary category | Food & Drink | Canonical metadata and App Store draft | **EXISTS** |
 
 ### Naming conclusion
 
-The repository's current official display name is **CaloraApp**, not
-**Calora**. However, the supplied baseline explicitly identifies the product
-as **Calora**, and several current user-facing surfaces use shortened
-**Calora** wording:
-
-- invite-page Open Graph site name and title;
-- invite-page calls to action;
-- some user-facing application copy;
-- artifact title `Calora`.
-
-Those shortened uses may be intentional brand shorthand, but the official
-store/display name cannot be finalized until the owner chooses one of these
-options:
-
-1. **CaloraApp** as the legal/store/display product name, with **Calora** as
-   conversational shorthand; or
-2. **Calora** as the customer-facing product name, while preserving technical
-   identifiers containing `caloraapp`.
-
-No rename is recommended by this report. This is an owner decision.
+The approved customer-facing name is **Calora**. The existing `CaloraApp`
+string remains only where required by technical identifiers, preserved
+internal IDs, or historical documentation that has not been promoted to the
+authoritative Phase 2 specification.
 
 ---
 
@@ -181,7 +199,7 @@ documents and test fixtures were not treated as official company metadata.
 
 | Field | Current value | Source | Status |
 |---|---|---|---|
-| Native display name | CaloraApp | `artifacts/calora/app.json` | **EXISTS** |
+| Native display name | Calora | `artifacts/calora/app.json` | **EXISTS — IMPLEMENTED** |
 | Expo slug | `calora` | `artifacts/calora/app.json` | **EXISTS** |
 | URL scheme | `caloraapp` | `artifacts/calora/app.json` | **EXISTS** |
 | iOS bundle identifier | `com.etiendem.caloraapp` | `artifacts/calora/app.json` | **EXISTS** |
@@ -258,15 +276,24 @@ legal, billing, privacy, security, support, and transactional roles.
 
 ## 8. Public URL Inventory
 
-### Current live production-facing origin
+### Current production-facing origin
 
-Current source configuration and live public responses use:
+The approved source/configuration origin is now:
+
+`https://mycaloraapp.com`
+
+The approved API origin is now:
+
+`https://api.mycaloraapp.com`
+
+The following Replit host was used for the original audit and is retained
+below as historical evidence:
 
 `https://calorie-coach-pie35449.replit.app`
 
-### Live URL results
+### Historical live URL results
 
-The following returned HTTP 200 during this audit:
+The following returned HTTP 200 during the September 7 pre-merge audit:
 
 | Purpose | URL | Result |
 |---|---|---|
@@ -283,6 +310,16 @@ The following returned HTTP 200 during this audit:
 | Invite landing page | `https://calorie-coach-pie35449.replit.app/invite` | **EXISTS — 200** |
 | Invite OG image | `https://calorie-coach-pie35449.replit.app/invite/og-image.png` | **EXISTS — 200** |
 
+### Current live-verification status
+
+After the implementation merge, the current public probe of the Replit host
+returned the generic **“This app isn’t live yet” / HTTP 404** response. The
+approved branded hosts `mycaloraapp.com`, `www.mycaloraapp.com`, and
+`api.mycaloraapp.com` still did not resolve during the latest check.
+Accordingly, the source routes are implemented but the following are not
+live-verified: branded legal/support pages, robots, sitemap, manifest,
+association files, invite metadata, and API reachability.
+
 The API also mounts legal pages at root aliases such as `/privacy`, `/terms`,
 `/support`, `/contact`, `/delete-account`, `/subscriptions`, and `/help`.
 Repository-controlled metadata consistently prefers the `/api/legal/*` URLs.
@@ -295,12 +332,13 @@ Repository-controlled metadata consistently prefers the `/api/legal/*` URLs.
 | `www.mycaloraapp.com` | DNS resolution failed | **MISSING** |
 | `api.mycaloraapp.com` | DNS resolution failed | **MISSING** |
 
-This directly conflicts with the supplied baseline that identifies
-`mycaloraapp.com` as the primary website/domain.
+This means the approved branded domain is implemented as the intended
+production identity, but DNS and deployment remain release prerequisites.
 
 ### Other URL findings
 
-- `api.mycaloraapp.com` is documented as preferred/provisional but not live.
+- `api.mycaloraapp.com` is configured as the approved API origin but is not
+  live-verified.
 - No Railway public URL was found in official product source.
 - Localhost and `127.0.0.1` references found in API code are internal
   development/sidecar endpoints, not public metadata.
@@ -538,34 +576,39 @@ for main-site metadata.
 
 ### SEO/discovery gap inventory
 
+The following table records the original pre-merge gaps. The implementation
+merge has filled the source-level gaps marked below; live verification is still
+blocked by the unresolved branded DNS/deployment state.
+
 | Field | Status | Finding |
 |---|---|---|
-| Main HTML title | **EXISTS** | `CaloraApp` |
-| Main meta description | **MISSING** | Root app landing page lacks one |
-| Main canonical URL | **MISSING** | Root app landing page lacks one |
-| Legal-page titles/descriptions/canonicals | **EXISTS** | Server-generated |
-| Robots directives | **PARTIAL** | Headers/tags on generated pages; no `robots.txt` |
-| `robots.txt` | **MISSING** | Live request returned 404 |
-| Sitemap | **MISSING** | Live `/sitemap.xml` returned 404 |
-| Web manifest | **MISSING** | Common manifest URLs returned 404 |
-| General Open Graph metadata | **MISSING** | Only invite pages have OG |
-| General Twitter/X cards | **MISSING** | Only invite pages have cards |
-| General social image | **MISSING** | Invite image is route-specific |
-| JSON-LD | **MISSING** | No `application/ld+json` found |
-| Organization schema | **MISSING** | No Schema.org organization entity |
-| SoftwareApplication/MobileApplication schema | **MISSING** | No application entity |
-| WebSite schema | **MISSING** | No website entity |
+| Main HTML title | **EXISTS** | Source landing/public-page metadata now uses `Calora` |
+| Main meta description | **EXISTS — source** | Landing and public-page metadata now provide branded descriptions; live root not verified |
+| Main canonical URL | **EXISTS — source** | Branded canonical is generated/configured; live root not verified |
+| Legal-page titles/descriptions/canonicals | **EXISTS — source** | Server-generated with Calora and `mycaloraapp.com` |
+| Robots directives | **EXISTS — source** | Generated pages and `robots.txt` define crawl behavior |
+| `robots.txt` | **EXISTS — source; live unverified** | Route is implemented; latest public host probe returned 404 |
+| Sitemap | **EXISTS — source; live unverified** | Route is implemented with branded canonical URLs |
+| Web manifest | **EXISTS — source; live unverified** | `site.webmanifest` route is implemented |
+| General Open Graph metadata | **EXISTS — source** | Branded public-page/landing metadata is generated; live not verified |
+| General Twitter/X cards | **EXISTS — source** | Branded public-page/landing metadata is generated; live not verified |
+| General social image | **PARTIAL** | Invite OG image exists; final general social-image asset remains unverified |
+| JSON-LD | **EXISTS — source; live unverified** | Public-page source now emits structured JSON-LD |
+| Organization schema | **EXISTS — source; live unverified** | Branded organization data is generated |
+| SoftwareApplication/MobileApplication schema | **EXISTS — source; live unverified** | Application identity data is generated |
+| WebSite schema | **PARTIAL** | Website relationship is represented in source; final live/search validation remains |
 | `sameAs` social profiles | **MISSING** | No social URLs found |
 | Search Console verification | **MISSING** | No verification file/config found |
-| Dedicated favicon family | **MISSING** | App icon/data favicon only |
-| Theme-color metadata | **MISSING/PARTIAL** | Native theme exists; web metadata not established |
+| Dedicated favicon family | **PARTIAL** | Source references branded web assets; final reviewed favicon family remains unverified |
+| Theme-color metadata | **EXISTS — source** | Branded web manifest and page metadata define theme colors; live not verified |
 
 Search engines cannot currently infer a complete, explicit relationship:
 
 > Calora/CaloraApp is an application product operated by Etiendem Technologies.
 
-The legal pages state the relationship in prose, but structured discovery
-metadata does not.
+The source now states and structures the relationship. Search-engine discovery
+and social previews still require a deployed branded origin and live
+validation.
 
 ---
 
@@ -630,12 +673,13 @@ allow-list, association files, CORS, public links, and deployed hosting.
 | LinkedIn company URL | **MISSING** | No official profile found |
 | TikTok/YouTube URL | **MISSING** | No official profile found |
 | Social `sameAs` list | **MISSING** | No structured profile inventory |
-| Main social share image | **MISSING** | Invite-only generated OG image exists |
-| Invite sharing metadata | **EXISTS** | Complete OG/Twitter metadata, intentionally noindex |
+| Main social share image | **PARTIAL** | Branded source reference exists; final reviewed asset remains unverified |
+| Invite sharing metadata | **EXISTS — SOURCE IMPLEMENTED** | Branded OG/Twitter metadata, intentionally noindex; live deployment unverified |
 
-The generated invite OG image contains the text `calora.app`, even though that
-host is not the current configured origin and was not established as an
-official domain. This is **CONFLICTING/OUTDATED** production-facing branding.
+The pre-merge audit found `calora.app` in historical invite artwork. The
+current generated invite source uses `mycaloraapp.com`; any previously uploaded
+or cached artwork must still be checked before publication because
+`calora.app` is not approved.
 
 ---
 
@@ -648,7 +692,7 @@ official domain. This is **CONFLICTING/OUTDATED** production-facing branding.
 - `caloraapp` custom URL scheme
 - `calora` Expo slug
 - `support@mycaloraapp.com`
-- `CaloraApp Pro`
+- `Calora Pro`
 - “Eat Smarter. Live Better.”
 - “AI Nutrition & Calorie Tracker”
 
@@ -656,12 +700,12 @@ official domain. This is **CONFLICTING/OUTDATED** production-facing branding.
 
 | Variant | Context | Assessment |
 |---|---|---|
-| CaloraApp | Native display name, canonical metadata, store drafts | Current repository-official name |
-| Calora | Supplied baseline, artifact title, invite/social copy, conversational UI | Possible preferred public shorthand or new official name |
+| Calora | Native display name, canonical metadata, store drafts, invite/social copy, conversational UI | Approved customer-facing name |
+| CaloraApp | Technical identifiers and historical/internal documentation | Preserve only where technically required or clearly historical |
 | calora | Expo slug, internal paths/keys | Technical identifier; preserve |
 | caloraapp | Scheme, package/bundle fragments, persisted IDs | Technical identifier; preserve |
-| mycaloraapp.com | Email domain and supplied primary-domain baseline | Email identity exists; website DNS missing |
-| calorie-coach-pie35449.replit.app | Current working public/legal/deep-link origin | Operational but unbranded |
+| mycaloraapp.com | Email domain and approved primary-domain baseline | Approved public identity; website DNS/deployment unverified |
+| calorie-coach-pie35449.replit.app | Historical working public/legal/deep-link origin | Temporary operational evidence; not the approved public identity |
 | calora.app | Invite OG graphic footer/fallback host text | Not established; conflicting |
 
 Technical identifiers should not be cosmetically renamed merely to match a
@@ -718,12 +762,12 @@ This audit did not reproduce:
 
 ---
 
-## 19. Missing Metadata
+## 19. Remaining Metadata and Release Gaps
 
-The following are materially missing:
+The following remain materially unverified, intentionally unresolved, or
+outside the source-level implementation merge:
 
-- owner-approved official public product name;
-- working branded website/domain;
+- working branded DNS and deployed branded website/API;
 - final marketing site;
 - business address decision;
 - public phone decision;
@@ -740,15 +784,7 @@ The following are materially missing:
 - dedicated splash assets and dark splash;
 - standalone wordmark/logo exports;
 - Etiendem Technologies logo;
-- general Open Graph image and metadata;
-- general Twitter/X metadata;
-- `robots.txt`;
-- sitemap;
-- web manifest;
-- JSON-LD;
-- Organization schema;
-- SoftwareApplication/MobileApplication schema;
-- WebSite schema;
+- final general Open Graph image asset;
 - social profile URLs and `sameAs`;
 - Search Console verification;
 - non-English app/store localizations;
@@ -761,13 +797,13 @@ The following are materially missing:
 
 | Conflict/outdated item | Evidence | Required action |
 |---|---|---|
-| Calora vs CaloraApp | Audit baseline vs canonical repository sources | Owner chooses official public/display name |
-| mycaloraapp.com vs Replit origin | Supplied baseline/email domain vs current working source/live host | Establish branded DNS/hosting or explicitly approve Replit URL |
-| `calora.app` in invite OG graphic | `artifacts/api-server/src/routes/universal-links.ts` | Remove or confirm ownership before final metadata |
+| Calora vs CaloraApp | Pre-merge audit baseline vs post-merge canonical sources | **RESOLVED:** use Calora publicly; preserve CaloraApp technical identifiers |
+| mycaloraapp.com vs Replit origin | Approved source/configuration vs historical live host | **SOURCE RESOLVED:** use `mycaloraapp.com`; establish DNS/deployment before release |
+| `calora.app` in invite OG graphic | Historical/source search finding | Remove from any remaining generated or uploaded asset before publication |
 | Package version `0.0.0` vs app `1.0.0` | `artifacts/calora/package.json` vs `app.json` | Document internal vs release version |
 | Source build numbers vs EAS auto-increment | `app.json` and `eas.json` | Confirm latest submitted native build identities externally |
 | App Store “initial iOS release” wording | App Store draft | Confirm intended launch sequence |
-| Root Expo landing page vs official website expectation | Production root landing source | Decide whether root is a product site or app-preview launcher |
+| Root Expo landing page vs official website expectation | Production root landing source | **SOURCE RESOLVED:** branded public metadata is implemented; verify deployed root |
 | Generated static manifests with dev/local URLs | `artifacts/calora/static-build/*/manifest.json` | Never use as official metadata; regenerate only through release process |
 | Historical reports claiming readiness or old states | Various reports under root/docs | Revalidate against current source and live services |
 
@@ -777,8 +813,8 @@ The following are materially missing:
 
 | Field | Current value | Source file/path | Status | Recommended final value or action |
 |---|---|---|---|---|
-| Official product name | CaloraApp in repo; Calora in supplied baseline | `artifacts/calora/lib/brand.ts`; audit brief | **CONFLICTING** | **NEEDS OWNER CONFIRMATION** |
-| Display name | CaloraApp | `artifacts/calora/app.json` | **EXISTS** | Preserve until owner approves any rename |
+| Official product name | Calora | `artifacts/calora/lib/brand.ts`; Phase 2 specification | **EXISTS — IMPLEMENTED** | Use Calora in all customer-facing metadata |
+| Display name | Calora | `artifacts/calora/app.json` | **EXISTS — IMPLEMENTED** | Preserve technical identifiers separately |
 | Internal workspace name | `@workspace/calora` | `artifacts/calora/package.json` | **EXISTS** | Keep technical/internal |
 | Publisher | Etiendem Technologies | brand and legal sources | **EXISTS** | Confirm legal seller spelling externally |
 | Tagline | Eat Smarter. Live Better. | brand/store sources | **EXISTS** | Approve as final |
@@ -793,15 +829,15 @@ The following are materially missing:
 | iOS build | 1 in source | `artifacts/calora/app.json` | **PARTIAL** | Confirm latest EAS/App Store build |
 | Android versionCode | 24 in source | `artifacts/calora/app.json` | **PARTIAL** | Confirm latest EAS/Play build |
 | Runtime/update config | Expo SDK runtime generated; no explicit source runtime/update URL | app and generated manifests | **PARTIAL** | Document release/update policy |
-| Primary domain | Replit live; mycaloraapp DNS missing | brand/config/live probes | **CONFLICTING** | **NEEDS OWNER CONFIRMATION** |
-| Marketing website | Replit legal root | canonical URL sources | **PARTIAL** | Launch branded product site or approve current URL |
-| API hostname | Replit current; branded API provisional | `eas.json`; canonical metadata | **PARTIAL** | Keep current until branded API is live and verified |
-| Support URL | Live Replit legal support page | brand/store sources | **EXISTS** | Repoint only with coordinated domain migration |
-| Contact URL | Redirects to support | public routes | **PARTIAL** | Decide whether dedicated contact page is required |
-| Privacy URL | Live Replit legal page | brand/store sources | **EXISTS** | Legal review before store submission |
-| Terms URL | Live Replit legal page | brand/store sources | **EXISTS** | Legal review before store submission |
-| Deletion URL | Live Replit legal page | brand/store sources | **EXISTS** | Verify final store-console entry |
-| Subscription URL | Live Replit legal page | brand/store sources | **EXISTS** | Keep aligned with live products/prices |
+| Primary domain | `mycaloraapp.com` approved; DNS not verified | brand/config/live probes | **PARTIAL — SOURCE IMPLEMENTED** | Establish DNS and verify deployment |
+| Marketing website | Branded public-page/landing source | canonical metadata and public routes | **PARTIAL — SOURCE IMPLEMENTED** | Deploy and verify branded root |
+| API hostname | `api.mycaloraapp.com` configured; DNS not verified | `eas.json`; canonical metadata | **PARTIAL — SOURCE IMPLEMENTED** | Establish DNS and verify API reachability |
+| Support URL | `https://mycaloraapp.com/support` configured | brand/store sources | **PARTIAL — LIVE UNVERIFIED** | Verify after branded deployment |
+| Contact URL | `https://mycaloraapp.com/contact` configured | public routes | **PARTIAL — LIVE UNVERIFIED** | Verify after branded deployment |
+| Privacy URL | `https://mycaloraapp.com/privacy` configured | brand/store sources | **PARTIAL — LIVE UNVERIFIED** | Legal review and deployment verification |
+| Terms URL | `https://mycaloraapp.com/terms` configured | brand/store sources | **PARTIAL — LIVE UNVERIFIED** | Legal review and deployment verification |
+| Deletion URL | `https://mycaloraapp.com/delete-account` configured | brand/store sources | **PARTIAL — LIVE UNVERIFIED** | Verify final store-console entry |
+| Subscription URL | `https://mycaloraapp.com/subscriptions` configured | brand/store sources | **PARTIAL — LIVE UNVERIFIED** | Keep aligned with live products/prices |
 | Support email | `support@mycaloraapp.com` | brand/legal/store sources | **EXISTS** | Confirm deliverability and reply workflow |
 | Business address | Unknown | No source found | **MISSING** | **NEEDS OWNER CONFIRMATION** |
 | Public phone | Unknown | No source found | **MISSING** | **NEEDS OWNER CONFIRMATION** |
@@ -825,18 +861,18 @@ The following are materially missing:
 | Age/content rating | Apple 4+; Play Everyone/13+ target guidance | store docs | **PARTIAL** | Complete platform questionnaires |
 | Release notes | Apple initial v1.0.0 only | App Store draft | **PARTIAL** | Add Android and release-specific notes |
 | Localization | English only | repository search | **PARTIAL** | **NEEDS OWNER CONFIRMATION** on launch locales |
-| Root page title | CaloraApp | live root | **EXISTS** | Align with final name |
-| Root meta description | None | live root | **MISSING** | Add product description |
-| Root canonical | None | live root | **MISSING** | Set official canonical after domain decision |
-| Legal-page metadata | Title/description/canonical | public-page route | **EXISTS** | Add share/structured metadata if retained as public site |
-| `robots.txt` | 404 | live probe | **MISSING** | Add after crawl strategy is approved |
-| Sitemap | 404 | live probe | **MISSING** | Add canonical public URLs |
-| Web manifest | 404 | live probe | **MISSING** | Add only if web/PWA discovery is intended |
-| General OG/Twitter | Invite only | universal-link route | **PARTIAL** | Add main product/site cards |
-| JSON-LD/schema | None | repository/live search | **MISSING** | Add Organization + MobileApplication after identity decisions |
+| Root page title | Calora | landing/public-page source | **EXISTS — IMPLEMENTED** | Verify on deployed branded root |
+| Root meta description | Branded description | landing/public-page source | **EXISTS — IMPLEMENTED** | Verify on deployed branded root |
+| Root canonical | `mycaloraapp.com` | landing/public-page source | **EXISTS — IMPLEMENTED** | Verify on deployed branded root |
+| Legal-page metadata | Branded title/description/canonical | public-page route | **EXISTS — IMPLEMENTED** | Verify on deployed branded routes |
+| `robots.txt` | Generated branded route | public-page route | **PARTIAL — LIVE UNVERIFIED** | Verify after deployment |
+| Sitemap | Generated branded route | public-page route | **PARTIAL — LIVE UNVERIFIED** | Verify after deployment |
+| Web manifest | Generated `site.webmanifest` route | public-page route | **PARTIAL — LIVE UNVERIFIED** | Verify after deployment |
+| General OG/Twitter | Branded public-page metadata | public-page/landing sources | **EXISTS — SOURCE IMPLEMENTED** | Verify live cards and final social image |
+| JSON-LD/schema | Branded structured metadata | public-page route | **PARTIAL — LIVE UNVERIFIED** | Verify deployed markup |
 | Social profiles | None | repository search | **MISSING** | **NEEDS OWNER CONFIRMATION** |
-| Universal links | Live at Replit host | app config/live AASA | **EXISTS** | Preserve until coordinated migration |
-| Android App Links | Live at Replit host | app config/live assetlinks | **EXISTS** | Preserve until coordinated migration |
+| Universal links | Branded source/docs; live not verified | app config/live AASA | **PARTIAL — SOURCE IMPLEMENTED** | Verify signed iOS association on branded domain |
+| Android App Links | Branded source/docs; live not verified | app config/live assetlinks | **PARTIAL — SOURCE IMPLEMENTED** | Verify signed Android association on branded domain |
 | Auth callback | Replit HTTPS `/auth/callback` | app/auth/association sources | **EXISTS** | Verify provider allow-list and signed devices |
 | App Store URL | Not repository-confirmed/live | universal-link fallback | **MISSING/EXTERNAL** | Add exact live listing after publication |
 | Google Play URL | Package URL returns 404 | universal-link route/live probe | **MISSING** | Add after listing publication |
@@ -844,81 +880,85 @@ The following are materially missing:
 
 ---
 
-## 22. Items Requiring Owner Confirmation
+## 22. Remaining External Confirmations
 
 The owner must confirm:
 
-1. Is the official customer-facing product name **Calora** or **CaloraApp**?
-2. If the name is CaloraApp, may Calora remain approved shorthand?
-3. Is `mycaloraapp.com` still the intended primary website?
-4. Should the current Replit domain remain public in store metadata, or is it
-   temporary?
-5. Is `calora.app` owned/approved, or must it be removed from invite artwork?
-6. What are the exact Apple seller and Google Play developer display names?
-7. Is a business address required for legal/store/customer trust surfaces?
-8. Is a public phone number required?
-9. Is one shared support mailbox approved for support, billing, privacy,
-   legal, security, and transactional communication?
-10. What launch territories and languages are approved?
-11. Are Apple 4+ and Google target-audience/content-rating drafts still
+1. Confirm branded DNS, deployment ownership, and API routing for
+   `mycaloraapp.com` and `api.mycaloraapp.com`.
+2. Confirm the exact Apple seller and Google Play developer display names.
+3. Confirm whether a business address or public phone is required for legal,
+   store, and customer-trust surfaces.
+4. Confirm one shared support mailbox is approved for support, billing, privacy,
+   legal, security, and transactional communication.
+5. Confirm launch territories and languages.
+6. Confirm whether any remaining `calora.app` reference exists in uploaded
+   artwork and remove it before publication.
+7. Are Apple 4+ and Google target-audience/content-rating drafts still
     appropriate after final console questionnaires?
-12. Is version 1.0.0 still the intended first public release?
-13. What are the latest externally assigned iOS build and Android versionCode?
-14. Are the current App Store and Google Play app records created?
-15. Which social profiles, if any, are official?
-16. Is a full branded marketing website required before store submission?
-17. Are final screenshot captions and creative direction approved?
+8. Is version 1.0.0 still the intended first public release?
+9. What are the latest externally assigned iOS build and Android versionCode?
+10. Are the current App Store and Google Play app records created?
+11. Which social profiles, if any, are official?
+12. Are final screenshot captions and creative direction approved?
+13. Are final store assets, adaptive/monochrome/notification icons, splash
+    assets, wordmarks, and the general social image approved?
 
 ---
 
 ## 23. Recommended Next Phase
 
-Proceed with a controlled **Owner Decision and Final Metadata Specification**
-phase, not implementation.
+Proceed with a controlled **branded deployment and launch verification**
+phase using the completed final metadata specification.
 
 Recommended order:
 
-1. Lock the official public name: Calora or CaloraApp.
-2. Lock the canonical public domain strategy.
-3. Confirm company/seller/developer/contact details.
-4. Confirm store-account and listing status.
-5. Confirm version/build identities from the final signed candidates.
-6. Approve English store copy, category, content rating, and territory scope.
-7. Define missing asset deliverables:
+1. Establish and verify branded DNS and deployed website/API reachability.
+2. Publish and probe legal/support routes, robots, sitemap, manifest, JSON-LD,
+   and branded social metadata.
+3. Complete signed iOS/Android association validation on the branded domain.
+4. Confirm company/seller/developer/contact details and platform
+   questionnaires.
+5. Confirm store-account and listing status.
+6. Confirm version/build identities from the final signed candidates.
+7. Approve English store copy, category, content rating, and territory scope.
+8. Complete and approve remaining asset deliverables:
    - adaptive/monochrome/notification icons;
    - dedicated splash/favicon/wordmark files;
    - final store screenshots;
    - general social share image.
-8. Define web discovery deliverables:
-   - canonical root metadata;
-   - robots/sitemap;
-   - JSON-LD;
-   - social profiles.
-9. Produce the final metadata specification with no unresolved placeholders.
-10. Only after explicit authorization, implement metadata/asset/domain changes
-    as a separate phase with native and public-link validation.
 
 ---
 
 ## 24. Final Verdict
 
-# NOT READY FOR FINAL METADATA SPECIFICATION
+# READY FOR FINAL METADATA SPECIFICATION
 
-The project has enough verified evidence to identify the decisions and missing
-deliverables, but it does not yet have enough owner-approved information to
-produce a final official metadata package without guessing.
+The implementation merge resolved the source-level identity decisions and
+applied the approved Phase 2 metadata specification. The authoritative
+specification is:
 
-The blocking issues are:
+`01_CALORA_FINAL_METADATA_SPECIFICATION.md`
 
-- official name conflict;
-- non-resolving branded domains;
-- unapproved canonical production-domain strategy;
-- missing live store listings and external developer identities;
-- incomplete icon/splash/screenshot/social asset family;
-- incomplete general web/SEO/structured metadata;
-- missing business/contact/social decisions;
-- unconfirmed final native release identities.
+The repository now consistently uses Calora, Etiendem Technologies, Calora
+Pro, `mycaloraapp.com`, and the branded legal/support URL family while
+preserving the required technical identifiers. Source-level public metadata,
+SEO routes, structured metadata, and branded deep-link configuration are
+implemented.
 
-No application code, configuration, assets, database data, environment
-variables, build settings, deployment state, or store records were changed by
-this audit.
+This verdict does **not** mean launch readiness. The following remain explicit
+release gates:
+
+- branded DNS and deployed public/API reachability;
+- live verification of legal/support routes, robots, sitemap, manifest,
+  JSON-LD, and association files;
+- signed iOS/Android association validation;
+- final store assets and screenshot sets;
+- live App Store/Google Play listings and exact listing URLs;
+- seller/developer identities and platform questionnaires;
+- externally confirmed native build numbers and release candidates;
+- final business, social-profile, and disclosure decisions.
+
+The original September 7 findings remain useful as historical evidence, but
+their pre-merge identity and source-level SEO conclusions are superseded by
+the post-merge status recorded in this report.
