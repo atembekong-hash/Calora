@@ -17,7 +17,6 @@ import { premiumRecipeDetailQueryKey } from '@/lib/premiumRecipeQueryKeys';
 import { isPremiumRecipeId } from '@/lib/premiumSavedRecipes';
 import { recipeProvenance } from '@/lib/recipeModel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 
 type SavedRecipe = Recipe | CaloraRecipe | PremiumRecipe;
 type SavedSource = 'discover' | 'plus' | 'create';
@@ -157,7 +156,6 @@ export default function SavedRecipesScreen() {
   const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe } = useCalora();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const savedRecipesHeaderImage = useHourlyHeaderImage('recipes');
   const [activeFilter, setActiveFilter] = useState<SavedFilter>('all');
   const [selected, setSelected] = useState<SavedRecipe | null>(null);
   const [planNotice, setPlanNotice] = useState<string | null>(null);
@@ -266,14 +264,12 @@ export default function SavedRecipesScreen() {
       >
         <View style={[styles.hero, { backgroundColor: colors.hero }]}>
           <Image
-            key={savedRecipesHeaderImage.hourSlot}
-            source={savedRecipesHeaderImage.source}
+            source={require('../assets/images/food-fallback-main.jpg')}
             contentFit="cover"
-            transition={450}
             style={StyleSheet.absoluteFillObject}
           />
           <LinearGradient
-            colors={['rgba(18,34,24,0.28)', 'rgba(18,34,24,0.92)']}
+            colors={['rgba(8,22,15,0.72)', 'rgba(8,22,15,0.96)']}
             locations={[0, 1]}
             style={StyleSheet.absoluteFillObject}
           />
