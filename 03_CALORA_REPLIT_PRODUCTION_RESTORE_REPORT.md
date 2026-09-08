@@ -13,29 +13,31 @@ production API before any branded-domain connection. No Cloudflare DNS records,
 native auth callbacks, Supabase redirects, Universal Links, Android App Links,
 Expo Router origin, API client URLs, native builds, or GitHub pushes were changed.
 
-## Root cause
+## Root cause and restoration
 
-The Replit deployment service reports that a public autoscale deployment record
-exists, but its current build is **not successful**:
+The initial production failure had two parts:
+
+1. Replit had a public deployment record, but its current build was not
+   successful. The generated URL consequently served Replit's generic
+   `This app isn't live yet` placeholder instead of Calora.
+2. After the owner published successfully, three public API routes still
+   returned 404 because they were implemented in Express but missing from the
+   API artifact's published path allowlist: `/robots.txt`, `/sitemap.xml`, and
+   `/site.webmanifest`.
+
+The artifact path allowlist was corrected through the validated artifact
+configuration replacement flow, and the owner published again. The current
+deployment service state is now:
 
 - `isDeployed: true`
 - `visibility: public`
 - `deploymentType: autoscale`
 - `primaryUrl: https://calorie-coach-pie35449.replit.app`
-- `hasSuccessfulBuild: false`
+- `hasSuccessfulBuild: true`
 
-Independent HTTPS probes to the authoritative production URL return Replit's
-generic placeholder page, `This app isn't live yet`, with HTTP 404 for `/`,
-`/api/healthz`, and all required public routes. This is not an application
-response from Calora.
-
-Available Replit logs show repeated startup health-check failures while artifact
-processes were being brought up, followed by successful API startup and
-successful route requests in a later run. The logs do not show a confirmed
-application crash. They do show normal SIGTERM shutdowns of the artifact
-processes. The current evidence therefore points to an unpublished, failed, or
-not-currently-serving Replit build rather than a verified source-level API
-failure.
+Available Replit logs show transient health-check failures while the two
+artifact processes were starting, followed by API startup and a successful
+production build. No confirmed application crash was found.
 
 ## Before / after production URL
 
@@ -49,12 +51,12 @@ failure.
 
 - Replit-authoritative URL: `https://calorie-coach-pie35449.replit.app`
 - URL ownership/state: confirmed by `getDeploymentInfo()`
-- External behavior: unchanged placeholder HTTP 404
-- Current successful production build: **not confirmed**
+- External behavior: Calora routes serving successfully over HTTPS
+- Current successful production build: **confirmed**
 - Branded domain: not connected, by design
 
-There is no verified “after” production URL because Replit has not reported a
-successful current build and the existing URL is not serving the API.
+The Replit URL is now a verified production URL for the API and its required
+public pages. The branded domain remains intentionally deferred.
 
 ## Deployment and build evidence
 
@@ -71,7 +73,8 @@ successful current build and the existing URL is not serving the API.
 - Startup health path: `/api/healthz`
 
 The root `.replit` file remains configured for an autoscale application and
-declares the API port `8080`. No deployment configuration edit was necessary.
+declares the API port `8080`. The API artifact path allowlist now also exposes
+`/robots.txt`, `/sitemap.xml`, and `/site.webmanifest`.
 
 ### Local exact-production-contract verification
 
@@ -88,25 +91,27 @@ Probe target: `https://calorie-coach-pie35449.replit.app`
 
 | Route | Result | Expected |
 |---|---:|---:|
-| `/` | 404 placeholder | 200 |
-| `/api/healthz` | 404 placeholder | 200 |
-| `/privacy` | 404 placeholder | 200 |
-| `/terms` | 404 placeholder | 200 |
-| `/support` | 404 placeholder | 200 |
-| `/contact` | 404 placeholder | 200 |
-| `/delete-account` | 404 placeholder | 200 |
-| `/subscriptions` | 404 placeholder | 200 |
-| `/help` | 404 placeholder | 200 |
-| `/robots.txt` | 404 placeholder | 200 |
-| `/sitemap.xml` | 404 placeholder | 200 |
-| `/site.webmanifest` | 404 placeholder | 200 |
+| `/` | 200 Calora HTML | 200 |
+| `/api/healthz` | 200 JSON (`{"status":"ok"}`) | 200 |
+| `/privacy` | 200 Calora HTML | 200 |
+| `/terms` | 200 Calora HTML | 200 |
+| `/support` | 200 Calora HTML | 200 |
+| `/contact` | 200 Calora HTML | 200 |
+| `/delete-account` | 200 Calora HTML | 200 |
+| `/subscriptions` | 200 Calora HTML | 200 |
+| `/help` | 200 Calora HTML | 200 |
+| `/robots.txt` | 200 text/plain | 200 |
+| `/sitemap.xml` | 200 XML | 200 |
+| `/site.webmanifest` | 200 manifest JSON | 200 |
 
-The placeholder body was the same Replit “This app isn't live yet” page rather
-than Calora HTML or JSON.
+The public legal and support pages expose the locked Calora identity and
+canonical `https://mycaloraapp.com/...` URLs. The root path is served by the
+existing Calora web export and remains branded; its native/web origin
+configuration was intentionally not changed in this phase.
 
 ## Branding and security checks
 
-Local route output uses the locked public identity:
+Production route output uses the locked public identity:
 
 - Calora
 - Etiendem Technologies
@@ -114,13 +119,12 @@ Local route output uses the locked public identity:
 - `support@mycaloraapp.com`
 - `Eat Smarter. Live Better.`
 
-The local public-page implementation includes canonical URLs, Open Graph and
+The production public-page implementation serves canonical URLs, Open Graph and
 Twitter metadata, JSON-LD, robots directives, sitemap output, and the web
-manifest. These checks are local-only until a successful public build exists.
+manifest. No credentials, secret values, or production environment values were
+printed or written.
 
-No credentials, secret values, or production environment values were printed or
-written. No speculative API hostname, DNS record, or native callback was
-activated.
+No speculative API hostname, DNS record, or native callback was activated.
 
 ## Untouched confirmations
 
@@ -136,38 +140,23 @@ activated.
 
 ## Remaining blockers
 
-1. Replit currently reports `hasSuccessfulBuild: false`.
-2. The generated Replit production URL is serving the platform placeholder
-   rather than the API artifact.
-3. The workspace can verify the artifact and inspect deployment state, but it
-   cannot click Replit's Publish control or force a new production publication.
-4. `api.mycaloraapp.com` must remain deferred until the Replit production URL
-   serves successfully and its route matrix passes over HTTPS.
+The Replit production API is restored and verified. The remaining work is the
+separate branded-domain connection:
 
-## Required owner action
-
-Open Replit Publishing for this project and publish the current workspace
-configuration. The publish must use the existing API artifact production
-settings and complete with a successful build. After publishing, the owner
-should provide or allow verification of the resulting authoritative URL so the
-external route matrix can be rerun.
-
-Do not connect `mycaloraapp.com` or create Cloudflare records until that
-verification passes.
+1. Obtain the exact Replit custom-domain instructions, including the apex A
+   record and permanent `replit-verify` TXT value.
+2. Have the domain owner add only those Cloudflare records, keeping the Replit
+   A record DNS-only.
+3. Verify `https://mycaloraapp.com` after DNS and TLS activation.
+4. Keep `api.mycaloraapp.com` deferred until its own hostname is intentionally
+   configured and verified.
 
 ## Next step for connecting `mycaloraapp.com`
 
-After a successful Replit publication is independently verified:
-
-1. Confirm the authoritative Replit production URL and successful build state.
-2. Re-run the complete HTTPS route and branding matrix.
-3. Obtain the exact Replit custom-domain instructions, including the apex A
-   record and permanent `replit-verify` TXT value.
-4. Have the domain owner add only those Cloudflare records, keeping the Replit
-   A record DNS-only.
-5. Verify `https://mycaloraapp.com` before considering any later `www` or API
-   hostname work.
+The next step is the owner-controlled Cloudflare/Replit custom-domain setup
+described in the Phase 3A report. This production verification is the
+prerequisite evidence for that step.
 
 ## Final verdict
 
-OWNER REPLIT ACTION REQUIRED
+REPLIT PRODUCTION RESTORED AND VERIFIED
