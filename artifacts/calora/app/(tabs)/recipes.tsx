@@ -1436,9 +1436,10 @@ export default function RecipesScreen() {
   const photoRefreshesRef = useRef(new Set<string>());
   const recipesScrollRef = useRef<ScrollView | null>(null);
   const discoverScrollYRef = useRef(0);
-  const { recipeId: routeRecipeId, recipeSource: routeRecipeSource } = useLocalSearchParams<{ recipeId?: string; recipeSource?: PlannerRecipeSource }>();
+  const { recipeId: routeRecipeId, recipeSource: routeRecipeSource, recipeName: routeRecipeName } = useLocalSearchParams<{ recipeId?: string; recipeSource?: PlannerRecipeSource; recipeName?: string }>();
   const recipeId = Array.isArray(routeRecipeId) ? routeRecipeId[0] : routeRecipeId;
   const recipeSource = Array.isArray(routeRecipeSource) ? routeRecipeSource[0] : routeRecipeSource;
+  const recipeName = Array.isArray(routeRecipeName) ? routeRecipeName[0] : routeRecipeName;
   const linkedDiscoverRecipeQuery = useGetRecipe(recipeSource === 'discover' ? recipeId ?? '' : '', {
     query: {
       queryKey: ['recipe', recipeId ?? ''],
@@ -1533,6 +1534,16 @@ export default function RecipesScreen() {
     setSelected(matchingRecipe);
     router.setParams({ recipeId: undefined });
   }, [linkedDiscoverRecipeQuery.data, linkedPremiumRecipeQuery.data, localRecipes, recipeId, recipeSource, remoteRecipes]);
+  useEffect(() => {
+    if (!recipeName || recipeId) return;
+    setActiveSection('discover');
+    setCategory('For you');
+    setSearch(recipeName);
+    const exactRecipe = remoteRecipes.find((recipe) => recipe.name.trim().toLowerCase() === recipeName.trim().toLowerCase());
+    if (!exactRecipe) return;
+    setSelected(exactRecipe);
+    router.setParams({ recipeName: undefined });
+  }, [recipeId, recipeName, remoteRecipes]);
   const createRecipePhoto = async (recipe: CaloraRecipe) => {
     const sourceType = recipeProvenance(recipe).sourceType;
     if (!['calora_ai', 'user_created'].includes(sourceType) || recipe.imageStatus === 'ready' || photoRequestsRef.current.has(recipe.id)) return;

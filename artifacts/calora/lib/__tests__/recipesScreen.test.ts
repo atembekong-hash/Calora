@@ -111,6 +111,10 @@ describe('Recipes Discover layout contracts', () => {
     const plannerSource = readFileSync(resolve(__dirname, '../../app/(tabs)/planner.tsx'), 'utf8');
     expect(plannerSource).toContain('Open recipe');
     expect(plannerSource).toContain("recipeSource: recipeLink.recipeSource");
+    expect(plannerSource).toContain("{ recipeName: actionMeal.name }");
+    expect(readFileSync(resolve(__dirname, '../../app/(tabs)/recipes.tsx'), 'utf8')).toContain(
+      "recipe.name.trim().toLowerCase() === recipeName.trim().toLowerCase()",
+    );
   });
 
   it('keeps Plus cards mounted while pagination loads, retries failures, and deduplicates appended pages', () => {
