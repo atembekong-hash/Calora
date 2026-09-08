@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -368,25 +369,7 @@ export default function CoachScreen() {
         <View style={styles.headerCopy}>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A focused view of your nutrition.</Text>
         </View>
-        {guestMode ? (
-          <View style={[styles.briefCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.briefIcon, { backgroundColor: colors.accent }]}>
-              <CaloraFeatureIcon name="coach" size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
-            </View>
-            <Text style={[styles.briefTitle, { color: colors.foreground }]}>General Coach guidance</Text>
-            <Text style={[styles.briefBody, { color: colors.mutedForeground }]}>
-              Ask a general nutrition question. Guest Coach never uses or stores your personal records.
-            </Text>
-            <Pressable
-              accessibilityLabel="Sign in for personalized Coach"
-              onPress={() => router.push('/auth/sign-in')}
-              style={[styles.primaryButton, { backgroundColor: colors.primary }]}
-            >
-              <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Sign in for personalized Coach</Text>
-              <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
-            </Pressable>
-          </View>
-        ) : !coachConsentAccepted ? (
+        {!guestMode && !coachConsentAccepted ? (
           <View style={[styles.consentCard, { backgroundColor: colors.hero }]}>
             <View style={[styles.coachMark, { backgroundColor: 'rgba(157,215,189,0.16)' }]}>
               <CaloraFeatureIcon name="coach" size={36} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.heroMuted} highlightColor={colors.onHero} />
@@ -486,6 +469,11 @@ export default function CoachScreen() {
             style={styles.menuBackdrop}
           />
           <View accessibilityViewIsModal style={[styles.menuSheet, { backgroundColor: colors.background, paddingTop: insets.top + 14, paddingBottom: insets.bottom + 14 }]}>
+            <ScrollView
+              style={styles.menuScroll}
+              contentContainerStyle={styles.menuScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
             <View style={styles.menuHeader}>
               <View style={styles.menuTitleGroup}>
                 <View style={[styles.menuTitleIcon, { backgroundColor: colors.accent }]}>
@@ -504,10 +492,6 @@ export default function CoachScreen() {
                 <Feather name="x" size={17} color={colors.foreground} />
               </Pressable>
             </View>
-
-            {!guestMode && isIntelligenceFeatureEnabled('intelligence.coach.fact_context') && (
-              <CoachFactContextConsentPanel colors={colors} />
-            )}
 
             {coachConsentAccepted ? (
               <>
@@ -563,6 +547,29 @@ export default function CoachScreen() {
                 <Text style={[styles.emptyHistoryBody, { color: colors.mutedForeground }]}>Start Coach to save chats on this device.</Text>
               </View>
             )}
+            {guestMode && (
+              <View style={[styles.briefCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={[styles.briefIcon, { backgroundColor: colors.accent }]}>
+                  <CaloraFeatureIcon name="coach" size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
+                </View>
+                <Text style={[styles.briefTitle, { color: colors.foreground }]}>General Coach guidance</Text>
+                <Text style={[styles.briefBody, { color: colors.mutedForeground }]}>
+                  Ask a general nutrition question. Guest Coach never uses or stores your personal records.
+                </Text>
+                <Pressable
+                  accessibilityLabel="Sign in for personalized Coach"
+                  onPress={() => router.push('/auth/sign-in')}
+                  style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Sign in for personalized Coach</Text>
+                  <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
+                </Pressable>
+              </View>
+            )}
+            {!guestMode && isIntelligenceFeatureEnabled('intelligence.coach.fact_context') && (
+              <CoachFactContextConsentPanel colors={colors} />
+            )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -661,6 +668,8 @@ const styles = StyleSheet.create({
   menuOverlay: { flex: 1, flexDirection: 'row' },
   menuBackdrop: { flex: 1, backgroundColor: 'rgba(8,22,15,0.46)' },
   menuSheet: { width: '86%', maxWidth: 390, paddingHorizontal: 18, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: -5, height: 0 }, elevation: 12 },
+  menuScroll: { flex: 1 },
+  menuScrollContent: { paddingBottom: 8 },
   menuHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
   menuTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   menuTitleIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
