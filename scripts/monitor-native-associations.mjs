@@ -6,7 +6,7 @@
  * CI without installing project dependencies.
  */
 
-export const DEFAULT_ORIGIN = "https://calorie-coach-pie35449.replit.app";
+export const DEFAULT_ORIGIN = "https://mycaloraapp.com";
 export const BUNDLE_ID = "com.etiendem.caloraapp";
 export const PACKAGE_NAME = "com.etiendem.caloraapp";
 export const AUTH_CALLBACK_PATH = "/auth/callback";

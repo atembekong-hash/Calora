@@ -6,11 +6,11 @@
         "components": [
           {
             "/": "/invite/*",
-            "comment": "Open invite referral links in the CaloraApp"
+            "comment": "Open invite referral links in Calora"
           },
           {
             "/": "/auth/callback",
-            "comment": "Open Supabase auth callbacks in the CaloraApp"
+            "comment": "Open Supabase auth callbacks in Calora"
           }
         ]
       }

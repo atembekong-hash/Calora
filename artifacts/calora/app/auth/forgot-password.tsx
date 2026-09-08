@@ -2,7 +2,7 @@
  * Forgot-password screen — request a password-reset email.
  *
  * Supabase sends a link to the registered email that redirects to:
- *   https://calorie-coach-pie35449.replit.app/auth/callback
+ *   https://mycaloraapp.com/auth/callback
  * which establishes a recovery session and routes to /auth/reset-password.
  */
 

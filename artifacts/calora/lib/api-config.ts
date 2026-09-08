@@ -8,7 +8,7 @@ export function getApiBaseUrl(): string {
 
   if (!configuredUrl) {
     throw new Error(
-      '[CaloraApp] Missing required Expo public configuration: EXPO_PUBLIC_API_URL. ' +
+      '[Calora] Missing required Expo public configuration: EXPO_PUBLIC_API_URL. ' +
         'Set it to the HTTPS origin serving the Calora API (without /api), in the EAS environment selected by this build profile, then rebuild.',
     );
   }
@@ -18,7 +18,7 @@ export function getApiBaseUrl(): string {
     url = new URL(configuredUrl);
   } catch {
     throw new Error(
-      '[CaloraApp] EXPO_PUBLIC_API_URL must be an absolute HTTPS URL without a path, query, or fragment.',
+      '[Calora] EXPO_PUBLIC_API_URL must be an absolute HTTPS URL without a path, query, or fragment.',
     );
   }
 
@@ -31,7 +31,7 @@ export function getApiBaseUrl(): string {
     url.password
   ) {
     throw new Error(
-      '[CaloraApp] EXPO_PUBLIC_API_URL must be an absolute HTTPS origin without a path, query, fragment, or credentials.',
+      '[Calora] EXPO_PUBLIC_API_URL must be an absolute HTTPS origin without a path, query, fragment, or credentials.',
     );
   }
 

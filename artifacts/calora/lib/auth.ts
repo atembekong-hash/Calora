@@ -1,5 +1,5 @@
 /**
- * CaloraApp authentication utilities.
+ * Calora authentication utilities.
  */
 
 import * as WebBrowser from 'expo-web-browser';
@@ -13,7 +13,7 @@ import { supabase } from './supabase';
  * custom scheme—owns the callback. Keep the path in sync with app.json,
  * the association responses, and Supabase's redirect allow-list.
  */
-export const OAUTH_REDIRECT_URI = 'https://calorie-coach-pie35449.replit.app/auth/callback' as const;
+export const OAUTH_REDIRECT_URI = 'https://mycaloraapp.com/auth/callback' as const;
 const OAUTH_REDIRECT_URL = new URL(OAUTH_REDIRECT_URI);
 
 export type AuthErrorCode =

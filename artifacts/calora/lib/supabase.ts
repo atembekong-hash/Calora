@@ -1,5 +1,5 @@
 /**
- * CaloraApp — Supabase client singleton.
+ * Calora — Supabase client singleton.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -21,7 +21,7 @@ function requireSupabaseConfig(): { url: string; anonKey: string } {
 
   if (missing.length > 0) {
     throw new Error(
-      `[CaloraApp] Missing required Expo public configuration: ${missing.join(', ')}. ` +
+      `[Calora] Missing required Expo public configuration: ${missing.join(', ')}. ` +
         'Set these variables in your EAS project secrets or environment, then rebuild.'
     );
   }

@@ -54,11 +54,11 @@ router.get(
               components: [
                 {
                   "/": "/invite/*",
-                  comment: "Open invite referral links in the CaloraApp",
+                  comment: "Open invite referral links in Calora",
                 },
                 {
                   "/": "/auth/callback",
-                  comment: "Open Supabase auth callbacks in the CaloraApp",
+                  comment: "Open Supabase auth callbacks in Calora",
                 },
               ],
             },
@@ -128,7 +128,7 @@ function buildOgSvg(): string {
   <text x="600" y="352" font-family="Arial,Helvetica,sans-serif" font-size="22" fill="#666666" text-anchor="middle">Track nutrition effortlessly with AI</text>
   <rect x="436" y="386" width="328" height="56" rx="28" fill="#ff6b35"/>
   <text x="600" y="414" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">Get 1 week of Pro free</text>
-  <text x="600" y="570" font-family="Arial,Helvetica,sans-serif" font-size="20" fill="#ff6b35" text-anchor="middle" opacity="0.7">calora.app</text>
+  <text x="600" y="570" font-family="Arial,Helvetica,sans-serif" font-size="20" fill="#ff6b35" text-anchor="middle" opacity="0.7">mycaloraapp.com</text>
 </svg>`;
 }
 
@@ -165,8 +165,11 @@ function renderInvitePage(code: string, req: Request, res: Response): void {
   // Build absolute base URL from the incoming request so OG tags are correct
   // in both dev (replit.dev) and production.
   const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
-  const host = req.get("x-forwarded-host") ?? req.get("host") ?? "calora.app";
-  const baseUrl = `${proto}://${host}`;
+  const configuredOrigin = (process.env["PUBLIC_WEB_ORIGIN"] ?? "https://mycaloraapp.com").replace(/\/+$/, "");
+  const host = req.get("x-forwarded-host") ?? req.get("host");
+  const baseUrl = host === "mycaloraapp.com" || host === "www.mycaloraapp.com"
+    ? "https://mycaloraapp.com"
+    : configuredOrigin || `${proto}://${host ?? "mycaloraapp.com"}`;
   const pageUrl = code ? `${baseUrl}/invite/${code}` : `${baseUrl}/invite`;
   const ogImageUrl = `${baseUrl}/invite/og-image.png`;
 

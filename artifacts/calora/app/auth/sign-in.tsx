@@ -1,7 +1,7 @@
 /**
  * Sign-in screen — Google OAuth + Email/Password.
  *
- * Design follows the existing CaloraApp design language:
+ * Design follows the existing Calora design language:
  *   • Background: colors.background
  *   • Cards/inputs: colors.card / colors.input
  *   • Primary CTA: colors.primary with primaryForeground text

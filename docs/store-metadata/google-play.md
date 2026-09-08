@@ -1,4 +1,4 @@
-# Google Play Store — CaloraApp Store Listing Metadata
+# Google Play Store — Calora Store Listing Metadata
 
 > Repository-controlled specification for Google Play Console submission.
 > Do not publish without owner authorization.
@@ -10,7 +10,7 @@
 
 | Field | Value |
 |---|---|
-| App name | CaloraApp |
+| App name | Calora |
 | Package ID | com.etiendem.caloraapp |
 | Category | Health & Fitness |
 | Content rating | Everyone |
@@ -26,16 +26,16 @@ Track calories, scan meals, understand nutrition, and reach your goals with AI.
 
 ## Full Description (4000 characters max)
 
-Nutrition tracking should not feel like data entry. CaloraApp helps you log meals faster, understand what you eat, plan ahead, and see the habits shaping your progress.
+Nutrition tracking should not feel like data entry. Calora helps you log meals faster, understand what you eat, plan ahead, and see the habits shaping your progress.
 
 SMART FOOD LOGGING
-Scan a meal photo, read a barcode, or type what you ate — CaloraApp identifies foods and estimates nutrition as a starting point for your review. You confirm before anything goes in your diary.
+Scan a meal photo, read a barcode, or type what you ate — Calora identifies foods and estimates nutrition as a starting point for your review. You confirm before anything goes in your diary.
 
 NUTRITION INSIGHTS
 See your daily calories, protein, carbohydrates, and fat at a glance. Weekly signals summarize your patterns so trends are visible without obsessing over single days.
 
 MEAL PLANNING
-Plan your week around your nutrition goals. CaloraApp's AI planner builds a balanced week from a curated recipe catalog matched to your daily target and food preferences.
+Plan your week around your nutrition goals. Calora's AI planner builds a balanced week from a curated recipe catalog matched to your daily target and food preferences.
 
 RECIPES
 Browse, search, and save recipes. Log a recipe directly to your diary or add ingredients to your shopping list.
@@ -44,10 +44,10 @@ PROGRESS
 Track your weight over time alongside your nutrition. See how your habits are shaping your direction.
 
 AI COACH
-Ask CaloraApp Coach about your nutrition patterns, meals, or goals. Coach uses your actual diary data to give contextual, evidence-aware guidance — not generic advice.
+Ask Calora Coach about your nutrition patterns, meals, or goals. Coach uses your actual diary data to give contextual, evidence-aware guidance — not generic advice.
 
 PRIVACY BY DESIGN
-CaloraApp is local-first. If you sign in, diary entries sync to your Calora account; AI features send only the information needed for the feature you request. You can export local data or permanently delete your account from Settings.
+Calora is local-first. If you sign in, diary entries sync to your Calora account; AI features send only the information needed for the feature you request. You can export local data or permanently delete your account from Settings.
 
 Nutrition values, AI analysis, and photo estimates are starting points for your review — not exact measurements or medical advice.
 
@@ -58,8 +58,8 @@ Nutrition values, AI analysis, and photo estimates are starting points for your 
 | Field | Value |
 |---|---|
 | Email | support@mycaloraapp.com |
-| Website | https://calorie-coach-pie35449.replit.app/api/legal/ |
-| Privacy Policy | https://calorie-coach-pie35449.replit.app/api/legal/privacy |
+| Website | https://mycaloraapp.com/ |
+| Privacy Policy | https://mycaloraapp.com/privacy |
 
 ---
 
@@ -90,7 +90,7 @@ field-by-field Console worksheet for the final signed build.
 
 | # | Headline | Supporting | Screen to show |
 |---|---|---|---|
-| 1 | Meet CaloraApp | Smarter nutrition starts here. | Onboarding |
+| 1 | Meet Calora | Smarter nutrition starts here. | Onboarding |
 | 2 | Log meals in seconds | Scan, search, or type what you ate. | Smart Scan |
 | 3 | Know what you're eating | Every number shows where it came from. | Food review |
 | 4 | See your day at a glance | Calories, macros, and progress in one view. | Home |
@@ -104,6 +104,6 @@ field-by-field Console worksheet for the final signed build.
 ## Feature Graphic
 
 Required dimensions: 1024 × 500 px
-Content: CaloraApp wordmark + tagline "Eat Smarter. Live Better." on brand-consistent background.
+Content: Calora wordmark + tagline "Eat Smarter. Live Better." on brand-consistent background.
 Asset: `docs/store-assets/google-play-feature-graphic.png`
 Status: **READY FOR UPLOAD** — verified 1024 × 500 sRGB PNG.

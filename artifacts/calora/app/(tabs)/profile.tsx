@@ -1065,7 +1065,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={profileTab === 'membership' ? undefined : styles.hiddenSection}>
-        {/* ── CaloraApp Pro ── */}
+        {/* ── Calora Pro ── */}
         <View style={styles.planHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{BRAND.premiumName}</Text>
@@ -1273,7 +1273,7 @@ export default function ProfileScreen() {
           </SettingRowPressable>
         ))}
 
-        {/* ── About CaloraApp ── */}
+        {/* ── About Calora ── */}
          <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 30, marginBottom: 14 }]}>About</Text>
         {[
           { icon: 'info' as const, title: BRAND.name, body: `${BRAND.descriptor} · v${Constants.expoConfig?.version ?? '1.0.0'}`, url: null },
@@ -1649,7 +1649,7 @@ export default function ProfileScreen() {
                     : healthConnection.authorization === 'denied'
                       ? 'Health access was not granted. Calora continues to work normally, and no health data has been read.'
                     : healthConnection.authorization === 'requested'
-                      ? 'Apple does not reveal whether individual read categories were allowed. Calora shows Apple Health values only when HealthKit returns a measured result; empty or denied reads remain unavailable rather than becoming zero. To change access, open Health, tap your profile picture, then Apps and Services, and choose CaloraApp.'
+                      ? 'Apple does not reveal whether individual read categories were allowed. Calora shows Apple Health values only when HealthKit returns a measured result; empty or denied reads remain unavailable rather than becoming zero. To change access, open Health, tap your profile picture, then Apps and Services, and choose Calora.'
                       : healthConnected
                       ? `Your ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} data stays on this device. ${healthConnection.authorization === 'partial' ? 'Some requested categories are not available.' : 'Steps, active energy, workouts, and weight can be read when you sync.'}`
                       : `Connect ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} only when you are ready. Calora reads selected data locally and never writes health records.`}

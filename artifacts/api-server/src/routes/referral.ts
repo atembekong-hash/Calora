@@ -32,7 +32,7 @@ const router: IRouter = Router();
 
 const REWARD_DAYS = 30;
 const INVITE_BASE_URL =
-  "https://calorie-coach-pie35449.replit.app/invite";
+  "https://mycaloraapp.com/invite";
 
 /** Unambiguous alphabet (no 0/O/1/I) for human-readable invite codes. */
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -365,7 +365,7 @@ router.post("/v1/referral/activate", async (req, res) => {
       status: "rewarded",
       referredRewarded,
       referrerRewarded,
-      message: `You've unlocked ${REWARD_DAYS} days of CaloraApp Pro. Enjoy!`,
+      message: `You've unlocked ${REWARD_DAYS} days of Calora Pro. Enjoy!`,
     });
   } catch (err) {
     if (classifyAccountDeletionError(err)) {

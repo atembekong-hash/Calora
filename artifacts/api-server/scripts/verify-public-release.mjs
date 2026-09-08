@@ -7,7 +7,7 @@ import {
 import { fetchPublishedReleaseAttestation } from "../../../scripts/lib/public-release-attestation.mjs";
 
 const execFileAsync = promisify(execFile);
-const DEFAULT_ORIGIN = "https://calorie-coach-pie35449.replit.app";
+const DEFAULT_ORIGIN = "https://mycaloraapp.com";
 const SUPPORT_EMAIL = "support@mycaloraapp.com";
 const origin = (
   process.env.PUBLIC_VERIFY_ORIGIN ||
@@ -19,14 +19,14 @@ const canonicalOrigin = (
 ).replace(/\/+$/, "");
 
 const pages = [
-  ["/api/legal/", "CaloraApp"],
-  ["/api/legal/privacy", "Privacy Policy"],
-  ["/api/legal/terms", "Terms of Use"],
-  ["/api/legal/support", "Help & Support"],
-  ["/api/legal/contact", "Help & Support"],
-  ["/api/legal/delete-account", "Delete your account"],
-  ["/api/legal/subscriptions", "Subscription Information"],
-  ["/api/legal/help", "Help & Support"],
+  ["/", "Calora", "/"],
+  ["/privacy", "Privacy Policy", "/privacy"],
+  ["/terms", "Terms of Use", "/terms"],
+  ["/support", "Help & Support", "/support"],
+  ["/contact", "Contact Calora", "/contact"],
+  ["/delete-account", "Delete your account", "/delete-account"],
+  ["/subscriptions", "Subscription Information", "/subscriptions"],
+  ["/help", "Calora Help", "/support"],
 ];
 
 const appleTeamId =
@@ -103,7 +103,7 @@ export async function main() {
     );
   }
 
-  for (const [path, expectedHeading] of pages) {
+  for (const [path, expectedHeading, canonicalPath] of pages) {
     const response = await fetchRequired(path, "text/html");
     const html = await response.text();
     if (
@@ -117,7 +117,7 @@ export async function main() {
     if (!html.includes(SUPPORT_EMAIL)) {
       throw new Error(`${path} did not publish the monitored support channel.`);
     }
-    if (!html.includes(`rel="canonical" href="${canonicalOrigin}/api/legal/`)) {
+    if (!html.includes(`rel="canonical" href="${canonicalOrigin}${canonicalPath}"`)) {
       throw new Error(
         `${path} did not publish a canonical URL on the confirmed origin.`,
       );

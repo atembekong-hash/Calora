@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "CaloraApp",
+    "name": "Calora",
     "slug": "calora",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -21,7 +21,7 @@
         "ITSAppUsesNonExemptEncryption": false
       },
       "associatedDomains": [
-        "applinks:calorie-coach-pie35449.replit.app"
+        "applinks:mycaloraapp.com"
       ]
     },
     "android": {
@@ -40,7 +40,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "calorie-coach-pie35449.replit.app",
+              "host": "mycaloraapp.com",
               "pathPrefix": "/invite"
             }
           ],
@@ -55,7 +55,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "calorie-coach-pie35449.replit.app",
+              "host": "mycaloraapp.com",
               "pathPrefix": "/auth/callback"
             }
           ],
@@ -81,7 +81,7 @@
       [
         "expo-router",
         {
-          "origin": "https://calorie-coach-pie35449.replit.app/"
+          "origin": "https://mycaloraapp.com/"
         }
       ],
       "expo-font",
@@ -90,8 +90,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "CaloraApp uses your camera to identify food and scan product barcodes.",
-          "microphonePermission": "CaloraApp uses your microphone only while you record a short meal description."
+          "cameraPermission": "Calora uses your camera to identify food and scan product barcodes.",
+          "microphonePermission": "Calora uses your microphone only while you record a short meal description."
         }
       ],
       "react-native-health-connect",

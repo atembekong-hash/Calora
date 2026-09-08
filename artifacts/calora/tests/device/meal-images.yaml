@@ -10,7 +10,7 @@ appId: com.etiendem.caloraapp
 - tapOn: "Continue"
 - tapOn: "Continue"
 - tapOn: "I understand and agree"
-- tapOn: "Enter CaloraApp"
+- tapOn: "Enter Calora"
 - openLink: "caloraapp:///meal-image-preview"
 - assertVisible: "Meal image rendering"
 

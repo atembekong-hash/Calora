@@ -33,7 +33,7 @@ SplashScreen.preventAutoHideAsync();
 
 const apiBaseUrl = getApiBaseUrl();
 setBaseUrl(apiBaseUrl);
-console.info('[CaloraApp][network] API base configured', { origin: apiBaseUrl });
+console.info('[Calora][network] API base configured', { origin: apiBaseUrl });
 
 // Attach the freshest available Supabase access token to every API call.
 setAuthTokenGetter(getFreshAccessToken);
@@ -59,7 +59,7 @@ setAuthTokenRefresher(() => {
 try {
   initializeRevenueCat();
 } catch (err) {
-  console.warn('[CaloraApp][billing] RevenueCat unavailable:', err);
+  console.warn('[Calora][billing] RevenueCat unavailable:', err);
 }
 
 // Configure foreground notification display (required by expo-notifications).
@@ -110,7 +110,7 @@ function NotificationHandler() {
       if (!active) return;
       if (!isCaloraNotification(notification)) return;
       void recordReceivedNotification(accountId, notification).catch((error) => {
-        console.warn('[CaloraApp][notifications] Could not save notification:', error);
+        console.warn('[Calora][notifications] Could not save notification:', error);
       });
     };
     const navigateFor = (notification: Notifications.Notification) => {
@@ -127,7 +127,7 @@ function NotificationHandler() {
         if (!active) return;
         presented.forEach(capture);
       } catch (error) {
-        console.warn('[CaloraApp][notifications] Could not read presented notifications:', error);
+        console.warn('[Calora][notifications] Could not read presented notifications:', error);
       }
     };
 
@@ -162,7 +162,7 @@ function NotificationHandler() {
         }
       })
       .catch((error) => {
-        console.warn('[CaloraApp][notifications] Could not read launch notification:', error);
+        console.warn('[Calora][notifications] Could not read launch notification:', error);
       });
 
     // On native, keep notifications that are still presented in sync with the

@@ -253,10 +253,10 @@ globalThis.fetch = async (url) => {
     ],
     maxAge: "86401s",
   };
-  const releasePage = \`<h1>CaloraApp</h1>
+  const releasePage = \`<h1>Calora</h1>
 Privacy Policy Terms of Use Help & Support Delete your account
 Subscription Information support@mycaloraapp.com
-<link rel="canonical" href="https://example.test/api/legal/">\`;
+<link rel="canonical" href="https://example.test/">\`;
 
   if (value === "https://example.test/api/version") {
     return jsonResponse({ sourceTree: "fixture-tree", releaseId: "fixture-release" });

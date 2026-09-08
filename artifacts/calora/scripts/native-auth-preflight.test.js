@@ -27,11 +27,11 @@ test('parses the signed iOS identity and associated-domain entitlement', () => {
     parseEntitlements(
       '<key>application-identifier</key><string>B5344GJRMT.com.etiendem.caloraapp</string>' +
         '<key>com.apple.developer.associated-domains</key><array>' +
-        '<string>applinks:calorie-coach-pie35449.replit.app</string></array>',
+        '<string>applinks:mycaloraapp.com</string></array>',
     ),
     {
       applicationIdentifier: 'B5344GJRMT.com.etiendem.caloraapp',
-      associatedDomains: ['applinks:calorie-coach-pie35449.replit.app'],
+      associatedDomains: ['applinks:mycaloraapp.com'],
     },
   );
 });
@@ -49,15 +49,15 @@ test('parses Android package identity and only accepts a verified callback host'
   );
   assert.equal(
     parseAndroidVerifiedHost(
-      '  calorie-coach-pie35449.replit.app: verified',
-      'calorie-coach-pie35449.replit.app',
+      '  mycaloraapp.com: verified',
+      'mycaloraapp.com',
     ).verified,
     true,
   );
   assert.equal(
     parseAndroidVerifiedHost(
-      '  calorie-coach-pie35449.replit.app: 1024',
-      'calorie-coach-pie35449.replit.app',
+      '  mycaloraapp.com: 1024',
+      'mycaloraapp.com',
     ).verified,
     false,
   );
@@ -86,7 +86,7 @@ test('evidence keeps callback cases explicit until device tests produce artifact
 
 test('evidence excludes runner paths and command output', () => {
   const evidence = buildEvidence({
-    identity: { appName: 'CaloraApp', ios: {}, android: {} },
+    identity: { appName: 'Calora', ios: {}, android: {} },
     binaries: {
       iOS: {
         ok: false,

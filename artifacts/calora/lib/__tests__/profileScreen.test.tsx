@@ -156,7 +156,7 @@ describe('Profile rendered interactions', () => {
     render(<ProfileScreen />);
     expect(screen.getByText('Your plan')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
-    expect(screen.getByText('CaloraApp Pro')).toBeTruthy();
+    expect(screen.getByText('Calora Pro')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Account profile tab' }));
     expect(screen.getByText('Your plan').closest('[class*="r-display"]')).toBeTruthy();
   });

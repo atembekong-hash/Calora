@@ -6,4 +6,4 @@
  * Never place API keys or credentials here.
  */
 
-export const BRAND_NAME = "CaloraApp";
+export const BRAND_NAME = "Calora";

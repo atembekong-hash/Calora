@@ -189,7 +189,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
             </Text>
           </View>
           <Pressable
-            accessibilityLabel="Sign in to CaloraApp"
+            accessibilityLabel="Sign in to Calora"
             onPress={() => router.push('/auth/sign-in' as any)}
             style={[styles.signInButton, { backgroundColor: colors.primary }]}
           >

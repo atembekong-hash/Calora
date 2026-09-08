@@ -45,7 +45,7 @@ describe('API client networking', () => {
 
     await expect(customFetch('/api/v1/recipes')).rejects.toThrow('Network request failed');
     expect(warnSpy).toHaveBeenCalledWith(
-      '[CaloraApp][network]',
+      '[Calora][network]',
       expect.objectContaining({
         event: 'network_error',
         method: 'GET',

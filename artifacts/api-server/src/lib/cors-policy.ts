@@ -1,5 +1,5 @@
 const DEFAULT_PRODUCTION_ORIGINS = [
-  "https://calorie-coach-pie35449.replit.app",
+  "https://mycaloraapp.com",
 ] as const;
 
 function parseConfiguredOrigins(raw: string | undefined): string[] {

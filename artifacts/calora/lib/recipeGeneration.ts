@@ -1,5 +1,5 @@
 /**
- * CaloraApp — authenticated AI recipe-generation requests.
+ * Calora — authenticated AI recipe-generation requests.
  *
  * The Recipes → Create flow calls the concept and full-recipe endpoints with a
  * Supabase Bearer token. `getSession()` can hand back a stale/expired access

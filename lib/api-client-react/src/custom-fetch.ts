@@ -42,7 +42,7 @@ function logRequestDiagnostic(
 ): void {
   // Deliberately log only the endpoint path/origin and transport metadata.
   // Never include request bodies, headers, access tokens, or response bodies.
-  console.warn("[CaloraApp][network]", {
+  console.warn("[Calora][network]", {
     event,
     method: requestInfo.method,
     url: requestInfo.url.split("?")[0],

@@ -1,5 +1,5 @@
 /**
- * Design tokens for CaloraApp.
+ * Design tokens for Calora.
  *
  * These are the single source of truth for spacing, radius, and typography
  * scales. Import these instead of using magic numbers in screen stylesheets.

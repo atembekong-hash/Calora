@@ -12,9 +12,15 @@ describe("production CORS policy", () => {
   it("allows the verified published Calora origin", () => {
     expect(
       isCorsOriginAllowed(
-        "https://calorie-coach-pie35449.replit.app",
+        "https://mycaloraapp.com",
         "production",
       ),
+    ).toBe(true);
+  });
+
+  it("allows the branded website origin", () => {
+    expect(
+      isCorsOriginAllowed("https://mycaloraapp.com", "production"),
     ).toBe(true);
   });
 

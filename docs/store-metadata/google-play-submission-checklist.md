@@ -1,6 +1,6 @@
 # Google Play Console Submission Worksheet
 
-This worksheet translates CaloraApp's production behavior into the Play Console
+This worksheet translates Calora's production behavior into the Play Console
 fields. Confirm each answer against the final signed Android build before
 submitting. Do not place reviewer credentials, passwords, tokens, or order IDs
 in this repository.
@@ -9,15 +9,15 @@ in this repository.
 
 | Field | Value |
 |---|---|
-| App name | CaloraApp |
+| App name | Calora |
 | Package name | `com.etiendem.caloraapp` |
 | Category | Health & Fitness |
 | Default language | English (United States) |
 | Ads | No |
-| Public website | `https://calorie-coach-pie35449.replit.app/api/legal/` |
-| Privacy policy | `https://calorie-coach-pie35449.replit.app/api/legal/privacy` |
-| Account deletion | `https://calorie-coach-pie35449.replit.app/api/legal/delete-account` |
-| Support | `https://calorie-coach-pie35449.replit.app/api/legal/support` |
+| Public website | `https://mycaloraapp.com/` |
+| Privacy policy | `https://mycaloraapp.com/privacy` |
+| Account deletion | `https://mycaloraapp.com/delete-account` |
+| Support | `https://mycaloraapp.com/support` |
 | Support email | `support@mycaloraapp.com` |
 
 ## Store listing assets
@@ -92,7 +92,7 @@ final build.
 ## Target audience and content rating
 
 - Target audience: **13 and older**, consistent with the published statement
-  that CaloraApp is not directed to children under 13.
+  that Calora is not directed to children under 13.
 - The app is a general wellness and nutrition tool, not a medical device.
 - No violence, sexual content, gambling, controlled-substance promotion,
   advertising, or public user-to-user communication is designed into the app.

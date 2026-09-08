@@ -1,5 +1,5 @@
 /**
- * CaloraApp — Canonical product metadata.
+ * Calora — Canonical product metadata.
  *
  * Single source of truth for product identity, contact addresses, and URLs.
  * Import from this module rather than scattering literal strings throughout the codebase.
@@ -10,8 +10,8 @@
 
 export const BRAND = {
   /** Official product name shown to customers. */
-  name: 'CaloraApp',
-  shortName: 'CaloraApp',
+  name: 'Calora',
+  shortName: 'Calora',
   /** Legal publisher / company name. */
   publisher: 'Etiendem Technologies',
   /** Marketing tagline. Use where a brand statement is appropriate. */
@@ -21,21 +21,21 @@ export const BRAND = {
   /** Copyright line for About screens, legal pages, and metadata. */
   copyright: '© 2026 Etiendem Technologies',
   /** Premium subscription tier display name. */
-  premiumName: 'CaloraApp Pro',
+  premiumName: 'Calora Pro',
   /** Production domain (no protocol). */
-  domain: 'calorie-coach-pie35449.replit.app',
+  domain: 'mycaloraapp.com',
 } as const;
 
-/** Public legal and support URLs hosted on the confirmed production origin. */
+/** Public legal and support URLs hosted on the canonical branded origin. */
 export const URLS = {
-  main: 'https://calorie-coach-pie35449.replit.app/api/legal/',
-  privacy: 'https://calorie-coach-pie35449.replit.app/api/legal/privacy',
-  terms: 'https://calorie-coach-pie35449.replit.app/api/legal/terms',
-  support: 'https://calorie-coach-pie35449.replit.app/api/legal/support',
-  contact: 'https://calorie-coach-pie35449.replit.app/api/legal/contact',
-  deleteAccount: 'https://calorie-coach-pie35449.replit.app/api/legal/delete-account',
-  subscriptions: 'https://calorie-coach-pie35449.replit.app/api/legal/subscriptions',
-  help: 'https://calorie-coach-pie35449.replit.app/api/legal/help',
+  main: 'https://mycaloraapp.com/',
+  privacy: 'https://mycaloraapp.com/privacy',
+  terms: 'https://mycaloraapp.com/terms',
+  support: 'https://mycaloraapp.com/support',
+  contact: 'https://mycaloraapp.com/contact',
+  deleteAccount: 'https://mycaloraapp.com/delete-account',
+  subscriptions: 'https://mycaloraapp.com/subscriptions',
+  help: 'https://mycaloraapp.com/help',
 } as const;
 
 /** Monitored customer channel, also used for privacy, billing, and legal requests. */
