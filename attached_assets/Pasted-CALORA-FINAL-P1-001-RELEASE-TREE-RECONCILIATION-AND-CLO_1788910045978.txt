@@ -1,0 +1,339 @@
+CALORA — FINAL P1-001 RELEASE TREE RECONCILIATION AND CLOSURE
+
+SOURCE REPORT:
+
+14_CALORA_P1_RELEASE_BLOCKERS_REMEDIATION_REPORT.md
+
+CURRENT VERDICT:
+
+P1 BLOCKERS REMAIN — DO NOT RELEASE
+
+ONLY REMAINING CONFIRMED P1:
+
+P1-001 — production release-tree attestation mismatch.
+
+IMPORTANT OBSERVATION
+
+The latest successful production republish is healthy and contains the corrected 30-day referral implementation.
+
+Live production currently reports:
+
+Commit:
+6f8c77997d9bb4f1885aed8c02fc953c3dcf401d
+
+Tree:
+42cb466b2e75b0421af9a5a0a9259f2c4b17dbd3
+
+Release ID:
+calora-api-6f8c77997d9b-20260908230935659
+
+The previous verifier expected:
+
+Runtime commit:
+d8ecc375f75be4d6ed1e6913afbbbfa099cdd064
+
+Runtime tree:
+c0a5657214d230ee559da6e14ee0b6cf1e99016a
+
+The report states that the live release contains the referral source fix but its attested tree also includes later documentation-only history.
+
+DO NOT blindly redeploy the older tree merely to make the SHA comparison pass.
+
+MISSION
+
+Determine exactly why the live production tree is 42cb466... instead of c0a565..., establish the correct canonical release tree based on actual source/config equivalence, and close P1-001 safely.
+
+THIS IS FORENSIC RECONCILIATION FIRST.
+
+Do not change application behavior unless an actual unauthorized source/config difference is discovered.
+
+==================================================
+1. IDENTIFY EXACT LIVE COMMIT
+==================================================
+
+Inspect Git history and prove whether:
+
+6f8c77997d9bb4f1885aed8c02fc953c3dcf401d
+
+exists in the current repository.
+
+Record:
+
+- commit
+- parent(s)
+- commit message
+- author/time
+- complete tree
+- branch containment
+- relationship to d8ecc375...
+- relationship to df44068c...
+- relationship to current origin/release/calora-onboarding-and-plus
+
+==================================================
+2. FORENSIC TREE DIFFERENCE
+==================================================
+
+Perform exact Git comparisons between:
+
+A:
+d8ecc375f75be4d6ed1e6913afbbbfa099cdd064
+
+and
+
+B:
+6f8c77997d9bb4f1885aed8c02fc953c3dcf401d
+
+Also compare:
+
+c0a5657214d230ee559da6e14ee0b6cf1e99016a
+
+against:
+
+42cb466b2e75b0421af9a5a0a9259f2c4b17dbd3
+
+Produce the complete changed-path inventory.
+
+Classify EVERY changed path as exactly one of:
+
+- runtime source
+- runtime configuration
+- dependency/lockfile
+- build/deployment configuration
+- test-only
+- documentation/report-only
+- QA/evidence-only
+- generated/non-runtime
+- unexpected
+
+Do not summarize before enumerating the exact differences.
+
+==================================================
+3. DETERMINE RUNTIME EQUIVALENCE
+==================================================
+
+Determine whether the difference between the previously approved tree and live tree changes ANY executable production behavior.
+
+Specifically compare relevant runtime paths including:
+
+artifacts/api-server/src/**
+artifacts/api-server/package.json
+artifacts/api-server/tsconfig*
+package.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
+.replit
+deployment/build configuration
+environment-variable contracts
+production startup commands
+
+Also inspect any other path actually consumed by the API build/deployment.
+
+Answer explicitly:
+
+Does live tree 42cb466... contain runtime source/config differences relative to the approved referral-remediation source tree?
+
+YES or NO.
+
+If YES:
+list every runtime-affecting difference.
+
+If NO:
+prove that all differences are documentation/report/evidence/non-runtime only.
+
+==================================================
+4. VERIFY REFERRAL FIX IS PRESENT IN LIVE COMMIT
+==================================================
+
+At commit 6f8c779..., verify:
+
+REFERRAL_REWARD_DAYS = 30
+
+and verify the shared referral copy implementation exists.
+
+Confirm:
+
+- HTML = 30 days
+- OG = 30 days
+- Twitter = 30 days
+- SVG/image source = 30 days
+- stale week wording absent
+
+This must agree with the already observed live production behavior.
+
+==================================================
+5. DETERMINE CORRECT CANONICAL RELEASE TREE
+==================================================
+
+Do NOT assume c0a565... must remain canonical merely because an earlier report named it.
+
+Determine which Git commit/tree actually represents the final approved release state after:
+
+- referral remediation;
+- required verification/report commits;
+- no unauthorized runtime changes.
+
+If 6f8c779... is a legitimate descendant containing the approved runtime source plus documentation/report/evidence-only changes, then formally establish:
+
+6f8c77997d9bb4f1885aed8c02fc953c3dcf401d
+
+and:
+
+42cb466b2e75b0421af9a5a0a9259f2c4b17dbd3
+
+as the canonical deployed release identity.
+
+ONLY do this if forensic Git evidence proves there are no unauthorized runtime/config/dependency/build changes.
+
+If runtime-affecting differences exist, do NOT redefine the canonical target merely to make verification pass.
+
+==================================================
+6. GITHUB CONSISTENCY
+==================================================
+
+Fetch origin.
+
+Verify:
+
+- current release branch
+- local HEAD
+- remote HEAD
+- live commit branch containment
+- ahead/behind
+- merge-base
+- no divergence
+- no unexpected unpushed runtime source
+
+Do not push anything in this mission.
+
+If documentation/report commits are local-only, classify them explicitly.
+
+==================================================
+7. RUN DETERMINISTIC REGRESSION GATES
+==================================================
+
+Without changing source, run:
+
+- complete API test suite
+- API typecheck
+- focused referral tests
+- Universal/App Link tests
+- auth/callback tests
+- CORS/security tests
+- git diff --check
+
+Report exact counts.
+
+==================================================
+8. VERIFY CURRENT LIVE PRODUCTION AGAIN
+==================================================
+
+Probe:
+
+https://mycaloraapp.com/api/healthz
+https://mycaloraapp.com/api/version
+https://mycaloraapp.com/invite/test
+
+Verify:
+
+- health 200
+- version 200
+- current live commit/tree
+- 30-day referral copy
+- no stale week copy
+
+Also verify:
+
+/auth/callback
+/.well-known/apple-app-site-association
+/.well-known/assetlinks.json
+
+No regression is allowed.
+
+==================================================
+9. CORRECT THE ATTESTATION TARGET IF WARRANTED
+==================================================
+
+If and ONLY if forensic analysis proves the live tree is the legitimate canonical release state with no unauthorized runtime differences:
+
+Run the public-release verifier against:
+
+42cb466b2e75b0421af9a5a0a9259f2c4b17dbd3
+
+Acceptance requires exact success.
+
+This is NOT bypassing the release gate.
+
+It is correcting a stale expected-tree value after proving the newer deployed tree is the legitimate release descendant.
+
+If forensic analysis does NOT prove equivalence, do not change/reinterpret the expected target.
+
+==================================================
+10. P1-001 CLOSURE RULE
+==================================================
+
+Close P1-001 only if ALL are true:
+
+- exact Git provenance of 6f8c779... established;
+- complete tree difference classified;
+- no unauthorized runtime/config/dependency/build differences;
+- referral remediation present;
+- GitHub relationship coherent;
+- deterministic regression tests pass;
+- production healthy;
+- live production reports the reconciled canonical tree;
+- public-release verifier passes against that canonical tree.
+
+Otherwise P1-001 remains OPEN.
+
+==================================================
+11. REPORT
+==================================================
+
+Create and save:
+
+15_CALORA_FINAL_P1_RELEASE_TREE_RECONCILIATION_REPORT.md
+
+Include:
+
+1. Executive summary
+2. Original mismatch
+3. Exact live commit provenance
+4. Complete changed-path inventory
+5. Classification of every difference
+6. Runtime-equivalence determination
+7. Referral remediation verification
+8. GitHub branch/remote consistency
+9. Deterministic test results
+10. Live production verification
+11. Canonical release commit/tree determination
+12. Public-release verifier result
+13. P1-001 closure decision
+14. P1-002 confirmation
+15. Remaining release blockers
+16. Owner-device tests still required
+17. Exact next action
+18. Final verdict
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+P1 RELEASE BLOCKERS FULLY CLOSED — OWNER DEVICE REVALIDATION REQUIRED
+
+P1 RELEASE TREE MISMATCH REMAINS — DO NOT RELEASE
+
+P1 RUNTIME DIVERGENCE DISCOVERED — DO NOT RELEASE
+
+STRICT RULES
+
+NO SOURCE CHANGES.
+NO GITHUB PUSH.
+NO BUILD.
+NO EXPO/EAS.
+NO REPUBLISH.
+NO DNS CHANGE.
+NO SUPABASE CHANGE.
+NO REVENUECAT CHANGE.
+NO HISTORY REWRITE.
+
+Do not solve a SHA mismatch by deploying older code or redefining the target without forensic evidence.
+
+Stop only after the complete reconciliation report is saved.
