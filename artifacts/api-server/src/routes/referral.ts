@@ -26,11 +26,11 @@ import {
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
 import { hasSavedDiaryEntry } from "../lib/referral-qualification.js";
+import { REFERRAL_REWARD_DAYS } from "../lib/referral-config.js";
 import { logger } from "../lib/logger.js";
 
 const router: IRouter = Router();
 
-const REWARD_DAYS = 30;
 const INVITE_BASE_URL =
   "https://mycaloraapp.com/invite";
 
@@ -111,7 +111,7 @@ router.get("/v1/referral", async (req, res) => {
     res.json({
       code,
       inviteUrl: `${INVITE_BASE_URL}/${code}`,
-      rewardDays: REWARD_DAYS,
+      rewardDays: REFERRAL_REWARD_DAYS,
       stats: {
         pendingCount,
         rewardedCount,
@@ -196,7 +196,7 @@ router.post("/v1/referral/redeem", async (req, res) => {
 
     res.json({
       status: "pending",
-      message: `Invite accepted! Log your first meal to unlock ${REWARD_DAYS} days of Pro for you both.`,
+      message: `Invite accepted! Log your first meal to unlock ${REFERRAL_REWARD_DAYS} days of Pro for you both.`,
     });
   } catch (err) {
     if (classifyAccountDeletionError(err)) {
@@ -303,7 +303,7 @@ router.post("/v1/referral/activate", async (req, res) => {
 
       if (claim.length > 0) {
         try {
-          await grantPromoDays(user.id, REWARD_DAYS);
+          await grantPromoDays(user.id, REFERRAL_REWARD_DAYS);
           referredRewarded = true;
         } catch (err) {
           logger.error({ err }, "Referred-user promotional grant failed");
@@ -348,7 +348,7 @@ router.post("/v1/referral/activate", async (req, res) => {
 
       if (claimedReferrerReward) {
         try {
-          await grantPromoDays(redemption.referrerUserId, REWARD_DAYS);
+          await grantPromoDays(redemption.referrerUserId, REFERRAL_REWARD_DAYS);
           referrerRewarded = true;
         } catch (err) {
           // Release the claim so a later activation can retry the grant.
@@ -365,7 +365,7 @@ router.post("/v1/referral/activate", async (req, res) => {
       status: "rewarded",
       referredRewarded,
       referrerRewarded,
-      message: `You've unlocked ${REWARD_DAYS} days of Calora Pro. Enjoy!`,
+      message: `You've unlocked ${REFERRAL_REWARD_DAYS} days of Calora Pro. Enjoy!`,
     });
   } catch (err) {
     if (classifyAccountDeletionError(err)) {

@@ -10,11 +10,16 @@ name = "API Server"
 paths = ["/", "/api", "/api/legal", "/.well-known", "/invite", "/privacy", "/terms", "/support", "/contact", "/delete-account", "/subscriptions", "/help", "/robots.txt", "/sitemap.xml", "/site.webmanifest"]
 
 [services.development]
+# Development deliberately clears sensitive release-activation inputs. The
+# production-only attestation gates in build.mjs must never be enabled locally.
 run = "unset RELEASE_SENSITIVE_ACTIVATION_REQUESTED RELEASE_SENSITIVE_ACTIVATION_COMMIT; pnpm --filter @workspace/api-server run dev"
 
 [services.production]
 
 [services.production.build]
+# build.mjs fails closed for production unless the Git checkout is clean and
+# the required provider/package and signed release-attestation evidence is
+# present, verified, and bound to the staged final artifact and target origin.
 args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
 
 [services.production.build.env]

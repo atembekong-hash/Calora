@@ -14,7 +14,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
-import universalLinksRouter from '../routes/universal-links';
+import universalLinksRouter, { buildOgSvg } from '../routes/universal-links';
+import { REFERRAL_REWARD_DAYS } from '../lib/referral-config';
 
 function makeApp() {
   const app = express();
@@ -231,6 +232,13 @@ describe('GET /invite/:code — Open Graph and Twitter Card meta tags', () => {
 
 describe('GET /invite/og-image.png — preview image', () => {
   const app = makeApp();
+
+  it('keeps the invite preview offer synchronized with the server reward duration', () => {
+    const svg = buildOgSvg();
+
+    expect(svg).toContain(`Get ${REFERRAL_REWARD_DAYS} days of Pro free`);
+    expect(svg).not.toContain('Get 1 week of Pro free');
+  });
 
   it('returns HTTP 200', async () => {
     const res = await request(app).get('/invite/og-image.png');
