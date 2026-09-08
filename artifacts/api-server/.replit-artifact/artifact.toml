@@ -1,5 +1,5 @@
 kind = "api"
-previewPath = "/api" # TODO - should be excluded from preview in the first place
+previewPath = "/"
 title = "API Server"
 version = "1.0.0"
 id = "3B4_FFSkEVBkAeYMFRJ2e"
@@ -7,11 +7,9 @@ id = "3B4_FFSkEVBkAeYMFRJ2e"
 [[services]]
 localPort = 8080
 name = "API Server"
-paths = ["/api", "/api/legal", "/.well-known", "/invite", "/privacy", "/terms", "/support", "/contact", "/delete-account", "/subscriptions", "/help", "/robots.txt", "/sitemap.xml", "/site.webmanifest"]
+paths = ["/", "/api", "/api/legal", "/.well-known", "/invite", "/privacy", "/terms", "/support", "/contact", "/delete-account", "/subscriptions", "/help", "/robots.txt", "/sitemap.xml", "/site.webmanifest"]
 
 [services.development]
-# Production release-control secrets can be available workspace-wide; they must
-# never enable a sensitive release path during local development.
 run = "unset RELEASE_SENSITIVE_ACTIVATION_REQUESTED RELEASE_SENSITIVE_ACTIVATION_COMMIT; pnpm --filter @workspace/api-server run dev"
 
 [services.production]
@@ -21,15 +19,8 @@ args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
 
 [services.production.build.env]
 NODE_ENV = "production"
-# A sensitive release is built only when an authorized owner sets both:
-# RELEASE_SENSITIVE_ACTIVATION_REQUESTED=true and
-# RELEASE_SENSITIVE_ACTIVATION_COMMIT=<the exact reviewed 40-character Git SHA>.
-# build.mjs fails closed unless that SHA matches the clean production checkout.
-# After publishing, verify the compiled /api/version identity over canonical
-# HTTPS before enabling any separate runtime authorization control.
 
 [services.production.run]
-# we don't run through pnpm to make startup faster in production
 args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
 
 [services.production.run.env]
