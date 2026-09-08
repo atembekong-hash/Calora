@@ -14,3 +14,17 @@ mtime_ms = 1788865561603
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/2cad39bc-5fe8-475e-8899-396e2e4bdf1a/f9f01c2d-69cb-4f5a-89e1-96f50ee600b1"
 storage_version_token = "1788865613818231"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "jNLgaPkySYLpcCu6Ziwlv"
+uri = "file://11_CALORA_FINAL_PRE_PUSH_AUTH_BRANCH_VERIFICATION_REPORT.md"
+type = "text"
+title = "Calora Final Pre-Push Auth and Branch Verification Report"
+description = "Read-only final verification: GitHub CLI auth, repository access, branch ancestry, credential isolation, and release-candidate integrity all passed."
+logical_id = "95ddb7ce-e49d-429d-9e91-c5a9a8f9a6c4"
+content_hash = "sha256:188194578551a678c24b6f5ba1577284748531ab141e05be94f4bd9ab57383ab"
+size = 8286
+mtime_ms = 1788880960867
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/95ddb7ce-e49d-429d-9e91-c5a9a8f9a6c4/ea326d44-6d08-4e52-9528-b459e7871229"
+storage_version_token = "1788880979061813"
+content_type = "text/markdown"
