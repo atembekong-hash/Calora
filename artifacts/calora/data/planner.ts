@@ -16,6 +16,11 @@ export const plannerCatalog: PlannerMeal[] = PLANNER_CATALOG.map((meal) => ({
   // Day and image identity are client-specific planner state.
   day: '',
   imageAssetKey: plannerImageKeyForMealId(meal.id),
+  // Keep the shared catalog meal and its exact recipe detail identity together.
+  // The generated API type does not know about these client-side link fields,
+  // but the metadata is preserved at runtime through planner mutations.
+  recipeId: `calora-original:${meal.id}`,
+  recipeSource: 'calora',
 }));
 
 export function normalizePlannerMealImageIdentity(meal: PlannerMeal): PlannerMeal {

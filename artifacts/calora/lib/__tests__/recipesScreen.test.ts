@@ -74,7 +74,7 @@ describe('Recipes Discover layout contracts', () => {
     );
 
     expect(source).toContain('cardImageFrame');
-    expect(source).toContain('const localLabel = provenance.sourceType === \'calora_ai\' ? \'CALORA AI\' : \'MY RECIPE\'');
+    expect(source).toContain('const sourceBadge = provenance.sourceType === \'calora_catalog\'');
     expect(source).not.toContain('{recipeSourceLabel(recipe)}</Text>');
     expect(source).not.toContain('Open recipe discovery is provided by TheMealDB');
     expect(source).toContain('Source: {sourceName}');

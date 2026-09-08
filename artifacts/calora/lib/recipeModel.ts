@@ -1,7 +1,7 @@
 import type { Recipe } from '@workspace/api-client-react';
 import type { CaloraRecipe } from '@/context/CaloraContext';
 
-export type RecipeSourceType = 'open' | 'premium' | 'calora_ai' | 'user_created' | 'imported';
+export type RecipeSourceType = 'open' | 'premium' | 'calora_catalog' | 'calora_ai' | 'user_created' | 'imported';
 export type NutritionConfidence = 'verified' | 'estimated' | 'user_entered' | 'unavailable';
 
 type RecipeLike = Recipe | CaloraRecipe;
@@ -47,6 +47,7 @@ export function recipeProvenance(recipe: RecipeLike): CanonicalRecipeProvenance 
 export function recipeSourceLabel(recipe: RecipeLike): string {
   const provenance = recipeProvenance(recipe);
   if (provenance.sourceType === 'open') return `Open source · ${provenance.sourceProvider}`;
+  if (provenance.sourceType === 'calora_catalog') return 'Calora original';
   if (provenance.sourceType === 'calora_ai') return 'Created with Calora AI';
   if (provenance.sourceType === 'premium') return `Premium source · ${provenance.sourceProvider}`;
   if (provenance.sourceType === 'imported') return `Imported · ${provenance.sourceProvider}`;

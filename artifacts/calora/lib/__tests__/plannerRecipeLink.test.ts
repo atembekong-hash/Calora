@@ -23,6 +23,7 @@ describe('getPlannerMealRecipeLink', () => {
     ['discover', 'discover'],
     ['plus', 'plus'],
     ['create', 'create'],
+    ['calora', 'calora'],
   ] as const)('preserves the exact %s recipe source', (recipeSource, expectedSource) => {
     expect(getPlannerMealRecipeLink(meal({ recipeId: 'recipe-42', recipeSource }))).toEqual({
       recipeId: 'recipe-42',
@@ -30,7 +31,7 @@ describe('getPlannerMealRecipeLink', () => {
     });
   });
 
-  it('does not invent a recipe link for catalog or legacy planner meals', () => {
+  it('does not invent a recipe link for legacy planner meals', () => {
     expect(getPlannerMealRecipeLink(meal())).toBeNull();
   });
 });
