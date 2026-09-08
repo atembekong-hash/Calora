@@ -352,15 +352,11 @@ mutated.
 
 ## External owner actions required
 
-1. **Publish the API artifact** through the existing Replit deployment flow so
-   the new production `/auth/callback` fallback becomes live. No DNS change is
-   required.
-2. **Authorize a later signed Expo/EAS native build** using the already-updated
-   production profile so released native binaries embed
-   `https://mycaloraapp.com`. This was intentionally not triggered in Phase 4.
-3. After the owner publishes, re-run the branded `/auth/callback` production
-   probe and the complete route matrix. Do not remove the old Replit URL until
-   that verification remains healthy.
+The API artifact has now been republished and the live production callback and
+route matrix have passed. The only remaining owner action is to authorize a
+later signed Expo/EAS native build and device validation so released binaries
+embed the branded API origin and real-device Universal/App Links behavior can
+be tested. No DNS change is required.
 
 ## Deterministic test results
 
@@ -457,11 +453,11 @@ alter Cloudflare or email DNS as a rollback shortcut.
 ## Remaining blockers
 
 No code-level Phase 4 blocker remains. Two owner-controlled release actions
-remain before this migration can be considered deployed across all surfaces:
+remain before this migration can be considered validated across all surfaces:
 
-- publish the API artifact containing the new callback fallback;
 - authorize and distribute a later signed native build containing the updated
-  production API origin.
+  production API origin;
+- perform real-device iOS Universal Link and Android App Link validation.
 
 Native device-level Universal Link and App Link behavior remains unclaimed
 until a signed iOS/Android build is installed and tested. This is an explicit
@@ -469,19 +465,192 @@ release-evidence boundary, not a fabricated success claim.
 
 ## Exact next recommended phase
 
-Owner-controlled Phase 4 release activation:
+Owner-controlled native release validation:
 
-1. publish the API artifact;
-2. rerun the production callback and route matrix;
-3. separately authorize a signed Expo/EAS build;
-4. install and test iOS Universal Links and Android App Links on real
+1. authorize a signed Expo/EAS production build;
+2. install and test iOS Universal Links and Android App Links on real
    devices;
-5. retain the old Replit URL and compatibility scheme until those checks pass.
+3. record the signed-device evidence and retain the old Replit URL and
+   compatibility scheme until those checks pass.
 
 Do not change `www`, create `api.mycaloraapp.com`, modify DNS/email, change
 Supabase redirects, rename native identifiers, or perform unrelated Phase 5
 work as part of that activation.
 
+## POST-REPUBLISH PRODUCTION VERIFICATION
+
+**Verification scope:** read-only production checks after the owner republished
+the current Replit deployment. No source, DNS, Supabase, Apple, Google,
+RevenueCat, native-build, or deployment-setting changes were made during this
+verification.
+
+### Deployment state
+
+`getDeploymentInfo()` reports:
+
+- `success: true`
+- `isDeployed: true`
+- `hasSuccessfulBuild: true`
+- `visibility: public`
+- `deploymentType: autoscale`
+- primary URL: `https://mycaloraapp.com`
+- additional URL: `https://calorie-coach-pie35449.replit.app`
+
+The original Replit URL remains healthy:
+
+- `https://calorie-coach-pie35449.replit.app/api/healthz` → HTTP 200
+
+Recent deployment logs show a short cluster of healthcheck errors at process
+startup while the two artifact processes were being launched. The same
+deployment then logged successful requests, including multiple
+`/auth/callback` HTTP 200 responses. Current live probes pass the full matrix,
+so this was transient startup timing rather than a production regression.
+
+### Live `/auth/callback` evidence
+
+Production probes against `https://mycaloraapp.com/auth/callback` returned:
+
+- HTTP 200
+- `Content-Type: text/html; charset=utf-8`
+- `Cache-Control: no-store`
+- `X-Robots-Tag: noindex`
+- branded `Continue in Calora` content
+- `caloraapp://auth/callback` custom-scheme handoff available
+- no redirect loop
+- no placeholder page
+
+Representative harmless callback shapes were tested:
+
+- no query or fragment
+- `?error=access_denied&error_description=cancelled`
+- `?code=harmless-test-code&access_token=harmless-test-token`
+- `#access_token=harmless-hash-token&refresh_token=harmless-refresh-token`
+
+None of the harmless query/hash values were echoed into returned HTML. The
+handoff continues to reconstruct the custom-scheme target from browser-local
+`window.location.search` and `window.location.hash`.
+
+### Full branded production route matrix
+
+| Route | Status | Observed content type |
+|---|---:|---|
+| `/` | 200 | `text/html` |
+| `/api/healthz` | 200 | `application/json` |
+| `/privacy` | 200 | `text/html` |
+| `/terms` | 200 | `text/html` |
+| `/support` | 200 | `text/html` |
+| `/contact` | 200 | `text/html` |
+| `/delete-account` | 200 | `text/html` |
+| `/subscriptions` | 200 | `text/html` |
+| `/help` | 200 | `text/html` |
+| `/auth/callback` | 200 | `text/html` |
+| `/invite/test` | 200 | `text/html` |
+| `/.well-known/apple-app-site-association` | 200 | `application/json` |
+| `/.well-known/assetlinks.json` | 200 | `application/json` |
+| `/robots.txt` | 200 | `text/plain` |
+| `/sitemap.xml` | 200 | `application/xml` |
+| `/site.webmanifest` | 200 | `application/manifest+json` |
+
+All requests completed without a redirect loop.
+
+### API results
+
+- `https://mycaloraapp.com/api/healthz` → HTTP 200, `{"status":"ok"}`
+- protected `/api/v1/diary` without credentials → HTTP 401 with the expected
+  sign-in message
+- branded origin `https://mycaloraapp.com` → allowed CORS header
+- unrelated origin `https://unrelated.example` → HTTP 403, no CORS allowance
+- branded preflight → `Access-Control-Allow-Origin:
+  https://mycaloraapp.com`
+- production EAS configuration still resolves the API origin to
+  `https://mycaloraapp.com`; no double `/api` construction is present
+
+### Auth behavior results
+
+- Google OAuth authorize probe → HTTP 302 to
+  `https://accounts.google.com/o/oauth2/v2/auth`
+- branded recovery-link target preserved:
+  `https://mycaloraapp.com/auth/callback`
+- legacy `caloraapp://auth/callback` recovery target safely fell back to the
+  Supabase Site URL
+- deliberately unlisted HTTPS recovery target safely fell back to the
+  Supabase Site URL
+- disposable probe user was deleted after the checks
+- PKCE callback arbitration and trusted-host/path validation remain covered by
+  the existing auth tests
+
+### AASA results
+
+`https://mycaloraapp.com/.well-known/apple-app-site-association` returned:
+
+- HTTP 200
+- `application/json`
+- no redirect
+- application identifier `B5344GJRMT.com.etiendem.caloraapp`
+- `/auth/callback` support
+- `/invite/*` support
+
+The Apple association CDN checker passed the exact application identity and
+callback-path validation. No real-device Universal Link success is claimed.
+
+### Assetlinks results
+
+`https://mycaloraapp.com/.well-known/assetlinks.json` returned:
+
+- HTTP 200
+- `application/json`
+- no redirect
+- package `com.etiendem.caloraapp`
+- configured SHA-256 signing fingerprint present
+- relation `delegate_permission/common.handle_all_urls`
+
+The Google Digital Asset Links statements checker passed. No real-device
+Android App Link success is claimed.
+
+### Production-output scan
+
+The production-facing source/configuration scan found:
+
+- no `https://api.mycaloraapp.com`
+- no `https://calora.app`
+- no localhost or loopback value in public output
+- no Replit preview/development hostname in production EAS configuration
+- no secrets, tokens, credentials, or debug values in public output
+
+The only loopback match is an intentional server-side
+`127.0.0.1:1106` object-storage sidecar URL in `routes/recipes.ts`; it is
+internal infrastructure configuration and is never emitted to clients. The
+only `replit.dev` match is a development/production explanatory comment in
+the invite renderer. Historical reports, tests, and development fixtures were
+excluded from the production-output determination.
+
+### Deterministic tests and regression status
+
+Passed after republish:
+
+- API route, CORS, and public-page suites: 56 tests
+- API TypeScript typecheck
+- Calora auth/deep-link suites: 14 tests
+- Calora TypeScript typecheck
+- native auth preflight unit tests: 5 tests
+- native association monitor
+- Apple association CDN evidence
+- Google Digital Asset Links evidence
+- complete live branded route matrix
+- callback no-echo checks
+- Supabase recovery-link behavior checks
+- original Replit production health
+
+The startup healthcheck log entries were transient and are followed by
+successful live responses. No genuine Phase 4 production regression remains.
+
+### Remaining owner action
+
+Only the owner-authorized signed native build and device-level validation
+remain. Do not trigger that build as part of this verification. After it is
+authorized separately, validate iOS Universal Links and Android App Links
+without changing the already-verified server configuration.
+
 ## Final verdict
 
-OWNER MULTIPLE EXTERNAL ACTIONS REQUIRED
+OWNER NATIVE BUILD ACTION REQUIRED
