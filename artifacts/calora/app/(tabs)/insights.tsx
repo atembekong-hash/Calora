@@ -1158,8 +1158,25 @@ function ProgressLineGraph({
     }
   }
   if (currentSegment.length) segments.push(currentSegment);
-  const path = segments
-    .map((segment) => segment.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' '))
+  const smoothSegmentPath = (segment: { x: number; y: number }[]) => {
+    if (segment.length === 0) return '';
+    let segmentPath = `M ${segment[0].x.toFixed(2)} ${segment[0].y.toFixed(2)}`;
+    for (let index = 1; index < segment.length; index += 1) {
+      const previous = segment[index - 1];
+      const current = segment[index];
+      // Keep the curve inside the measured interval while easing into and out
+      // of each point. This gives sparse weeks a plotted trend without
+      // inventing values for days that were not logged.
+      const controlX = (previous.x + current.x) / 2;
+      segmentPath += ` C ${controlX.toFixed(2)} ${previous.y.toFixed(2)} ${controlX.toFixed(2)} ${current.y.toFixed(2)} ${current.x.toFixed(2)} ${current.y.toFixed(2)}`;
+    }
+    return segmentPath;
+  };
+  const path = segments.map(smoothSegmentPath).join(' ');
+  const bottomY = (chartHeight - padBottom).toFixed(2);
+  const fillPath = segments
+    .filter((segment) => segment.length > 1)
+    .map((segment) => `${smoothSegmentPath(segment)} L ${segment[segment.length - 1].x.toFixed(2)} ${bottomY} L ${segment[0].x.toFixed(2)} ${bottomY} Z`)
     .join(' ');
   const targetY = showTarget
     ? padTop + (1 - (target.value - min) / range) * (chartHeight - padTop - padBottom)
@@ -1198,16 +1215,19 @@ function ProgressLineGraph({
             <Line x1={padX} y1={targetY} x2={chartWidth - padX} y2={targetY} stroke={colors.warning} strokeWidth={1} strokeDasharray="4 4" opacity={0.75} />
           )}
           {path ? (
-            <AnimatedPath
-              d={path}
-              stroke={color}
-              strokeWidth={2.5}
-              fill="none"
-              strokeDasharray={lineDashLength}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              animatedProps={animatedPathProps}
-            />
+            <>
+              {fillPath ? <Path d={fillPath} fill={color} opacity={0.1} /> : null}
+              <AnimatedPath
+                d={path}
+                stroke={color}
+                strokeWidth={2.5}
+                fill="none"
+                strokeDasharray={lineDashLength}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                animatedProps={animatedPathProps}
+              />
+            </>
           ) : null}
           {chartPoints.map((point, index) => point.y == null ? null : (
             <Circle
