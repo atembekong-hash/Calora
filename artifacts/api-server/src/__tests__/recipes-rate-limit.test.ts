@@ -98,6 +98,9 @@ describe("public recipe routes — rate limiting", () => {
     for (const call of mockCheckRateLimit.mock.calls) {
       expect(call[3]).toEqual({ failClosed: true });
     }
+    const keys = mockCheckRateLimit.mock.calls.map((call) => String(call[0]));
+    expect(keys.some((key) => key.startsWith("recipes:list:ip:"))).toBe(true);
+    expect(keys.some((key) => key.startsWith("recipes:detail:ip:"))).toBe(true);
   });
 
   it("fails CLOSED (503, no provider call) when the limiter store is unavailable", async () => {

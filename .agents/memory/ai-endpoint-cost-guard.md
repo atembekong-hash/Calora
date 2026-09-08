@@ -14,6 +14,8 @@ must uphold:
 2. **Persistent rate limit** — use the shared atomic limiter with an
    endpoint-namespaced key (keys share one table, so namespacing matters);
    return 429 + `Retry-After` *before* any provider work.
+   Public recipe browsing must keep list and detail traffic in separate
+   namespaces so detail lookups cannot exhaust the Discover list bucket.
 3. **Cache-miss coalescing** — public cached AI paths must coalesce concurrent
    misses for the same key into one provider call. A background/stale
    single-flight guard does NOT protect the synchronous miss path.
