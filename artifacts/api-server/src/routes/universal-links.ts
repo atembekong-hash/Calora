@@ -21,7 +21,7 @@
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Resvg } from "@resvg/resvg-js";
-import { REFERRAL_REWARD_DAYS } from "../lib/referral-config.js";
+import { getReferralRewardCopy } from "../lib/referral-config.js";
 
 const router: IRouter = Router();
 
@@ -151,6 +151,8 @@ router.get(
 let cachedOgPng: Buffer | null = null;
 
 export function buildOgSvg(): string {
+  const { shortProOffer } = getReferralRewardCopy();
+
   return `<?xml version="1.0" encoding="utf-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
@@ -168,7 +170,7 @@ export function buildOgSvg(): string {
   <text x="600" y="300" font-family="Arial,Helvetica,sans-serif" font-size="40" font-weight="700" fill="#1a1a1a" text-anchor="middle">You&#x27;re invited to Calora!</text>
   <text x="600" y="352" font-family="Arial,Helvetica,sans-serif" font-size="22" fill="#666666" text-anchor="middle">Track nutrition effortlessly with AI</text>
   <rect x="436" y="386" width="328" height="56" rx="28" fill="#ff6b35"/>
-   <text x="600" y="414" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">Get ${REFERRAL_REWARD_DAYS} days of Pro free</text>
+   <text x="600" y="414" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${shortProOffer}</text>
   <text x="600" y="570" font-family="Arial,Helvetica,sans-serif" font-size="20" fill="#ff6b35" text-anchor="middle" opacity="0.7">mycaloraapp.com</text>
 </svg>`;
 }
@@ -196,6 +198,7 @@ router.get("/invite/og-image.png", (_req: Request, res: Response) => {
 
 // ── /invite and /invite/:code — fallback landing page for users without the app
 function renderInvitePage(code: string, req: Request, res: Response): void {
+  const referralCopy = getReferralRewardCopy();
   const appStoreId = process.env["APPLE_APP_STORE_ID"] ?? "";
   const appStoreUrl = appStoreId
     ? `https://apps.apple.com/app/id${appStoreId}`
@@ -231,7 +234,7 @@ function renderInvitePage(code: string, req: Request, res: Response): void {
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Calora" />
   <meta property="og:title" content="You're invited to Calora!" />
-  <meta property="og:description" content="A friend invited you to track nutrition effortlessly with AI. Get a free week of Calora Pro when you sign up using their invite link." />
+  <meta property="og:description" content="${referralCopy.ogDescription}" />
   <meta property="og:image" content="${ogImageUrl}" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
@@ -241,7 +244,7 @@ function renderInvitePage(code: string, req: Request, res: Response): void {
   <!-- Twitter / X Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="You're invited to Calora!" />
-  <meta name="twitter:description" content="Track nutrition effortlessly with AI. Get a free week of Calora Pro." />
+  <meta name="twitter:description" content="${referralCopy.twitterDescription}" />
   <meta name="twitter:image" content="${ogImageUrl}" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -316,7 +319,7 @@ function renderInvitePage(code: string, req: Request, res: Response): void {
     <div class="logo">🥗</div>
     <h1>You're invited to Calora!</h1>
     ${code ? `<div class="code-badge">${code}</div>` : ""}
-    <p>A friend invited you to track nutrition effortlessly with AI. Get a free week of Calora Pro when you sign up using their invite link.</p>
+    <p>${referralCopy.caloraProOffer} when you sign up using their invite link.</p>
 
     <a class="btn btn-primary" href="${deepLink}" id="openApp">Open in Calora</a>
 

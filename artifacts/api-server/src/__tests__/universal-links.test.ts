@@ -15,7 +15,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import universalLinksRouter, { buildOgSvg } from '../routes/universal-links';
-import { REFERRAL_REWARD_DAYS } from '../lib/referral-config';
+import {
+  getReferralRewardCopy,
+  REFERRAL_REWARD_DAYS,
+} from '../lib/referral-config';
 
 function makeApp() {
   const app = express();
@@ -193,8 +196,10 @@ describe('GET /invite/:code — Open Graph and Twitter Card meta tags', () => {
 
   it('includes og:description', async () => {
     const res = await request(app).get('/invite/TESTCODE');
+    const referralCopy = getReferralRewardCopy();
+
     expect(res.text).toContain('property="og:description"');
-    expect(res.text).toContain('free week of Calora Pro');
+    expect(res.text).toContain(referralCopy.ogDescription);
   });
 
   it('includes og:image pointing to an absolute PNG URL', async () => {
@@ -228,6 +233,17 @@ describe('GET /invite/:code — Open Graph and Twitter Card meta tags', () => {
     const res = await request(app).get('/invite/TESTCODE');
     expect(res.text).toMatch(/name="twitter:image"\s+content="https?:\/\/[^"]+\/invite\/og-image\.png"/);
   });
+
+  it('keeps HTML, OG, and Twitter reward copy synchronized', async () => {
+    const res = await request(app).get('/invite/TESTCODE');
+    const referralCopy = getReferralRewardCopy();
+
+    expect(res.text).toContain(`${REFERRAL_REWARD_DAYS} days`);
+    expect(res.text).toContain(referralCopy.caloraProOffer);
+    expect(res.text).toContain(referralCopy.ogDescription);
+    expect(res.text).toContain(referralCopy.twitterDescription);
+    expect(res.text).not.toMatch(/\b(?:free week|one week|1 week)\b/i);
+  });
 });
 
 describe('GET /invite/og-image.png — preview image', () => {
@@ -235,9 +251,11 @@ describe('GET /invite/og-image.png — preview image', () => {
 
   it('keeps the invite preview offer synchronized with the server reward duration', () => {
     const svg = buildOgSvg();
+    const referralCopy = getReferralRewardCopy();
 
-    expect(svg).toContain(`Get ${REFERRAL_REWARD_DAYS} days of Pro free`);
-    expect(svg).not.toContain('Get 1 week of Pro free');
+    expect(svg).toContain(referralCopy.shortProOffer);
+    expect(svg).toContain(`${REFERRAL_REWARD_DAYS} days`);
+    expect(svg).not.toMatch(/\b(?:free week|one week|1 week)\b/i);
   });
 
   it('returns HTTP 200', async () => {
