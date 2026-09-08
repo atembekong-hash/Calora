@@ -1,6 +1,6 @@
 import type { PlannerMeal } from '@workspace/api-client-react';
 
-export type PlannerRecipeSource = 'discover' | 'plus' | 'create' | 'calora';
+export type PlannerRecipeSource = 'discover' | 'plus' | 'create';
 
 export type PlannerMealRecipeLink = {
   recipeId: string;
