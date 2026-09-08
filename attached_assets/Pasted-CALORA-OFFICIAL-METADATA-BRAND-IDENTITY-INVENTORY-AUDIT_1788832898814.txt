@@ -1,0 +1,302 @@
+CALORA OFFICIAL METADATA & BRAND IDENTITY INVENTORY AUDIT
+
+MISSION
+
+Perform a complete READ-ONLY audit of the entire Calora project to establish the factual baseline needed to create Calora’s final official metadata and digital identity package.
+
+DO NOT modify code, configuration, assets, database data, environment variables, or project files except for creating the required audit report.
+
+DO NOT commit or push anything to GitHub.
+DO NOT trigger an Expo/EAS build.
+DO NOT deploy or publish anything.
+
+OBJECTIVE
+
+Find every piece of existing information related to Calora’s official identity, company identity, app-store metadata, web metadata, contact information, URLs, icons, images, SEO, social sharing, deep linking, and platform configuration.
+
+We need to know exactly what currently exists, where it exists, whether it is consistent, and what is missing before creating the final metadata specification.
+
+KNOWN BASELINE
+
+Product/app name: Calora
+Parent company: Etiendem Technologies
+Primary website/domain: mycaloraapp.com
+Android package: com.etiendem.caloraapp
+
+Treat these as reference information, but verify them against the repository wherever possible. Do not silently overwrite conflicting information. Report conflicts.
+
+AUDIT THE FOLLOWING:
+
+1. OFFICIAL APP IDENTITY
+- App name
+- Display name
+- Internal/project name
+- Android package/application ID
+- iOS bundle identifier
+- Expo project identifiers
+- Slug
+- Scheme
+- Version
+- Android versionCode
+- iOS buildNumber
+- Runtime/update identifiers where applicable
+
+2. COMPANY / DEVELOPER IDENTITY
+Search the entire project for:
+- Etiendem Technologies
+- Developer/company names
+- Copyright names
+- Publisher names
+- Seller/developer references
+- Business/legal names
+- Business address
+- Support address
+- Phone numbers
+- Public email addresses
+- Support email
+- Privacy/contact email
+- Any conflicting or outdated company identity
+
+Do not expose secret credentials in the report.
+
+3. OFFICIAL URLS
+Inventory all public-facing URLs, including:
+- Main website
+- App landing page
+- Support page
+- Contact page
+- Privacy Policy
+- Terms of Service
+- Account deletion page
+- Subscription/billing information
+- Help/FAQ
+- App Store URLs
+- Google Play URLs
+- RevenueCat-related public URLs where applicable
+- Deep links
+- Universal links
+- Android App Links
+- Social-media URLs
+
+Identify broken, placeholder, localhost, development, Replit, Railway, Expo, staging, obsolete, or inconsistent URLs that should not appear in production metadata.
+
+4. APP ICONS, LOGOS & BRAND ASSETS
+Locate and inventory:
+- Primary Calora app icon
+- Adaptive Android icon
+- iOS icon assets
+- Splash-screen assets
+- Favicon
+- Web logo
+- Header/logo variants
+- Notification icon
+- Monochrome icon
+- Dark/light variants
+- Social/Open Graph images
+- Store graphics
+- Screenshots
+- Promotional images
+- Any company/Etiendem logo assets
+
+For each important asset report:
+- Exact file path
+- File type
+- Dimensions where practical
+- Where it is used
+- Whether it appears current, duplicated, obsolete, placeholder, or missing
+
+Do not redesign or replace anything.
+
+5. APP STORE METADATA
+
+Find any existing:
+- App title
+- Subtitle
+- Short description
+- Full description
+- Promotional text
+- Keywords
+- Category/subcategory
+- Age/content rating configuration
+- Copyright
+- Developer name
+- Support URL
+- Marketing URL
+- Privacy URL
+- App Store metadata
+- Google Play metadata
+- Store screenshot configuration
+- Feature graphic
+- Release notes
+- Localization metadata
+
+Clearly distinguish:
+EXISTS
+PARTIAL
+MISSING
+CONFLICTING
+OUTDATED
+
+6. WEB / SEO / DISCOVERY METADATA
+
+Audit:
+- HTML title
+- Meta description
+- Canonical URL
+- Robots directives
+- sitemap
+- robots.txt
+- Open Graph
+- Twitter/X cards
+- Favicons
+- Web manifest
+- theme colors
+- structured data / JSON-LD
+- Organization schema
+- SoftwareApplication/MobileApplication schema
+- Website schema
+- contact information
+- logo/image references
+- social profiles / sameAs
+- Search Console-related files/configuration if present
+
+Determine whether search engines can clearly understand that:
+
+Calora is an application/product operated by Etiendem Technologies.
+
+7. DEEP LINKING & APP ASSOCIATION
+
+Audit:
+- Expo scheme
+- Universal Links
+- Android App Links
+- intent filters
+- associatedDomains
+- apple-app-site-association expectations
+- assetlinks.json expectations
+- authentication callback URLs
+- password reset links
+- email verification links
+- account deletion links
+- any other user-facing app URLs
+
+Report configuration gaps or inconsistencies only. Do not change them.
+
+8. CONTACT & TRUST INFORMATION
+
+Find all user-facing references to:
+- Email
+- Phone
+- Address
+- Company
+- Support
+- Privacy
+- Legal
+- Subscription support
+- Account deletion
+- Contact forms
+
+Flag contradictions and missing information.
+
+9. BRAND CONSISTENCY
+
+Search the entire repository for spelling/capitalization variations such as:
+- Calora
+- CALORA
+- calora
+- Calora App
+- caloraapp
+- mycaloraapp
+- Etiendem
+- Etiendem Technologies
+
+Identify inconsistent naming that could affect production metadata or public identity.
+
+10. SECRET-SAFETY CHECK
+
+Metadata must never expose private:
+- API keys
+- service-role keys
+- tokens
+- passwords
+- signing secrets
+- RevenueCat secret keys
+- Supabase secrets
+- database credentials
+- internal administrative endpoints
+
+Report only the existence and location/category of any metadata-related exposure risk. REDACT secret values completely.
+
+11. FINAL GAP ANALYSIS
+
+Produce a clear table containing:
+
+FIELD
+CURRENT VALUE
+SOURCE FILE/PATH
+STATUS
+RECOMMENDED FINAL VALUE OR ACTION
+
+Do not invent unknown business information.
+
+Use:
+NEEDS OWNER CONFIRMATION
+
+for facts that cannot be established from the repository.
+
+12. REQUIRED REPORT
+
+Create and save this persistent report in the project root:
+
+00_CALORA_METADATA_IDENTITY_INVENTORY_REPORT.md
+
+The report must contain:
+
+- Executive summary
+- Repository areas inspected
+- Existing official identity
+- Company/developer identity
+- App identifiers
+- Contact information
+- Public URLs
+- Legal URLs
+- App icons and brand assets
+- App Store metadata
+- Google Play metadata
+- Web/SEO metadata
+- Structured-data status
+- Deep-link configuration
+- Social/discovery metadata
+- Brand consistency findings
+- Security/exposure findings
+- Missing metadata
+- Conflicting/outdated metadata
+- Exact file paths/evidence
+- Complete metadata gap table
+- Items requiring owner confirmation
+- Recommended next phase
+- Final verdict
+
+FINAL VERDICT MUST BE ONE OF:
+
+READY FOR FINAL METADATA SPECIFICATION
+
+or
+
+NOT READY FOR FINAL METADATA SPECIFICATION
+
+Do not declare READY unless the repository has been thoroughly searched and the report gives us enough verified information to create the final Calora metadata specification without guessing.
+
+Stop only after the audit is complete and the report has been created and verified.
+
+Again:
+
+NO implementation.
+NO metadata changes.
+NO asset changes.
+NO commits.
+NO GitHub push.
+NO deployment.
+NO Expo/EAS build.
+
+Audit and report only.
