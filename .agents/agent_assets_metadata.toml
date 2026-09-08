@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "gZcz6zmxEZhsUA5X4htD8"
+uri = "file://10_CALORA_GITHUB_CREDENTIAL_RECONNECTION_REPORT.md"
+type = "text"
+title = "Calora GitHub Credential Reconnection Report"
+description = "Non-mutating GitHub authentication cleanup and verification report; local CLI reauthorization remains the only blocker."
+logical_id = "2cad39bc-5fe8-475e-8899-396e2e4bdf1a"
+content_hash = "sha256:fbf7f7fc8496c0b266e238f855078d39a4e4f4863e1af3b9cde535b683cc1f1e"
+size = 6058
+mtime_ms = 1788865561603
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/2cad39bc-5fe8-475e-8899-396e2e4bdf1a/f9f01c2d-69cb-4f5a-89e1-96f50ee600b1"
+storage_version_token = "1788865613818231"
+content_type = "text/markdown"
