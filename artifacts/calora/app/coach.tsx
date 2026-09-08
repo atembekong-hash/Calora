@@ -368,10 +368,6 @@ export default function CoachScreen() {
         <View style={styles.headerCopy}>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A focused view of your nutrition.</Text>
         </View>
-        {!guestMode && isIntelligenceFeatureEnabled('intelligence.coach.fact_context') && (
-          <CoachFactContextConsentPanel colors={colors} />
-        )}
-
         {guestMode ? (
           <View style={[styles.briefCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.briefIcon, { backgroundColor: colors.accent }]}>
@@ -508,6 +504,10 @@ export default function CoachScreen() {
                 <Feather name="x" size={17} color={colors.foreground} />
               </Pressable>
             </View>
+
+            {!guestMode && isIntelligenceFeatureEnabled('intelligence.coach.fact_context') && (
+              <CoachFactContextConsentPanel colors={colors} />
+            )}
 
             {coachConsentAccepted ? (
               <>
