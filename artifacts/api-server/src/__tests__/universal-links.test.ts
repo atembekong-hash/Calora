@@ -22,6 +22,34 @@ function makeApp() {
   return app;
 }
 
+describe('GET /auth/callback — branded browser fallback', () => {
+  const app = makeApp();
+
+  it('returns a no-store branded handoff page', async () => {
+    const res = await request(app)
+      .get('/auth/callback?error=access_denied&error_description=cancelled');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['x-robots-tag']).toBe('noindex');
+    expect(res.text).toContain('<title>Continue in Calora</title>');
+    expect(res.text).toContain('caloraapp://auth/callback');
+  });
+
+  it('does not echo callback query values into the response body', async () => {
+    const res = await request(app).get(
+      '/auth/callback?code=one-time-code&access_token=secret-token',
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.text).not.toContain('one-time-code');
+    expect(res.text).not.toContain('secret-token');
+    expect(res.text).toContain('window.location.search');
+    expect(res.text).toContain('window.location.hash');
+  });
+});
+
 describe('GET /invite/:code — landing page with a code', () => {
   const app = makeApp();
 

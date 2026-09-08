@@ -27,6 +27,46 @@ const router: IRouter = Router();
 const BUNDLE_ID = "com.etiendem.caloraapp";
 const PACKAGE_NAME = "com.etiendem.caloraapp";
 
+// ── /auth/callback — browser fallback for the native associated link ──────────
+// Installed native builds claim this exact HTTPS path through Universal/App
+// Links. Browsers without the app still need a branded, non-error response;
+// the callback query/hash is kept client-side and is never echoed into HTML.
+router.get("/auth/callback", (_req: Request, res: Response) => {
+  res
+    .status(200)
+    .set("Content-Type", "text/html; charset=utf-8")
+    .set("Cache-Control", "no-store")
+    .set("X-Robots-Tag", "noindex")
+    .send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Continue in Calora</title>
+  <style>
+    body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #f8f4f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1a1a1a; }
+    main { max-width: 420px; width: 100%; padding: 36px 28px; border-radius: 20px; background: #fff; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+    h1 { margin: 0 0 12px; font-size: 24px; }
+    p { margin: 0 0 24px; color: #666; line-height: 1.5; }
+    button { border: 0; border-radius: 12px; padding: 14px 20px; background: #ff6b35; color: #fff; font: 600 16px inherit; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Continue in Calora</h1>
+    <p>Tap the button below to return to the Calora app and finish signing in.</p>
+    <button id="openApp" type="button">Open Calora</button>
+  </main>
+  <script>
+    document.getElementById("openApp").addEventListener("click", function () {
+      window.location.href = "caloraapp://auth/callback" + window.location.search + window.location.hash;
+    });
+  </script>
+</body>
+</html>`);
+});
+
 // ── /.well-known/apple-app-site-association ──────────────────────────────────
 router.get(
   "/.well-known/apple-app-site-association",
