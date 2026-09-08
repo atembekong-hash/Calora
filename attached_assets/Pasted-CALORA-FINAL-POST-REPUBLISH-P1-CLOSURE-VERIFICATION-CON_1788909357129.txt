@@ -1,0 +1,351 @@
+CALORA — FINAL POST-REPUBLISH P1 CLOSURE VERIFICATION
+
+CONTEXT
+
+The owner has now completed the required Replit Publish/Republish action for the existing production API deployment.
+
+AUTHORITATIVE REPORT:
+
+14_CALORA_P1_RELEASE_BLOCKERS_REMEDIATION_REPORT.md
+
+PRE-PUBLISH STATUS:
+
+P1 BLOCKERS REMAIN — DO NOT RELEASE
+
+The two P1 issues were:
+
+P1-001
+Production was serving an older attested release than the approved GitHub release candidate.
+
+P1-002
+Referral reward logic was 30 days, but live invite HTML/Twitter/page copy still used stale week-based wording.
+
+The source remediation has already been committed and pushed.
+
+APPROVED POST-REMEDIATION RELEASE STATE
+
+GitHub branch:
+release/calora-onboarding-and-plus
+
+Approved synchronized source commit:
+d8ecc375f75be4d6ed1e6913afbbbfa099cdd064
+
+Approved source tree:
+c0a5657214d230ee559da6e14ee0b6cf1e99016a
+
+The report/documentation commit later recorded was:
+df44068c869c24c3c58014a9f04fa63bf109c23d
+
+IMPORTANT:
+For runtime production attestation, compare against the actual source/runtime release commit/tree, not a documentation-only report commit if that report does not alter runtime source.
+
+MISSION
+
+Independently verify that the newly republished production deployment has closed BOTH P1 blockers.
+
+DO NOT:
+- modify source code
+- modify configuration
+- change DNS
+- change Cloudflare
+- change Supabase
+- change RevenueCat
+- trigger Expo/EAS
+- trigger a native build
+- push to GitHub
+- republish again
+- rewrite Git history
+- fix P2 items
+
+This task is verification only.
+
+==================================================
+1. DEPLOYMENT STATE
+==================================================
+
+Verify the current Replit production deployment is:
+
+- deployed
+- healthy
+- successful build
+- public
+- autoscale
+- canonical URL:
+  https://mycaloraapp.com
+
+Confirm the republish actually produced a newer live deployment rather than only updating the UI.
+
+==================================================
+2. LIVE HEALTH
+==================================================
+
+Probe:
+
+https://mycaloraapp.com/api/healthz
+
+Acceptance:
+
+- HTTP 200
+- JSON status healthy
+- no placeholder
+- no redirect loop
+
+==================================================
+3. LIVE RELEASE ATTESTATION
+==================================================
+
+Probe:
+
+https://mycaloraapp.com/api/version
+
+Record:
+
+- live commit SHA
+- live source tree SHA
+- live release ID if present
+
+Compare them against the approved runtime source release:
+
+Commit:
+d8ecc375f75be4d6ed1e6913afbbbfa099cdd064
+
+Source tree:
+c0a5657214d230ee559da6e14ee0b6cf1e99016a
+
+Do not treat the later report-only commit as the runtime source target unless the runtime tree genuinely includes source/config changes from it.
+
+Acceptance requires the live production source tree to exactly match the approved runtime source tree.
+
+==================================================
+4. PUBLIC RELEASE VERIFIER
+==================================================
+
+Run the exact public-release verifier against the approved source tree.
+
+Acceptance requires:
+
+- verifier exit success
+- live source tree == approved source tree
+- no stale release
+- no attestation mismatch
+
+Document the exact pass/fail result.
+
+==================================================
+5. LIVE REFERRAL COPY
+==================================================
+
+Probe:
+
+https://mycaloraapp.com/invite/test
+
+Verify live production now consistently reflects:
+
+30 days of Pro
+
+Check all applicable surfaces:
+
+- page body
+- OG description
+- Twitter description
+- OG image/SVG copy or generated image content where testable
+
+Explicitly verify live output does NOT contain:
+
+- free week
+- one week
+- 1 week
+
+Also verify the authoritative backend reward remains 30 days.
+
+Do not modify reward logic.
+
+==================================================
+6. REFERRAL REGRESSION TESTS
+==================================================
+
+Re-run the focused deterministic referral/universal-link tests.
+
+Verify:
+
+- shared duration constant remains 30
+- HTML copy uses shared duration
+- OG description uses shared duration
+- Twitter description uses shared duration
+- SVG/image copy uses shared duration
+- week-based stale wording is rejected
+
+Report exact test counts.
+
+==================================================
+7. FULL PRODUCTION ROUTE MATRIX
+==================================================
+
+Recheck:
+
+/
+ /api/healthz
+ /api/version
+ /auth/callback
+ /invite/test
+ /.well-known/apple-app-site-association
+ /.well-known/assetlinks.json
+ /privacy
+ /terms
+ /support
+ /contact
+ /delete-account
+ /subscriptions
+ /help
+ /robots.txt
+ /sitemap.xml
+ /site.webmanifest
+
+Verify:
+
+- expected HTTP status
+- expected content type
+- no placeholder
+- no redirect loop
+- no production regression
+
+==================================================
+8. AUTH/CORS REGRESSION
+==================================================
+
+Verify:
+
+- /auth/callback still returns 200
+- no-store remains
+- noindex remains
+- callback query/token values are not echoed
+- branded callback remains:
+  https://mycaloraapp.com/auth/callback
+
+CORS:
+
+- branded origin allowed
+- unrelated origin rejected
+- null origin rejected where expected
+- preflight remains correct
+
+==================================================
+9. UNIVERSAL / APP LINK REGRESSION
+==================================================
+
+Reverify:
+
+https://mycaloraapp.com/.well-known/apple-app-site-association
+
+Acceptance:
+- 200
+- application/json
+- no redirect
+- /auth/callback present
+- /invite/* present
+- correct Calora app association
+
+Reverify:
+
+https://mycaloraapp.com/.well-known/assetlinks.json
+
+Acceptance:
+- 200
+- application/json
+- no redirect
+- package:
+  com.etiendem.caloraapp
+- SHA-256 fingerprint present
+- correct delegate relation
+
+Do not claim physical-device deep-link success.
+
+==================================================
+10. PRODUCTION IDENTITY / LEAKAGE CHECK
+==================================================
+
+Confirm live public output still uses:
+
+- Calora
+- Etiendem Technologies
+- https://mycaloraapp.com
+- support@mycaloraapp.com
+
+Verify no live production output contains:
+
+- api.mycaloraapp.com
+- calora.app
+- localhost
+- Replit preview hostname
+- debug output
+- secrets
+- credentials
+
+Historical/report-only references must not be treated as runtime leaks.
+
+==================================================
+11. P1 CLOSURE DECISION
+==================================================
+
+P1-001 is CLOSED only if:
+
+- live production source tree equals approved source tree
+- public-release verifier passes
+- production health remains good
+
+P1-002 is CLOSED only if:
+
+- live invite output consistently uses 30 days
+- no stale week-based wording remains
+- deterministic regression tests pass
+
+If either P1 remains open, verdict must remain blocking.
+
+==================================================
+12. REPORT UPDATE
+==================================================
+
+Update the existing report:
+
+14_CALORA_P1_RELEASE_BLOCKERS_REMEDIATION_REPORT.md
+
+Add a section:
+
+## POST-REPUBLISH FINAL P1 VERIFICATION
+
+Include:
+
+- deployment state
+- live health
+- live commit SHA
+- live source tree SHA
+- release ID
+- approved commit/tree comparison
+- public-release verifier result
+- live invite copy evidence
+- stale-copy absence evidence
+- referral regression test results
+- full route matrix
+- auth/CORS regression
+- Universal/App Link regression
+- production identity/leakage scan
+- P1-001 closure status
+- P1-002 closure status
+- remaining blockers
+- exact next action
+- final verdict
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+P1 RELEASE BLOCKERS REMEDIATED — OWNER DEVICE REVALIDATION REQUIRED
+
+P1 BLOCKERS REMAIN — DO NOT RELEASE
+
+Do not use a non-blocking verdict unless BOTH P1 issues are independently closed against live production.
+
+NO BUILD.
+NO PUSH.
+NO REPUBLISH.
+NO SOURCE CHANGES.
+
+Stop after verification and report update.
