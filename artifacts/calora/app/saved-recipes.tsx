@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -16,6 +17,7 @@ import { premiumRecipeDetailQueryKey } from '@/lib/premiumRecipeQueryKeys';
 import { isPremiumRecipeId } from '@/lib/premiumSavedRecipes';
 import { recipeProvenance } from '@/lib/recipeModel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 
 type SavedRecipe = Recipe | CaloraRecipe | PremiumRecipe;
 type SavedSource = 'discover' | 'plus' | 'create';
@@ -155,6 +157,7 @@ export default function SavedRecipesScreen() {
   const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe } = useCalora();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const savedRecipesHeaderImage = useHourlyHeaderImage('recipes');
   const [activeFilter, setActiveFilter] = useState<SavedFilter>('all');
   const [selected, setSelected] = useState<SavedRecipe | null>(null);
   const [planNotice, setPlanNotice] = useState<string | null>(null);
@@ -261,7 +264,19 @@ export default function SavedRecipesScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 104 }]}
       >
-        <LinearGradient colors={[colors.hero, colors.heroMuted]} style={styles.hero}>
+        <View style={[styles.hero, { backgroundColor: colors.hero }]}>
+          <Image
+            key={savedRecipesHeaderImage.hourSlot}
+            source={savedRecipesHeaderImage.source}
+            contentFit="cover"
+            transition={450}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <LinearGradient
+            colors={['rgba(18,34,24,0.28)', 'rgba(18,34,24,0.92)']}
+            locations={[0, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
           <View style={styles.heroTop}>
             <View style={[styles.heroIcon, { backgroundColor: colors.accent }]}>
               <Feather name="bookmark" size={19} color={colors.primary} />
@@ -274,7 +289,7 @@ export default function SavedRecipesScreen() {
           <Text style={[styles.heroEyebrow, { color: colors.onHero }]}>YOUR RECIPE SHELF</Text>
           <Text style={[styles.heroTitle, { color: colors.onHero }]}>Worth making again.</Text>
           <Text style={[styles.heroBody, { color: colors.onHero }]}>One calm place for recipes you discovered, unlocked, or created yourself.</Text>
-        </LinearGradient>
+        </View>
 
         <View style={styles.filterRow}>
           <SavedFilterChip label="All saved" count={savedRecipeIds.length} active={activeFilter === 'all'} icon="bookmark" colors={colors} onPress={() => setActiveFilter('all')} />
