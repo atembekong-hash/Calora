@@ -28,3 +28,16 @@ release candidate.
 **How to apply:** Treat health, legal, association, and CORS passes as
 availability evidence only; require exact source-tree equality through the
 public release verifier before release approval.
+
+When documentation-only commits are added after runtime approval, the
+attested Git tree changes even if no runtime file changes. Keep the approved
+runtime commit/tree pinned and do not silently substitute a later report-only
+HEAD during production verification.
+
+**Why:** A post-republish Calora deployment was healthy and had the referral
+fix, but its attestation included later report commits and therefore failed the
+exact approved-runtime-tree check.
+
+**How to apply:** Run the verifier against the explicitly approved runtime
+tree, then treat any later documentation tree as a distinct release identity
+unless it is deliberately approved and deployed.
