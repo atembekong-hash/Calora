@@ -68,3 +68,4 @@
 - [Disposable provider failure rehearsal](disposable-provider-failure-rehearsal.md) — stage live erasure failures per customer; never invalidate the global provider credential.
 - [Railway deployment identity](railway-deployment-identity.md) — Railway GitHub deployment events qualify production as `<project> / production`; preserve the SHA and match only that production suffix.
 - [Replit production state](replit-production-state.md) — a public deployment record can exist with no successful build and serve Replit’s “app isn’t live yet” placeholder.
+- [Branded apex artifact routing](branded-apex-artifact-routing.md) — in a multi-artifact project, the API must explicitly own `/` or the Expo artifact can serve its preview landing page at the custom domain.
