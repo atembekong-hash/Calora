@@ -115,6 +115,12 @@ describe('Recipes Discover layout contracts', () => {
     expect(readFileSync(resolve(__dirname, '../../app/(tabs)/recipes.tsx'), 'utf8')).toContain(
       "recipe.name.trim().toLowerCase() === recipeName.trim().toLowerCase()",
     );
+    expect(readFileSync(resolve(__dirname, '../../app/(tabs)/recipes.tsx'), 'utf8')).toContain(
+      "queryKey: ['recipes-by-name', recipeName ?? '']",
+    );
+    expect(readFileSync(resolve(__dirname, '../../app/(tabs)/recipes.tsx'), 'utf8')).not.toContain(
+      'setSearch(recipeName);',
+    );
   });
 
   it('keeps Plus cards mounted while pagination loads, retries failures, and deduplicates appended pages', () => {

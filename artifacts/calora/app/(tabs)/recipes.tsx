@@ -1455,6 +1455,16 @@ export default function RecipesScreen() {
       retry: false,
     },
   });
+  const recipeNameLookupQuery = useListRecipes(
+    { query: recipeName, limit: RECIPE_PAGE_SIZE, offset: 0 },
+    {
+      query: {
+        queryKey: ['recipes-by-name', recipeName ?? ''],
+        enabled: Boolean(recipeName),
+        staleTime: 1000 * 60 * 10,
+      },
+    },
+  );
   useEffect(() => {
     setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current);
   }, [user?.id]);
@@ -1538,12 +1548,12 @@ export default function RecipesScreen() {
     if (!recipeName || recipeId) return;
     setActiveSection('discover');
     setCategory('For you');
-    setSearch(recipeName);
-    const exactRecipe = remoteRecipes.find((recipe) => recipe.name.trim().toLowerCase() === recipeName.trim().toLowerCase());
+    const exactRecipe = [...remoteRecipes, ...(recipeNameLookupQuery.data?.recipes ?? [])]
+      .find((recipe) => recipe.name.trim().toLowerCase() === recipeName.trim().toLowerCase());
     if (!exactRecipe) return;
     setSelected(exactRecipe);
     router.setParams({ recipeName: undefined });
-  }, [recipeId, recipeName, remoteRecipes]);
+  }, [recipeId, recipeName, recipeNameLookupQuery.data?.recipes, remoteRecipes]);
   const createRecipePhoto = async (recipe: CaloraRecipe) => {
     const sourceType = recipeProvenance(recipe).sourceType;
     if (!['calora_ai', 'user_created'].includes(sourceType) || recipe.imageStatus === 'ready' || photoRequestsRef.current.has(recipe.id)) return;
