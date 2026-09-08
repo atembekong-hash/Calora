@@ -104,25 +104,6 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('compactCardFooter');
   });
 
-  it('carries exact recipe source metadata into planner links and resolves deep links', () => {
-    expect(readFileSync(resolve(__dirname, '../../app/(tabs)/recipes.tsx'), 'utf8')).toContain(
-      "const linkedRecipeId = premium ? recipeProvenance(detail).sourceId : detail.id",
-    );
-    const plannerSource = readFileSync(resolve(__dirname, '../../app/(tabs)/planner.tsx'), 'utf8');
-    expect(plannerSource).toContain('Open recipe');
-    expect(plannerSource).toContain("recipeSource: recipeLink.recipeSource");
-    expect(plannerSource).toContain("{ recipeName: actionMeal.name }");
-    expect(readFileSync(resolve(__dirname, '../../app/(tabs)/recipes.tsx'), 'utf8')).toContain(
-      "recipe.name.trim().toLowerCase() === recipeName.trim().toLowerCase()",
-    );
-    expect(readFileSync(resolve(__dirname, '../../app/(tabs)/recipes.tsx'), 'utf8')).toContain(
-      "queryKey: ['recipes-by-name', recipeName ?? '']",
-    );
-    expect(readFileSync(resolve(__dirname, '../../app/(tabs)/recipes.tsx'), 'utf8')).not.toContain(
-      'setSearch(recipeName);',
-    );
-  });
-
   it('keeps Plus cards mounted while pagination loads, retries failures, and deduplicates appended pages', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),

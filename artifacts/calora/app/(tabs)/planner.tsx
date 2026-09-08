@@ -25,7 +25,6 @@ import { SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { PROGRAM_HERO_MEAL_IDS } from '@workspace/api-zod/planner-program-pools';
-import { getPlannerMealRecipeLink } from '@/lib/plannerRecipeLink';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
@@ -1262,28 +1261,6 @@ export default function PlannerScreen() {
                  <SheetHeader eyebrow={`${actionMeal.meal.toUpperCase()} · ${dateFormatter.format(parseDate(actionMeal.day))}`} title={actionMeal.name} onClose={() => setActionMeal(null)} colors={colors} />
                   <Text style={[styles.sheetSubtitle, { color: colors.mutedForeground }]}>Update this planned meal.</Text>
                  <View style={styles.actionGrid}>
-                   <ScalePressable
-                     accessibilityLabel={`Open recipe for ${actionMeal.name}`}
-                     onPress={() => {
-                       const recipeLink = getPlannerMealRecipeLink(actionMeal);
-                       setActionMeal(null);
-                       router.push({
-                         pathname: '/(tabs)/recipes',
-                         params: recipeLink
-                           ? { recipeId: recipeLink.recipeId, recipeSource: recipeLink.recipeSource }
-                           : { recipeName: actionMeal.name },
-                       });
-                     }}
-                     scale={0.96}
-                     haptic="none"
-                     style={[styles.actionTile, { backgroundColor: colors.card, borderColor: colors.border }]}
-                   >
-                     <Feather name="book-open" size={18} color={colors.foreground} />
-                     <Text style={[styles.actionTileTitle, { color: colors.foreground }]}>Open recipe</Text>
-                     <Text style={[styles.actionTileBody, { color: colors.mutedForeground }]}>
-                       {getPlannerMealRecipeLink(actionMeal) ? 'View the exact recipe' : 'Find it in Discover'}
-                     </Text>
-                   </ScalePressable>
                    <ScalePressable accessibilityLabel={actionMealLogged ? `${actionMeal.name} is already logged` : `Log ${actionMeal.name}`} disabled={actionMealLogged} onPress={() => { setActionMeal(null); addToDiary(actionMeal); }} scale={0.96} haptic="light" style={[styles.actionTile, { backgroundColor: actionMealLogged ? colors.muted : colors.primary, opacity: actionMealLogged ? 0.7 : 1 }]}>
                      <Feather name="check-circle" size={18} color={actionMealLogged ? colors.foreground : colors.primaryForeground} />
                      <Text style={[styles.actionTileTitle, { color: actionMealLogged ? colors.foreground : colors.primaryForeground }]}>{actionMealLogged ? 'Logged' : 'Log to diary'}</Text>

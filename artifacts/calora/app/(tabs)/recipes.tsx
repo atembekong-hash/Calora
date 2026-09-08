@@ -35,7 +35,6 @@ import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premi
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
 import { recipeImageRole } from '@/lib/recipeImagePresentation';
-import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -990,14 +989,10 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   };
   const addToPlan = () => {
     if (!detail) return;
-    const recipeSource: PlannerRecipeSource = premium ? 'plus' : local ? 'create' : 'discover';
-    const linkedRecipeId = premium ? recipeProvenance(detail).sourceId : detail.id;
-    const plannedMeal: PlannerMeal & { recipeId: string; recipeSource: PlannerRecipeSource } = {
+    const plannedMeal: PlannerMeal = {
       id: `recipe-plan-${Date.now()}-${detail.id}`,
       day: planDay,
       meal: planMealType,
-      recipeId: linkedRecipeId,
-      recipeSource,
       name: detail.name,
       image: detail.image ?? '',
       serving: '1 serving',
@@ -1436,35 +1431,7 @@ export default function RecipesScreen() {
   const photoRefreshesRef = useRef(new Set<string>());
   const recipesScrollRef = useRef<ScrollView | null>(null);
   const discoverScrollYRef = useRef(0);
-  const { recipeId: routeRecipeId, recipeSource: routeRecipeSource, recipeName: routeRecipeName } = useLocalSearchParams<{ recipeId?: string; recipeSource?: PlannerRecipeSource; recipeName?: string }>();
-  const recipeId = Array.isArray(routeRecipeId) ? routeRecipeId[0] : routeRecipeId;
-  const recipeSource = Array.isArray(routeRecipeSource) ? routeRecipeSource[0] : routeRecipeSource;
-  const recipeName = Array.isArray(routeRecipeName) ? routeRecipeName[0] : routeRecipeName;
-  const linkedDiscoverRecipeQuery = useGetRecipe(recipeSource === 'discover' ? recipeId ?? '' : '', {
-    query: {
-      queryKey: ['recipe', recipeId ?? ''],
-      enabled: recipeSource === 'discover' && Boolean(recipeId),
-      staleTime: 1000 * 60 * 30,
-    },
-  });
-  const linkedPremiumRecipeQuery = useGetPremiumRecipe(recipeSource === 'plus' ? recipeId ?? '' : '', {
-    query: {
-      queryKey: premiumRecipeDetailQueryKey(user?.id, getGetPremiumRecipeQueryKey(recipeId ?? '')),
-      enabled: recipeSource === 'plus' && Boolean(recipeId),
-      staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
-      retry: false,
-    },
-  });
-  const recipeNameLookupQuery = useListRecipes(
-    { query: recipeName, limit: RECIPE_PAGE_SIZE, offset: 0 },
-    {
-      query: {
-        queryKey: ['recipes-by-name', recipeName ?? ''],
-        enabled: Boolean(recipeName),
-        staleTime: 1000 * 60 * 10,
-      },
-    },
-  );
+  const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
   useEffect(() => {
     setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current);
   }, [user?.id]);
@@ -1510,50 +1477,11 @@ export default function RecipesScreen() {
   }, [category, queryClient, recipesQuery.data?.recipes, remoteOffset, search]);
   useEffect(() => {
     if (!recipeId) return;
-    if (recipeSource === 'plus') {
-      setActiveSection('premium');
-      if (!linkedPremiumRecipeQuery.data) return;
-      setSelected(linkedPremiumRecipeQuery.data);
-      router.setParams({ recipeId: undefined, recipeSource: undefined });
-      return;
-    }
-    if (recipeSource === 'create') {
-      setActiveSection('discover');
-      setCategory('My recipes');
-      const matchingLocalRecipe = localRecipes.find((recipe) => recipe.id === recipeId);
-      if (!matchingLocalRecipe) return;
-      setSelected(matchingLocalRecipe);
-      router.setParams({ recipeId: undefined, recipeSource: undefined });
-      return;
-    }
-    if (recipeSource === 'discover') {
-      setActiveSection('discover');
-      const matchingRecipe = remoteRecipes.find((recipe) => recipe.id === recipeId);
-      if (matchingRecipe) {
-        setSelected(matchingRecipe);
-        router.setParams({ recipeId: undefined, recipeSource: undefined });
-        return;
-      }
-      if (!linkedDiscoverRecipeQuery.data) return;
-      setSelected(linkedDiscoverRecipeQuery.data);
-      router.setParams({ recipeId: undefined, recipeSource: undefined });
-      return;
-    }
     const matchingRecipe = [...localRecipes, ...remoteRecipes].find((recipe) => recipe.id === recipeId);
     if (!matchingRecipe) return;
     setSelected(matchingRecipe);
     router.setParams({ recipeId: undefined });
-  }, [linkedDiscoverRecipeQuery.data, linkedPremiumRecipeQuery.data, localRecipes, recipeId, recipeSource, remoteRecipes]);
-  useEffect(() => {
-    if (!recipeName || recipeId) return;
-    setActiveSection('discover');
-    setCategory('For you');
-    const exactRecipe = [...remoteRecipes, ...(recipeNameLookupQuery.data?.recipes ?? [])]
-      .find((recipe) => recipe.name.trim().toLowerCase() === recipeName.trim().toLowerCase());
-    if (!exactRecipe) return;
-    setSelected(exactRecipe);
-    router.setParams({ recipeName: undefined });
-  }, [recipeId, recipeName, recipeNameLookupQuery.data?.recipes, remoteRecipes]);
+  }, [localRecipes, recipeId, remoteRecipes]);
   const createRecipePhoto = async (recipe: CaloraRecipe) => {
     const sourceType = recipeProvenance(recipe).sourceType;
     if (!['calora_ai', 'user_created'].includes(sourceType) || recipe.imageStatus === 'ready' || photoRequestsRef.current.has(recipe.id)) return;
