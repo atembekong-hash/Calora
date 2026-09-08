@@ -69,7 +69,12 @@ The intended referral source/test change was committed and pushed normally:
 - behind: `0`
 - worktree at synchronization: clean
 
-This report is being added as the required release evidence before the deployment handoff. The complete report commit must also be synchronized before final production attestation.
+This report is now included in the synchronized approved head below before the deployment handoff.
+
+Final approved head including this report:
+
+- commit: `df44068c869c24c3c58014a9f04fa63bf109c23d`
+- source tree: `b8f62438a509fb335aa821aec55811ffde748085`
 
 ## Replit production publish result
 
@@ -91,8 +96,8 @@ Before the new publish, production still reported:
 
 - `/api/version` commit: `f6bb73f17f7eac4b708812aa89f304265692099a`
 - `/api/version` source tree: `e5bc59418730cf9fc51fc88b2627184ed206345b`
-- expected post-remediation commit: `d8ecc375f75be4d6ed1e6913afbbbfa099cdd064`
-- expected post-remediation source tree: `c0a5657214d230ee559da6e14ee0b6cf1e99016a`
+- expected post-remediation commit: `df44068c869c24c3c58014a9f04fa63bf109c23d`
+- expected post-remediation source tree: `b8f62438a509fb335aa821aec55811ffde748085`
 
 `https://mycaloraapp.com/invite/test` was not expected to change until republish and previously contained the stale “free week” copy.
 
@@ -132,9 +137,8 @@ After publish, this matrix must be rerun and must additionally prove:
 ## Remaining blockers
 
 1. The existing Replit production API has not yet been republished from the new approved state.
-2. The final report commit still needs to be synchronized before the final production attestation, so the final approved tree includes this report.
-3. Live post-publish verification has not run.
-4. Owner physical-device revalidation remains required after both P1 blockers close.
+2. Live post-publish verification has not run.
+3. Owner physical-device revalidation remains required after both P1 blockers close.
 
 ## Exact next action
 
