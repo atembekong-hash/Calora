@@ -67,3 +67,4 @@
 - [Association provider evidence](association-provider-evidence.md) — Apple CDN and Google statements responses are distinct provider caches and must be checked by their own response shapes.
 - [Disposable provider failure rehearsal](disposable-provider-failure-rehearsal.md) — stage live erasure failures per customer; never invalidate the global provider credential.
 - [Railway deployment identity](railway-deployment-identity.md) — Railway GitHub deployment events qualify production as `<project> / production`; preserve the SHA and match only that production suffix.
+- [Replit production state](replit-production-state.md) — a public deployment record can exist with no successful build and serve Replit’s “app isn’t live yet” placeholder.
