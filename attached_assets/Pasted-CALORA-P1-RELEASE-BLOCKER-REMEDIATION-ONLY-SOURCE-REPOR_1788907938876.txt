@@ -1,0 +1,266 @@
+CALORA — P1 RELEASE BLOCKER REMEDIATION ONLY
+
+SOURCE REPORT:
+
+13_CALORA_FINAL_INSTALLED_RC_DEEP_VERIFICATION_REPORT.md
+
+CURRENT FINAL VERDICT:
+
+FINAL RC HAS P1/P0 BLOCKERS — DO NOT RELEASE
+
+MISSION
+
+Remediate ONLY the two confirmed P1 blockers from the final RC audit.
+
+Do not broaden scope.
+
+P1-001:
+Production is serving an older attested source tree than the approved pushed release candidate.
+
+Approved pushed RC:
+
+Branch:
+release/calora-onboarding-and-plus
+
+Approved pushed commit:
+dbd82b3f037810dda524ca3f900769af97bb4ce7
+
+Approved pushed source tree:
+b4a8b9b0947b6c1816ea26bbece8aec85890ef92
+
+Current production reports older commit/tree:
+
+f6bb73f17f7eac4b708812aa89f304265692099a
+e5bc59418730cf9fc51fc88b2627184ed206345b
+
+P1-002:
+Referral reward is 30 days but invite HTML/Twitter/page copy still says “free week”.
+
+STRICT RULES
+
+- Do not change unrelated features.
+- Do not change native package/bundle IDs.
+- Do not change Cloudflare DNS.
+- Do not change Supabase configuration.
+- Do not change RevenueCat product/entitlement IDs.
+- Do not trigger Expo/EAS.
+- Do not trigger a native build.
+- Do not modify the 30-day reward logic.
+- Do not force-push.
+- Do not rewrite Git history.
+- Do not touch unrelated P2 observations in this task.
+
+==================================================
+1. FIX P1-002 — REFERRAL COPY
+==================================================
+
+Inspect:
+
+artifacts/api-server/src/lib/referral-config.ts
+artifacts/api-server/src/routes/referral.ts
+artifacts/api-server/src/routes/universal-links.ts
+artifacts/api-server/src/__tests__/universal-links.test.ts
+
+Use the existing authoritative shared constant:
+
+REFERRAL_REWARD_DAYS = 30
+
+Ensure EVERY public/user-facing invite string derives from the shared duration.
+
+This includes at minimum:
+
+- HTML page body
+- OG description
+- Twitter description
+- OG image/SVG
+- title/subtitle text where applicable
+- any server-generated invite marketing copy
+
+Remove all stale runtime wording such as:
+
+- free week
+- one week
+- 1 week
+
+Do not change the reward duration.
+
+Add deterministic regression tests that:
+
+- assert every rendered invite surface contains the configured duration;
+- reject stale week-based copy;
+- prove the HTML, OG, Twitter, and image text stay synchronized.
+
+==================================================
+2. VERIFY SOURCE BEFORE DEPLOYMENT
+==================================================
+
+Run:
+
+- focused referral/universal-link tests
+- complete API tests
+- API TypeScript typecheck
+- git diff --check
+- tracked-secret scan
+
+Confirm no unrelated source/config changes.
+
+==================================================
+3. CONTROLLED GITHUB SYNC FOR THE P1 COPY FIX
+==================================================
+
+If source changes are required for P1-002:
+
+- commit only the intended referral-copy/test changes plus the required report;
+- push normally to:
+  origin/release/calora-onboarding-and-plus
+- no force push;
+- fetch afterward;
+- prove local HEAD == remote HEAD;
+- prove ahead/behind = 0/0.
+
+Record the NEW approved release commit and source tree.
+
+Do not build Expo/EAS.
+
+==================================================
+4. RECONCILE REPLIT PRODUCTION TO THE APPROVED HEAD
+==================================================
+
+After GitHub synchronization succeeds, publish/republish the existing Replit production API deployment from the newly approved current release state.
+
+Do not change DNS or domain configuration.
+
+Preserve:
+
+https://mycaloraapp.com
+
+Preserve existing API apex routing.
+
+After publishing, verify:
+
+https://mycaloraapp.com/api/healthz
+
+https://mycaloraapp.com/api/version
+
+Production /api/version MUST report the newly approved release commit/tree.
+
+==================================================
+5. PUBLIC RELEASE ATTESTATION
+==================================================
+
+Run the public-release verifier against the exact newly approved source tree.
+
+Acceptance requires:
+
+- live production source tree == approved GitHub source tree;
+- production commit corresponds to the approved release;
+- verifier passes;
+- no placeholder/stale deployment.
+
+Do not declare this blocker fixed based only on Replit UI showing “published”.
+
+==================================================
+6. VERIFY REFERRAL COPY IN LIVE PRODUCTION
+==================================================
+
+Probe:
+
+https://mycaloraapp.com/invite/test
+
+Verify live production contains the authoritative 30-day reward consistently across:
+
+- HTML body
+- OG description
+- Twitter description
+- OG image metadata/content where testable
+
+Verify live production does NOT contain:
+
+- free week
+- one week
+- 1 week
+
+==================================================
+7. REGRESSION MATRIX
+==================================================
+
+Recheck after production publish:
+
+- /
+- /api/healthz
+- /api/version
+- /auth/callback
+- /invite/test
+- /.well-known/apple-app-site-association
+- /.well-known/assetlinks.json
+- /privacy
+- /terms
+- /support
+- /contact
+- /delete-account
+- /subscriptions
+- /help
+
+Verify expected status/content and no regression to:
+
+- branded domain
+- auth callback
+- CORS
+- Universal Links
+- Android App Links
+- legal/support routes
+
+==================================================
+8. DO NOT ADDRESS P2 ITEMS YET
+==================================================
+
+Do not modify:
+
+- js-yaml/Vitest dependency findings
+- localization system
+- documentation drift
+- performance/resource observations
+- legal effective dates
+
+Those require separate owner-approved tasks after the P1 release blockers are closed.
+
+==================================================
+REQUIRED REPORT
+==================================================
+
+Create:
+
+14_CALORA_P1_RELEASE_BLOCKERS_REMEDIATION_REPORT.md
+
+Include:
+
+- original P1-001 evidence
+- original P1-002 evidence
+- exact files changed
+- referral-copy remediation
+- regression tests added
+- focused/full test results
+- GitHub commit SHA
+- GitHub source tree SHA
+- GitHub push verification
+- Replit production publish result
+- live /api/version evidence
+- public-release verifier result
+- live invite-copy evidence
+- production route regression matrix
+- secrets/security checks
+- remaining blockers
+- exact next action
+- final verdict
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+P1 RELEASE BLOCKERS REMEDIATED — OWNER DEVICE REVALIDATION REQUIRED
+
+P1 BLOCKERS REMAIN — DO NOT RELEASE
+
+Do not trigger Expo/EAS.
+Do not trigger a native build.
+Do not perform unrelated remediation.
+
+Stop only after both P1 blockers are independently verified against live production.
