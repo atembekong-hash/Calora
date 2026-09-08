@@ -356,4 +356,3 @@ The original URL remains healthy:
 ## Final verdict
 
 BRANDED DOMAIN CONNECTION COMPLETE
-OWNER REPLIT ACTION REQUIRED
