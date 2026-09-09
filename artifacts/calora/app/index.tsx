@@ -131,6 +131,9 @@ export default function OnboardingScreen() {
     setOnboardingDraft,
     profile: existingProfile,
     hydrated,
+    profileSyncReady,
+    profileSyncError,
+    retryProfileSync,
     hydrationError,
     hydrationErrorKind,
     retryHydration,
@@ -276,7 +279,7 @@ export default function OnboardingScreen() {
 
   // Show generic loading only on the initial read — not during a retry, where
   // the error screen (with its spinner button) should remain visible instead.
-  if (!hydrated && !isRetrying) {
+  if ((!hydrated || !profileSyncReady) && !isRetrying && !profileSyncError) {
     return (
       <View style={[styles.loadingPage, { backgroundColor: colors.background }]}>
         <View style={[styles.brandMark, { backgroundColor: colors.primary }]}>
@@ -366,6 +369,30 @@ export default function OnboardingScreen() {
             style={styles.clearButton}
           >
             <Text style={[styles.clearButtonText, { color: colors.destructive }]}>Clear all data and start fresh</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
+
+  if (!profileSyncReady) {
+    return (
+      <View style={[styles.loadingPage, { backgroundColor: colors.background, paddingHorizontal: 28 }]}>
+        <View style={[styles.errorIcon, { backgroundColor: colors.muted }]}>
+          <Feather name="cloud-off" size={20} color={colors.primary} />
+        </View>
+        <Text style={[styles.errorTitle, { color: colors.foreground }]}>Your setup is still loading.</Text>
+        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>
+          {profileSyncError ?? 'Checking your account setup…'}
+        </Text>
+        {profileSyncError && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retry account setup"
+            onPress={retryProfileSync}
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
+          >
+            <Text style={[styles.retryButtonText, { color: colors.primaryForeground }]}>Try again</Text>
           </Pressable>
         )}
       </View>

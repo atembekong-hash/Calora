@@ -88,6 +88,11 @@ import {
   cancelNotificationPlanForClear,
   reconcileHydratedNotificationPlan,
 } from '@/lib/notificationLifecycle';
+import {
+  reconcileRemoteProfile,
+  removeRemoteProfile,
+  saveRemoteProfile,
+} from '@/lib/profileSync';
 
 export type HealthSyncOutcome =
   | { status: 'synced'; syncedAt: string }
@@ -339,6 +344,10 @@ type CaloraContextValue = {
   onboardingStep: number;
   onboardingDraft: OnboardingDraft | null;
   hydrated: boolean;
+  /** True only after the authenticated profile has been reconciled, or the server has confirmed it is absent. */
+  profileSyncReady: boolean;
+  profileSyncError: string | null;
+  retryProfileSync: () => void;
   hydrationError: string | null;
   hydrationErrorKind: HydrationErrorKind | null;
   themePreference: ThemePreference;
@@ -591,6 +600,12 @@ export function CaloraProvider({
   const [onboardingDraft, setOnboardingDraftState] = useState<OnboardingDraft | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const profileRef = useRef<Profile | null>(null);
+  const [profileSyncReady, setProfileSyncReady] = useState(!accountId);
+  const [profileSyncError, setProfileSyncError] = useState<string | null>(null);
+  const [profileSyncAttempt, setProfileSyncAttempt] = useState(0);
+  const retryProfileSync = useCallback(() => {
+    setProfileSyncAttempt((attempt) => attempt + 1);
+  }, []);
   const [logs, setLogs] = useState<FoodLog[]>(starterLogs);
   const [weights, setWeights] = useState<WeightEntry[]>([
     { id: 'weight-1', date: today, kg: 76, source: 'manual' },
@@ -917,6 +932,74 @@ export function CaloraProvider({
        };
      }
   });
+
+  /**
+   * Reconcile the durable account profile before the route can decide whether
+   * this is first-run onboarding. A missing server profile is a definitive
+   * first-run result; a transport/auth failure is not, so it remains a
+   * retryable loading boundary rather than flashing onboarding.
+   */
+  useEffect(() => {
+    if (!hydrated || hydrationError) return;
+    let active = true;
+    setProfileSyncError(null);
+
+    if (!accountId) {
+      setProfileSyncReady(true);
+      return () => { active = false; };
+    }
+
+    setProfileSyncReady(false);
+    void (async () => {
+      try {
+        const reconciliation = await reconcileRemoteProfile(
+          profileRef.current,
+          onboardingComplete,
+        );
+        if (!active) return;
+        if (reconciliation.kind === 'ready') {
+          setProfileSyncReady(true);
+          return;
+        }
+        const restoredProfile = reconciliation.profile as Profile;
+        const nextSnapshot = exportSnapshotRef.current;
+        profileRef.current = restoredProfile;
+        setProfile(restoredProfile);
+        setConsentAccepted(true);
+        setOnboardingComplete(true);
+        setOnboardingDraftState(null);
+        patchExportSnapshot({
+          ...(nextSnapshot ?? {}),
+          profile: restoredProfile,
+          consentAccepted: true,
+          onboardingComplete: true,
+        });
+        if (nextSnapshot) {
+          enqueueAutosave(pm.current, {
+            ...nextSnapshot,
+            profile: restoredProfile,
+            consentAccepted: true,
+            onboardingComplete: true,
+          });
+          await pm.current.flush();
+        }
+        if (active) setProfileSyncReady(true);
+      } catch (error) {
+        if (!active) return;
+        // A completed local scope can keep working offline without showing
+        // onboarding. A fresh authenticated scope must wait for a definitive
+        // server answer, otherwise a transient outage looks like first launch.
+        if (profileRef.current && onboardingComplete) {
+          console.warn('[Calora][profile] Using completed local profile while sync is unavailable:', error);
+          setProfileSyncReady(true);
+          return;
+        }
+        setProfileSyncError('We could not verify your account setup. Check your connection and try again.');
+      }
+    })();
+
+    return () => { active = false; };
+  }, [accountId, hydrated, hydrationError, profileSyncAttempt]);
 
   // A provider is keyed by the active account/guest scope. Reconcile precisely
   // once after each successful hydration so schedules from the previous scope
@@ -1276,6 +1359,9 @@ export function CaloraProvider({
     onboardingStep,
     onboardingDraft,
     hydrated,
+    profileSyncReady,
+    profileSyncError,
+    retryProfileSync,
     hydrationError,
     hydrationErrorKind,
     themePreference,
@@ -1699,13 +1785,21 @@ export function CaloraProvider({
       setOnboardingComplete(true);
       setOnboardingStepState(0);
        setOnboardingDraftState(null);
-      queueMutation('profile', 'upsert');
+       if (accountId) {
+         void saveRemoteProfile(nextProfile).catch((error) => {
+           console.warn('[Calora][profile] Could not save completed onboarding remotely:', error);
+         });
+       }
     },
     updateProfile: (patch) => {
       profileRef.current = profileRef.current ? { ...profileRef.current, ...patch } : null;
       setProfile(profileRef.current);
       patchExportSnapshot({ profile: profileRef.current });
-      queueMutation('profile', 'upsert');
+       if (profileRef.current && accountId) {
+         void saveRemoteProfile(profileRef.current).catch((error) => {
+           console.warn('[Calora][profile] Could not save profile changes remotely:', error);
+         });
+       }
     },
     hydrationReminders,
     coachConsentAccepted,
@@ -1810,6 +1904,12 @@ export function CaloraProvider({
       try {
         CoachFactRequestLifecycle.invalidateAll();
         invalidateAllCoachLifecycleEpochs('clear_data');
+        // A local-only clear would be repopulated by the next authenticated
+        // profile bootstrap. Delete the durable profile first so "clear all"
+        // has the same meaning after reinstall and on another device.
+        if (accountId) {
+          await removeRemoteProfile();
+        }
         let coreFailure: unknown = null;
         try {
           // The account-scoped state is the destructive commit boundary. It is
@@ -1881,6 +1981,8 @@ export function CaloraProvider({
             healthConnection: healthConnectionRef.current,
             notificationPreferences: clearedNotificationPreferences,
           });
+           setProfileSyncError(null);
+           setProfileSyncReady(true);
         }
 
         // Attempt every independent cleanup even when another cleanup fails.
@@ -2064,7 +2166,7 @@ export function CaloraProvider({
        patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
        setGoalCelebrationSeenTargetKg(null);
      },
-       }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+        }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, profileSyncError, profileSyncReady, recipeSlotTarget, rememberedFoodMemories, retryProfileSync, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

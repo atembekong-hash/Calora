@@ -13,6 +13,7 @@ import diaryRouter from "./diary";
 import syncRouter from "./sync";
 import premiumRecipesRouter from "./premiumRecipes";
 import restaurantFoodsRouter from "./restaurantFoods";
+import profileRouter from "./profile";
 
 const router: IRouter = Router();
 
@@ -33,5 +34,6 @@ router.use(diaryRouter);
 router.use(syncRouter);
 router.use(premiumRecipesRouter);
 router.use(restaurantFoodsRouter);
+router.use(profileRouter);
 
 export default router;

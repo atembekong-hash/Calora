@@ -129,6 +129,13 @@ export const UpdateProfileResponse = zod.object({
 
 
 /**
+ * Removes the account profile so a subsequent launch starts onboarding again.
+ * @summary Clear the current profile
+ */
+export const DeleteProfileResponse = zod.void()
+
+
+/**
  * @summary List diary entries for a date
  */
 export const ListDiaryEntriesQueryParams = zod.object({

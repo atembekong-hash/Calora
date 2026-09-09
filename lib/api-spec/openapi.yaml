@@ -77,6 +77,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Profile"
+    delete:
+      operationId: deleteProfile
+      tags: [profile]
+      summary: Clear the current profile
+      description: Removes the account profile so a subsequent launch starts onboarding again.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204":
+          description: Profile cleared
   /v1/diary:
     get:
       operationId: listDiaryEntries
