@@ -45,6 +45,7 @@
 - [Publishing task isolation](publishing-task-isolation.md) — Publishing snapshots applied main, not an active task copy; historical-tree releases need an explicit owner decision.
 - [Spatial surface contrast](spatial-surface-contrast.md) — shared depth wrappers must preserve semantic background/foreground pairs, not just layout styles.
 - [Detached background tasks](detached-background-tasks.md) — timer, recovery, and startup promises need a logged rejection boundary so transient failures cannot terminate the API.
+- [Independent limiter side effects](independent-limiter-side-effects.md) — await independent persistence operations fully before returning on one failure, or fail-closed responses can race observable limiter writes.
 - [Project-reference typechecks](project-reference-typechecks.md) — rebuild workspace library declarations before diagnosing downstream row-type errors.
 - [Calora release freeze](calora-release-candidate-freeze.md) — signed builds must use the exact candidate named in the final freeze report, not a later workspace state.
 - [Managed artifact merge conflicts](managed-artifact-merge-conflicts.md) — reconcile artifact configuration through validated replacement before merging divergent Git histories.

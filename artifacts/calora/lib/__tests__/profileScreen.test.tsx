@@ -37,6 +37,7 @@ const harness = vi.hoisted(() => {
     notifications: [] as Array<{ id: string; category: string; title: string; body: string; receivedAt: string; read: boolean }>,
     savedMeals: [] as Array<{ id: string; name: string; kind: 'meal' | 'recipe'; calories: number; protein: number; carbs: number; fat: number }>,
   };
+  const getNotificationInbox = vi.fn(async () => state.notifications);
   const updateNotificationPreferences = vi.fn((updater: any) => updater(notificationPreferences));
   const calora = {
      colors, themePreference: 'system', setThemePreference: vi.fn(), setOnboardingStep: vi.fn(), profile, onboardingComplete: true, onboardingStep: 0, updateProfile: vi.fn(),
@@ -49,7 +50,7 @@ const harness = vi.hoisted(() => {
     notificationPreferences, updateNotificationPreferences, livingMemory: { mealObservations: {}, waterObservations: {}, moodObservations: {}, activityObservations: {}, plannerObservations: {} },
     logs: [], fontSizeScale: 'default', setFontSizeScale: vi.fn(), profilePhotoUri: null, setProfilePhotoUri: vi.fn(), fontScale: 1,
   };
-  return { state, calora, notificationPreferences, colors, router: { push: vi.fn(), navigate: vi.fn() }, useSubscription: vi.fn() };
+  return { state, calora, notificationPreferences, colors, router: { push: vi.fn(), navigate: vi.fn() }, useSubscription: vi.fn(), getNotificationInbox };
 });
 
 vi.mock('expo-router', () => ({
@@ -66,7 +67,7 @@ vi.mock('@/lib/notificationLifecycle', () => ({
   reconcileUserNotificationPlan: vi.fn(async () => ({ status: 'scheduled', scheduledCount: 1 })),
 }));
 vi.mock('@/lib/notificationInbox', () => ({
-  getNotificationInbox: vi.fn(async () => harness.state.notifications),
+  getNotificationInbox: harness.getNotificationInbox,
   subscribeToNotificationInbox: vi.fn(() => () => undefined),
   markNotificationRead: vi.fn(async () => undefined),
   markAllNotificationsRead: vi.fn(async () => undefined),
@@ -134,26 +135,31 @@ beforeEach(() => {
 });
 
 describe('Profile rendered interactions', () => {
-  it('offers a review path for completed onboarding without changing data first', () => {
+  async function renderProfile() {
     render(<ProfileScreen />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+    await waitFor(() => expect(harness.getNotificationInbox).toHaveBeenCalled());
+  }
+
+  it('offers a review path for completed onboarding without changing data first', async () => {
+    harness.state.tab = 'membership';
+    await renderProfile();
     expect(screen.getByText('Your starting preferences are saved. Review them anytime.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Review onboarding' }));
     expect(harness.router.push).toHaveBeenCalledWith({ pathname: '/', params: { mode: 'review' } });
   });
 
-  it('offers a resume path with the saved onboarding step when setup is incomplete', () => {
+  it('offers a resume path with the saved onboarding step when setup is incomplete', async () => {
     harness.calora.onboardingComplete = false;
     harness.calora.onboardingStep = 3;
-    render(<ProfileScreen />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+    harness.state.tab = 'membership';
+    await renderProfile();
     expect(screen.getByText('Continue from step 4 of 7.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Resume onboarding' }));
     expect(harness.router.push).toHaveBeenCalledWith({ pathname: '/', params: { mode: 'resume' } });
   });
 
-  it('switches between You, Membership, and Account tabs', () => {
-    render(<ProfileScreen />);
+  it('switches between You, Membership, and Account tabs', async () => {
+    await renderProfile();
     expect(screen.getByText('Your plan')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
     expect(screen.getByText('Calora Pro')).toBeTruthy();
@@ -161,9 +167,9 @@ describe('Profile rendered interactions', () => {
     expect(screen.getByText('Your plan').closest('[class*="r-display"]')).toBeTruthy();
   });
 
-  it('uses the store purchase flow and labels plan choices as radio controls', () => {
-    render(<ProfileScreen />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+  it('uses the store purchase flow and labels plan choices as radio controls', async () => {
+    harness.state.tab = 'membership';
+    await renderProfile();
     expect(screen.getByRole('radio', { name: 'Choose monthly plan' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'Choose annual plan' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Continue to billing' }));
@@ -171,16 +177,16 @@ describe('Profile rendered interactions', () => {
   });
 
   it('shows recovery controls for partial Health Connect and reacts to a health deep link after mount', async () => {
-    render(<ProfileScreen />);
     harness.state.open = 'health';
+    await renderProfile();
     await waitFor(() => expect(screen.getByText(/Some requested categories are not available/)).toBeTruthy());
     expect(screen.getByRole('button', { name: 'Sync health data now' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Disconnect health data' })).toBeTruthy();
   });
 
   it('runs health sync and confirms success or failure in the health sheet', async () => {
-    render(<ProfileScreen />);
     harness.state.open = 'health';
+    await renderProfile();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sync health data now' })).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'Sync health data now' }));
@@ -191,17 +197,17 @@ describe('Profile rendered interactions', () => {
 
   it('shows the native sync error instead of reporting a false success', async () => {
     harness.calora.syncHealth.mockResolvedValueOnce({ status: 'failed', message: 'Health Connect could not be read.' });
-    render(<ProfileScreen />);
     harness.state.open = 'health';
+    await renderProfile();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sync health data now' })).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'Sync health data now' }));
     await waitFor(() => expect(screen.getByText('Health Connect could not be read.')).toBeTruthy());
   });
 
-  it('opens saved-meal creation and routes living memory to its screen', () => {
-    render(<ProfileScreen />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+  it('opens saved-meal creation and routes living memory to its screen', async () => {
+    harness.state.tab = 'membership';
+    await renderProfile();
     fireEvent.click(screen.getByRole('button', { name: 'Create saved meal' }));
     expect(screen.getByText('Create a saved template')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel saved meal' }));
@@ -211,7 +217,7 @@ describe('Profile rendered interactions', () => {
 
   it('opens the account-scoped notification inbox and exposes unread state', async () => {
     harness.state.notifications = [{ id: 'n1', category: 'goal', title: 'Goal check-in', body: 'Nice work', receivedAt: '2026-09-03T12:00:00.000Z', read: false }];
-    render(<ProfileScreen />);
+    await renderProfile();
     fireEvent.click(screen.getByRole('button', { name: /Open notifications/ }));
     await waitFor(() => expect(screen.getByText('Goal check-in')).toBeTruthy());
     expect(screen.getByText('1 unread update')).toBeTruthy();

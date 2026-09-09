@@ -1,0 +1,194 @@
+name: Mandatory CI release gate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mandatory-ci-release-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify workspace release foundation
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/calora_mandatory_ci
+      ACCOUNT_DELETION_FENCE_REQUIRE_DATABASE: "true"
+      CAPTURE_ROLLBACK_REQUIRE_DATABASE: "true"
+      RECOVERY_WARNING_SUPPRESSION_REQUIRE_DATABASE: "true"
+      RECOVERY_SUMMARY_ROLLING_RESTART_REQUIRE_DATABASE: "true"
+      NODE_ENV: test
+      CI_LOG_DIR: ${{ runner.temp }}/calora-mandatory-ci/logs
+      CI_ARTIFACT_DIR: ${{ runner.temp }}/calora-mandatory-ci/artifacts
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: calora_mandatory_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d calora_mandatory_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Prepare sanitized CI artifact directories
+        run: |
+          set -euo pipefail
+          mkdir -p "$CI_LOG_DIR" "$CI_ARTIFACT_DIR"
+
+      - name: Install dependencies
+        run: |
+          set -o pipefail
+          pnpm install --frozen-lockfile 2>&1 | tee "$CI_LOG_DIR/01-install.log"
+
+      - name: Provision deterministic CI database
+        run: |
+          set -o pipefail
+          {
+            pnpm --filter @workspace/db run push-force
+            pnpm --filter @workspace/db run migrate
+            pnpm --filter @workspace/db run provision-support-objects
+          } 2>&1 | tee "$CI_LOG_DIR/02-database-provisioning.log"
+
+      - name: Verify root workspace typecheck
+        run: |
+          set -o pipefail
+          pnpm run typecheck 2>&1 | tee "$CI_LOG_DIR/03-root-typecheck.log"
+
+      - name: Verify API Server typecheck
+        run: |
+          set -o pipefail
+          pnpm --filter @workspace/api-server run typecheck 2>&1 | tee "$CI_LOG_DIR/04-api-typecheck.log"
+
+      - name: Verify Calora typecheck
+        run: |
+          set -o pipefail
+          pnpm --filter @workspace/calora run typecheck 2>&1 | tee "$CI_LOG_DIR/05-calora-typecheck.log"
+
+      - name: Generate OpenAPI clients and validators
+        run: |
+          set -o pipefail
+          pnpm --filter @workspace/api-spec run codegen 2>&1 | tee "$CI_LOG_DIR/06-openapi-codegen.log"
+
+      - name: Fail on generated-file drift
+        run: |
+          set -o pipefail
+          git diff --exit-code -- . 2>&1 | tee "$CI_LOG_DIR/07-openapi-drift.log"
+
+      - name: Run deterministic database integration verification
+        run: |
+          set -o pipefail
+          {
+            pnpm --filter @workspace/api-server run test:account-deletion-fence
+            pnpm --filter @workspace/api-server run test:built-deletion-fence-release
+          } 2>&1 | tee "$CI_LOG_DIR/08-database-integration.log"
+
+      - name: Run full API test suite
+        run: |
+          set -o pipefail
+          pnpm --filter @workspace/api-server run test 2>&1 | tee "$CI_LOG_DIR/09-api-tests.log"
+
+      - name: Run full Calora test suite and static-server security tests
+        run: |
+          set -o pipefail
+          pnpm --filter @workspace/calora run test 2>&1 | tee "$CI_LOG_DIR/10-calora-tests-and-server-security.log"
+
+      - name: Validate Expo configuration
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          pnpm --filter @workspace/calora exec expo config --json > "$CI_LOG_DIR/11-expo-config.json" 2> "$CI_LOG_DIR/11-expo-config.stderr.log"
+          node scripts/ci/validate-expo-config.mjs "$CI_LOG_DIR/11-expo-config.json" 2>&1 | tee "$CI_LOG_DIR/11-expo-validation.log"
+
+      - name: Build production API
+        run: |
+          set -o pipefail
+          pnpm --filter @workspace/api-server run build 2>&1 | tee "$CI_LOG_DIR/12-api-production-build.log"
+
+      - name: Verify API startup, health, and database readiness
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          api_log="$CI_LOG_DIR/13-api-startup.log"
+          api_pid=""
+          cleanup() {
+            if [ -n "$api_pid" ] && kill -0 "$api_pid" 2>/dev/null; then
+              kill "$api_pid" 2>/dev/null || true
+              wait "$api_pid" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+
+          PORT=18080 NODE_ENV=production \
+            pnpm --filter @workspace/api-server run start > "$api_log" 2>&1 &
+          api_pid=$!
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/api/ > "$CI_LOG_DIR/13-api-health.json"; then
+              break
+            fi
+            if ! kill -0 "$api_pid" 2>/dev/null; then
+              cat "$api_log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          curl --fail --silent --show-error http://127.0.0.1:18080/api/healthz > "$CI_LOG_DIR/13-api-readiness.json"
+          node - "$CI_LOG_DIR/13-api-health.json" "$CI_LOG_DIR/13-api-readiness.json" <<'NODE'
+          const fs = require("node:fs");
+          for (const file of process.argv.slice(2)) {
+            const response = JSON.parse(fs.readFileSync(file, "utf8"));
+            if (response.status !== "ok") {
+              throw new Error(`${file} did not report status=ok`);
+            }
+          }
+          NODE
+          printf 'API startup, health, and database readiness passed.\n' | tee "$CI_LOG_DIR/13-api-smoke-summary.log"
+
+      - name: Collect sanitized failure artifacts
+        if: always()
+        run: |
+          set +e
+          if command -v docker >/dev/null 2>&1; then
+            docker ps --all --quiet --filter 'label=com.github.actions.service=postgres' \
+              | while IFS= read -r container_id; do
+                  [ -n "$container_id" ] || continue
+                  docker logs "$container_id" > "$CI_LOG_DIR/postgres-service.log" 2>&1
+                done
+          fi
+          node scripts/ci/sanitize-failure-artifacts.mjs
+
+      - name: Upload sanitized CI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calora-mandatory-ci-${{ github.run_id }}
+          path: ${{ runner.temp }}/calora-mandatory-ci/artifacts
+          if-no-files-found: error
+          retention-days: 30

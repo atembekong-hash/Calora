@@ -42,25 +42,28 @@ async function authorizePremiumAccess(req: Request, route: string): Promise<Prem
     return { allowed: false, status: 503, message: "Premium recipes are temporarily unavailable. Please try again shortly." };
   }
 
-  let accountRate;
-  let ipRate;
-  try {
-    [accountRate, ipRate] = await Promise.all([
-      checkRateLimit(
-        `premium-recipes:user:${user.id}`,
-        ACCOUNT_RATE_LIMIT,
-        RATE_WINDOW_SECONDS,
-        { failClosed: true, rethrowAccountDeletionFence: true },
-      ),
-      checkRateLimit(
-        `premium-recipes:ip:${requestIp(req)}`,
-        IP_RATE_LIMIT,
-        RATE_WINDOW_SECONDS,
-        { failClosed: true },
-      ),
-    ]);
-  } catch (error) {
-    if (classifyAccountDeletionError(error)) {
+  const [accountRateResult, ipRateResult] = await Promise.allSettled([
+    checkRateLimit(
+      `premium-recipes:user:${user.id}`,
+      ACCOUNT_RATE_LIMIT,
+      RATE_WINDOW_SECONDS,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    ),
+    checkRateLimit(
+      `premium-recipes:ip:${requestIp(req)}`,
+      IP_RATE_LIMIT,
+      RATE_WINDOW_SECONDS,
+      { failClosed: true },
+    ),
+  ]);
+  if (accountRateResult.status === "rejected" || ipRateResult.status === "rejected") {
+    const failedRateLimitReasons = [
+      ...(accountRateResult.status === "rejected"
+        ? [accountRateResult.reason]
+        : []),
+      ...(ipRateResult.status === "rejected" ? [ipRateResult.reason] : []),
+    ];
+    if (failedRateLimitReasons.some((reason) => classifyAccountDeletionError(reason))) {
       logger.warn(
         accountDeletionFenceSignal(route),
         "Account deletion fence rejected premium recipe request",
@@ -72,6 +75,8 @@ async function authorizePremiumAccess(req: Request, route: string): Promise<Prem
       message: "Premium recipes are temporarily unavailable. Please try again shortly.",
     };
   }
+  const accountRate = accountRateResult.value;
+  const ipRate = ipRateResult.value;
   const deniedRate = !accountRate.allowed ? accountRate : !ipRate.allowed ? ipRate : null;
   if (deniedRate) {
     return {

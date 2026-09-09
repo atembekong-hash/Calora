@@ -362,6 +362,7 @@ describe("built API deletion-fence validation", () => {
       `${path.join(apiDirectory, "dist", "release-validation.mjs")}?release-test=${Date.now()}`,
     );
     assert.deepEqual(probe.accountDeletionFenceSignal("/v1/sync", 2), {
+      schemaVersion: "calora.account-deletion-fence-signal.v1",
       errorClass: "account_deletion_fence",
       route: "/v1/sync",
       count: 2,
