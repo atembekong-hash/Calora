@@ -1698,6 +1698,10 @@ export default function RecipesScreen() {
         onChange={changeSection}
         accessibilityLabel="Recipe section content"
         testID="recipes-section-content"
+        // Recipes should track the finger directly. The previous release and
+        // fade animations competed with the active-section re-render and made
+        // Discover / Plus / Create feel shaky.
+        disableAnimation
         style={{ flex: 1 }}
       >
       {activeSection === 'premium' ? (

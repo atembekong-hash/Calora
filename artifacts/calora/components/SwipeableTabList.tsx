@@ -238,7 +238,10 @@ export function SwipeableSectionPager<T extends string>({
       : direction * Math.min(widthRef.current * 0.22, 88);
     onChangeRef.current(targetItem);
     if (reduceMotionRef.current || disableAnimationRef.current) {
-      translateX.value = targetOffset;
+      // In children mode the next section replaces the current child at
+      // offset zero. Do not leave it parked at the directional preview offset
+      // when settle animation is disabled.
+      translateX.value = renderItemRef.current ? targetOffset : 0;
       opacity.value = 1;
       return;
     }
@@ -282,7 +285,6 @@ export function SwipeableSectionPager<T extends string>({
         opacity.value = 1;
       },
       onPanResponderMove: (_event, gesture) => {
-        if (disableAnimationRef.current) return;
         const currentItems = itemsRef.current;
         const currentIndex = currentItems.indexOf(activeItemRef.current);
         const dragOffset = getWorkspaceSwipeOffset(
@@ -294,7 +296,9 @@ export function SwipeableSectionPager<T extends string>({
           ? -currentIndex * widthRef.current
           : 0;
         translateX.value = pageOffset + dragOffset;
-        opacity.value = Math.max(0.84, 1 - Math.abs(dragOffset) / Math.max(widthRef.current, 1) * 0.16);
+        opacity.value = disableAnimationRef.current
+          ? 1
+          : Math.max(0.84, 1 - Math.abs(dragOffset) / Math.max(widthRef.current, 1) * 0.16);
       },
       onPanResponderRelease: (_event, gesture) => {
         const currentItems = itemsRef.current;
