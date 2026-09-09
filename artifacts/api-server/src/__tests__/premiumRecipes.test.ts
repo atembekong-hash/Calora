@@ -44,6 +44,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  vi.clearAllMocks();
   delete process.env.PREMIUM_RECIPE_PROVIDER_URL;
   delete process.env.PREMIUM_RECIPE_PROVIDER_NAME;
   delete process.env.PREMIUM_RECIPE_PROVIDER_API_KEY;
@@ -68,6 +69,48 @@ async function appWithProvider(url?: string) {
 }
 
 describe("Premium recipe routes", () => {
+  it("orders each default provider page deterministically by account and UTC day", async () => {
+    const { orderPremiumRecipePage } = await import("../lib/premiumRecipes.js");
+    const rows = Array.from({ length: 8 }, (_, index) => ({ id: `recipe-${index}` }));
+    const first = orderPremiumRecipePage(rows, "account-a", "2026-08-27");
+    const repeated = orderPremiumRecipePage(rows, "account-a", "2026-08-27");
+    const nextDay = orderPremiumRecipePage(rows, "account-a", "2026-08-28");
+    const otherAccount = orderPremiumRecipePage(rows, "account-b", "2026-08-27");
+
+    expect(repeated).toEqual(first);
+    expect(nextDay[0]?.id).not.toBe(first[0]?.id);
+    expect(otherAccount).not.toEqual(first);
+    expect(new Set(first.map((recipe) => recipe.id))).toEqual(new Set(rows.map((recipe) => recipe.id)));
+  });
+
+  it("leaves provider relevance order unchanged for search and category requests", async () => {
+    const providerRows = [
+      { id: "relevant-1", name: "Most relevant", sourceUrl: "https://provider.example/1" },
+      { id: "relevant-2", name: "Second relevant", sourceUrl: "https://provider.example/2" },
+      { id: "relevant-3", name: "Third relevant", sourceUrl: "https://provider.example/3" },
+    ];
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: providerRows, nextOffset: null }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const searchResult = await request(app).get("/v1/premium-recipes?query=bowl&freshnessDay=2026-08-27");
+    const categoryResult = await request(app).get("/v1/premium-recipes?category=Dinner&freshnessDay=2026-08-28");
+
+    expect(searchResult.body.recipes.map((recipe: { sourceId: string }) => recipe.sourceId)).toEqual(["relevant-1", "relevant-2", "relevant-3"]);
+    expect(categoryResult.body.recipes.map((recipe: { sourceId: string }) => recipe.sourceId)).toEqual(["relevant-1", "relevant-2", "relevant-3"]);
+  });
+
+  it("rejects an invalid freshness day before provider work", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const result = await request(app).get("/v1/premium-recipes?freshnessDay=2026-02-30");
+
+    expect(result.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("clears reused provider photos from later recipes", async () => {
     const { clearDuplicateRecipeImages } = await import("../lib/premiumRecipes.js");
     const recipes = [

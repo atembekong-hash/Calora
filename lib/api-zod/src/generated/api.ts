@@ -568,7 +568,9 @@ export const ListRecipesResponse = zod.object({
   "source": zod.string(),
   "sourceUrl": zod.string().url()
 })),
-  "warmupPending": zod.boolean().optional().describe('True while the server\'s background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available.\n')
+  "warmupPending": zod.boolean().optional().describe('True while the server\'s background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available.\n'),
+  "nextOffset": zod.number().int().nullish().describe('The provider-supported offset for the next page, or null when exhausted.'),
+  "terminalReason": zod.string().nullish().describe('Explicit reason pagination stopped when the provider cannot supply another page.')
 })
 
 
@@ -644,6 +646,7 @@ export const listPremiumRecipesQueryQueryMax = 120;
 
 export const listPremiumRecipesQueryCategoryMax = 80;
 
+export const listPremiumRecipesQueryFreshnessDayRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const listPremiumRecipesQueryLimitDefault = 18;
 export const listPremiumRecipesQueryLimitMax = 30;
 
@@ -655,6 +658,7 @@ export const listPremiumRecipesQueryOffsetMin = 0;
 export const ListPremiumRecipesQueryParams = zod.object({
   "query": zod.coerce.string().max(listPremiumRecipesQueryQueryMax).optional(),
   "category": zod.coerce.string().max(listPremiumRecipesQueryCategoryMax).optional(),
+  "freshnessDay": zod.coerce.string().regex(listPremiumRecipesQueryFreshnessDayRegExp).optional().describe('UTC browsing-session day used for deterministic default-catalogue freshness'),
   "limit": zod.coerce.number().int().min(1).max(listPremiumRecipesQueryLimitMax).default(listPremiumRecipesQueryLimitDefault),
   "offset": zod.coerce.number().int().min(listPremiumRecipesQueryOffsetMin).default(listPremiumRecipesQueryOffsetDefault)
 })
@@ -699,7 +703,8 @@ export const ListPremiumRecipesResponse = zod.object({
   "fiberG": zod.number().nullish(),
   "sodiumMg": zod.number().nullish()
 }))),
-  "nextOffset": zod.number().int().nullish()
+  "nextOffset": zod.number().int().nullish(),
+  "terminalReason": zod.string().nullish()
 })
 
 

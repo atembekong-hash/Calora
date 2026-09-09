@@ -121,14 +121,16 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('testID="plus-recipe-pagination-retry"');
     expect(source).toContain('query.isError && recipes.length > 0');
     expect(source).toContain('onPress={() => query.refetch()}');
-    expect(source).toContain('if (!hasCurrentPageData || data?.nextOffset == null || paginationTerminalReason || query.isFetching || loadingMoreRef.current) return;');
+    expect(source).toContain('if (!hasCurrentPageData || nextOffset == null || paginationTerminalReason || query.isFetching || loadingMoreRef.current) return;');
     expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = () => {');
     expect(source).toContain('onContentSizeChange={(_, contentHeight) => {');
     expect(source).toContain('loadMorePremiumRecipesIfAtEnd();');
     expect(source).toContain("activeSection === 'premium' ? (");
     expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
     expect(source).toContain('recipesScrollRef.current?.scrollTo({ y: section === \'discover\' ? discoverScrollYRef.current : 0, animated: false })');
-    expect(source).toContain('initialLoadedRecipes={premiumCatalogueState.userId === user?.id ? premiumCatalogueState.recipes : []}');
+    expect(source).toContain('initialState={premiumCatalogueState.userId === user?.id ? premiumCatalogueState : { userId: null, recipes: [] }}');
+    expect(source).toContain('freshnessDay, limit: RECIPE_PAGE_SIZE, offset');
+    expect(source).toContain('premiumScrollRef.current?.scrollTo({ y: mountedSession.scrollY ?? 0, animated: false })');
     expect(source).toContain("queryClient.removeQueries({ queryKey: ['premium-recipes'] })");
     expect(source).toContain('testID="plus-recipe-pagination-terminal"');
     expect(source).toContain('const hasCurrentPageData = canApplyPremiumPage(query.isPlaceholderData);');

@@ -527,14 +527,45 @@ async function providerFetch(path: string, params: Record<string, string | numbe
   }
 }
 
-export async function listPremiumRecipes(input: { query?: string; category?: string; limit: number; offset: number }) {
+function stableFreshnessHash(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/** Rank only the rows already returned for one provider page. */
+export function orderPremiumRecipePage<T extends { id: string }>(
+  recipes: T[],
+  accountId?: string,
+  freshnessDay?: string,
+): T[] {
+  if (!accountId || !freshnessDay || recipes.length < 2) return recipes;
+  const ranked = recipes
+    .map((recipe, index) => ({
+      recipe,
+      index,
+      rank: stableFreshnessHash(`${accountId}\u0000${recipe.id}`),
+    }))
+    .sort((left, right) => left.rank - right.rank || left.index - right.index)
+    .map(({ recipe }) => recipe);
+  const dayNumber = Math.floor(Date.parse(`${freshnessDay}T00:00:00.000Z`) / 86_400_000);
+  const rotation = ((dayNumber % ranked.length) + ranked.length) % ranked.length;
+  return [...ranked.slice(rotation), ...ranked.slice(0, rotation)];
+}
+
+export async function listPremiumRecipes(input: { query?: string; category?: string; freshnessDay?: string; accountId?: string; limit: number; offset: number }) {
   const status = premiumProviderStatus();
   if (status.status !== "available") return { ...status, recipes: [], nextOffset: null, terminalReason: status.message };
+  const shouldFreshen = !input.query && !input.category;
   if (fatSecretTransportEnabled) {
     const payload = await fatSecretFetch("/recipes/search/v3", { search_expression: input.query || input.category || "", max_results: input.limit, page_number: Math.floor(input.offset / input.limit) });
     const search = payload.recipes && typeof payload.recipes === "object" ? payload.recipes as Record<string, unknown> : {};
     const rows = Array.isArray(search.recipe) ? search.recipe : search.recipe ? [search.recipe] : [];
-    const recipes = clearDuplicateRecipeImages(uniquePremiumRecipes(rows.map(fatSecretRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe))));
+    const normalizedRecipes = clearDuplicateRecipeImages(uniquePremiumRecipes(rows.map(fatSecretRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe))));
+    const recipes = shouldFreshen ? orderPremiumRecipePage(normalizedRecipes, input.accountId, input.freshnessDay) : normalizedRecipes;
     const total = fatSecretNumber(search.total_results);
     // FatSecret pages are addressed by page_number/max_results, not by the
     // number of records we can display after validation. Advancing by the
@@ -554,8 +585,14 @@ export async function listPremiumRecipes(input: { query?: string; category?: str
         : null,
     };
   }
-  const payload = await providerFetch("/recipes", input);
-  const recipes = clearDuplicateRecipeImages(uniquePremiumRecipes((payload?.recipes ?? []).map(normalizePremiumRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe))));
+  const payload = await providerFetch("/recipes", {
+    query: input.query,
+    category: input.category,
+    limit: input.limit,
+    offset: input.offset,
+  });
+  const normalizedRecipes = clearDuplicateRecipeImages(uniquePremiumRecipes((payload?.recipes ?? []).map(normalizePremiumRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe))));
+  const recipes = shouldFreshen ? orderPremiumRecipePage(normalizedRecipes, input.accountId, input.freshnessDay) : normalizedRecipes;
   // Generic providers own their cursor. Do not invent one from page size: that
   // repeats the first/last page for providers without offset pagination.
   const providerOffset = number(payload?.nextOffset);

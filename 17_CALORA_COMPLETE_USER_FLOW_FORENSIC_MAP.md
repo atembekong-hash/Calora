@@ -225,7 +225,7 @@ The canonical inventory is **A–V**, matching the mission taxonomy:
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | F1 Discover | Recipes → Discover | hydrated | filter/search/scroll/open | cached cards; loading/empty/error; explicit nutrition provenance/unavailable | component + React Query | `GET /v1/recipes[/:id]`; TheMealDB + DB nutrition cache | detail | retry; saved/local recipes remain usable offline | query is recreated per account; public catalogue not personal | recipesScreen, recipeModel, API recipes/TheMealDB | OWNER DEVICE TEST |
 | F2 Discover pagination/freshness | Discover near end/remount | next offset exists | scroll or revisit | existing cards stay; footer load/retry; stable account/day rotation | premium catalogue/list state | list endpoint offset/limit | unique append/no jump | terminal reason only on true exhaustion/provider ceiling | no cross-account seen-state/cache | recipeModel/recipes API tests | OWNER DEVICE TEST |
-| F3 Plus gate/catalogue | Recipes → Plus | signed in; entitlement | open, long-scroll, revisit | paywall/sign-in; retained cards on remount; footer | SubscriptionProvider + account-keyed catalogue store/query | RevenueCat + `GET /v1/premium-recipes`; FatSecret | Plus detail | 401 sign-in, 403 paywall/refresh, 429 wait, 502/503 retry with old cards retained | API verifies token and RevenueCat entitlement; cache keyed by account | premium access/query/refresh/catalogue/API tests | OWNER DEVICE TEST |
+| F3 Plus gate/catalogue | Recipes → Plus | signed in; entitlement | open default unfiltered Plus, long-scroll, quick-remount, background/activate | paywall/sign-in; same-account/same-day exact retained cards/order/filter/cursor/terminal/scroll; footer | SubscriptionProvider + account-keyed catalogue/session store/query | RevenueCat + `GET /v1/premium-recipes?freshnessDay=YYYY-MM-DD`; FatSecret | Plus detail | 401/403 clear protected list/detail caches, lifted/saved/session state and selected detail; 429/502/503 retry with old cards retained | API verifies token and entitlement; account fence clears all protected Plus state | premium access/query/refresh/catalogue/API tests | OWNER DEVICE TEST |
 | F4 Create concepts | Recipes → Create | guest or auth | pantry/goals/tell/surprise inputs; generate | keyboard form/loading/concepts | component | guest/auth concepts + generated/photo endpoints; OpenAI/object storage | generated detail/local recipe | bounded provider message/retry; no fake result | auth token where required; generated private image reference | recipeGeneration, instructions/API generation | P2-hardening |
 | F5 Detail/nutrition/image | any recipe card/saved | recipe id/model | inspect ingredients/instructions/nutrition, retry photo | detail loading, image fallback, nutrition provenance | React Query + local recipes | detail/photo/photo-url; provider/object storage | same modal | stale signed URL refresh; unavailable nutrition explicitly labeled | private signed image URL and own local recipe | recipe detail/image/nutrition tests | OWNER DEVICE TEST |
 | F6 Save/unsave/planner | detail or saved shelf | hydrated; Plus saves may require identity | save, unsave, Add to plan | immediate saved state/notice | CaloraContext + premium saved store | encrypted scoped snapshot; no catalogue mutation | saved shelf or Planner target | missing source shows reconnect notice; retry detail | saved IDs/local recipes account-scoped | premiumSavedRecipes, recipe tests | OWNER DEVICE TEST |
@@ -300,7 +300,7 @@ The canonical inventory is **A–V**, matching the mission taxonomy:
 | N1 Offering/paywall | Membership or Plus | RevenueCat configured | view packages | SDK loading, dynamic package/price, no hardcoded price | SubscriptionProvider | RevenueCat offerings | purchase choice | unavailable/offline stays paywall; retry/remount | SDK identity waits for Supabase identity synchronization | revenuecat/API tests, premium access | OWNER DEVICE TEST |
 | N2 Purchase | paywall | store account/package | confirm purchase | purchasing lock/confirmation | RevenueCat mutation | App Store/Play Store via RevenueCat | entitlement refresh → Plus | cancel/store/provider error remains recoverable | purchase credited to synchronized app user/anonymous identity rules | billing tests where deterministic | OWNER DEVICE TEST |
 | N3 Restore/expiry | Membership | prior purchase or expired entitlement | restore/refresh/open Plus | restoring; subscribed/expired gate | SubscriptionProvider/API | RevenueCat customer info; server entitlement check | Plus if active | no entitlement → paywall; server 403 refresh/re-auth | client display cannot bypass server check | premium access/API RevenueCat tests | OWNER DEVICE TEST |
-| N4 Offline Pro | Plus/paywall | network lost | open cached Plus/purchase | retained in-session catalogue where available; provider action unavailable | React Query/RevenueCat | no reliable fresh entitlement call | existing content or paywall | no offline purchase; retry online; never grant optimistically | fail closed for protected API | premium refresh tests | OWNER DEVICE TEST |
+| N4 Offline Pro | Plus/paywall | network lost | open cached Plus/purchase | retained in-session catalogue where available; provider action unavailable | React Query/RevenueCat | no reliable fresh entitlement call | existing content or paywall; no synthetic freshness result | no offline purchase; retry online; never grant optimistically | fail closed for protected API | premium refresh tests | OWNER DEVICE TEST |
 
 ### O. Referrals / invites
 
@@ -450,7 +450,7 @@ All API runtime routes below are mounted at `/api` unless identified as public r
 | `POST /v1/recipes/generated` | yes | finish generated concept | OpenAI + recipe DB | **runtime route omitted from OpenAPI** |
 | `POST /v1/recipes/photo` | yes | generated recipe image | OpenAI image/object storage | OpenAPI |
 | `POST /v1/recipes/photo-url` | yes | refresh private signed image | object storage | OpenAPI |
-| `GET /v1/premium-recipes[/:sourceId]` | yes + Pro | Plus catalogue/detail | RevenueCat entitlement + FatSecret | OpenAPI |
+| `GET /v1/premium-recipes[/:sourceId]` | yes + Pro | Plus catalogue/detail | RevenueCat entitlement + FatSecret; optional validated `freshnessDay` only affects default unfiltered list ordering within a provider page | OpenAPI/generated clients |
 | `GET /v1/restaurant-foods[/:sourceId]` | yes | Restaurants | FatSecret | OpenAPI |
 | `POST /v1/capture/analyze` | optional identity/limited | Scan all analysis modes | OpenAI/USDA + capture rows | OpenAPI |
 | `POST /v1/capture/:sessionId/approve` | session ownership rules | Scan acceptance | capture candidates/session approval | OpenAPI |
@@ -481,7 +481,7 @@ All API runtime routes below are mounted at `/api` unless identified as public r
 | Supabase Auth | email/password, Google OAuth, verification, recovery, JWT verification, Admin deletion | mobile auth SDK; API bearer verification/Admin | session in SecureStore; external UID maps server-side to Calora user | form/callback errors; coalesced refresh after 401; fail closed |
 | Managed PostgreSQL | domain data and control plane | API via Drizzle/pool | users, profiles, foods, diary, weights, saved meals, recipes/items/nutrition, capture sessions/candidates/rate limits, subscriptions, referrals/qualification, sync mutations, Coach consent/idempotency/config/cohorts, deletion/recovery records | transaction/error response; deletion fence prevents resurrection |
 | RevenueCat | offerings, purchases/restores, entitlement; server rewards and subscriber deletion | mobile SDK and API server REST integration | SDK customer info in React Query; server grant/deletion outcomes in domain ledger | client paywall/error; protected API fail closed; partial referral remains retryable |
-| FatSecret gateway | Plus recipes and restaurant foods | API only | normalized catalogue/detail; no fabricated fallback | restricted/rate/provider statuses mapped to bounded errors/terminal reason |
+| FatSecret gateway | Plus recipes and restaurant foods | API only | normalized catalogue/detail; opaque provider page order; server may deterministically rotate only legitimate default-Plus rows within that page | restricted/rate/provider statuses mapped to bounded errors/terminal reason; live inventory sufficiency remains device/network evidence |
 | TheMealDB | Discover recipes | API only, v2 key when configured or public v1 | normalized recipe catalogue/detail and cached nutrition metadata | explicit unavailable/rate states; pagination ends only on real exhaustion |
 | OpenAI integration | capture/voice, generated recipes/photos, planner, Coach Fact Context | API only | validated normalized output; generated photo in object storage | malformed/provider error rejected; no raw prompt/config/error to UI |
 | Health Connect | Android read-only health | native app only | same-day steps, active calories, exercise sessions, weights in encrypted snapshot | unavailable/denied/partial/error explicit |
@@ -671,7 +671,7 @@ flowchart LR
   DETAIL --> PLAN[Planner slot insertion]
 ```
 
-Pagination appends unique records and uses provider `nextOffset`/terminal reason; previously loaded Plus cards remain visible across short remounts instead of blanking during background refresh. Freshness rotation must remain stable within its account/day/session key so sorting cannot invalidate pagination.
+Discover behavior is unchanged. For default unfiltered Plus, the client supplies an optional validated captured UTC `freshnessDay`; the server ranks only legitimate normalized recipes within each FatSecret/provider page from authenticated account ID + recipe ID stable hash and UTC-day rotation (no token material or `Math.random`). Search/category provider relevance is byte/order-preserved. Pagination appends unique records and uses the authoritative provider `nextOffset`/terminal reason; rotation never crosses pages or changes continuation. Same-account/same-day remount restores exact cards/order/search/category/cursor/terminal/scroll immediately. An active midnight does not reorder a scroller; a real background/inactive→active new day or new-day unfiltered remount keeps old cards visible, resets default page state, and atomically replaces only after a successful real page-0 response. Filtered sessions restore across days because rotation is disabled.
 
 ---
 
@@ -763,6 +763,7 @@ No broken route is asserted solely from naming; aliases and compatibility routes
 - Account switch invalidates Coach epochs and health work; stale asynchronous completions cannot overwrite the new scope.
 - RevenueCat customer state waits for identity synchronization.
 - API authorization derives identity from verified Supabase tokens; Plus additionally verifies server-side entitlement.
+- Plus default ordering derives only from authenticated account ID, recipe ID, and UTC day; it never derives from a raw/request token. Account change and Plus list/detail 401/403 clear protected list/detail query caches, lifted/saved/session state, and selected Plus detail.
 - Deletion fencing uses a one-way identity fingerprint to prevent post-deletion writes without retaining raw identity in the fence signal.
 - Coach server derives bounded facts and requires current consent; client does not send arbitrary broad historical context to the legacy route.
 - Errors/logging are designed to avoid raw provider response, token, prompt, and PII exposure.
@@ -786,7 +787,7 @@ No broken route is asserted solely from naming; aliases and compatibility routes
 - On network failure, the worker preserves local logs and schedules a five-second retry while mounted; a subsequent mutation/auth event also retriggers reconciliation.
 - Capture acceptance commits locally before server reconciliation. A failed local write leaves the review draft intact.
 - Recipe/restaurant/Coach/Pro remote actions expose explicit retry/gating states rather than synthesizing data.
-- Plus retains loaded content while background freshness checks occur.
+- Plus retains loaded content while background freshness checks occur; placeholder data cannot advance cursor/state. A new-day default refresh atomically replaces old content only after a real successful page-0 response; filtered Plus does not rotate.
 
 ### Limitations/gaps
 
@@ -810,7 +811,7 @@ Remaining high-value coverage:
 3. **Navigation contract:** canonical route strings, aliases, notification routes, every deep link, unknown path, hidden Profile, diagnostic routes.
 4. **Real permission transitions:** camera/microphone/media, Health Connect/HealthKit partial/deny/revoke, notification deny/settings/re-enable.
 5. **Coach device races:** rapid sends, clear during send, background/foreground, network loss/restore, account switch, long Unicode/markdown/link-like text.
-6. **Recipe device lifecycle:** Plus repeated remount, deep scroll position, background refresh with old data, process death, expiry/restore, mixed nutrition pages.
+6. **Recipe device lifecycle:** Plus same-day exact remount/scroll restoration, active-midnight stability, background/inactive new-day atomic replacement, filtered cross-day restoration, deep scroll, process death, expiry/restore, 401/403 cache clearing, and mixed nutrition pages.
 7. **Camera-to-Home mounted integration:** real native capture, acceptance write failure/retry, immediate Today selector, process restart, sync deduplication.
 8. **Purchase sandbox/store:** cancel, pending, success, restore, expiry, identity transition, referral promotional entitlement.
 9. **Accessibility automation:** TalkBack/VoiceOver reading order, modal focus trap/return, large-font screenshots, contrast and touch-target scan.
@@ -836,7 +837,7 @@ Remaining high-value coverage:
 
 1. Add a canonical route registry and E2E navigation/deep-link matrix; explicitly gate diagnostic file routes and stop silently masking unknown-path telemetry.
 2. Reconcile runtime Express routes, OpenAPI, generated clients, and active consumers in one contract change.
-3. Add native Maestro/Detox-style owner-approved flows for onboarding persistence, capture→Today, Health revocation, Coach races, Plus remount/pagination, account switch, and deletion.
+3. Add native Maestro/Detox-style owner-approved flows for onboarding persistence, capture→Today, Health revocation, Coach races, Plus same/new-day remount/scroll/pagination and 401/403 clearing, account switch, and deletion.
 4. Make sync capability explicit per entity in UI/types; either implement durable per-entity sync/outbox or remove misleading generic status claims.
 5. Add persisted connectivity-aware backoff/jitter and visible diary pending/permanent-reject recovery where product-approved.
 6. Add provider contract fixtures for malformed, partial, slow, 429 and 5xx responses; preserve data while refreshing.
@@ -873,7 +874,7 @@ Large new systems should not be installed automatically; tooling expansion requi
 | ID | Priority | Finding | Current status / release effect |
 |---|---|---|---|
 | REG-001 | P0 | Cross-account plaintext/domain leakage | no known occurrence; guarded and tested; any recurrence stops release |
-| REG-002 | P1 | Onboarding keyboard, durable completion, camera→Today, Coach send, or Plus core flow broken | source remediation present; no known blocker; owner device revalidation required |
+| REG-002 | P1 | Onboarding keyboard, durable completion, camera→Today, Coach send, or Plus core freshness/cache/pagination flow broken | source remediation present; no known blocker; owner device revalidation required |
 | REG-003 | P2-hardening | Diagnostic encrypted-recovery and meal-image previews are routable | open review item; not proven data disclosure; gate/canonicalize next cycle |
 | REG-004 | P2-hardening | Unknown-path redirect masks bad links | open navigation observability/test work |
 | REG-005 | P2-hardening | Root/group aliases and hidden Profile route lack one canonical route vocabulary | open test/refactor work |
@@ -919,15 +920,16 @@ Record device model, OS, app version/commit, account identity category (never cr
 
 ### Recipes Plus/Discover: remount, long scroll, freshness, nutrition
 
-- [ ] Open Plus, scroll, switch tabs repeatedly, return: cards appear immediately and reasonable scroll position is retained.
-- [ ] Background refresh never blanks existing cards.
-- [ ] Long-scroll through multiple pages: unique append, footer loading, no jump/duplicate/premature end.
+- [ ] Same account/same UTC day: default unfiltered Plus quick-remount restores exact immediate cards/order/search/category/offset/`nextOffset`/terminal/scroll with no blank.
+- [ ] Keep default unfiltered Plus active across UTC midnight: the active scroller does not reorder.
+- [ ] After real background/inactive → active on a new UTC day, and on a new-day default remount: default cursor/terminal/scroll reset while old cards remain until one successful real page-0 response atomically replaces them.
+- [ ] Search/category sessions restore across days without rotation; provider relevance order is byte/order-preserved.
+- [ ] Long-scroll through multiple live provider pages: unique append, authoritative continuation, footer loading, no jump/duplicate/premature end; actual exhaustion has `nextOffset: null` and a truthful terminal reason.
 - [ ] Simulate loss near load-more: footer retry works without dropping prior pages.
-- [ ] Revisit Discover and Plus on same/day-later sessions: freshness rotation varies top content when inventory permits while pagination remains stable.
-- [ ] Filters/search remain respected through rotation and pagination.
+- [ ] Confirm default Plus top-page variation only when the live provider yields at least two legitimate normalized recipes; record provider/network restriction if it cannot.
 - [ ] Mixed cards consistently show authoritative/calculated/estimated/unavailable nutrition state; no blank broken nutrition row.
 - [ ] Detail nutrition/image/signed-URL retry works.
-- [ ] Sign out/switch account at Plus; old catalogue/save/entitlement state never flashes.
+- [ ] Sign out/switch account and force Plus list/detail 401/403; old protected catalogue, saved/lifted/session state, query cache, and selected detail never flash.
 - [ ] Expired Pro is denied server-side and shown paywall rather than cached entitlement.
 
 ### Progress icon and metrics

@@ -35,7 +35,7 @@ import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premi
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
 import { recipeImageRole } from '@/lib/recipeImagePresentation';
-import { canApplyPremiumPage, samePremiumCatalogueState, type PremiumCatalogueState } from '@/lib/premiumCatalogueState';
+import { applyPremiumDetailDenial, canApplyPremiumPage, clearPremiumAccountBoundary, clearPremiumCatalogueState, mergePremiumCataloguePage, restorePremiumCatalogueSession, samePremiumCatalogueSession, utcFreshnessDay, type PremiumCatalogueState } from '@/lib/premiumCatalogueState';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -429,21 +429,25 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
   </View>;
 }
 
-function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes, initialLoadedRecipes, initialLoadedForUserId, onLoadMoreRef, onLoadedRecipesChange }: { colors: ReturnType<typeof useCalora>['colors']; visible: boolean; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; initialLoadedRecipes: PremiumRecipe[]; initialLoadedForUserId: string | null; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (userId: string | null, recipes: PremiumRecipe[]) => void }) {
+function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes, initialState, onLoadMoreRef, onLoadedRecipesChange, onScrollYChange, onProtectedStateClear }: { colors: ReturnType<typeof useCalora>['colors']; visible: boolean; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; initialState: PremiumCatalogueState; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (state: PremiumCatalogueState) => void; onScrollYChange: (scrollY: number) => void; onProtectedStateClear: () => void }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
-  const [offset, setOffset] = useState(0);
+  const [mountedSession] = useState(() => restorePremiumCatalogueSession(initialState, session?.user.id ?? null, utcFreshnessDay()));
+  const [freshnessDay, setFreshnessDay] = useState(mountedSession.freshnessDay ?? utcFreshnessDay);
+  const ownsInitialState = mountedSession.userId === session?.user.id;
+  const [search, setSearch] = useState(ownsInitialState ? mountedSession.search ?? '' : '');
+  const [category, setCategory] = useState(ownsInitialState ? mountedSession.category ?? '' : '');
+  const [offset, setOffset] = useState(ownsInitialState ? mountedSession.offset ?? 0 : 0);
   const [filterVisible, setFilterVisible] = useState(false);
-  const [loadedRecipes, setLoadedRecipes] = useState<PremiumRecipe[]>(initialLoadedRecipes);
-  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(initialLoadedForUserId);
-  const [paginationTerminalReason, setPaginationTerminalReason] = useState<string | null>(null);
+  const [loadedRecipes, setLoadedRecipes] = useState<PremiumRecipe[]>(ownsInitialState ? mountedSession.recipes : []);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(ownsInitialState ? mountedSession.userId : null);
+  const [paginationTerminalReason, setPaginationTerminalReason] = useState<string | null>(ownsInitialState ? mountedSession.terminalReason ?? null : null);
+  const [nextOffset, setNextOffset] = useState<number | null>(ownsInitialState ? mountedSession.nextOffset ?? null : null);
   const loadingMoreRef = useRef(false);
   const hasMountedFiltersRef = useRef(false);
-  const premiumParams = { query: search || undefined, category: category || undefined, limit: RECIPE_PAGE_SIZE, offset };
+  const premiumParams = { query: search || undefined, category: category || undefined, freshnessDay, limit: RECIPE_PAGE_SIZE, offset };
   const userId = session?.user.id ?? null;
   const premiumQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(premiumParams));
   // Plus access is revalidated when this section mounts and when the app
@@ -478,19 +482,24 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const hasCurrentPageData = canApplyPremiumPage(query.isPlaceholderData);
   const appStateRef = useRef(AppState.currentState);
   const queryFetchingRef = useRef(query.isFetching);
+  const premiumScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
+  const premiumScrollRef = useRef<ScrollView | null>(null);
+  const restoredScrollRef = useRef(false);
   useEffect(() => {
     queryFetchingRef.current = query.isFetching;
   }, [query.isFetching]);
   useEffect(() => {
     if (!accessDenied) return;
     queryClient.removeQueries({ queryKey: premiumQueryKey, exact: true });
-  }, [accessDenied, premiumQueryKey, queryClient]);
+    onProtectedStateClear();
+  }, [accessDenied, onProtectedStateClear, premiumQueryKey, queryClient]);
   useEffect(() => {
     // State lifted by the parent is account-owned. A remount for another
     // account must never render the prior account while its query validates.
     if (loadedForUserId === userId) return;
     setLoadedRecipes([]);
     setPaginationTerminalReason(null);
+    setNextOffset(null);
     loadingMoreRef.current = false;
   }, [loadedForUserId, userId]);
   useEffect(() => {
@@ -500,12 +509,36 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       // The initial active event can arrive while the mount request is
       // already in flight. Only refresh after a real background -> active
       // transition, and never restart an existing entitlement/provider call.
-      if (state === 'active' && previousState !== 'active' && !queryFetchingRef.current) {
+      if (state === 'active' && previousState !== 'active' && !search && !category && utcFreshnessDay() !== freshnessDay) {
+        const nextDay = utcFreshnessDay();
+        // Do not let a backgrounded default session resume with yesterday's
+        // cursor/position. Its old cards stay rendered until page zero wins.
+        setFreshnessDay(nextDay);
+        setOffset(0);
+        setNextOffset(null);
+        setPaginationTerminalReason(null);
+        loadingMoreRef.current = false;
+        premiumScrollMetricsRef.current.offsetY = 0;
+        restoredScrollRef.current = true;
+        onScrollYChange(0);
+        onLoadedRecipesChange({
+          userId: loadedForUserId,
+          recipes: loadedRecipes,
+          freshnessDay: nextDay,
+          search: '',
+          category: '',
+          offset: 0,
+          nextOffset: null,
+          terminalReason: null,
+          scrollY: 0,
+        });
+        requestAnimationFrame(() => premiumScrollRef.current?.scrollTo({ y: 0, animated: false }));
+      } else if (state === 'active' && previousState !== 'active' && !queryFetchingRef.current) {
         void query.refetch();
       }
     });
     return () => subscription.remove();
-  }, [query.refetch]);
+  }, [category, freshnessDay, loadedForUserId, loadedRecipes, onLoadedRecipesChange, onScrollYChange, query.refetch, search]);
   useEffect(() => {
     if (!hasCurrentPageData || !data?.recipes) return;
     setLoadedRecipes((current) => {
@@ -513,18 +546,31 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       if (offset > 0 && loadedForUserId === userId && appended.length === 0 && data.nextOffset != null) {
         setPaginationTerminalReason('The provider returned no new recipes, so there are no more results to load.');
       }
-      const nextRecipes = offset === 0 || loadedForUserId !== userId ? data.recipes : [...current, ...appended];
+      const nextRecipes = loadedForUserId !== userId ? data.recipes : mergePremiumCataloguePage(current, data.recipes, offset);
       return clearDuplicatePremiumRecipeImages(nextRecipes);
     });
     setLoadedForUserId(userId);
+    setNextOffset(data.nextOffset ?? null);
+    setPaginationTerminalReason((current) => data.nextOffset == null ? data.terminalReason ?? null : current);
     loadingMoreRef.current = false;
-  }, [data?.recipes, hasCurrentPageData, loadedForUserId, offset, userId]);
+  }, [data?.nextOffset, data?.recipes, data?.terminalReason, hasCurrentPageData, loadedForUserId, offset, userId]);
   useEffect(() => {
-    onLoadedRecipesChange(loadedForUserId, loadedRecipes);
-  }, [loadedForUserId, loadedRecipes, onLoadedRecipesChange]);
+    if (accessDenied) return;
+    onLoadedRecipesChange({
+      userId: loadedForUserId,
+      recipes: loadedRecipes,
+      freshnessDay,
+      search,
+      category,
+      offset,
+      nextOffset,
+      terminalReason: paginationTerminalReason,
+      scrollY: mountedSession.scrollY ?? 0,
+    });
+  }, [accessDenied, category, freshnessDay, loadedForUserId, loadedRecipes, nextOffset, offset, onLoadedRecipesChange, paginationTerminalReason, search]);
   useEffect(() => {
     if (!hasCurrentPageData || !userId || accessDenied || data?.status !== 'available' || data.nextOffset == null) return;
-    const nextParams = { query: search || undefined, category: category || undefined, limit: RECIPE_PAGE_SIZE, offset: data.nextOffset };
+    const nextParams = { query: search || undefined, category: category || undefined, freshnessDay, limit: RECIPE_PAGE_SIZE, offset: data.nextOffset };
     const nextQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(nextParams));
     void queryClient.prefetchQuery({
       queryKey: nextQueryKey,
@@ -532,15 +578,15 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
       retry: false,
     }).catch(() => undefined);
-  }, [accessDenied, category, data?.nextOffset, data?.status, hasCurrentPageData, queryClient, search, userId]);
+  }, [accessDenied, category, data?.nextOffset, data?.status, freshnessDay, hasCurrentPageData, queryClient, search, userId]);
   useEffect(() => {
     onLoadMoreRef.current = () => {
-      if (!hasCurrentPageData || data?.nextOffset == null || paginationTerminalReason || query.isFetching || loadingMoreRef.current) return;
+      if (!hasCurrentPageData || nextOffset == null || paginationTerminalReason || query.isFetching || loadingMoreRef.current) return;
       loadingMoreRef.current = true;
-      setOffset(data.nextOffset);
+      setOffset(nextOffset);
     };
     return () => { onLoadMoreRef.current = null; };
-  }, [data?.nextOffset, hasCurrentPageData, onLoadMoreRef, paginationTerminalReason, query.isFetching]);
+  }, [hasCurrentPageData, nextOffset, onLoadMoreRef, paginationTerminalReason, query.isFetching]);
   useEffect(() => {
     // React Query can restore Premium results from cache immediately when this
     // section remounts. Do not clear that restored list on the initial render;
@@ -552,6 +598,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     setOffset(0);
     setLoadedRecipes([]);
     setPaginationTerminalReason(null);
+    setNextOffset(null);
     loadingMoreRef.current = false;
   }, [search, category]);
   const hasLoadedRecipes = loadedForUserId === userId && loadedRecipes.length > 0;
@@ -575,7 +622,6 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const fetchedSavedRecipes = missingSavedQueries
     .filter((savedQuery) => savedQuery.isSuccess && !savedQuery.error && savedQuery.data)
     .map((savedQuery) => savedQuery.data as PremiumRecipe);
-  const premiumScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
   const loadMorePremiumRecipesIfAtEnd = () => {
     const { offsetY, viewportHeight, contentHeight } = premiumScrollMetricsRef.current;
     if (viewportHeight > 0 && offsetY + viewportHeight >= contentHeight - PREMIUM_RECIPE_PREFETCH_DISTANCE) {
@@ -589,6 +635,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       viewportHeight: layoutMeasurement.height,
       contentHeight: contentSize.height,
     };
+    onScrollYChange(contentOffset.y);
     loadMorePremiumRecipesIfAtEnd();
   };
   if (!visible) return null;
@@ -606,6 +653,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const savedRecipes = mergeSavedPremiumRecipes(savedRecipeIds, knownSavedRecipes, fetchedSavedRecipes);
   return (
     <ScrollView
+      ref={premiumScrollRef}
       testID="plus-recipe-scroll"
       style={{ flex: 1 }}
       contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
@@ -616,6 +664,10 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       }}
       onContentSizeChange={(_, contentHeight) => {
         premiumScrollMetricsRef.current.contentHeight = contentHeight;
+        if (!restoredScrollRef.current && (mountedSession.scrollY ?? 0) > 0) {
+          restoredScrollRef.current = true;
+          requestAnimationFrame(() => premiumScrollRef.current?.scrollTo({ y: mountedSession.scrollY ?? 0, animated: false }));
+        }
         loadMorePremiumRecipesIfAtEnd();
       }}
       onScroll={handlePremiumScroll}
@@ -820,7 +872,7 @@ function scaleIngredient(ingredient: string, multiplier: number): string {
   return ingredient.replace(match[0], `${formatted} `).trimEnd();
 }
 
-export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
+export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, onPremiumAccessDenied, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; onPremiumAccessDenied?: () => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
   const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -846,9 +898,9 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const premiumDetailErrorStatus = httpStatus(premiumDetailQuery.error);
   const premiumDetailDenied = premiumDetailErrorStatus === 401 || premiumDetailErrorStatus === 403;
   useEffect(() => {
-    if (!premiumDetailDenied) return;
+    if (!applyPremiumDetailDenial(premiumDetailErrorStatus, onPremiumAccessDenied ?? onClose)) return;
     queryClient.removeQueries({ queryKey: premiumDetailKey, exact: true });
-  }, [premiumDetailDenied, premiumDetailKey, queryClient]);
+  }, [onClose, onPremiumAccessDenied, premiumDetailErrorStatus, premiumDetailKey, queryClient]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active' && premium) void premiumDetailQuery.refetch();
@@ -1461,18 +1513,38 @@ export default function RecipesScreen() {
   const recipesScrollRef = useRef<ScrollView | null>(null);
   const discoverScrollYRef = useRef(0);
   const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
-  const onLoadedPremiumRecipesChange = useCallback((ownerId: string | null, recipes: PremiumRecipe[]) => {
+  const onLoadedPremiumRecipesChange = useCallback((next: PremiumCatalogueState) => {
     setPremiumCatalogueState((current) => {
-      return samePremiumCatalogueState(current, ownerId, recipes) ? current : { userId: ownerId, recipes };
+      // A different default freshness day starts at the top; filtered sessions
+      // deliberately retain their provider-ordered position across midnight.
+      const merged = {
+        ...next,
+        scrollY: current.freshnessDay === next.freshnessDay
+          ? current.scrollY ?? next.scrollY ?? 0
+          : next.scrollY ?? 0,
+      };
+      return samePremiumCatalogueSession(current, merged) ? current : merged;
     });
   }, []);
+  const onPremiumScrollYChange = useCallback((scrollY: number) => {
+    setPremiumCatalogueState((current) => current.userId === user?.id ? { ...current, scrollY } : current);
+  }, [user?.id]);
+  const clearPremiumProtectedState = useCallback(() => {
+    clearPremiumAccountBoundary({
+      removeListQueries: () => queryClient.removeQueries({ queryKey: ['premium-recipes', user?.id ?? 'signed-out'] }),
+      removeDetailQueries: () => queryClient.removeQueries({ queryKey: ['premium-recipe', user?.id ?? 'signed-out'] }),
+      clearSaved: () => setPremiumSavedRecipes([]),
+      clearCatalogue: () => setPremiumCatalogueState(clearPremiumCatalogueState()),
+      closePremiumDetail: () => setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current),
+    });
+  }, [queryClient, user?.id]);
   useEffect(() => {
     setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current);
     // Saved/provider recipe objects are protected account data. IDs remain in
     // their account-scoped persistence layer, but in-memory card objects must
     // be discarded before another account can mount Plus.
     setPremiumSavedRecipes([]);
-    setPremiumCatalogueState({ userId: null, recipes: [] });
+    setPremiumCatalogueState(clearPremiumCatalogueState());
     queryClient.removeQueries({ queryKey: ['premium-recipes'] });
     queryClient.removeQueries({ queryKey: ['premium-recipe'] });
   }, [user?.id]);
@@ -1629,7 +1701,7 @@ export default function RecipesScreen() {
         style={{ flex: 1 }}
       >
       {activeSection === 'premium' ? (
-        <PremiumCatalogue visible colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} initialLoadedRecipes={premiumCatalogueState.userId === user?.id ? premiumCatalogueState.recipes : []} initialLoadedForUserId={premiumCatalogueState.userId === user?.id ? premiumCatalogueState.userId : null} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={onLoadedPremiumRecipesChange} />
+        <PremiumCatalogue visible colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} initialState={premiumCatalogueState.userId === user?.id ? premiumCatalogueState : { userId: null, recipes: [] }} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={onLoadedPremiumRecipesChange} onScrollYChange={onPremiumScrollYChange} onProtectedStateClear={clearPremiumProtectedState} />
       ) : (
         <ScrollView
           ref={recipesScrollRef}
@@ -1678,6 +1750,7 @@ export default function RecipesScreen() {
       <RecipeDetailModal
         recipe={selectedRecipe}
         onClose={() => setSelected(null)}
+        onPremiumAccessDenied={clearPremiumProtectedState}
         onRetryPhoto={createRecipePhoto}
         suggestedRecipes={recipeSuggestions}
         onSelectSuggestion={handleCardPress}

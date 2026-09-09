@@ -403,9 +403,15 @@ export interface RecipeList {
   recipes: Recipe[];
   /** True while the server's background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available. */
   warmupPending?: boolean;
-  /** @nullable */
+  /**
+     * The provider-supported offset for the next page, or null when exhausted.
+     * @nullable
+     */
   nextOffset?: number | null;
-  /** @nullable */
+  /**
+     * Explicit reason pagination stopped when the provider cannot supply another page.
+     * @nullable
+     */
   terminalReason?: string | null;
 }
 
@@ -1692,6 +1698,11 @@ query?: string;
  * @maxLength 80
  */
 category?: string;
+/**
+ * UTC browsing-session day used for deterministic default-catalogue freshness
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+freshnessDay?: string;
 /**
  * @minimum 1
  * @maximum 30
