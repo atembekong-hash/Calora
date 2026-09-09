@@ -84,3 +84,17 @@ mtime_ms = 1788915463639
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/8ffe9760-3d1f-41c7-b623-c2d89745c3c2/64dadda1-a67d-4584-a3cb-6b6b577c1ab0"
 storage_version_token = "1788915487672671"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "xYFCtKuOseC4QdGf0dgn7"
+uri = "file://19_CALORA_FINAL_POST_INSTALL_GITHUB_SYNC_REPORT.md"
+type = "text"
+title = "Calora Final Post-Install GitHub Sync Report"
+description = "Controlled commit/push evidence, exact test counts, security checks, GitHub equality proof, and owner EAS next action."
+logical_id = "01020cad-16a1-4412-8202-1003155f6efa"
+content_hash = "sha256:5c728153b51c5a3653036be12950313bccab0f64769d9cc98abddafdf163862c"
+size = 10804
+mtime_ms = 1788916075529
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/01020cad-16a1-4412-8202-1003155f6efa/7b596ecc-bb95-430e-b3d5-6d34b8f29f65"
+storage_version_token = "1788916114785123"
+content_type = "text/markdown"

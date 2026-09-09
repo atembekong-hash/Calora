@@ -1,0 +1,329 @@
+CALORA — FINAL CONTROLLED GITHUB SYNC AFTER POST-INSTALL REMEDIATION
+
+AUTHORITATIVE REPORTS:
+
+16_CALORA_POST_INSTALL_DEFECT_REMEDIATION_REPORT.md
+17_CALORA_COMPLETE_USER_FLOW_FORENSIC_MAP.md
+18_CALORA_PLUS_RECIPE_FRESHNESS_FINAL_CLOSURE_REPORT.md
+
+CURRENT STATUS
+
+The latest remediation work is complete in the working tree.
+
+Verified source-level outcomes include:
+
+- onboarding keyboard-safe scrolling;
+- durable onboarding completion path;
+- clearer final consent/agreement UI;
+- Coach lifecycle/sanitization hardening;
+- Plus recipe caching;
+- Plus pagination;
+- Discover freshness;
+- Plus freshness;
+- Discover nutrition consistency;
+- Progress history/memory icon adjustment;
+- Camera → Today durable acceptance/sync flow;
+- health-data implementation trace;
+- complete user-flow forensic map.
+
+Latest validation:
+
+- Calora mobile Vitest: 87 files / 1214 tests passed
+- mobile static server security: 6/6 passed
+- API: 36 files passed + 1 skipped / 460 passed + 4 explicitly skipped
+- focused Plus/Recipes mobile: 3 files / 21 tests passed
+- focused Premium API: 1 file / 31 tests passed
+- Calora typecheck: passed
+- API typecheck: passed
+- library/workspace typechecks: passed
+- git diff --check: passed
+
+No Expo/EAS build has been performed for these latest changes.
+No GitHub push has yet been performed for this latest remediation working tree.
+
+MISSION
+
+Synchronize the EXACT current approved working tree to GitHub using one controlled, normal fast-forward push, then independently verify that local and remote are identical.
+
+TARGET REPOSITORY
+
+https://github.com/atembekong-hash/Calora.git
+
+TARGET BRANCH
+
+release/calora-onboarding-and-plus
+
+==================================================
+1. PRE-PUSH FORENSIC VERIFICATION
+==================================================
+
+Before changing Git history or pushing anything:
+
+Run:
+
+git status
+git branch --show-current
+git remote -v
+git fetch origin
+git rev-parse HEAD
+git rev-parse origin/release/calora-onboarding-and-plus
+git merge-base HEAD origin/release/calora-onboarding-and-plus
+git rev-list --left-right --count origin/release/calora-onboarding-and-plus...HEAD
+git diff --check
+
+Verify:
+
+- current branch is release/calora-onboarding-and-plus;
+- repository remote is the expected Calora repository;
+- current local tree contains the approved remediation;
+- no unresolved merge conflict;
+- no unexpected divergence;
+- no unexpected untracked credential/config file;
+- no secret/token/private key is staged or tracked;
+- no build artifact or irrelevant generated junk is being committed.
+
+If local and remote have diverged, STOP.
+Do not merge, rebase, reset, cherry-pick, force-push, or rewrite history.
+
+==================================================
+2. EXACT CHANGE INVENTORY
+==================================================
+
+Enumerate ALL currently uncommitted or local-only changes.
+
+Classify each changed path as:
+
+- approved runtime source
+- approved test
+- generated API contract
+- forensic report/documentation
+- QA/evidence
+- agent memory/documentation
+- unrelated/unexpected
+- secret-sensitive
+
+Confirm the approved changes include the remediation work documented in reports 16, 17, and 18.
+
+Do not silently drop legitimate approved source/test changes.
+
+If any unrelated or suspicious path exists, STOP and document it.
+
+==================================================
+3. SECURITY CHECK BEFORE COMMIT
+==================================================
+
+Before staging:
+
+- inspect tracked/untracked files for obvious secrets;
+- confirm GitHub CLI auth is valid;
+- confirm .config/gh/hosts.yml remains ignored/untracked if present;
+- confirm no token/private key/client secret is entering Git history.
+
+Do not echo secret values into the report.
+
+==================================================
+4. FINAL DETERMINISTIC VALIDATION
+==================================================
+
+Before commit/push, rerun the minimum final gates:
+
+- Calora mobile Vitest
+- full API Vitest
+- Calora typecheck
+- API typecheck
+- workspace/library typechecks
+- git diff --check
+
+Also run focused tests covering:
+
+- onboarding
+- persistence/hydration
+- Coach
+- Camera acceptance
+- Plus caching
+- Plus pagination
+- Plus freshness
+- Discover nutrition
+- auth/account isolation
+
+Report exact pass/skip/failure counts.
+
+If any P0/P1-relevant deterministic test fails:
+STOP — DO NOT PUSH.
+
+==================================================
+5. CREATE ONE APPROVED RELEASE COMMIT
+==================================================
+
+If all checks pass:
+
+Stage ONLY approved changes.
+
+Create one normal commit with a clear message such as:
+
+Finalize post-install remediation and recipe freshness
+
+Do not amend any previous commit.
+Do not squash.
+Do not rebase.
+Do not reset.
+Do not rewrite history.
+
+After commit, record:
+
+- commit SHA
+- tree SHA
+- parent SHA
+- commit message
+- changed-path count
+
+==================================================
+6. PRE-PUSH RELATIONSHIP CHECK
+==================================================
+
+Fetch origin again.
+
+Verify:
+
+- remote branch is still the expected previous head;
+- new local commit is a strict descendant of remote;
+- ahead > 0
+- behind = 0
+- merge-base = remote HEAD
+- no divergence
+
+If remote changed unexpectedly:
+STOP.
+Do not resolve automatically.
+
+==================================================
+7. PERFORM EXACTLY ONE NORMAL PUSH
+==================================================
+
+Perform exactly:
+
+git push origin release/calora-onboarding-and-plus
+
+STRICTLY FORBIDDEN:
+
+- --force
+- --force-with-lease
+- history rewrite
+- alternate branch push
+- tag push
+- second corrective push in this mission
+
+==================================================
+8. POST-PUSH INDEPENDENT VERIFICATION
+==================================================
+
+After GitHub accepts the push:
+
+Run:
+
+git fetch origin
+git rev-parse HEAD
+git rev-parse origin/release/calora-onboarding-and-plus
+git merge-base HEAD origin/release/calora-onboarding-and-plus
+git rev-list --left-right --count origin/release/calora-onboarding-and-plus...HEAD
+git status
+git diff --check
+
+Acceptance requires:
+
+- local HEAD == remote HEAD
+- merge-base == local HEAD
+- ahead = 0
+- behind = 0
+- no divergence
+- working tree clean except intentionally created post-push report if applicable
+- no second push required
+
+==================================================
+9. RELEASE CONTENT VERIFICATION
+==================================================
+
+Verify the pushed commit includes all latest accepted remediation, especially:
+
+- onboarding keyboard-safe UI
+- onboarding durable persistence path
+- agreement-screen clarity
+- Coach sanitization/lifecycle hardening
+- Plus retained cache
+- Plus infinite/continued pagination
+- Plus deterministic freshnessDay behavior
+- Discover freshness
+- nutrition provenance states
+- Camera → Today durable transaction/outbox
+- Progress icon adjustment
+- generated API contract changes
+- corresponding tests
+- reports 16, 17, 18
+
+No old pre-remediation tree should remain as branch HEAD.
+
+==================================================
+10. DO NOT BUILD OR DEPLOY
+==================================================
+
+After GitHub verification:
+
+DO NOT:
+
+- trigger Expo/EAS
+- create Android/iOS build
+- publish/republish Replit
+- modify production
+- change DNS
+- change Supabase
+- change RevenueCat
+- change Cloudflare
+
+The owner will manually trigger the next EAS Android build from GitHub after this sync is independently verified.
+
+==================================================
+11. PERSISTENT REPORT
+==================================================
+
+Create and save:
+
+19_CALORA_FINAL_POST_INSTALL_GITHUB_SYNC_REPORT.md
+
+Include:
+
+1. Executive summary
+2. Pre-push branch/remote state
+3. Exact change inventory
+4. Security/secret checks
+5. Final deterministic validation
+6. Commit created
+7. Commit SHA
+8. Tree SHA
+9. Parent SHA
+10. Pre-push ahead/behind
+11. Exact push command
+12. Confirmation no force/history rewrite
+13. GitHub push result
+14. Post-push fetch verification
+15. Local/remote equality
+16. Release-content verification
+17. Remaining owner-device requirements
+18. Exact next action
+19. Final verdict
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+FINAL POST-INSTALL GITHUB SYNC COMPLETE — READY FOR OWNER EAS BUILD
+
+FINAL POST-INSTALL GITHUB SYNC BLOCKED — DO NOT BUILD
+
+STOP CONDITIONS
+
+Do not stop after commit only.
+Do not stop after push only.
+
+Continue until the remote branch has been fetched and independently proven identical to local HEAD, or until a genuine blocker is documented.
+
+NO BUILD.
+NO REPUBLISH.
+NO SECOND PUSH.
