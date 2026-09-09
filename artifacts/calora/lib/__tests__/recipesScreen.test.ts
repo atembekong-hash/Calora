@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+const source = readFileSync(
+  resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+  'utf8',
+);
+
 describe('Recipes Discover layout contracts', () => {
   it('keeps section swipes direct instead of layering release animations', () => {
     expect(source).toContain('testID="recipes-section-content"');
