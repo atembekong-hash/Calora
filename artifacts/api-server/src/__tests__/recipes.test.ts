@@ -157,6 +157,18 @@ function openAiNutritionResponse(calories = 450, proteinG = 15, carbsG = 70, fat
   };
 }
 
+function openAiBatchNutritionResponse(entries: Array<{ id: string; calories: number; proteinG: number; carbsG: number; fatG: number }>) {
+  return {
+    choices: [
+      {
+        message: {
+          content: JSON.stringify({ recipes: entries }),
+        },
+      },
+    ],
+  };
+}
+
 const NUTRITION_DB_TTL_MS = 1000 * 60 * 60 * 24 * 7; // must match routes/recipes.ts
 
 /** Returns a Date that is older than the 7-day nutrition TTL. */
@@ -536,20 +548,22 @@ describe("GET /v1/recipes — nutrition warm-up", () => {
     vi.advanceTimersByTime(1000 * 60 * 61);
 
     const MEAL_ID = "wp-int-meal";
+    const SECOND_MEAL_ID = "wp-int-meal-2";
 
     // Route mock responses based on the request URL:
-    //   • filter.php  → pool build (all 10 categories return the same meal)
-    //   • lookup.php  → warm-up detail fetch (includes real ingredients)
+    //   • filter.php  → pool build (all 10 categories return the same pair)
+    //   • lookup.php  → visible-page detail fetches (includes real ingredients)
     mockFetch.mockImplementation(async (url: string) => ({
       ok: true,
       json: async () => {
         if ((url as string).includes("lookup.php")) {
+          const second = (url as string).includes(SECOND_MEAL_ID);
           return {
             meals: [{
-              idMeal: MEAL_ID,
-              strMeal: "Integration Meal",
+              idMeal: second ? SECOND_MEAL_ID : MEAL_ID,
+              strMeal: second ? "Integration Meal Two" : "Integration Meal",
               strCategory: "Chicken",
-              strIngredient1: "chicken breast",
+              strIngredient1: second ? "salmon" : "chicken breast",
               strMeasure1: "200g",
               strIngredient2: "olive oil",
               strMeasure2: "1 tbsp",
@@ -557,7 +571,10 @@ describe("GET /v1/recipes — nutrition warm-up", () => {
           };
         }
         // filter.php — pool build
-        return filterResponse([{ idMeal: MEAL_ID, strMeal: "Integration Meal" }]);
+        return filterResponse([
+          { idMeal: MEAL_ID, strMeal: "Integration Meal" },
+          { idMeal: SECOND_MEAL_ID, strMeal: "Integration Meal Two" },
+        ]);
       },
     }));
 
@@ -565,21 +582,26 @@ describe("GET /v1/recipes — nutrition warm-up", () => {
     mockLimit.mockResolvedValue([]);
     mockOnConflictDoUpdate.mockResolvedValue(undefined);
 
-    // OpenAI returns a valid nutrition estimate for the meal.
-    mockOpenAiCreate.mockResolvedValue(openAiNutritionResponse(350, 30, 20, 12));
+    // The visible list page now requests one bounded batch estimate.
+    mockOpenAiCreate.mockResolvedValue(openAiBatchNutritionResponse([
+      { id: MEAL_ID, calories: 350, proteinG: 30, carbsG: 20, fatG: 12 },
+      { id: SECOND_MEAL_ID, calories: 420, proteinG: 28, carbsG: 35, fatG: 16 },
+    ]));
 
     // ── First request ─────────────────────────────────────────────────────────
-    // The pool is built and the background warm-up is kicked off.
-    // The response is returned immediately (before warm-up completes) so
-    // warmupPending must be true and calories must be null at this point.
+    // The pool is built and the visible page is nutrition-enriched before the
+    // response. warmupPending remains true only for future cards in the pool.
     const first = await request(app).get("/v1/recipes");
     expect(first.status).toBe(200);
     expect(first.body.warmupPending).toBe(true);
-    expect(first.body.recipes[0].calories).toBeNull();
+    const firstById = new Map(first.body.recipes.map((recipe: { id: string }) => [recipe.id, recipe]));
+    expect(first.body.recipes.every((recipe: { calories: unknown }) => typeof recipe.calories === "number")).toBe(true);
+    expect(firstById.get(MEAL_ID)).toMatchObject({ calories: 350, proteinG: 30 });
+    expect(firstById.get(SECOND_MEAL_ID)).toMatchObject({ calories: 420, proteinG: 28 });
+    expect(mockOpenAiCreate).toHaveBeenCalledTimes(1);
 
     // ── Advance timers ────────────────────────────────────────────────────────
-    // Run all pending timers (the 500 ms rate-limit delay) and flush the
-    // microtask queue so the warm-up coroutine can fully complete.
+    // Flush any pending warm-up work.
     await vi.runAllTimersAsync();
 
     // ── Second request ────────────────────────────────────────────────────────
@@ -588,8 +610,10 @@ describe("GET /v1/recipes — nutrition warm-up", () => {
     const second = await request(app).get("/v1/recipes");
     expect(second.status).toBe(200);
     expect(second.body.warmupPending).toBe(false);
-    expect(second.body.recipes[0].calories).toBe(350);
-    expect(second.body.recipes[0].proteinG).toBe(30);
+    const secondById = new Map(second.body.recipes.map((recipe: { id: string }) => [recipe.id, recipe]));
+    expect(second.body.recipes.every((recipe: { calories: unknown }) => typeof recipe.calories === "number")).toBe(true);
+    expect(secondById.get(MEAL_ID)).toMatchObject({ calories: 350, proteinG: 30 });
+    expect(secondById.get(SECOND_MEAL_ID)).toMatchObject({ calories: 420, proteinG: 28 });
 
     vi.useRealTimers();
   });

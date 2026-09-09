@@ -406,6 +406,7 @@ const nutritionRefreshInFlight = new Set<string>();
 // requests for the same uncached meal into ONE OpenAI call, so an anonymous
 // caller cannot amplify cost by fanning out concurrent misses for one id.
 const nutritionMissInFlight = new Map<string, Promise<NutritionEstimate | null>>();
+const nutritionBatchInFlight = new Map<string, Promise<NutritionEstimate | null>>();
 
 /**
  * Resolve a cache-miss nutrition estimate, coalescing concurrent callers for
@@ -519,6 +520,112 @@ async function estimateNutrition(name: string, ingredients: string[]): Promise<N
   }
 }
 
+type NutritionBatchEntry = {
+  id: string;
+  name: string;
+  ingredients: string[];
+};
+
+function parseNutritionEstimate(value: unknown): NutritionEstimate | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const calories = Math.round(Number(record.calories) || 0);
+  if (calories <= 0) return null;
+  return {
+    calories,
+    proteinG: Math.max(0, Math.round(Number(record.proteinG) || 0)),
+    carbsG: Math.max(0, Math.round(Number(record.carbsG) || 0)),
+    fatG: Math.max(0, Math.round(Number(record.fatG) || 0)),
+  };
+}
+
+async function estimateNutritionBatch(entries: NutritionBatchEntry[]): Promise<Map<string, NutritionEstimate>> {
+  if (entries.length === 0) return new Map();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+  try {
+    const completion = await openai.chat.completions.create(
+      {
+        model: "gpt-5.4-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a nutrition expert. Return ONLY JSON in the form {\"recipes\":[{\"id\":\"...\",\"calories\":number,\"proteinG\":number,\"carbsG\":number,\"fatG\":number}]}. Return exactly one estimate for every requested recipe id. Estimate one typical serving. These are estimates, never verified nutrition.",
+          },
+          {
+            role: "user",
+            content: JSON.stringify(entries),
+          },
+        ],
+        response_format: { type: "json_object" },
+        max_completion_tokens: Math.min(1_200, Math.max(300, entries.length * 90)),
+      },
+      { signal: controller.signal },
+    );
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as { recipes?: unknown };
+    const allowedIds = new Set(entries.map((entry) => entry.id));
+    const result = new Map<string, NutritionEstimate>();
+    if (!Array.isArray(parsed.recipes)) return result;
+    for (const item of parsed.recipes) {
+      if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+      const record = item as Record<string, unknown>;
+      const id = typeof record.id === "string" ? record.id : "";
+      const nutrition = parseNutritionEstimate(record);
+      if (allowedIds.has(id) && nutrition) result.set(id, nutrition);
+    }
+    return result;
+  } catch {
+    return new Map();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Coalesce overlapping list requests while keeping one provider call for a
+ * visible page. Per-meal promises also protect concurrent page-boundary calls.
+ */
+async function estimateNutritionBatchCoalesced(entries: NutritionBatchEntry[]): Promise<Map<string, NutritionEstimate>> {
+  const uniqueEntries = Array.from(new Map(entries.map((entry) => [entry.id, entry])).values());
+  const pending = new Map<string, Promise<NutritionEstimate | null>>();
+  const newEntries: NutritionBatchEntry[] = [];
+
+  for (const entry of uniqueEntries) {
+    const existing = nutritionBatchInFlight.get(entry.id);
+    if (existing) pending.set(entry.id, existing);
+    else newEntries.push(entry);
+  }
+
+  if (newEntries.length > 0) {
+    const batchPromise = estimateNutritionBatch(newEntries);
+    for (const entry of newEntries) {
+      let mealPromise: Promise<NutritionEstimate | null>;
+      mealPromise = batchPromise
+        .then((result) => result.get(entry.id) ?? null)
+        .finally(() => {
+          if (nutritionBatchInFlight.get(entry.id) === mealPromise) {
+            nutritionBatchInFlight.delete(entry.id);
+          }
+        });
+      nutritionBatchInFlight.set(entry.id, mealPromise);
+      pending.set(entry.id, mealPromise);
+    }
+    void batchPromise.then((result) => {
+      for (const [id, nutrition] of result) {
+        nutritionCache.set(id, { estimate: nutrition, cachedAt: Date.now() });
+        void saveNutritionToDb(id, nutrition);
+      }
+    });
+  }
+
+  const resolved = await Promise.all(
+    uniqueEntries.map(async (entry) => [entry.id, await pending.get(entry.id)] as const),
+  );
+  return new Map(resolved.filter((item): item is [string, NutritionEstimate] => Boolean(item[1])));
+}
+
 /**
  * Re-estimate nutrition for a meal in the background and update both caches.
  * Clears the in-flight guard when done (success or failure).
@@ -591,10 +698,60 @@ async function resolveNutrition(
   return estimateNutritionCoalesced(mealId, name, ingredients);
 }
 
+/**
+ * Populate nutrition for the cards in the current list page before responding.
+ * The category endpoint only returns summary meals, so cache misses need one
+ * full lookup per meal before their estimates can be batched.
+ */
+type RecipeListItem = Omit<ReturnType<typeof toRecipe>, keyof NutritionEstimate> & {
+  calories: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+};
+
+async function attachNutritionToListPage(
+  meals: Meal[],
+): Promise<RecipeListItem[]> {
+  const recipes: RecipeListItem[] = meals.map((meal) => toRecipe(meal));
+  const uniqueRecipes = Array.from(new Map(recipes.map((recipe) => [recipe.id, recipe])).values());
+  await Promise.all(uniqueRecipes.map(async (recipe) => {
+    if (nutritionCache.has(recipe.id)) return;
+    const dbResult = await getNutritionFromDb(recipe.id);
+    if (dbResult) {
+      nutritionCache.set(recipe.id, { estimate: dbResult.estimate, cachedAt: dbResult.createdAtMs });
+    }
+  }));
+
+  const missing = uniqueRecipes.filter((recipe) => !nutritionCache.has(recipe.id));
+  if (missing.length > 0) {
+    const detailedMeals = await Promise.all(missing.map(async (recipe) => {
+      try {
+        const data = await fetchJson(`${API_ROOT}/lookup.php?i=${encodeURIComponent(recipe.id)}`);
+        return data.meals?.[0] ?? null;
+      } catch {
+        return null;
+      }
+    }));
+    const entries = detailedMeals
+      .filter((meal): meal is Meal => Boolean(meal))
+      .map((meal) => {
+        const recipe = toRecipe(meal);
+        return { id: recipe.id, name: recipe.name, ingredients: recipe.ingredients };
+      })
+      .filter((entry) => entry.ingredients.length > 0);
+    await estimateNutritionBatchCoalesced(entries);
+  }
+
+  return recipes.map((recipe) => {
+    const cached = nutritionCache.get(recipe.id);
+    return cached ? { ...recipe, ...cached.estimate } : recipe;
+  });
+}
+
 // ─── Background nutrition warm-up ────────────────────────────────────────────
 
 const WARMUP_BATCH_SIZE = 18;
-const WARMUP_DELAY_MS = 500; // 500 ms between OpenAI calls to stay well within quota
 
 // Single-flight guard: only one warm-up job may run at a time.
 let warmupInProgress = false;
@@ -611,7 +768,8 @@ let warmupDone = false;
  *   2. For each, check L2 (DB) before hitting OpenAI.
  *   3. A full-detail fetch is required for ingredients (the pool only carries
  *      summary fields from the category filter endpoint).
- *   4. 500 ms delay between OpenAI calls prevents quota bursting.
+ *   4. Estimate the collected candidates in one bounded batch so a scroll
+ *      request and the warm-up job share the same single-flight boundary.
  */
 async function warmNutritionCache(meals: Meal[]): Promise<void> {
   // Single-flight: bail if a job is already running.
@@ -630,7 +788,7 @@ async function warmNutritionCache(meals: Meal[]): Promise<void> {
   }
 
   logger.info({ count: candidates.length }, "nutrition warm-up started");
-  let warmed = 0;
+  const entries: NutritionBatchEntry[] = [];
 
   for (const meal of candidates) {
     try {
@@ -654,24 +812,16 @@ async function warmNutritionCache(meals: Meal[]): Promise<void> {
 
       const recipe = toRecipe(fullMeal);
       if (recipe.ingredients.length === 0) continue;
-
-      const nutrition = await estimateNutrition(recipe.name, recipe.ingredients);
-      if (nutrition) {
-        nutritionCache.set(meal.idMeal, { estimate: nutrition, cachedAt: Date.now() });
-        void saveNutritionToDb(meal.idMeal, nutrition);
-        warmed++;
-      }
-
-      // Rate-limit: pause between OpenAI requests.
-      await new Promise<void>((resolve) => setTimeout(resolve, WARMUP_DELAY_MS));
+      entries.push({ id: meal.idMeal, name: recipe.name, ingredients: recipe.ingredients });
     } catch (err) {
       logger.warn({ err, mealId: meal.idMeal }, "nutrition warm-up skipped meal");
     }
   }
 
+  const estimates = await estimateNutritionBatchCoalesced(entries);
   warmupDone = true;
   warmupInProgress = false;
-  logger.info({ warmed }, "nutrition warm-up complete");
+  logger.info({ warmed: estimates.size }, "nutrition warm-up complete");
 }
 
 // ─── "For you" pool ───────────────────────────────────────────────────────────
@@ -813,9 +963,6 @@ async function getForYouMeals(): Promise<Meal[]> {
       // Reset warm-up state so the fresh pool always triggers a new cycle.
       warmupDone = false;
       warmupInProgress = false;
-      // Fire-and-forget: warm the nutrition cache so first-visit cards show
-      // calorie estimates without the user ever opening a detail sheet.
-      void warmNutritionCache(meals);
       return meals;
     }).catch((err) => {
       forYouFetchPromise = null;
@@ -923,16 +1070,13 @@ router.get("/v1/recipes", async (req, res) => {
       && (continuousBrowse || offset + page.length < discoverMeals.length)
       ? offset + page.length
       : null;
-    const recipes = page.map((meal) => {
-      const recipe = toRecipe(meal);
-      // Attach any L1-cached estimate so the card can show ~kcal without
-      // the user needing to open the detail sheet first.
-      const cached = nutritionCache.get(recipe.id);
-      return cached ? { ...recipe, ...cached.estimate } : recipe;
-    });
+    const warmupPending = !warmupDone;
+    const recipes = await attachNutritionToListPage(page);
+    // Visible cards are fully populated before the response. Continue warming
+    // the next cards in the unfiltered pool without delaying this response.
+    if (continuousBrowse) void warmNutritionCache(meals);
     // Let clients know they should refetch soon if the background warm-up
     // has not yet populated estimates for the first page of results.
-    const warmupPending = !warmupDone;
     res.json({
       source: SOURCE,
       recipes,
