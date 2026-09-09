@@ -35,8 +35,11 @@ describe('onboarding final agreement', () => {
     expect(source).toContain('accessibilityRole="checkbox"');
     expect(source).toContain('accessibilityState={{ checked: consent }}');
     expect(source).toContain("consent ? 'Checked.' : 'Unchecked.'");
-    expect(source).toContain('Required to continue');
+    expect(source).toContain('Required step');
     expect(source).toContain('testID="onboarding-consent"');
+    expect(source).toContain('Tap to agree');
+    expect(source).toContain('Tap anywhere on the agreement card above');
+    expect(source).toContain('consentCardHeader');
   });
 
   it('states the consent scope and exposes the final action state', () => {

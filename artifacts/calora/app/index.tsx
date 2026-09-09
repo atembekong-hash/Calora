@@ -504,7 +504,8 @@ export default function OnboardingScreen() {
             <Text style={[styles.title, { color: colors.foreground }]}>Review before you start.</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>{BRAND.name} is a wellness tool, not a doctor. Your data stays local in this preview and can be exported or deleted from settings.</Text>
              <OnboardingIllustration scene="review" colors={colors} />
-             <Text style={[styles.consentRequirement, { color: colors.mutedForeground }]}>Required to continue</Text>
+              <Text style={[styles.consentRequirement, { color: colors.mutedForeground }]}>Required step</Text>
+              <Text style={[styles.consentPrompt, { color: colors.foreground }]}>Tap the agreement card below to continue.</Text>
              <Pressable
                accessibilityHint="Double tap to toggle your required onboarding agreement."
                accessibilityLabel={`Required agreement. ${consent ? 'Checked.' : 'Unchecked.'} I understand Calora is a wellness tool, will review AI estimates before logging, and understand calorie targets are starting estimates, not medical advice.`}
@@ -514,13 +515,27 @@ export default function OnboardingScreen() {
                style={[styles.consentCard, { backgroundColor: consent ? colors.accent : colors.card, borderColor: consent ? colors.primary : colors.border }]}
                testID="onboarding-consent"
              >
-              <View style={[styles.consentCheck, { backgroundColor: consent ? colors.primary : colors.muted }]}><Feather name={consent ? 'check' : 'shield'} size={17} color={consent ? colors.primaryForeground : colors.mutedForeground} /></View>
-               <View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: colors.foreground }]}>I agree to these wellness terms</Text><Text style={[styles.optionBody, { color: colors.mutedForeground }]}>I understand {BRAND.name} is a wellness tool, not medical care. I will review AI estimates before logging, and calorie targets are starting estimates.</Text></View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.consentCardHeader}>
+                    <View style={styles.consentTapLabel}>
+                      <Feather name={consent ? 'check-circle' : 'mouse-pointer'} size={14} color={colors.primary} />
+                      <Text style={[styles.consentTapText, { color: colors.primary }]}>{consent ? 'Agreement selected' : 'Tap to agree'}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={17} color={consent ? colors.primary : colors.mutedForeground} />
+                  </View>
+                  <View style={styles.consentCardBody}>
+                    <View style={[styles.consentCheck, { backgroundColor: consent ? colors.primary : colors.muted }]}><Feather name={consent ? 'check' : 'shield'} size={17} color={consent ? colors.primaryForeground : colors.mutedForeground} /></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.optionTitle, { color: colors.foreground }]}>I agree to these wellness terms</Text>
+                      <Text style={[styles.optionBody, { color: colors.mutedForeground }]}>I understand {BRAND.name} is a wellness tool, not medical care. I will review AI estimates before logging, and calorie targets are starting estimates.</Text>
+                    </View>
+                  </View>
+                </View>
             </Pressable>
              <Text style={[styles.consentHelper, { color: colors.mutedForeground }]}>
                {consent
                  ? `Agreement selected. ${isReviewMode ? 'Save your changes when ready.' : `Select “Agree & enter ${BRAND.name}” to finish setup.`}`
-                 : 'Select the agreement above to enable the final button.'}
+                  : 'Tap anywhere on the agreement card above. The final button will unlock when it is selected.'}
              </Text>
             <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.summaryCalories, { color: colors.foreground }]}>{formatWhole(calorieTarget)} <Text style={[styles.summaryUnit, { color: colors.mutedForeground }]}>kcal/day</Text></Text>
@@ -608,9 +623,14 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 },
   chipText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  consentRequirement: { fontFamily: 'Inter_700Bold', fontSize: 11, letterSpacing: 0.3, textTransform: 'uppercase', marginTop: 27, marginBottom: 8 },
-  consentCard: { flexDirection: 'row', gap: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 16 },
-  consentCheck: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
+  consentRequirement: { fontFamily: 'Inter_700Bold', fontSize: 11, letterSpacing: 0.3, textTransform: 'uppercase', marginTop: 27, marginBottom: 5 },
+  consentPrompt: { fontFamily: 'Inter_600SemiBold', fontSize: 14, lineHeight: 20, marginBottom: 10 },
+  consentCard: { borderWidth: 1.5, borderRadius: 18, padding: 15, minHeight: 142 },
+  consentCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  consentTapLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  consentTapText: { fontFamily: 'Inter_700Bold', fontSize: 11, letterSpacing: 0.25, textTransform: 'uppercase' },
+  consentCardBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 11 },
+  consentCheck: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   consentHelper: { fontFamily: 'Inter_500Medium', fontSize: 11, lineHeight: 16, marginTop: 10 },
   summaryCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 18, marginTop: 16 },
   summaryCalories: { fontFamily: 'Inter_700Bold', fontSize: 29, marginTop: 8 },
