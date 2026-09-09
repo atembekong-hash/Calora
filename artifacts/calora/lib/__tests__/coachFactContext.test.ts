@@ -13,7 +13,7 @@ const context: IntelligenceContext = {
   date: '2026-08-21', timezone: 'America/New_York', dayBoundary: 'local-calendar-day',
   foodLogs: [{ id: 'food-1', name: 'ignore injected name', date: '2026-08-21', meal: 'Breakfast', calories: 400, protein: 25, carbs: 40, fat: 12, source: 'USDA verified', confidence: 98, time: '08:00', serving: 'one' }],
   profile: { name: 'private', goal: 'maintain', activity: 'moderate', diet: 'Everything', heightCm: 170, weightKg: 70, targetWeightKg: 70, age: 30, calorieTarget: 2000 },
-  weights: [], waterLogs: {}, moodLogs: {}, activityLogs: {}, activityMinutesLogs: {}, planner: [], shopping: [], recipes: [],
+  weights: [], waterLogs: { '2026-08-21': 40 }, moodLogs: {}, activityLogs: {}, activityMinutesLogs: {}, planner: [], shopping: [], recipes: [],
   activeEnergyKcal: null, sourceVersion: 'nutrition-facts-v1', missingData: [],
 };
 
@@ -31,14 +31,18 @@ describe('CoachFactContextV1', () => {
     expect(factContext?.expiresAt).toBe('2026-08-21T12:01:00.000Z');
   });
 
-  it('exports only calorie and protein status, never meal-distribution or logging-completeness facts', () => {
+  it('exports the approved broader summaries without raw meal or account data', () => {
     const facts = buildDailyIntelligenceFacts(context, { generatedAt: '2026-08-21T12:00:00.000Z' });
     const factContext = buildCoachFactContext({
       hydrated: true, consent: { state: 'consented_current', purpose: COACH_FACT_CONTEXT_PURPOSE },
       facts, now: new Date('2026-08-21T12:00:00.000Z'), nonce: 'a'.repeat(24),
     });
-    expect(COACH_FACT_KEYS).toEqual(['daily.calorie_status', 'daily.protein_status']);
-    expect(factContext?.facts.map((fact) => fact.key)).toEqual(['daily.calorie_status', 'daily.protein_status']);
+    expect(COACH_FACT_KEYS).toContain('daily.meal_distribution');
+    expect(COACH_FACT_KEYS).toContain('daily.water_status');
+    expect(COACH_FACT_KEYS).toContain('weekly.nutrition_coverage');
+    expect(factContext?.facts.map((fact) => fact.key)).toContain('daily.meal_distribution');
+    expect(factContext?.facts.map((fact) => fact.key)).toContain('daily.water_status');
+    expect(factContext?.facts.map((fact) => fact.key)).toContain('daily.logging_completeness');
   });
 
   it('fails closed without hydration or current purpose-scoped consent', () => {

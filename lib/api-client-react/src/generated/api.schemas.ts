@@ -897,6 +897,17 @@ export type CoachFactContextFactKey = typeof CoachFactContextFactKey[keyof typeo
 export const CoachFactContextFactKey = {
   dailycalorie_status: 'daily.calorie_status',
   dailyprotein_status: 'daily.protein_status',
+  dailycarbohydrate_status: 'daily.carbohydrate_status',
+  dailyfat_status: 'daily.fat_status',
+  dailyfiber_status: 'daily.fiber_status',
+  dailysugar_status: 'daily.sugar_status',
+  dailysodium_status: 'daily.sodium_status',
+  dailywater_status: 'daily.water_status',
+  dailymeal_distribution: 'daily.meal_distribution',
+  dailylogging_completeness: 'daily.logging_completeness',
+  weeklynutrition_coverage: 'weekly.nutrition_coverage',
+  weeklymacro_coverage: 'weekly.macro_coverage',
+  weightshort_trend: 'weight.short_trend',
 } as const;
 
 export type CoachFactContextFactStatus = typeof CoachFactContextFactStatus[keyof typeof CoachFactContextFactStatus];
@@ -906,6 +917,25 @@ export const CoachFactContextFactStatus = {
   available: 'available',
   limited: 'limited',
   unknown: 'unknown',
+} as const;
+
+export type CoachFactContextFactValuesState = typeof CoachFactContextFactValuesState[keyof typeof CoachFactContextFactValuesState];
+
+
+export const CoachFactContextFactValuesState = {
+  logged: 'logged',
+  partially_logged: 'partially_logged',
+  no_logs: 'no_logs',
+} as const;
+
+export type CoachFactContextFactValuesDirection = typeof CoachFactContextFactValuesDirection[keyof typeof CoachFactContextFactValuesDirection];
+
+
+export const CoachFactContextFactValuesDirection = {
+  up: 'up',
+  down: 'down',
+  stable: 'stable',
+  insufficient: 'insufficient',
 } as const;
 
 export type CoachFactContextFactValues = {
@@ -939,6 +969,73 @@ export type CoachFactContextFactValues = {
      * @maximum 1000
      */
   remainingG?: number;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  consumedMg?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  consumedOz?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  breakfastPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  lunchPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  dinnerPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  snackPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  logCount?: number;
+  /**
+     * @minimum 0
+     * @maximum 10
+     */
+  mealSlotsLogged?: number;
+  state?: CoachFactContextFactValuesState;
+  /**
+     * @minimum 0
+     * @maximum 7
+     */
+  loggedDayCount?: number;
+  /**
+     * @minimum 0
+     * @maximum 7
+     */
+  qualifiedDayCount?: number;
+  /**
+     * @minimum 1
+     * @maximum 28
+     */
+  windowDays?: number;
+  direction?: CoachFactContextFactValuesDirection;
+  /**
+     * @minimum -1000
+     * @maximum 1000
+     */
+  deltaKg?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  entryCount?: number;
 };
 
 /**
@@ -950,6 +1047,10 @@ export type CoachFactContextFactUnit = typeof CoachFactContextFactUnit[keyof typ
 export const CoachFactContextFactUnit = {
   kcal: 'kcal',
   g: 'g',
+  mg: 'mg',
+  fl_oz: 'fl oz',
+  '%': '%',
+  kg: 'kg',
 } as const;
 
 export type CoachFactContextFactTimeWindow = typeof CoachFactContextFactTimeWindow[keyof typeof CoachFactContextFactTimeWindow];
@@ -957,6 +1058,7 @@ export type CoachFactContextFactTimeWindow = typeof CoachFactContextFactTimeWind
 
 export const CoachFactContextFactTimeWindow = {
   today: 'today',
+  recent: 'recent',
 } as const;
 
 export type CoachFactContextFactConfidence = typeof CoachFactContextFactConfidence[keyof typeof CoachFactContextFactConfidence];
@@ -1039,6 +1141,7 @@ export const CoachFactContextMissingDataItem = {
   no_logged_food_today: 'no_logged_food_today',
   incomplete_logging: 'incomplete_logging',
   unknown_provenance: 'unknown_provenance',
+  insufficient_history: 'insufficient_history',
 } as const;
 
 export interface CoachFactContext {
@@ -1054,7 +1157,7 @@ export interface CoachFactContext {
   /** @pattern ^[a-f0-9]{24,64}$ */
   requestNonce: string;
   coverage: CoachFactContextCoverage;
-  /** @maxItems 4 */
+  /** @maxItems 20 */
   missingData: CoachFactContextMissingDataItem[];
   /**
      * @minItems 0
@@ -1062,7 +1165,7 @@ export interface CoachFactContext {
      */
   facts: CoachFactContextFact[];
   /**
-     * @maxItems 3
+     * @maxItems 6
      * @items.maxLength 220
      */
   limitations: string[];
@@ -1083,6 +1186,17 @@ export type CoachFactObservationFactKeysItem = typeof CoachFactObservationFactKe
 export const CoachFactObservationFactKeysItem = {
   dailycalorie_status: 'daily.calorie_status',
   dailyprotein_status: 'daily.protein_status',
+  dailycarbohydrate_status: 'daily.carbohydrate_status',
+  dailyfat_status: 'daily.fat_status',
+  dailyfiber_status: 'daily.fiber_status',
+  dailysugar_status: 'daily.sugar_status',
+  dailysodium_status: 'daily.sodium_status',
+  dailywater_status: 'daily.water_status',
+  dailymeal_distribution: 'daily.meal_distribution',
+  dailylogging_completeness: 'daily.logging_completeness',
+  weeklynutrition_coverage: 'weekly.nutrition_coverage',
+  weeklymacro_coverage: 'weekly.macro_coverage',
+  weightshort_trend: 'weight.short_trend',
 } as const;
 
 export interface CoachFactObservation {
@@ -1094,7 +1208,7 @@ export interface CoachFactObservation {
   confidence: CoachFactObservationConfidence;
   /**
      * @minItems 1
-     * @maxItems 2
+     * @maxItems 4
      */
   factKeys: CoachFactObservationFactKeysItem[];
 }

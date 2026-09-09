@@ -11,4 +11,5 @@ export type CoachFactContextFactTimeWindow = typeof CoachFactContextFactTimeWind
 
 export const CoachFactContextFactTimeWindow = {
   today: 'today',
+  recent: 'recent',
 } as const;

@@ -47,8 +47,9 @@ type DisplayTurn = {
 const starterPrompts = [
   'How many calories have I logged today?',
   'How much protein have I logged today?',
-  'What information does Coach use?',
-  'What is missing from today’s record?',
+  'How is my hydration looking today?',
+  'What patterns do my recent records show?',
+  'Can you help me think of a flexible dinner idea?',
 ];
 
 function actionIcon(destination: CoachAction['destination']): keyof typeof Feather.glyphMap {
@@ -120,17 +121,18 @@ function ActionCard({ action, colors }: { action: CoachAction; colors: ReturnTyp
 }
 
 /**
- * Frozen approved daily calorie+protein fact types.
- * Only these fact types are extracted from the full daily intelligence fact
- * set and passed to the Coach send adapter.  No other content is included.
+ * Frozen approved Coach fact types. The full intelligence snapshot never goes
+ * to Coach: only these deterministic, display-ready summaries are projected.
  */
-const CALORIE_PROTEIN_FACT_TYPES = Object.freeze([
-  'daily.calories_consumed',
-  'daily.calorie_target',
-  'daily.calories_remaining',
-  'daily.protein_consumed',
-  'daily.protein_target',
-  'daily.protein_remaining',
+const COACH_FACT_TYPES = Object.freeze([
+  'daily.calories_consumed', 'daily.calorie_target', 'daily.calories_remaining',
+  'daily.protein_consumed', 'daily.protein_target', 'daily.protein_remaining',
+  'daily.carbohydrates_consumed', 'daily.carbohydrates_target', 'daily.carbohydrates_remaining',
+  'daily.fat_consumed', 'daily.fat_target', 'daily.fat_remaining',
+  'daily.fiber_consumed', 'daily.sugar_consumed', 'daily.sodium_consumed',
+  'daily.water_consumed', 'daily.meal_distribution', 'daily.logging_completeness',
+  'nutrition.seven_day_coverage', 'nutrition.seven_day_macro_record_coverage',
+  'weight.short_trend',
 ] as const);
 
 export default function CoachScreen() {
@@ -288,7 +290,7 @@ export default function CoachScreen() {
         const allFacts = buildDailyIntelligenceFacts(intelligenceCtx);
         frozenFacts = Object.freeze(
           allFacts.filter((fact) =>
-            (CALORIE_PROTEIN_FACT_TYPES as readonly string[]).includes(fact.factType),
+            (COACH_FACT_TYPES as readonly string[]).includes(fact.factType),
           ),
         );
       } catch {

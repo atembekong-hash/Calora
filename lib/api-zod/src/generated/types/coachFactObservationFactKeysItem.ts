@@ -12,4 +12,15 @@ export type CoachFactObservationFactKeysItem = typeof CoachFactObservationFactKe
 export const CoachFactObservationFactKeysItem = {
   dailycalorie_status: 'daily.calorie_status',
   dailyprotein_status: 'daily.protein_status',
+  dailycarbohydrate_status: 'daily.carbohydrate_status',
+  dailyfat_status: 'daily.fat_status',
+  dailyfiber_status: 'daily.fiber_status',
+  dailysugar_status: 'daily.sugar_status',
+  dailysodium_status: 'daily.sodium_status',
+  dailywater_status: 'daily.water_status',
+  dailymeal_distribution: 'daily.meal_distribution',
+  dailylogging_completeness: 'daily.logging_completeness',
+  weeklynutrition_coverage: 'weekly.nutrition_coverage',
+  weeklymacro_coverage: 'weekly.macro_coverage',
+  weightshort_trend: 'weight.short_trend',
 } as const;

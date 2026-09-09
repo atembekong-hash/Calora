@@ -15,4 +15,8 @@ export type CoachFactContextFactUnit = typeof CoachFactContextFactUnit[keyof typ
 export const CoachFactContextFactUnit = {
   kcal: 'kcal',
   g: 'g',
+  mg: 'mg',
+  fl_oz: 'fl oz',
+  '%': '%',
+  kg: 'kg',
 } as const;

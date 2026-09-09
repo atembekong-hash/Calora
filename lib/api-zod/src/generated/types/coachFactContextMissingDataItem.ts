@@ -14,4 +14,5 @@ export const CoachFactContextMissingDataItem = {
   no_logged_food_today: 'no_logged_food_today',
   incomplete_logging: 'incomplete_logging',
   unknown_provenance: 'unknown_provenance',
+  insufficient_history: 'insufficient_history',
 } as const;

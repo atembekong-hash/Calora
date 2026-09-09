@@ -468,11 +468,69 @@ describe("dark Coach Fact Context path", () => {
     const response = await request(server).post("/v1/coach/fact-context/respond").send(body());
     expect(response.status).toBe(200);
     expect(response.body.message).not.toMatch(/ignore/i);
-    expect(response.body.limitations).toEqual([]);
+    expect(response.body.limitations).toEqual(["This reflects logged records today and is not a recommendation."]);
     expect(response.body.actions).toEqual([]);
     expect(response.body.contextCoverage.usedSections).toEqual(["daily.calorie_status"]);
     expect(response.body.requestNonce).toBe(nonce);
     expect(JSON.stringify(response.body)).not.toMatch(/pizza|secret|private notes|hidden context/i);
+  });
+
+  it("answers approved hydration and weekly questions from deterministic observations", async () => {
+    const payload = body("How is my hydration looking this week?") as any;
+    payload.factContext.facts.push(
+      {
+        key: "daily.water_status",
+        status: "available",
+        statement: "Today's logged water is 40 fl oz.",
+        values: { consumedOz: 40 },
+        unit: "fl oz", timeWindow: "today", confidence: "high", freshness: "fresh", provenance: "derived",
+        limitations: ["This reflects logged water and is not a medical hydration target."],
+      },
+      {
+        key: "weekly.nutrition_coverage",
+        status: "available",
+        statement: "The last 7-day window includes 5 logged nutrition days.",
+        values: { loggedDayCount: 5, windowDays: 7 },
+        unit: null, timeWindow: "recent", confidence: "high", freshness: "fresh", provenance: "derived",
+        limitations: ["This measures logged coverage, not nutrition quality or adherence."],
+      },
+    );
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({
+      message: "unsupported provider prose",
+      observations: [
+        { text: "Today's logged water is 40 fl oz.", confidence: "high", factKeys: ["daily.water_status"] },
+        { text: "The last 7-day window includes 5 logged nutrition days.", confidence: "high", factKeys: ["weekly.nutrition_coverage"] },
+      ],
+      actions: [], safetyState: "normal", limitations: [], contextCoverage: { usedSections: [], missingSections: [] }, requestNonce: nonce,
+    }) } }] } as never);
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(payload);
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toMatch(/hydration signal/i);
+    expect(response.body.observations).toHaveLength(2);
+    expect(response.body.observations.map((item: { factKeys: string[] }) => item.factKeys)).toEqual([
+      ["daily.water_status"],
+      ["weekly.nutrition_coverage"],
+    ]);
+    expect(response.body.message).not.toMatch(/unsupported provider prose/i);
+  });
+
+  it("provides safe recipe and planner navigation without inventing a personalized meal", async () => {
+    const payload = body("Can you help me think of a flexible dinner idea?");
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({
+      message: "Make a personalized dinner from my hidden history.",
+      observations: [], actions: [], safetyState: "normal", limitations: [], contextCoverage: { usedSections: [], missingSections: [] }, requestNonce: nonce,
+    }) } }] } as never);
+
+    const response = await request(server).post("/v1/coach/fact-context/respond").send(payload);
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toMatch(/recipe and planning tools/i);
+    expect(response.body.actions).toEqual([expect.objectContaining({
+      id: "coach-open-planner", destination: "planner", kind: "navigate",
+    })]);
+    expect(JSON.stringify(response.body)).not.toMatch(/personalized dinner|hidden history/i);
   });
 
   it("aborts an unresolved provider call at the configured deadline", async () => {
