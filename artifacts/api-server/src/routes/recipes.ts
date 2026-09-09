@@ -911,8 +911,18 @@ router.get("/v1/recipes", async (req, res) => {
     const discoverMeals = !query && !category
       ? stableRecipeRotation(meals, rotationSeed)
       : meals;
-    const page = infiniteRecipePage(discoverMeals, offset, limit, `${rotationSeed}:${query}:${category}`);
-    const nextOffset = page.length > 0 ? offset + page.length : null;
+    // Relevance-ordered search and category results stay finite and preserve
+    // the provider's order. Only the unfiltered For You browse pool cycles
+    // after its first pass; repeating a narrow search would duplicate one
+    // match and misrepresent the provider's result set.
+    const continuousBrowse = !query && !category;
+    const page = continuousBrowse
+      ? infiniteRecipePage(discoverMeals, offset, limit, `${rotationSeed}:${query}:${category}`)
+      : discoverMeals.slice(offset, offset + limit);
+    const nextOffset = page.length > 0
+      && (continuousBrowse || offset + page.length < discoverMeals.length)
+      ? offset + page.length
+      : null;
     const recipes = page.map((meal) => {
       const recipe = toRecipe(meal);
       // Attach any L1-cached estimate so the card can show ~kcal without

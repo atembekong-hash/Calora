@@ -7,6 +7,7 @@ export type PremiumCatalogueState = {
   search?: string;
   category?: string;
   offset?: number;
+  cycle?: number;
   nextOffset?: number | null;
   terminalReason?: string | null;
   scrollY?: number;
@@ -32,6 +33,7 @@ export function restorePremiumCatalogueSession(
     ...state,
     freshnessDay: today,
     offset: 0,
+    cycle: 0,
     nextOffset: null,
     terminalReason: null,
     scrollY: 0,
@@ -43,8 +45,10 @@ export function mergePremiumCataloguePage(
   current: PremiumRecipe[],
   page: PremiumRecipe[],
   offset: number,
+  options: { appendAtZero?: boolean; allowRepeatedCycle?: boolean } = {},
 ): PremiumRecipe[] {
-  if (offset === 0) return page;
+  if (offset === 0 && !options.appendAtZero) return page;
+  if (options.allowRepeatedCycle) return [...current, ...page];
   const seen = new Set(current.map((recipe) => recipe.id));
   return [...current, ...page.filter((recipe) => !seen.has(recipe.id))];
 }
@@ -95,6 +99,7 @@ export function samePremiumCatalogueSession(current: PremiumCatalogueState, next
     && (current.search ?? '') === (next.search ?? '')
     && (current.category ?? '') === (next.category ?? '')
     && (current.offset ?? 0) === (next.offset ?? 0)
+    && (current.cycle ?? 0) === (next.cycle ?? 0)
     && current.nextOffset === next.nextOffset
     && current.terminalReason === next.terminalReason;
 }

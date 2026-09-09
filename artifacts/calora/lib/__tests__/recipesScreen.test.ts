@@ -97,7 +97,7 @@ describe('Recipes Discover layout contracts', () => {
     );
 
     expect(source).toContain('savedRecipes.map((recipe) => (');
-    expect(source).toContain('recipes.map((recipe) => (');
+    expect(source).toContain('recipes.map((recipe, index) => (');
     expect(source).not.toContain('{recipeSourceLabel(recipe)}</Text>');
   });
 
@@ -114,7 +114,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('compactCardFooter');
   });
 
-  it('keeps Plus cards mounted while pagination loads, retries failures, and deduplicates appended pages', () => {
+  it('preloads Plus, keeps cards mounted while pagination loads, and retries failures', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
       'utf8',
@@ -131,11 +131,14 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('testID="plus-recipe-pagination-retry"');
     expect(source).toContain('query.isError && recipes.length > 0');
     expect(source).toContain('onPress={() => query.refetch()}');
-    expect(source).toContain('if (!hasCurrentPageData || nextOffset == null || paginationTerminalReason || query.isFetching || loadingMoreRef.current) return;');
+    expect(source).toContain('if (!hasCurrentPageData || query.isFetching || loadingMoreRef.current) return;');
+    expect(source).toContain('setCycle((current) => current + 1)');
+    expect(source).toContain('allowRepeatedCycle: cycle > 0');
     expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = () => {');
     expect(source).toContain('onContentSizeChange={(_, contentHeight) => {');
     expect(source).toContain('loadMorePremiumRecipesIfAtEnd();');
-    expect(source).toContain("activeSection === 'premium' ? (");
+    expect(source).toContain('visible={activeSection === \'premium\'}');
+    expect(source).toContain('activeSection !== \'premium\' ? (');
     expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
     expect(source).toContain('recipesScrollRef.current?.scrollTo({ y: section === \'discover\' ? discoverScrollYRef.current : 0, animated: false })');
     expect(source).toContain('initialState={premiumCatalogueState.userId === user?.id ? premiumCatalogueState : { userId: null, recipes: [] }}');
@@ -144,6 +147,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain("queryClient.removeQueries({ queryKey: ['premium-recipes'] })");
     expect(source).toContain('testID="plus-recipe-pagination-terminal"');
     expect(source).toContain('const hasCurrentPageData = canApplyPremiumPage(query.isPlaceholderData);');
+    expect(source).toContain("Plus recipes couldn't load");
   });
 
   it('uses provider cursors for Discover and labels nutrition provenance without inventing macros', () => {

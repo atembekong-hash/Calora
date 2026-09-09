@@ -33,6 +33,7 @@ describe('Premium catalogue mounted cache lifecycle', () => {
       search: '',
       category: '',
       offset: 18,
+      cycle: 1,
       nextOffset: 36,
       terminalReason: null,
       scrollY: 640,
@@ -40,6 +41,7 @@ describe('Premium catalogue mounted cache lifecycle', () => {
 
     expect(samePremiumCatalogueSession(session, { ...session, recipes: [...recipes] })).toBe(true);
     expect(samePremiumCatalogueSession(session, { ...session, userId: 'member-b' })).toBe(false);
+    expect(samePremiumCatalogueSession(session, { ...session, cycle: 2 })).toBe(false);
     expect(session.recipes).toBe(recipes);
     expect(session.scrollY).toBe(640);
   });
@@ -52,10 +54,10 @@ describe('Premium catalogue mounted cache lifecycle', () => {
   it('resets only a new-day unfiltered session while retaining cards pending page zero', () => {
     const yesterday: PremiumCatalogueState = {
       userId: 'member-a', recipes, freshnessDay: '2026-08-27', offset: 36,
-      nextOffset: 54, terminalReason: 'end', scrollY: 480,
+      cycle: 2, nextOffset: 54, terminalReason: 'end', scrollY: 480,
     };
     expect(restorePremiumCatalogueSession(yesterday, 'member-a', '2026-08-28')).toMatchObject({
-      recipes, freshnessDay: '2026-08-28', offset: 0, nextOffset: null, terminalReason: null, scrollY: 0,
+      recipes, freshnessDay: '2026-08-28', offset: 0, cycle: 0, nextOffset: null, terminalReason: null, scrollY: 0,
     });
     const filtered = { ...yesterday, search: 'miso' };
     expect(restorePremiumCatalogueSession(filtered, 'member-a', '2026-08-28')).toEqual(filtered);
@@ -67,6 +69,20 @@ describe('Premium catalogue mounted cache lifecycle', () => {
     expect(mergePremiumCataloguePage(recipes, refreshed, 0)).toEqual(refreshed);
     expect(mergePremiumCataloguePage(refreshed, later, 18).map((recipe) => recipe.id)).toEqual(['fresh-1', 'fresh-2', 'fresh-3']);
     expect(clearPremiumCatalogueState()).toEqual({ userId: null, recipes: [] });
+  });
+
+  it('appends a repeated provider cycle without changing recipe identity', () => {
+    const repeated = [{ id: 'premium:provider:1' }, { id: 'premium:provider:2' }] as PremiumRecipe[];
+    const next = [{ id: 'premium:provider:1' }, { id: 'premium:provider:2' }] as PremiumRecipe[];
+    expect(mergePremiumCataloguePage(repeated, next, 0, {
+      appendAtZero: true,
+      allowRepeatedCycle: true,
+    }).map((recipe) => recipe.id)).toEqual([
+      'premium:provider:1',
+      'premium:provider:2',
+      'premium:provider:1',
+      'premium:provider:2',
+    ]);
   });
 
   it('routes a 403 Premium detail denial through the account-wide protected-data boundary', () => {
