@@ -45,11 +45,10 @@ type DisplayTurn = {
 };
 
 const starterPrompts = [
-  'What should I focus on today?',
-  'What patterns do you see this week?',
-  'Help me improve protein.',
-  'Find an easy dinner.',
-  'Review my hydration.',
+  'How many calories have I logged today?',
+  'How much protein have I logged today?',
+  'What information does Coach use?',
+  'What is missing from today’s record?',
 ];
 
 function actionIcon(destination: CoachAction['destination']): keyof typeof Feather.glyphMap {
@@ -431,7 +430,7 @@ export default function CoachScreen() {
           onContentSizeChange={scrollToLatest}
       >
         <View style={styles.headerCopy}>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A focused view of your nutrition.</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A focused view of today’s logged nutrition.</Text>
         </View>
         {!guestMode && !coachConsentAccepted ? (
           <View style={[styles.consentCard, { backgroundColor: colors.hero }]}>
@@ -464,7 +463,7 @@ export default function CoachScreen() {
                     <CaloraFeatureIcon name="coach" size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
                 </View>
                 <Text style={[styles.briefTitle, { color: colors.foreground }]}>What would you like to know?</Text>
-                <Text style={[styles.briefBody, { color: colors.mutedForeground }]}>Ask about meals, hydration, patterns, or what to do next. Coach shows what it uses.</Text>
+                <Text style={[styles.briefBody, { color: colors.mutedForeground }]}>Ask about today’s logged calories or protein. Coach shows what it uses.</Text>
               </View>
             )}
             {turns.map((turn) => (

@@ -63,7 +63,7 @@ export function CoachFactContextConsentPanel({ colors }: { colors: {
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
        <Text style={[styles.title, { color: colors.foreground }]}>Share a daily summary with Coach?</Text>
       <Text style={[styles.body, { color: colors.mutedForeground }]}>
-         With permission, Calora can send Coach a summary of today’s calories, protein, meal distribution, and logging completeness.
+          With permission, Calora can send Coach a summary of today’s logged calories and protein.
       </Text>
       <Text style={[styles.body, { color: colors.mutedForeground }]}>
          It never includes food names, notes, photos, recipes, raw timelines, account IDs, or your full history. Coach is not medical care.

@@ -101,8 +101,8 @@ const FACT_LIMITATIONS: Record<string, ReadonlyArray<string>> = {
 };
 
 const riskPatterns: RegExp[] = [
-  /\b(self[- ]?harm|suicid)/i,
-  /\b(anorex|bulimi|purge|vomit|laxative|binge)/i,
+  /\b(self[- ]?harm|self[- ]?injur|suicid)/i,
+  /\b(anorex|bulimi|purge|purging|vomit|laxative|binge|eating[- ]?disorder|disordered[- ]?eating)/i,
   /\b(starv|severe(?:ly)? restrict|dangerously low|under ?\d{3}\s*(calories|kcal))/i,
   /\b(compensat(?:e|ory).{0,30}exercise|exercise.{0,30}compensat)/i,
   /\b(pregnan|postpartum)/i,
@@ -110,6 +110,19 @@ const riskPatterns: RegExp[] = [
   /\b(chest pain|fainting|fainted|acute symptom)/i,
   /\b(minor|under ?18|child|pediatric)/i,
 ];
+
+/**
+ * Risk detection is a safety gate, not a content sanitizer. Keep the
+ * original message unchanged for the model's untrusted conversation boundary,
+ * but normalize common invisible-formatting tricks before checking whether a
+ * request needs a support redirect.
+ */
+function normalizeRiskText(content: string) {
+  return content
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ");
+}
 
 function serverGateEnabled() {
   // This production constant is compiled by build.mjs only when the build
@@ -591,7 +604,10 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
 
   // Risk scan — every turn in the conversation is checked before any fact
   // context leaves the device boundary.
-  if (messages.some((m) => riskPatterns.some((p) => p.test(m.content)))) {
+  if (messages.some((m) => {
+    const riskText = normalizeRiskText(m.content);
+    return riskPatterns.some((pattern) => pattern.test(riskText));
+  })) {
     res.json(RespondCoachFactContextResponse.parse(safeResponse(factContext.requestNonce, "risk")));
     return;
   }
