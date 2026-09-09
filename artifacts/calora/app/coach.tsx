@@ -31,7 +31,7 @@ import {
   buildDailyIntelligenceFacts,
   createIntelligenceContext,
 } from '@/lib/intelligence';
-import type { IntelligenceFact } from '@/lib/intelligence';
+import type { CoachFactRequestError, IntelligenceFact } from '@/lib/intelligence';
 import { dateKey } from '@/lib/dates';
 import { enterMotion } from '@/lib/motion';
 import { guestCoachReply } from '@/lib/guestCoach';
@@ -189,12 +189,27 @@ export default function CoachScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [resetConfirm, setResetConfirm] = useState<'new' | 'history' | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [retryableError, setRetryableError] = useState<{
+    value: string;
+    consentAccepted: boolean;
+    generation: number;
+    error: CoachFactRequestError;
+  } | null>(null);
   const [turns, setTurns] = useState<DisplayTurn[]>(() => coachMessages.map((message, index) => ({
     id: `saved-${index}`,
     role: message.role,
     content: message.content,
   })));
   const loadedHistoryGenerationRef = useRef<string | null>(null);
+  const conversationGenerationRef = useRef(0);
+  const sendInFlightRef = useRef(false);
+  const activeSendRef = useRef(0);
+  const sendSequenceRef = useRef(0);
+  const chatScrollRef = useRef<ScrollView>(null);
+
+  const scrollToLatest = () => {
+    chatScrollRef.current?.scrollToEnd({ animated: true });
+  };
 
   useEffect(() => {
     if (!hydrated) return;
@@ -213,23 +228,37 @@ export default function CoachScreen() {
     })));
   }, [coachMessages, hydrated, hydrationGeneration, user?.id]);
 
-  const sendMessage = async (value = composer.trim(), consentAcceptedOverride = coachConsentAccepted) => {
-    if (!value || isSending) return;
+  const sendMessage = async (
+    value = composer.trim(),
+    consentAcceptedOverride = coachConsentAccepted,
+    retrying = false,
+  ) => {
+    // State updates do not take effect until React renders. This ref closes
+    // the same-event-loop window between rapid taps/submits.
+    if (!value || sendInFlightRef.current) return;
+    sendInFlightRef.current = true;
+    const sendId = ++sendSequenceRef.current;
+    activeSendRef.current = sendId;
+    const conversationGeneration = conversationGenerationRef.current;
     const userMessage: CoachMessage = { role: 'user', content: value.slice(0, 3000) };
     // Capture current messages synchronously before any await so we use the
     // state at send-time, not whatever React committed after re-renders.
     const nextMessages = [...coachMessages, userMessage].slice(-11);
-    const userTurn: DisplayTurn = { id: `user-${Date.now()}`, role: 'user', content: userMessage.content };
-    setTurns((current) => [...current, userTurn]);
-    setComposer('');
+    const userTurn: DisplayTurn = { id: `user-${sendId}`, role: 'user', content: userMessage.content };
+    if (!retrying) setTurns((current) => [...current, userTurn]);
+    if (!retrying) setComposer('');
+    setRetryableError(null);
 
     if (guestMode) {
       setTurns((current) => [...current, {
-        id: `guest-assistant-${Date.now()}`,
+        id: `guest-assistant-${sendId}`,
         role: 'assistant',
         content: guestCoachReply(userMessage.content),
         announce: true,
       }]);
+      // Keep the synchronous lock through the current event turn as well.
+      await Promise.resolve();
+      if (activeSendRef.current === sendId) sendInFlightRef.current = false;
       return;
     }
 
@@ -289,7 +318,8 @@ export default function CoachScreen() {
         adapterInput,
       );
 
-      if (result.kind === 'stale') {
+      // Clear, sign-out, or a newer conversation owns the screen now.
+      if (conversationGeneration !== conversationGenerationRef.current || activeSendRef.current !== sendId || result.kind === 'stale') {
         // Epoch advanced; a newer state now owns the visible conversation.
         return;
       }
@@ -298,11 +328,32 @@ export default function CoachScreen() {
         // gates are closed. Explain that state instead of making Send appear
         // to do nothing; never fall back to Legacy Coach.
         setTurns((current) => [...current, {
-          id: `unavailable-${Date.now()}`,
+          id: `unavailable-${sendId}`,
           role: 'assistant',
           content: 'Coach isn’t available right now. Nothing changed. Your local Progress data is still available.',
           announce: true,
         }]);
+        return;
+      }
+      if (result.kind === 'failure') {
+        const errorMessages: Record<CoachFactRequestError['kind'], string> = {
+          auth: 'Your session needs attention before Coach can answer.',
+          rate_limited: 'Coach is receiving a lot of requests. Please try again shortly.',
+          offline: 'You appear to be offline. Check your connection and try again.',
+          timeout: 'Coach took too long to respond. Please try again.',
+          server: 'Coach is temporarily unavailable. Please try again.',
+          malformed_response: 'Coach returned an invalid response. Nothing changed.',
+          transport: 'I couldn’t reach Coach. Nothing changed. Your local Progress data is still available.',
+        };
+        setTurns((current) => [...current, {
+          id: `error-${sendId}`,
+          role: 'assistant',
+          content: errorMessages[result.error.kind],
+          announce: true,
+        }]);
+        if (result.error.retryable) {
+          setRetryableError({ value: userMessage.content, consentAccepted: consentAcceptedOverride, generation: conversationGeneration, error: result.error });
+        }
         return;
       }
 
@@ -311,21 +362,25 @@ export default function CoachScreen() {
       const assistantMessage: CoachMessage = { role: 'assistant', content: message };
       setCoachMessages([...nextMessages, assistantMessage].slice(-12));
       setTurns((current) => [...current, {
-        id: `assistant-${Date.now()}`,
+        id: `assistant-${sendId}`,
         role: 'assistant',
         content: message,
         response: result.response,
         announce: true,
       }]);
     } catch {
+      if (conversationGeneration !== conversationGenerationRef.current || activeSendRef.current !== sendId) return;
       setTurns((current) => [...current, {
-        id: `error-${Date.now()}`,
+        id: `error-${sendId}`,
         role: 'assistant',
         content: 'I couldn\u2019t reach Coach. Nothing changed. Your local Progress data is still available.',
         announce: true,
       }]);
     } finally {
-      setIsSending(false);
+      if (activeSendRef.current === sendId) {
+        sendInFlightRef.current = false;
+        setIsSending(false);
+      }
     }
   };
 
@@ -335,9 +390,16 @@ export default function CoachScreen() {
   };
 
   const clearConversation = () => {
+    // Fence the pending request before clearing visible or persisted history.
+    conversationGenerationRef.current += 1;
+    activeSendRef.current = ++sendSequenceRef.current;
+    sendInFlightRef.current = false;
+    coachSendAdapter.invalidateEpoch('clear_data');
     clearCoachHistory();
     setTurns([]);
     setComposer('');
+    setRetryableError(null);
+    setIsSending(false);
     setMenuVisible(false);
   };
 
@@ -363,8 +425,10 @@ export default function CoachScreen() {
         }
       />
       <KeyboardAwareScrollViewCompat
+          ref={chatScrollRef}
         contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 118 }}
         showsVerticalScrollIndicator={false}
+          onContentSizeChange={scrollToLatest}
       >
         <View style={styles.headerCopy}>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A focused view of your nutrition.</Text>
@@ -419,10 +483,26 @@ export default function CoachScreen() {
               </Animated.View>
             ))}
             {isSending && (
-              <View accessibilityLiveRegion="polite" style={[styles.loadingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View accessibilityLabel="Coach is preparing your answer" accessibilityLiveRegion="polite" style={[styles.loadingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Preparing your answer…</Text>
               </View>
+            )}
+            {retryableError && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Retry Coach message after ${retryableError.error.kind.replace('_', ' ')}`}
+                testID="coach-retry"
+                onPress={() => {
+                  if (retryableError.generation === conversationGenerationRef.current) {
+                    void sendMessage(retryableError.value, retryableError.consentAccepted, true);
+                  }
+                }}
+                style={({ pressed }) => [styles.retryButton, { borderColor: colors.border, opacity: pressed ? 0.72 : 1 }]}
+              >
+                <Feather name="refresh-cw" size={14} color={colors.foreground} />
+                <Text style={[styles.retryText, { color: colors.foreground }]}>Retry Coach message</Text>
+              </Pressable>
             )}
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Suggestions</Text>
             <View style={styles.promptWrap}>
@@ -658,6 +738,8 @@ const styles = StyleSheet.create({
   actionText: { flex: 1, fontFamily: 'Inter_700Bold', fontSize: 11 },
   loadingBubble: { flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderRadius: 17, padding: 13, marginBottom: 18 },
   loadingText: { fontFamily: 'Inter_400Regular', fontSize: 11 },
+  retryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderRadius: 14, padding: 11, marginTop: -10, marginBottom: 18 },
+  retryText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
   sectionLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.1, marginBottom: 9 },
   promptWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingBottom: 8 },
   promptChip: { borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9 },

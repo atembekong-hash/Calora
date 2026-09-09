@@ -1012,9 +1012,9 @@ export default function PlannerScreen() {
     updateFoodMemoryDraft(plannerReviewDraft.id, plannerReviewDraft.components.map((item) => item.id === component.id ? component : item));
   };
 
-  const acceptPlannerDraft = () => {
+  const acceptPlannerDraft = async () => {
     if (!plannerReviewDraft) return;
-    acceptFoodMemory(plannerReviewDraft.id);
+    await acceptFoodMemory(plannerReviewDraft.id);
     setPlannerReviewDraftId(null);
     setDetail(null);
     acknowledge('Added to diary.');

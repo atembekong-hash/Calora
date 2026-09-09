@@ -42,3 +42,31 @@ mtime_ms = 1788898501438
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/660e2ada-107b-4c1e-9617-ca8c56393fa9/3792bf47-8038-4bbd-842a-a8a932dc1ec1"
 storage_version_token = "1788898514549008"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "AKgGO_mBpKRcZ2NQZac3S"
+uri = "file://16_CALORA_POST_INSTALL_DEFECT_REMEDIATION_REPORT.md"
+type = "text"
+title = "Calora Post-Install Defect Remediation Report"
+description = "Root causes, remediations, exact changed files, validation evidence, security results, and owner-device revalidation checklist."
+logical_id = "717b45de-69de-40dc-ab7c-815dc72ef8a4"
+content_hash = "sha256:11b1946d3dd821b679b4342bf60cabd41c0827d0d9715475cb230486a9c98dcc"
+size = 37024
+mtime_ms = 1788913726281
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/717b45de-69de-40dc-ab7c-815dc72ef8a4/f52bdeb5-dfdb-4808-9188-772ab74b0809"
+storage_version_token = "1788913749219004"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "2dSC5VuIdSv5VE9TSBNx8"
+uri = "file://17_CALORA_COMPLETE_USER_FLOW_FORENSIC_MAP.md"
+type = "text"
+title = "Calora Complete User-Flow Forensic Map"
+description = "Complete A–V screen, route, user-flow, data-flow, provider, storage, privacy, offline, error, and validation map."
+logical_id = "09e84e48-e9d6-447e-8a03-d43d0e07e426"
+content_hash = "sha256:fec3bdda9265ffa42e1c024512fdc3e22274d81e1ce941bb7acb2f100592df1b"
+size = 103298
+mtime_ms = 1788913655670
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/09e84e48-e9d6-447e-8a03-d43d0e07e426/b9ca3ba1-6f2f-4343-b6d0-a7885f7fc285"
+storage_version_token = "1788913749874349"
+content_type = "text/markdown"

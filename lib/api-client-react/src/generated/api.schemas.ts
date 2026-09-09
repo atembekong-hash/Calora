@@ -403,6 +403,10 @@ export interface RecipeList {
   recipes: Recipe[];
   /** True while the server's background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available. */
   warmupPending?: boolean;
+  /** @nullable */
+  nextOffset?: number | null;
+  /** @nullable */
+  terminalReason?: string | null;
 }
 
 export interface RecipePhotoGenerateInput {
@@ -472,6 +476,8 @@ export interface PremiumRecipeList {
   recipes: PremiumRecipe[];
   /** @nullable */
   nextOffset?: number | null;
+  /** @nullable */
+  terminalReason?: string | null;
 }
 
 export type RestaurantFoodListStatus = typeof RestaurantFoodListStatus[keyof typeof RestaurantFoodListStatus];

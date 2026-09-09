@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request } from "express";
 import { randomUUID } from "node:crypto";
+import { and, eq } from "drizzle-orm";
 import { AnalyzeCaptureBody } from "@workspace/api-zod";
 import { db, pool, aiCaptureSessionsTable, aiCaptureCandidatesTable } from "@workspace/db";
 import { openai } from "@workspace/integrations-openai-ai-server";
@@ -120,6 +121,8 @@ const VISION_MODEL = "gpt-5.6-terra";
 const TEXT_MODEL = "gpt-5.4-mini";
 const TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
 const MAX_AUDIO_BYTES = 6 * 1024 * 1024;
+
+const CAPTURE_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type Nutrition = {
   calories: number;
@@ -464,6 +467,85 @@ async function transcribeVoice(audioBase64: string, audioFormat: "mp4" | "m4a" |
   });
   return result.text.trim();
 }
+
+/**
+ * Marks a server-issued review proof as approved. This is intentionally
+ * separate from diary syncing: local/offline diary logging must not depend on
+ * a network round trip, while this endpoint records the authenticated user's
+ * explicit review decision for every persisted capture mode.
+ *
+ * `reviewedAt` is reserved for the capture-first diary-sync claim path, so an
+ * approval uses the session status rather than consuming that claim.
+ */
+router.post("/v1/capture/:sessionId/approve", async (req, res) => {
+  const sessionId = req.params.sessionId;
+  if (!CAPTURE_SESSION_ID.test(sessionId)) {
+    res.status(400).json({ message: "Invalid capture session." });
+    return;
+  }
+
+  let user: VerifiedUser | null;
+  try {
+    user = await verifyBearerToken(req);
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(accountDeletionFenceSignal("/v1/capture/:sessionId/approve"), "Account deletion fence rejected capture approval");
+      res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
+      return;
+    }
+    res.status(401).json({ message: "Please sign in first." });
+    return;
+  }
+  if (!user) {
+    res.status(401).json({ message: "Please sign in first." });
+    return;
+  }
+
+  try {
+    const userId = await ensureUserRow(user.id, user.email);
+    // The conditional update makes concurrent retries safe: exactly one
+    // request transitions review → approved; all later retries observe the
+    // same owner-scoped approved session and return 204.
+    const updated = await db
+      .update(aiCaptureSessionsTable)
+      .set({ status: "approved" })
+      .where(and(
+        eq(aiCaptureSessionsTable.id, sessionId),
+        eq(aiCaptureSessionsTable.userId, userId),
+        eq(aiCaptureSessionsTable.status, "review"),
+      ))
+      .returning({ id: aiCaptureSessionsTable.id });
+    if (updated.length > 0) {
+      res.status(204).end();
+      return;
+    }
+
+    // Do not distinguish a missing session from one owned by another account.
+    // An already-approved session belonging to this caller is the sole
+    // idempotent success case.
+    const owned = await db
+      .select({ status: aiCaptureSessionsTable.status })
+      .from(aiCaptureSessionsTable)
+      .where(and(
+        eq(aiCaptureSessionsTable.id, sessionId),
+        eq(aiCaptureSessionsTable.userId, userId),
+      ))
+      .limit(1);
+    if (owned[0]?.status === "approved") {
+      res.status(204).end();
+      return;
+    }
+    res.status(409).json({ message: "This capture is unavailable or belongs to another account." });
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(accountDeletionFenceSignal("/v1/capture/:sessionId/approve"), "Account deletion fence rejected capture approval");
+      res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
+      return;
+    }
+    logger.error({ err: error }, "Failed to approve capture session");
+    res.status(503).json({ message: "Capture approval is temporarily unavailable. Please try again shortly." });
+  }
+});
 
 router.post("/v1/capture/analyze", async (req, res) => {
   // Verify the Bearer token once and share the result across rate limiting and

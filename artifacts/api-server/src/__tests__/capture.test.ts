@@ -17,12 +17,16 @@ import request from 'supertest';
 // vi.hoisted ensures this is available inside the vi.mock factory (which
 // is hoisted to the top of the module by vitest).
 // ---------------------------------------------------------------------------
-const { mockRateBuckets, mockInsert, mockTransaction, loggerWarn, loggerError } = vi.hoisted(() => ({
+const { mockRateBuckets, mockInsert, mockTransaction, mockApproveUpdate, mockApproveSelect, approveUpdateRows, approveOwnedRows, loggerWarn, loggerError } = vi.hoisted(() => ({
   mockRateBuckets: new Map<string, { count: number; reset_at: Date }>(),
   mockInsert: vi.fn(),
   mockTransaction: vi.fn(async (callback: (tx: { insert: typeof mockInsert }) => unknown) =>
     callback({ insert: mockInsert }),
   ),
+  approveUpdateRows: [] as Array<{ id: string }>,
+  approveOwnedRows: [] as Array<{ status: string }>,
+  mockApproveUpdate: vi.fn(),
+  mockApproveSelect: vi.fn(),
   loggerWarn: vi.fn(),
   loggerError: vi.fn(),
 }));
@@ -68,7 +72,24 @@ vi.mock('@workspace/db', () => {
 
   return {
     pool: { query: mockQuery },
-    db: { insert: mockInsert, transaction: mockTransaction },
+    db: {
+      insert: mockInsert,
+      transaction: mockTransaction,
+      update: mockApproveUpdate.mockImplementation(() => ({
+        set: () => ({
+          where: () => ({
+            returning: async () => approveUpdateRows,
+          }),
+        }),
+      })),
+      select: mockApproveSelect.mockImplementation(() => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => approveOwnedRows,
+          }),
+        }),
+      })),
+    },
     aiCaptureSessionsTable: {},
     aiCaptureCandidatesTable: {},
   };
@@ -136,6 +157,7 @@ vi.mock('../lib/user-rows.js', () => ({
 import { openai } from '@workspace/integrations-openai-ai-server';
 import { pool } from '@workspace/db';
 import { verifyBearerToken } from '../lib/supabase-auth.js';
+import { ensureUserRow } from '../lib/user-rows.js';
 import express from 'express';
 import captureRouter, { resetCaptureRateLimiter } from '../routes/capture.js';
 
@@ -255,6 +277,9 @@ describe('POST /v1/capture/analyze', () => {
     await resetCaptureRateLimiter();
     // Default: anonymous (no verified user). Individual tests can override this.
     vi.mocked(verifyBearerToken).mockResolvedValue(null);
+    vi.mocked(ensureUserRow).mockResolvedValue('internal-user-id');
+    approveUpdateRows.length = 0;
+    approveOwnedRows.length = 0;
     vi.mocked(openai.audio.transcriptions.create).mockResolvedValue({ text: 'test meal' } as any);
   });
 
@@ -1215,5 +1240,40 @@ describe('POST /v1/capture/analyze', () => {
 
       expect(res.status).toBe(200);
     });
+  });
+});
+
+describe('POST /v1/capture/:sessionId/approve', () => {
+  const app = buildApp();
+  const sessionId = '2c6ae506-c3ff-4f16-b257-9a0dd001a1b4';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    approveUpdateRows.length = 0;
+    approveOwnedRows.length = 0;
+    vi.mocked(ensureUserRow).mockResolvedValue('internal-user-id');
+    vi.mocked(verifyBearerToken).mockResolvedValue({ id: 'owner', email: 'owner@example.com' });
+  });
+
+  it('requires an authenticated caller', async () => {
+    vi.mocked(verifyBearerToken).mockResolvedValue(null);
+    expect((await request(app).post(`/v1/capture/${sessionId}/approve`)).status).toBe(401);
+  });
+
+  it.each(['auto', 'food', 'barcode', 'receipt', 'nutrition_label'])(
+    'approves persisted %s review sessions without trusting a UI mode',
+    async () => {
+      approveUpdateRows.push({ id: sessionId });
+      expect((await request(app).post(`/v1/capture/${sessionId}/approve`).set('Authorization', 'Bearer owner')).status).toBe(204);
+    },
+  );
+
+  it('is idempotent for an already-approved session owned by the caller', async () => {
+    approveOwnedRows.push({ status: 'approved' });
+    expect((await request(app).post(`/v1/capture/${sessionId}/approve`).set('Authorization', 'Bearer owner')).status).toBe(204);
+  });
+
+  it('does not reveal or approve another account’s session', async () => {
+    expect((await request(app).post(`/v1/capture/${sessionId}/approve`).set('Authorization', 'Bearer other')).status).toBe(409);
   });
 });

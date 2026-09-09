@@ -135,7 +135,25 @@ async function fatSecretAccessToken() {
 
 function fatSecretNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function nutritionState(
+  calories: number | null,
+  proteinG: number | null,
+  carbsG: number | null,
+  fatG: number | null,
+  declared: unknown,
+): { confidence: PremiumRecipe["nutritionConfidence"]; completeness: "none" | "partial" | "complete" } {
+  const values = [calories, proteinG, carbsG, fatG];
+  const supplied = values.filter((value) => value !== null).length;
+  const completeness = supplied === 0 ? "none" : supplied === values.length ? "complete" : "partial";
+  // A verified label is reserved for a complete set of actual provider
+  // nutrition. A partial response can still display its supplied values, but
+  // must not imply a verified complete nutrition panel.
+  if (completeness === "complete" && declared === "verified") return { confidence: "verified", completeness };
+  if (completeness === "complete" && declared === "estimated") return { confidence: "estimated", completeness };
+  return { confidence: "unavailable", completeness };
 }
 
 function fatSecretIngredient(row: unknown): string | null {
@@ -162,7 +180,7 @@ function fatSecretRecipe(input: unknown): PremiumRecipe | null {
     ? (raw.serving_sizes as { serving?: unknown }).serving
     : null;
   const firstServing = Array.isArray(servingSizes) ? servingSizes[0] : servingSizes;
-  const nutrition = raw.recipe_nutrition && typeof raw.recipe_nutrition === "object"
+  const nutritionRecord = raw.recipe_nutrition && typeof raw.recipe_nutrition === "object"
     ? raw.recipe_nutrition as Record<string, unknown>
     : firstServing && typeof firstServing === "object" ? firstServing as Record<string, unknown> : {};
   const ingredientSource = (raw.ingredients ?? raw.recipe_ingredients);
@@ -175,16 +193,22 @@ function fatSecretRecipe(input: unknown): PremiumRecipe | null {
     : [];
   const ingredientList = Array.isArray(ingredientRows) ? ingredientRows : ingredientRows ? [ingredientRows] : [];
   const directionList = Array.isArray(instructionRows) ? instructionRows : instructionRows ? [instructionRows] : [];
-  const nutrients = nutrition as Record<string, unknown>;
+  const nutrients = nutritionRecord as Record<string, unknown>;
+  const calories = fatSecretNumber(nutrients.calories);
+  const proteinG = fatSecretNumber(nutrients.protein);
+  const carbsG = fatSecretNumber(nutrients.carbohydrate);
+  const fatG = fatSecretNumber(nutrients.fat);
+  const nutrition = nutritionState(calories, proteinG, carbsG, fatG, "verified");
   return {
     id: `premium:FatSecret:${recipeId}`, name, image: recipeImage(raw.recipe_image) ?? recipeImage(raw.image), category: null, area: null,
     description: string(raw.recipe_description), instructions: directionList.map((row) => row && typeof row === "object" ? string((row as Record<string, unknown>).direction_description) : null).filter((v): v is string => Boolean(v)).join("\n") || null,
     ingredients: ingredientList.map(fatSecretIngredient).filter((v): v is string => Boolean(v)),
     tags: [], prepMinutes: fatSecretNumber(raw.preparation_time_min), cookMinutes: fatSecretNumber(raw.cooking_time_min), totalMinutes: null, servings: fatSecretNumber(raw.number_of_servings),
     cuisine: null, mealType: null, difficulty: null, dietary: [], allergens: [], equipment: [], fiberG: fatSecretNumber(nutrients.fiber), sodiumMg: fatSecretNumber(nutrients.sodium),
-    calories: fatSecretNumber(nutrients.calories), proteinG: fatSecretNumber(nutrients.protein), carbsG: fatSecretNumber(nutrients.carbohydrate), fatG: fatSecretNumber(nutrients.fat),
+    calories, proteinG, carbsG, fatG,
     source: "FatSecret", sourceUrl: string(raw.recipe_url) ?? `https://www.fatsecret.com/recipes/${recipeId}`, sourceType: "premium", sourceProvider: "FatSecret", sourceId: recipeId,
-    nutritionConfidence: "verified", nutritionSource: "FatSecret nutrition data",
+    nutritionConfidence: nutrition.confidence,
+    nutritionSource: nutrition.completeness === "complete" ? "FatSecret nutrition data" : nutrition.completeness === "partial" ? "FatSecret nutrition data (partial)" : "Nutrition not supplied by FatSecret",
   };
 }
 
@@ -419,8 +443,17 @@ export function clearDuplicateRecipeImages(recipes: readonly PremiumRecipe[]): P
   });
 }
 
+function uniquePremiumRecipes(recipes: readonly PremiumRecipe[]): PremiumRecipe[] {
+  const seen = new Set<string>();
+  return recipes.filter((recipe) => {
+    if (seen.has(recipe.id)) return false;
+    seen.add(recipe.id);
+    return true;
+  });
+}
+
 function number(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 }
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.map(string).filter((item): item is string => Boolean(item)) : [];
@@ -434,9 +467,11 @@ export function normalizePremiumRecipe(input: unknown): PremiumRecipe | null {
   const name = string(raw.name);
   const sourceUrl = string(raw.sourceUrl);
   if (!providerId || !name || !sourceUrl) return null;
-  const confidence = raw.nutritionConfidence === "verified" || raw.nutritionConfidence === "estimated"
-    ? raw.nutritionConfidence
-    : "unavailable";
+  const calories = number(raw.calories);
+  const proteinG = number(raw.proteinG);
+  const carbsG = number(raw.carbsG);
+  const fatG = number(raw.fatG);
+  const nutrition = nutritionState(calories, proteinG, carbsG, fatG, raw.nutritionConfidence);
   return {
     id: `premium:${providerName}:${providerId}`,
     name,
@@ -459,17 +494,21 @@ export function normalizePremiumRecipe(input: unknown): PremiumRecipe | null {
     equipment: strings(raw.equipment),
     fiberG: number(raw.fiberG),
     sodiumMg: number(raw.sodiumMg),
-    calories: number(raw.calories),
-    proteinG: number(raw.proteinG),
-    carbsG: number(raw.carbsG),
-    fatG: number(raw.fatG),
+    calories,
+    proteinG,
+    carbsG,
+    fatG,
     source: providerName,
     sourceUrl,
     sourceType: "premium",
     sourceProvider: providerName,
     sourceId: providerId,
-    nutritionConfidence: confidence,
-    nutritionSource: string(raw.nutritionSource) ?? "Not supplied by provider",
+    nutritionConfidence: nutrition.confidence,
+    nutritionSource: nutrition.completeness === "none"
+      ? "Nutrition not supplied by provider"
+      : nutrition.completeness === "partial"
+        ? `${string(raw.nutritionSource) ?? "Provider nutrition data"} (partial)`
+        : string(raw.nutritionSource) ?? "Provider nutrition data",
   };
 }
 
@@ -490,21 +529,47 @@ async function providerFetch(path: string, params: Record<string, string | numbe
 
 export async function listPremiumRecipes(input: { query?: string; category?: string; limit: number; offset: number }) {
   const status = premiumProviderStatus();
-  if (status.status !== "available") return { ...status, recipes: [], nextOffset: null };
+  if (status.status !== "available") return { ...status, recipes: [], nextOffset: null, terminalReason: status.message };
   if (fatSecretTransportEnabled) {
     const payload = await fatSecretFetch("/recipes/search/v3", { search_expression: input.query || input.category || "", max_results: input.limit, page_number: Math.floor(input.offset / input.limit) });
     const search = payload.recipes && typeof payload.recipes === "object" ? payload.recipes as Record<string, unknown> : {};
     const rows = Array.isArray(search.recipe) ? search.recipe : search.recipe ? [search.recipe] : [];
-    const recipes = clearDuplicateRecipeImages(rows.map(fatSecretRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe)));
+    const recipes = clearDuplicateRecipeImages(uniquePremiumRecipes(rows.map(fatSecretRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe))));
     const total = fatSecretNumber(search.total_results);
-    const nextOffset = total != null
-      ? input.offset + recipes.length < total ? input.offset + recipes.length : null
-      : recipes.length === input.limit ? input.offset + recipes.length : null;
-    return { ...status, recipes, nextOffset };
+    // FatSecret pages are addressed by page_number/max_results, not by the
+    // number of records we can display after validation. Advancing by the
+    // normalized count repeats a provider page whenever malformed or duplicate
+    // rows are dropped.
+    const providerPageBoundary = (Math.floor(input.offset / input.limit) + 1) * input.limit;
+    const candidateOffset = total != null
+      ? providerPageBoundary < total ? providerPageBoundary : null
+      : rows.length === input.limit ? providerPageBoundary : null;
+    const nextOffset = candidateOffset != null && candidateOffset > input.offset ? candidateOffset : null;
+    return {
+      ...status,
+      recipes,
+      nextOffset,
+      terminalReason: nextOffset === null
+        ? total != null ? "No more recipes are available from the provider." : "The provider did not supply another full page."
+        : null,
+    };
   }
   const payload = await providerFetch("/recipes", input);
-  const recipes = clearDuplicateRecipeImages((payload?.recipes ?? []).map(normalizePremiumRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe)));
-  return { ...status, recipes, nextOffset: payload?.nextOffset ?? (recipes.length === input.limit ? input.offset + recipes.length : null) };
+  const recipes = clearDuplicateRecipeImages(uniquePremiumRecipes((payload?.recipes ?? []).map(normalizePremiumRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe))));
+  // Generic providers own their cursor. Do not invent one from page size: that
+  // repeats the first/last page for providers without offset pagination.
+  const providerOffset = number(payload?.nextOffset);
+  const nextOffset = providerOffset != null && providerOffset > input.offset ? providerOffset : null;
+  return {
+    ...status,
+    recipes,
+    nextOffset,
+    terminalReason: nextOffset === null
+      ? payload?.nextOffset != null
+        ? "The provider returned an invalid next-page cursor."
+        : "The provider did not supply another page."
+      : null,
+  };
 }
 
 export async function getPremiumRecipe(sourceId: string) {

@@ -589,10 +589,13 @@ describe('no silent diary insertion', () => {
 
 describe('accessibility labels — static invariants', () => {
   const SCAN_SOURCE_PATH = resolve(__dirname, '../../app/(tabs)/scan.tsx');
+  const CONTEXT_SOURCE_PATH = resolve(__dirname, '../../context/CaloraContext.tsx');
   let scanSource = '';
+  let contextSource = '';
 
   beforeAll(() => {
     scanSource = readFileSync(SCAN_SOURCE_PATH, 'utf8');
+    contextSource = readFileSync(CONTEXT_SOURCE_PATH, 'utf8');
   });
 
   it('"Approve and add meal to diary" label is present in scan screen', () => {
@@ -662,5 +665,20 @@ describe('accessibility labels — static invariants', () => {
     expect(scanSource).toMatch(/const choosePhoto = async \(requestedMode\?: 'receipt' \| 'food' \| 'nutrition_label'\)/);
     expect(scanSource).toMatch(/catch \(error\) \{[\s\S]*setHasScanned\(false\);[\s\S]*could not open that image/);
     expect(scanSource).toContain("void choosePhoto('receipt')");
+  });
+
+  it('hands the visible review draft directly to the explicit acceptance boundary', () => {
+    expect(scanSource).toContain('acceptFoodMemory(reviewDraft.id, reviewDraft)');
+    expect(contextSource).toContain('foodDraftsRef.current.find');
+    expect(contextSource).toContain('acceptedFoodDraftIdsRef.current.has(draftId)');
+  });
+
+  it('persists an accepted review immediately after its diary outbox mutation', () => {
+    const acceptanceStart = contextSource.indexOf('acceptFoodMemory: (draftId, draftOverride) =>');
+    const acceptanceEnd = contextSource.indexOf('rejectFoodMemory:', acceptanceStart + 1);
+    const acceptanceSource = contextSource.slice(acceptanceStart, acceptanceEnd);
+    expect(acceptanceSource).toContain("entity: 'diaryEntry' as const, operation: 'upsert' as const");
+    expect(acceptanceSource).toContain('enqueueAutosave(pm.current, persistedSnapshot)');
+    expect(acceptanceSource).toContain('await pm.current.flush()');
   });
 });

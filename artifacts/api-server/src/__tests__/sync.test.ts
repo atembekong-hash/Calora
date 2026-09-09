@@ -57,7 +57,7 @@ const {
       executeCalls.push(stmt);
       return Promise.resolve({ rows: [] });
     },
-    transaction: async (fn: (tx: { execute: (stmt: unknown) => Promise<{ rows: unknown[] }> }) => Promise<unknown>) => {
+    transaction: async (fn: (tx: { execute: (stmt: unknown) => Promise<{ rows: unknown[] }>; update: () => { set: () => { where: () => Promise<void> } } }) => Promise<unknown>) => {
       const transaction = { statements: [] as unknown[], committed: false };
       transactions.push(transaction);
       const tx = {
@@ -78,6 +78,11 @@ const {
             rows: transaction.statements.length === 1 ? [{ status: 'apply' }] : [],
           });
         },
+        update: () => ({
+          set: () => ({
+            where: async () => undefined,
+          }),
+        }),
       };
       try {
         const result = await fn(tx);

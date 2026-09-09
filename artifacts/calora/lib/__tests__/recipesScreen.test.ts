@@ -112,7 +112,7 @@ describe('Recipes Discover layout contracts', () => {
 
     expect(source).toContain('placeholderData: offset > 0 ? (previousData) => previousData : undefined');
     expect(source).toContain('const recipes = loadedRecipes');
-    expect(source).toContain('const nextRecipes = offset === 0 || loadedForUserId !== userId');
+    expect(source).toContain('const appended = data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id));');
     expect(source).toContain('return clearDuplicatePremiumRecipeImages(nextRecipes)');
     expect(source).toContain('testID="plus-recipe-grid"');
     expect(source).toContain('testID="plus-recipe-scroll"');
@@ -121,13 +121,27 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('testID="plus-recipe-pagination-retry"');
     expect(source).toContain('query.isError && recipes.length > 0');
     expect(source).toContain('onPress={() => query.refetch()}');
-    expect(source).toContain('if (data?.nextOffset == null || query.isFetching || loadingMoreRef.current) return;');
+    expect(source).toContain('if (!hasCurrentPageData || data?.nextOffset == null || paginationTerminalReason || query.isFetching || loadingMoreRef.current) return;');
     expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = () => {');
     expect(source).toContain('onContentSizeChange={(_, contentHeight) => {');
     expect(source).toContain('loadMorePremiumRecipesIfAtEnd();');
     expect(source).toContain("activeSection === 'premium' ? (");
     expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
     expect(source).toContain('recipesScrollRef.current?.scrollTo({ y: section === \'discover\' ? discoverScrollYRef.current : 0, animated: false })');
+    expect(source).toContain('initialLoadedRecipes={premiumCatalogueState.userId === user?.id ? premiumCatalogueState.recipes : []}');
+    expect(source).toContain("queryClient.removeQueries({ queryKey: ['premium-recipes'] })");
+    expect(source).toContain('testID="plus-recipe-pagination-terminal"');
+    expect(source).toContain('const hasCurrentPageData = canApplyPremiumPage(query.isPlaceholderData);');
+  });
+
+  it('uses provider cursors for Discover and labels nutrition provenance without inventing macros', () => {
+    const source = readFileSync(resolve(__dirname, '../../app/(tabs)/recipes.tsx'), 'utf8');
+
+    expect(source).toContain('setRemoteOffset(nextRemoteOffset);');
+    expect(source).toContain('recipesQuery.data?.nextOffset ?? null');
+    expect(source).toContain('recipe.proteinG != null');
+    expect(source).toContain('{recipeNutritionLabel(recipe)}</Text>');
+    expect(source).toContain('testID="discover-recipe-pagination-terminal"');
   });
 
   it('keeps every recipe submenu inside a bounded vertical scroll viewport', () => {

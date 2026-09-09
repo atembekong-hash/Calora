@@ -538,6 +538,21 @@ router.post("/v1/sync", async (req, res) => {
                 client_updated_at   = EXCLUDED.client_updated_at,
                 updated_at          = now()
             `);
+            // The diary outbox is the durable retry path for capture approval.
+            // Once this owner-scoped session has validated and its diary row is
+            // committed, acknowledge review → approved in the same
+            // transaction. The conditional update is idempotent and does not
+            // reveal or alter another account's session.
+            if (verifiedCaptureSessionId) {
+              await tx
+                .update(aiCaptureSessionsTable)
+                .set({ status: "approved" })
+                .where(and(
+                  eq(aiCaptureSessionsTable.id, verifiedCaptureSessionId),
+                  eq(aiCaptureSessionsTable.userId, userId),
+                  eq(aiCaptureSessionsTable.status, "review"),
+                ));
+            }
             return "apply";
           }).then((claim) => {
             if (claim === "stale") {

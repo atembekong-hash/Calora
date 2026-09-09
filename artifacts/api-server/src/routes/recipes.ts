@@ -2,7 +2,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { db, recipeNutritionTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { logger } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
@@ -825,6 +825,33 @@ async function getForYouMeals(): Promise<Meal[]> {
   return forYouFetchPromise;
 }
 
+export function stableRecipeRotation(meals: Meal[], seed: string): Meal[] {
+  // Sorting by a salted deterministic hash gives every authenticated session a
+  // stable browse order for the UTC day without moving rows between offsets.
+  // The seed contains only the server-verified account id and a one-way token
+  // fingerprint; raw credentials are never logged or returned.
+  return [...meals].sort((left, right) => {
+    const leftRank = createHash("sha256").update(`${seed}:${left.idMeal}`).digest("hex");
+    const rightRank = createHash("sha256").update(`${seed}:${right.idMeal}`).digest("hex");
+    return leftRank.localeCompare(rightRank) || left.idMeal.localeCompare(right.idMeal);
+  });
+}
+
+export async function recipeRotationSeed(req: Request): Promise<string> {
+  let accountId = "guest";
+  try {
+    const user = await verifyBearerToken(req);
+    if (user?.id) accountId = user.id;
+  } catch {
+    // Browsing Discover is public. An invalid/missing token is treated as a
+    // guest request rather than becoming an authentication side channel.
+  }
+  // A token refresh must not move recipes between offset pages. The validated
+  // account and UTC day are stable across the account's current sessions; the
+  // request token is intentionally never part of this seed.
+  return `${accountId}:${new Date().toISOString().slice(0, 10)}`;
+}
+
 router.get("/v1/recipes", async (req, res) => {
   if (!(await enforceRecipeIpLimit(req, res, "list"))) return;
   try {
@@ -855,7 +882,15 @@ router.get("/v1/recipes", async (req, res) => {
       meals = await getForYouMeals();
     }
 
-    const recipes = meals.slice(offset, offset + limit).map((meal) => {
+    // Search/filter endpoints already return provider-ranked results. Rotation
+    // is only for the default For You pool, where there is no relevance order
+    // to preserve.
+    const rotatedMeals = !query && !category
+      ? stableRecipeRotation(meals, await recipeRotationSeed(req))
+      : meals;
+    const page = rotatedMeals.slice(offset, offset + limit);
+    const nextOffset = offset + page.length < rotatedMeals.length ? offset + page.length : null;
+    const recipes = page.map((meal) => {
       const recipe = toRecipe(meal);
       // Attach any L1-cached estimate so the card can show ~kcal without
       // the user needing to open the detail sheet first.
@@ -865,7 +900,13 @@ router.get("/v1/recipes", async (req, res) => {
     // Let clients know they should refetch soon if the background warm-up
     // has not yet populated estimates for the first page of results.
     const warmupPending = !warmupDone;
-    res.json({ source: SOURCE, recipes, warmupPending });
+    res.json({
+      source: SOURCE,
+      recipes,
+      warmupPending,
+      nextOffset,
+      terminalReason: nextOffset === null ? "No more recipes are available for this query." : null,
+    });
   } catch {
     res.status(502).json({ message: "Recipe provider unavailable. Please try again shortly." });
   }

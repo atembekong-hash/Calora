@@ -122,6 +122,7 @@ router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
         status: restricted ? "restricted" : "error",
         recipes: [],
         nextOffset: null,
+        terminalReason: "The provider is unavailable, so no additional pages can be loaded.",
         message: restricted
           ? "Premium recipes are not enabled for this provider account."
           : error.kind === "rate_limited"
@@ -131,7 +132,7 @@ router.get("/v1/premium-recipes", async (req, res): Promise<void> => {
       return;
     }
     (req.log ?? logger).warn({ err: error }, "premium recipe provider unavailable");
-    res.status(502).json({ ...status, status: "error", recipes: [], nextOffset: null, message: "Premium recipes are unavailable right now. Try again shortly." });
+    res.status(502).json({ ...status, status: "error", recipes: [], nextOffset: null, terminalReason: "The provider is unavailable, so no additional pages can be loaded.", message: "Premium recipes are unavailable right now. Try again shortly." });
   }
 });
 

@@ -1634,11 +1634,11 @@ export default function InsightsScreen() {
           <View style={styles.headerActions}>
             <Pressable
               accessibilityLabel={`Open what ${BRAND.name} remembers`}
+              testID="living-memory-header-button"
               onPress={() => router.push('/memory')}
-              hitSlop={8}
               style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
             >
-              <Feather name="compass" size={16} color={colors.foreground} />
+              <Feather name="compass" size={18} color={colors.foreground} />
             </Pressable>
             <Pressable
               accessibilityLabel={`Open shopping list${uncheckedShopping > 0 ? `, ${uncheckedShopping} items left` : ''}`}
@@ -2371,7 +2371,9 @@ function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  headerIconButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  // The 44 pt control remains accessible without relying on hitSlop. Its
+  // larger footprint also shifts this first header action slightly left.
+  headerIconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   headerShoppingButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   shoppingCount: { position: 'absolute', right: -4, top: -5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   shoppingCountText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },

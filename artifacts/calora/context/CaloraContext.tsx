@@ -77,6 +77,7 @@ import {
   type FoodImageSource,
 } from '@/lib/foodImageMetadata';
 import { recordDiaryDelete } from '@/lib/diarySync';
+import { coordinateCaptureAcceptance, createCaptureAcceptanceCoordinator } from '@/lib/captureAcceptanceCoordinator';
 import {
   DEFAULT_LOCAL_NOTIFICATION_PREFERENCES,
   legacyReminderMirrors,
@@ -470,7 +471,7 @@ type CaloraContextValue = {
   createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null }, date?: string, meal?: MealType) => FoodMemoryDraft;
   createPlannerDraft: (meal: PlannerMeal) => FoodMemoryDraft;
   updateFoodMemoryDraft: (draftId: string, components: FoodMemoryComponent[]) => void;
-  acceptFoodMemory: (draftId: string, draftOverride?: FoodMemoryDraft) => FoodLog | null;
+  acceptFoodMemory: (draftId: string, draftOverride?: FoodMemoryDraft) => Promise<FoodLog | null>;
   rejectFoodMemory: (draftId: string) => void;
   teachRepeatMemory: (memoryId: string) => void;
   setPlannerMeals: (weekStart: string, meals: PlannerMeal[]) => void;
@@ -624,6 +625,13 @@ export function CaloraProvider({
   }, [shoppingItems]);
   const starterMemoryState = useMemo(() => migrateFoodMemories(undefined, starterLogs), []);
   const [foodDrafts, setFoodDrafts] = useState<FoodMemoryDraft[]>(starterMemoryState.foodDrafts);
+  // A capture can be approved in the same event turn in which its review
+  // draft is created or corrected. Keep the authoritative draft collection
+  // outside React's render schedule so that acceptance never depends on a
+  // stale screen closure.
+  const foodDraftsRef = useRef<FoodMemoryDraft[]>(starterMemoryState.foodDrafts);
+  const acceptedFoodDraftIdsRef = useRef<Set<string>>(new Set());
+  const acceptingFoodDraftsRef = useRef(createCaptureAcceptanceCoordinator<FoodLog | null>());
   const [foodMemories, setFoodMemories] = useState<AcceptedFoodMemory[]>(starterMemoryState.foodMemories);
   const [repeatPatterns, setRepeatPatterns] = useState<RepeatPattern[]>(starterMemoryState.repeatPatterns);
   const [memoryCorrections, setMemoryCorrections] = useState<FoodMemoryCorrection[]>(starterMemoryState.memoryCorrections);
@@ -796,6 +804,8 @@ export function CaloraProvider({
      }
      const migratedMemories = migrateFoodMemories(saved, normalizedLogs);
      setFoodDrafts(migratedMemories.foodDrafts.map(normalizeMemoryImageMetadata));
+      foodDraftsRef.current = migratedMemories.foodDrafts.map(normalizeMemoryImageMetadata);
+      acceptedFoodDraftIdsRef.current.clear();
      setFoodMemories(migratedMemories.foodMemories.map(normalizeMemoryImageMetadata));
      setRepeatPatterns(migratedMemories.repeatPatterns);
      setMemoryCorrections(migratedMemories.memoryCorrections);
@@ -1447,29 +1457,34 @@ export function CaloraProvider({
     },
     createFoodMemoryDraft: (analysis, date = dateKey(), meal = 'Snack') => {
       const draft = captureAnalysisToDraft(analysis, date, meal);
+      foodDraftsRef.current = [...foodDraftsRef.current.filter((item) => item.id !== draft.id), draft];
       updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },
     createFoodMemorySourceDraft: (input) => {
       const draft = sourceComponentsToDraft(input);
+      foodDraftsRef.current = [...foodDraftsRef.current.filter((item) => item.id !== draft.id), draft];
       updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },
     createRecipeDraft: (recipe, date = dateKey(), meal = 'Dinner') => {
       const draft = recipeToDraft(recipe, date, meal);
+      foodDraftsRef.current = [...foodDraftsRef.current.filter((item) => item.id !== draft.id), draft];
       updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },
     createPlannerDraft: (meal) => {
       const draft = plannerMealToDraft(meal);
+      foodDraftsRef.current = [...foodDraftsRef.current.filter((item) => item.id !== draft.id), draft];
       updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
       return draft;
     },
     updateFoodMemoryDraft: (draftId, components) => {
+      foodDraftsRef.current = foodDraftsRef.current.map((draft) => draft.id === draftId ? updateDraftComponents(draft, components) : draft);
       updateExportField('foodDrafts', (current) => (current as FoodMemoryDraft[]).map((draft) => draft.id === draftId ? updateDraftComponents(draft, components) : draft));
       setFoodDrafts((current) => current.map((draft) => draft.id === draftId ? updateDraftComponents(draft, components) : draft));
     },
@@ -1477,48 +1492,78 @@ export function CaloraProvider({
       // draftOverride lets callers that just created the draft (in the same
       // render cycle) pass it directly, avoiding the stale-closure issue that
       // would otherwise cause setFoodDrafts' queued update to be invisible here.
-      const rawDraft = draftOverride ?? foodDrafts.find((item) => item.id === draftId && item.status === 'draft');
-      if (!rawDraft) return null;
-      const draft = normalizeMemoryImageMetadata(rawDraft);
-      if (draft.plannerMealId) {
-        const existingPlannerLog = logsRef.current.find((log) => log.plannerMealId === draft.plannerMealId);
+      if (acceptedFoodDraftIdsRef.current.has(draftId)) return Promise.resolve(null);
+      // Prefer the synchronous collection to both the render closure and a
+      // caller's older object. The override remains a direct-object handoff
+      // for callers whose draft has not yet reached the collection.
+      const rawDraft = foodDraftsRef.current.find((item) => item.id === draftId && item.status === 'draft')
+        ?? draftOverride;
+      if (!rawDraft) return Promise.resolve(null);
+      return coordinateCaptureAcceptance(acceptingFoodDraftsRef.current, draftId, async (): Promise<FoodLog | null> => {
+        if (!hydrated || clearingRef.current || !exportSnapshotRef.current) {
+          throw new Error('Your diary is still loading. Please try again.');
+        }
+        const draft = normalizeMemoryImageMetadata(rawDraft);
+        const existingPlannerLog = draft.plannerMealId
+          ? logsRef.current.find((log) => log.plannerMealId === draft.plannerMealId)
+          : undefined;
         if (existingPlannerLog) {
-          setFoodDrafts((current) => current.filter((item) => item.id !== draftId));
+          const nextDrafts = foodDraftsRef.current.filter((item) => item.id !== draftId);
+          const persistedSnapshot = { ...exportSnapshotRef.current, foodDrafts: nextDrafts };
+          // A repeated planner review is still a durable dismissal of its
+          // duplicate draft. Do not publish that dismissal until storage has
+          // accepted it, so a failed write remains retryable after remount.
+          enqueueAutosave(pm.current, persistedSnapshot);
+          await pm.current.flush();
+          acceptedFoodDraftIdsRef.current.add(draftId);
+          foodDraftsRef.current = nextDrafts;
+          exportSnapshotRef.current = persistedSnapshot;
+          setFoodDrafts(nextDrafts);
           return existingPlannerLog;
         }
-      }
-      const logId = makeId('log');
-      const acceptedAt = new Date().toISOString();
-      const { log, memory } = buildAcceptResult(draft, logId, acceptedAt);
-      (log as FoodLog).syncUpdatedAt = acceptedAt;
-      const beforeLogs = logsRef.current;
-      const nextLogs = [...beforeLogs, log];
-      logsRef.current = nextLogs;
-      patchExportSnapshot({
-        logs: nextLogs,
-        foodDrafts: (exportSnapshotRef.current?.foodDrafts as FoodMemoryDraft[] ?? []).filter((item) => item.id !== draftId),
+        const acceptedAt = new Date().toISOString();
+        const { log, memory } = buildAcceptResult(draft, makeId('log'), acceptedAt);
+        (log as FoodLog).syncUpdatedAt = acceptedAt;
+        const beforeLogs = logsRef.current;
+        const nextLogs = [...beforeLogs, log];
+        const nextDrafts = foodDraftsRef.current.filter((item) => item.id !== draftId);
+        const nextMemories = [...(exportSnapshotRef.current.foodMemories as AcceptedFoodMemory[]), memory];
+        const nextRepeatPatterns = updateRepeatPatterns(
+          exportSnapshotRef.current.repeatPatterns as RepeatPattern[], memory, log, makeId('repeat'), acceptedAt,
+        );
+        const nextLivingMemory = upsertMealObservation(exportSnapshotRef.current.livingMemory as LivingMemory, log.id, log.date, log.meal);
+        const nextOutbox = [...outboxRef.current, {
+          id: makeId('mutation'), entity: 'diaryEntry' as const, operation: 'upsert' as const, createdAt: acceptedAt,
+        }];
+        // Stage the entire snapshot and wait for its write before changing any
+        // visible/ref state. A rejected storage write leaves the draft intact
+        // and retryable; concurrent callers share this exact promise.
+        const persistedSnapshot = {
+          ...exportSnapshotRef.current, logs: nextLogs, foodDrafts: nextDrafts,
+          foodMemories: nextMemories, repeatPatterns: nextRepeatPatterns,
+          livingMemory: nextLivingMemory, outbox: nextOutbox,
+        };
+        enqueueAutosave(pm.current, persistedSnapshot);
+        await pm.current.flush();
+        acceptedFoodDraftIdsRef.current.add(draftId);
+        logsRef.current = nextLogs;
+        foodDraftsRef.current = nextDrafts;
+        outboxRef.current = nextOutbox;
+        exportSnapshotRef.current = persistedSnapshot;
+        setLogs(nextLogs);
+        setFoodDrafts(nextDrafts);
+        setFoodMemories(nextMemories);
+        setLivingMemory(nextLivingMemory);
+        setRepeatPatterns(nextRepeatPatterns);
+        setOutbox(nextOutbox);
+        publishPostLogInsight(beforeLogs, nextLogs, log);
+        return log;
       });
-      updateExportField('foodMemories', (current) => [...current as AcceptedFoodMemory[], memory]);
-      const nextRepeatPatterns = updateRepeatPatterns(
-        exportSnapshotRef.current?.repeatPatterns as RepeatPattern[],
-        memory,
-        log,
-        makeId('repeat'),
-        acceptedAt,
-      );
-      patchExportSnapshot({ repeatPatterns: nextRepeatPatterns });
-      updateExportField('livingMemory', (current) => upsertMealObservation(current as LivingMemory, log.id, log.date, log.meal));
-      setLogs((current) => current.some((item) => item.id === log.id) ? current : [...current, log]);
-      setFoodMemories((current) => [...current, memory]);
-      setLivingMemory((current) => upsertMealObservation(current, log.id, log.date, log.meal));
-      setFoodDrafts((current) => current.filter((item) => item.id !== draftId));
-      setRepeatPatterns(nextRepeatPatterns);
-      queueMutation('diaryEntry', 'upsert');
-      publishPostLogInsight(beforeLogs, nextLogs, log);
-      return log;
     },
     rejectFoodMemory: (draftId) => {
       const rejectedAt = new Date().toISOString();
+      foodDraftsRef.current = foodDraftsRef.current.map((draft) =>
+        draft.id === draftId ? buildRejectDraft(draft, rejectedAt) : draft);
       updateExportField('foodDrafts', (current) =>
         (current as FoodMemoryDraft[]).map((draft) =>
           draft.id === draftId ? buildRejectDraft(draft, rejectedAt) : draft));
@@ -1824,6 +1869,8 @@ export function CaloraProvider({
           profileRef.current = null;
           logsRef.current = [];
           outboxRef.current = [];
+           foodDraftsRef.current = [];
+           acceptedFoodDraftIdsRef.current.clear();
           shoppingItemsRef.current = [];
           setThemePreference('system');
           setFontSizeScaleState('default');

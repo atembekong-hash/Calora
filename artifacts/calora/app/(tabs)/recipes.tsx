@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ActivityIndicator, AppState, Keyboard, Linking, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
@@ -35,6 +35,7 @@ import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premi
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
 import { recipeImageRole } from '@/lib/recipeImagePresentation';
+import { canApplyPremiumPage, samePremiumCatalogueState, type PremiumCatalogueState } from '@/lib/premiumCatalogueState';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -137,16 +138,18 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
 }
 
 function RecipeMeta({ recipe, colors, compact = false }: { recipe: BrowseRecipe; colors: ReturnType<typeof useCalora>['colors']; compact?: boolean }) {
-  const estimated = recipeProvenance(recipe).nutritionConfidence === 'estimated';
-  // Non-local recipes always have AI-estimated nutrition — prefix with ~ so
-  // the user knows it is approximate. Local recipes have user-entered values.
-  const nutrition = recipe.calories
-    ? `${estimated ? '~' : ''}${formatCalories(recipe.calories)}`
-    : recipeNutritionLabel(recipe);
+  const provenance = recipeProvenance(recipe);
+  const estimated = provenance.nutritionConfidence === 'estimated';
+  const hasCalories = recipe.calories != null;
+  // Never imply a nutrient value that was not supplied. The provenance label is
+  // deliberately separate from the values so partial provider nutrition stays
+  // truthful instead of looking like a complete macro calculation.
+  const nutrition = hasCalories ? `${estimated ? '~' : ''}${formatCalories(recipe.calories)}` : recipeNutritionLabel(recipe);
   return (
     <View style={[styles.recipeMeta, compact && styles.compactRecipeMeta]}>
-      <Text style={[styles.recipeKcal, { color: recipe.calories ? colors.foreground : colors.warning }]}>{nutrition}</Text>
-      {recipe.proteinG ? <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{estimated ? '~' : ''}{formatGrams(recipe.proteinG)} P</Text> : null}
+      <Text style={[styles.recipeKcal, { color: hasCalories ? colors.foreground : colors.warning }]}>{nutrition}</Text>
+      {recipe.proteinG != null ? <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{estimated ? '~' : ''}{formatGrams(recipe.proteinG)} P</Text> : null}
+      <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{recipeNutritionLabel(recipe)}</Text>
       {recipe.prepMinutes ? <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{recipe.prepMinutes} min</Text> : null}
     </View>
   );
@@ -426,7 +429,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
   </View>;
 }
 
-function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange }: { colors: ReturnType<typeof useCalora>['colors']; visible: boolean; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void }) {
+function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes, initialLoadedRecipes, initialLoadedForUserId, onLoadMoreRef, onLoadedRecipesChange }: { colors: ReturnType<typeof useCalora>['colors']; visible: boolean; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; initialLoadedRecipes: PremiumRecipe[]; initialLoadedForUserId: string | null; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (userId: string | null, recipes: PremiumRecipe[]) => void }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -435,8 +438,9 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const [category, setCategory] = useState('');
   const [offset, setOffset] = useState(0);
   const [filterVisible, setFilterVisible] = useState(false);
-  const [loadedRecipes, setLoadedRecipes] = useState<PremiumRecipe[]>([]);
-  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const [loadedRecipes, setLoadedRecipes] = useState<PremiumRecipe[]>(initialLoadedRecipes);
+  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(initialLoadedForUserId);
+  const [paginationTerminalReason, setPaginationTerminalReason] = useState<string | null>(null);
   const loadingMoreRef = useRef(false);
   const hasMountedFiltersRef = useRef(false);
   const premiumParams = { query: search || undefined, category: category || undefined, limit: RECIPE_PAGE_SIZE, offset };
@@ -469,6 +473,9 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     hasVerifiedCurrentAccount,
   });
   const data = canDisplayCatalogue ? query.data : undefined;
+  // `placeholderData` is the previous offset's response. It is useful for a
+  // non-jumping grid, but it is not evidence about the requested page cursor.
+  const hasCurrentPageData = canApplyPremiumPage(query.isPlaceholderData);
   const appStateRef = useRef(AppState.currentState);
   const queryFetchingRef = useRef(query.isFetching);
   useEffect(() => {
@@ -478,6 +485,14 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     if (!accessDenied) return;
     queryClient.removeQueries({ queryKey: premiumQueryKey, exact: true });
   }, [accessDenied, premiumQueryKey, queryClient]);
+  useEffect(() => {
+    // State lifted by the parent is account-owned. A remount for another
+    // account must never render the prior account while its query validates.
+    if (loadedForUserId === userId) return;
+    setLoadedRecipes([]);
+    setPaginationTerminalReason(null);
+    loadingMoreRef.current = false;
+  }, [loadedForUserId, userId]);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       const previousState = appStateRef.current;
@@ -492,21 +507,23 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     return () => subscription.remove();
   }, [query.refetch]);
   useEffect(() => {
-    if (!data?.recipes) return;
+    if (!hasCurrentPageData || !data?.recipes) return;
     setLoadedRecipes((current) => {
-      const nextRecipes = offset === 0 || loadedForUserId !== userId
-        ? data.recipes
-        : [...current, ...data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id))];
+      const appended = data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id));
+      if (offset > 0 && loadedForUserId === userId && appended.length === 0 && data.nextOffset != null) {
+        setPaginationTerminalReason('The provider returned no new recipes, so there are no more results to load.');
+      }
+      const nextRecipes = offset === 0 || loadedForUserId !== userId ? data.recipes : [...current, ...appended];
       return clearDuplicatePremiumRecipeImages(nextRecipes);
     });
     setLoadedForUserId(userId);
     loadingMoreRef.current = false;
-  }, [data?.recipes, loadedForUserId, offset, userId]);
+  }, [data?.recipes, hasCurrentPageData, loadedForUserId, offset, userId]);
   useEffect(() => {
-    onLoadedRecipesChange(loadedRecipes);
-  }, [loadedRecipes, onLoadedRecipesChange]);
+    onLoadedRecipesChange(loadedForUserId, loadedRecipes);
+  }, [loadedForUserId, loadedRecipes, onLoadedRecipesChange]);
   useEffect(() => {
-    if (!userId || accessDenied || data?.status !== 'available' || data.nextOffset == null) return;
+    if (!hasCurrentPageData || !userId || accessDenied || data?.status !== 'available' || data.nextOffset == null) return;
     const nextParams = { query: search || undefined, category: category || undefined, limit: RECIPE_PAGE_SIZE, offset: data.nextOffset };
     const nextQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(nextParams));
     void queryClient.prefetchQuery({
@@ -515,15 +532,15 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
       retry: false,
     }).catch(() => undefined);
-  }, [accessDenied, category, data?.nextOffset, data?.status, queryClient, search, userId]);
+  }, [accessDenied, category, data?.nextOffset, data?.status, hasCurrentPageData, queryClient, search, userId]);
   useEffect(() => {
     onLoadMoreRef.current = () => {
-      if (data?.nextOffset == null || query.isFetching || loadingMoreRef.current) return;
+      if (!hasCurrentPageData || data?.nextOffset == null || paginationTerminalReason || query.isFetching || loadingMoreRef.current) return;
       loadingMoreRef.current = true;
       setOffset(data.nextOffset);
     };
     return () => { onLoadMoreRef.current = null; };
-  }, [data?.nextOffset, onLoadMoreRef, query.isFetching]);
+  }, [data?.nextOffset, hasCurrentPageData, onLoadMoreRef, paginationTerminalReason, query.isFetching]);
   useEffect(() => {
     // React Query can restore Premium results from cache immediately when this
     // section remounts. Do not clear that restored list on the initial render;
@@ -534,6 +551,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     }
     setOffset(0);
     setLoadedRecipes([]);
+    setPaginationTerminalReason(null);
     loadingMoreRef.current = false;
   }, [search, category]);
   const hasLoadedRecipes = loadedForUserId === userId && loadedRecipes.length > 0;
@@ -712,6 +730,16 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
             <ActivityIndicator size="small" color={colors.primary} />
             <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text>
           </View>
+        )}
+        {paginationTerminalReason && (
+          <Text testID="plus-recipe-pagination-terminal" style={[styles.sectionCaption, { color: colors.mutedForeground }]}>
+            {paginationTerminalReason}
+          </Text>
+        )}
+        {!paginationTerminalReason && hasCurrentPageData && data?.terminalReason && (
+          <Text testID="plus-recipe-pagination-terminal" style={[styles.sectionCaption, { color: colors.mutedForeground }]}>
+            {data.terminalReason}
+          </Text>
         )}
         <BottomSheet
           visible={filterVisible}
@@ -931,9 +959,9 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     if (!reviewDraft) return;
     updateFoodMemoryDraft(reviewDraft.id, reviewDraft.components.map((item) => item.id === component.id ? component : item));
   };
-  const acceptDraft = () => {
+  const acceptDraft = async () => {
     if (!reviewDraft) return;
-    acceptFoodMemory(reviewDraft.id);
+    await acceptFoodMemory(reviewDraft.id);
     setReviewDraftId(null);
     onClose();
   };
@@ -948,7 +976,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   };
 
   // --- Feature 6: smart diary logging (remote recipes) ---
-  const logToDiary = () => {
+  const logToDiary = async () => {
     if (!canLog || !detail) return;
     // Pre-scale the nutrition so eatenFraction=1.0 in the draft equals exactly what the user selected
     const scaled = {
@@ -962,7 +990,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     // Pass the draft directly: createRecipeDraft calls setFoodDrafts which is
     // queued and not yet reflected in the foodDrafts closure that
     // acceptFoodMemory reads from. Passing draftOverride bypasses that lookup.
-    acceptFoodMemory(draft.id, draft);
+    await acceptFoodMemory(draft.id, draft);
     setDiaryLogged(true);
     setTimeout(() => { setDiaryVisible(false); setDiaryLogged(false); onClose(); }, 900);
   };
@@ -1423,8 +1451,9 @@ export default function RecipesScreen() {
   const [remoteOffset, setRemoteOffset] = useState(0);
   const [remoteRecipes, setRemoteRecipes] = useState<Recipe[]>([]);
   const [premiumSavedRecipes, setPremiumSavedRecipes] = useState<PremiumRecipe[]>([]);
-  const [premiumCatalogueRecipes, setPremiumCatalogueRecipes] = useState<PremiumRecipe[]>([]);
-  const [hasMoreRemote, setHasMoreRemote] = useState(true);
+  const [premiumCatalogueState, setPremiumCatalogueState] = useState<PremiumCatalogueState>({ userId: null, recipes: [] });
+  const [nextRemoteOffset, setNextRemoteOffset] = useState<number | null>(0);
+  const [remoteTerminalReason, setRemoteTerminalReason] = useState<string | null>(null);
   const loadingMoreRef = useRef(false);
   const premiumLoadMoreRef = useRef<(() => void) | null>(null);
   const photoRequestsRef = useRef(new Set<string>());
@@ -1432,8 +1461,20 @@ export default function RecipesScreen() {
   const recipesScrollRef = useRef<ScrollView | null>(null);
   const discoverScrollYRef = useRef(0);
   const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
+  const onLoadedPremiumRecipesChange = useCallback((ownerId: string | null, recipes: PremiumRecipe[]) => {
+    setPremiumCatalogueState((current) => {
+      return samePremiumCatalogueState(current, ownerId, recipes) ? current : { userId: ownerId, recipes };
+    });
+  }, []);
   useEffect(() => {
     setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current);
+    // Saved/provider recipe objects are protected account data. IDs remain in
+    // their account-scoped persistence layer, but in-memory card objects must
+    // be discarded before another account can mount Plus.
+    setPremiumSavedRecipes([]);
+    setPremiumCatalogueState({ userId: null, recipes: [] });
+    queryClient.removeQueries({ queryKey: ['premium-recipes'] });
+    queryClient.removeQueries({ queryKey: ['premium-recipe'] });
   }, [user?.id]);
   const remainingCalories = Math.max((profile?.calorieTarget ?? 2000) - logs.filter((log) => log.date === dateKey()).reduce((sum, log) => sum + log.calories, 0), 0);
   const localMatches = useMemo(() => category !== 'My recipes' ? [] : localRecipes.filter((recipe) => {
@@ -1456,7 +1497,8 @@ export default function RecipesScreen() {
   useEffect(() => {
     setRemoteOffset(0);
     setRemoteRecipes([]);
-    setHasMoreRemote(true);
+    setNextRemoteOffset(0);
+    setRemoteTerminalReason(null);
     loadingMoreRef.current = false;
   }, [search, category]);
   useEffect(() => {
@@ -1465,9 +1507,15 @@ export default function RecipesScreen() {
     setRemoteRecipes((current) => {
       if (remoteOffset === 0) return page;
       const existing = new Set(current.map((recipe) => recipe.id));
-      return [...current, ...page.filter((recipe) => !existing.has(recipe.id))];
+      const appended = page.filter((recipe) => !existing.has(recipe.id));
+      if (appended.length === 0 && recipesQuery.data?.nextOffset != null) {
+        setRemoteTerminalReason('The recipe source returned no new results, so there are no more recipes to load.');
+      }
+      return [...current, ...appended];
     });
-    setHasMoreRemote(page.length === RECIPE_PAGE_SIZE);
+    const nextOffset = recipesQuery.data?.nextOffset ?? null;
+    setNextRemoteOffset(nextOffset !== null && nextOffset > remoteOffset ? nextOffset : null);
+    if (nextOffset !== null && nextOffset <= remoteOffset) setRemoteTerminalReason('The recipe source cannot provide another page.');
     loadingMoreRef.current = false;
   }, [recipesQuery.data, remoteOffset]);
   useEffect(() => {
@@ -1513,16 +1561,16 @@ export default function RecipesScreen() {
   const recipeSuggestions = useMemo(() => {
     const premiumSelected = selectedRecipe ? recipeProvenance(selectedRecipe).sourceType === 'premium' : false;
     const pool: BrowseRecipe[] = premiumSelected
-      ? premiumCatalogueRecipes
+      ? premiumCatalogueState.recipes
       : [...visibleLocal, ...visibleRemote];
     return getRecipeSuggestions(pool, selectedRecipe);
-  }, [premiumCatalogueRecipes, selectedRecipe, visibleLocal, visibleRemote]);
+  }, [premiumCatalogueState.recipes, selectedRecipe, visibleLocal, visibleRemote]);
   const savedRecipes = [...localRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
   const savedDiscoverRecipes = savedRecipes.filter((recipe) => !isLocalRecipe(recipe));
   const loadMoreRecipes = () => {
-    if (activeSection !== 'discover' || category === 'My recipes' || !hasMoreRemote || recipesQuery.isFetching || loadingMoreRef.current) return;
+    if (activeSection !== 'discover' || category === 'My recipes' || nextRemoteOffset == null || remoteTerminalReason || recipesQuery.isFetching || loadingMoreRef.current) return;
     loadingMoreRef.current = true;
-    setRemoteOffset((current) => current + RECIPE_PAGE_SIZE);
+    setRemoteOffset(nextRemoteOffset);
   };
   const handleRecipeScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
@@ -1581,7 +1629,7 @@ export default function RecipesScreen() {
         style={{ flex: 1 }}
       >
       {activeSection === 'premium' ? (
-        <PremiumCatalogue visible colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={setPremiumCatalogueRecipes} />
+        <PremiumCatalogue visible colors={colors} onOpen={handleCardPress} onSave={(recipe) => setPremiumSavedRecipes((current) => current.some((item) => item.id === recipe.id) ? current : [...current, recipe])} savedPremiumRecipes={premiumSavedRecipes} initialLoadedRecipes={premiumCatalogueState.userId === user?.id ? premiumCatalogueState.recipes : []} initialLoadedForUserId={premiumCatalogueState.userId === user?.id ? premiumCatalogueState.userId : null} onLoadMoreRef={premiumLoadMoreRef} onLoadedRecipesChange={onLoadedPremiumRecipesChange} />
       ) : (
         <ScrollView
           ref={recipesScrollRef}
@@ -1620,7 +1668,9 @@ export default function RecipesScreen() {
 
          <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length} quick meals from loaded recipes` : `${visibleRemote.length + visibleLocal.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
          {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recipes are temporarily unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Discover is rate-limited briefly to protect the recipe service. Your saved and personal recipes are still available.</Text><Pressable accessibilityLabel="Retry loading Discover recipes" onPress={() => recipesQuery.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="refresh-cw" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Try again</Text></Pressable></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Create a recipe to see it here.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create recipe</Text></Pressable></View>}<Animated.View entering={FadeInDown.springify().damping(20).delay(80)} style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</Animated.View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Offline—showing loaded recipes.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text></View>}</>}
-        <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is curated for your collection. Recipes remain attributed to their source when opened; {BRAND.name}'s nutrition confidence is shown separately.</Text>
+         {remoteTerminalReason && <Text testID="discover-recipe-pagination-terminal" style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{remoteTerminalReason}</Text>}
+         {!remoteTerminalReason && recipesQuery.data?.terminalReason && <Text testID="discover-recipe-pagination-terminal" style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.data.terminalReason}</Text>}
+         <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is curated for your collection. Recipes remain attributed to their source when opened; {BRAND.name}'s nutrition confidence is shown separately.</Text>
            </> : activeSection === 'create' ? <CreateConcepts colors={colors} onOpenRecipe={(recipe) => { setSelected(recipe); void createRecipePhoto(recipe); }} /> : null}
         </ScrollView>
       )}

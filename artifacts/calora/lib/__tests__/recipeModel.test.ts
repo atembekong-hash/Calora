@@ -71,7 +71,8 @@ describe('recipe provenance normalization', () => {
     expect(recipeNutritionLabel(recipe)).toBe('Estimated nutrition');
   });
 
-  it('marks recipes without nutrition as needing review', () => {
-    expect(recipeNutritionLabel(localRecipe())).toBe('Nutrition review needed');
+  it('labels unavailable and partial nutrition without fabricating a complete panel', () => {
+    expect(recipeNutritionLabel(localRecipe())).toBe('Nutrition unavailable');
+    expect(recipeNutritionLabel(remoteRecipe({ calories: 420, nutritionConfidence: 'unavailable', nutritionSource: 'Provider nutrition data (partial)' }))).toBe('Partial nutrition available');
   });
 });

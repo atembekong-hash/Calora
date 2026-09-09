@@ -12,4 +12,8 @@ export interface RecipeList {
   recipes: Recipe[];
   /** True while the server's background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available. */
   warmupPending?: boolean;
+  /** The provider-supported offset for the next page, or null when exhausted. */
+  nextOffset?: number | null;
+  /** Explicit reason pagination stopped when the provider cannot supply another page. */
+  terminalReason?: string | null;
 }

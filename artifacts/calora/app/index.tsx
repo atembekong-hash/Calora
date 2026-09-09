@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   Easing,
@@ -24,6 +24,7 @@ import { handleParseErrorExport } from '@/lib/parseErrorExportHandler';
 import { deriveErrorScreenActions } from '@/lib/errorScreenActions';
 import { recommendCalories } from '@/lib/calorieRecommendation';
 import { validatePersonalDetails } from '@/lib/profileTargets';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 
 const goals: { key: Goal; label: string; body: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'lose', label: 'Lose weight', body: 'A steady, sustainable pace', icon: 'trending-down' },
@@ -224,6 +225,13 @@ export default function OnboardingScreen() {
       : null,
     [activity, goal, validatedPersonalDetails],
   );
+  const isFinalStep = step === ONBOARDING_STEPS - 1;
+  const finalActionDisabled = isFinalStep && !consent;
+  const finalActionLabel = isReviewMode
+    ? 'Save changes'
+    : consent
+      ? `Agree & enter ${BRAND.name}`
+      : 'Check agreement to continue';
 
   const finish = async () => {
     const validation = validatePersonalDetails({
@@ -368,7 +376,14 @@ export default function OnboardingScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 22, paddingBottom: insets.bottom + 30 }]} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollViewCompat
+        bottomOffset={insets.bottom + 88}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 22, paddingBottom: insets.bottom + 118 }]}
+        extraKeyboardSpace={24}
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        keyboardShouldPersistTaps="handled"
+        testID="onboarding-keyboard-safe-scroll"
+      >
          <View style={styles.progressRow}>
           <View style={styles.brandMark}><Feather name="sun" size={18} color={colors.primaryForeground} /></View>
           <Text style={[styles.brand, { color: colors.foreground }]}>{BRAND.name}</Text>
@@ -462,10 +477,24 @@ export default function OnboardingScreen() {
             <Text style={[styles.title, { color: colors.foreground }]}>Review before you start.</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>{BRAND.name} is a wellness tool, not a doctor. Your data stays local in this preview and can be exported or deleted from settings.</Text>
              <OnboardingIllustration scene="review" colors={colors} />
-            <Pressable onPress={() => setConsent(!consent)} style={[styles.consentCard, { backgroundColor: consent ? colors.accent : colors.card, borderColor: consent ? colors.primary : colors.border }]}>
+             <Text style={[styles.consentRequirement, { color: colors.mutedForeground }]}>Required to continue</Text>
+             <Pressable
+               accessibilityHint="Double tap to toggle your required onboarding agreement."
+               accessibilityLabel={`Required agreement. ${consent ? 'Checked.' : 'Unchecked.'} I understand Calora is a wellness tool, will review AI estimates before logging, and understand calorie targets are starting estimates, not medical advice.`}
+               accessibilityRole="checkbox"
+               accessibilityState={{ checked: consent }}
+               onPress={() => setConsent((accepted) => !accepted)}
+               style={[styles.consentCard, { backgroundColor: consent ? colors.accent : colors.card, borderColor: consent ? colors.primary : colors.border }]}
+               testID="onboarding-consent"
+             >
               <View style={[styles.consentCheck, { backgroundColor: consent ? colors.primary : colors.muted }]}><Feather name={consent ? 'check' : 'shield'} size={17} color={consent ? colors.primaryForeground : colors.mutedForeground} /></View>
-              <View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: colors.foreground }]}>I understand and agree</Text><Text style={[styles.optionBody, { color: colors.mutedForeground }]}>I’ll review AI estimates before logging them and understand calorie targets are starting estimates.</Text></View>
+               <View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: colors.foreground }]}>I agree to these wellness terms</Text><Text style={[styles.optionBody, { color: colors.mutedForeground }]}>I understand {BRAND.name} is a wellness tool, not medical care. I will review AI estimates before logging, and calorie targets are starting estimates.</Text></View>
             </Pressable>
+             <Text style={[styles.consentHelper, { color: colors.mutedForeground }]}>
+               {consent
+                 ? `Agreement selected. ${isReviewMode ? 'Save your changes when ready.' : `Select “Agree & enter ${BRAND.name}” to finish setup.`}`
+                 : 'Select the agreement above to enable the final button.'}
+             </Text>
             <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.summaryCalories, { color: colors.foreground }]}>{formatWhole(calorieTarget)} <Text style={[styles.summaryUnit, { color: colors.mutedForeground }]}>kcal/day</Text></Text>
               <Text style={[styles.summaryBody, { color: colors.mutedForeground }]}>{goal === 'lose' ? 'A gentle deficit' : goal === 'gain' ? 'A supportive surplus' : 'A steady maintenance target'} · {diet}</Text>
@@ -476,9 +505,18 @@ export default function OnboardingScreen() {
 
         <View style={styles.bottomActions}>
            {step > 0 && <Pressable onPress={() => moveToStep(step - 1)} style={styles.backButton}><Feather name="arrow-left" size={18} color={colors.mutedForeground} /><Text style={[styles.backText, { color: colors.mutedForeground }]}>Back</Text></Pressable>}
-           <Pressable disabled={step === ONBOARDING_STEPS - 1 && !consent} onPress={step === ONBOARDING_STEPS - 1 ? finish : next} style={[styles.continueButton, { backgroundColor: step === ONBOARDING_STEPS - 1 && !consent ? colors.muted : colors.primary }]}><Text style={[styles.continueText, { color: step === ONBOARDING_STEPS - 1 && !consent ? colors.mutedForeground : colors.primaryForeground }]}>{step === ONBOARDING_STEPS - 1 ? `Enter ${BRAND.name}` : 'Continue'}</Text><Feather name="arrow-right" size={17} color={step === ONBOARDING_STEPS - 1 && !consent ? colors.mutedForeground : colors.primaryForeground} /></Pressable>
+            <Pressable
+              accessibilityHint={finalActionDisabled ? 'Select the required agreement above to enable this button.' : undefined}
+              accessibilityLabel={isFinalStep ? finalActionLabel : 'Continue to the next onboarding step'}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: finalActionDisabled }}
+              disabled={finalActionDisabled}
+              onPress={isFinalStep ? finish : next}
+              style={[styles.continueButton, { backgroundColor: finalActionDisabled ? colors.muted : colors.primary }]}
+              testID="onboarding-final-action"
+            ><Text style={[styles.continueText, { color: finalActionDisabled ? colors.mutedForeground : colors.primaryForeground }]}>{isFinalStep ? finalActionLabel : 'Continue'}</Text><Feather name="arrow-right" size={17} color={finalActionDisabled ? colors.mutedForeground : colors.primaryForeground} /></Pressable>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
     </View>
   );
 }
@@ -543,8 +581,10 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 },
   chipText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
-  consentCard: { flexDirection: 'row', gap: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 14, marginTop: 27 },
+  consentRequirement: { fontFamily: 'Inter_700Bold', fontSize: 11, letterSpacing: 0.3, textTransform: 'uppercase', marginTop: 27, marginBottom: 8 },
+  consentCard: { flexDirection: 'row', gap: 11, borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 16 },
   consentCheck: { width: 34, height: 34, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
+  consentHelper: { fontFamily: 'Inter_500Medium', fontSize: 11, lineHeight: 16, marginTop: 10 },
   summaryCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 20, padding: 18, marginTop: 16 },
   summaryCalories: { fontFamily: 'Inter_700Bold', fontSize: 29, marginTop: 8 },
   summaryUnit: { fontFamily: 'Inter_400Regular', fontSize: 13 },

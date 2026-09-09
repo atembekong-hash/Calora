@@ -82,7 +82,21 @@ vi.mock("../lib/rate-limit.js", () => ({
 // Imports that depend on the mocked modules (must come after vi.mock calls).
 // ---------------------------------------------------------------------------
 import express from "express";
-import recipesRouter from "../routes/recipes.js";
+import recipesRouter, { stableRecipeRotation } from "../routes/recipes.js";
+
+describe("Discover rotation", () => {
+  const meals = ["1", "2", "3", "4", "5", "6"].map((id) => ({ idMeal: id, strMeal: `Meal ${id}` }));
+
+  it("is deterministic for account/day and token refreshes cannot move offset pages", () => {
+    const first = stableRecipeRotation(meals, "member:2026-03-10").map((meal) => meal.idMeal);
+    const repeat = stableRecipeRotation(meals, "member:2026-03-10").map((meal) => meal.idMeal);
+    const otherAccount = stableRecipeRotation(meals, "other-member:2026-03-10").map((meal) => meal.idMeal);
+
+    expect(repeat).toEqual(first);
+    expect(otherAccount).not.toEqual(first);
+    expect([...otherAccount].sort()).toEqual(["1", "2", "3", "4", "5", "6"]);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Minimal Express app that mounts the recipes router
