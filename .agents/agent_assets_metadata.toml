@@ -98,3 +98,17 @@ mtime_ms = 1788916075529
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/01020cad-16a1-4412-8202-1003155f6efa/7b596ecc-bb95-430e-b3d5-6d34b8f29f65"
 storage_version_token = "1788916114785123"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "T3-2baj32BSnGtjnt_A65"
+uri = "file://docs/CALORA_WHOLE_APP_BUG_MINIMIZATION_VERIFICATION_REPORT_2026-09-09.md"
+type = "text"
+title = "Calora Whole-App Bug-Minimization Verification Report"
+description = "Detailed repository-wide audit covering automated tests, API contracts, native-device gaps, CI, rollout controls, observability, risks, and release criteria."
+logical_id = "6b89204b-3daa-4506-88af-103e32cc1a18"
+content_hash = "sha256:d6adc827cfe3bb3728b35a260438e6f566e301caefcde8fde4f610536c280e7b"
+size = 40623
+mtime_ms = 1788962028536
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/6b89204b-3daa-4506-88af-103e32cc1a18/0d8380ae-ff9a-4248-9828-bf08ce3161e2"
+storage_version_token = "1788962041858370"
+content_type = "text/markdown"
