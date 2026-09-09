@@ -72,3 +72,4 @@
 - [GitHub CLI and Replit auth](github-cli-replit-auth.md) — binding a Replit GitHub OAuth connection does not populate the local `gh` CLI credential store.
 - [Replit production state](replit-production-state.md) — a public deployment record can exist with no successful build and serve Replit’s “app isn’t live yet” placeholder.
 - [Branded apex artifact routing](branded-apex-artifact-routing.md) — in a multi-artifact project, the API must explicitly own `/` or the Expo artifact can serve its preview landing page at the custom domain.
+- [GitHub Actions context boundary](github-actions-context-boundary.md) — job-level env cannot use runner context; CI provider imports need deterministic non-egress sentinels.
