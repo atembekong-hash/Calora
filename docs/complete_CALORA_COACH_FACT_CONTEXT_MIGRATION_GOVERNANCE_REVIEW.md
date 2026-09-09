@@ -66,7 +66,7 @@ window beginning at `2026-08-22T06:42:29.672Z`.
 
 | Field | Evidence |
 | --- | --- |
-| Public application URL | `https://calorie-coach-pie35449.replit.app` |
+| Public application URL | `https://mycaloraapp.com` |
 | Deployment type | Autoscale |
 | Visibility | Public |
 | Current build status | Successful |

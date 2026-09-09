@@ -8,12 +8,31 @@ const projectRoot = path.resolve(__dirname, '..');
 const appConfigPath = path.join(projectRoot, 'app.json');
 const evidenceEnvName = 'CALORA_NATIVE_AUTH_EVIDENCE_PATH';
 const callbackArtifactDirEnvName = 'CALORA_CALLBACK_ARTIFACT_DIR';
+const EXPECTED_NATIVE_AUTH = Object.freeze({
+  appName: 'Calora',
+  legacyScheme: 'caloraapp',
+  callbackOrigin: 'https://mycaloraapp.com',
+  callbackPath: '/auth/callback',
+  expoProjectId: '1f202325-5b9a-4260-978f-abbd3252b9ee',
+  iosBundleIdentifier: 'com.etiendem.caloraapp',
+  iosAssociatedDomain: 'mycaloraapp.com',
+  androidPackageName: 'com.etiendem.caloraapp',
+  androidCallbackHost: 'mycaloraapp.com',
+});
 const callbackCases = [
-  'google-sign-in',
-  'email-verification',
-  'password-recovery',
-  'cold-launch-force-quit-https-callback',
-  'caloraapp-competitor',
+  { name: 'google-sign-in-warm-app', scope: 'native', evidence: 'provider-callback-and-session' },
+  { name: 'google-sign-in-cold-launch', scope: 'native', evidence: 'provider-callback-and-session' },
+  { name: 'email-verification-warm-app', scope: 'native', evidence: 'verification-callback-and-session' },
+  { name: 'email-verification-cold-launch', scope: 'native', evidence: 'verification-callback-and-session' },
+  { name: 'password-recovery-warm-app', scope: 'native', evidence: 'recovery-callback-and-reset-screen' },
+  { name: 'password-recovery-cold-launch', scope: 'native', evidence: 'recovery-callback-and-reset-screen' },
+  { name: 'force-quit-https-callback-relaunch', scope: 'native', evidence: 'relaunch-and-session-state' },
+  { name: 'duplicate-browser-router-delivery', scope: 'native-and-unit', evidence: 'single-session-exchange' },
+  { name: 'foreign-origin-rejected', scope: 'native-and-unit', evidence: 'controlled-rejection' },
+  { name: 'legacy-caloraapp-auth-rejected', scope: 'native-and-unit', evidence: 'controlled-rejection' },
+  { name: 'sign-out-clears-session', scope: 'native-and-unit', evidence: 'signed-out-state' },
+  { name: 'account-switch-clears-replay', scope: 'native-and-unit', evidence: 'account-isolation' },
+  { name: 'relaunch-restores-current-session', scope: 'native', evidence: 'restored-session-state' },
 ];
 
 const FAILURE_CLASSES = {
@@ -47,21 +66,43 @@ function readJson(filePath) {
 function loadBuildIdentity(configPath = appConfigPath) {
   const appConfig = readJson(configPath);
   const expo = appConfig?.expo;
-  const callbackOrigin = `https://${expo?.plugins?.find(
+  const routerOrigin = expo?.plugins?.find(
     (plugin) => Array.isArray(plugin) && plugin[0] === 'expo-router',
-  )?.[1]?.origin
-    ?.replace(/^https?:\/\//, '')
-    ?.replace(/\/$/, '')}`;
-  const associatedDomain = expo?.ios?.associatedDomains?.find((domain) =>
-    domain.startsWith('applinks:'),
+  )?.[1]?.origin;
+  let callbackOrigin = null;
+  try {
+    const parsedOrigin = new URL(routerOrigin);
+    if (
+      parsedOrigin.protocol === 'https:' &&
+      !parsedOrigin.username &&
+      !parsedOrigin.password &&
+      parsedOrigin.pathname === '/' &&
+      !parsedOrigin.search &&
+      !parsedOrigin.hash
+    ) {
+      callbackOrigin = parsedOrigin.origin;
+    }
+  } catch {
+    callbackOrigin = null;
+  }
+  const associatedDomain = expo?.ios?.associatedDomains?.find(
+    (domain) => domain === `applinks:${EXPECTED_NATIVE_AUTH.iosAssociatedDomain}`,
   );
   const androidCallbackFilter = expo?.android?.intentFilters?.find((filter) =>
+    filter.action === 'VIEW' &&
+    filter.autoVerify === true &&
     filter.data?.some(
-      (data) => data.scheme === 'https' && data.pathPrefix === '/auth/callback',
+      (data) =>
+        data.scheme === 'https' &&
+        data.host === EXPECTED_NATIVE_AUTH.androidCallbackHost &&
+        data.path === EXPECTED_NATIVE_AUTH.callbackPath,
     ),
   );
   const callbackHost = androidCallbackFilter?.data?.find(
-    (data) => data.scheme === 'https' && data.pathPrefix === '/auth/callback',
+    (data) =>
+      data.scheme === 'https' &&
+      data.host === EXPECTED_NATIVE_AUTH.androidCallbackHost &&
+      data.path === EXPECTED_NATIVE_AUTH.callbackPath,
   )?.host;
 
   const identity = {
@@ -69,8 +110,8 @@ function loadBuildIdentity(configPath = appConfigPath) {
     version: expo?.version,
     legacyScheme: expo?.scheme,
     callback: {
-      origin: callbackOrigin === 'https://undefined' ? null : callbackOrigin,
-      path: '/auth/callback',
+      origin: callbackOrigin,
+      path: EXPECTED_NATIVE_AUTH.callbackPath,
     },
     expoProjectId: expo?.extra?.eas?.projectId,
     ios: {
@@ -98,11 +139,21 @@ function loadBuildIdentity(configPath = appConfigPath) {
     ['expo.android callback host', identity.android.callbackHost],
   ];
   const missing = required.filter(([, value]) => value === undefined || value === null || value === '');
-  if (missing.length > 0 || !identity.callback.origin) {
+  const mismatches = [
+    ['expo.name', identity.appName, EXPECTED_NATIVE_AUTH.appName],
+    ['expo.scheme', identity.legacyScheme, EXPECTED_NATIVE_AUTH.legacyScheme],
+    ['expo.extra.eas.projectId', identity.expoProjectId, EXPECTED_NATIVE_AUTH.expoProjectId],
+    ['expo.ios.bundleIdentifier', identity.ios.bundleIdentifier, EXPECTED_NATIVE_AUTH.iosBundleIdentifier],
+    ['expo.ios.associatedDomains', identity.ios.associatedDomain, EXPECTED_NATIVE_AUTH.iosAssociatedDomain],
+    ['expo.android.package', identity.android.packageName, EXPECTED_NATIVE_AUTH.androidPackageName],
+    ['expo.android callback host', identity.android.callbackHost, EXPECTED_NATIVE_AUTH.androidCallbackHost],
+    ['expo-router origin', identity.callback.origin, EXPECTED_NATIVE_AUTH.callbackOrigin],
+  ].filter(([, actual, expected]) => actual !== expected);
+  if (missing.length > 0 || mismatches.length > 0) {
     throw new Error(
-      `app.json is missing native-auth identity fields: ${[
+      `app.json has invalid native-auth identity fields: ${[
         ...missing.map(([name]) => name),
-        ...(!identity.callback.origin ? ['expo-router origin'] : []),
+        ...mismatches.map(([name, , expected]) => `${name} (expected ${String(expected)})`),
       ].join(', ')}`,
     );
   }
@@ -336,7 +387,7 @@ function inspectAndroidBinary(binary, identity) {
   }
   const signedInfo = parseAaptBadging(badging.stdout);
   const hasCallbackHost = manifest.stdout.includes(identity.android.callbackHost);
-  const hasCallbackPath = manifest.stdout.includes('/auth/callback');
+  const hasCallbackPath = manifest.stdout.includes(identity.callback.path);
   const identityMatch =
     signedInfo?.packageName === identity.android.packageName &&
     signedInfo?.versionCode === Number(identity.android.versionCode) &&
@@ -355,7 +406,7 @@ function inspectAndroidBinary(binary, identity) {
   return {
     ok: true,
     signedInfo,
-    callbackFilter: { host: identity.android.callbackHost, path: '/auth/callback' },
+      callbackFilter: { host: identity.android.callbackHost, path: identity.callback.path },
   };
 }
 
@@ -666,10 +717,12 @@ function buildEvidence({ identity, binaries, targets, callbackArtifacts, failure
     build: identity || null,
     binaries: sanitizedBinaries,
     targets: sanitizedTargets,
-    callbackCases: callbackCases.flatMap((caseName) =>
+    callbackCases: callbackCases.flatMap((callbackCase) =>
       ['iOS', 'Android'].map((platform) => ({
         platform,
-        case: caseName,
+        case: callbackCase.name,
+        scope: callbackCase.scope,
+        expectedEvidence: callbackCase.evidence,
         outcome: 'not-run',
         artifacts: [],
       })),
@@ -804,8 +857,10 @@ if (require.main === module) {
 }
 
 module.exports = {
+  EXPECTED_NATIVE_AUTH,
   FAILURE_CLASSES,
   buildEvidence,
+  callbackCases,
   collectCallbackArtifacts,
   isInstallableBinary,
   loadBuildIdentity,

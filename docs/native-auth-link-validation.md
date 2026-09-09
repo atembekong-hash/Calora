@@ -1,7 +1,7 @@
 # Native authentication-link validation
 
 **Scope:** Calora sign-in, email verification, and password recovery  
-**Canonical callback:** `https://calorie-coach-pie35449.replit.app/auth/callback`  
+**Canonical callback:** `https://mycaloraapp.com/auth/callback`
 **Native identifiers:** `com.etiendem.caloraapp` / `com.etiendem.caloraapp`  
 **Status:** Source validation, production association publishing, and Supabase
 Auth redirect cleanup complete. Native-device execution was attempted on
@@ -36,7 +36,7 @@ authentication transport.
 | Apple association checker | **PASS** | Apple’s association CDN returns HTTP 200 for the production host and includes the expected Calora app ID and `/auth/callback` component. |
 | Google Digital Asset Links checker | **PASS** | Google’s `statements:list` response returns `delegate_permission/common.handle_all_urls` for `com.etiendem.caloraapp` with the published SHA-256 certificate fingerprint. |
 | Android package and fingerprint alignment | **PASS** | Live asset links publish package `com.etiendem.caloraapp`; its certificate fingerprint matches the configured signing fingerprint and the Android native package identifier. |
-| Supabase redirect allow-list | **PASS** | Supabase Management API readback contains only `https://calorie-coach-pie35449.replit.app/auth/callback`. A disposable generated recovery link preserved the canonical callback, while `caloraapp://auth/callback` and an unrelated HTTPS URL fell back to the configured Site URL. The initial Google authorize endpoint returns a handoff `302` even for unlisted `redirect_to` values, so that status alone is not a final redirect-allow-list assertion. |
+| Supabase redirect allow-list | **MANUAL CHECK REQUIRED** | The client and native configuration use `https://mycaloraapp.com/auth/callback`. The Supabase Auth URL Configuration must be read back in the project dashboard before a signed-build run; an OAuth handoff `302` alone is not sufficient evidence for redirect allow-list membership. |
 | Disposable iOS build and native auth-link matrix | **BLOCKED** | Attempted on 2026-09-05. `xcrun simctl list devices booted` cannot run because `xcrun` is not installed; no signed IPA or simulator/device was available. Google sign-in, email verification, password recovery, cold launch, force-quit callback, and competing-app cases remain unexecuted. |
 | Disposable Android build and native auth-link matrix | **BLOCKED** | Attempted on 2026-09-05. `adb devices` cannot run because `adb` is not installed; Maestro confirms zero connected devices. No signed APK or emulator/device was available. Google sign-in, email verification, password recovery, cold launch, force-quit callback, and competing-app cases remain unexecuted. |
 
@@ -70,7 +70,7 @@ real user's credentials.
 3. Tap fresh Google, verification, and recovery links from Gmail/Chrome.
    `https://.../auth/callback` must resolve to Calora without a chooser.
 4. Run `adb shell am start -W -a android.intent.action.VIEW -d
-   'https://calorie-coach-pie35449.replit.app/auth/callback?code=invalid'`.
+    'https://mycaloraapp.com/auth/callback?code=invalid'`.
    The app may show a controlled invalid/expired-code state, but must not
    accept a malformed or foreign callback.
 5. Disable/uninstall Calora and repeat the HTTPS tap. The competitor must not
@@ -137,20 +137,22 @@ returns nonzero unless all of these are true:
 1. `CALORA_IOS_BINARY` is a non-empty `.ipa` or `.app`, and
    `CALORA_ANDROID_BINARY` is a non-empty `.apk`. The signed iOS
    `CFBundleIdentifier`, version, build number, and
-   `applinks:calorie-coach-pie35449.replit.app` entitlement must match the
+   `applinks:mycaloraapp.com` entitlement must match the
    current `app.json`. The signed Android package, version code, HTTPS
    `/auth/callback` manifest filter, and signature verification must match it.
 2. `xcrun` reports the exact `CALORA_IOS_DEVICE` as booted, and `adb` reports
    the exact `CALORA_ANDROID_DEVICE` as online. The expected Calora package must
    be installed on both targets.
 3. `adb shell pm get-app-links com.etiendem.caloraapp` reports
-   `calorie-coach-pie35449.replit.app` as `verified`.
+   `mycaloraapp.com` as `verified`.
 
 The evidence includes the Calora version/build identity, binary SHA-256 and
 safe metadata, signed iOS entitlements, Android callback-filter state, exact
-target IDs, failure classes, and ten explicit callback-case records (five
-cases for each platform). It never stores certificates, tokens, raw command
-output, credentials, or callback contents. If
+target IDs, failure classes, and 26 explicit callback-case records (13 cases
+for each platform). The matrix covers warm-app, cold-launch, force-quit/relaunch,
+duplicate delivery, foreign-origin rejection, sign-out, account switching, and
+session restoration in addition to the three provider flows. It never stores
+certificates, tokens, raw command output, credentials, or callback contents. If
 `CALORA_CALLBACK_ARTIFACT_DIR` is set, only sanitized artifact filenames, sizes,
 and timestamps are listed. The preflight does not claim the callback cases ran:
 each remains `not-run` until the device test runner records the observed
@@ -187,7 +189,7 @@ All commands below were run from `artifacts/calora` unless noted otherwise:
 ```sh
 pnpm exec expo config --json
 # PASS — iOS associatedDomains contains
-# applinks:calorie-coach-pie35449.replit.app
+# applinks:mycaloraapp.com
 # Android contains an autoVerify HTTPS filter for /auth/callback
 # package/bundle ID: com.etiendem.caloraapp
 # legacy scheme: caloraapp
@@ -209,17 +211,17 @@ pnpm test
 Production association checks also ran on 2026-09-05:
 
 ```sh
-curl -sS https://calorie-coach-pie35449.replit.app/.well-known/apple-app-site-association
+curl -sS https://mycaloraapp.com/.well-known/apple-app-site-association
 # PASS — app ID B5344GJRMT.com.etiendem.caloraapp claims /auth/callback
 
-curl -sS https://calorie-coach-pie35449.replit.app/.well-known/assetlinks.json
+curl -sS https://mycaloraapp.com/.well-known/assetlinks.json
 # PASS — package com.etiendem.caloraapp and the configured SHA-256
 # certificate fingerprint are published
 
-curl -sS 'https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https%3A%2F%2Fcalorie-coach-pie35449.replit.app&relation=delegate_permission%2Fcommon.handle_all_urls'
+curl -sS 'https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https%3A%2F%2Fmycaloraapp.com&relation=delegate_permission%2Fcommon.handle_all_urls'
 # PASS — Google returns handle_all_urls for com.etiendem.caloraapp
 
-curl -sS https://app-site-association.cdn-apple.com/a/v1/calorie-coach-pie35449.replit.app
+curl -sS https://app-site-association.cdn-apple.com/a/v1/mycaloraapp.com
 # PASS — Apple CDN returns HTTP 200 with the same Calora app ID and
 # /auth/callback component
 ```
@@ -256,25 +258,37 @@ evidence for this matrix.
 ### Native matrix result
 
 The following is the exact remaining matrix. This workspace cannot execute it:
-the dated **BLOCKED — no native target** result means the release gate is not
-satisfied, not that the provider or OS behavior was observed to fail. Use a
-disposable account and disposable targets only; do not use a personal
-production install.
+the **NOT RUN** result means the release gate is not satisfied, not that the
+provider or OS behavior was observed to fail. Use a disposable account and
+disposable targets only; do not use a personal production install.
 
-| Platform | Google sign-in | Email verification | Password recovery | Cold launch + force-quit HTTPS callback | `caloraapp`-only competitor |
-|---|---|---|---|---|---|
-| iOS | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** |
-| Android | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** | **BLOCKED — 2026-09-05, no native target** |
+| Case | iOS | Android |
+|---|---|---|
+| Google sign-in — warm app | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Google sign-in — cold launch | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Email verification — warm app | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Email verification — cold launch | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Password recovery — warm app | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Password recovery — cold launch | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Force-quit HTTPS callback relaunch | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Duplicate browser/router delivery | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Foreign-origin rejection | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Legacy custom-scheme auth rejection | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Sign-out clears session | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Account switch clears replay state | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
+| Relaunch restores current session | **NOT RUN — 2026-09-09, no signed binary/target** | **NOT RUN — 2026-09-09, no signed binary/target** |
 
-**Common evidence for every blocked cell:** no newly built/signed Calora
+**Common evidence for every not-run cell:** no newly built/signed Calora
 binary, iOS simulator/device, or Android emulator/device was available in
-this workspace. `xcrun` and `adb` are not installed; Maestro reported zero
-connected devices. There are therefore no iOS UDID, Android serial, IPA/APK
-build ID, installed competitor ID, or disposable-account/provider-message
-identifiers to record. The source build identity available for the attempted
-preflight was CaloraApp `1.0.0`, iOS build `1`, Android version code `24`,
-bundle/package `com.etiendem.caloraapp`, Expo project
-`1f202325-5b9a-4260-978f-abbd3252b9ee`, and legacy scheme `caloraapp`.
+this workspace. The preflight result was `blocked` with
+`binary_unavailable` and `target_unavailable`; it did not report an observed
+provider or operating-system failure. There are therefore no iOS UDID, Android
+serial, IPA/APK build ID, installed competitor ID, or disposable-account/
+provider-message identifiers to record. The source build identity available for
+the attempted preflight was Calora `1.0.0`, iOS build `1`, Android version code
+`24`, bundle/package `com.etiendem.caloraapp`, Expo project
+`1f202325-5b9a-4260-978f-abbd3252b9ee`, callback
+`https://mycaloraapp.com/auth/callback`, and legacy scheme `caloraapp`.
 
 On the native host, install a newly built binary containing the current
 `app.json`, then capture the exact device IDs and run the platform-specific
@@ -287,10 +301,10 @@ adb shell pm get-app-links com.etiendem.caloraapp
 
 It must report the production host as verified before testing the three live
 email/provider flows. For iOS, verify the signed entitlements contain
-`applinks:calorie-coach-pie35449.replit.app`. Repeat each callback with the
+  `applinks:mycaloraapp.com`. Repeat each callback with the
 app running, force-quit, and cold-launched. Install a competitor that claims
 only `caloraapp`, verify that a legacy custom-scheme callback never creates a
 Calora session, then uninstall/disable Calora and verify the HTTPS callback
 falls back to the browser rather than opening the competitor. Replace these
-dated **BLOCKED — no native target** cells with observed PASS/FAIL results and
+dated **NOT RUN** cells with observed PASS/FAIL results and
 attach the signed build/device identifiers before release.
