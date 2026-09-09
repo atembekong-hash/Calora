@@ -24,8 +24,8 @@ jobs:
       RECOVERY_WARNING_SUPPRESSION_REQUIRE_DATABASE: "true"
       RECOVERY_SUMMARY_ROLLING_RESTART_REQUIRE_DATABASE: "true"
       NODE_ENV: test
-      CI_LOG_DIR: ${{ runner.temp }}/calora-mandatory-ci/logs
-      CI_ARTIFACT_DIR: ${{ runner.temp }}/calora-mandatory-ci/artifacts
+      CI_LOG_DIR: ${{ github.workspace }}/.ci/calora-mandatory-ci/logs
+      CI_ARTIFACT_DIR: ${{ github.workspace }}/.ci/calora-mandatory-ci/artifacts
     services:
       postgres:
         image: postgres:16
@@ -189,6 +189,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: calora-mandatory-ci-${{ github.run_id }}
-          path: ${{ runner.temp }}/calora-mandatory-ci/artifacts
+          path: ${{ github.workspace }}/.ci/calora-mandatory-ci/artifacts
           if-no-files-found: error
           retention-days: 30
