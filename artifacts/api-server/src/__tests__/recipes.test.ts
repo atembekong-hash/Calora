@@ -82,7 +82,7 @@ vi.mock("../lib/rate-limit.js", () => ({
 // Imports that depend on the mocked modules (must come after vi.mock calls).
 // ---------------------------------------------------------------------------
 import express from "express";
-import recipesRouter, { stableRecipeRotation } from "../routes/recipes.js";
+import recipesRouter, { infiniteRecipePage, stableRecipeRotation } from "../routes/recipes.js";
 
 describe("Discover rotation", () => {
   const meals = ["1", "2", "3", "4", "5", "6"].map((id) => ({ idMeal: id, strMeal: `Meal ${id}` }));
@@ -95,6 +95,16 @@ describe("Discover rotation", () => {
     expect(repeat).toEqual(first);
     expect(otherAccount).not.toEqual(first);
     expect([...otherAccount].sort()).toEqual(["1", "2", "3", "4", "5", "6"]);
+  });
+
+  it("continues with a deterministic cycle after the provider pool is exhausted", () => {
+    const firstPage = infiniteRecipePage(meals, 0, 6, "member:2026-03-10");
+    const secondPage = infiniteRecipePage(meals, 6, 6, "member:2026-03-10");
+
+    expect(firstPage).toHaveLength(6);
+    expect(secondPage).toHaveLength(6);
+    expect(new Set(secondPage.map((meal) => meal.idMeal))).toEqual(new Set(meals.map((meal) => meal.idMeal)));
+    expect(secondPage.map((meal) => meal.idMeal)).not.toEqual(firstPage.map((meal) => meal.idMeal));
   });
 });
 

@@ -837,6 +837,28 @@ export function stableRecipeRotation(meals: Meal[], seed: string): Meal[] {
   });
 }
 
+/**
+ * Discover is a browse surface rather than a finite search result. The
+ * provider's category catalog is finite, so after the first pass we cycle the
+ * same pool in a different deterministic order instead of returning a hard
+ * terminal cursor. This keeps scrolling continuous without random reshuffles
+ * between requests or moving recipes within an active page.
+ */
+export function infiniteRecipePage(meals: Meal[], offset: number, limit: number, seed: string): Meal[] {
+  if (meals.length === 0 || limit <= 0) return [];
+  const safeOffset = Math.max(0, Math.floor(offset));
+  const safeLimit = Math.max(1, Math.floor(limit));
+  return Array.from({ length: safeLimit }, (_, index) => {
+    const absoluteIndex = safeOffset + index;
+    const cycle = Math.floor(absoluteIndex / meals.length);
+    const position = absoluteIndex % meals.length;
+    const ordered = cycle === 0
+      ? meals
+      : stableRecipeRotation(meals, `${seed}:cycle:${cycle}`);
+    return ordered[position]!;
+  });
+}
+
 export async function recipeRotationSeed(req: Request): Promise<string> {
   let accountId = "guest";
   try {
@@ -885,11 +907,12 @@ router.get("/v1/recipes", async (req, res) => {
     // Search/filter endpoints already return provider-ranked results. Rotation
     // is only for the default For You pool, where there is no relevance order
     // to preserve.
-    const rotatedMeals = !query && !category
-      ? stableRecipeRotation(meals, await recipeRotationSeed(req))
+    const rotationSeed = await recipeRotationSeed(req);
+    const discoverMeals = !query && !category
+      ? stableRecipeRotation(meals, rotationSeed)
       : meals;
-    const page = rotatedMeals.slice(offset, offset + limit);
-    const nextOffset = offset + page.length < rotatedMeals.length ? offset + page.length : null;
+    const page = infiniteRecipePage(discoverMeals, offset, limit, `${rotationSeed}:${query}:${category}`);
+    const nextOffset = page.length > 0 ? offset + page.length : null;
     const recipes = page.map((meal) => {
       const recipe = toRecipe(meal);
       // Attach any L1-cached estimate so the card can show ~kcal without
@@ -905,7 +928,7 @@ router.get("/v1/recipes", async (req, res) => {
       recipes,
       warmupPending,
       nextOffset,
-      terminalReason: nextOffset === null ? "No more recipes are available for this query." : null,
+      terminalReason: nextOffset === null ? "No recipes are available for this query." : null,
     });
   } catch {
     res.status(502).json({ message: "Recipe provider unavailable. Please try again shortly." });

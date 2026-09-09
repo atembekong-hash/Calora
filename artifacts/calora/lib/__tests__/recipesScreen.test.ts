@@ -156,6 +156,12 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('testID="discover-recipe-pagination-terminal"');
   });
 
+  it('keeps Discover loading after a provider page cycle instead of deduplicating into exhaustion', () => {
+    expect(source).toContain('return [...current, ...page];');
+    expect(source).toContain('visibleRemote.map((recipe, index)');
+    expect(source).toContain('key={`${recipe.id}-${index}`}');
+  });
+
   it('keeps every recipe submenu inside a bounded vertical scroll viewport', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
