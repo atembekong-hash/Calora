@@ -23,6 +23,9 @@ jobs:
       CAPTURE_ROLLBACK_REQUIRE_DATABASE: "true"
       RECOVERY_WARNING_SUPPRESSION_REQUIRE_DATABASE: "true"
       RECOVERY_SUMMARY_ROLLING_RESTART_REQUIRE_DATABASE: "true"
+      AI_INTEGRATIONS_OPENAI_BASE_URL: http://127.0.0.1:9
+      AI_INTEGRATIONS_OPENAI_API_KEY: calora-ci-placeholder
+      DEFAULT_OBJECT_STORAGE_BUCKET_ID: calora-mandatory-ci
       NODE_ENV: test
       CI_LOG_DIR: ${{ github.workspace }}/.ci/calora-mandatory-ci/logs
       CI_ARTIFACT_DIR: ${{ github.workspace }}/.ci/calora-mandatory-ci/artifacts
