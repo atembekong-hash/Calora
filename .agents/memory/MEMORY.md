@@ -61,6 +61,7 @@
 - [Maestro native validation](maestro-native-validation.md) — Maestro 1.40 uses native host tooling for exact booted device IDs; no `maestro devices` command.
 - [Encrypted recovery smoke gate](encrypted-recovery-smoke-gate.md) — native recovery gates should drive the real SecureStore adapter and capture encrypted export in-app, not depend on OS share sheets.
 - [Expo monorepo config](expo-monorepo-config.md) — Expo 54 expects build properties in the plugin and Metro defaults preserved while adding the workspace root.
+- [Expo plist parser compatibility](expo-plist-xmldom-compatibility.md) — keep Expo 54's @expo/plist on xmldom 0.8.x; xmldom 0.9.x rejects its omitted MIME argument.
 - [Notification inbox](notification-inbox.md) — local reminder delivery feeds an account-scoped in-app inbox with deduplication and explicit read/clear states.
 - [Onboarding resumption and review](onboarding-resumption.md) — incomplete setup resumes from bounded local progress; completed users review saved values without a destructive reset.
 - [Native notification account lifecycle](native-notification-account-lifecycle.md) — device-wide schedules must be serialized so only the hydrated active account owns Calora reminders.
