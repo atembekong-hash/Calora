@@ -33,6 +33,21 @@ test('accepts active App Store credentials with future expirations', () => {
   });
 });
 
+test('accepts the lowercase active status returned by the EAS credentials API', () => {
+  const result = evaluateCredentialReadiness(
+    validCredentials({
+      provisioningProfile: {
+        expiration: '2027-01-01T00:00:00.000Z',
+        status: 'active',
+      },
+    }),
+    now,
+  );
+
+  assert.equal(result.ready, true);
+  assert.equal(result.failureClass, undefined);
+});
+
 test('warns separately for each signing credential inside the expiration window', () => {
   const result = evaluateCredentialExpiryRisk(
     validCredentials({
