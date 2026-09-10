@@ -1,0 +1,8 @@
+.gitignore
+
+# The workspace security override supplies Metro's image-size implementation
+# from this tracked vendor package. Keep its compiled runtime in EAS archives
+# even though the repository's general dist rule excludes other build output.
+!vendor/image-size/
+!vendor/image-size/dist/
+!vendor/image-size/dist/**
