@@ -1,4 +1,12 @@
-.gitignore
+#!include:.gitignore
+
+# Keep workspace metadata, caches, and installed dependencies out of the
+# production archive even when EAS evaluates this file independently.
+.git/
+.cache/
+.local/
+node_modules/
+**/node_modules/
 
 # The workspace security override supplies Metro's image-size implementation
 # from this tracked vendor package. Keep its compiled runtime in EAS archives
