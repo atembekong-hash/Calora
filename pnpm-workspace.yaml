@@ -85,8 +85,10 @@ overrides:
   # Fix Express/body-parser query parsing and navigation URL decoding advisories.
   qs: "6.16.0"
   "decode-uri-component": "0.5.0"
-  # Keep Expo's plist consumers on the patched xmldom release.
+  # Keep general XML consumers on the patched xmldom release.
   "@xmldom/xmldom": "0.9.12"
+  # Expo SDK 54's @expo/plist 0.4.9 omits the MIME argument that xmldom 0.9.x requires.
+  "@expo/plist>@xmldom/xmldom": "0.8.15"
   # xcode only uses uuid's v4 API; keep its build-time transitive copy patched.
   uuid: "11.1.1"
   "js-yaml@4.3.0": "4.3.1"
