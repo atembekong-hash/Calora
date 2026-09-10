@@ -191,12 +191,17 @@ if (configuredMaxAgeSeconds !== undefined) {
 async function createPublicVerifierFixture() {
   const root = await mkdtemp(join(tmpdir(), "calora-public-release-"));
   const scriptsDirectory = join(root, "scripts");
+  const scriptsLibDirectory = join(scriptsDirectory, "lib");
   const verifierDirectory = join(root, "artifacts/api-server/scripts");
-  await mkdir(scriptsDirectory, { recursive: true });
+  await mkdir(scriptsLibDirectory, { recursive: true });
   await mkdir(verifierDirectory, { recursive: true });
   await cp(
     monitorPath,
     join(scriptsDirectory, "monitor-native-associations.mjs"),
+  );
+  await cp(
+    join(workspaceRoot, "scripts/lib/public-release-attestation.mjs"),
+    join(scriptsLibDirectory, "public-release-attestation.mjs"),
   );
   const verifierPath = join(verifierDirectory, "verify-public-release.mjs");
   await cp(publicVerifierPath, verifierPath);
@@ -219,12 +224,15 @@ function publicVerifierSource(verifierPath) {
   return `
 const teamId = ${JSON.stringify(teamId)};
 const fingerprint = ${JSON.stringify(fingerprint)};
+const expectedSourceTree = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-function jsonResponse(body, headers = {}) {
-  return new Response(JSON.stringify(body), {
+function jsonResponse(body, headers = {}, url = "https://example.test/api/version") {
+  const response = new Response(JSON.stringify(body), {
     status: 200,
     headers: { "content-type": "application/json", ...headers },
   });
+  Object.defineProperty(response, "url", { value: url });
+  return response;
 }
 
 globalThis.fetch = async (url) => {
@@ -253,19 +261,38 @@ globalThis.fetch = async (url) => {
     ],
     maxAge: "86401s",
   };
-  const releasePage = \`<h1>Calora</h1>
-Privacy Policy Terms of Use Help & Support Delete your account
-Subscription Information support@mycaloraapp.com
-<link rel="canonical" href="https://example.test/">\`;
+  const releasePage = (canonicalPath) => \`<h1>Calora</h1>
+Privacy Policy Terms of Use Help & Support Contact Calora Delete your account
+Subscription Information Calora Help support@mycaloraapp.com
+<link rel="canonical" href="https://example.test\${canonicalPath}">\`;
 
-  if (value === "https://example.test/api/version") {
-    return jsonResponse({ sourceTree: "fixture-tree", releaseId: "fixture-release" });
+    if (value === "https://example.test/api/version") {
+      return jsonResponse(
+        {
+          schemaVersion: "calora.release-attestation.v1",
+          gitCommit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          sourceTree: expectedSourceTree,
+          sourceDigest: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          buildTimestamp: "2026-09-09T00:00:00.000Z",
+          releaseId: "calora-api-aaaaaaaaaaaa-20260909000000",
+        },
+        {},
+        value,
+      );
   }
   if (value === "https://example.test/api") {
-    return jsonResponse({ status: "ok" });
+      return jsonResponse({ status: "ok" }, {}, value);
   }
   if (value.startsWith("https://example.test/api/legal/")) {
-    return new Response(releasePage, {
+    return new Response(releasePage("/"), {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+  }
+  if (value.startsWith("https://example.test/")) {
+    const requestedPath = new URL(value).pathname;
+    const canonicalPath = requestedPath === "/help" ? "/support" : requestedPath;
+    return new Response(releasePage(canonicalPath), {
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8" },
     });
@@ -370,7 +397,8 @@ test("public release verifier prints safe default fallback for invalid and out-o
         env: {
           PUBLIC_VERIFY_ORIGIN: "https://example.test",
           PUBLIC_CANONICAL_ORIGIN: "https://example.test",
-          PUBLIC_VERIFY_EXPECTED_SOURCE_TREE: "fixture-tree",
+          PUBLIC_VERIFY_EXPECTED_SOURCE_TREE:
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           NATIVE_ASSOCIATION_FRESHNESS_MAX_AGE_SECONDS: freshnessValue,
           APPLE_TEAM_ID: teamId,
           ANDROID_SHA256_FINGERPRINT: fingerprint,

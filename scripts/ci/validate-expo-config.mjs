@@ -30,11 +30,18 @@ const hasCallbackFilter = androidFilters.some((filter) =>
     (entry) =>
       entry.scheme === "https" &&
       entry.host === "mycaloraapp.com" &&
-      entry.pathPrefix === "/auth/callback",
+      entry.path === "/auth/callback",
   ),
 );
 if (!hasCallbackFilter)
   failures.push("Android auth callback App Link filter is missing");
+
+const routerOrigin = expo?.plugins?.find(
+  (plugin) => Array.isArray(plugin) && plugin[0] === "expo-router",
+)?.[1]?.origin;
+if (routerOrigin !== "https://mycaloraapp.com/") {
+  failures.push("Expo Router origin must be https://mycaloraapp.com/");
+}
 
 if (failures.length > 0) {
   throw new Error(
