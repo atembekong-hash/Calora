@@ -19,6 +19,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -29,20 +31,32 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      - name: Link Calora to existing EAS project
+        run: |
+          npx eas-cli init \
+            --id 1f202325-5b9a-426b-978f-abbd3252b9ee \
+            --force \
+            --non-interactive
+
+      - name: Verify EAS project
+        run: npx eas-cli project:info
+
       - name: Create App Store Connect API key
         shell: bash
         env:
           ASC_API_KEY: ${{ secrets.EXPO_ASC_API_KEY }}
+          ASC_KEY_ID: ${{ secrets.EXPO_ASC_KEY_ID }}
         run: |
-          printf '%s' "$ASC_API_KEY" > "$RUNNER_TEMP/AuthKey_${{ secrets.EXPO_ASC_KEY_ID }}.p8"
-          chmod 600 "$RUNNER_TEMP/AuthKey_${{ secrets.EXPO_ASC_KEY_ID }}.p8"
+          mkdir -p "$RUNNER_TEMP/AuthKey"
+          printf '%s' "$ASC_API_KEY" > "$RUNNER_TEMP/AuthKey/AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 "$RUNNER_TEMP/AuthKey/AuthKey_${ASC_KEY_ID}.p8"
 
       - name: Build iOS production app
-        run: eas build --platform ios --profile production --non-interactive --wait
+        run: npx eas-cli build --platform ios --profile production --non-interactive --wait
 
       - name: Submit latest iOS build to TestFlight
         env:
-          EXPO_ASC_API_KEY_PATH: ${{ runner.temp }}/AuthKey_${{ secrets.EXPO_ASC_KEY_ID }}.p8
+          EXPO_ASC_API_KEY_PATH: ${{ runner.temp }}/AuthKey/AuthKey_${{ secrets.EXPO_ASC_KEY_ID }}.p8
           EXPO_ASC_KEY_ID: ${{ secrets.EXPO_ASC_KEY_ID }}
           EXPO_ASC_ISSUER_ID: ${{ secrets.EXPO_ASC_ISSUER_ID }}
-        run: eas submit --platform ios --latest --non-interactive
+        run: npx eas-cli submit --platform ios --latest --non-interactive
