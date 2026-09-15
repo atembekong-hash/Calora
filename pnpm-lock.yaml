@@ -74,6 +74,7 @@ overrides:
   qs: 6.16.0
   decode-uri-component: 0.5.0
   '@xmldom/xmldom': 0.9.12
+  '@expo/plist>@xmldom/xmldom': 0.8.15
   uuid: 11.1.1
   js-yaml@4.3.0: 4.3.1
   nanoid@3.3.16: 3.3.18
@@ -1240,6 +1241,11 @@ packages:
 
   '@bramus/specificity@2.4.2':
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
+    hasBin: true
+
+  '@calora/image-size-safe@file:vendor/image-size':
+    resolution: {directory: vendor/image-size, type: directory}
+    engines: {node: '>=16.x'}
     hasBin: true
 
   '@commander-js/extra-typings@15.0.0':
@@ -2824,6 +2830,10 @@ packages:
   '@vitest/utils@3.2.7':
     resolution: {integrity: sha512-x6BDOd7dyo3PFLY3I9/HJ25X/6OurhGXk2/B9gOZNPF7XDVjeBK4k01lQE5uvDpbuheErh91qYuE1E2OEjK3Rw==}
 
+  '@xmldom/xmldom@0.8.15':
+    resolution: {integrity: sha512-/5NV/vDALVFDXgLmfsy9TRCBlKwO2LNBFzpzvb9iIj+jR+eSc6DLYYvVOdivT/jm7MtU6TebYuRmzEOI7w40UA==}
+    engines: {node: '>=10.0.0'}
+
   '@xmldom/xmldom@0.9.12':
     resolution: {integrity: sha512-5AXjrcMClTryPe9LgZrygpB1lj7s0S9E0+W+AHaVKAVyHanafK86iPSvG5xHVSp/jC+VH1UXu0TAEmY279xH7A==}
     engines: {node: '>=14.6'}
@@ -4260,11 +4270,6 @@ packages:
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
     engines: {node: '>= 4'}
-
-  '@calora/image-size-safe@file:vendor/image-size':
-    resolution: {directory: vendor/image-size, type: directory}
-    engines: {node: '>=16.x'}
-    hasBin: true
 
   imurmurhash@0.1.4:
     resolution: {integrity: sha512-JmXMZ6wuvDmLiHEml9ykzqO6lwFbof0GG4IkcGaENdCRDDmMVnny7s5HsIgHCbaq0w2MyPhDqkhTUgS2LU2PHA==}
@@ -7003,6 +7008,10 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
 
+  '@calora/image-size-safe@file:vendor/image-size':
+    dependencies:
+      queue: 6.0.2
+
   '@commander-js/extra-typings@15.0.0(commander@15.0.0)':
     dependencies:
       commander: 15.0.0
@@ -7390,7 +7399,7 @@ snapshots:
 
   '@expo/plist@0.4.9':
     dependencies:
-      '@xmldom/xmldom': 0.9.12
+      '@xmldom/xmldom': 0.8.15
       base64-js: 1.5.1
       xmlbuilder: 15.1.1
 
@@ -9260,6 +9269,8 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
+  '@xmldom/xmldom@0.8.15': {}
+
   '@xmldom/xmldom@0.9.12': {}
 
   abort-controller@3.0.0:
@@ -10694,10 +10705,6 @@ snapshots:
   ieee754@1.2.1: {}
 
   ignore@5.3.2: {}
-
-  '@calora/image-size-safe@file:vendor/image-size':
-    dependencies:
-      queue: 6.0.2
 
   imurmurhash@0.1.4: {}
 
