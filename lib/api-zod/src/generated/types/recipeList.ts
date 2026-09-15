@@ -12,4 +12,14 @@ export interface RecipeList {
   recipes: Recipe[];
   /** True while the server's background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available. */
   warmupPending?: boolean;
+  /**
+     * Offset for the next page, or null when this is the terminal page.
+     * @nullable
+     */
+  nextOffset?: number | null;
+  /**
+     * Stable human-readable reason included when no next page exists.
+     * @nullable
+     */
+  terminalReason?: string | null;
 }

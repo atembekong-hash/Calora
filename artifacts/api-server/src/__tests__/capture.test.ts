@@ -17,12 +17,22 @@ import request from 'supertest';
 // vi.hoisted ensures this is available inside the vi.mock factory (which
 // is hoisted to the top of the module by vitest).
 // ---------------------------------------------------------------------------
-const { mockRateBuckets, mockInsert, mockTransaction, loggerWarn, loggerError } = vi.hoisted(() => ({
+const {
+  mockRateBuckets,
+  mockInsert,
+  mockTransaction,
+  mockUpdate,
+  mockSelect,
+  loggerWarn,
+  loggerError,
+} = vi.hoisted(() => ({
   mockRateBuckets: new Map<string, { count: number; reset_at: Date }>(),
   mockInsert: vi.fn(),
   mockTransaction: vi.fn(async (callback: (tx: { insert: typeof mockInsert }) => unknown) =>
     callback({ insert: mockInsert }),
   ),
+  mockUpdate: vi.fn(),
+  mockSelect: vi.fn(),
   loggerWarn: vi.fn(),
   loggerError: vi.fn(),
 }));
@@ -68,7 +78,7 @@ vi.mock('@workspace/db', () => {
 
   return {
     pool: { query: mockQuery },
-    db: { insert: mockInsert, transaction: mockTransaction },
+    db: { insert: mockInsert, transaction: mockTransaction, update: mockUpdate, select: mockSelect },
     aiCaptureSessionsTable: {},
     aiCaptureCandidatesTable: {},
   };
@@ -148,6 +158,22 @@ function buildApp() {
   // The capture router handles its own /v1/capture/analyze prefix internally
   app.use(captureRouter);
   return app;
+}
+
+function mockApprovalUpdate(rows: Array<{ id: string }>) {
+  const returning = vi.fn().mockResolvedValue(rows);
+  const where = vi.fn().mockReturnValue({ returning });
+  const set = vi.fn().mockReturnValue({ where });
+  mockUpdate.mockReturnValue({ set });
+  return { set, where, returning };
+}
+
+function mockApprovalSelect(rows: Array<{ status: string }>) {
+  const limit = vi.fn().mockResolvedValue(rows);
+  const where = vi.fn().mockReturnValue({ limit });
+  const from = vi.fn().mockReturnValue({ where });
+  mockSelect.mockReturnValue({ from });
+  return { from, where, limit };
 }
 
 const fenceError = () => ({ code: '55000', message: 'account deletion is in progress' });
@@ -250,12 +276,78 @@ describe('POST /v1/capture/analyze', () => {
       values: vi.fn().mockResolvedValue(undefined),
     });
     mockTransaction.mockClear();
+    mockUpdate.mockReset();
+    mockSelect.mockReset();
     // resetCaptureRateLimiter is async — it issues a DELETE against the
     // (mocked) DB table so the in-memory simulation is cleared before each test.
     await resetCaptureRateLimiter();
     // Default: anonymous (no verified user). Individual tests can override this.
     vi.mocked(verifyBearerToken).mockResolvedValue(null);
     vi.mocked(openai.audio.transcriptions.create).mockResolvedValue({ text: 'test meal' } as any);
+  });
+
+  describe('POST /v1/capture/:sessionId/approve compatibility', () => {
+    const SESSION_ID = '11111111-1111-4111-8111-111111111111';
+
+    it('reaches authentication for an unauthenticated request instead of returning 404', async () => {
+      const res = await request(app)
+        .post(`/v1/capture/${SESSION_ID}/approve`)
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(401);
+      expect(res.body).toEqual({ message: 'Please sign in first.' });
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('approves an authenticated owned review session with a 204 response', async () => {
+      vi.mocked(verifyBearerToken).mockResolvedValue({
+        id: 'capture-user',
+        email: 'capture@example.com',
+      });
+      const query = mockApprovalUpdate([{ id: SESSION_ID }]);
+
+      const res = await request(app)
+        .post(`/v1/capture/${SESSION_ID}/approve`)
+        .set('Authorization', 'Bearer valid-token')
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(204);
+      expect(query.set).toHaveBeenCalledWith({ status: 'approved' });
+      expect(mockSelect).not.toHaveBeenCalled();
+    });
+
+    it('keeps approval idempotent for the same authenticated owner', async () => {
+      vi.mocked(verifyBearerToken).mockResolvedValue({
+        id: 'capture-user',
+        email: 'capture@example.com',
+      });
+      mockApprovalUpdate([]);
+      mockApprovalSelect([{ status: 'approved' }]);
+
+      const res = await request(app)
+        .post(`/v1/capture/${SESSION_ID}/approve`)
+        .set('Authorization', 'Bearer valid-token')
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(204);
+    });
+
+    it('does not expose ownership and state details for an unavailable session', async () => {
+      vi.mocked(verifyBearerToken).mockResolvedValue({
+        id: 'capture-user',
+        email: 'capture@example.com',
+      });
+      mockApprovalUpdate([]);
+      mockApprovalSelect([]);
+
+      const res = await request(app)
+        .post(`/v1/capture/${SESSION_ID}/approve`)
+        .set('Authorization', 'Bearer valid-token')
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(409);
+      expect(res.body).toEqual({ message: 'This capture is unavailable or belongs to another account.' });
+    });
   });
 
   it('returns a generic response and redacted signal for a PostgreSQL fence', async () => {

@@ -16,4 +16,6 @@ export interface PremiumRecipeList {
   recipes: PremiumRecipe[];
   /** @nullable */
   nextOffset?: number | null;
+  /** @nullable */
+  terminalReason?: string | null;
 }

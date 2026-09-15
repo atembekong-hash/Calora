@@ -468,6 +468,8 @@ describe("GET /v1/recipes — nutrition warm-up", () => {
     expect(res.status).toBe(200);
     // warmupPending must be true: the background job fires after the response.
     expect(res.body.warmupPending).toBe(true);
+    expect(res.body.nextOffset).toBe(null);
+    expect(res.body.terminalReason).toBe("No more recipes are available for this query.");
   });
 
   it("does not call OpenAI for the list endpoint itself", async () => {

@@ -277,6 +277,7 @@ describe("Premium recipe routes", () => {
     expect(res.status).toBe(200);
     expect(res.body.recipes).toHaveLength(18);
     expect(res.body.nextOffset).toBe(18);
+    expect(res.body.terminalReason).toBe(null);
   });
 
   it("uses the configured FatSecret gateway before direct credentials", async () => {

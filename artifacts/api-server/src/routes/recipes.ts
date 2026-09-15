@@ -863,7 +863,14 @@ router.get("/v1/recipes", async (req, res) => {
     // Let clients know they should refetch soon if the background warm-up
     // has not yet populated estimates for the first page of results.
     const warmupPending = !warmupDone;
-    res.json({ source: SOURCE, recipes, warmupPending });
+    const nextOffset = offset + recipes.length < meals.length ? offset + recipes.length : null;
+    res.json({
+      source: SOURCE,
+      recipes,
+      warmupPending,
+      nextOffset,
+      terminalReason: nextOffset === null ? "No more recipes are available for this query." : null,
+    });
   } catch {
     res.status(502).json({ message: "Recipe provider unavailable. Please try again shortly." });
   }
