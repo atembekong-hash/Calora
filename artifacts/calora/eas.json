@@ -69,5 +69,14 @@
         "buildType": "apk"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6800321660",
+        "appleTeamId": "B5344GJRMT",
+        "bundleIdentifier": "com.etiendem.caloraapp"
+      }
+    }
   }
 }
