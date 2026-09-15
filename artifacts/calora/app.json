@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.etiendem.caloraapp",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSHealthUpdateUsageDescription": "Calora uses Health data to save your nutrition and activity information to Apple Health when you choose to enable Health integration."
       },
       "associatedDomains": [
         "applinks:calorie-coach-pie35449.replit.app"
