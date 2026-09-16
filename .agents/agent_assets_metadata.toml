@@ -56,3 +56,17 @@ mtime_ms = 1789567679520
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/f1a758da-8eca-42dc-b541-1fda5ee00396/1d651013-be4b-4e9a-b668-c461e1449130"
 storage_version_token = "1789567698169338"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "yQfVaVIOKMd9WnIhaapGY"
+uri = "file://47_CALORA_CANONICAL_IOS_BUILD_5_REPORT.md"
+type = "text"
+title = "Calora Step 47 iOS Build 5 Report"
+description = "Verified report for the single canonical iOS production build 5. The build finished successfully and was not submitted to TestFlight."
+logical_id = "fc79b51d-7021-4c62-814f-4640c774c666"
+content_hash = "sha256:fd6e0aa97e72c5dbc48b6761390c5b408c922a3acf2d6592984a84974fdcc4cc"
+size = 11337
+mtime_ms = 1789593796833
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/fc79b51d-7021-4c62-814f-4640c774c666/8c6fdd5d-bc08-4034-b47e-225b94f9970d"
+storage_version_token = "1789593831360040"
+content_type = "text/markdown"
