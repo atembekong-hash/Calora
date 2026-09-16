@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { access, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -622,6 +630,127 @@ globalThis.fetch = async () => ({
     );
 
     assert.equal(await readFile(reportPath, "utf8"), originalReport);
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test("allows only one simultaneous monitoring rerun to create a complete report", async () => {
+  const fixtureRoot = await mkdtemp(
+    path.join(tmpdir(), "calora-account-deletion-monitor-"),
+  );
+  const logPath = path.join(fixtureRoot, "monitor.ndjson");
+  const reportPath = path.join(fixtureRoot, "report.json");
+  const preloadPath = path.join(fixtureRoot, "concurrent-release.mjs");
+  const barrierDir = path.join(fixtureRoot, "barrier");
+  const attestation = {
+    schemaVersion: "calora.release-attestation.v1",
+    gitCommit: "a".repeat(40),
+    sourceTree: "b".repeat(40),
+    sourceDigest: "c".repeat(64),
+    buildTimestamp: "2026-09-05T10:14:25.616Z",
+    releaseId: "calora-api-aaaaaaaaaaaa-20260905101425616",
+  };
+
+  await Promise.all([
+    writeFile(
+      logPath,
+      `${JSON.stringify({
+        time: "2026-09-05T10:20:00.000Z",
+        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+        route: "/v1/sync",
+        count: 1,
+      })}\n`,
+    ),
+    writeFile(
+      preloadPath,
+      `
+import { access, writeFile } from "node:fs/promises";
+
+const barrierDir = process.env.CALORA_MONITOR_RACE_BARRIER;
+const monitorId = process.env.CALORA_MONITOR_RACE_ID;
+const readyPath = \`\${barrierDir}/\${monitorId}.ready\`;
+const peerPath = \`\${barrierDir}/\${monitorId === "one" ? "two" : "one"}.ready\`;
+
+await writeFile(readyPath, "ready", { flag: "wx" });
+while (true) {
+  try {
+    await access(peerPath);
+    break;
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
+globalThis.fetch = async () => ({
+  type: "basic",
+  url: "https://example.test/api/version",
+  ok: true,
+  status: 200,
+  json: async () => (${JSON.stringify(attestation)}),
+});
+`,
+      "utf8",
+    ),
+  ]);
+  await mkdir(barrierDir);
+
+  const args = [
+    "--import",
+    preloadPath,
+    monitorPath,
+    "--log-file",
+    logPath,
+    "--release-url",
+    "https://example.test",
+    "--report-file",
+    reportPath,
+    "--require-fence",
+  ];
+
+  try {
+    const outcomes = await Promise.all(
+      ["one", "two"].map(async (monitorId) => {
+        try {
+          const result = await execFileAsync(process.execPath, args, {
+            cwd: workspaceDir,
+            env: {
+              ...process.env,
+              CALORA_MONITOR_RACE_BARRIER: barrierDir,
+              CALORA_MONITOR_RACE_ID: monitorId,
+            },
+          });
+          return { ok: true, ...result };
+        } catch (error) {
+          return {
+            ok: false,
+            code: error.code,
+            stdout: error.stdout,
+            stderr: error.stderr,
+          };
+        }
+      }),
+    );
+
+    const successfulRuns = outcomes.filter(({ ok }) => ok);
+    const rejectedRuns = outcomes.filter(({ ok }) => !ok);
+    assert.equal(successfulRuns.length, 1);
+    assert.equal(rejectedRuns.length, 1);
+    assert.equal(rejectedRuns[0].code, 1);
+    assert.match(
+      `${rejectedRuns[0].stdout}\n${rejectedRuns[0].stderr}`,
+      /Monitoring report path already exists; refusing to overwrite the protected report\. Choose a new --report-file path\./,
+    );
+
+    const reportOutput = await readFile(reportPath, "utf8");
+    const report = JSON.parse(reportOutput);
+    assert.equal(reportOutput, `${JSON.stringify(report)}\n`);
+    assert.equal(report.verified, true);
+    assert.equal(report.deletionFence.eventCount, 1);
+    assert.equal(report.deletionFence.rejectionCount, 1);
+    assert.deepEqual(report.deletionFence.routes, { "/v1/sync": 1 });
+    assert.equal(report.release.releaseId, attestation.releaseId);
+    assert.equal(reportOutput, successfulRuns[0].stdout);
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
   }
