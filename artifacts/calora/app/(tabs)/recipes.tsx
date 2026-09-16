@@ -889,9 +889,14 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     if (!reviewDraft) return;
     updateFoodMemoryDraft(reviewDraft.id, reviewDraft.components.map((item) => item.id === component.id ? component : item));
   };
-  const acceptDraft = () => {
+  const acceptDraft = async () => {
     if (!reviewDraft) return;
-    acceptFoodMemory(reviewDraft.id);
+    try {
+      await acceptFoodMemory(reviewDraft.id, reviewDraft);
+    } catch (error) {
+      // Keep the review open so a transient local-storage failure is retryable.
+      return;
+    }
     setReviewDraftId(null);
     onClose();
   };
@@ -906,7 +911,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   };
 
   // --- Feature 6: smart diary logging (remote recipes) ---
-  const logToDiary = () => {
+  const logToDiary = async () => {
     if (!canLog || !detail) return;
     // Pre-scale the nutrition so eatenFraction=1.0 in the draft equals exactly what the user selected
     const scaled = {
@@ -920,7 +925,11 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     // Pass the draft directly: createRecipeDraft calls setFoodDrafts which is
     // queued and not yet reflected in the foodDrafts closure that
     // acceptFoodMemory reads from. Passing draftOverride bypasses that lookup.
-    acceptFoodMemory(draft.id, draft);
+    try {
+      await acceptFoodMemory(draft.id, draft);
+    } catch {
+      return;
+    }
     setDiaryLogged(true);
     setTimeout(() => { setDiaryVisible(false); setDiaryLogged(false); onClose(); }, 900);
   };

@@ -392,16 +392,24 @@ export default function ScanScreen() {
 
   const acceptDraft = async () => {
     if (!reviewDraft) return;
-    const accepted = acceptFoodMemory(reviewDraft.id);
-    // Authenticated photo/barcode analyses receive a server proof after the
-    // user explicitly accepts the review. Local logging remains available
-    // offline regardless of capture approval.
-    if (accepted && (analysis?.mode === 'food' || analysis?.mode === 'barcode')) {
-      try {
-        await approveCapture(analysis.sessionId);
-      } catch (error) {
-        console.warn('[capture] approval confirmation failed', error);
-      }
+    let accepted;
+    try {
+      // Pass the displayed object directly so a same-turn edit/create cannot
+      // be lost to React's deferred state update.
+      accepted = await acceptFoodMemory(reviewDraft.id, reviewDraft);
+    } catch (error) {
+      Alert.alert('Meal not saved', error instanceof Error ? error.message : 'Your meal could not be saved. Please try again.');
+      return;
+    }
+    // The durable diary outbox is the retry path. Approval is only a
+    // best-effort accelerator and must never block local navigation.
+    if (accepted?.captureSessionId) {
+      void Promise.race([
+        approveCapture(accepted.captureSessionId),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Capture approval timed out.')), 3_000)),
+      ]).catch((error) => {
+        console.warn('[capture] background approval failed; diary sync will retry the durable capture session', error);
+      });
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setAnalysis(null);
