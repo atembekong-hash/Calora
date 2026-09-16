@@ -1,0 +1,1064 @@
+CALORA — STEP 42 CANONICAL IOS PRODUCTION BUILD AND TESTFLIGHT SUBMISSION
+
+OUTPUT REPORT:
+
+42_CALORA_CANONICAL_IOS_TESTFLIGHT_RELEASE_REPORT.md
+
+
+==================================================
+OWNER AUTHORIZATION
+==================================================
+
+Step 41 ended with:
+
+RELEASE GATE VERIFIED — READY FOR OWNER TESTFLIGHT AUTHORIZATION
+
+
+The owner now explicitly AUTHORIZES the controlled iOS production build and
+TestFlight submission described in this Step 42 mission.
+
+
+Verified canonical GitHub main from Step 41:
+
+SHA:
+292d105638bc0316be08cf3763fc46239e05dd42
+
+TREE:
+fc1334da98c36d2db38bc6a1a04daeca34af6860
+
+
+Verified Release validation:
+
+Run ID:
+35123941578
+
+Required check:
+Run release validation suite
+
+Conclusion:
+success
+
+
+The new iOS/TestFlight release MUST be built from this exact canonical source
+identity, unless GitHub main has legitimately advanced and this prompt
+explicitly stops for owner review.
+
+
+AUTHORIZED:
+
+- read-only release preflight;
+- verify canonical GitHub source;
+- verify successful required release check;
+- inspect EAS/App Store/TestFlight state;
+- determine the next valid iOS build number;
+- create only the minimum native version/build-number change if required;
+- validate that change;
+- commit/push that version-only change if required;
+- require the release gate to pass again on the resulting exact SHA;
+- run ONE iOS production EAS build;
+- submit that exact successful build to TestFlight;
+- verify App Store Connect/TestFlight processing state;
+- create the numbered Step 42 report.
+
+
+NOT AUTHORIZED:
+
+- Android build;
+- API deployment;
+- Replit production publish;
+- database changes;
+- migrations;
+- schema changes;
+- application feature changes;
+- UI changes;
+- Planner changes;
+- Coach changes;
+- Recipes changes;
+- Smart Scan changes;
+- auth changes;
+- branch merge;
+- historical branch reconciliation;
+- force push;
+- rebase/reset/history rewriting;
+- App Store production release;
+- external/public TestFlight distribution;
+- duplicate iOS builds;
+- duplicate submissions.
+
+
+==================================================
+MISSION 1 — FREEZE CANONICAL SOURCE
+==================================================
+
+Fetch origin read-only.
+
+Record:
+
+origin/main SHA
+origin/main TREE
+local main SHA
+local main TREE
+ahead/behind
+working-tree status
+
+
+Expected canonical identity:
+
+SHA:
+292d105638bc0316be08cf3763fc46239e05dd42
+
+TREE:
+fc1334da98c36d2db38bc6a1a04daeca34af6860
+
+
+If origin/main has advanced unexpectedly:
+
+STOP.
+
+DO NOT BUILD.
+
+DO NOT SUBMIT.
+
+Final verdict:
+
+TESTFLIGHT RELEASE BLOCKED — CANONICAL MAIN CHANGED
+
+
+==================================================
+MISSION 2 — RECONFIRM RELEASE GATE
+==================================================
+
+For exact canonical SHA:
+
+292d105638bc0316be08cf3763fc46239e05dd42
+
+
+Verify GitHub check:
+
+Run release validation suite
+
+
+Required:
+
+status:
+completed
+
+conclusion:
+success
+
+head SHA:
+292d105638bc0316be08cf3763fc46239e05dd42
+
+
+Also record the corresponding workflow run identity.
+
+
+Do not substitute:
+
+- an older successful check;
+- local tests;
+- Railway status;
+- another workflow.
+
+
+If the exact required check is not successful:
+
+STOP.
+
+Final verdict:
+
+TESTFLIGHT RELEASE BLOCKED — RELEASE GATE NOT VERIFIED
+
+
+==================================================
+MISSION 3 — VERIFY EXPO / EAS PROJECT IDENTITY
+==================================================
+
+Operate ONLY on the Calora Expo project.
+
+Expected project directory:
+
+artifacts/calora
+
+
+Expected identity:
+
+Expo owner:
+vvault07
+
+Expo project:
+Calora
+
+Expo project ID:
+1f202325-5b9a-4260-978f-abbd3252b9ee
+
+iOS bundle identifier:
+com.etiendem.caloraapp
+
+App Store Connect App ID:
+6800321660
+
+Apple Team ID:
+B5344GJRMT
+
+
+Verify these from actual source/EAS configuration before building.
+
+
+STOP if project identity differs unexpectedly.
+
+
+Final verdict:
+
+TESTFLIGHT RELEASE BLOCKED — EXPO OR APPLE IDENTITY MISMATCH
+
+
+==================================================
+MISSION 4 — VERIFY TESTFLIGHT WORKFLOW CONFIGURATION
+==================================================
+
+Inspect:
+
+artifacts/calora/app.json
+artifacts/calora/eas.json
+package configuration
+Expo Router entry
+production build profile
+production submit profile
+
+
+Verify production configuration still contains the expected:
+
+bundle identifier:
+com.etiendem.caloraapp
+
+App Store Connect App ID:
+6800321660
+
+Apple Team:
+B5344GJRMT
+
+
+Verify the previous pnpm/xmldom and archive/image-size remediations remain
+preserved.
+
+Do not rewrite EAS configuration merely for formatting.
+
+
+==================================================
+MISSION 5 — VERIFY CREDENTIAL AVAILABILITY WITHOUT EXPOSURE
+==================================================
+
+Verify required release credentials exist WITHOUT exposing values.
+
+Expected existing credential names may include:
+
+EXPO_TOKEN
+EXPO_ASC_KEY_ID
+EXPO_ASC_ISSUER_ID
+EXPO_ASC_API_KEY
+
+
+Verify availability by metadata/name only.
+
+NEVER:
+
+print credential values;
+echo them;
+write them to report;
+write them into source;
+commit them;
+display private key contents.
+
+
+If required credentials are missing:
+
+STOP.
+
+Final verdict:
+
+TESTFLIGHT RELEASE BLOCKED — REQUIRED CREDENTIAL MISSING
+
+
+==================================================
+MISSION 6 — DETERMINE NEXT IOS BUILD NUMBER
+==================================================
+
+DO NOT assume the next build number.
+
+
+Known historical TestFlight build:
+
+marketing version:
+1.0.0
+
+build number:
+2
+
+
+Query the authoritative available EAS/App Store Connect release state using
+supported authenticated tooling.
+
+
+Determine:
+
+current highest App Store/TestFlight build number for com.etiendem.caloraapp
+
+current configured local iOS build number if applicable
+
+EAS remote version state if applicable
+
+next legally valid build number
+
+
+The new build number MUST be greater than every already-used App Store Connect
+build number for the applicable marketing version.
+
+
+Do not reuse build 2.
+
+Do not blindly assume build 3 if authoritative state says otherwise.
+
+
+Record evidence in sanitized form.
+
+
+==================================================
+MISSION 7 — VERSIONING STRATEGY
+==================================================
+
+Preserve marketing version:
+
+1.0.0
+
+unless App Store Connect/EAS provides a concrete reason that it cannot be
+used.
+
+
+Prefer the existing EAS-supported remote versioning mechanism if the project
+already uses one.
+
+
+Do NOT create an unnecessary source commit merely to increment build number if
+EAS remote version management safely handles it.
+
+
+If source-controlled build number MUST change:
+
+modify ONLY the minimum version/build-number field.
+
+No application/runtime changes.
+
+
+If such a source change is required:
+
+1. validate it;
+2. commit it separately;
+3. push normally;
+4. wait for the exact new canonical SHA release gate;
+5. require:
+   Run release validation suite = success
+6. use that new SHA as the build source.
+
+
+NEVER build a commit whose required release gate has not succeeded.
+
+
+==================================================
+MISSION 8 — PRE-BUILD SOURCE INTEGRITY
+==================================================
+
+Immediately before initiating EAS build, record:
+
+exact git SHA
+exact tree SHA
+branch
+working-tree status
+ahead/behind
+
+
+Required:
+
+branch = main
+local == origin/main
+ahead = 0
+behind = 0
+tracked working tree = clean
+
+
+Confirm no application changes occurred after Step 41.
+
+
+==================================================
+MISSION 9 — PRE-BUILD VALIDATION
+==================================================
+
+Run appropriate release validation against the exact build source.
+
+
+At minimum verify:
+
+pnpm run typecheck
+
+pnpm --filter @workspace/scripts test
+
+Expo config resolution
+
+EAS production profile resolution
+
+bundle identifier
+
+Expo project ID
+
+App Store ID
+
+Apple Team ID
+
+git diff --check
+
+
+Do not proceed if validation fails.
+
+
+Final verdict:
+
+TESTFLIGHT RELEASE BLOCKED — PREBUILD VALIDATION FAILED
+
+
+==================================================
+MISSION 10 — CHECK FOR EXISTING AUTOMATIC IOS BUILD
+==================================================
+
+Before starting an iOS build, inspect:
+
+- GitHub Actions;
+- EAS build history;
+- currently running EAS builds;
+- recent build activity for the exact canonical SHA.
+
+
+Determine whether the Step 42 source SHA already has an iOS production/App Store
+build running or successfully completed.
+
+
+If an equivalent build is already running:
+
+DO NOT START ANOTHER.
+
+Observe it.
+
+
+If an equivalent successful build already exists and is appropriate for this
+release:
+
+verify its provenance and use it rather than rebuilding.
+
+
+Prevent duplicate paid build consumption.
+
+
+==================================================
+MISSION 11 — BUILD PROVENANCE REQUIREMENT
+==================================================
+
+The build must be attributable to the exact verified canonical source.
+
+
+Record:
+
+source SHA
+source TREE
+EAS project ID
+platform
+profile
+marketing version
+build number
+
+
+Do not accept an EAS build if source provenance cannot be established.
+
+
+==================================================
+MISSION 12 — START EXACTLY ONE IOS PRODUCTION BUILD
+==================================================
+
+Only after all gates pass and no equivalent build already exists:
+
+
+Build:
+
+platform:
+iOS
+
+profile:
+production
+
+
+Use the existing supported Calora EAS production configuration.
+
+
+Do not build Android.
+
+
+Do not trigger multiple iOS builds.
+
+
+Record the exact command/workflow mechanism used.
+
+
+==================================================
+MISSION 13 — MONITOR IOS BUILD TO TERMINAL STATE
+==================================================
+
+Wait for the authorized iOS build to reach a terminal state.
+
+
+Record:
+
+EAS build ID
+platform
+profile
+source SHA
+marketing version
+build number
+status
+created time
+started time
+completed time
+artifact identity/URL metadata if safely available
+
+
+If build fails:
+
+DO NOT automatically start another paid build.
+
+Investigate and document the exact failure.
+
+STOP.
+
+
+Final verdict:
+
+IOS BUILD FAILED — NO TESTFLIGHT SUBMISSION
+
+
+==================================================
+MISSION 14 — VERIFY SUCCESSFUL BUILD BEFORE SUBMISSION
+==================================================
+
+Before TestFlight submission, prove:
+
+build status = finished/success
+
+platform = iOS
+
+bundle ID = com.etiendem.caloraapp
+
+correct EAS project
+
+correct canonical SHA
+
+correct marketing version
+
+new valid build number
+
+production profile
+
+
+Do not submit an ambiguous or older build.
+
+
+==================================================
+MISSION 15 — PREVENT `--LATEST` AMBIGUITY
+==================================================
+
+Do NOT blindly use:
+
+eas submit --latest
+
+
+unless the tooling can prove that `latest` resolves to the exact Step 42 build
+ID and no other build could be selected.
+
+
+Prefer submission by explicit build ID or equivalent deterministic reference.
+
+
+The submission must target the exact build verified in Mission 14.
+
+
+==================================================
+MISSION 16 — SUBMIT EXACT BUILD TO TESTFLIGHT
+==================================================
+
+Submit the exact successful Step 42 iOS build to App Store Connect/TestFlight
+using the existing authorized production submit configuration.
+
+
+Record:
+
+EAS submission ID
+EAS build ID
+App Store Connect App ID
+bundle identifier
+marketing version
+build number
+submission status
+submission timestamps
+
+
+Do NOT submit for App Store production review/release.
+
+
+This authorization is TestFlight only.
+
+
+==================================================
+MISSION 17 — MONITOR SUBMISSION
+==================================================
+
+Wait for the EAS submission to reach its available terminal result.
+
+
+Required minimum:
+
+submission accepted/successfully delivered to App Store Connect
+
+
+If submission fails:
+
+DO NOT rebuild automatically.
+
+DO NOT resubmit repeatedly.
+
+Record exact sanitized error and stop.
+
+
+Final verdict:
+
+TESTFLIGHT SUBMISSION FAILED — NO REBUILD AUTHORIZED
+
+
+==================================================
+MISSION 18 — VERIFY APP STORE CONNECT / TESTFLIGHT STATE
+==================================================
+
+Using available authenticated/read-only mechanisms, verify the submitted build
+appears in the expected Calora App Store Connect/TestFlight pipeline.
+
+
+Record if observable:
+
+App:
+caloraapp / Calora
+
+bundle:
+com.etiendem.caloraapp
+
+marketing version:
+1.0.0
+
+new build number
+
+processing state
+
+TestFlight availability state
+
+
+Distinguish clearly:
+
+uploaded
+processing
+ready to test
+testing
+rejected/invalid
+
+
+Do not claim READY TO TEST merely because EAS submission succeeded.
+
+
+==================================================
+MISSION 19 — INTERNAL TESTING ONLY
+==================================================
+
+Expected existing internal group:
+
+Calora Internal Testers
+
+
+Do not create a public/external testing group.
+
+
+If the new build automatically becomes available to the existing internal group,
+record that.
+
+
+If manual assignment is required:
+
+DO NOT alter distribution unless existing configuration already performs it
+automatically.
+
+Record the exact owner action required.
+
+
+==================================================
+MISSION 20 — IOS WEEKLY PROGRAMS FIX PROVENANCE
+==================================================
+
+Confirm the exact source used for the build contains the reconciled:
+
+Weekly Programs deterministic modal transition/state machine
+
+
+This was the iOS issue where:
+
+Plan
+→ gear
+→ Weekly Programs
+→ tapping a program
+
+previously appeared non-responsive due to nested native modal behavior.
+
+
+Confirm source/test provenance only.
+
+
+DO NOT claim physical-device success yet.
+
+
+Device verification happens after the owner installs the new TestFlight build.
+
+
+==================================================
+MISSION 21 — PRESERVE ALL RECONCILED CALORA WORK
+==================================================
+
+Confirm build source preserves:
+
+- durable capture acceptance;
+- Weekly Programs deterministic modal state machine;
+- shared Planner Program pools/eligibility;
+- bounded Coach lifecycle;
+- Coach Fact Context restriction;
+- diary imageAssetKey synchronization;
+- capture compatibility/security;
+- recipe nextOffset;
+- recipe terminalReason;
+- Premium entitlement;
+- PKCE/auth;
+- account isolation;
+- deletion fences;
+- sync ownership;
+- API contracts;
+- release attestation;
+- Expo Router;
+- production EAS configuration;
+- Apple Health privacy configuration;
+- TestFlight configuration.
+
+
+No historical branch merge.
+
+
+==================================================
+MISSION 22 — PRODUCTION API COMPATIBILITY CHECK
+==================================================
+
+IMPORTANT:
+
+DO NOT DEPLOY THE API.
+
+
+Read-only verify that the currently deployed production API remains compatible
+with the new mobile build for the critical existing contracts.
+
+
+At minimum inspect/check:
+
+capture approval compatibility
+recipe nextOffset
+recipe terminalReason
+authentication/session behavior
+sync/diary compatibility
+
+
+The production API was previously deployed separately and must not be changed
+during Step 42.
+
+
+If a critical incompatibility is PROVEN that would make the TestFlight build
+unsafe to test:
+
+STOP BEFORE BUILD if discovered pre-build.
+
+If discovered after build but before submission:
+
+DO NOT SUBMIT.
+
+
+Final verdict:
+
+TESTFLIGHT RELEASE BLOCKED — PRODUCTION API INCOMPATIBLE
+
+
+Do not redeploy the API as part of this mission.
+
+
+==================================================
+MISSION 23 — NO DATABASE CHANGES
+==================================================
+
+Confirm:
+
+database mutation: none
+schema change: none
+migration: none
+seed operation: none
+
+
+Do not run migrations.
+
+
+==================================================
+MISSION 24 — NO ANDROID
+==================================================
+
+Confirm:
+
+Android build: none
+Android submission: none
+Android version change: none
+
+
+This Step 42 mission is iOS/TestFlight only.
+
+
+==================================================
+MISSION 25 — FINAL SOURCE SYNCHRONIZATION
+==================================================
+
+After build/submission activity, fetch origin read-only.
+
+
+Record:
+
+local main SHA
+origin/main SHA
+local TREE
+origin TREE
+ahead/behind
+tracked working-tree status
+
+
+If EAS remote build-number management was used, distinguish that remote
+version state from Git source state.
+
+
+==================================================
+MISSION 26 — OWNER PHYSICAL TEST PLAN
+==================================================
+
+If the new build reaches TestFlight successfully, include this exact owner
+device test plan in the report:
+
+
+TEST 1 — BUILD IDENTITY
+
+Install/update Calora from TestFlight.
+
+Confirm the displayed build number is the new Step 42 build number.
+
+
+TEST 2 — WEEKLY PROGRAMS PRIMARY FIX
+
+Open:
+
+Calora
+→ Plan
+→ gear
+→ Weekly Programs
+
+Tap a program.
+
+Expected:
+
+program detail opens immediately.
+
+
+TEST 3 — MODAL BACK/CLOSE
+
+Close/back from program detail.
+
+Expected:
+
+returns cleanly without stuck overlay or frozen touch state.
+
+
+TEST 4 — SECOND PROGRAM
+
+Select another Weekly Program.
+
+Expected:
+
+detail opens normally again.
+
+
+TEST 5 — APPLY
+
+Tap Apply on a Weekly Program.
+
+Expected:
+
+program applies and the modal closes normally.
+
+
+TEST 6 — INTERMITTENT TOUCH CHECK
+
+Repeat the selector → detail → back → selector → detail flow at least twice.
+
+Expected:
+
+no intermittent unresponsive tap behavior.
+
+
+TEST 7 — CORE SMOKE TEST
+
+Check:
+
+Home
+Recipes
+Smart Scan
+Coach
+Diary/Profile
+auth/session persistence
+
+
+Record owner results later.
+
+Do not fabricate device results in Step 42.
+
+
+==================================================
+MISSION 27 — REPORT SAFETY
+==================================================
+
+The report MUST NOT contain:
+
+EXPO_TOKEN value
+App Store Connect private key
+ASC API key
+GitHub PAT
+GitHub Actions secret values
+Apple private credentials
+authorization headers
+
+
+Credential names/IDs may be recorded only where safe.
+
+
+==================================================
+OUTPUT REPORT
+==================================================
+
+Create:
+
+42_CALORA_CANONICAL_IOS_TESTFLIGHT_RELEASE_REPORT.md
+
+
+The report MUST contain:
+
+1. Executive summary
+2. Starting canonical SHA/tree
+3. Local/origin synchronization
+4. Exact release-gate evidence
+5. Expo project identity
+6. Apple/App Store identity
+7. Production EAS configuration verification
+8. Credential existence verification
+9. Previous TestFlight build state
+10. Authoritative highest iOS build number
+11. Selected next build number and evidence
+12. Versioning strategy
+13. Any source version-change diff
+14. Any version-change commit SHA/tree
+15. Release-gate result for version commit if applicable
+16. Exact final build-source SHA/tree
+17. Pre-build validation results
+18. Duplicate-build check
+19. Production API compatibility check
+20. EAS build command/mechanism
+21. EAS build ID
+22. Build provenance
+23. Build status/timestamps
+24. Marketing version/build number
+25. Bundle identifier
+26. Build artifact metadata
+27. Submission mechanism
+28. EAS submission ID
+29. Submission status/timestamps
+30. App Store Connect/TestFlight observed state
+31. Internal tester/group state if observable
+32. Weekly Programs fix source provenance
+33. Preserved reconciliation features
+34. Database/migration confirmation
+35. Android confirmation
+36. API deployment confirmation
+37. Final Git synchronization
+38. Owner physical iOS test plan
+39. Remaining uncertainties
+40. Exact recommendation for Step 43
+
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+TESTFLIGHT BUILD SUBMITTED — OWNER DEVICE VERIFICATION REQUIRED
+
+TESTFLIGHT BUILD PROCESSING — WAIT FOR APPLE PROCESSING
+
+TESTFLIGHT RELEASE VERIFIED — OWNER DEVICE VERIFICATION REQUIRED
+
+TESTFLIGHT RELEASE BLOCKED — CANONICAL MAIN CHANGED
+
+TESTFLIGHT RELEASE BLOCKED — RELEASE GATE NOT VERIFIED
+
+TESTFLIGHT RELEASE BLOCKED — EXPO OR APPLE IDENTITY MISMATCH
+
+TESTFLIGHT RELEASE BLOCKED — REQUIRED CREDENTIAL MISSING
+
+TESTFLIGHT RELEASE BLOCKED — PREBUILD VALIDATION FAILED
+
+TESTFLIGHT RELEASE BLOCKED — PRODUCTION API INCOMPATIBLE
+
+IOS BUILD FAILED — NO TESTFLIGHT SUBMISSION
+
+TESTFLIGHT SUBMISSION FAILED — NO REBUILD AUTHORIZED
+
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after:
+
+canonical-source verification,
+release-gate verification,
+build-number determination,
+production API compatibility verification,
+ONE iOS production build if needed,
+deterministic submission of that exact build,
+TestFlight/App Store Connect verification,
+and creation of the Step 42 report.
+
+
+DO NOT:
+
+build Android;
+deploy API;
+publish Replit production;
+modify database;
+run migrations;
+submit App Store production release;
+perform physical-device verification on behalf of the owner.
+
+
+Wait for explicit owner Step 43 authorization/device results.
