@@ -1,0 +1,126 @@
+MISSION: RESOLVE DEDICATED PILOT ELIGIBILITY BLOCKER
+
+The controlled single-pilot activation failed safely before mutation.
+
+Current verified state:
+
+PRODUCTION HEALTH: PASS
+ACTIVE PILOTS: 0
+ELIGIBLE ACCOUNTS: 0
+FACT CONTEXT ROLLOUT: OFF
+ACTIVE NONCES: 0
+DENY-ALL: INTACT
+ROLLBACK READY: YES
+
+BLOCKER:
+The dedicated-pilot preflight could not establish exactly one active, unbanned account with the required server-owned pilot metadata.
+
+Your task is to diagnose and resolve ONLY this blocker.
+
+DO NOT activate Contextual Insights yet.
+DO NOT enable the rollout.
+DO NOT enable COACH_FACT_CONTEXT_ENABLED.
+DO NOT add arbitrary users to the pilot.
+DO NOT weaken or bypass eligibility, consent, account-status, metadata, or authorization checks.
+
+STEP 1 — DIAGNOSE
+
+Inspect the existing dedicated pilot configuration and determine exactly why eligibility returned zero.
+
+Verify independently:
+
+- which account is intended to be the dedicated pilot;
+- whether that account actually exists;
+- whether it is active;
+- whether it is unbanned;
+- whether its required server-owned pilot metadata exists;
+- whether that metadata has the exact expected values and schema;
+- whether current Fact Context consent exists;
+- whether consent belongs to the same account;
+- whether consent is current and valid;
+- whether any environment/configuration value identifying the pilot is missing, malformed, stale, or pointing to another account;
+- whether production is querying the correct database/environment;
+- whether account identity differs between auth, profile, pilot metadata, and consent records;
+- whether duplicate, stale, or conflicting pilot records exist.
+
+Trace the eligibility calculation from source data to the final zero-result decision.
+
+Do not guess.
+
+STEP 2 — REPORT ROOT CAUSE
+
+Before changing anything, identify the exact failed predicate or predicates.
+
+Example:
+
+ACCOUNT EXISTS: YES/NO
+ACTIVE: YES/NO
+UNBANNED: YES/NO
+PILOT METADATA VALID: YES/NO
+CONSENT VALID: YES/NO
+IDENTITY MATCH: YES/NO
+PRODUCTION ENVIRONMENT MATCH: YES/NO
+DUPLICATE/CONFLICTING RECORDS: YES/NO
+
+ROOT CAUSE: <precise explanation>
+
+STEP 3 — REPAIR ONLY IF SAFE
+
+If the intended dedicated pilot account can be identified with certainty, make only the minimum required correction needed to establish that account as the dedicated pilot.
+
+Do not weaken validation logic.
+
+Do not fabricate consent.
+
+Do not create consent on behalf of the user if explicit user consent is required.
+
+Do not alter unrelated accounts.
+
+Do not broaden cohort membership.
+
+Do not activate the master rollout.
+
+If valid consent requires a real user interaction, stop and tell me the exact action I must perform.
+
+STEP 4 — RE-RUN PREFLIGHT
+
+After the repair, rerun the complete dedicated-pilot eligibility preflight.
+
+Required result:
+
+DEDICATED PILOT IDENTIFIED: YES
+ACCOUNT ACTIVE: YES
+ACCOUNT UNBANNED: YES
+SERVER-OWNED PILOT METADATA: VALID
+CONSENT: VALID
+ACTIVE PILOTS: 0
+ELIGIBLE DEDICATED PILOT ACCOUNTS: EXACTLY 1
+FACT CONTEXT ROLLOUT: OFF
+ACTIVE NONCES: 0
+PRODUCTION HEALTH: PASS
+DENY-ALL: INTACT
+
+Do not proceed into activation even if everything passes.
+
+Stop after establishing exactly one eligible dedicated pilot.
+
+Update:
+
+docs/contextual-insights/CONTEXTUAL_INSIGHTS_SINGLE_PILOT_ACTIVATION_REPORT.md
+
+with the diagnosis, root cause, any correction performed, and final preflight evidence.
+
+RETURN ONLY:
+
+PILOT BLOCKER RESOLUTION: PASS/FAIL
+ROOT CAUSE: <exact cause>
+DEDICATED PILOT IDENTIFIED: YES/NO
+ACCOUNT ACTIVE: YES/NO
+ACCOUNT UNBANNED: YES/NO
+PILOT METADATA: VALID/INVALID
+CONSENT: VALID/INVALID
+ELIGIBLE DEDICATED PILOTS: <number>
+FACT CONTEXT ROLLOUT: ON/OFF
+PRODUCTION HEALTH: PASS/FAIL
+HUMAN ACTION REQUIRED: NONE/<exact action>
+READY TO RETRY SINGLE-PILOT ACTIVATION: YES/NO

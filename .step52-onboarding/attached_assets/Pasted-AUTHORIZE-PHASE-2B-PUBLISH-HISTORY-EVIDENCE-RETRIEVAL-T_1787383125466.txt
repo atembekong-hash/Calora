@@ -1,0 +1,126 @@
+AUTHORIZE PHASE 2B PUBLISH-HISTORY EVIDENCE RETRIEVAL
+
+The Migration Governance Review is accepted.
+
+The missing __drizzle_migrations table is no longer considered a deployment defect. Replit's supported production mechanism is managed Publish-time schema diffing, and the production Phase 2B schema has already been verified as structurally correct. 
+
+The only remaining migration-governance gap is the absence of an immutable platform-issued Publish history/build record linking the reviewed production deployment to commit:
+
+a85b0b36e0c6b246b48388431ac3e7e76f824405
+
+Mission
+
+Retrieve the existing Replit Publish history evidence for the production deployment that introduced the Phase 2B schema.
+
+Do not republish.
+
+Do not modify production.
+
+Do not rerun migrations.
+
+Do not create a manual migration journal.
+
+Do not alter any Phase 2B table.
+
+Required evidence
+
+Retrieve, where available:
+
+deployment/build ID;
+
+Publish timestamp;
+
+deployed revision or commit SHA;
+
+application/deployment name;
+
+deployment status;
+
+schema-diff or database-change record;
+
+build/publish history entry;
+
+any immutable platform metadata tying the deployment to the reviewed repository revision.
+
+
+Use Replit's supported deployment/publishing history and platform metadata.
+
+If the exact commit SHA is not exposed, capture the strongest available immutable linkage and clearly state its limitation.
+
+Reconcile against known evidence
+
+Compare the retrieved Publish record with:
+
+authorized commit a85b0b36e0c6b246b48388431ac3e7e76f824405;
+
+the known Publish event;
+
+the verified production schema fingerprint:
+
+
+13931375fbf1f6b2ec5a3efef31e2c07
+
+the four confirmed Phase 2B production tables;
+
+the current production dark state.
+
+
+Do not infer a commit match merely from timing if the platform record does not actually expose revision identity.
+
+Update the governance evidence
+
+Append the retrieved platform evidence to:
+
+docs/CALORA_COACH_FACT_CONTEXT_MIGRATION_GOVERNANCE_REVIEW.md
+
+and create:
+
+docs/CALORA_COACH_FACT_CONTEXT_PUBLISH_HISTORY_EVIDENCE.md
+
+Include:
+
+1. exact Publish-history record;
+
+
+2. deployment/build identity;
+
+
+3. timestamp;
+
+
+4. deployed revision/commit if exposed;
+
+
+5. production application identity;
+
+
+6. relation to authorized commit;
+
+
+7. relation to production schema fingerprint;
+
+
+8. remaining evidence limitation, if any;
+
+
+9. final dark-state confirmation.
+
+
+
+Decision
+
+End with exactly one:
+
+PUBLISH EVIDENCE VERDICT: VERIFIED — MIGRATION GOVERNANCE BLOCKER CLOSED
+
+PUBLISH EVIDENCE VERDICT: PARTIAL — ADDITIONAL PLATFORM EVIDENCE REQUIRED
+
+PUBLISH EVIDENCE VERDICT: NOT VERIFIABLE
+
+If VERIFIED, state that the system is ready for separate non-production synthetic rehearsal authorization.
+
+If PARTIAL or NOT VERIFIABLE, identify only the smallest next evidence action.
+
+Save the report and STOP.
+
+Do not activate Fact Context and do not perform the synthetic rehearsal yet

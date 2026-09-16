@@ -1,0 +1,718 @@
+CALORA INTELLIGENCE — PHASE 2A.0
+
+Progress Intelligence Real-Device Validation & Release Gate
+
+Mission
+
+Validate the existing Progress Contextual Intelligence card under realistic native-device conditions before authorizing any further visible Intelligence rollout.
+
+This is a validation and hardening mission.
+
+It is not permission to expand Contextual Intelligence.
+
+The Progress overview is currently the only authorized visible Intelligence surface.
+
+The existing architecture must remain:
+
+Current authenticated account
+        ↓
+Account-isolated local state
+        ↓
+Intelligence Foundation
+        ↓
+Deterministic transient selector
+        ↓
+Delivery gate
+        ↓
+ONE eligible Progress insight
+
+No persistent Intelligence storage.
+
+No Intelligence API.
+
+No Coach integration.
+
+No Today Intelligence.
+
+No post-log Intelligence.
+
+No proactive Intelligence.
+
+---
+
+1. ABSOLUTE SCOPE RULE
+
+Do not implement anything outside the explicit mission, even if you independently determine it would be safe, useful, or beneficial.
+
+If you discover a desirable improvement outside this mission:
+
+1. document it;
+2. classify its importance;
+3. recommend it in the final report;
+4. DO NOT implement it.
+
+Do not independently authorize additional Intelligence surfaces.
+
+---
+
+2. ESTABLISHED BASELINE
+
+Preserve the Phase 1.9 architecture.
+
+The existing selector:
+
+- consumes Foundation facts only;
+- is deterministic;
+- returns at most one structured result;
+- requires acceptable confidence;
+- requires fresh facts;
+- rejects incompatible source watermarks;
+- performs no network request;
+- performs no persistence;
+- performs no logging of sensitive insight content.
+
+The currently enabled visible flag is:
+
+intelligence.insights.progress = ON
+
+Keep these OFF:
+
+intelligence.facts.server_adapter = OFF
+intelligence.insights.today = OFF
+intelligence.insights.post_log = OFF
+intelligence.coach.fact_context = OFF
+intelligence.feedback = OFF
+intelligence.proactive = OFF
+
+Do not change those states.
+
+---
+
+3. FIRST STEP — VERIFY IMPLEMENTATION BEFORE TESTING
+
+Before device testing, inspect the actual Progress integration.
+
+Confirm:
+
+- where the card is mounted;
+- which Foundation facts it receives;
+- which delivery gate controls it;
+- that no duplicate selector exists;
+- that no raw state bypasses the Foundation;
+- that the card cannot persist;
+- that the card cannot trigger network activity;
+- that no account-specific result is retained in React state or global context.
+
+If the implementation differs materially from the Phase 1.9 report, stop and report the discrepancy.
+
+---
+
+4. NATIVE TEST ENVIRONMENT
+
+Perform the strongest real-device/native validation available in the current environment.
+
+Record exactly which environment was used:
+
+PHYSICAL ANDROID DEVICE
+PHYSICAL IOS DEVICE
+ANDROID EMULATOR
+IOS SIMULATOR
+EXPO GO
+DEVELOPMENT BUILD
+OTHER
+
+Do not call browser preview a native-device test.
+
+Do not claim physical-device validation if only an emulator/simulator was used.
+
+If Replit cannot directly execute a required physical-device test, create the exact manual validation procedure and mark that test:
+
+REQUIRES MANUAL DEVICE VALIDATION
+
+Do not fabricate results.
+
+---
+
+5. TEST A — ELIGIBLE INSIGHT
+
+Create or use safe representative local test data that should produce a valid high/medium-confidence Progress insight.
+
+Verify:
+
+- Progress opens normally;
+- exactly one eligible insight appears;
+- insight content corresponds to Foundation facts;
+- title/message are understandable;
+- no raw evidence identifiers appear;
+- no account ID appears;
+- no food-log ID appears;
+- no internal diagnostic information appears;
+- card layout works correctly.
+
+Record the exact insight category generated.
+
+---
+
+6. TEST B — NO DATA
+
+Test a new/empty account state.
+
+Expected behavior:
+
+No misleading contextual card.
+
+Verify the selector does not invent a nutrition assessment.
+
+Document whether the result is:
+
+no_insight
+insufficient_data
+
+or another approved inactive state.
+
+---
+
+7. TEST C — LOW CONFIDENCE
+
+Construct a valid low-confidence scenario.
+
+Verify:
+
+- no active Progress insight is displayed when the delivery rules prohibit it;
+- the UI does not substitute a stronger claim;
+- existing Progress content remains usable.
+
+---
+
+8. TEST D — STALE DATA
+
+Construct or simulate stale Foundation facts.
+
+Verify:
+
+- stale insight is not displayed;
+- old insight disappears rather than remaining visually cached;
+- Progress itself remains functional.
+
+---
+
+9. TEST E — MIXED WATERMARKS
+
+Provide facts with incompatible source watermarks.
+
+Verify:
+
+- no active insight is delivered;
+- selector/delivery gate fails closed;
+- no previously eligible card remains visible.
+
+---
+
+10. TEST F — LIVE RECOMPUTATION
+
+Start with an eligible Progress insight.
+
+Then change relevant Calora state through normal application behavior.
+
+Examples:
+
+- add food;
+- edit food;
+- delete food;
+- change relevant target where supported.
+
+Verify:
+
+old facts
+↓
+state change
+↓
+new Foundation facts
+↓
+selector recomputes
+↓
+old insight disappears or changes
+
+No stale insight may remain.
+
+---
+
+11. TEST G — ACCOUNT SWITCH
+
+This is a critical release gate.
+
+Scenario:
+
+USER_A
+→ eligible Progress insight visible
+
+SIGN OUT
+
+USER_B
+→ different or empty state
+
+Verify:
+
+- USER_A insight disappears during scope reset;
+- USER_A insight does not flash after USER_B becomes active;
+- USER_B receives only USER_B-derived output;
+- no USER_A title/message remains;
+- no USER_A local state appears anywhere on Progress.
+
+Then switch back to USER_A.
+
+Verify USER_A insight is recomputed only after USER_A state hydrates.
+
+---
+
+12. TEST H — SIGN-OUT
+
+While an insight is visible:
+
+Sign out.
+
+Verify:
+
+- card disappears immediately with account scope reset;
+- signed-out/onboarding state contains no previous insight;
+- no previous nutrition information flashes during transition;
+- no network request attempts to preserve the insight.
+
+---
+
+13. TEST I — APP RESTART
+
+Test:
+
+USER_A signed in
+→ eligible insight
+→ close app
+→ restart
+
+Verify:
+
+- account-local state hydrates;
+- insight is recomputed from current Foundation facts;
+- the previous insight itself was not persisted;
+- no card appears before hydration is safe.
+
+Repeat where practical with USER_B.
+
+---
+
+14. TEST J — OFFLINE
+
+Disable network connectivity after the authenticated local state is available.
+
+Open Progress.
+
+Verify:
+
+- eligible transient insight can still compute locally;
+- selector makes no network request;
+- Progress does not become dependent on Intelligence network availability;
+- existing offline Calora behavior remains intact.
+
+Do not alter authentication behavior merely to manufacture an offline test.
+
+---
+
+15. TEST K — PERFORMANCE
+
+Measure, where tooling allows:
+
+- Progress render with flag OFF;
+- Progress render with flag ON;
+- Foundation snapshot generation;
+- selector execution;
+- delivery-gate evaluation.
+
+Report actual measurements.
+
+Distinguish:
+
+NODE/VITEST
+EMULATOR
+SIMULATOR
+PHYSICAL DEVICE
+
+Do not convert development-machine measurements into claimed phone performance.
+
+Look for:
+
+- visible jank;
+- delayed Progress rendering;
+- unnecessary repeated computation;
+- excessive re-renders;
+- blocking work.
+
+---
+
+16. TEST L — RESPONSIVE UI
+
+Validate the card at representative device sizes.
+
+Check:
+
+- narrow Android screen;
+- larger Android screen;
+- representative iPhone size where available;
+- large accessibility text;
+- light mode;
+- dark mode.
+
+Verify:
+
+- no clipped text;
+- no horizontal overflow;
+- no overlap;
+- no broken spacing;
+- no card collision with existing Progress content;
+- no unusable truncation.
+
+Do not redesign Progress.
+
+Fix only defects caused by the Intelligence integration if required.
+
+---
+
+17. TEST M — ACCESSIBILITY
+
+Validate:
+
+- VoiceOver where available;
+- TalkBack where available;
+- screen-reader label;
+- reading order;
+- large text;
+- contrast;
+- informational nature of the card.
+
+The accessible content should convey the same meaning as the visible title/message.
+
+Do not expose internal evidence metadata through accessibility labels.
+
+If real VoiceOver/TalkBack testing cannot be executed, mark:
+
+REQUIRES MANUAL ACCESSIBILITY VALIDATION
+
+and provide exact steps.
+
+---
+
+18. TEST N — FAILURE CONTAINMENT
+
+Intentionally make the Intelligence path unavailable or invalid in a safe test environment.
+
+Verify:
+
+- Progress still renders;
+- navigation still works;
+- no crash;
+- no blank screen;
+- no infinite spinner;
+- no blocking retry loop;
+- existing Progress functionality remains available.
+
+Intelligence must remain optional.
+
+---
+
+19. TEST O — PRIVACY INSPECTION
+
+While the Progress card is operating, inspect:
+
+- network activity;
+- storage writes;
+- console logs;
+- analytics;
+- React Query;
+- Coach history;
+- living memory.
+
+Verify the insight is absent from all persistent/external channels.
+
+The card should exist only as transient render output.
+
+---
+
+20. TEST P — FEATURE-FLAG KILL SWITCH
+
+Set:
+
+intelligence.insights.progress = OFF
+
+in the appropriate controlled test environment.
+
+Verify:
+
+- card disappears;
+- Progress otherwise behaves identically;
+- no selector output is delivered visibly;
+- no migration or cleanup is required.
+
+Restore the approved development configuration afterward.
+
+Do not alter production configuration unless explicitly authorized.
+
+---
+
+21. CONTENT QUALITY REVIEW
+
+Review every currently supported Progress insight category.
+
+Check for language that could be:
+
+- judgmental;
+- diagnostic;
+- causal without evidence;
+- medically prescriptive;
+- falsely precise;
+- misleading about incomplete logs.
+
+Preserve factual language.
+
+For example, distinguish:
+
+No breakfast logged
+
+from:
+
+You skipped breakfast
+
+Do not infer behavior that Calora did not observe.
+
+Any wording correction must remain deterministic and within the existing selector scope.
+
+---
+
+22. REGRESSION TESTS
+
+Run:
+
+pnpm --filter @workspace/calora run typecheck
+pnpm --filter @workspace/calora test
+pnpm --filter @workspace/api-server run typecheck
+pnpm --filter @workspace/api-server test
+
+Also run the relevant:
+
+- account-isolation tests;
+- selector tests;
+- Foundation tests;
+- Progress integration tests;
+- no-network tests;
+- no-persistence tests;
+- account-switch tests;
+- accessibility/static tests where available.
+
+Record exact results.
+
+---
+
+23. DEFECT POLICY
+
+If validation finds a defect directly caused by the existing Progress Intelligence implementation:
+
+You may fix it only when:
+
+- the fix is narrowly scoped;
+- it does not expand functionality;
+- it does not create another Intelligence surface;
+- it preserves the established architecture.
+
+After fixing it, rerun the affected validation.
+
+For anything outside this scope:
+
+REPORT, DO NOT IMPLEMENT.
+
+---
+
+24. ACCEPTANCE MATRIX
+
+Evaluate:
+
+Eligible insight delivery
+
+"PASS / PARTIAL / FAIL"
+
+No-data behavior
+
+"PASS / PARTIAL / FAIL"
+
+Low-confidence suppression
+
+"PASS / PARTIAL / FAIL"
+
+Stale-data suppression
+
+"PASS / PARTIAL / FAIL"
+
+Watermark consistency
+
+"PASS / PARTIAL / FAIL"
+
+Live recomputation
+
+"PASS / PARTIAL / FAIL"
+
+Sign-out safety
+
+"PASS / PARTIAL / FAIL"
+
+Account-switch safety
+
+"PASS / PARTIAL / FAIL"
+
+Restart/hydration safety
+
+"PASS / PARTIAL / FAIL"
+
+Offline behavior
+
+"PASS / PARTIAL / FAIL"
+
+No persistence
+
+"PASS / FAIL"
+
+No network
+
+"PASS / FAIL"
+
+Accessibility
+
+"PASS / PARTIAL / REQUIRES MANUAL VALIDATION / FAIL"
+
+Responsive layout
+
+"PASS / PARTIAL / FAIL"
+
+Performance
+
+"PASS / PARTIAL / NOT MEASURABLE / FAIL"
+
+Failure containment
+
+"PASS / PARTIAL / FAIL"
+
+Feature-flag rollback
+
+"PASS / FAIL"
+
+Regression suite
+
+"PASS / FAIL"
+
+Progress Intelligence production readiness
+
+"APPROVE / APPROVE WITH CONDITIONS / DO NOT APPROVE"
+
+Phase 2A expansion readiness
+
+"APPROVE / APPROVE WITH CONDITIONS / DO NOT APPROVE"
+
+---
+
+25. PRODUCTION APPROVAL STANDARD
+
+Do not recommend production publication of Progress Intelligence unless:
+
+1. eligible data produces the correct insight;
+2. insufficient data produces no misleading insight;
+3. stale and low-confidence facts are suppressed;
+4. account switching cannot leak previous-user output;
+5. sign-out removes the card safely;
+6. hydration cannot flash stale output;
+7. selector remains network-free;
+8. selector remains persistence-free;
+9. Progress remains usable if Intelligence fails;
+10. feature flag can disable delivery cleanly;
+11. regressions remain green.
+
+If native accessibility cannot be executed automatically, production approval may be conditional on manual VoiceOver/TalkBack validation.
+
+---
+
+26. PHASE 2A EXPANSION
+
+Do not implement Today Intelligence.
+
+Do not implement post-log Intelligence.
+
+Do not modify Coach.
+
+If Progress validation succeeds, the report may recommend the next controlled Phase 2A surface.
+
+Recommendation only.
+
+No implementation.
+
+---
+
+27. AUTOMATIC REPORT REQUIREMENT
+
+This is mandatory.
+
+When Phase 2A.0 validation is complete, automatically create and save:
+
+"docs/CALORA_INTELLIGENCE_PHASE_2A_0_PROGRESS_DEVICE_VALIDATION_REPORT.md"
+
+Do not wait for me to request it.
+
+The report must include:
+
+1. Executive verdict
+2. Environment/device matrix
+3. Exact Progress integration reviewed
+4. Eligible-insight results
+5. No-data results
+6. Low-confidence results
+7. Stale-data results
+8. Mixed-watermark results
+9. Live recomputation results
+10. Sign-out results
+11. USER_A → USER_B results
+12. Restart/hydration results
+13. Offline results
+14. Performance results
+15. Responsive-layout results
+16. Accessibility results
+17. Failure-containment results
+18. Privacy/no-persistence/no-network proof
+19. Feature-flag rollback result
+20. Content-quality review
+21. Defects found
+22. Defects fixed
+23. Files changed
+24. Exact test commands
+25. Test counts/results
+26. Manual validations still required
+27. Remaining blockers
+28. Acceptance matrix
+29. Progress production-readiness verdict
+30. Phase 2A expansion-readiness verdict
+31. Recommended next scope
+
+Never claim a physical-device test occurred unless it actually occurred.
+
+Never mark VoiceOver/TalkBack PASS unless actually tested.
+
+Never include private user data or credentials.
+
+---
+
+28. FINAL STOP CONDITION
+
+When validation finishes:
+
+- automatically save the report;
+- do not expand Intelligence;
+- do not enable Today;
+- do not enable post-log;
+- do not modify Coach;
+- do not enable persistent Intelligence;
+- do not begin another phase.
+
+Give me the two final verdicts, the report path, and STOP for review.

@@ -1,0 +1,240 @@
+AUTHORIZE PHASE 2B REMEDIATION
+
+The Phase 2B Consolidation and Coach Fact Context Activation-Readiness Report is accepted.
+
+Execute only the smallest remediation scope defined in:
+
+CALORA_INTELLIGENCE_PHASE_2B_CONSOLIDATION_READINESS_REPORT.md
+
+Mission: Make Coach Fact Context authorization and failure boundaries deployable before any controlled activation.
+
+1. Durable consent deployment
+
+Add the actual production-deployable database migration required for the versioned coach_fact_context_v1 server-authoritative consent model.
+
+Verify:
+
+authenticated account ownership;
+
+consent version;
+
+purpose scope;
+
+accept;
+
+read;
+
+revoke;
+
+account isolation;
+
+account deletion cascade;
+
+recreated-account behavior;
+
+duplicate/idempotent operations where appropriate.
+
+
+Do not rely only on schema definitions or mocks. Test against the real repository database architecture available to Replit/Supabase.
+
+Do not expose Fact Context values in the consent table.
+
+2. Single client activation coordinator
+
+Implement one clearly owned, account-scoped coordinator responsible for the dormant Fact Context lifecycle.
+
+It must own:
+
+authenticated account → hydration generation → server-confirmed consent → feature gates → architecture selection → request lifecycle → response acceptance/invalidation
+
+It must guarantee that one Coach request selects exactly one architecture.
+
+Never send legacy CoachContext and CoachFactContextV1 together.
+
+Local cached consent must never authorize Fact Context transmission.
+
+Server-confirmed current-version consent is mandatory.
+
+Invalidate/abort/discard safely on:
+
+revocation;
+
+sign-out;
+
+account switch;
+
+hydration reset;
+
+local-data clear;
+
+account deletion;
+
+request expiry;
+
+stale nonce/request scope.
+
+
+A response started for Account A must never become acceptable under Account B.
+
+3. Provider deadline
+
+Add an enforced server-side timeout/abort boundary around the Fact Context provider call.
+
+A hung or over-deadline provider request must deterministically produce the existing safe unavailable/limited result.
+
+No partial provider output may escape.
+
+Add focused tests for:
+
+timeout;
+
+abort;
+
+late completion;
+
+rejection;
+
+malformed output;
+
+empty output;
+
+normal completion;
+
+rollback while a request is pending.
+
+
+4. Replay policy
+
+Explicitly decide and document the nonce replay policy.
+
+Do not automatically build a server nonce-consumption system.
+
+Determine whether Calora actually requires exactly-once Fact Context egress/audit semantics.
+
+If not required, document why authentication + server consent + TTL + account binding + cohort control + rate limiting provide the intended boundary.
+
+If exactly-once semantics are genuinely required, STOP and report the required architecture before implementing additional persistence.
+
+5. Real boundary validation
+
+Add integration tests using the real available database/test infrastructure for:
+
+consent creation/read/revocation;
+
+account A/B isolation;
+
+deletion cascade;
+
+recreated account;
+
+stale consent version;
+
+cache-only authorization rejection;
+
+gate disagreement;
+
+lifecycle invalidation;
+
+hydration generation change;
+
+late response rejection;
+
+provider timeout;
+
+no legacy/new coexistence.
+
+
+Run the complete Calora and API regression suites afterward.
+
+Hard boundaries
+
+DO NOT ACTIVATE COACH FACT CONTEXT.
+
+Keep:
+
+client Fact Context gate OFF;
+
+server Fact Context gate OFF;
+
+cohorts deny-all;
+
+existing longitudinal Intelligence flags unchanged/default-OFF;
+
+legacy Coach behavior unchanged.
+
+
+Do not:
+
+migrate users;
+
+expand the Fact Context allowlist;
+
+enable a rollout cohort;
+
+retire legacy Coach;
+
+add new Foundation facts;
+
+add Phase 2A capabilities;
+
+add Planner/Recipe Intelligence;
+
+add analytics, notifications or proactive Intelligence;
+
+begin Phase 2C.
+
+
+Physical-device/accessibility validation remains documented as deferred and must not be marked passed.
+
+Required completion report
+
+Automatically create:
+
+docs/CALORA_INTELLIGENCE_PHASE_2B_REMEDIATION_REPORT.md
+
+Include:
+
+exact migration added;
+
+Supabase/database verification;
+
+consent lifecycle proof;
+
+deletion/recreated-account proof;
+
+activation coordinator architecture;
+
+account/hydration lifecycle;
+
+architecture-selection guarantee;
+
+provider timeout implementation;
+
+replay-policy decision;
+
+files changed;
+
+exact tests and results;
+
+regressions;
+
+defects found/fixed;
+
+remaining blockers;
+
+confirmation all Fact Context gates/cohorts remain OFF.
+
+
+End with exactly one:
+
+REMEDIATION VERDICT: READY FOR PHASE 2B RE-REVIEW
+
+REMEDIATION VERDICT: ADDITIONAL REMEDIATION REQUIRED
+
+or
+
+REMEDIATION VERDICT: DO NOT PROCEED
+
+Save the report and STOP.
+
+Do not activate anything.

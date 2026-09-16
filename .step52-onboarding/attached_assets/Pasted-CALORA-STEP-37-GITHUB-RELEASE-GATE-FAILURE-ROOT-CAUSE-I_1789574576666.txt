@@ -1,0 +1,733 @@
+CALORA — STEP 37 GITHUB RELEASE GATE FAILURE ROOT-CAUSE INVESTIGATION
+
+OUTPUT REPORT:
+
+37_CALORA_GITHUB_RELEASE_GATE_FAILURE_ROOT_CAUSE_REPORT.md
+
+
+==================================================
+PURPOSE
+==================================================
+
+Step 36 stopped correctly with:
+
+CANONICAL RELEASE GATE NOT VERIFIED — TESTFLIGHT BUILD NOT STARTED
+
+
+The exact canonical GitHub source remains:
+
+Repository:
+atembekong-hash/Calora
+
+Branch:
+main
+
+SHA:
+8d93248db69e985ba490a957575bde2b7b38cbf3
+
+TREE:
+0a0ac2b83abce082bbc870c58029376cc4541a4a
+
+
+The blocking GitHub Actions workflow was:
+
+Workflow:
+Release validation
+
+Workflow file:
+.github/workflows/release-validation.yml
+
+Run ID:
+35117499286
+
+Event:
+push
+
+Branch:
+main
+
+SHA:
+8d93248db69e985ba490a957575bde2b7b38cbf3
+
+Conclusion:
+failure
+
+
+Required check:
+
+Run release validation suite
+
+
+Step 36 could NOT prove that required check succeeded.
+
+The workflow run itself failed and GitHub returned no successful job/step for
+the required check.
+
+
+==================================================
+MISSION
+==================================================
+
+Perform a COMPLETE FORENSIC ROOT-CAUSE INVESTIGATION of the failed GitHub
+release-validation gate.
+
+Determine:
+
+1. WHY run 35117499286 failed;
+
+2. WHY the expected job/check:
+
+   Run release validation suite
+
+   did not appear as a successful GitHub check;
+
+3. whether the failure is caused by:
+
+   - workflow YAML/configuration;
+   - GitHub Actions syntax;
+   - permissions;
+   - branch protection/rulesets;
+   - required-check naming;
+   - job-level condition;
+   - workflow-level condition;
+   - path filtering;
+   - concurrency;
+   - environment configuration;
+   - missing secret;
+   - repository variable;
+   - GitHub API permission;
+   - runner initialization;
+   - action version;
+   - dependency/setup failure;
+   - release-validation script;
+   - release attestation;
+   - native validation;
+   - repository cleanliness;
+   - generated files;
+   - documentation-only commits;
+   - invalid workflow definition;
+   - GitHub infrastructure;
+   - or another exact cause.
+
+DO NOT GUESS.
+
+PROVE THE ROOT CAUSE FROM AVAILABLE EVIDENCE.
+
+
+==================================================
+STRICT SAFETY BOUNDARY
+==================================================
+
+THIS STEP IS DIAGNOSTIC ONLY.
+
+DO NOT:
+
+- edit source code;
+- edit workflow files;
+- edit GitHub settings;
+- edit branch protection;
+- edit repository rulesets;
+- edit required checks;
+- commit anything except the numbered diagnostic report if needed;
+- push anything;
+- merge anything;
+- rebase;
+- reset;
+- force-push;
+- deploy production;
+- publish Replit production;
+- trigger EAS;
+- build Android;
+- build iOS;
+- create APK/AAB/IPA;
+- submit TestFlight;
+- submit App Store;
+- modify database;
+- run migrations;
+- run drizzle-kit push;
+- change secrets;
+- change environment variables;
+- manually rerun GitHub workflows.
+
+NO REMEDIATION YET.
+
+INVESTIGATE FIRST.
+
+
+==================================================
+MISSION 1 — FREEZE CURRENT IDENTITIES
+==================================================
+
+Fetch origin read-only.
+
+Record:
+
+origin/main SHA
+origin/main tree
+
+Verify whether canonical GitHub main remains:
+
+SHA:
+8d93248db69e985ba490a957575bde2b7b38cbf3
+
+TREE:
+0a0ac2b83abce082bbc870c58029376cc4541a4a
+
+
+Also record:
+
+local main SHA/tree
+
+ahead/behind
+
+working-tree status
+
+
+Step 36 observed local main ahead by documentation-only commits.
+
+Do NOT push those commits.
+
+Do NOT reset them.
+
+Simply classify them.
+
+
+If origin/main has advanced since Step 36:
+
+record the new identity and commits.
+
+Do not silently use the new commits as evidence for the failed historical run.
+
+
+==================================================
+MISSION 2 — INSPECT EXACT FAILED RUN
+==================================================
+
+Investigate GitHub Actions run:
+
+35117499286
+
+
+Retrieve every available piece of metadata:
+
+- workflow name
+- workflow file
+- workflow path
+- workflow run ID
+- run number
+- run attempt
+- event
+- branch
+- head SHA
+- status
+- conclusion
+- actor
+- triggering actor
+- created time
+- updated time
+- run_started_at
+- jobs URL
+- logs URL if available
+- check suite
+- check runs
+- annotations
+- failure messages
+- workflow validation errors
+- startup errors
+- permissions errors
+- billing/runner errors
+- cancellation/concurrency information.
+
+
+Determine whether the workflow:
+
+A. parsed successfully and started;
+
+B. failed before jobs were created;
+
+C. created jobs but jobs failed;
+
+D. created a check suite but not the expected check;
+
+E. was rejected before normal execution.
+
+
+==================================================
+MISSION 3 — RETRIEVE FAILURE LOGS
+==================================================
+
+Attempt to retrieve the logs for run:
+
+35117499286
+
+
+If logs exist:
+
+identify the FIRST REAL FAILURE.
+
+Do not report downstream failures as the root cause when an earlier failure
+caused them.
+
+
+If logs are unavailable:
+
+determine why.
+
+Check:
+
+- GitHub API response
+- workflow run metadata
+- jobs response
+- check suite
+- check runs
+- annotations
+- Actions UI metadata where accessible.
+
+
+Explicitly distinguish:
+
+ROOT CAUSE
+
+from:
+
+SECONDARY CONSEQUENCES
+
+
+==================================================
+MISSION 4 — FORENSICALLY AUDIT RELEASE-VALIDATION.YML
+==================================================
+
+Inspect the exact workflow file present at canonical SHA:
+
+.github/workflows/release-validation.yml
+
+
+Record:
+
+- workflow name
+- triggers
+- permissions
+- concurrency
+- jobs
+- exact job IDs
+- exact job names
+- `if:` conditions
+- `needs:` dependencies
+- runner type
+- checkout action
+- Node setup
+- pnpm setup
+- dependency install
+- environment variables
+- secrets references
+- repository variables
+- validation commands
+- release-attestation commands
+- scripts called
+- any GitHub API calls
+- artifact handling
+- cleanup
+- exit behavior.
+
+
+Specifically locate:
+
+Run release validation suite
+
+
+Determine whether this phrase is:
+
+- workflow name;
+- job name;
+- step name;
+- required status-check context;
+- or multiple of the above.
+
+
+Prove what GitHub should expose as the check name.
+
+
+==================================================
+MISSION 5 — VALIDATE WORKFLOW SYNTAX/STRUCTURE
+==================================================
+
+Perform static validation of:
+
+.github/workflows/release-validation.yml
+
+
+Check for:
+
+- YAML syntax errors
+- unsupported keys
+- malformed expressions
+- invalid contexts
+- invalid secrets usage
+- invalid permissions
+- invalid action references
+- invalid job dependency
+- invalid matrix
+- invalid environment syntax
+- duplicate keys
+- invalid workflow-call configuration
+- invalid path filters
+- invalid event configuration.
+
+
+If GitHub rejected the workflow before creating jobs, identify the exact
+configuration responsible.
+
+
+==================================================
+MISSION 6 — REQUIRED CHECK / BRANCH RULE ANALYSIS
+==================================================
+
+Inspect the repository's currently observable protection/ruleset configuration
+for main WITHOUT CHANGING IT.
+
+Determine:
+
+- whether main is protected;
+- whether a repository ruleset applies;
+- which status checks are required;
+- exact required check names;
+- whether:
+
+  Run release validation suite
+
+  is actually configured as required;
+- whether the required name matches the GitHub job/check context produced by
+  the workflow;
+- whether the check is tied to a specific GitHub App;
+- whether an obsolete/renamed check is required;
+- whether the workflow was recently renamed;
+- whether a job ID/name mismatch exists.
+
+
+DO NOT MODIFY BRANCH PROTECTION OR RULESETS.
+
+
+==================================================
+MISSION 7 — COMPARE WITH LAST KNOWN WORKING RUN
+==================================================
+
+Search prior executions of:
+
+.github/workflows/release-validation.yml
+
+
+Find:
+
+- the most recent successful run, if one exists;
+- its SHA;
+- run ID;
+- date;
+- workflow file version;
+- job/check names;
+- validation result.
+
+
+Compare the successful workflow definition against the failed canonical
+workflow definition.
+
+
+Identify exactly what changed between:
+
+LAST KNOWN SUCCESS
+
+and
+
+RUN 35117499286.
+
+
+Classify each difference:
+
+- relevant
+- possibly relevant
+- unrelated.
+
+
+If there has NEVER been a successful run, state that clearly.
+
+
+==================================================
+MISSION 8 — INVESTIGATE OTHER FAILING WORKFLOWS
+==================================================
+
+Step 36 also observed:
+
+Native encrypted recovery workflow: failure
+
+Native auth preflight workflow: failure
+
+
+Investigate these only enough to determine whether they share a common root
+cause with Release validation.
+
+
+Record:
+
+workflow names
+run IDs
+SHA
+first failure
+whether same infrastructure/configuration problem exists.
+
+
+Do NOT expand this into unrelated remediation.
+
+
+Determine:
+
+COMMON ROOT CAUSE
+
+or
+
+INDEPENDENT FAILURES.
+
+
+==================================================
+MISSION 9 — LOCAL REPRODUCTION WITHOUT CHANGES
+==================================================
+
+Where possible, reproduce the release-validation commands locally against the
+exact canonical runtime tree WITHOUT modifying source.
+
+
+Run the same commands invoked by the GitHub workflow.
+
+Record:
+
+- commands
+- exit codes
+- passed/failed
+- first local failure.
+
+
+If local validation PASSES while GitHub fails before jobs:
+
+that strongly suggests workflow/GitHub configuration rather than application
+code.
+
+
+If local validation reproduces the failure:
+
+identify the exact command/test responsible.
+
+
+Do not fix it in Step 37.
+
+
+==================================================
+MISSION 10 — SECRET / VARIABLE DEPENDENCY AUDIT
+==================================================
+
+Without printing secret VALUES:
+
+identify every GitHub secret, environment secret, repository variable, and
+permission required by the release-validation workflow.
+
+
+For each state only:
+
+- referenced
+- apparently available / unavailable / cannot verify
+- required at workflow parse time / job runtime / step runtime
+- potential relevance to failure.
+
+
+NEVER print secret contents.
+
+NEVER rotate or change secrets.
+
+
+==================================================
+MISSION 11 — ACTION VERSION / RUNNER AUDIT
+==================================================
+
+Inspect all external GitHub Actions used by the workflow.
+
+Record:
+
+- action
+- version
+- runtime requirement
+- deprecation warning if known from run evidence
+- whether the action could prevent job initialization.
+
+
+Check runner requirements:
+
+- ubuntu version
+- Node runtime
+- pnpm setup
+- package manager/corepack
+- dependency cache behavior.
+
+
+Again:
+
+DO NOT upgrade anything yet.
+
+
+==================================================
+MISSION 12 — ROOT-CAUSE CLASSIFICATION
+==================================================
+
+At the end classify the failure into ONE primary category:
+
+A. WORKFLOW DEFINITION FAILURE
+
+B. REQUIRED-CHECK / RULESET MISCONFIGURATION
+
+C. GITHUB ACTIONS PERMISSION FAILURE
+
+D. MISSING SECRET / VARIABLE
+
+E. RUNNER / ACTION INITIALIZATION FAILURE
+
+F. DEPENDENCY INSTALLATION FAILURE
+
+G. RELEASE-VALIDATION SCRIPT FAILURE
+
+H. TEST / TYPECHECK / CONTRACT FAILURE
+
+I. RELEASE-ATTESTATION FAILURE
+
+J. CONCURRENCY / CANCELLATION FAILURE
+
+K. GITHUB INFRASTRUCTURE / EXTERNAL FAILURE
+
+L. MULTIPLE INDEPENDENT FAILURES
+
+M. INSUFFICIENT EVIDENCE
+
+
+Then state:
+
+ROOT CAUSE CONFIDENCE:
+
+HIGH
+MEDIUM
+LOW
+
+
+==================================================
+MISSION 13 — DESIGN REMEDIATION, BUT DO NOT APPLY
+==================================================
+
+Once the exact root cause is proven, design the MINIMUM remediation.
+
+Specify:
+
+- exact file/settings involved;
+- exact change required;
+- whether source code changes;
+- whether workflow-only;
+- whether GitHub settings-only;
+- whether secrets/configuration;
+- whether no repository change is needed;
+- tests needed after remediation;
+- whether a new commit is required;
+- whether canonical main SHA would change;
+- whether required status checks must be updated;
+- whether workflow must be rerun.
+
+
+Prefer the smallest correction.
+
+DO NOT APPLY IT.
+
+
+==================================================
+MISSION 14 — TESTFLIGHT IMPACT
+==================================================
+
+State explicitly whether the failure means:
+
+A. Calora application code is broken;
+
+B. release infrastructure/gating is broken;
+
+C. both;
+
+D. cannot yet determine.
+
+
+Do NOT infer native-device failure from a GitHub workflow failure.
+
+
+==================================================
+OUTPUT
+==================================================
+
+Create:
+
+37_CALORA_GITHUB_RELEASE_GATE_FAILURE_ROOT_CAUSE_REPORT.md
+
+
+The report MUST contain:
+
+1. Executive summary
+2. Canonical SHA/tree investigated
+3. Current local/origin state
+4. Exact failed workflow identity
+5. Workflow run metadata
+6. Jobs/check-suite/check-run evidence
+7. Failure logs / annotations
+8. First real failure
+9. release-validation.yml forensic map
+10. Workflow syntax/structure audit
+11. Required-check/ruleset analysis
+12. Last known successful run comparison
+13. Other failing workflow comparison
+14. Local reproduction results
+15. Secret/variable dependency audit
+16. Action/runner audit
+17. Root cause
+18. Secondary consequences
+19. Root-cause confidence
+20. Whether Calora application code is implicated
+21. Minimum remediation design
+22. Exact files/settings that would change
+23. Validation required after remediation
+24. Whether canonical main SHA must change
+25. TestFlight impact
+26. Confirmation no remediation/push/build/deploy/database mutation occurred
+27. Exact recommendation for Step 38
+
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+ROOT CAUSE IDENTIFIED — REMEDIATION READY FOR OWNER AUTHORIZATION
+
+ROOT CAUSE PARTIALLY IDENTIFIED — ADDITIONAL EVIDENCE REQUIRED
+
+ROOT CAUSE NOT IDENTIFIED — DO NOT MODIFY RELEASE GATE
+
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after forensic investigation and report.
+
+DO NOT FIX ANYTHING.
+
+DO NOT PUSH.
+
+DO NOT RERUN WORKFLOWS.
+
+DO NOT BUILD IOS.
+
+DO NOT BUILD ANDROID.
+
+DO NOT TRIGGER EAS.
+
+DO NOT SUBMIT TESTFLIGHT.
+
+DO NOT DEPLOY API.
+
+DO NOT MODIFY DATABASE.
+
+Wait for explicit owner authorization.

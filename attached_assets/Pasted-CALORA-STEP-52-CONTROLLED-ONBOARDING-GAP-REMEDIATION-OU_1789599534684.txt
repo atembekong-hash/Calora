@@ -1,0 +1,712 @@
+CALORA — STEP 52 CONTROLLED ONBOARDING GAP REMEDIATION
+
+OUTPUT REPORT:
+
+52_CALORA_CONTROLLED_ONBOARDING_GAP_REMEDIATION_REPORT.md
+
+
+==================================================
+MISSION
+==================================================
+
+Implement ONLY the confirmed onboarding gaps from Step 51.
+
+This is controlled remediation.
+
+DO NOT begin recipe remediation.
+DO NOT modify Coach.
+DO NOT modify Health.
+DO NOT restore Fitness.
+DO NOT restore old Progress.
+DO NOT build iOS or Android.
+DO NOT submit TestFlight.
+DO NOT deploy API.
+DO NOT mutate the database.
+
+
+==================================================
+FORENSIC BASIS
+==================================================
+
+Step 51 final verdict:
+
+TARGETED DEVELOPMENT WINDOW CONTAINS LIMITED UNRECOVERED WORK
+
+
+For onboarding, Step 51 established:
+
+PRESERVED:
+
+- onboarding completion persistence;
+- onboarding draft hydration/resumption;
+- account-scoped persistence;
+- flush-before-redirect behavior;
+- disabled final action until required consent.
+
+MISSING/PARTIAL:
+
+1. keyboard-aware onboarding/focused-field visibility;
+2. stronger agreement accessibility/tap semantics;
+3. focused regression tests proving those contracts.
+
+
+Historical evidence:
+
+commit:
+cafea90
+
+Historical behavior included:
+
+- KeyboardAwareScrollViewCompat;
+- keyboard bottom offset;
+- extra keyboard space;
+- platform-specific keyboard dismissal;
+- bottom padding;
+- focused-input visibility tests;
+- checkbox accessibility role/state;
+- required/spoken labels;
+- testID="onboarding-consent";
+- explicit Tap-to-agree affordance;
+- checked/unchecked copy.
+
+
+IMPORTANT:
+
+Historical implementation is EVIDENCE ONLY.
+
+DO NOT cherry-pick cafea90.
+DO NOT merge its branch.
+DO NOT restore the historical file wholesale.
+
+Implement the required behavior cleanly against CURRENT canonical architecture.
+
+
+==================================================
+CANONICAL BASELINE
+==================================================
+
+Expected origin/main:
+
+SHA:
+7cce885c6b3d046a5a8fdb40d92343a87b73c290
+
+TREE:
+1a598be866150d488bc21ccd598de3104c638b02
+
+
+TestFlight reference:
+
+Version:
+1.0.0
+
+Build:
+5
+
+EAS Build:
+088c4dc8-0ed9-4293-b7b7-4925045cbbbe
+
+
+Fetch origin before modification.
+
+Verify exact SHA/tree.
+
+If origin/main has unexpectedly changed:
+
+STOP.
+
+Do not remediate against an unknown baseline.
+
+
+==================================================
+ISOLATED WORK
+==================================================
+
+Perform remediation in an isolated branch/worktree created from exact
+canonical origin/main.
+
+Do not use the ordinary documentation-ahead local main as the source.
+
+Historical refs remain read-only.
+
+
+==================================================
+SCOPE 1 — KEYBOARD-AWARE ONBOARDING
+==================================================
+
+Current canonical onboarding uses a plain ScrollView and lacks a complete
+focused-field visibility strategy.
+
+Implement production-safe keyboard-aware onboarding.
+
+
+REQUIRED BEHAVIOR:
+
+When the keyboard opens:
+
+- currently focused input remains visible;
+- user can scroll to all required inputs;
+- lower inputs must not become trapped behind the keyboard;
+- Continue/Back/final actions remain reachable where appropriate;
+- content must work on small-screen devices;
+- safe-area spacing must remain correct;
+- no brittle fixed-screen-height assumptions;
+- no z-index/pointer-events hacks.
+
+
+Support:
+
+iOS
+
+Android
+
+
+Inspect the CURRENT onboarding architecture first.
+
+Choose the smallest current-compatible implementation.
+
+If an existing dependency already provides appropriate keyboard-aware
+behavior, use it only if it is already part of the project and safe.
+
+Do not add a large dependency merely to reproduce the historical implementation
+unless technically necessary and explicitly justified in the report.
+
+
+Preserve:
+
+current visual identity;
+
+current onboarding step structure;
+
+current draft state;
+
+current validation;
+
+current persistence;
+
+current auth/session behavior.
+
+
+==================================================
+KEYBOARD INTERACTION DETAILS
+==================================================
+
+Verify:
+
+keyboardShouldPersistTaps
+
+keyboardDismissMode
+
+contentContainerStyle
+
+safe-area behavior
+
+bottom content inset/padding
+
+focused-field scrolling
+
+multiline inputs if present
+
+Next/Continue interaction while keyboard is visible
+
+iOS keyboard behavior
+
+Android keyboard behavior
+
+
+Do not blindly copy historical numeric offsets.
+
+Derive appropriate behavior from current layout.
+
+
+==================================================
+SCOPE 2 — AGREEMENT / CONSENT UX
+==================================================
+
+Improve the final onboarding agreement control.
+
+
+The user must clearly understand:
+
+1. agreement is REQUIRED;
+2. the control is tappable;
+3. whether it is currently checked;
+4. that Continue/Finish cannot proceed until affirmative acceptance.
+
+
+Implement:
+
+- clear checkbox/control presentation;
+- prominent tappable area;
+- adequate touch target;
+- explicit checked/unchecked visual state;
+- accessibilityRole appropriate to checkbox semantics;
+- accessibilityState checked value;
+- meaningful accessibilityLabel;
+- required semantics;
+- screen-reader understandable checked/unchecked state;
+- stable testID;
+- explicit user-facing tap-to-agree affordance if appropriate to current design.
+
+
+DO NOT:
+
+pre-check consent;
+
+silently accept consent;
+
+weaken existing consent persistence;
+
+allow navigation bypass;
+
+use manipulative/dark-pattern presentation.
+
+
+Consent must remain an affirmative user action.
+
+
+==================================================
+SCOPE 3 — PRESERVE EXISTING ONBOARDING PERSISTENCE
+==================================================
+
+Step 51 established that current persistence is already materially stronger
+than the missing historical UX.
+
+DO NOT rewrite it unless testing proves an actual defect.
+
+
+Preserve:
+
+completion persistence;
+
+draft hydration;
+
+account scoping;
+
+flush-before-redirect;
+
+startup routing;
+
+auth hydration;
+
+required consent storage.
+
+
+Add focused regression coverage proving the existing behavior remains intact.
+
+
+==================================================
+MANDATORY TESTS
+==================================================
+
+Add or strengthen tests for:
+
+A. onboarding keyboard-aware container contract;
+
+B. focused input visibility strategy;
+
+C. scrollability while keyboard is active;
+
+D. keyboard interaction configuration;
+
+E. agreement starts unchecked;
+
+F. agreement cannot be bypassed;
+
+G. agreement has checkbox semantics;
+
+H. accessibility checked=false;
+
+I. accessibility checked=true;
+
+J. meaningful required agreement label;
+
+K. stable onboarding consent testID;
+
+L. final action disabled before acceptance;
+
+M. final action enabled after acceptance when all other requirements are valid;
+
+N. accepted consent participates in durable completion;
+
+O. completion persistence remains account scoped;
+
+P. completed onboarding does not restart after hydration/relaunch;
+
+Q. unfinished onboarding still resumes correctly;
+
+R. persistence failure continues to fail safely.
+
+
+Do not weaken existing tests.
+
+Do not delete failing tests to obtain green status.
+
+
+==================================================
+PHYSICAL DEVICE LIMITATION
+==================================================
+
+Static/unit tests cannot prove actual keyboard geometry on a real iPhone or
+Android device.
+
+Therefore:
+
+DO NOT claim physical keyboard behavior VERIFIED.
+
+Classify it:
+
+STATIC/TEST VERIFIED — PHYSICAL DEVICE VERIFICATION REQUIRED
+
+
+Prepare an exact device-test checklist for later.
+
+
+==================================================
+DEVICE TEST CHECKLIST
+==================================================
+
+Report must provide a later physical-device checklist including:
+
+1. fresh install;
+2. start onboarding;
+3. test every text-entry onboarding step;
+4. open keyboard;
+5. focus first field;
+6. focus middle field;
+7. focus lowest field;
+8. confirm active field remains visible;
+9. scroll with keyboard open;
+10. test Continue with keyboard open;
+11. navigate Back and forward;
+12. reach final agreement;
+13. confirm agreement control is visually obvious;
+14. confirm unchecked state;
+15. tap agreement;
+16. confirm checked state;
+17. confirm final CTA enables only when appropriate;
+18. finish onboarding;
+19. force-close app;
+20. reopen;
+21. confirm onboarding does not restart.
+
+
+Include iOS and Android testing.
+
+For iOS specifically include a small-screen device profile comparable to
+iPhone XR dimensions.
+
+
+==================================================
+REGRESSION PROTECTION
+==================================================
+
+The remediation MUST NOT alter:
+
+authentication;
+
+Supabase/PKCE;
+
+Home;
+
+Today;
+
+Smart Scan;
+
+capture approval;
+
+Food Memory;
+
+Diary;
+
+sync;
+
+Recipes;
+
+Discover;
+
+Plus;
+
+Premium;
+
+RevenueCat;
+
+Planner;
+
+Weekly Programs;
+
+Coach;
+
+Coach Fact Context;
+
+Health;
+
+Insights/Progress;
+
+Profile;
+
+referrals;
+
+deep links;
+
+account deletion;
+
+API contracts;
+
+database schema;
+
+EAS configuration;
+
+iOS build number;
+
+Android version;
+
+release-gate configuration.
+
+
+==================================================
+SCOPE DIFF AUDIT
+==================================================
+
+Before commit:
+
+inspect every changed path.
+
+Every runtime change must be directly required by onboarding remediation.
+
+If unrelated files changed accidentally:
+
+revert those unrelated changes before proceeding.
+
+
+Report exact changed paths.
+
+
+==================================================
+VALIDATION
+==================================================
+
+Run the repository's current supported validation suite.
+
+At minimum:
+
+pnpm install --frozen-lockfile
+
+pnpm run typecheck
+
+pnpm --filter @workspace/scripts test
+
+pnpm --filter @workspace/calora test
+
+focused onboarding tests
+
+focused persistence/account isolation tests
+
+relevant auth/session tests
+
+Expo configuration validation
+
+git diff --check
+
+
+Also run any canonical release validation scripts required by the repository.
+
+No test may be skipped or weakened merely to obtain success.
+
+
+==================================================
+COMMIT
+==================================================
+
+If validation passes:
+
+create narrow functional commit.
+
+Suggested subject:
+
+Fix canonical onboarding keyboard and consent UX
+
+
+Record:
+
+commit SHA
+
+tree SHA
+
+parent SHA
+
+changed paths
+
+
+==================================================
+CANONICAL MAIN UPDATE
+==================================================
+
+Before push:
+
+fetch origin again.
+
+Verify origin/main has not advanced unexpectedly.
+
+
+If safe:
+
+perform only a normal fast-forward-compatible push to main.
+
+NO FORCE PUSH.
+
+NO HISTORY REWRITE.
+
+NO HISTORICAL BRANCH MERGE.
+
+
+If canonical main changed during remediation:
+
+STOP and report the divergence rather than forcing the update.
+
+
+==================================================
+POST-PUSH RELEASE GATE
+==================================================
+
+If pushed:
+
+record new exact origin/main SHA/tree.
+
+Wait for automatic GitHub:
+
+Release validation
+
+
+Required check:
+
+Run release validation suite
+
+
+The check MUST:
+
+refer to the exact new canonical SHA;
+
+complete;
+
+conclude success.
+
+
+If release validation fails:
+
+DO NOT proceed further.
+
+
+==================================================
+ABSOLUTELY NO BUILD
+==================================================
+
+Step 52 does NOT authorize:
+
+EAS build
+
+iOS build
+
+Android build
+
+TestFlight submission
+
+App Store submission
+
+production deployment
+
+Replit publish
+
+API deployment
+
+database mutation
+
+migration
+
+schema modification
+
+seed modification
+
+
+The owner will authorize builds separately.
+
+
+==================================================
+REPORT
+==================================================
+
+Create:
+
+52_CALORA_CONTROLLED_ONBOARDING_GAP_REMEDIATION_REPORT.md
+
+
+Include:
+
+1. Executive summary
+2. Starting canonical SHA/tree
+3. Historical evidence inspected
+4. Current onboarding architecture
+5. Keyboard/focus root cause
+6. Keyboard-aware implementation
+7. Agreement UX root cause
+8. Agreement/accessibility implementation
+9. Persistence behavior preserved
+10. Exact changed paths
+11. Tests added/changed
+12. Focused onboarding test results
+13. Persistence/account-isolation results
+14. Full Calora test result
+15. Scripts test result
+16. Typecheck result
+17. Expo/config validation
+18. git diff --check
+19. Scope audit
+20. Functional commit SHA/tree
+21. Push result
+22. New canonical origin/main SHA/tree
+23. Release validation run ID
+24. Exact required-check result
+25. Confirmation historical branch was NOT merged/cherry-picked
+26. Confirmation Fitness was untouched
+27. Confirmation Recipes/Coach/Health were untouched
+28. Confirmation no build/deployment/database operation occurred
+29. Physical-device verification checklist
+30. Remaining uncertainties
+31. Exact recommendation for Step 53
+
+
+==================================================
+FINAL VERDICT
+==================================================
+
+Use EXACTLY ONE:
+
+ONBOARDING GAP REMEDIATION VERIFIED — READY FOR PHYSICAL DEVICE VERIFICATION
+
+ONBOARDING GAP REMEDIATION VERIFIED — READY FOR NEXT CONTROLLED PHASE
+
+ONBOARDING REMEDIATION FAILED VALIDATION — NOT PUSHED
+
+ONBOARDING REMEDIATION BLOCKED — CANONICAL MAIN CHANGED
+
+ONBOARDING REMEDIATION PUSHED — RELEASE GATE FAILED
+
+ONBOARDING REMEDIATION INCOMPLETE — ADDITIONAL WORK REQUIRED
+
+
+==================================================
+STOP CONDITION
+==================================================
+
+After the report:
+
+STOP.
+
+DO NOT START STEP 53.
+
+DO NOT FIX RECIPES YET.
+
+DO NOT BUILD.
+
+DO NOT DEPLOY.
+
+Wait for owner review.

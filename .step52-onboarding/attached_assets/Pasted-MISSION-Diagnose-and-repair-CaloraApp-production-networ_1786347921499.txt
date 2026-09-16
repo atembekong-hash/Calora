@@ -1,0 +1,80 @@
+MISSION: Diagnose and repair CaloraApp production network failures
+
+The installed Android release build launches successfully, but multiple network-dependent features are failing:
+
+1. Recipes remains at “Finding recipes from open sources…” and eventually reports “The cookbook is offline.”
+
+
+2. CaloraApp Coach reports “I couldn’t reach Coach just now.”
+
+
+3. Local/offline data remains functional.
+
+
+
+Treat these as possible symptoms of one shared production networking/configuration failure.
+
+Do not redesign the UI and do not hide or bypass the errors.
+
+Trace the complete request path for Recipes, Coach, Supabase, authentication, and every other remote/API-dependent feature.
+
+Specifically inspect:
+
+production API/base URLs
+
+Expo/EAS environment variables
+
+Supabase URL and anon/publishable key configuration
+
+whether environment variables are actually embedded or available in the release build
+
+Android INTERNET permission and network configuration
+
+HTTPS/TLS requirements
+
+API endpoint construction
+
+REST paths
+
+fetch/client configuration
+
+request headers and authentication tokens
+
+timeout and retry behavior
+
+TheMealDB requests
+
+Coach backend/API requests
+
+differences between development and release environments
+
+any localhost, 127.0.0.1, Replit development URL, preview URL, or other development-only endpoint accidentally used in production
+
+
+Add temporary safe diagnostic logging around each failing request so the actual endpoint, HTTP status, error class, timeout/network error, and response failure can be identified. Never log secrets, API keys, access tokens, or user-sensitive data.
+
+Determine the root cause before changing architecture.
+
+Fix the root cause at the shared networking/configuration layer wherever possible rather than applying separate patches to Recipes and Coach.
+
+Then run regression checks across every feature that depends on remote services.
+
+Do not trigger a new EAS build. Stop after the source/configuration repair and give me:
+
+1. confirmed root cause,
+
+
+2. files changed,
+
+
+3. exact changes made,
+
+
+4. network features tested,
+
+
+5. anything that can only be verified in a new release build,
+
+
+6. the exact command I should use when I decide to build.
+

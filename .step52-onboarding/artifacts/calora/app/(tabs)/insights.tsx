@@ -1,0 +1,2569 @@
+import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
+import { ScalePressable } from '@/components/ScalePressable';
+import { AppHeader } from '@/components/AppChrome';
+import Animated, { Easing, runOnJS, useAnimatedProps, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
+import Svg, { Circle, Defs, Line, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DailyActivity, Mood, useCalora } from '@/context/CaloraContext';
+import { BRAND } from '@/lib/brand';
+import { formatGrams, formatWhole } from '@/lib/formatters';
+import { LocalSaveNotice } from '@/components/LocalSaveNotice';
+import { BottomSheet, BottomSheetFrame } from '@/components/BottomSheet';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { MotivationalQuote } from '@/components/MotivationalQuote';
+import { ShoppingListSheet } from '@/components/ShoppingListSheet';
+import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
+import { router } from 'expo-router';
+import { dateKey } from '@/lib/dates';
+import { buildShoppingItems, getPlannerWeekStart, plannerDate, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
+import { deriveWeeklySignals, type WeeklySignalDay, trustScore } from '@/lib/weeklySignals';
+import { filterForgottenSources } from '@/lib/livingMemory';
+import { celebrationGate } from '@/lib/goalCelebration';
+import { healthSnapshotIsFreshForDay } from '@/lib/health/burnedStatus';
+import {
+  buildDailyIntelligenceFacts,
+  createIntelligenceContext,
+  isIntelligenceFeatureEnabled,
+  selectVisibleLocalInsight,
+} from '@/lib/intelligence';
+import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
+import { displayTargetWeight, validateTargetWeight } from '@/lib/profileTargets';
+
+type ProgressView = 'overview' | 'trends' | 'weight';
+const PROGRESS_VIEWS = ['overview', 'trends', 'weight'] as const;
+
+const moodColors: Record<Mood, string> = {
+  energized: '#e5ad55',
+  good: '#5dba7d',
+  okay: '#7394f2',
+  low: '#9875c7',
+  stressed: '#ef6b4f',
+};
+
+function AnimatedReveal({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withDelay(delay, withTiming(1, { duration: 620, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: 14 * (1 - progress.value) }],
+  }));
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
+}
+
+function PulseIcon({ colors }: { colors: ReturnType<typeof useCalora>['colors'] }) {
+  const pulse = useSharedValue(1);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(1.08, { duration: 1350, easing: Easing.inOut(Easing.ease) }), -1, true);
+  }, [pulse]);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+  return (
+    <Animated.View style={[styles.iconCircle, { backgroundColor: 'rgba(157,215,189,0.15)' }, animatedStyle]}>
+      <Feather name="activity" size={20} color={colors.heroMuted} />
+    </Animated.View>
+  );
+}
+
+function AnimatedBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withDelay(delay, withTiming(1, { duration: 850, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress, value]);
+  const animatedStyle = useAnimatedStyle(() => ({ height: 128 * (Math.max(0, Math.min(value, 100)) / 100) * progress.value }));
+  return <Animated.View style={[styles.bar, { backgroundColor: color }, animatedStyle]} />;
+}
+
+// ─── Confetti burst ───────────────────────────────────────────────────────────
+const CONFETTI_COLORS_LIST = ['#5dba7d', '#e5ad55', '#7394f2', '#ef6b4f', '#9875c7', '#f4d35e', '#f5a7c7', '#5bc8ef'];
+const CONFETTI_COUNT = 30;
+
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed + 1) * 10000;
+  return x - Math.floor(x);
+}
+
+type ParticleConfig = {
+  color: string;
+  angle: number;
+  speed: number;
+  width: number;
+  height: number;
+  borderRadius: number;
+  rotSpeed: number;
+  offsetX: number;
+};
+
+function ConfettiParticle({ progress, fadeOpacity, config }: {
+  progress: SharedValue<number>;
+  fadeOpacity: SharedValue<number>;
+  config: ParticleConfig;
+}) {
+  const animStyle = useAnimatedStyle(() => {
+    const p = progress.value;
+    const x = Math.cos(config.angle) * config.speed * p + config.offsetX;
+    const y = Math.sin(config.angle) * config.speed * p + 140 * p * p;
+    return {
+      opacity: fadeOpacity.value * Math.max(0, 1 - p * 0.35),
+      transform: [
+        { translateX: x },
+        { translateY: y },
+        { rotate: `${config.rotSpeed * p}deg` },
+      ],
+    };
+  });
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        {
+          position: 'absolute',
+          width: config.width,
+          height: config.height,
+          borderRadius: config.borderRadius,
+          backgroundColor: config.color,
+          left: '50%',
+          top: 10,
+        },
+        animStyle,
+      ]}
+    />
+  );
+}
+
+function ConfettiBurst({ active }: { active: boolean }) {
+  const progress = useSharedValue(0);
+  const fadeOpacity = useSharedValue(0);
+
+  const particles = useMemo<ParticleConfig[]>(() =>
+    Array.from({ length: CONFETTI_COUNT }, (_, i) => {
+      // Spread particles in a wide upward fan (-160° to -20° from horizontal)
+      const spreadAngle = -Math.PI + (i / CONFETTI_COUNT) * Math.PI + seededRandom(i * 17) * 0.55;
+      const size = 5 + seededRandom(i * 5) * 8;
+      const isCircle = i % 5 === 0;
+      return {
+        color: CONFETTI_COLORS_LIST[i % CONFETTI_COLORS_LIST.length],
+        angle: spreadAngle,
+        speed: 55 + seededRandom(i * 7) * 95,
+        width: size,
+        height: isCircle ? size : size * 0.42,
+        borderRadius: isCircle ? size / 2 : 2,
+        rotSpeed: (seededRandom(i * 11) - 0.5) * 600,
+        offsetX: (seededRandom(i * 13) - 0.5) * 60,
+      };
+    }), []);
+
+  useEffect(() => {
+    if (active) {
+      progress.value = 0;
+      fadeOpacity.value = 1;
+      progress.value = withTiming(1, { duration: 2100, easing: Easing.out(Easing.cubic) });
+      fadeOpacity.value = withDelay(1500, withTiming(0, { duration: 600 }));
+    }
+  // Run only when active first becomes true; no cleanup needed — animation self-terminates.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  if (!active) return null;
+
+  return (
+    <View style={styles.confettiBurstContainer} pointerEvents="none">
+      {particles.map((config, i) => (
+        <ConfettiParticle key={i} progress={progress} fadeOpacity={fadeOpacity} config={config} />
+      ))}
+    </View>
+  );
+}
+
+function GoalCelebrationBanner({ colors, targetKg, onDismiss }: { colors: ReturnType<typeof useCalora>['colors']; targetKg: number; onDismiss: () => void }) {
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.88);
+  const starScale = useSharedValue(1);
+  useEffect(() => {
+    opacity.value = withDelay(120, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
+    scale.value = withDelay(120, withSpring(1, { damping: 14, stiffness: 140 }));
+    starScale.value = withDelay(680, withSequence(
+      withTiming(1.28, { duration: 200, easing: Easing.out(Easing.quad) }),
+      withTiming(1, { duration: 200, easing: Easing.in(Easing.quad) }),
+    ));
+  }, [opacity, scale, starScale]);
+  const bannerStyle = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }));
+  const starStyle = useAnimatedStyle(() => ({ transform: [{ scale: starScale.value }] }));
+
+  const handleDismiss = () => {
+    opacity.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) }, (finished) => {
+      if (finished) runOnJS(onDismiss)();
+    });
+    scale.value = withTiming(0.88, { duration: 260, easing: Easing.out(Easing.cubic) });
+  };
+
+  return (
+    <Animated.View style={[styles.celebrationBanner, { backgroundColor: '#e8f8ef', borderColor: '#5dba7d' }, bannerStyle]}>
+      <Animated.View style={[styles.celebrationIconWrap, { backgroundColor: '#5dba7d' }, starStyle]}>
+        <Feather name="star" size={15} color="#ffffff" />
+      </Animated.View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.celebrationTitle, { color: '#1b5e38' }]}>Goal reached!</Text>
+        <Text style={[styles.celebrationBody, { color: '#3a7d57' }]}>You hit {targetKg.toFixed(0)} kg. Consistency counts.</Text>
+      </View>
+      <Pressable
+        onPress={handleDismiss}
+        hitSlop={12}
+        accessibilityLabel="Dismiss goal banner"
+        accessibilityRole="button"
+        style={styles.celebrationClose}
+      >
+        <Feather name="x" size={16} color="#3a7d57" />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function AnimatedTrackFill({ percentage, color, trackColor }: { percentage: number; color: string; trackColor: string }) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withDelay(260, withTiming(1, { duration: 900, easing: Easing.out(Easing.cubic) }));
+  }, [progress, percentage]);
+  const animatedStyle = useAnimatedStyle(() => ({ width: `${Math.max(0, Math.min(percentage, 100)) * progress.value}%` }));
+  return <View style={[styles.miniTrack, { backgroundColor: trackColor }]}><Animated.View style={[styles.miniFill, { backgroundColor: color }, animatedStyle]} /></View>;
+}
+
+// ─── Animated count-up text ───────────────────────────────────────────────────
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+
+function AnimatedCountUp({ to, decimals = 0, prefix = '', suffix = '', style }: {
+  to: number; decimals?: number; prefix?: string; suffix?: string; style?: StyleProp<TextStyle>;
+}) {
+  const sv = useSharedValue(0);
+  useEffect(() => {
+    sv.value = 0;
+    sv.value = withDelay(300, withTiming(to, { duration: 900, easing: Easing.out(Easing.cubic) }));
+  }, [to, sv]);
+  const animatedProps = useAnimatedProps(() => ({
+    text: `${prefix}${sv.value.toFixed(decimals)}${suffix}`,
+    defaultValue: `${prefix}${to.toFixed(decimals)}${suffix}`,
+  }));
+  return <AnimatedTextInput animatedProps={animatedProps} editable={false} caretHidden selectTextOnFocus={false} style={style} />;
+}
+
+// ─── Animated bar for Weekly Patterns chart ────────────────────────────────────
+function AnimatedPatternBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
+  const progress = useSharedValue(0);
+  const targetPct = Math.max(value, 16);
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withDelay(delay, withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress, value]);
+  const animStyle = useAnimatedStyle(() => ({ height: `${(targetPct * progress.value).toFixed(1)}%` as any }));
+  return <Animated.View style={[styles.patternFill, { backgroundColor: color }, animStyle]} />;
+}
+
+// ─── Animated bar for Logging Rhythm chart ────────────────────────────────────
+function AnimatedRhythmBar({ value, color, delay = 0 }: { value: number; color: string; delay?: number }) {
+  const progress = useSharedValue(0);
+  const targetPct = Math.max(value, 14);
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withDelay(delay, withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) }));
+  }, [delay, progress, value]);
+  const animStyle = useAnimatedStyle(() => ({ height: `${(targetPct * progress.value).toFixed(1)}%` as any }));
+  return <Animated.View style={[styles.rhythmFill, { backgroundColor: color }, animStyle]} />;
+}
+
+// ─── SVG weight bezier line chart ─────────────────────────────────────────────
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+const SPARK_W = 280;
+const SPARK_H = 72;
+const SPARK_PAD_X = 6;
+const SPARK_PAD_Y = 8;
+const SPARK_DASH = 700;
+// Minimum pixels allocated per data point when the expanded chart scrolls horizontally.
+const MIN_ENTRY_SPACING = 30;
+
+const TOOLTIP_W = 148;
+const TOOLTIP_H = 44;
+const DOT_HIT = 36;
+
+// Shared chart-rendering core used by both the compact sparkline and the expanded modal.
+function WeightLineChart({
+  entries,
+  colors,
+  chartHeight = SPARK_H,
+  expanded = false,
+  onRequestDelete,
+  onRequestEdit,
+  pendingDeleteId,
+}: {
+  entries: { id?: string; date: string; kg: number }[];
+  colors: ReturnType<typeof useCalora>['colors'];
+  chartHeight?: number;
+  expanded?: boolean;
+  /** Called when the user taps the trash icon. Owner is responsible for the undo window and actual removal. */
+  onRequestDelete?: (entry: { id: string; kg: number; date: string }) => void;
+  /** Called when the user taps the edit (pencil) icon. Owner opens the edit UI. */
+  onRequestEdit?: (entry: { id: string; kg: number; date: string }) => void;
+  /** ID of the entry currently in the undo-delete window; its dot renders at reduced opacity. */
+  pendingDeleteId?: string;
+}) {
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [chartWidth, setChartWidth] = useState(SPARK_W);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  // Scroll-hint gradient opacities — start scrolled to end, so left edge is visible.
+  const leftGradientOpacity = useSharedValue(1);
+  const rightGradientOpacity = useSharedValue(0);
+
+  const vals = entries.map((e) => e.kg);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const range = max - min || 1;
+
+  // Scale vertical padding proportionally so bezier fills the taller canvas well.
+  const padY = Math.round(SPARK_PAD_Y * (chartHeight / SPARK_H));
+
+  // In expanded mode, give each data point a minimum horizontal spacing so the chart
+  // scrolls rather than compressing too many dots together. SPARK_W is the floor so
+  // the compact sparkline is never affected.
+  const svgViewW = expanded
+    ? Math.max(SPARK_W, entries.length * MIN_ENTRY_SPACING)
+    : SPARK_W;
+  // 12px matches the ScrollView's contentContainerStyle paddingRight.
+  const SCROLL_PADDING_RIGHT = 12;
+  // The chart becomes horizontally scrollable only when the drawn content (SVG + padding)
+  // genuinely overflows the measured container. Comparing against the measured chartWidth
+  // (not the SPARK_W constant) prevents false positives when the modal viewport is wider
+  // than SPARK_W but the content still fits without scrolling.
+  const isScrollable = expanded && (svgViewW + SCROLL_PADDING_RIGHT) > chartWidth;
+
+  const pts = vals.map((v, i) => ({
+    x: SPARK_PAD_X + (i / (vals.length - 1)) * (svgViewW - SPARK_PAD_X * 2),
+    y: padY + (1 - (v - min) / range) * (chartHeight - padY * 2),
+  }));
+
+  // Smooth cubic bezier: control points split midway between adjacent pts
+  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1];
+    const curr = pts[i];
+    const cpX = ((prev.x + curr.x) / 2).toFixed(2);
+    d += ` C ${cpX} ${prev.y.toFixed(2)} ${cpX} ${curr.y.toFixed(2)} ${curr.x.toFixed(2)} ${curr.y.toFixed(2)}`;
+  }
+
+  // Build a closed fill path: follow the bezier then drop to the bottom corners
+  const bottomY = (chartHeight - padY).toFixed(2);
+  const dFill = `${d} L ${pts[pts.length - 1].x.toFixed(2)} ${bottomY} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
+
+  // Scale dash length to match both the taller and potentially wider SVG canvas.
+  const dashLen = Math.ceil(SPARK_DASH * Math.max(1, chartHeight / SPARK_H) * (svgViewW / SPARK_W));
+
+  const dashOffset = useSharedValue(dashLen);
+  const fillOpacity = useSharedValue(0);
+  const dataKey = `${vals.join(',')}_${chartHeight}_${svgViewW}`;
+  useEffect(() => {
+    dashOffset.value = dashLen;
+    fillOpacity.value = 0;
+    dashOffset.value = withTiming(0, { duration: 920, easing: Easing.out(Easing.cubic) });
+    fillOpacity.value = withTiming(1, { duration: 920, easing: Easing.out(Easing.cubic) });
+  // Re-run whenever data or size changes; eslint can't verify the string identity dependency.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataKey]);
+
+  // Clean up dismiss timer on unmount
+  useEffect(() => {
+    return () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current); };
+  }, []);
+
+  // Scroll to the rightmost (most recent) entry whenever entries change.
+  // Uses a stable ref so the callback is never recreated mid-render, which
+  // would otherwise snap the chart back to the end every time the fade-state
+  // triggers a re-render.
+  useEffect(() => {
+    if (isScrollable) {
+      scrollViewRef.current?.scrollToEnd({ animated: false });
+    }
+  // Re-run when the entry list changes; dataKey captures that dependency.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isScrollable, dataKey]);
+
+  const animPathProps = useAnimatedProps(() => ({
+    strokeDashoffset: dashOffset.value,
+  }));
+
+  const animFillProps = useAnimatedProps(() => ({
+    fillOpacity: fillOpacity.value,
+  }));
+
+  const leftGradientStyle = useAnimatedStyle(() => ({ opacity: leftGradientOpacity.value }));
+  const rightGradientStyle = useAnimatedStyle(() => ({ opacity: rightGradientOpacity.value }));
+
+  // When the chart scrolls (expanded with many points), SVG width === viewBox width so
+  // there is no scaling — pixel coordinates match the SVG coordinate space directly.
+  // In the compact / non-scrolling path, scale hit targets and tooltip to the real width.
+  const xScale = isScrollable ? 1 : chartWidth / SPARK_W;
+  const lastIdx = pts.length - 1;
+  const strokeW = expanded ? 2.8 : 2.2;
+  const dotR = expanded ? { normal: 3.5, active: 5.5 } : { normal: 2.8, active: 4.5 };
+
+  const clearSelection = () => setSelectedIdx(null);
+
+  // Identity of the entry the tooltip currently points at. Tracked by ID (not
+  // index) because indices shift when an expired pending-delete entry leaves
+  // the dataset — comparing by index would miss a selected middle point.
+  const selectedEntryIdRef = useRef<string | undefined>(undefined);
+
+  // Dismiss the tooltip promptly when the pending-delete entry it refers to is
+  // resolved — either undo restored it (pendingDeleteId cleared) or the undo
+  // window expired (entry removed). Otherwise the "Pending removal" tooltip
+  // would flip to stale content and linger until its 2s auto-dismiss.
+  const prevPendingIdRef = useRef<string | undefined>(pendingDeleteId);
+  useEffect(() => {
+    const prevPendingId = prevPendingIdRef.current;
+    prevPendingIdRef.current = pendingDeleteId;
+    if (prevPendingId == null || pendingDeleteId === prevPendingId) return;
+    if (selectedIdx === null) return;
+    if (selectedEntryIdRef.current === prevPendingId) {
+      if (dismissTimerRef.current) {
+        clearTimeout(dismissTimerRef.current);
+        dismissTimerRef.current = null;
+      }
+      clearSelection();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingDeleteId]);
+
+  const handleDotPress = (i: number, withHaptic = true) => {
+    selectedEntryIdRef.current = entries[i]?.id;
+    if (withHaptic) Haptics.selectionAsync();
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    setSelectedIdx(i);
+    // Interactive tooltips must not disappear while a keyboard or assistive-
+    // technology user is moving focus toward Edit/Delete. Read-only tooltips
+    // still dismiss automatically to keep the chart unobstructed.
+    if (!onRequestEdit && !onRequestDelete) {
+      dismissTimerRef.current = setTimeout(() => {
+        dismissTimerRef.current = null;
+        clearSelection();
+      }, 2000);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // Include the colour in the gradient id so React Native SVG creates a fresh
+  // Defs block whenever the theme switches (light ↔ dark), preventing stale
+  // gradient artefacts from lingering after a colour change.
+  const colorToken = colors.success.replace(/[^a-zA-Z0-9]/g, '');
+  const gradientId = `weightFill${expanded ? 'Expanded' : ''}_${colorToken}`;
+
+  // The inner chart content (SVG + hit targets + tooltip + date labels).
+  // When isScrollable this block is rendered inside a horizontal ScrollView.
+  const chartContent = (
+    <View style={{ position: 'relative', width: isScrollable ? svgViewW : undefined }}>
+      <Svg
+        width={isScrollable ? svgViewW : '100%'}
+        height={chartHeight}
+        viewBox={`0 0 ${svgViewW} ${chartHeight}`}
+        preserveAspectRatio="none"
+      >
+        <Defs>
+          <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor={colors.success} stopOpacity={expanded ? 0.26 : 0.18} />
+            <Stop offset="100%" stopColor={colors.success} stopOpacity={0} />
+          </SvgLinearGradient>
+        </Defs>
+        {/* animated area fill */}
+        <AnimatedPath
+          d={dFill}
+          fill={`url(#${gradientId})`}
+          stroke="none"
+          animatedProps={animFillProps}
+        />
+        {/* track line */}
+        <Path d={d} stroke="rgba(120,120,120,0.13)" strokeWidth={strokeW} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        {/* animated line */}
+        <AnimatedPath
+          d={d}
+          stroke={colors.success}
+          strokeWidth={strokeW}
+          fill="none"
+          strokeDasharray={dashLen}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          animatedProps={animPathProps}
+        />
+        {/* data point dots */}
+        {pts.map((pt, i) => {
+          const isPending = pendingDeleteId != null && entries[i]?.id === pendingDeleteId;
+          const isActive = i === lastIdx || i === selectedIdx;
+          return (
+            <Circle
+              key={i}
+              cx={pt.x}
+              cy={pt.y}
+              r={isActive ? dotR.active : dotR.normal}
+              fill={i === lastIdx ? colors.primary : colors.success}
+              opacity={isPending ? 0.28 : isActive ? 1 : 0.65}
+            />
+          );
+        })}
+      </Svg>
+
+      {/* Transparent Pressable hit targets over each dot */}
+      {pts.map((pt, i) => (
+        <Pressable
+          key={i}
+          onPress={() => handleDotPress(i)}
+          onFocus={() => handleDotPress(i, false)}
+          style={{
+            position: 'absolute',
+            left: pt.x * xScale - DOT_HIT / 2,
+            top: pt.y - DOT_HIT / 2,
+            width: DOT_HIT,
+            height: DOT_HIT,
+          }}
+          accessibilityLabel={`Weigh-in ${entries[i]?.date ? formatDate(entries[i].date) : ''}: ${entries[i]?.kg.toFixed(1)} kg`}
+          accessibilityRole="button"
+        />
+      ))}
+
+      {/* Tooltip callout */}
+      {selectedIdx !== null && (
+        <View
+          pointerEvents="box-none"
+          style={[
+            styles.weightTooltip,
+            {
+              backgroundColor: colors.foreground,
+              left: Math.min(
+                Math.max(pts[selectedIdx].x * xScale - TOOLTIP_W / 2, 0),
+                // Clamp within the scrollable content width, or the container width in non-scroll mode.
+                (isScrollable ? svgViewW : chartWidth) - TOOLTIP_W,
+              ),
+              top: Math.max(pts[selectedIdx].y - TOOLTIP_H - 8, 2),
+            },
+          ]}
+        >
+          {(() => {
+            const isSelectedPending = pendingDeleteId != null && entries[selectedIdx]?.id === pendingDeleteId;
+            return (
+              <>
+                <View style={{ flex: 1 }}>
+                  {isSelectedPending ? (
+                    <>
+                      <Text style={[styles.weightTooltipDate, { color: colors.background, opacity: 0.72 }]}>
+                        Pending removal
+                      </Text>
+                      <Text style={[styles.weightTooltipKg, { color: colors.background, fontSize: 11 }]}>
+                        Tap undo to restore
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={[styles.weightTooltipDate, { color: colors.background, opacity: 0.72 }]}>
+                        {formatDate(entries[selectedIdx].date)}
+                      </Text>
+                      <Text style={[styles.weightTooltipKg, { color: colors.background }]}>
+                        {entries[selectedIdx].kg.toFixed(1)} kg
+                      </Text>
+                    </>
+                  )}
+                </View>
+                {(onRequestEdit || onRequestDelete) && entries[selectedIdx]?.id && !isSelectedPending && (
+                  <View style={styles.weightTooltipActions}>
+                    {onRequestEdit && (
+                      <Pressable
+                        onPress={() => {
+                          const entry = entries[selectedIdx];
+                          if (!entry?.id) return;
+                          Haptics.selectionAsync();
+                          // Dismiss tooltip
+                          if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
+                          clearSelection();
+                          onRequestEdit({ id: entry.id, kg: entry.kg, date: entry.date });
+                        }}
+                        hitSlop={10}
+                        accessibilityLabel={`Edit weigh-in ${formatDate(entries[selectedIdx].date)}`}
+                        accessibilityRole="button"
+                        style={styles.weightTooltipActionBtn}
+                      >
+                        <Feather name="edit-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
+                      </Pressable>
+                    )}
+                    {onRequestDelete && (
+                      <Pressable
+                        onPress={() => {
+                          const entry = entries[selectedIdx];
+                          if (!entry?.id) return;
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          // Dismiss tooltip
+                          if (dismissTimerRef.current) { clearTimeout(dismissTimerRef.current); dismissTimerRef.current = null; }
+                          clearSelection();
+                          onRequestDelete({ id: entry.id, kg: entry.kg, date: entry.date });
+                        }}
+                        hitSlop={10}
+                        accessibilityLabel={`Delete weigh-in ${formatDate(entries[selectedIdx].date)}`}
+                        accessibilityRole="button"
+                        style={styles.weightTooltipActionBtn}
+                      >
+                        <Feather name="trash-2" size={13} color={colors.background} style={{ opacity: 0.72 }} />
+                      </Pressable>
+                    )}
+                  </View>
+                )}
+              </>
+            );
+          })()}
+        </View>
+      )}
+
+      {/* date labels under each dot — expanded mode only.
+          Labels are thinned so they never overlap:
+          - rendered pixel spacing is measured from the dot positions.
+          - if tight, labels switch to day-only ("4" instead of "Jul 4").
+          - a stride skips intermediate labels when even day-only would crowd.
+          - the first and last labels are always shown as anchors. */}
+      {expanded && (() => {
+        const nPts = pts.length;
+
+        // Rendered pixel gap between adjacent dots (use SPARK_PAD_X approximation for n=1).
+        const renderedSpacing = nPts > 1
+          ? ((svgViewW - SPARK_PAD_X * 2) * xScale) / (nPts - 1)
+          : 9999;
+
+        // Minimum rendered-pixel width for each label format (conservative estimates at 9pt).
+        const FULL_MIN_PX = 32; // "Jul 4"
+        const SHORT_MIN_PX = 14; // "4"
+
+        // Prefer the full "Jul 4" label; fall back to day-only when spacing is tight.
+        const useShort = renderedSpacing < FULL_MIN_PX;
+        const labelFn = (dateStr: string): string => {
+          if (!dateStr) return '';
+          const d = new Date(dateStr + 'T00:00:00');
+          return useShort
+            ? String(d.getDate())
+            : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        };
+
+        // Choose a stride so no two visible labels are closer than the min label width.
+        const minPx = useShort ? SHORT_MIN_PX : FULL_MIN_PX;
+        const stride = Math.max(1, Math.ceil(minPx / renderedSpacing));
+
+        return (
+          <View style={[styles.weightExpandedDateRow, isScrollable && { width: svgViewW }]}>
+            {pts.map((pt, i) => {
+              const isFirst = i === 0;
+              const isLast = i === lastIdx;
+              // Show this label only if it lands on a stride boundary or is an anchor.
+              if (!isFirst && !isLast && i % stride !== 0) return null;
+              return (
+                <Text
+                  key={entries[i]?.id ?? `${entries[i]?.date ?? ''}-${i}`}
+                  numberOfLines={1}
+                  style={[
+                    styles.weightExpandedDateLabel,
+                    {
+                      color: isLast ? colors.primary : colors.mutedForeground,
+                      left: pt.x * xScale,
+                    },
+                  ]}
+                >
+                  {entries[i]?.date ? labelFn(entries[i].date) : ''}
+                </Text>
+              );
+            })}
+          </View>
+        );
+      })()}
+    </View>
+  );
+
+  return (
+    <View style={styles.weightSparkline} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
+      {isScrollable ? (
+        <View style={{ position: 'relative' }}>
+          <SwipeGestureExclusion>
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingRight: 12 }}
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              const x = e.nativeEvent.contentOffset.x;
+              const maxScroll = svgViewW + SCROLL_PADDING_RIGHT - chartWidth;
+              const atEnd = x >= maxScroll - 8;
+              const fadeDuration = 200;
+              const fadeEasing = Easing.inOut(Easing.ease);
+              leftGradientOpacity.value = withTiming(atEnd ? 1 : 0, { duration: fadeDuration, easing: fadeEasing });
+              rightGradientOpacity.value = withTiming(atEnd ? 0 : 1, { duration: fadeDuration, easing: fadeEasing });
+            }}
+          >
+            {chartContent}
+          </ScrollView>
+          </SwipeGestureExclusion>
+          {/* Scroll-hint fades — both always rendered, opacity animated with ease-in-out.
+              Right edge visible when more content lies to the right; left edge once scrolled to end. */}
+          <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 48 }, leftGradientStyle]}>
+            <LinearGradient
+              colors={[colors.background, 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ flex: 1 }}
+            />
+          </Animated.View>
+          <Animated.View pointerEvents="none" style={[{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 48 }, rightGradientStyle]}>
+            <LinearGradient
+              colors={['transparent', colors.background]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ flex: 1 }}
+            />
+          </Animated.View>
+        </View>
+      ) : (
+        chartContent
+      )}
+
+      {/* weight value labels — compact mode only */}
+      {!expanded && (
+        <View style={styles.weightSparkLabels}>
+          {entries.map((entry, i) => (
+            <Text
+              key={entry.kg + String(i)}
+              style={[
+                styles.weightSparkLabel,
+                { color: i === lastIdx ? colors.primary : colors.mutedForeground, flex: 1, textAlign: i === 0 ? 'left' : i === lastIdx ? 'right' : 'center' },
+              ]}
+              numberOfLines={1}
+            >
+              {entry.kg.toFixed(1)}
+            </Text>
+          ))}
+        </View>
+      )}
+
+      {/* count + date range label — compact mode only, when span covers more than one unique date.
+          Use visibleEntries (pending-delete entry excluded) so the count and range stay in sync
+          with the faded dot the chart already shows — no jarring jump when the undo window closes. */}
+      {(() => {
+        if (expanded) return null;
+        const visibleEntries = pendingDeleteId
+          ? entries.filter((e) => e.id !== pendingDeleteId)
+          : entries;
+        if (
+          visibleEntries.length < 2 ||
+          !visibleEntries[0]?.date ||
+          !visibleEntries[visibleEntries.length - 1]?.date ||
+          visibleEntries[0].date === visibleEntries[visibleEntries.length - 1].date
+        ) return null;
+        return (
+          <Text style={[styles.weightSparkDateRange, { color: colors.mutedForeground }]}>
+            {visibleEntries.length} weigh-ins · {formatDate(visibleEntries[0].date)} – {formatDate(visibleEntries[visibleEntries.length - 1].date)}
+          </Text>
+        );
+      })()}
+
+    </View>
+  );
+}
+
+// ─── Expanded weight chart modal ───────────────────────────────────────────────
+function WeightChartModal({
+  entries,
+  colors,
+  visible,
+  onClose,
+  onRequestDelete,
+  onRequestEdit,
+  pendingDeleteId,
+  pendingDeleteEntry,
+  onUndo,
+}: {
+  entries: { id?: string; date: string; kg: number }[];
+  colors: ReturnType<typeof useCalora>['colors'];
+  visible: boolean;
+  onClose: () => void;
+  onRequestDelete?: (entry: { id: string; kg: number; date: string }) => void;
+  onRequestEdit?: (entry: { id: string; kg: number; date: string }) => void;
+  pendingDeleteId?: string;
+  /** When set, an undo snackbar is shown inside the modal so the user can reach it above the backdrop. */
+  pendingDeleteEntry?: { id: string; kg: number; date: string } | null;
+  onUndo?: () => void;
+}) {
+  const sheetY = useSharedValue(600);
+  const backdropOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (visible) {
+      sheetY.value = withSpring(0, { damping: 22, stiffness: 200 });
+      backdropOpacity.value = withTiming(1, { duration: 260 });
+    } else {
+      sheetY.value = withTiming(600, { duration: 240, easing: Easing.in(Easing.cubic) });
+      backdropOpacity.value = withTiming(0, { duration: 220 });
+    }
+  }, [visible, sheetY, backdropOpacity]);
+
+  const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: sheetY.value }] }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // Guard: entries may be empty while the modal animates closed (visible=false).
+  // Provide safe defaults so no computation crashes before the sheet slides out.
+  const safeEntries = entries.length >= 2 ? entries : [];
+
+  // Exclude the pending-delete entry from stats so low/high/change update
+  // immediately when a deletion is queued — no jump when the undo window closes.
+  const statsEntries = pendingDeleteId
+    ? safeEntries.filter((e) => e.id !== pendingDeleteId)
+    : safeEntries;
+  const vals = statsEntries.map((e) => e.kg);
+  const min = vals.length > 0 ? Math.min(...vals) : 0;
+  const max = vals.length > 0 ? Math.max(...vals) : 0;
+  const minEntry = statsEntries[vals.indexOf(min)] ?? statsEntries[0];
+  const maxEntry = statsEntries[vals.indexOf(max)] ?? statsEntries[0];
+  const lastEntry = statsEntries[statsEntries.length - 1];
+  const firstEntry = statsEntries[0];
+  const delta = lastEntry && firstEntry ? lastEntry.kg - firstEntry.kg : 0;
+
+  return (
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <View style={{ flex: 1 }}>
+        {/* Backdrop */}
+        <Animated.View
+          style={[{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.48)' }, backdropStyle]}
+        >
+          <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close chart" />
+        </Animated.View>
+
+        {/* Bottom sheet */}
+        <BottomSheetFrame
+          overlayColor="transparent"
+          sheetStyle={[styles.chartModalSheet, { backgroundColor: colors.background }]}
+        >
+        <Animated.View style={sheetStyle}>
+          {/* Handle */}
+          <View style={[styles.chartModalHandle, { backgroundColor: colors.muted }]} />
+
+          {/* Header */}
+          <View style={styles.chartModalHeader}>
+            <View>
+              <Text style={[styles.chartModalTitle, { color: colors.foreground }]}>Weight trend</Text>
+              {(() => {
+                // Exclude the pending-delete entry so the count and range update
+                // immediately when the user deletes a point, with no jump when
+                // the undo window eventually closes.
+                const visibleEntries = pendingDeleteId
+                  ? entries.filter((e) => e.id !== pendingDeleteId)
+                  : entries;
+                const dateRange =
+                  visibleEntries.length >= 2 &&
+                  visibleEntries[0].date !== visibleEntries[visibleEntries.length - 1].date
+                    ? ` · ${formatDate(visibleEntries[0].date)} – ${formatDate(visibleEntries[visibleEntries.length - 1].date)}`
+                    : '';
+                return (
+                  <Text style={[styles.chartModalSubtitle, { color: colors.mutedForeground }]}>
+                    {visibleEntries.length} weigh-ins{dateRange} · tap a point
+                  </Text>
+                );
+              })()}
+            </View>
+            <Pressable
+              onPress={onClose}
+              hitSlop={12}
+              accessibilityLabel="Close expanded chart"
+              accessibilityRole="button"
+              style={[styles.chartModalCloseBtn, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+
+          {/* Expanded chart — only rendered when there are enough points */}
+          {safeEntries.length >= 2 && (
+            <WeightLineChart entries={safeEntries} colors={colors} chartHeight={200} expanded onRequestDelete={onRequestDelete} onRequestEdit={onRequestEdit} pendingDeleteId={pendingDeleteId} />
+          )}
+
+          {/* Summary stats row — guarded so undefined entries never crash while animating closed.
+              Uses statsEntries (pending-delete excluded) so low/high/change reflect the
+              reduced dataset the moment a deletion is queued. */}
+          {statsEntries.length >= 2 && minEntry && maxEntry && (
+            <View style={[styles.chartModalStats, { borderTopColor: colors.border }]}>
+              <View style={styles.chartModalStat}>
+                <Text style={[styles.chartModalStatValue, { color: colors.success }]}>{min.toFixed(1)} kg</Text>
+                <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>low · {formatDate(minEntry.date)}</Text>
+              </View>
+              <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.chartModalStat}>
+                <Text style={[styles.chartModalStatValue, { color: delta <= 0 ? colors.success : colors.warning }]}>
+                  {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg
+                </Text>
+                <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>overall change</Text>
+              </View>
+              <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
+              <View style={styles.chartModalStat}>
+                <Text style={[styles.chartModalStatValue, { color: colors.warning }]}>{max.toFixed(1)} kg</Text>
+                <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>high · {formatDate(maxEntry.date)}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* In-modal undo snackbar — rendered inside the sheet so it appears above the backdrop.
+              The screen-level snackbar is hidden behind the modal's native overlay, so this
+              duplicate ensures the user can always reach undo after tapping a pending-delete dot
+              in the expanded chart. */}
+          {pendingDeleteEntry != null && onUndo && (
+            <View style={[styles.chartModalUndoRow, { backgroundColor: colors.foreground }]}>
+              <Text style={[styles.chartModalUndoText, { color: colors.background }]}>
+                {pendingDeleteEntry.kg.toFixed(1)} kg removed
+              </Text>
+              <Pressable
+                onPress={onUndo}
+                hitSlop={10}
+                accessibilityLabel="Undo delete weigh-in"
+                accessibilityRole="button"
+              >
+                <Text style={[styles.chartModalUndoBtn, { color: colors.success }]}>Undo</Text>
+              </Pressable>
+            </View>
+          )}
+        </Animated.View>
+        </BottomSheetFrame>
+      </View>
+    </Modal>
+  );
+}
+
+function CircularProgress({ percentage, color, trackColor, size = 52, strokeWidth = 5 }: {
+  percentage: number; color: string; trackColor: string; size?: number; strokeWidth?: number;
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withDelay(400, withTiming(Math.min(Math.max(percentage / 100, 0), 1), { duration: 1100, easing: Easing.out(Easing.cubic) }));
+  }, [percentage, progress]);
+  const animatedArcProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - progress.value),
+  }));
+  return (
+    <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
+      <Circle cx={size / 2} cy={size / 2} r={radius} stroke={trackColor} strokeWidth={strokeWidth} fill="none" />
+      <AnimatedCircle cx={size / 2} cy={size / 2} r={radius} stroke={color} strokeWidth={strokeWidth} fill="none" strokeDasharray={circumference} strokeLinecap="round" animatedProps={animatedArcProps} />
+    </Svg>
+  );
+}
+
+// ─── Spring-bounce chip wrapper ───────────────────────────────────────────────
+function SpringChip({ selected, children, onPress, style, accessibilityLabel, accessibilityState, testID }: {
+  selected: boolean; children: React.ReactNode; onPress: () => void;
+  style?: StyleProp<ViewStyle>; accessibilityLabel?: string; accessibilityState?: object; testID?: string;
+}) {
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    scale.value = withSpring(selected ? 1.07 : 1, { damping: 11, stiffness: 380 });
+  }, [selected, scale]);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <Animated.View style={animStyle}>
+      <Pressable accessibilityLabel={accessibilityLabel} accessibilityState={accessibilityState} testID={testID} onPress={onPress} style={style}>
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// Module-level flag: tracks whether the nudge has already animated in during this
+// app session. Because the Insights screen re-mounts on every tab switch the
+// component's own state resets, but this flag persists as long as the JS module
+// stays loaded — so returning to the tab skips the enter animation.
+// Reset to false when the nudge exits so the animation plays again the first time
+// the nudge becomes visible after a hide.
+let nudgeHasAnimatedIn = false;
+
+function GoalNudge({
+  colors,
+  visible,
+  onExited,
+  message,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  visible: boolean;
+  onExited: () => void;
+  message: string;
+}) {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(6);
+  useEffect(() => {
+    if (visible) {
+      if (nudgeHasAnimatedIn) {
+        // Tab switch re-mount: nudge was already visible — jump to final values
+        // without replaying the enter animation.
+        opacity.value = 1;
+        translateY.value = 0;
+      } else {
+        nudgeHasAnimatedIn = true;
+        opacity.value = withDelay(180, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
+        translateY.value = withDelay(180, withTiming(0, { duration: 480, easing: Easing.out(Easing.cubic) }));
+      }
+    } else {
+      opacity.value = withTiming(0, { duration: 320, easing: Easing.in(Easing.cubic) }, (finished) => {
+        if (finished) runOnJS(onExited)();
+      });
+      translateY.value = withTiming(6, { duration: 320, easing: Easing.in(Easing.cubic) });
+    }
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  const animStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
+  return (
+    <Animated.View style={[styles.goalNudge, animStyle]}>
+      <Feather name="zap" size={12} color={colors.primary} />
+      <Text style={[styles.goalNudgeText, { color: colors.primary }]}>{message}</Text>
+    </Animated.View>
+  );
+}
+
+function WeeklyPatternsCard({ colors, days, averageActivityMinutes }: { colors: ReturnType<typeof useCalora>['colors']; days: WeeklySignalDay[]; averageActivityMinutes: number }) {
+  const loggedDays = days.filter((day) => day.hasData).length;
+  const waterDays = days.filter((day) => day.water > 0).length;
+  const moodDays = days.filter((day) => day.mood).length;
+  const activityDays = days.filter((day) => day.activity).length;
+  const averageWater = waterDays ? Math.round(days.reduce((sum, day) => sum + day.water, 0) / waterDays) : 0;
+  const averageCalories = days.filter((day) => day.kcal > 0).length
+    ? Math.round(days.reduce((sum, day) => sum + day.kcal, 0) / days.filter((day) => day.kcal > 0).length)
+    : 0;
+  return (
+    <View style={[styles.patternCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.sectionHeader}>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weekly patterns</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your last seven days.</Text>
+        </View>
+        <View style={[styles.patternBadge, { backgroundColor: colors.accent }]}>
+          <Feather name="trending-up" size={12} color={colors.accentForeground} />
+          <Text style={[styles.patternBadgeText, { color: colors.accentForeground }]}>{loggedDays} / 7 tracked</Text>
+        </View>
+      </View>
+      <View style={styles.patternChart}>
+        {days.map((day, index) => (
+          <View key={day.date} style={styles.patternColumn}>
+            <View style={[styles.patternTrack, { backgroundColor: colors.muted }]}>
+              {day.hasData && (
+                <AnimatedPatternBar
+                  value={Math.max(day.kcal ? day.value : 16, 16)}
+                  color={day.kcal ? (day.value > 110 ? colors.warning : colors.success) : colors.primary}
+                  delay={index * 55}
+                />
+              )}
+            </View>
+            <View style={[styles.patternMoodDot, { backgroundColor: day.mood ? moodColors[day.mood] : 'transparent', borderColor: day.mood ? moodColors[day.mood] : colors.border }]} />
+            <Text style={[styles.patternDay, { color: index === days.length - 1 ? colors.primary : colors.mutedForeground }]}>{day.day}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={[styles.patternLegend, { borderTopColor: colors.border }]}>
+        <View style={styles.patternLegendItem}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>logged days</Text></View>
+      </View>
+      <View style={[styles.moodLegend, { borderTopColor: colors.border }]}>
+        <Text style={[styles.moodLegendLabel, { color: colors.mutedForeground }]}>Mood</Text>
+        <View style={styles.moodLegendItems}>
+          {([ ['energized', '#e5ad55'], ['good', '#5dba7d'], ['okay', '#7394f2'], ['low', '#9875c7'], ['stressed', '#ef6b4f'] ] as [string, string][]).map(([label, color]) => (
+            <View key={label} style={styles.patternLegendItem}>
+              <View style={[styles.legendDot, { backgroundColor: color }]} />
+              <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{label}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+      <View style={styles.patternStats}>
+        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageWater} fl oz</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. water</Text></View>
+        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageCalories ? averageCalories.toLocaleString() : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. kcal</Text></View>
+        <View><Text style={[styles.patternStatValue, { color: colors.foreground }]}>{averageActivityMinutes ? `${averageActivityMinutes} min` : '—'}</Text><Text style={[styles.patternStatLabel, { color: colors.mutedForeground }]}>avg. active min</Text></View>
+      </View>
+      <Text style={[styles.patternNote, { color: colors.mutedForeground }]}>No entry is a negative score. Build a useful picture.</Text>
+    </View>
+  );
+}
+
+type ProgressLinePoint = {
+  label: string;
+  value: number | null;
+};
+
+function ProgressLineGraph({
+  colors,
+  title,
+  subtitle,
+  points,
+  color,
+  valueFormatter,
+  target,
+}: {
+  colors: ReturnType<typeof useCalora>['colors'];
+  title: string;
+  subtitle: string;
+  points: ProgressLinePoint[];
+  color: string;
+  valueFormatter: (value: number) => string;
+  target?: { value: number; label: string };
+}) {
+  const [chartWidth, setChartWidth] = useState(320);
+  const progress = useSharedValue(0);
+  const chartHeight = 128;
+  const padX = 8;
+  const padTop = 12;
+  const padBottom = 22;
+  const values = points.flatMap((point) => point.value == null ? [] : [point.value]);
+  const hasData = values.length > 0;
+  const showTarget = hasData && target != null;
+  const scaleValues = showTarget ? [...values, target.value] : values;
+  const min = hasData ? Math.min(...scaleValues) : 0;
+  const max = hasData ? Math.max(...scaleValues) : 1;
+  const range = Math.max(max - min, 1);
+  const plotWidth = Math.max(chartWidth - padX * 2, 1);
+  const xStep = points.length > 1 ? plotWidth / (points.length - 1) : 0;
+  const chartPoints = points.map((point, index) => ({
+    x: padX + index * xStep,
+    y: point.value == null
+      ? null
+      : padTop + (1 - (point.value - min) / range) * (chartHeight - padTop - padBottom),
+    value: point.value,
+  }));
+  const segments: { x: number; y: number }[][] = [];
+  let currentSegment: { x: number; y: number }[] = [];
+  for (const point of chartPoints) {
+    if (point.y == null) {
+      if (currentSegment.length) segments.push(currentSegment);
+      currentSegment = [];
+    } else {
+      currentSegment.push({ x: point.x, y: point.y });
+    }
+  }
+  if (currentSegment.length) segments.push(currentSegment);
+  const path = segments
+    .map((segment) => segment.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' '))
+    .join(' ');
+  const targetY = showTarget
+    ? padTop + (1 - (target.value - min) / range) * (chartHeight - padTop - padBottom)
+    : null;
+  const lineDashLength = Math.max(chartWidth * 2, 1);
+  const animatedPathProps = useAnimatedProps(() => ({
+    strokeDashoffset: lineDashLength * (1 - progress.value),
+  }));
+
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withTiming(1, { duration: 720, easing: Easing.out(Easing.cubic) });
+  }, [path, progress]);
+
+  return (
+    <View
+      accessibilityLabel={`${title}. ${hasData ? points.filter((point) => point.value != null).map((point) => `${point.label} ${valueFormatter(point.value!)}`).join(', ') : 'No data yet'}`}
+      accessibilityRole="summary"
+      style={[styles.lineGraphCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+    >
+      <View style={styles.sectionHeader}>
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{title}</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>{subtitle}</Text>
+        </View>
+        <View style={[styles.lineGraphBadge, { backgroundColor: colors.muted }]}>
+          <Feather name="activity" size={12} color={color} />
+          <Text style={[styles.lineGraphBadgeText, { color: colors.mutedForeground }]}>{hasData ? valueFormatter(values[values.length - 1]) : 'No data'}</Text>
+        </View>
+      </View>
+      <View onLayout={(event) => setChartWidth(Math.max(event.nativeEvent.layout.width, 1))} style={styles.lineGraphPlot}>
+        <Svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
+          <Line x1={padX} y1={padTop} x2={chartWidth - padX} y2={padTop} stroke={colors.border} strokeWidth={1} opacity={0.7} />
+          <Line x1={padX} y1={chartHeight - padBottom} x2={chartWidth - padX} y2={chartHeight - padBottom} stroke={colors.border} strokeWidth={1} opacity={0.7} />
+          {targetY != null && (
+            <Line x1={padX} y1={targetY} x2={chartWidth - padX} y2={targetY} stroke={colors.warning} strokeWidth={1} strokeDasharray="4 4" opacity={0.75} />
+          )}
+          {path ? (
+            <AnimatedPath
+              d={path}
+              stroke={color}
+              strokeWidth={2.5}
+              fill="none"
+              strokeDasharray={lineDashLength}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              animatedProps={animatedPathProps}
+            />
+          ) : null}
+          {chartPoints.map((point, index) => point.y == null ? null : (
+            <Circle
+              key={`${point.x}-${point.y}`}
+              cx={point.x}
+              cy={point.y}
+              r={index === chartPoints.length - 1 ? 4 : 3}
+              fill={index === chartPoints.length - 1 ? colors.primary : color}
+              stroke={colors.card}
+              strokeWidth={2}
+            />
+          ))}
+        </Svg>
+        {!hasData && (
+          <View pointerEvents="none" style={styles.lineGraphEmpty}>
+            <Text style={[styles.lineGraphEmptyText, { color: colors.mutedForeground }]}>Log a day to start your graph.</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.lineGraphLabels}>
+        {points.map((point, index) => (
+          <Text key={`${point.label}-${index}`} style={[styles.lineGraphLabel, { color: index === points.length - 1 ? colors.primary : colors.mutedForeground }]}>{point.label}</Text>
+        ))}
+      </View>
+      <View style={[styles.lineGraphLegend, { borderTopColor: colors.border }]}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: color }]} />
+          <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{title}</Text>
+        </View>
+        {target && hasData && (
+          <View style={styles.legendItem}>
+            <View style={[styles.lineGraphTargetDot, { backgroundColor: colors.warning }]} />
+            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{target.label}: {valueFormatter(target.value)}</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+export default function InsightsScreen() {
+  const { colors, logs, weights, addWeight, removeWeight, updateWeight, profile, updateProfile, waterLogs, moodLogs, activityLogs, activityMinutesLogs, setActivity, setActivityMinutes, setMood, livingMemory, plannerMeals, shoppingItems, toggleShoppingItemByName, localRecipes, hydrated, goalCelebrationSeenTargetKg, markGoalCelebrationSeen, resetGoalCelebrationSeen, fontScale, healthConnection, healthConnected } = useCalora();
+  const insightsHeaderImage = useHourlyHeaderImage('insights');
+  const healthSnapshotReady = healthSnapshotIsFreshForDay(healthConnection.snapshot);
+  const healthStepsAvailable = healthSnapshotReady && (
+    healthConnection.granted.includes('steps')
+    || (healthConnection.provider === 'healthkit' && healthConnection.snapshot?.steps !== null)
+  );
+  const healthActiveEnergyAvailable = healthSnapshotReady && (
+    healthConnection.granted.includes('activeEnergy')
+    || (healthConnection.provider === 'healthkit' && healthConnection.snapshot?.activeEnergyKcal !== null)
+  );
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
+  const [showWeight, setShowWeight] = useState(false);
+  const [weightInput, setWeightInput] = useState('');
+  const [weightError, setWeightError] = useState('');
+  const [minutesInput, setMinutesInput] = useState('');
+  const [showGoalEdit, setShowGoalEdit] = useState(false);
+  const [goalInput, setGoalInput] = useState('');
+  const [goalError, setGoalError] = useState('');
+  const [showExpandedChart, setShowExpandedChart] = useState(false);
+  const [shoppingVisible, setShoppingVisible] = useState(false);
+
+  // ── Pending-edit state ────────────────────────────────────────────────────────
+  const [editEntry, setEditEntry] = useState<{ id: string; kg: number; date: string } | null>(null);
+  const [editInput, setEditInput] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const handleRequestEdit = (entry: { id: string; kg: number; date: string }) => {
+    // A weigh-in queued for deletion must not be editable — the edit could be
+    // silently discarded when the undo window expires and the entry is removed.
+    if (pendingDeleteRef.current?.id === entry.id) return;
+    setEditError(null);
+    setEditInput(String(entry.kg));
+    setEditEntry(entry);
+  };
+
+  // ── Pending-delete state (lifted so it survives modal close) ─────────────────
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; kg: number; date: string } | null>(null);
+  // Synchronous lock: updated eagerly inside each handler so rapid back-to-back
+  // calls to handleRequestDelete are blocked even before React re-renders.
+  // This ref MUST be kept in sync with pendingDelete state at every mutation site.
+  const pendingDeleteRef = useRef<{ id: string; kg: number; date: string } | null>(null);
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snackOpacity = useSharedValue(0);
+  const snackTranslateY = useSharedValue(8);
+  const snackAnimStyle = useAnimatedStyle(() => ({
+    opacity: snackOpacity.value,
+    transform: [{ translateY: snackTranslateY.value }],
+  }));
+
+  const handleRequestDelete = (entry: { id: string; kg: number; date: string }) => {
+    // Guard checked and set synchronously so rapid successive taps (before React
+    // re-renders and effects run) are all blocked by the same ref value.
+    if (pendingDeleteRef.current) {
+      // An undo window is already active — ignore the new request so the user
+      // never silently loses two entries. Let the current window complete.
+      return;
+    }
+    // Acquire the lock synchronously before any state or async operations.
+    pendingDeleteRef.current = entry;
+    // Start new undo window.
+    setPendingDelete(entry);
+    snackOpacity.value = 0;
+    snackTranslateY.value = 8;
+    snackOpacity.value = withSpring(1, { damping: 16, stiffness: 240 });
+    snackTranslateY.value = withSpring(0, { damping: 16, stiffness: 240 });
+    deleteTimerRef.current = setTimeout(() => {
+      deleteTimerRef.current = null;
+      pendingDeleteRef.current = null;
+      removeWeight(entry.id);
+      snackOpacity.value = withTiming(0, { duration: 200 }, (finished) => {
+        if (finished) runOnJS(setPendingDelete)(null);
+      });
+      snackTranslateY.value = withTiming(8, { duration: 200 });
+    }, 4000);
+  };
+
+  const undoDelete = () => {
+    if (deleteTimerRef.current) {
+      clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = null;
+    }
+    // Release the lock synchronously so a new deletion can be started immediately.
+    pendingDeleteRef.current = null;
+    snackOpacity.value = withTiming(0, { duration: 180 });
+    snackTranslateY.value = withTiming(8, { duration: 180 });
+    setTimeout(() => setPendingDelete(null), 200);
+  };
+
+  // Commit any pending deletion on unmount (e.g. navigating away).
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current) {
+        clearTimeout(deleteTimerRef.current);
+        deleteTimerRef.current = null;
+        if (pendingDeleteRef.current) removeWeight(pendingDeleteRef.current.id);
+      }
+    };
+  // removeWeight is stable across re-renders; eslint can't verify it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // When the weigh-in count drops below 3 mid-session (e.g. after the undo window expires),
+  // close the expanded chart modal so it animates out cleanly instead of being force-unmounted.
+  // Also resets the flag so adding weights back doesn't silently re-open the modal.
+  useEffect(() => {
+    if (weights.length < 3 && showExpandedChart) {
+      setShowExpandedChart(false);
+    }
+  }, [weights.length, showExpandedChart]);
+
+  // Parallax scroll
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
+  const heroParallaxStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: Math.max(0, scrollY.value) * 0.38 }],
+  }));
+  const isEditingMinutes = useRef(false);
+  const isEditingWeight = useRef(false);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  // todayKey is reactive: a 60-second interval checks whether the calendar date has rolled over
+  // so that mood, activity, water check-ins, and the local insight all use the current day.
+  const [todayKey, setTodayKey] = useState(() => dateKey());
+  const [progressView, setProgressView] = useState<ProgressView>('overview');
+  useEffect(() => {
+    const id = setInterval(() => {
+      const current = dateKey();
+      setTodayKey((prev) => (prev !== current ? current : prev));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const remembered = useMemo(
+    () => filterForgottenSources(livingMemory, { logs, waterLogs, moodLogs, activityLogs, plannerMeals }),
+    [activityLogs, livingMemory, logs, moodLogs, plannerMeals, waterLogs],
+  );
+  // This value is deliberately derived during render rather than stored in
+  // component or provider state. A hydration reset, sign-out, or account scope
+  // switch therefore removes it synchronously; the keyed provider then
+  // recomputes only from the newly hydrated account's local snapshot.
+  const localInsight = useMemo(() => {
+    if (!hydrated || !isIntelligenceFeatureEnabled('intelligence.insights.progress')) return null;
+
+    const context = createIntelligenceContext({
+      logs,
+      profile,
+      weights,
+      waterLogs,
+      moodLogs,
+      activityLogs,
+      activityMinutesLogs,
+      plannerMeals,
+      shoppingItems,
+      localRecipes,
+    }, { date: todayKey });
+    return selectVisibleLocalInsight(buildDailyIntelligenceFacts(context), {
+      hydrated,
+      enabled: isIntelligenceFeatureEnabled('intelligence.insights.progress'),
+      weightTrendEnabled: isIntelligenceFeatureEnabled('intelligence.insights.progress_weight_trend'),
+      nutritionCoverageEnabled: isIntelligenceFeatureEnabled('intelligence.insights.progress_nutrition_coverage'),
+      macroRecordCoverageEnabled: isIntelligenceFeatureEnabled('intelligence.insights.progress_macro_record_coverage'),
+    });
+  }, [
+    activityLogs,
+    activityMinutesLogs,
+    hydrated,
+    localRecipes,
+    logs,
+    moodLogs,
+    plannerMeals,
+    profile,
+    shoppingItems,
+    todayKey,
+    waterLogs,
+    weights,
+  ]);
+  const dataTrust = trustScore(remembered.logs);
+  const latestWeight = weights[weights.length - 1]?.kg ?? profile?.weightKg ?? 76;
+  const startingWeight = profile?.weightKg ?? latestWeight;
+  // Delta badge: difference between first and latest *logged* weigh-in, not the onboarding profile value.
+  const firstLoggedWeight = weights[0]?.kg ?? latestWeight;
+  const weightDelta = latestWeight - firstLoggedWeight;
+  const targetWeight = profile?.targetWeightKg ?? 0;
+  const hasGoal = targetWeight > 0 && Math.abs(targetWeight - startingWeight) > 0.1;
+  const goalTotalDistance = hasGoal ? Math.abs(targetWeight - startingWeight) : 1;
+  const goalDirection = hasGoal ? Math.sign(targetWeight - startingWeight) : 1;
+  const goalProgressKg = (latestWeight - startingWeight) * goalDirection;
+  const goalProgressRaw = (goalProgressKg / goalTotalDistance) * 100;
+  const goalReached = goalProgressRaw >= 100;
+  const goalProgressPct = Math.max(0, Math.min(100, goalProgressRaw));
+  const showGoalProgress = weights.length >= 3 && hasGoal;
+  // Nudge: 90–99% progress, goal not yet reached
+  const showGoalNudge = showGoalProgress && !goalReached && goalProgressPct >= 90;
+  const goalRemainingKg = Math.max(0, goalTotalDistance - goalProgressKg);
+  const useImperial = profile?.units === 'imperial';
+  const weightUnits = useImperial ? 'lb' : 'kg';
+  const targetWeightDisplay = useImperial ? targetWeight * 2.20462 : targetWeight;
+  const openWeightGoalEdit = () => {
+    setGoalInput(targetWeight > 0
+      ? displayTargetWeight(targetWeight, useImperial ? 'imperial' : 'metric')
+      : '');
+    setGoalError('');
+    setShowGoalEdit(true);
+  };
+  const goalRemainingDisplay = useImperial
+    ? (goalRemainingKg * 2.20462).toFixed(1)
+    : goalRemainingKg.toFixed(1);
+  const goalRemainingUnit = useImperial ? 'lbs' : 'kg';
+  const nudgeMessage =
+    goalProgressPct >= 95
+      ? `So close — just ${goalRemainingDisplay} ${goalRemainingUnit} to go!`
+      : `You're within reach — keep it up!`;
+  // Keep the nudge mounted during its exit animation; only unmount after onExited fires.
+  const [nudgeMounted, setNudgeMounted] = useState(showGoalNudge);
+  useEffect(() => {
+    if (showGoalNudge) setNudgeMounted(true);
+    // When showGoalNudge goes false, GoalNudge animates out and calls onExited → setNudgeMounted(false)
+  }, [showGoalNudge]);
+  // Show celebration banner once per goal target — mark seen immediately so it won't show on reload.
+  // Gate on showGoalProgress (weights.length >= 3 && hasGoal) to ensure the flag is only consumed
+  // when the banner can actually be rendered; without this gate, reaching the goal with < 3 entries
+  // would mark it seen without the user ever seeing the banner.
+  const [showGoalCelebration, setShowGoalCelebration] = useState(false);
+  // When the user sets a new goal target, reset the celebration flag so the confetti
+  // can fire again once the new target is reached. Without this reset, `showGoalCelebration`
+  // stays `true` from the previous goal and the ConfettiBurst `active` prop never
+  // transitions false → true, so the animation never replays.
+  //
+  // Mid-session target change: also clear the persisted goalCelebrationSeenTargetKg (which
+  // still refers to the OLD target) and reset the hydration baseline snapshot. If neither is
+  // cleared and the user happens to already be at the new target, celebrationGate would either
+  // fire with a stale `goalReachedAtHydration: true` (returning 'markSeenSilently' instead of
+  // 'show') or with a stale seen-flag that obscures the genuine new-target crossing.
+  // Both resets are no-ops on the initial mount render (hydrated is false at that point).
+  useEffect(() => {
+    setShowGoalCelebration(false);
+    if (hydrated) {
+      resetGoalCelebrationSeen();
+      // The hydration baseline captured goalReached for the OLD target. Now that the target
+      // has changed, that snapshot is stale — clear it so the gate treats any current crossing
+      // of the NEW target as a genuine in-session event.
+      hydrationBaselineRef.current = {
+        established: true,
+        goalReachedAtHydration: false,
+      };
+    }
+  // hydrated flips once and then stays true; resetGoalCelebrationSeen is stable. Both are safe
+  // to omit from deps — we intentionally only re-run this effect when targetWeight changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetWeight]);
+
+  // Capture whether the goal was already reached at the exact moment hydration completed.
+  // This ref is set synchronously during render (not in a useEffect) so its value is
+  // immediately visible to the celebration effect on the same render cycle.
+  // When true, the gate returns 'markSeenSilently' instead of 'show', preventing the
+  // fresh-install scenario from triggering a false celebration: if the very first
+  // weigh-in the user logs already satisfies the goal, they have not earned a
+  // celebration within this session.
+  const hydrationBaselineRef = useRef<{ established: boolean; goalReachedAtHydration: boolean }>({
+    established: false,
+    goalReachedAtHydration: false,
+  });
+  if (hydrated && !hydrationBaselineRef.current.established) {
+    hydrationBaselineRef.current = {
+      established: true,
+      goalReachedAtHydration: goalReached && showGoalProgress,
+    };
+  }
+
+  useEffect(() => {
+    const decision = celebrationGate({
+      hydrated,
+      goalReached,
+      showGoalProgress,
+      goalCelebrationSeenTargetKg,
+      targetWeight,
+      goalReachedAtHydration: hydrationBaselineRef.current.goalReachedAtHydration,
+    });
+    if (decision === 'show') {
+      // Genuine in-session crossing (or re-crossing after a reset): fire the celebration.
+      setShowGoalCelebration(true);
+      markGoalCelebrationSeen(targetWeight);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (decision === 'markSeenSilently') {
+      // Goal was already reached at hydration (fresh-install guard) — persist the seen-flag
+      // so future sessions don't re-evaluate this crossing, but show no banner or haptic.
+      markGoalCelebrationSeen(targetWeight);
+    } else if (decision === 'reset') {
+      // User has drifted back above their goal after previously reaching it.
+      // Reset the seen flag so the next genuine re-crossing replays the celebration and haptic.
+      resetGoalCelebrationSeen();
+    }
+  // Intentionally omit markGoalCelebrationSeen/resetGoalCelebrationSeen (stable function
+  // identity) and goalCelebrationSeenTargetKg (read inside effect; hydrated acts as the
+  // synchronisation gate — when hydrated flips true the stored value is already present).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, goalReached, showGoalProgress, targetWeight]);
+  // Sync minutes input with stored value when date changes or after hydration loads persisted data.
+  // Skip the sync while the user is actively editing so in-progress input is not overwritten.
+  useEffect(() => {
+    if (isEditingMinutes.current) return;
+    const stored = activityMinutesLogs[todayKey];
+    setMinutesInput(stored ? String(stored) : '');
+  }, [todayKey, activityMinutesLogs]);
+  // Sync weight input from the latest stored weight when the modal opens or weights update.
+  // When the modal closes, reset the editing ref so a re-open always pre-populates cleanly.
+  // Skip the sync while the user is actively editing so a background weights change cannot
+  // overwrite a partially-typed value mid-entry.
+  useEffect(() => {
+    if (!showWeight) {
+      isEditingWeight.current = false;
+      return;
+    }
+    if (isEditingWeight.current) return;
+    setWeightInput(latestWeight > 0 ? String(latestWeight) : '');
+  }, [latestWeight, showWeight]);
+  const loggedToday = remembered.logs.filter((log) => log.date === todayKey);
+  const nutrientTotals = loggedToday.reduce((totals, log) => ({
+    fiber: totals.fiber + (log.fiber ?? 0),
+    sugar: totals.sugar + (log.sugar ?? 0),
+    sodium: totals.sodium + (log.sodium ?? 0),
+  }), { fiber: 0, sugar: 0, sodium: 0 });
+  const waterToday = remembered.waterLogs[todayKey] ?? 0;
+  const moodToday = remembered.moodLogs[todayKey];
+  const moodLabel = moodToday ? moodToday.charAt(0).toUpperCase() + moodToday.slice(1) : 'Not logged';
+  const target = profile?.calorieTarget ?? 2000;
+  const weeklySignals = useMemo(
+    () => deriveWeeklySignals(remembered.logs, remembered.waterLogs, remembered.moodLogs, remembered.activityLogs, target, todayKey, activityMinutesLogs),
+    [remembered, target, todayKey, activityMinutesLogs],
+  );
+  const weekDays = weeklySignals.days;
+  const signalDays = weeklySignals.trackedDays;
+  const averageWeekCalories = weeklySignals.averageCalories;
+  const shoppingWeekStart = getPlannerWeekStart(new Date(`${todayKey}T12:00:00`));
+  const shoppingWeekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => plannerDate(shoppingWeekStart, index)),
+    [shoppingWeekStart],
+  );
+  const visibleShoppingItems = useMemo(() => {
+    const checkedByName = shoppingChecksByName(shoppingItems);
+    const plannedWeek = plannerMeals.filter((meal) => shoppingWeekDays.includes(meal.day));
+    const plannerItems = buildShoppingItems(plannedWeek, checkedByName);
+    const plannerKeys = new Set(plannerItems.map((item) => shoppingNameKey(item.name)));
+    const recipeItems = shoppingItems
+      .filter((item) => item.recipeSource && !plannerKeys.has(shoppingNameKey(item.name)))
+      .map((item) => ({ ...item, checked: checkedByName.get(shoppingNameKey(item.name)) ?? item.checked }));
+    return [...plannerItems, ...recipeItems];
+  }, [plannerMeals, shoppingItems, shoppingWeekDays]);
+  const uncheckedShopping = visibleShoppingItems.filter((item) => !item.checked).length;
+  useEffect(() => {
+    if (!saveNotice) return;
+    const timeout = setTimeout(() => setSaveNotice(null), 2200);
+    return () => clearTimeout(timeout);
+  }, [saveNotice]);
+  return (
+    <View style={[styles.page, { backgroundColor: colors.background }]}>
+      <AppHeader
+        leftAlignTitle
+        title="Progress"
+        action={
+          <View style={styles.headerActions}>
+            <Pressable
+              accessibilityLabel={`Open what ${BRAND.name} remembers`}
+              onPress={() => router.push('/memory')}
+              hitSlop={8}
+              style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="compass" size={16} color={colors.foreground} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel={`Open shopping list${uncheckedShopping > 0 ? `, ${uncheckedShopping} items left` : ''}`}
+              onPress={() => setShoppingVisible(true)}
+              hitSlop={8}
+              style={[styles.headerShoppingButton, { backgroundColor: colors.accent }]}
+            >
+              <Feather name="shopping-bag" size={16} color={colors.accentForeground} />
+              {uncheckedShopping > 0 && (
+                <View style={[styles.shoppingCount, { backgroundColor: colors.primary }]}>
+                  <Text style={[styles.shoppingCountText, { color: colors.primaryForeground }]}>{uncheckedShopping}</Text>
+                </View>
+              )}
+            </Pressable>
+          </View>
+        }
+      />
+      <Animated.ScrollView onScroll={scrollHandler} scrollEventThrottle={16} contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.heroHeader}>
+          <Animated.View style={[StyleSheet.absoluteFillObject, heroParallaxStyle]}>
+            <Image key={insightsHeaderImage.hourSlot} source={insightsHeaderImage.source} contentFit="cover" transition={450} style={StyleSheet.absoluteFillObject} />
+          </Animated.View>
+          <LinearGradient
+            colors={['rgba(18,34,24,0.98)', 'rgba(18,34,24,0.78)', 'rgba(18,34,24,0.18)']}
+            locations={[0, 0.58, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={styles.heroContent}>
+            <View style={styles.heroBadge}>
+              <Feather name="activity" size={12} color="#d4eadc" />
+              <Text style={styles.heroBadgeText}>WEEKLY SIGNAL</Text>
+            </View>
+            <Text style={styles.heroEyebrow}>THE BIGGER PICTURE</Text>
+            <View style={styles.heroTitleRow}>
+              <Text style={styles.heroTitle}>Patterns, not pressure</Text>
+            </View>
+            <Text style={styles.heroSubtitle}>Make tomorrow easier.</Text>
+          </View>
+        </View>
+
+        <SwipeableTabList
+          items={PROGRESS_VIEWS}
+          activeItem={progressView}
+          onChange={setProgressView}
+          accessibilityLabel="Progress sections"
+          testID="progress-section-tabs"
+          style={[styles.progressTabs, { backgroundColor: colors.muted, borderColor: colors.border }]}
+        >
+          {([
+            { key: 'overview' as const, label: 'Overview' },
+            { key: 'trends' as const, label: 'Trends' },
+            { key: 'weight' as const, label: 'Weight' },
+          ]).map((tab) => {
+            const selected = progressView === tab.key;
+            return (
+              <Pressable
+                key={tab.key}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`${tab.label} progress tab`}
+                onPress={() => setProgressView(tab.key)}
+                style={[styles.progressTab, selected && { backgroundColor: colors.card }]}
+              >
+                <Text style={[styles.progressTabText, { color: selected ? colors.foreground : colors.mutedForeground }]}>{tab.label}</Text>
+              </Pressable>
+            );
+          })}
+        </SwipeableTabList>
+        <SwipeableSectionPager
+          items={PROGRESS_VIEWS}
+          activeItem={progressView}
+          onChange={setProgressView}
+          accessibilityLabel="Progress section content"
+          testID="progress-section-content"
+        >
+        <Text style={[styles.progressTabSubtitle, { color: colors.mutedForeground }]}>
+          {{ overview: 'Your week and today.', trends: 'Calories, nutrients, and patterns.', weight: 'Weigh-ins, goals, and history.' }[progressView]}
+        </Text>
+
+        <View style={progressView === 'overview' ? undefined : styles.hiddenSection}>
+        <MotivationalQuote colors={colors} style={{ marginBottom: 16 }} />
+
+        {localInsight ? (
+          <AnimatedReveal delay={100}>
+            <View
+              accessibilityLabel={`Local insight: ${localInsight.title}. ${localInsight.message}`}
+              accessibilityRole="summary"
+              style={[styles.localInsightCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+              testID="local-contextual-insight"
+            >
+              <View style={[styles.localInsightIcon, { backgroundColor: colors.accent }]}>
+                <Feather name="shield" size={16} color={colors.accentForeground} />
+              </View>
+              <View style={styles.localInsightCopy}>
+                <Text style={[styles.localInsightEyebrow, { color: colors.mutedForeground }]}>LOCAL INSIGHT</Text>
+                <Text style={[styles.localInsightTitle, { color: colors.foreground }]}>{localInsight.title}</Text>
+                <Text style={[styles.localInsightMessage, { color: colors.mutedForeground }]}>{localInsight.message}</Text>
+              </View>
+            </View>
+          </AnimatedReveal>
+        ) : null}
+
+        <AnimatedReveal delay={150} style={styles.statRow}>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <AnimatedCountUp to={weeklySignals.foodDays} style={[styles.statValue, { color: colors.foreground }]} />
+            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>days logged</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border, alignItems: 'center' }]}>
+            {dataTrust !== null
+              ? <CircularProgress percentage={dataTrust} color={colors.primary} trackColor={colors.muted} size={52} strokeWidth={5} />
+              : <Text style={[styles.statValue, { color: colors.foreground }]}>—</Text>}
+            <Text style={[styles.statLabel, { color: colors.mutedForeground, marginTop: 5 }]}>data trust</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <AnimatedCountUp to={Math.abs(weightDelta)} decimals={1} prefix={weightDelta > 0 ? '+' : weightDelta < 0 ? '-' : ''} style={[styles.statValue, { color: weightDelta <= 0 ? colors.success : colors.warning }]} />
+            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>kg trend</Text>
+          </View>
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={220}>
+          <View style={[styles.rhythmCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Logging rhythm</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Your week at a glance.</Text>
+              </View>
+              <View style={[styles.rhythmBadge, { backgroundColor: colors.accent }]}>
+                <Feather name="calendar" size={12} color={colors.accentForeground} />
+                <Text style={[styles.rhythmBadgeText, { color: colors.accentForeground }]}>{Math.min(signalDays, 7)} / 7 days</Text>
+              </View>
+            </View>
+            <View style={styles.rhythmGrid}>
+              {weekDays.map((item, index) => (
+                <View key={item.date} style={styles.rhythmDay}>
+                  <View style={[styles.rhythmTrack, { backgroundColor: colors.muted }]}>
+                    {item.hasData && <AnimatedRhythmBar value={Math.max(item.meals ? item.meals * 25 : 14, 14)} color={index === weekDays.length - 1 ? colors.primary : colors.success} delay={index * 50} />}
+                  </View>
+                  <Text style={[styles.rhythmDayLabel, { color: index === weekDays.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </AnimatedReveal>
+        <AnimatedReveal delay={300}>
+          <ProgressLineGraph
+            colors={colors}
+            title="Meal rhythm"
+            subtitle="Meals logged across the last seven days."
+            points={weekDays.map((day) => ({ label: day.day, value: day.hasFood ? day.meals : null }))}
+            color={colors.primary}
+            valueFormatter={(value) => `${value} ${value === 1 ? 'meal' : 'meals'}`}
+          />
+        </AnimatedReveal>
+        </View>
+
+        <View style={progressView === 'trends' ? undefined : styles.hiddenSection}>
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This week</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Against your {formatWhole(target)} kcal target</Text>
+          </View>
+          <View accessibilityLabel="Insights show the last 7 days" style={[styles.rangeButton, { backgroundColor: colors.muted }]}>
+            <Text style={[styles.rangeText, { color: colors.foreground }]}>7D</Text>
+          </View>
+        </View>
+        <AnimatedReveal delay={280}>
+        <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.chart}>
+            {weekDays.map((item, index) => (
+              <View key={item.date} style={styles.barColumn}>
+                <Text style={[styles.barValue, { color: colors.mutedForeground }]}>{item.hasData && item.kcal ? formatWhole(item.kcal) : '—'}</Text>
+                <View style={[styles.barTrack, { backgroundColor: colors.muted }]}>
+                  <AnimatedBar value={item.value} color={index === weekDays.length - 1 ? colors.primary : colors.success} delay={index * 65} />
+                </View>
+                <Text style={[styles.barDay, { color: index === weekDays.length - 1 ? colors.primary : colors.mutedForeground }]}>{item.day}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={[styles.chartLegend, { borderTopColor: colors.border }]}>
+            <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={[styles.legendText, { color: colors.mutedForeground }]}>on target</Text></View>
+            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{averageWeekCalories ? `Avg. ${formatWhole(averageWeekCalories)} kcal` : 'No calorie average yet'}</Text>
+          </View>
+        </View>
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={350}>
+          <ProgressLineGraph
+            colors={colors}
+            title="Calorie trend"
+            subtitle="Daily intake compared with your target."
+            points={weekDays.map((day) => ({ label: day.day, value: day.kcal > 0 ? day.kcal : null }))}
+            color={colors.success}
+            valueFormatter={(value) => `${formatWhole(value)} kcal`}
+            target={{ value: target, label: 'Target' }}
+          />
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={360}>
+          <WeeklyPatternsCard colors={colors} days={weekDays} averageActivityMinutes={weeklySignals.averageActivityMinutes} />
+        </AnimatedReveal>
+
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Nutrient balance</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Today’s foods; estimates are labeled.</Text>
+          </View>
+        </View>
+        <AnimatedReveal delay={420}>
+        <View style={[styles.nutrientCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {[
+            { label: 'Fiber', value: formatGrams(nutrientTotals.fiber), target: '25 g', color: colors.success },
+            { label: 'Sugar', value: formatGrams(nutrientTotals.sugar), target: 'added + natural', color: colors.warning },
+            { label: 'Sodium', value: `${formatWhole(nutrientTotals.sodium)} mg`, target: '2,300 mg guide', color: colors.primary },
+          ].map((item) => <View key={item.label} style={styles.nutrientRow}><View style={[styles.nutrientDot, { backgroundColor: item.color }]} /><Text style={[styles.nutrientLabel, { color: colors.foreground }]}>{item.label}</Text><Text style={[styles.nutrientValue, { color: colors.foreground }]}>{item.value}</Text><Text style={[styles.nutrientTarget, { color: colors.mutedForeground }]}>{item.target}</Text></View>)}
+          <Text style={[styles.nutrientNote, { color: colors.mutedForeground }]}>Micronutrients appear as verified foods are added; photo and manual entries remain estimates until reviewed.</Text>
+        </View>
+        </AnimatedReveal>
+        </View>
+
+        <View style={progressView === 'overview' ? undefined : styles.hiddenSection}>
+        <AnimatedReveal delay={480}>
+          <View style={[styles.signalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.signalCardHeader}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Today’s signals</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Context for the numbers, not a score.</Text>
+              </View>
+              <View style={[styles.signalIcon, { backgroundColor: colors.accent }]}><Feather name="heart" size={16} color={colors.accentForeground} /></View>
+            </View>
+            <View style={styles.signalRow}>
+              <View style={styles.signalMetric}>
+                <View style={styles.signalMetricTop}><Feather name="droplet" size={14} color="#5d8edb" /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Hydration</Text></View>
+                <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{waterToday} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>/ 64 fl oz</Text></Text>
+                <AnimatedTrackFill percentage={(waterToday / 64) * 100} color="#5d8edb" trackColor={colors.muted} />
+              </View>
+              <View style={styles.signalMetric}>
+                <View style={styles.signalMetricTop}><Feather name="smile" size={14} color="#9875c7" /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Mood</Text></View>
+                <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{moodLabel}</Text>
+                <Text style={[styles.signalMetricHint, { color: colors.mutedForeground }]}>{moodToday ? 'Logged today' : 'Optional check-in'}</Text>
+              </View>
+            </View>
+            {healthConnected && healthSnapshotReady && healthConnection.snapshot && (
+              <View style={[styles.signalRow, { marginTop: 16, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 16 }]}>
+                <View style={styles.signalMetric}>
+                  <View style={styles.signalMetricTop}><Feather name="zap" size={14} color={colors.primary} /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Steps</Text></View>
+                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthStepsAvailable ? healthConnection.snapshot.steps?.toLocaleString() ?? '—' : '—'} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>{healthStepsAvailable ? 'today' : 'unavailable'}</Text></Text>
+                  <AnimatedTrackFill percentage={healthStepsAvailable ? Math.min(((healthConnection.snapshot.steps ?? 0) / 10000) * 100, 100) : 0} color={colors.primary} trackColor={colors.muted} />
+                </View>
+                <View style={styles.signalMetric}>
+                  <View style={styles.signalMetricTop}><Feather name="zap" size={14} color={colors.warning} /><Text style={[styles.signalMetricLabel, { color: colors.mutedForeground }]}>Burned</Text></View>
+                  <Text style={[styles.signalMetricValue, { color: colors.foreground }]}>{healthActiveEnergyAvailable ? healthConnection.snapshot.activeEnergyKcal?.toLocaleString() ?? '—' : '—'} <Text style={[styles.signalMetricUnit, { color: colors.mutedForeground }]}>{healthActiveEnergyAvailable ? 'kcal' : 'unavailable'}</Text></Text>
+                  <Text style={[styles.signalMetricHint, { color: colors.mutedForeground }]}>{healthActiveEnergyAvailable ? `Synced from ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'}` : 'Allow active calories to show Burned'}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </AnimatedReveal>
+
+        <AnimatedReveal delay={520}>
+          <View style={[styles.checkinCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.signalCardHeader}>
+              <View>
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Daily check-ins</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Optional context for your weekly trend.</Text>
+              </View>
+              <View style={[styles.signalIcon, { backgroundColor: colors.accent }]}>
+                <Feather name="edit-3" size={15} color={colors.accentForeground} />
+              </View>
+            </View>
+            <Text style={[styles.checkinLabel, { color: colors.mutedForeground }]}>MOVEMENT TODAY</Text>
+            <View style={styles.activityOptions}>
+              {([
+                { value: 'rest', label: 'Rest', icon: 'moon' },
+                { value: 'light', label: 'Light', icon: 'sun' },
+                { value: 'moderate', label: 'Moderate', icon: 'activity' },
+                { value: 'high', label: 'High', icon: 'zap' },
+              ] as const).map((option) => {
+                const selected = remembered.activityLogs[todayKey] === option.value;
+                return (
+                  <SpringChip
+                    key={option.value}
+                    selected={selected}
+                    accessibilityLabel={`${option.label} activity today${selected ? ', selected' : ''}`}
+                    accessibilityState={{ selected }}
+                    testID={`activity-${option.value}`}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setActivity(todayKey, option.value);
+                      setSaveNotice(`${option.label} movement check-in saved.`);
+                    }}
+                    style={[styles.activityOption, { backgroundColor: selected ? colors.primary : colors.muted, borderColor: selected ? colors.primary : colors.border }]}
+                  >
+                    <Feather name={option.icon as keyof typeof Feather.glyphMap} size={14} color={selected ? colors.primaryForeground : colors.mutedForeground} />
+                    <Text style={[styles.activityOptionText, { color: selected ? colors.primaryForeground : colors.mutedForeground }]}>{option.label}</Text>
+                  </SpringChip>
+                );
+              })}
+            </View>
+            {/* Activity minutes input */}
+            <View style={[styles.minutesRow, { borderTopColor: colors.border }]}>
+              <View style={styles.minutesLeft}>
+                <Feather name="clock" size={14} color={colors.mutedForeground} />
+                <Text style={[styles.minutesLabel, { color: colors.mutedForeground }]}>ACTIVE MINUTES</Text>
+              </View>
+              <View style={[styles.minutesInputWrap, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                <TextInput
+                  value={minutesInput}
+                  onChangeText={setMinutesInput}
+                  keyboardType="number-pad"
+                  placeholder="—"
+                  placeholderTextColor={colors.mutedForeground}
+                  returnKeyType="done"
+                  onFocus={() => { isEditingMinutes.current = true; }}
+                  onEndEditing={() => {
+                    isEditingMinutes.current = false;
+                    const val = parseInt(minutesInput, 10);
+                    if (Number.isFinite(val) && val >= 0) {
+                      setActivityMinutes(todayKey, val);
+                      setSaveNotice(`${val} active minutes saved.`);
+                    } else if (minutesInput === '' && activityMinutesLogs[todayKey] !== undefined) {
+                      setActivityMinutes(todayKey, 0);
+                    }
+                  }}
+                  style={[styles.minutesInput, { color: colors.foreground }]}
+                  accessibilityLabel="Enter active minutes for today"
+                  testID="activity-minutes-input"
+                />
+                <Text style={[styles.minutesUnit, { color: colors.mutedForeground }]}>min</Text>
+              </View>
+            </View>
+            {/* Mood check-in */}
+            <Text style={[styles.checkinLabel, { color: colors.mutedForeground, marginTop: 16 }]}>HOW YOU FEEL</Text>
+            <View style={styles.moodOptions}>
+              {([
+                { value: 'energized', label: 'Energized', color: '#e5ad55' },
+                { value: 'good', label: 'Good', color: '#5dba7d' },
+                { value: 'okay', label: 'Okay', color: '#7394f2' },
+                { value: 'low', label: 'Low', color: '#9875c7' },
+                { value: 'stressed', label: 'Stressed', color: '#ef6b4f' },
+              ] as const).map((option) => {
+                const selected = moodToday === option.value;
+                return (
+                  <SpringChip
+                    key={option.value}
+                    selected={selected}
+                    accessibilityLabel={`${option.label} mood${selected ? ', selected' : ''}`}
+                    accessibilityState={{ selected }}
+                    testID={`mood-${option.value}`}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setMood(todayKey, option.value);
+                      setSaveNotice(`${option.label} mood check-in saved.`);
+                    }}
+                    style={[
+                      styles.moodOption,
+                      {
+                        backgroundColor: selected ? option.color + '22' : colors.muted,
+                        borderColor: selected ? option.color : colors.border,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.moodDot, { backgroundColor: option.color, opacity: selected ? 1 : 0.35 }]} />
+                    <Text style={[styles.moodOptionText, { color: selected ? option.color : colors.mutedForeground }]}>{option.label}</Text>
+                  </SpringChip>
+                );
+              })}
+            </View>
+            <Text style={[styles.checkinHint, { color: colors.mutedForeground }]}>
+              {remembered.activityLogs[todayKey] || activityMinutesLogs[todayKey] || moodToday ? 'Saved on this device. You can change it anytime.' : 'Nothing is assumed when you leave this blank.'}
+            </Text>
+            <View style={[styles.healthSyncNote, { backgroundColor: colors.muted }]}>
+              <Feather name={healthConnected ? 'check-circle' : 'link-2'} size={11} color={healthConnected ? colors.success : colors.mutedForeground} />
+              <Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>
+                {healthConnected 
+                  ? `Connected to ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} · syncing automatically.`
+                  : 'Health sync unavailable · connect a health integration to import workouts automatically.'}
+              </Text>
+            </View>
+          </View>
+        </AnimatedReveal>
+        </View>
+
+        <View style={progressView === 'weight' ? undefined : styles.hiddenSection}>
+        <View style={styles.weightHeader}>
+          <View style={styles.weightTitleGroup}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Weight trend</Text><Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>Trends matter more than one day.</Text></View>
+          <View style={styles.weightHeaderButtons}>
+            <ScalePressable
+              accessibilityLabel="Edit weight goal"
+              onPress={openWeightGoalEdit}
+              scale={0.98}
+              haptic="none"
+              style={[styles.goalHeaderBtn, { backgroundColor: colors.muted }]}
+            >
+              <Feather name="target" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.goalHeaderBtnText, { color: colors.mutedForeground }]}>{targetWeight > 0 ? `Goal: ${targetWeightDisplay.toFixed(0)} ${weightUnits}` : 'Set goal'}</Text>
+            </ScalePressable>
+            <ScalePressable accessibilityLabel="Log weight" onPress={() => setShowWeight(true)} scale={0.96} haptic="light" style={[styles.weightButton, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.weightButtonText, { color: colors.primaryForeground }]}>Log</Text></ScalePressable>
+          </View>
+        </View>
+        <AnimatedReveal delay={540}>
+        <View style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.weightTopRow}>
+            <View>
+              <Text style={[styles.weightValue, { color: colors.foreground }]}>{latestWeight.toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>kg</Text></Text>
+              <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length - (pendingDelete ? 1 : 0) > 1 ? `${weights.length - (pendingDelete ? 1 : 0)} weigh-ins recorded locally` : 'Optional · add weigh-ins to see a trend'}</Text>
+            </View>
+            {weights.length - (pendingDelete ? 1 : 0) >= 3 && (
+              <View style={[styles.weightDeltaBadge, { backgroundColor: weightDelta <= 0 ? '#e6f6ec' : '#fff3e0' }]}>
+                <Feather name={weightDelta <= 0 ? 'trending-down' : 'trending-up'} size={13} color={weightDelta <= 0 ? colors.success : colors.warning} />
+                <Text style={[styles.weightDeltaText, { color: weightDelta <= 0 ? colors.success : colors.warning }]}>{weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)} kg</Text>
+              </View>
+            )}
+          </View>
+          {weights.length - (pendingDelete ? 1 : 0) >= 3 ? (
+            <View style={{ position: 'relative' }}>
+              <WeightLineChart entries={weights.filter((w) => w.id !== pendingDelete?.id).slice(-7)} colors={colors} onRequestDelete={handleRequestDelete} onRequestEdit={handleRequestEdit} pendingDeleteId={pendingDelete?.id} />
+              <Pressable
+                onPress={() => { Haptics.selectionAsync(); setShowExpandedChart(true); }}
+                accessibilityLabel="Expand weight chart"
+                accessibilityRole="button"
+                hitSlop={8}
+                style={[styles.chartExpandHint, { backgroundColor: colors.muted }]}
+              >
+                <Feather name="maximize-2" size={11} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+          ) : (
+            <View style={[styles.weightLine, { backgroundColor: colors.muted }]}><View style={[styles.weightLineFill, { backgroundColor: colors.success, width: weights.length - (pendingDelete ? 1 : 0) > 1 ? '50%' : '0%' }]} /></View>
+          )}
+          {weights.length > 0 ? (
+            <View style={[styles.weightEntryList, { borderTopColor: colors.border }]}>
+              <Text style={[styles.weightEntryListTitle, { color: colors.mutedForeground }]}>RECENT WEIGH-INS</Text>
+              {weights
+                .filter((entry) => entry.id !== pendingDelete?.id)
+                .slice(-3)
+                .reverse()
+                .map((entry) => {
+                  const dateLabel = new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  });
+                  return (
+                    <View key={entry.id ?? `${entry.date}-${entry.kg}`} style={styles.weightEntryRow}>
+                      <View style={styles.weightEntrySummary}>
+                        <Text style={[styles.weightEntryValue, { color: colors.foreground }]}>{entry.kg.toFixed(1)} kg</Text>
+                        <Text style={[styles.weightEntryDate, { color: colors.mutedForeground }]}>{dateLabel}</Text>
+                      </View>
+                      {entry.id ? (
+                        <View style={styles.weightEntryActions}>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Edit weigh-in ${dateLabel}`}
+                            hitSlop={8}
+                            onPress={() => handleRequestEdit({ id: entry.id!, kg: entry.kg, date: entry.date })}
+                            style={[styles.weightEntryAction, { backgroundColor: colors.muted }]}
+                          >
+                            <Feather name="edit-2" size={14} color={colors.mutedForeground} />
+                          </Pressable>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`Delete weigh-in ${dateLabel}`}
+                            hitSlop={8}
+                            onPress={() => handleRequestDelete({ id: entry.id!, kg: entry.kg, date: entry.date })}
+                            style={[styles.weightEntryAction, { backgroundColor: colors.muted }]}
+                          >
+                            <Feather name="trash-2" size={14} color={colors.destructive} />
+                          </Pressable>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+            </View>
+          ) : null}
+          {showGoalCelebration && showGoalProgress ? (
+            <View style={styles.celebrationWrapper}>
+              <ConfettiBurst active={showGoalCelebration} />
+              <GoalCelebrationBanner colors={colors} targetKg={targetWeight} onDismiss={() => setShowGoalCelebration(false)} />
+            </View>
+          ) : null}
+          {showGoalProgress ? (
+            <View style={styles.goalProgressSection}>
+              <View style={styles.goalProgressHeaderRow}>
+                <Text style={[styles.goalProgressText, { color: goalReached ? colors.success : colors.mutedForeground }]}>
+                  {goalReached
+                    ? `Goal reached · ${targetWeightDisplay.toFixed(0)} ${weightUnits}`
+                    : goalProgressKg > 0
+                    ? `${(useImperial ? goalProgressKg * 2.20462 : goalProgressKg).toFixed(1)} ${weightUnits} toward your ${targetWeightDisplay.toFixed(0)} ${weightUnits} goal`
+                    : `Target ${targetWeightDisplay.toFixed(0)} ${weightUnits} · start logging progress`}
+                </Text>
+                <ScalePressable
+                  accessibilityLabel="Edit weight goal"
+                  onPress={openWeightGoalEdit}
+                  scale={0.98}
+                  haptic="none"
+                  style={styles.goalEditBtn}
+                >
+                  <Feather name="edit-2" size={12} color={colors.primary} />
+                </ScalePressable>
+                <Text style={[styles.goalProgressPct, { color: goalReached ? colors.success : colors.primary }]}>{goalReached ? '✓' : `${Math.round(goalProgressPct)}%`}</Text>
+              </View>
+              <AnimatedTrackFill percentage={goalProgressPct} color={goalReached ? colors.success : colors.primary} trackColor={colors.muted} />
+              {nudgeMounted && (
+                <GoalNudge
+                  colors={colors}
+                  visible={showGoalNudge}
+                  onExited={() => {
+                    // Reset the session flag so the enter animation replays the next
+                    // time the nudge becomes visible after this hide.
+                    nudgeHasAnimatedIn = false;
+                    setNudgeMounted(false);
+                  }}
+                  message={nudgeMessage}
+                />
+              )}
+            </View>
+          ) : null}
+          <View style={[styles.healthSyncNote, { backgroundColor: colors.muted, marginTop: 12 }]}>
+            <Feather name={healthConnected ? 'check-circle' : 'link-2'} size={11} color={healthConnected ? colors.success : colors.mutedForeground} />
+            <Text style={[styles.healthSyncText, { color: colors.mutedForeground }]}>
+              {healthConnected
+                ? `Connected to ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} · syncing automatically.`
+                : 'Health sync unavailable · connect a health integration for automatic weigh-in import.'}
+            </Text>
+          </View>
+        </View>
+        </AnimatedReveal>
+        </View>
+
+        <View style={progressView === 'trends' ? undefined : styles.hiddenSection}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 25, marginBottom: 11 }]}>Built on trust</Text>
+        <View style={[styles.trustRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.trustIcon, { backgroundColor: colors.accent }]}><Feather name="database" size={18} color={colors.accentForeground} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.trustTitle, { color: colors.foreground }]}>Verified core database</Text>
+            <Text style={[styles.trustBody, { color: colors.mutedForeground }]}>USDA and labeled foods are separate from estimates and manual entries.</Text>
+          </View>
+          <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+        </View>
+        <View style={[styles.trustRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.trustIcon, { backgroundColor: '#fff0df' }]}><Feather name="zap" size={18} color={colors.warning} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.trustTitle, { color: colors.foreground }]}>Low-friction logging</Text>
+            <Text style={[styles.trustBody, { color: colors.mutedForeground }]}>Start with one tap; you control the estimate.</Text>
+          </View>
+          <Feather name="chevron-right" size={17} color={colors.mutedForeground} />
+        </View>
+        </View>
+        </SwipeableSectionPager>
+      </Animated.ScrollView>
+      <BottomSheet visible={showWeight} transparent animationType="slide" onRequestClose={() => setShowWeight(false)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
+            <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Log today's weight</Text>
+            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>One weigh-in is a data point. {BRAND.name} looks for trends.</Text>
+            <TextInput
+              value={weightInput}
+              onChangeText={(value) => { setWeightInput(value); if (weightError) setWeightError(''); }}
+              keyboardType="decimal-pad"
+              placeholder={`${latestWeight.toFixed(1)} kg`}
+              placeholderTextColor={colors.mutedForeground}
+              accessibilityLabel="Weight in kilograms"
+              accessibilityHint="Enter a positive number before saving your weigh-in"
+              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: weightError ? colors.destructive : colors.input }]}
+              onFocus={() => { isEditingWeight.current = true; }}
+              onEndEditing={() => { isEditingWeight.current = false; }}
+            />
+            {!!weightError && <Text accessibilityRole="alert" style={[styles.weightError, { color: colors.destructive }]}>{weightError}</Text>}
+            <ScalePressable accessibilityLabel="Save weight" onPress={() => {
+              const value = Number(weightInput);
+              if (!Number.isFinite(value) || value <= 0) {
+                setWeightError('Enter a positive weight to save your check-in.');
+                return;
+              }
+              addWeight(value);
+              setWeightInput('');
+              setWeightError('');
+              setShowWeight(false);
+              setSaveNotice('Weight check-in saved locally.');
+            }} scale={0.96} haptic="light" style={[styles.saveWeight, { backgroundColor: colors.primary }]}><Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save weigh-in</Text></ScalePressable>
+            <Pressable accessibilityLabel="Cancel weight entry" onPress={() => setShowWeight(false)} style={styles.cancelWeight}><Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Not now</Text></Pressable>
+            </KeyboardAwareScrollViewCompat>
+      </BottomSheet>
+      <BottomSheet visible={showGoalEdit} transparent animationType="slide" onRequestClose={() => { setGoalError(''); setShowGoalEdit(false); }} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
+            <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Weight goal</Text>
+            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>Set a target weight. Logged data will not change.</Text>
+            <TextInput
+              value={goalInput}
+              onChangeText={(value) => { setGoalInput(value); if (goalError) setGoalError(''); }}
+              keyboardType="decimal-pad"
+              placeholder={useImperial ? 'e.g. 154 lb' : 'e.g. 70 kg'}
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: goalError ? colors.destructive : colors.input }]}
+              autoFocus
+            />
+            {!!goalError && <Text accessibilityRole="alert" style={[styles.weightError, { color: colors.destructive }]}>{goalError}</Text>}
+            <ScalePressable
+              accessibilityLabel="Save weight goal"
+              onPress={() => {
+                const result = validateTargetWeight(goalInput, useImperial ? 'imperial' : 'metric');
+                if (!result.ok) {
+                  setGoalError(result.message);
+                  return;
+                }
+                updateProfile({ targetWeightKg: result.targetWeightKg });
+                setGoalInput('');
+                setGoalError('');
+                setShowGoalEdit(false);
+                setSaveNotice('Weight goal updated.');
+              }}
+              scale={0.96}
+              haptic="light"
+              style={[styles.saveWeight, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save goal</Text>
+            </ScalePressable>
+            <Pressable accessibilityLabel="Cancel goal edit" onPress={() => { setGoalError(''); setShowGoalEdit(false); }} style={styles.cancelWeight}>
+              <Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Cancel</Text>
+            </Pressable>
+            </KeyboardAwareScrollViewCompat>
+      </BottomSheet>
+      <LocalSaveNotice visible={Boolean(saveNotice)} message={saveNotice ?? ''} colors={colors} />
+      {/* Inline edit modal — pre-filled with the selected weigh-in value */}
+      <BottomSheet visible={editEntry !== null} transparent animationType="slide" onRequestClose={() => setEditEntry(null)} overlayColor="rgba(0,0,0,0.42)" sheetStyle={[styles.weightModal, { backgroundColor: colors.background }]}>
+            <KeyboardAwareScrollViewCompat style={styles.weightFormScroll} contentContainerStyle={styles.weightFormContent} bottomOffset={72}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Edit weigh-in</Text>
+            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>
+              {editEntry ? `${new Date(editEntry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} · fix the value below.` : ''}
+            </Text>
+            <TextInput
+              value={editInput}
+              onChangeText={(text) => {
+                setEditInput(text);
+                if (editError) setEditError(null);
+              }}
+              keyboardType="decimal-pad"
+              placeholder="e.g. 76.6 kg"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: editError ? colors.destructive : colors.input }]}
+              autoFocus
+            />
+            {editError != null && (
+              <Text
+                accessibilityRole="alert"
+                style={[styles.modalBody, { color: colors.destructive, marginTop: 6 }]}
+              >
+                {editError}
+              </Text>
+            )}
+            <ScalePressable
+              accessibilityLabel="Save edited weigh-in"
+              onPress={() => {
+                const trimmed = editInput.trim();
+                const value = Number(trimmed);
+                if (trimmed === '' || !Number.isFinite(value)) {
+                  setEditError('Enter a weight as a number, e.g. 76.6');
+                  return;
+                }
+                if (value <= 0) {
+                  setEditError('Weight must be greater than zero.');
+                  return;
+                }
+                if (editEntry) {
+                  updateWeight(editEntry.id, value);
+                  setEditEntry(null);
+                  setEditInput('');
+                  setEditError(null);
+                  setSaveNotice('Weigh-in updated.');
+                }
+              }}
+              scale={0.96}
+              haptic="light"
+              style={[styles.saveWeight, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[styles.saveWeightText, { color: colors.primaryForeground }]}>Save</Text>
+            </ScalePressable>
+            <Pressable accessibilityLabel="Cancel edit" onPress={() => setEditEntry(null)} style={styles.cancelWeight}>
+              <Text style={[styles.cancelWeightText, { color: colors.mutedForeground }]}>Cancel</Text>
+            </Pressable>
+            </KeyboardAwareScrollViewCompat>
+      </BottomSheet>
+      {/* Modal is always mounted so its close animation can play when weights drop below 3.
+           visible becomes false immediately when the count falls, triggering the slide-out. */}
+      <WeightChartModal
+        entries={weights.length >= 1 ? weights : []}
+        colors={colors}
+        visible={showExpandedChart && weights.length >= 3}
+        onClose={() => setShowExpandedChart(false)}
+        onRequestDelete={handleRequestDelete}
+        onRequestEdit={handleRequestEdit}
+        pendingDeleteId={pendingDelete?.id}
+        pendingDeleteEntry={pendingDelete}
+        onUndo={undoDelete}
+      />
+      <ShoppingListSheet
+        visible={shoppingVisible}
+        items={visibleShoppingItems}
+        weekDays={shoppingWeekDays}
+        onClose={() => setShoppingVisible(false)}
+        onToggleItem={toggleShoppingItemByName}
+      />
+      {/* Undo-delete snackbar — rendered outside the chart/modal so it survives modal close */}
+      {pendingDelete !== null && (
+        <Animated.View
+          pointerEvents="box-none"
+          style={[
+            styles.weightDeleteSnack,
+            { backgroundColor: colors.foreground, bottom: insets.bottom + 90 },
+            snackAnimStyle,
+          ]}
+        >
+          <Text style={[styles.weightDeleteSnackText, { color: colors.background }]}>
+            {pendingDelete.kg.toFixed(1)} kg removed
+          </Text>
+          <Pressable
+            onPress={undoDelete}
+            hitSlop={10}
+            accessibilityLabel="Undo delete weigh-in"
+            accessibilityRole="button"
+          >
+            <Text style={[styles.weightDeleteSnackUndo, { color: colors.success }]}>Undo</Text>
+          </Pressable>
+        </Animated.View>
+      )}
+    </View>
+  );
+}
+
+function makeStyles(f: number) {
+  return StyleSheet.create({
+  page: { flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  headerIconButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  headerShoppingButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  shoppingCount: { position: 'absolute', right: -4, top: -5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  shoppingCountText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
+  hiddenSection: { display: 'none' },
+  localInsightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 16 },
+  localInsightIcon: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  localInsightCopy: { flex: 1 },
+  localInsightEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 0.9, marginBottom: 3 },
+  localInsightTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, lineHeight: 19 * f },
+  localInsightMessage: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17 * f, marginTop: 3 },
+  progressTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 15, padding: 4, gap: 4, marginBottom: 10 },
+  progressTab: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 11, paddingHorizontal: 5 },
+  progressTabText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+  progressTabSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f, marginBottom: 20 },
+  heroHeader: { minHeight: 190, borderRadius: 25, overflow: 'hidden', marginBottom: 17, backgroundColor: '#1b3022' },
+  heroContent: { minHeight: 190, padding: 19, justifyContent: 'flex-end' },
+  heroBadge: { position: 'absolute', top: 17, right: 17, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(212,234,220,0.16)', borderWidth: 1, borderColor: 'rgba(212,234,220,0.25)' },
+  heroBadgeText: { color: '#d4eadc', fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1.1 },
+  heroEyebrow: { color: '#b6d8c2', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 6 },
+  heroTitle: { color: '#ffffff', fontFamily: 'Inter_700Bold', fontSize: 28 * f, letterSpacing: -0.7 },
+  heroTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  heroSubtitle: { color: '#d4eadc', fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 17, marginTop: 7, maxWidth: 285 },
+  eyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.4, marginBottom: 7 },
+  title: { fontFamily: 'Inter_700Bold', fontSize: 28 * f, letterSpacing: -0.7 },
+  subtitle: { fontFamily: 'Inter_400Regular', fontSize: 13 * f, lineHeight: 19, marginTop: 8, marginBottom: 22, maxWidth: 330 },
+  adaptiveCard: { borderRadius: 24, padding: 19, marginBottom: 14, overflow: 'hidden', position: 'relative' },
+  adaptiveTexture: { ...StyleSheet.absoluteFillObject, opacity: 0.22 },
+  adaptiveTextureOverlay: { ...StyleSheet.absoluteFillObject },
+  iconCircle: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
+  cardEyebrow: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, letterSpacing: 1.2, marginBottom: 7 },
+  adaptiveTitle: { fontFamily: 'Inter_700Bold', fontSize: 19 * f, letterSpacing: -0.3, marginBottom: 8 },
+  adaptiveBody: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18 },
+  adaptiveFooter: { marginTop: 18 },
+  adaptiveFooterText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, marginBottom: 8 },
+  miniTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  miniFill: { height: 6, borderRadius: 3 },
+  statRow: { flexDirection: 'row', gap: 9, marginBottom: 25 },
+  statCard: { flex: 1, borderWidth: 1, borderRadius: 17, padding: 13 },
+  statValue: { fontFamily: 'Inter_700Bold', fontSize: 18 * f },
+  statLabel: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 5 },
+  rhythmCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginBottom: 24 },
+  rhythmBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6 },
+  rhythmBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
+  rhythmGrid: { height: 96, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 9, marginTop: 4 },
+  rhythmDay: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end' },
+  rhythmTrack: { width: '100%', height: 72, borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
+  rhythmFill: { width: '100%', borderRadius: 6 },
+  rhythmDayLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginTop: 7 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 11 },
+  sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 * f, letterSpacing: -0.3 },
+  sectionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 4 },
+  rangeButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 },
+  rangeText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
+  chartCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginBottom: 20 },
+  chart: { height: 190, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 7 },
+  barColumn: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
+  barValue: { fontFamily: 'Inter_400Regular', fontSize: 8 * f, marginBottom: 6 },
+  barTrack: { width: '100%', height: 128, borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
+  bar: { width: '100%', borderRadius: 6 },
+  barDay: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, marginTop: 8 },
+  chartLegend: { borderTopWidth: 1, marginTop: 14, paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 7, height: 7, borderRadius: 4 },
+  legendText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
+  lineGraphCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginBottom: 20 },
+  lineGraphBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6 },
+  lineGraphBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
+  lineGraphPlot: { height: 128, marginTop: 4, position: 'relative' },
+  lineGraphEmpty: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  lineGraphEmptyText: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
+  lineGraphLabels: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2, marginTop: 2 },
+  lineGraphLabel: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, textAlign: 'center' },
+  lineGraphLegend: { borderTopWidth: 1, marginTop: 12, paddingTop: 11, flexDirection: 'row', justifyContent: 'space-between' },
+  lineGraphTargetDot: { width: 7, height: 2, borderRadius: 1 },
+  nutrientCard: { borderWidth: 1, borderRadius: 20, padding: 14, marginBottom: 1 },
+  nutrientRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 8 },
+  nutrientDot: { width: 8, height: 8, borderRadius: 4 },
+  nutrientLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f, flex: 1 },
+  nutrientValue: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
+  nutrientTarget: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, minWidth: 88, textAlign: 'right' },
+  nutrientNote: { borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.14)', paddingTop: 10, marginTop: 5, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15 },
+  patternCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginBottom: 24 },
+  patternBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6 },
+  patternBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },
+  patternChart: { height: 132, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 9, marginTop: 3 },
+  patternColumn: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end' },
+  patternTrack: { width: '100%', height: 92, borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
+  patternFill: { width: '100%', borderRadius: 6 },
+  patternMoodDot: { width: 8, height: 8, borderRadius: 4, borderWidth: 1, marginTop: 8 },
+  patternDay: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, marginTop: 6 },
+  patternLegend: { borderTopWidth: 1, marginTop: 14, paddingTop: 11, flexDirection: 'row', justifyContent: 'space-between' },
+  patternLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  moodLegend: { borderTopWidth: 1, marginTop: 10, paddingTop: 10, gap: 6 },
+  moodLegendLabel: { fontFamily: 'Inter_500Medium', fontSize: 10 * f },
+  moodLegendItems: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  patternStats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 },
+  patternStatValue: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
+  patternStatLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 3 },
+  patternNote: { borderTopWidth: 1, borderTopColor: 'rgba(120,120,120,0.14)', paddingTop: 10, marginTop: 13, fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15 },
+  checkinCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginTop: 24 },
+  checkinLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, letterSpacing: 1.1, marginBottom: 8 },
+  activityOptions: { flexDirection: 'row', gap: 7 },
+  activityOption: { flex: 1, minHeight: 58, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderRadius: 13, paddingHorizontal: 3, gap: 5 },
+  activityOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
+  checkinHint: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15, marginTop: 11 },
+  signalCard: { borderWidth: 1, borderRadius: 21, padding: 15, marginTop: 24 },
+  signalCardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 15 },
+  signalIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  signalRow: { flexDirection: 'row', gap: 12 },
+  signalMetric: { flex: 1, minWidth: 0 },
+  signalMetricTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
+  signalMetricLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
+  signalMetricValue: { fontFamily: 'Inter_700Bold', fontSize: 17 * f },
+  signalMetricUnit: { fontFamily: 'Inter_400Regular', fontSize: 10 * f },
+  signalMetricHint: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 5 },
+  trustRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderRadius: 18, padding: 13, marginBottom: 9 },
+  trustIcon: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  trustTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
+  trustBody: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 15, marginTop: 4 },
+  weightHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 25, marginBottom: 11 },
+  weightTitleGroup: { flex: 1, marginRight: 8 },
+  weightHeaderButtons: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  goalHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8 },
+  goalHeaderBtnText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+  weightButton: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 11, paddingHorizontal: 10, paddingVertical: 8 },
+  weightButtonText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+  weightCard: { borderWidth: 1, borderRadius: 20, padding: 16 },
+  weightValue: { fontFamily: 'Inter_700Bold', fontSize: 28 * f },
+  weightUnit: { fontFamily: 'Inter_400Regular', fontSize: 12 * f },
+  weightHint: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 5 },
+  weightLine: { height: 7, borderRadius: 4, overflow: 'hidden', marginTop: 14 },
+  weightLineFill: { height: 7, borderRadius: 4 },
+  weightModal: { borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20 },
+  weightFormScroll: { flexShrink: 1, minHeight: 0 },
+  weightFormContent: { paddingBottom: 4 },
+  weightError: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, marginTop: 8 },
+  modalTitle: { fontFamily: 'Inter_700Bold', fontSize: 21 * f },
+  modalBody: { fontFamily: 'Inter_400Regular', fontSize: 12 * f, lineHeight: 18, marginTop: 7 },
+  weightInput: { borderWidth: 1, borderRadius: 14, height: 48, paddingHorizontal: 13, fontFamily: 'Inter_500Medium', fontSize: 16 * f, marginTop: 17 },
+  saveWeight: { borderRadius: 14, alignItems: 'center', paddingVertical: 14, marginTop: 12 },
+  saveWeightText: { fontFamily: 'Inter_700Bold', fontSize: 13 * f },
+  cancelWeight: { alignItems: 'center', paddingVertical: 13 },
+  cancelWeightText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
+  moodOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 2 },
+  moodOption: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 },
+  moodDot: { width: 7, height: 7, borderRadius: 4 },
+  moodOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
+  minutesRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, marginTop: 13, paddingTop: 13 },
+  minutesLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  minutesLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f, letterSpacing: 1.1 },
+  minutesInputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, gap: 4, minWidth: 80 },
+  minutesInput: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, minWidth: 40, textAlign: 'right' },
+  minutesUnit: { fontFamily: 'Inter_400Regular', fontSize: 11 * f },
+  healthSyncNote: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 7, marginTop: 11 },
+  healthSyncText: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, lineHeight: 13, flex: 1 },
+  weightTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 },
+  weightDeltaBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 5 },
+  weightDeltaText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
+  weightSparkline: { marginTop: 12 },
+  weightSparkLabels: { flexDirection: 'row', marginTop: 5, paddingHorizontal: 2 },
+  weightSparkLabel: { fontFamily: 'Inter_400Regular', fontSize: 8 * f },
+  weightSparkDateRange: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 4, textAlign: 'center', opacity: 0.6 },
+  weightEntryList: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 14, paddingTop: 12, gap: 8 },
+  weightEntryListTitle: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 1 },
+  weightEntryRow: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  weightEntrySummary: { flex: 1, minWidth: 0 },
+  weightEntryValue: { fontFamily: 'Inter_600SemiBold', fontSize: 12 * f },
+  weightEntryDate: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginTop: 2 },
+  weightEntryActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  weightEntryAction: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  weightExpandedDateRow: { position: 'relative', height: 18, marginTop: 6 },
+  weightExpandedDateLabel: { position: 'absolute', fontFamily: 'Inter_400Regular', fontSize: 9 * f, opacity: 0.72, transform: [{ translateX: -18 }] },
+  weightTooltip: { position: 'absolute', width: 148, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6, zIndex: 20 },
+  weightTooltipDate: { fontFamily: 'Inter_600SemiBold', fontSize: 9 * f },
+  weightTooltipKg: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, marginTop: 1 },
+  weightTooltipActions: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingLeft: 6 },
+  weightTooltipActionBtn: { paddingHorizontal: 5, paddingVertical: 4 },
+  weightDeleteSnack: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 5, zIndex: 30 },
+  weightDeleteSnackText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 12 * f },
+  weightDeleteSnackUndo: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, paddingHorizontal: 6 },
+  goalProgressSection: { marginTop: 14 },
+  goalProgressHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
+  goalProgressText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, flex: 1 },
+  goalProgressPct: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, marginLeft: 8 },
+  goalEditBtn: { padding: 4, marginLeft: 6 },
+  goalNudge: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  goalNudgeText: { fontFamily: 'Inter_500Medium', fontSize: 11 * f, letterSpacing: 0.1 },
+  celebrationWrapper: { position: 'relative', marginTop: 14 },
+  confettiBurstContainer: { position: 'absolute', top: 0, left: 0, right: 0, height: 0, zIndex: 10 },
+  celebrationBanner: { flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 11 },
+  celebrationIconWrap: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  celebrationTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 * f, marginBottom: 2 },
+  celebrationBody: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 },
+  celebrationClose: { padding: 4, flexShrink: 0, opacity: 0.7 },
+  // ─── Expand hint icon ──────────────────────────────────────────────────────
+  chartExpandHint: { position: 'absolute', top: 6, right: 2, width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center', opacity: 0.7 },
+  // ─── Expanded weight chart modal ───────────────────────────────────────────
+  chartModalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 12, shadowColor: '#000', shadowOpacity: 0.28, shadowRadius: 24, shadowOffset: { width: 0, height: -6 }, elevation: 18 },
+  chartModalHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 18 },
+  chartModalHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
+  chartModalTitle: { fontFamily: 'Inter_700Bold', fontSize: 19 * f, letterSpacing: -0.3 },
+  chartModalSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, marginTop: 4 },
+  chartModalCloseBtn: { width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  chartModalStats: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, marginTop: 18, paddingTop: 16 },
+  chartModalStat: { flex: 1, alignItems: 'center' },
+  chartModalStatValue: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
+  chartModalStatLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 * f, marginTop: 3, textAlign: 'center' },
+  chartModalStatDivider: { width: 1, height: 30 },
+  // ─── In-modal undo snackbar ────────────────────────────────────────────────
+  chartModalUndoRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, marginTop: 14 },
+  chartModalUndoText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 12 * f },
+  chartModalUndoBtn: { fontFamily: 'Inter_700Bold', fontSize: 12 * f, paddingHorizontal: 6 },
+  });
+}
+const styles = makeStyles(1.0);
