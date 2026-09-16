@@ -2,6 +2,10 @@
 
 # compiled output
 dist
+# Disposable mockup preview discovery output. The preview app uses Vite's
+# tracked import.meta.glob source, but older/local preview tooling may still
+# materialize this generated module.
+artifacts/mockup-sandbox/src/.generated/
 # Keep the complete compiled implementation of Calora's vendored security package.
 !vendor/image-size/dist/
 !vendor/image-size/dist/**
