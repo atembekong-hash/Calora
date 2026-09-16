@@ -14,6 +14,60 @@ publish attempt failed before promotion because the workspace contained an
 untracked generated file; that failed attempt did not replace the active
 release.
 
+## Post-deployment task reconciliation
+
+After the successful API publish, the main branch advanced through the
+completed release-hardening tasks. The current main branch is:
+
+```text
+commit:      3113883f8174cc24b992b62c25d60bffe09eeeec
+source tree: c6867f17eefb9aa7f43a77df82c87be5481f5b48
+```
+
+The merged tasks changed:
+
+- ignored mockup-preview output and clean-checkout regression coverage;
+- default scripts validation;
+- release-attestation and monitoring fixtures;
+- monitoring report collision and concurrency protections;
+- sanitized release-fetch failure handling;
+- required release-validation GitHub workflows and required-check auditing;
+- related tests, documentation, and agent memory.
+
+The complete diff from the deployed candidate to current `main` contains no
+changes under:
+
+```text
+artifacts/api-server/
+lib/db/
+lib/api-spec/
+lib/api-client-react/
+lib/api-zod/
+artifacts/calora/
+```
+
+Therefore, these merged tasks do not change the deployed API runtime,
+database schema, mobile client, or API compatibility contract. The active
+production release remains the exact candidate documented below:
+
+```text
+380973d6f36caa97472350e651447130221e2a5f
+```
+
+### Republish decision
+
+**No republish is required for the current production API.**
+
+The current production release is healthy and already contains the authorized
+API compatibility remediation. The completed tasks are release-process and
+validation improvements, not API-runtime changes.
+
+A future publish is appropriate only if the owner wants to place the newer
+release-validation tooling and current `main` source tree into a new
+production release. That would be a separate release with a new commit, source
+tree, release ID, and preflight; it is not needed merely because these tasks
+were merged.
+
 ## Exact deployed identity
 
 The successful deployment build record is:
