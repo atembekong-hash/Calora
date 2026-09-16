@@ -70,3 +70,17 @@ mtime_ms = 1789593796833
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/fc79b51d-7021-4c62-814f-4640c774c666/8c6fdd5d-bc08-4034-b47e-225b94f9970d"
 storage_version_token = "1789593831360040"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "IGjoN4ZI3wvygfbCfMcQW"
+uri = "file://48_CALORA_IOS_BUILD_5_TESTFLIGHT_SUBMISSION_REPORT.md"
+type = "text"
+title = "Calora Step 48 TestFlight Submission Report"
+description = "Verified report for the single deterministic submission of iOS build 5. App Store Connect marked it VALID and assigned it to the existing Calora Internal Testers group."
+logical_id = "1a0c38f0-e06b-4767-9a32-e91c522e0836"
+content_hash = "sha256:5e1c5fd908e03cfd4d4120c233c1cc7f3929f76c47895b2d2e535b9679a58da6"
+size = 8715
+mtime_ms = 1789594639993
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/1a0c38f0-e06b-4767-9a32-e91c522e0836/af816c98-31f7-4b7f-a5fc-5574db42f81d"
+storage_version_token = "1789594665641290"
+content_type = "text/markdown"
