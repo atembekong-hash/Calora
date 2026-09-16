@@ -2,16 +2,6 @@ name: Release validation
 
 on:
   pull_request:
-    paths:
-      - ".github/workflows/release-validation.yml"
-      - "artifacts/api-server/**"
-      - "lib/api-zod/**"
-      - "lib/db/**"
-      - "lib/integrations-openai-ai-server/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "scripts/**"
   workflow_dispatch:
 
 permissions:
