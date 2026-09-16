@@ -1,0 +1,230 @@
+I want you to make a careful, production-quality UI pass on this application.
+
+IMPORTANT: Focus ONLY on the three areas described below.
+
+Do not redesign the application.
+Do not change the visual identity.
+Do not change the bottom navigation.
+Do not change existing colors, cards, typography, page content, business logic, nutrition calculations, database structure, authentication, routes, or unrelated components unless a very small technical change is strictly required to complete one of these three tasks.
+
+Before changing code, inspect the existing implementation and determine how themes, status bars, number rendering, scrolling, safe areas, and page layouts currently work. Reuse the existing architecture wherever possible instead of introducing duplicate systems.
+
+The three areas are:
+
+1. FIX THE SYSTEM STATUS BAR IN LIGHT AND DARK MODE
+
+There is currently a visibility problem with the phone's system status bar.
+
+In dark mode, the time, date/status information, battery, Wi-Fi, signal icons, and other system status-bar content are visible.
+
+In light mode, some or all of this information becomes difficult or impossible to see because the system status-bar foreground color does not have enough contrast with the application's background.
+
+Fix this properly for both themes.
+
+Requirements:
+
+- In light mode, use a status-bar foreground/icon style that remains clearly visible against the light background.
+- In dark mode, use the appropriate contrasting status-bar foreground/icon style.
+- The application must update the status bar correctly when the user changes between light and dark mode.
+- Make sure the status bar background integrates naturally with the application's top area.
+- Respect Android/iOS safe areas if applicable.
+- Do not allow application content to accidentally cover the system clock, battery, signal indicators, or other system UI.
+- Check every main tab and secondary screen, not only Home.
+- Do not solve this by adding arbitrary padding values to individual pages.
+- Implement the behavior through the application's theme/layout system so it remains consistent everywhere.
+
+The result should make the system information at the top of the phone clearly readable in BOTH light and dark mode.
+
+2. FIX ALL NUMBER FORMATTING AND LONG DECIMAL VALUES
+
+Raw floating-point values are currently leaking into the visible interface.
+
+Examples of the current problem include numbers similar to:
+
+157.4852320675105g
+333.518987341772g
+108.6413502109705g
+2,952.679 calories
+147.67932489451 kcal
+
+This is unacceptable for a consumer nutrition application.
+
+The underlying calculations may retain full precision internally, but the UI must NEVER expose raw floating-point precision like this.
+
+Create or use a centralized number-formatting system instead of manually fixing individual screens.
+
+Review ALL user-facing numeric displays that relate to nutrition and similar calculated values.
+
+Use sensible formatting rules.
+
+Examples:
+
+Calories:
+2050 kcal
+2953 kcal
+148 kcal
+
+Macros:
+157 g
+334 g
+109 g
+
+Percentages:
+98%
+89%
+
+Where a decimal is genuinely useful, use a sensible maximum number of decimal places.
+
+For example, depending on the measurement:
+1.5 servings
+2.3 oz
+
+Do not display meaningless precision such as:
+1.5000000002
+147.67932489451
+
+Important requirements:
+
+- Never change the stored/calculated value simply to make the display cleaner.
+- Format values only at the presentation layer unless the architecture already has an appropriate formatting layer.
+- Avoid inconsistent formatting between screens.
+- Use locale-aware thousands separators where appropriate.
+- Prevent values such as NaN, Infinity, undefined, null, or calculation artifacts from appearing to the user.
+- Make sure units remain correctly spaced and readable.
+- Search the codebase for places where raw calculated values may be rendered directly.
+
+The goal is one reliable formatting system used throughout the UI.
+
+3. ADD A CONSISTENT TOP APP BAR / PAGE HEADER SYSTEM
+
+The application currently allows the whole page to scroll from the very top, and there is no strong, consistent structural header across the tabs/pages.
+
+I want a proper top app-bar/header system added carefully across the application.
+
+This should give the interface a stable visual anchor while also working correctly with the system status bar described in task 1.
+
+DO NOT create a large, bulky navigation bar.
+
+The header should be compact and consistent with the existing visual design.
+
+Requirements:
+
+- Create one reusable header/app-bar component rather than manually building a different header on every page.
+- It should sit safely below or integrate correctly with the device status bar.
+- It should remain visually consistent in light and dark mode.
+- It should provide the page with a clear title/context.
+- Primary tabs should use the same structural header system.
+- Secondary/detail pages should use the same system with appropriate navigation controls such as a back button where required.
+- Existing actions can be placed in the header when they naturally belong there, but do not invent unnecessary buttons.
+- Do not overload the header.
+- Preserve the existing bottom navigation.
+- Preserve existing screen functionality.
+
+For scrolling behavior:
+
+I want the application to retain a stable sense of navigation when content is scrolled.
+
+Use an appropriate sticky/fixed header implementation if supported by the current architecture.
+
+However, be cautious.
+
+The header must:
+
+- not cover content
+- not cover the system status bar
+- not jump when scrolling
+- not cause layout shifts
+- not create duplicate page titles
+- not create strange blank space
+- work on short and long pages
+- work in portrait mobile layouts
+- behave correctly in light and dark themes
+- respect safe-area insets
+
+If an existing hero section contains information that would become redundant after adding the header, do NOT automatically delete or redesign it. Make the smallest adjustment required to prevent obvious duplication or collision while preserving the existing design.
+
+IMPLEMENTATION APPROACH
+
+Before editing:
+
+1. Inspect the shared layout/root layout.
+2. Inspect theme handling.
+3. Inspect system status-bar handling.
+4. Inspect page scrolling containers.
+5. Inspect all locations where calculated numbers are rendered.
+6. Identify which components can solve these issues globally.
+
+Prefer fixes in shared infrastructure over screen-specific patches.
+
+For example:
+
+- shared AppHeader component
+- shared PageLayout component
+- shared safe-area handling
+- shared theme-aware status-bar configuration
+- shared numeric formatting helpers
+
+Do not create several competing implementations.
+
+REGRESSION REQUIREMENTS
+
+After implementing the changes, test:
+
+- Light mode
+- Dark mode
+- Switching between themes while the app is running
+- Home
+- Log
+- Planner
+- Recipes
+- Profile/Settings
+- Secondary/detail pages
+- Long scrolling screens
+- Short screens
+- Android/mobile safe areas if this is an Android-targeted application
+- Numbers below a target
+- Numbers above a target
+- Whole numbers
+- Decimal quantities
+- Large calorie values
+- Macro values
+- Percentages
+
+Verify specifically that:
+
+1. The phone's status-bar information is readable in light mode.
+2. It remains readable in dark mode.
+3. No raw long floating-point values are visible anywhere in the normal user interface.
+4. Number formatting is consistent.
+5. Every main area has a coherent top-header structure.
+6. Headers and status bars do not overlap.
+7. Content does not disappear underneath a sticky header.
+8. Bottom navigation still works exactly as before.
+9. Existing application functionality is not broken.
+
+VERY IMPORTANT:
+
+Do not use this task as an opportunity to refactor unrelated code.
+
+Do not make broad aesthetic changes.
+
+Do not replace working components merely because you prefer another implementation.
+
+Do not change the application's branding.
+
+Do not alter nutrition algorithms or stored nutrition values.
+
+Keep the changes small, reusable, and easy to maintain.
+
+After completing the work, give me a concise report containing:
+
+- the root cause you found for the light-mode status-bar problem
+- the files/components changed for status-bar handling
+- how number formatting is now centralized
+- the rounding/display rules being used
+- the header component/layout you introduced or modified
+- which screens now use it
+- any remaining edge cases you found
+- confirmation that you tested both light and dark mode
+
+If you encounter an architectural issue that would require a major redesign to fix any of these three items, stop and explain it before making that major change.

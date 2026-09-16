@@ -1,0 +1,213 @@
+Mission
+
+MISSION: Certify the entire payment, billing, subscription, and entitlement system for production readiness through complete real-user validation.
+
+1. Discover the Payment System
+
+Before testing, map every payment, subscription, billing, and entitlement flow in the application.
+
+Cover every applicable flow, including:
+
+- Product and pricing display
+- Paywall
+- Checkout
+- First purchase
+- Monthly subscription
+- Annual subscription
+- Free trial
+- Trial conversion
+- Successful payment
+- Failed payment
+- Cancelled payment
+- Interrupted payment
+- Pending payment
+- Duplicate purchase attempts
+- Upgrade
+- Downgrade
+- Plan switching
+- Renewal
+- Failed renewal
+- Grace period
+- Subscription cancellation
+- Subscription expiration
+- Resubscription
+- Restore purchases
+- Refunds
+- Revoked purchases
+- Cross-device entitlement restoration
+- Cross-platform entitlement behavior where applicable
+- Account switching
+- Sign-out and sign-in after purchase
+- Premium feature access
+- Loss of premium access
+- Billing management
+
+Identify the screens, APIs, database records, payment-provider integrations, webhooks, receipts, transaction records, subscription states, entitlement logic, authentication dependencies, and shared systems involved.
+
+Do not assume payment state is correct because the UI says it is.
+
+2. Validate One Payment Flow at a Time
+
+Use the application as a real production user and use the appropriate provider-approved test or sandbox environment where real charges are not required.
+
+For each flow:
+
+1. Start from its genuine entry point.
+2. Execute the complete journey end to end.
+3. Verify pricing and product information before purchase.
+4. Complete or intentionally fail the transaction as required by the test.
+5. Confirm the payment provider's resulting state.
+6. Confirm the backend records the correct state.
+7. Confirm the application reflects the correct state.
+8. Confirm the user's entitlement matches the actual transaction state.
+9. Verify persistence after app restart, logout/login, and cross-device access where applicable.
+
+Test relevant normal paths, edge cases, interruptions, retries, failures, delayed responses, and recovery scenarios.
+
+3. Protect Financial Integrity
+
+Continuously verify:
+
+- Correct product
+- Correct plan
+- Correct displayed price
+- Correct billing period
+- Correct currency where applicable
+- Correct subscription state
+- Correct transaction state
+- Correct entitlement state
+- Receipt or purchase validation
+- Server-side verification where applicable
+- Webhook processing
+- Webhook retries
+- Duplicate webhook handling
+- Idempotency
+- Duplicate transaction prevention
+- Delayed payment-provider events
+- Out-of-order events
+- Failed transactions
+- Pending transactions
+- Refunds
+- Revocations
+- Cancellations
+- Expiration
+- Renewal
+- Failed renewal
+- Grace periods
+- Restore purchases
+- Account switching
+- Cross-device synchronization
+- Unauthorized premium access
+- Incorrect loss of legitimate premium access
+- Data consistency between client, backend, database, and payment provider
+
+Never grant paid entitlement solely because the client reports that a purchase succeeded when authoritative server-side or provider verification is available.
+
+Never perform destructive or irreversible financial actions against real customers merely for testing.
+
+4. Repair Until the Flow Passes
+
+Whenever a defect is found:
+
+1. Identify the root cause.
+2. Determine whether the defect can affect other payment states or users.
+3. Repair the root cause using a maintainable solution.
+4. Retest the complete payment flow.
+5. Verify payment, backend, database, and entitlement states agree.
+6. Regression-test related payment and premium-access flows.
+7. Repeat until the flow passes completely.
+
+Do not move to the next flow until the current flow is certified.
+
+5. Strict Pass Gate
+
+A payment flow is PASSED only when:
+
+- The transaction behaves correctly end to end.
+- The provider, backend, database, client, and entitlement state agree where applicable.
+- Failures and interruptions recover safely.
+- Duplicate charges or duplicate entitlement changes cannot be produced through the tested path.
+- Users receive exactly the access they are entitled to.
+- Users without valid entitlement cannot access paid functionality.
+- Relevant security and privacy requirements are satisfied.
+- Regression testing confirms related functionality remains stable.
+- Objective execution evidence supports the result.
+
+A successful checkout screen, passing automated test, successful build, or client-side premium flag is not sufficient by itself.
+
+Maintain a live Payment Validation Ledger containing:
+
+- Flow
+- Status
+- Transaction scenario
+- Expected financial state
+- Expected entitlement state
+- Actual result
+- Issues found
+- Root causes
+- Repairs
+- Provider verification
+- Backend/database verification
+- Entitlement verification
+- Regression result
+- Evidence
+- Remaining limitations
+
+Use:
+
+NOT TESTED → IN PROGRESS → BLOCKED → REPAIRED → RETESTING → PASSED
+
+Never mark PASSED without evidence.
+
+6. Final Payment Regression Sweep
+
+After every payment flow has passed, perform a final end-to-end payment and entitlement regression sweep.
+
+Verify that a user can correctly move through the complete lifecycle:
+
+Free → Purchase/Trial → Paid → Renewal → Cancellation/Expiration → Free → Resubscription/Restore
+
+Also verify that payment changes have not broken:
+
+- Authentication
+- Account state
+- Premium feature access
+- Onboarding
+- Profile
+- Settings
+- Classroom or other role-based access
+- Data persistence
+- Analytics or transaction tracking where applicable
+
+If any defect appears, reopen the affected flow, repair it, recertify it, and repeat the relevant regression checks.
+
+Completion Standard
+
+The mission ends only when:
+
+- Every applicable payment and subscription flow has been accounted for.
+- Every required flow has passed real-user end-to-end validation.
+- Financial and entitlement states remain consistent.
+- Relevant security checks have passed.
+- Relevant regression testing has passed.
+- The final payment lifecycle sweep has passed.
+- No unresolved production-blocking payment defect remains.
+- Any untested provider behavior, external blocker, or unavoidable limitation is explicitly documented with evidence.
+
+Final Report
+
+Provide:
+
+1. Payment and Subscription Flow Map
+2. Payment Validation Ledger
+3. Issues discovered
+4. Root causes
+5. Repairs made
+6. Transaction verification evidence
+7. Entitlement verification evidence
+8. Security and financial-integrity findings
+9. Regression results
+10. Remaining risks or limitations
+11. Final payment production-readiness verdict
+
+Work autonomously until the mission is complete or an external blocker makes further execution impossible.

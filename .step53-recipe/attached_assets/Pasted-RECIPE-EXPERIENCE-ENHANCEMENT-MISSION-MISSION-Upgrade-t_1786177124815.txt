@@ -1,0 +1,563 @@
+RECIPE EXPERIENCE ENHANCEMENT MISSION
+
+MISSION
+
+Upgrade the existing Recipe Detail experience in the current application.
+
+IMPORTANT:
+
+The Recipe system is ALREADY IMPLEMENTED and working.
+
+This is NOT a rebuild.
+
+Do not replace the existing recipe architecture, redesign the entire recipe feature, rename existing routes, remove working functionality, or create a parallel recipe system.
+
+Your job is to perform a careful enhancement of the current implementation while preserving everything that already works.
+
+Operate as a senior product engineer, UX engineer, nutrition-app architect, QA engineer, and regression-test owner.
+
+Your responsibility is to inspect the existing implementation first, understand its current data flow, then make the smallest safe architectural changes required to add the features below.
+
+==================================================
+PHASE 1 — FORENSIC AUDIT BEFORE EDITING
+==================================================
+
+Before changing code, inspect the existing Recipe feature completely.
+
+Map:
+
+1. Recipe list/discovery screen.
+2. Recipe card component.
+3. Recipe Detail screen.
+4. Recipe data model/schema.
+5. Recipe API/provider integration.
+6. Nutrition estimation logic.
+7. Ingredient parsing.
+8. Recipe serving data.
+9. Weekly-plan integration.
+10. Shopping-list integration.
+11. Diary/food-log integration.
+12. Saved/favorite recipe implementation, if any.
+13. Navigation into and out of recipe detail.
+14. Existing loading, error, empty, and offline states.
+15. Light and dark theme behavior.
+16. Persistence/storage/database behavior.
+
+Identify which components can be reused.
+
+Do NOT edit anything until you understand the current architecture.
+
+Create a brief implementation plan internally, then execute it.
+
+==================================================
+CORE RULE
+==================================================
+
+PRESERVE THE CURRENT DESIGN LANGUAGE.
+
+The current Recipe Detail page should remain visually recognizable.
+
+Do not turn it into a crowded dashboard.
+
+Do not add unnecessary cards, large blocks, excessive buttons, or visual noise.
+
+Use progressive disclosure, compact controls, bottom sheets, expandable areas, and existing design patterns where appropriate.
+
+Existing working features must remain available, including:
+
+- Recipe image
+- Recipe title
+- Cuisine/category information
+- Calories
+- Protein
+- Carbohydrates
+- Fat
+- Nutrition estimate notice
+- Ingredients
+- Method/instructions
+- Recipe source attribution
+- Add to weekly plan
+- Add to today's diary
+- Source attribution link
+- Existing recipe browsing behavior
+
+==================================================
+FEATURE 1 — SERVING SELECTOR + LIVE RECALCULATION
+==================================================
+
+This is the highest-priority enhancement.
+
+Determine the recipe's serving/yield information from the available source data.
+
+Add a compact serving control to the Recipe Detail screen.
+
+Example:
+
+Servings
+[-]  2  [+]
+
+or another elegant mobile-native implementation.
+
+Requirements:
+
+- Show the recipe's original serving count when available.
+- Allow the user to increase or decrease the serving quantity.
+- Support sensible minimum and maximum values.
+- Allow fractional serving quantities when appropriate for diary logging.
+- Recalculate ingredient quantities when the recipe serving count changes.
+- Recalculate displayed nutrition proportionally.
+
+Nutrition affected:
+
+- Calories
+- Protein
+- Carbohydrates
+- Fat
+
+If detailed nutrients exist, keep the architecture ready for those values too.
+
+VERY IMPORTANT:
+
+Clearly distinguish between:
+
+A. Recipe yield/servings
+B. The user's diary portion
+
+Do not accidentally treat the entire recipe as one serving.
+
+If the source does not provide reliable serving information:
+
+- Do not invent false precision.
+- Use an appropriate fallback.
+- Clearly label estimates.
+- Preserve the existing AI-estimated disclaimer.
+
+The calculated diary nutrition must use the actual selected portion.
+
+==================================================
+FEATURE 2 — STRUCTURED RECIPE INFORMATION
+==================================================
+
+Add a compact recipe-information area containing available values such as:
+
+- Prep time
+- Cook time
+- Total time
+- Servings
+- Difficulty
+
+Do NOT fabricate unavailable values.
+
+If the provider gives only some fields, show only those fields.
+
+If total time can safely be calculated from reliable prep + cook time, calculate it.
+
+Otherwise omit it.
+
+Difficulty should only be shown if reliable data exists or if there is already an established internal method for deriving it.
+
+Keep this section visually compact.
+
+Do not create a huge card.
+
+==================================================
+FEATURE 3 — STRUCTURED NUMBERED COOKING STEPS
+==================================================
+
+Improve the existing Method section.
+
+The current recipe instructions may arrive as one or several paragraphs.
+
+Convert them into readable numbered cooking steps where safely possible.
+
+Example:
+
+01
+Prepare the dressing
+Mix...
+
+02
+Cook the pasta
+Cook...
+
+03
+Prepare the prawns
+Heat...
+
+Requirements:
+
+- Preserve the meaning of the original recipe.
+- Do not hallucinate cooking instructions.
+- Do not remove safety-relevant instructions.
+- Do not alter temperatures, quantities, or cooking durations unless correcting obvious parsing problems.
+- Keep attribution to the source.
+
+If instructions cannot reliably be split into meaningful steps, display the original instruction structure rather than producing bad artificial steps.
+
+Do NOT build the advanced full-screen cooking mode yet.
+
+Structure the code so a cooking mode can be added later.
+
+==================================================
+FEATURE 4 — SHOPPING LIST INTEGRATION
+==================================================
+
+Add a clear action associated with Ingredients:
+
+"Add ingredients to shopping list"
+
+Reuse the EXISTING shopping-list architecture.
+
+Do NOT create a separate shopping-list system.
+
+When tapped:
+
+Open a bottom sheet or similar compact interface.
+
+Allow:
+
+- Add all ingredients
+- Select/deselect individual ingredients
+- Confirm addition
+
+Prevent accidental duplication where possible.
+
+If an ingredient already exists in the shopping list, use the app's existing merge/deduplication rules.
+
+Preserve:
+
+- Quantity
+- Unit
+- Ingredient name
+
+where the current data structure supports them.
+
+If ingredient parsing is imperfect, preserve the original ingredient string rather than corrupting it.
+
+==================================================
+FEATURE 5 — SAVE / FAVORITE RECIPE
+==================================================
+
+First inspect whether bookmarking/saving already exists anywhere in the app.
+
+If an existing favorite/bookmark architecture exists:
+
+Reuse it.
+
+If not:
+
+Implement the smallest reliable saved-recipe system that fits the application's existing persistence architecture.
+
+Add a clean bookmark/heart control in the recipe hero/header area.
+
+Behavior:
+
+Unsaved → tap → Saved
+
+Saved → tap → remove from Saved
+
+Requirements:
+
+- Persist across app restarts.
+- Remain associated with the correct recipe ID.
+- Avoid duplicate saved recipes.
+- Provide subtle visual confirmation.
+- Do not use intrusive dialogs for normal save/unsave actions.
+
+Saved recipes should be accessible from the most logical existing Recipe area.
+
+Do not create an unnecessary new bottom-navigation tab.
+
+==================================================
+FEATURE 6 — SMART "ADD TO TODAY'S DIARY"
+==================================================
+
+Keep the existing "Add to today's diary" button.
+
+Upgrade what happens after it is tapped.
+
+Instead of immediately logging an assumed amount, open a bottom sheet.
+
+Include:
+
+Meal:
+- Breakfast
+- Lunch
+- Dinner
+- Snack
+
+Portion / servings:
+- Allow selection such as 0.5, 1, 1.5, 2
+- Or use the application's established quantity control if one already exists
+
+Show dynamically calculated:
+
+- Calories
+- Protein
+- Carbs
+- Fat
+
+before the user confirms.
+
+Then:
+
+"Add to diary"
+
+Requirements:
+
+- Use the existing diary architecture.
+- Do not create a second nutrition-log system.
+- The saved diary entry must reflect the selected serving quantity.
+- Nutrition values must match what the user saw before confirmation.
+- Preserve recipe identity/source if the diary schema supports provenance.
+- Avoid duplicate entries caused by repeated taps.
+- Give success feedback.
+
+==================================================
+NUTRITION INTEGRITY RULES
+==================================================
+
+Nutrition accuracy is more important than pretending to have exact numbers.
+
+Audit the current nutrition calculation logic.
+
+Confirm what values represent:
+
+- entire recipe
+- one serving
+- estimated serving
+- selected diary portion
+
+Never silently mix them.
+
+Where values are estimated, retain a clear indicator such as:
+
+"AI-estimated per serving · values may vary"
+
+Do not remove source attribution or provenance information.
+
+Never present an AI estimate as verified nutrition data.
+
+==================================================
+UI / UX RULES
+==================================================
+
+Preserve the current visual identity.
+
+Maintain:
+
+- existing dark/light themes
+- typography hierarchy
+- spacing system
+- corner-radius language
+- button styling
+- accent colors
+- safe areas
+- accessibility
+- scrolling behavior
+
+The screen must remain easy to scan.
+
+Prefer this hierarchy:
+
+Hero image
+
+Recipe identity
+
+Nutrition summary
+
+Serving control + compact recipe info
+
+Ingredients
+
+Shopping-list action
+
+Method / numbered steps
+
+Source attribution
+
+Weekly-plan action
+
+Diary action
+
+Do not overwhelm the upper half of the page.
+
+Do not create five new giant cards.
+
+Do not reduce the usable scroll area.
+
+All content must remain readable on common Android and iPhone screen sizes.
+
+==================================================
+DATA / ARCHITECTURE RULES
+==================================================
+
+Reuse existing:
+
+- recipe IDs
+- source/provider data
+- API layers
+- database/storage
+- shopping list
+- weekly plan
+- diary
+- theme
+- navigation
+- state-management solution
+- persistence solution
+
+Do not introduce a new state-management library unless absolutely necessary.
+
+Do not duplicate recipe objects in several incompatible schemas.
+
+If a normalized Recipe domain model already exists, extend it carefully.
+
+If one does not exist and normalization is genuinely required, create a compatibility layer rather than rewriting every recipe flow.
+
+Handle missing provider fields gracefully.
+
+==================================================
+EDGE CASES
+==================================================
+
+Test at minimum:
+
+1. Recipe has no serving count.
+2. Recipe has no nutrition values.
+3. Recipe has partially missing macros.
+4. Recipe has no prep time.
+5. Recipe has no cook time.
+6. Recipe has one long instruction paragraph.
+7. Recipe already has structured steps.
+8. Ingredient has no unit.
+9. Ingredient uses unusual units.
+10. Ingredient quantity cannot be parsed.
+11. User changes servings several times.
+12. User selects 0.5 diary serving.
+13. User selects 2 diary servings.
+14. Recipe is added twice to shopping list.
+15. Recipe is favorited then unfavorited.
+16. App closes and reopens after favorite.
+17. Diary logging fails.
+18. Shopping-list write fails.
+19. Slow network.
+20. Offline state where currently supported.
+21. Very long recipe title.
+22. Very long ingredient list.
+23. Very long cooking method.
+24. Light mode.
+25. Dark mode.
+26. Small Android screen.
+27. Large Android screen.
+28. iPhone layout.
+29. Bottom navigation remains accessible.
+30. Safe areas remain correct.
+
+==================================================
+REGRESSION TESTING
+==================================================
+
+After implementation, test the entire Recipe flow as a real user.
+
+Flow A:
+Recipes → select recipe → view recipe → back
+
+Flow B:
+Recipes → recipe detail → change servings → verify ingredients → verify macros
+
+Flow C:
+Recipe → shopping list → select ingredients → add → verify shopping list
+
+Flow D:
+Recipe → save favorite → leave → reopen → verify persisted
+
+Flow E:
+Recipe → add to weekly plan → verify existing weekly-plan behavior still works
+
+Flow F:
+Recipe → Add to today's diary → choose meal + serving → confirm → open diary → verify values
+
+Flow G:
+Restart application → verify saved/favorited recipe persists
+
+For every flow:
+
+1. Functionality test
+2. Failure-state test
+3. Regression test
+
+Do not declare the mission complete merely because the UI renders.
+
+Verify end-to-end data persistence and resulting user state.
+
+==================================================
+DO NOT DO THESE
+==================================================
+
+Do not:
+
+- rebuild the Recipe page from scratch
+- remove source attribution
+- remove existing features
+- replace working providers without cause
+- redesign unrelated tabs
+- create a separate diary
+- create a separate shopping list
+- create a second recipe database
+- fabricate nutrition information
+- fabricate cooking times
+- fabricate recipe serving counts
+- break weekly-plan integration
+- add an advanced AI recipe generator in this mission
+- add ingredient substitutions in this mission
+- add full cooking mode in this mission
+- add a new bottom-navigation tab
+- trigger a production build unless explicitly requested
+
+==================================================
+DEFINITION OF DONE
+==================================================
+
+This mission is complete only when:
+
+- Existing recipe functionality still works.
+- Serving selection works.
+- Nutrition updates correctly.
+- Ingredient quantities update appropriately.
+- Structured recipe information works with missing-field fallbacks.
+- Method is easier to follow.
+- Shopping-list integration works.
+- Recipe saving works and persists.
+- Diary logging supports meal + portion selection.
+- Diary nutrition matches the selected portion.
+- Weekly-plan functionality remains intact.
+- Source attribution remains intact.
+- Light and dark themes are correct.
+- No significant layout regressions exist.
+- All relevant flows pass end-to-end testing.
+
+==================================================
+FINAL REPORT
+==================================================
+
+At the end, provide:
+
+1. What you discovered about the old Recipe architecture.
+2. What you changed.
+3. Files changed.
+4. Database/schema changes, if any.
+5. How serving calculations work.
+6. How nutrition calculations work.
+7. How shopping-list integration works.
+8. How saved recipes persist.
+9. How diary logging now works.
+10. Tests performed.
+11. Regression-test results.
+12. Edge cases tested.
+13. Any limitations caused by recipe-provider data.
+14. Any remaining issues.
+15. Screenshots of the completed Recipe Detail experience where possible.
+
+Do not claim success if a flow has not actually been tested.
+
+Begin with the forensic audit of the current Recipe implementation.

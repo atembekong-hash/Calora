@@ -1,0 +1,637 @@
+CALORA COACH FACT CONTEXT — FINAL INDEPENDENT ACTIVATION GATE
+
+Mission
+
+Perform the final independent activation review of Coach Fact Context.
+
+This is the final GO/NO-GO gate before any controlled activation may be proposed.
+
+Do not assume previous remediation reports are correct. Independently inspect the current repository, managed PostgreSQL state, runtime configuration, Coach send path, rollout controls, consent system, security boundaries and test evidence.
+
+Do not activate production Fact Context in this task.
+
+
+---
+
+1. Verify current dark state first
+
+Independently prove:
+
+client Fact Context gate = OFF;
+
+server environment gate = OFF/default deny;
+
+operational global config = disabled/absent;
+
+operational cohort = empty/deny-all;
+
+zero real accounts eligible;
+
+Fact Context allowlist unchanged;
+
+longitudinal Intelligence flags OFF;
+
+legacy Coach available.
+
+
+If any statement is false, issue NO-GO immediately.
+
+
+---
+
+2. Verify database deployment authority
+
+Inspect the committed managed-PostgreSQL/Drizzle migration architecture.
+
+Prove:
+
+migration history is immutable and recorded;
+
+consent ledger exists in the canonical schema;
+
+operational rollout records exist in the canonical schema;
+
+nonce/idempotency storage exists as designed;
+
+constraints match runtime expectations;
+
+account foreign keys and deletion behavior are correct;
+
+Supabase contains no competing active consent DDL;
+
+migrations are forward-safe and repeatable;
+
+partial deployment cannot accidentally authorize Fact Context.
+
+
+Do not treat development schema inspection alone as proof of production deployment.
+
+
+---
+
+3. Independently attack authorization
+
+Attempt Fact Context requests with:
+
+no authentication;
+
+invalid authentication;
+
+authenticated account without consent;
+
+revoked consent;
+
+stale consent version;
+
+consent belonging to another account;
+
+local/cache-only consent;
+
+server gate OFF;
+
+operational global switch OFF;
+
+no cohort;
+
+expired cohort;
+
+cohort belonging to another account;
+
+forged client eligibility;
+
+direct API bypass.
+
+
+Every unauthorized case must fail closed.
+
+
+---
+
+4. Verify the real live Coach path
+
+Trace from:
+
+Coach UI → send adapter → activation coordinator → architecture selection → API → provider → validation → settlement
+
+Do not rely only on unit tests.
+
+Prove the live UI supplies the approved daily Intelligence facts rather than facts: [].
+
+Verify the only Fact Context facts eligible are:
+
+daily calories consumed;
+
+daily calorie target;
+
+daily protein consumed;
+
+daily protein target.
+
+
+Search for every Coach send path.
+
+Prove there is no bypass around the coordinator.
+
+
+---
+
+5. Prove exactly-one architecture
+
+Every Coach send must resolve to exactly one:
+
+LEGACY
+
+FACT_CONTEXT
+
+SAFE NO-SEND
+
+Attempt to trigger:
+
+dual sends;
+
+mixed payloads;
+
+Fact Context plus legacy context;
+
+retry from Fact Context into legacy;
+
+stale architecture selection;
+
+race-driven architecture switching.
+
+
+Once sanitized Fact Context egress begins, failure must never cause automatic retry using broader legacy context.
+
+
+---
+
+6. Attack the minimized data boundary
+
+Attempt to inject:
+
+weight;
+
+food names;
+
+raw food logs;
+
+meals;
+
+notes;
+
+photos;
+
+recipes;
+
+Planner;
+
+shopping;
+
+wellness;
+
+activity;
+
+nutrition coverage;
+
+macro record coverage;
+
+arbitrary Foundation facts;
+
+unknown nested keys;
+
+objects/arrays where primitives are required;
+
+prototype-like properties;
+
+oversized values;
+
+legacy Coach structures.
+
+
+Trace the provider-bound payload.
+
+No prohibited information may reach provider egress.
+
+
+---
+
+7. Attack payload budgets
+
+Independently verify every endpoint-specific request/message limit.
+
+Test:
+
+maximum allowed request;
+
+one unit above maximum;
+
+maximum message;
+
+excessive message;
+
+maximum turn count;
+
+excessive turn count;
+
+aggregate conversation limit;
+
+deeply nested payload;
+
+large nested strings;
+
+malformed Unicode/serialization edge cases where relevant.
+
+
+Oversized or malformed requests must be rejected before provider egress.
+
+
+---
+
+8. Attack replay and concurrency
+
+Independently test the atomic per-account nonce/idempotency mechanism.
+
+Test:
+
+first valid request;
+
+exact replay;
+
+concurrent identical requests;
+
+concurrent different nonces;
+
+nonce from Account A used by Account B;
+
+replay before expiry;
+
+replay after expiry;
+
+provider failure after nonce consumption;
+
+timeout after nonce consumption;
+
+cleanup/expiry behavior;
+
+database failure during atomic consumption.
+
+
+Prove that concurrent duplicate provider egress cannot occur.
+
+
+---
+
+9. Attack time boundaries
+
+Verify:
+
+exact 60-second context lifetime;
+
+server-observed expiration;
+
+maximum future clock skew;
+
+malformed timestamp rejection.
+
+
+Test exact boundary values, far-future values, expired values and server/client clock disagreement.
+
+
+---
+
+10. Attack account and lifecycle isolation
+
+Start pending requests and then trigger:
+
+A → B account switch;
+
+B → A;
+
+sign-out;
+
+hydration reset;
+
+local-data clear;
+
+account deletion;
+
+consent revoke;
+
+client gate rollback;
+
+operational global kill;
+
+cohort removal;
+
+Coach unmount/remount;
+
+provider timeout;
+
+request expiry.
+
+
+Prove stale responses never render.
+
+Specifically attempt to make an Account A response appear under Account B.
+
+Any plausible cross-account settlement is automatic NO-GO.
+
+Verify lifecycle registrations are cleaned up after repeated mount/unmount cycles.
+
+
+---
+
+11. Attack operational rollout
+
+Verify the server-owned rollout mechanism independently.
+
+Prove:
+
+default deny;
+
+no client enrollment;
+
+explicit account membership;
+
+membership expiration;
+
+review metadata;
+
+global operational kill;
+
+immediate cohort removal;
+
+database failures fail closed;
+
+no source deployment is required for rollback.
+
+
+Confirm zero real accounts are currently enrolled.
+
+
+---
+
+12. Final isolated activation/rollback rehearsal
+
+In development/staging only, use a synthetic identity.
+
+Exercise the full real path:
+
+consent → temporary cohort → test gates → live Coach selection → sanitized Fact Context → server authorization → risk screening → provider boundary/test substitute → deterministic response validation → lifecycle settlement
+
+Inspect the exact payload crossing the provider boundary.
+
+Then independently trigger:
+
+consent revoke;
+
+cohort removal;
+
+operational global kill;
+
+client rollback;
+
+pending-request rollback.
+
+
+Prove egress/settlement stops correctly.
+
+Remove all synthetic rollout and nonce records afterward.
+
+Restore every gate to OFF/deny-all.
+
+Do not use a real customer account or enable production traffic.
+
+
+---
+
+13. Deployment and rollback audit
+
+Review COACH_FACT_CONTEXT_DEPLOYMENT_AND_ROLLBACK_RUNBOOK.md.
+
+Challenge:
+
+database-first deployment;
+
+server/client ordering;
+
+old-client behavior;
+
+new-client behavior;
+
+partial deployment;
+
+failed migration;
+
+failed server deploy;
+
+failed client rollout;
+
+operational kill;
+
+cohort rollback;
+
+consent-version change;
+
+database recovery.
+
+
+Identify any deployment sequence capable of accidentally authorizing Fact Context.
+
+
+---
+
+14. Privacy and logging audit
+
+Inspect logs, metrics, errors and diagnostics.
+
+Verify they do not expose Fact Context values, Foundation facts, conversation content, prompts, nutrition details, consent-sensitive content or unnecessary account identifiers.
+
+
+---
+
+15. Full regression
+
+Run all relevant:
+
+DB migration validation;
+
+library typecheck;
+
+API typecheck;
+
+Calora typecheck;
+
+complete API tests;
+
+complete Calora tests;
+
+consent integration;
+
+rollout tests;
+
+nonce/replay tests;
+
+schema abuse tests;
+
+payload-budget tests;
+
+coordinator tests;
+
+lifecycle tests;
+
+rollback tests;
+
+provider deadline tests.
+
+
+Record exact commands and exact results.
+
+Do not weaken tests to obtain PASS.
+
+
+---
+
+16. Independent second pass
+
+After completing the review, perform another review pass specifically searching for:
+
+hidden Coach send paths;
+
+authorization bypass;
+
+cross-account races;
+
+stale lifecycle registrations;
+
+replay races;
+
+rollout bypass;
+
+privacy leakage;
+
+deployment ambiguity;
+
+fail-open behavior.
+
+
+Treat the first pass as untrusted.
+
+
+---
+
+Decision rule
+
+Do not demand theoretical perfection.
+
+A GO requires no unresolved Critical or High issue that could cause:
+
+unauthorized Fact Context egress;
+
+cross-account leakage;
+
+broad legacy-context leakage;
+
+consent bypass;
+
+inability to stop rollout promptly;
+
+unsafe provider claims;
+
+production deployment ambiguity.
+
+
+Medium/Low findings may be accepted only if clearly documented, bounded and not material to the proposed first cohort.
+
+Deferred physical-device/accessibility checks remain deferred and must not be falsely marked passed.
+
+
+---
+
+Required report
+
+Automatically create and save:
+
+docs/CALORA_COACH_FACT_CONTEXT_FINAL_GO_NO_GO_REPORT.md
+
+Include:
+
+1. executive verdict;
+
+
+2. exact repository/database state;
+
+
+3. dark-state proof;
+
+
+4. authorization attack results;
+
+
+5. real Coach-path proof;
+
+
+6. allowlist/provider-egress proof;
+
+
+7. exactly-one-architecture proof;
+
+
+8. payload-budget results;
+
+
+9. replay/concurrency results;
+
+
+10. TTL results;
+
+
+11. account/lifecycle results;
+
+
+12. rollout-control results;
+
+
+13. synthetic rehearsal results;
+
+
+14. deployment/rollback findings;
+
+
+15. privacy findings;
+
+
+16. complete regression results;
+
+
+17. second-pass findings;
+
+
+18. Critical/High/Medium/Low defects;
+
+
+19. accepted residual risks;
+
+
+20. deferred validation;
+
+
+21. final gate/cohort state.
+
+
+
+End with exactly one:
+
+FINAL DECISION: GO — READY FOR FIRST CONTROLLED ACTIVATION
+
+FINAL DECISION: NO-GO — REMEDIATION REQUIRED
+
+FINAL DECISION: NO-GO — DO NOT ACTIVATE
+
+If GO, define the smallest safe first controlled activation and its automatic rollback conditions, but do not perform the activation.
+
+If NO-GO, identify only the minimum remediation necessary.
+
+Save the report and STOP.
+
+DO NOT ACTIVATE ANY REAL USER OR PRODUCTION TRAFFIC.
