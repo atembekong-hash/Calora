@@ -481,6 +481,80 @@ globalThis.fetch = async () => ({
   }
 });
 
+test("fails without overwriting an existing monitoring report", async () => {
+  const fixtureRoot = await mkdtemp(
+    path.join(tmpdir(), "calora-account-deletion-monitor-"),
+  );
+  const logPath = path.join(fixtureRoot, "monitor.ndjson");
+  const reportPath = path.join(fixtureRoot, "report.json");
+  const preloadPath = path.join(fixtureRoot, "valid-release.mjs");
+  const originalReport = '{"preserved":"earlier monitoring result"}\n';
+
+  await Promise.all([
+    writeFile(
+      logPath,
+      `${JSON.stringify({
+        time: "2026-09-05T10:20:00.000Z",
+        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+        route: "/v1/sync",
+        count: 1,
+      })}\n`,
+    ),
+    writeFile(reportPath, originalReport),
+    writeFile(
+      preloadPath,
+      `
+globalThis.fetch = async () => ({
+  type: "basic",
+  url: "https://example.test/api/version",
+  ok: true,
+  status: 200,
+  json: async () => ({
+    schemaVersion: "calora.release-attestation.v1",
+    gitCommit: "${"a".repeat(40)}",
+    sourceTree: "${"b".repeat(40)}",
+    sourceDigest: "${"c".repeat(64)}",
+    buildTimestamp: "2026-09-05T10:14:25.616Z",
+    releaseId: "calora-api-aaaaaaaaaaaa-20260905101425616",
+  }),
+});
+`,
+    ),
+  ]);
+
+  try {
+    await assert.rejects(
+      execFileAsync(
+        process.execPath,
+        [
+          "--import",
+          preloadPath,
+          monitorPath,
+          "--log-file",
+          logPath,
+          "--release-url",
+          "https://example.test",
+          "--report-file",
+          reportPath,
+          "--require-fence",
+        ],
+        {
+          cwd: workspaceDir,
+          env: { ...process.env },
+        },
+      ),
+      (error) => {
+        assert.equal(error.code, 1);
+        return true;
+      },
+    );
+
+    assert.equal(await readFile(reportPath, "utf8"), originalReport);
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
 test("uses one shared fence schema for API construction and monitor parsing", () => {
   assert.deepEqual(createAccountDeletionFenceSignal("/v1/sync", 2), {
     errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
