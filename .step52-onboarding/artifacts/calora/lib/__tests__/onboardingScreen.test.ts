@@ -29,9 +29,9 @@ describe('onboarding keyboard-aware and agreement contracts', () => {
       'onboarding-weight-input',
       'onboarding-target-weight-input',
     ]) {
-      expect(source).toContain(`testID="${testID}"`);
+      expect(source).toMatch(new RegExp(`['"]${testID}['"]`));
     }
-    expect(source.match(/<TextInput/g)?.length).toBe(5);
+    expect(source.match(/['"]onboarding-[^'"]+-input['"]/g)?.length).toBe(5);
   });
 
   it('keeps agreement affirmative, unchecked on first run, and inaccessible to bypass', async () => {

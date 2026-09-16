@@ -70,4 +70,5 @@
 - [Mobile/API runtime provenance](mobile-api-runtime-provenance.md) — a current mobile bundle can appear stale when production and development API origins report different source releases.
 - [Release verifier fixtures](release-verifier-fixtures.md) — synthetic verifier responses must include the complete attestation shape and same-origin response URL.
 - [Protected release check drift](protected-release-check-drift.md) — a required GitHub status can outlive or diverge from the workflow that should publish it; verify both sides.
-- [GitHub controller validity](github-actions-controller-validity.md) — an active workflow/run can still fail before jobs; compare same-push hosted runs and require controller or owner-UI evidence before patching.
+ - [GitHub controller validity](github-actions-controller-validity.md) — an active workflow/run can still fail before jobs; compare same-push hosted runs and require controller or owner-UI evidence before patching.
+ - [Worktree identity verification](worktree-identity-verification.md) — a prunable worktree can fall back to the parent repository; verify Git root, branch, HEAD, and tree before editing or pushing.
