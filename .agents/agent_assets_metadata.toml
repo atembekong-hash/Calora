@@ -42,3 +42,17 @@ mtime_ms = 1789566056625
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/4943d3d0-ae4c-4dfb-b7c2-21315dba5e16/2743880f-39af-454c-80df-472e30642913"
 storage_version_token = "1789566077039559"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "dJQgbzROQ1H6cnumnAaX5"
+uri = "file://CALORA_RELEASE_ONBOARDING_PLUS_SAFE_RECONCILIATION_PREFLIGHT.md"
+type = "text"
+title = "Calora Safe Full-Branch Reconciliation Preflight"
+description = "Read-only preflight comparing the owner-approved release branch with current main, including the 14-item reconciliation matrix, path-level conflicts, database and API contract safety, iOS weekly-program investigation, exact execution plan, validation plan, rollback identity, and final verdict."
+logical_id = "f1a758da-8eca-42dc-b541-1fda5ee00396"
+content_hash = "sha256:a73724c93724410b205aa9f92aa61039421fadc47a9a7a6f85f9a4cac37d8e21"
+size = 56152
+mtime_ms = 1789567679520
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/f1a758da-8eca-42dc-b541-1fda5ee00396/1d651013-be4b-4e9a-b668-c461e1449130"
+storage_version_token = "1789567698169338"
+content_type = "text/markdown"
