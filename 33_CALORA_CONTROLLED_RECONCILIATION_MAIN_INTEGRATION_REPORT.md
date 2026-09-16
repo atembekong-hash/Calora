@@ -1,6 +1,6 @@
 # Calora Controlled Reconciliation Main Integration Report
 
-Date: 2026-09-16  
+Date: 2026-09-16
 Scope: Step 33, local `main` integration only
 
 ## 1. Executive summary
