@@ -14,6 +14,7 @@ import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
 import { applyIdentityReplace, applySlotReplace, buildShoppingItems, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate, plannerMealTypes, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { PLAN_TYPES, clearProgramApplication, findPlanType, isStarterFallbackProvider, planTypeForGeneration, programAppliedToWeek, recordGenerationOutcome, resolveGenerationRecording, selectPrimaryProgram, type PlanType, type PlanTypeId } from '@/lib/planType';
+import { applyProgram, closeProgramModal, CLOSED_PROGRAM_MODAL, openProgramSelector, selectProgram, type ProgramModalState } from '@/lib/programModalState';
 import { LocalSaveNotice } from '@/components/LocalSaveNotice';
 import { BottomSheet } from '@/components/BottomSheet';
 import { MotivationalQuote } from '@/components/MotivationalQuote';
@@ -240,8 +241,9 @@ export default function PlannerScreen() {
   const [customFat, setCustomFat] = useState('');
   const [customIngredients, setCustomIngredients] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
-  const [planTypeVisible, setPlanTypeVisible] = useState(false);
-  const [programDetail, setProgramDetail] = useState<PlanType | null>(null);
+  const [programModal, setProgramModal] = useState<ProgramModalState>(CLOSED_PROGRAM_MODAL);
+  const planTypeVisible = programModal.selectorVisible;
+  const programDetail = programModal.detail;
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState(false);
@@ -778,7 +780,7 @@ export default function PlannerScreen() {
         action={(
           <Pressable
             accessibilityLabel="Open meal programs"
-            onPress={() => setPlanTypeVisible(true)}
+            onPress={() => setProgramModal(openProgramSelector())}
             hitSlop={8}
             style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
           >
@@ -1125,27 +1127,53 @@ export default function PlannerScreen() {
                 <Pressable accessibilityLabel="Cancel planned meal edits" onPress={() => setEditMeal(null)} style={styles.formCancelButton}><Text style={[styles.dismissText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>
               </KeyboardAwareScrollViewCompat>
         </BottomSheet>
-         {/* Program discovery sheet — applying a selection rebuilds the viewed week immediately. */}
-        <BottomSheet visible={planTypeVisible} onRequestClose={() => setPlanTypeVisible(false)} sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
+         {/* Program discovery and detail share one native modal. This avoids
+             presenting a native modal from inside another native modal on iOS. */}
+        <BottomSheet
+          visible={planTypeVisible || programDetail !== null}
+          onRequestClose={() => {
+            setProgramModal(closeProgramModal(programModal));
+          }}
+          sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}
+        >
+          {programDetail ? (
+            <>
+              <View style={styles.sheetHandle} />
+              <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planDetailContent}>
+                <SheetHeader eyebrow="PROGRAM DETAILS" title={programDetail.label} onClose={() => setProgramModal(closeProgramModal(programModal))} colors={colors} />
+                <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>{programDetail.description}</Text>
+                <View style={[styles.programDetailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.programDetailLabel, { color: colors.primary }]}>HOW IT SHAPES YOUR PLAN</Text>
+                  <Text style={[styles.programDetailText, { color: colors.foreground }]}>Shapes generated meals, nutrition guidance, and this week’s generated meals.</Text>
+                  <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Recipes and custom meals you add remain yours.</Text>
+                  <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Your calorie target and dietary preferences stay in control.</Text>
+                </View>
+                <ScalePressable accessibilityLabel={`Apply ${programDetail.label} to this week`} onPress={() => { const program = programDetail; setProgramModal(applyProgram(programModal)); void generate(program.id); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10 }]}>
+                  <Feather name="zap" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Apply to this week</Text>
+                </ScalePressable>
+              </ScrollView>
+            </>
+          ) : (
+            <>
               <View style={styles.sheetHandle} />
               <View style={styles.planTypeSheetHeader}>
                 <View style={{ flex: 1 }}>
-                   <Text style={[styles.planTypeSheetEyebrow, { color: colors.primary }]}>YOUR PROGRAM</Text>
-                   <Text style={[styles.planTypeSheetTitle, { color: colors.foreground }]}>Choose a strategy</Text>
+                  <Text style={[styles.planTypeSheetEyebrow, { color: colors.primary }]}>YOUR PROGRAM</Text>
+                  <Text style={[styles.planTypeSheetTitle, { color: colors.foreground }]}>Choose a strategy</Text>
                 </View>
-                 <ScalePressable accessibilityLabel="Close program selector" onPress={() => setPlanTypeVisible(false)} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
+                <ScalePressable accessibilityLabel="Close program selector" onPress={() => setProgramModal(closeProgramModal(programModal))} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}>
                   <Feather name="x" size={18} color={colors.foreground} />
                 </ScalePressable>
               </View>
-                <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>Choose a Program to apply to this week. Your added, edited, and logged meals stay yours.</Text>
+              <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>Choose a Program to apply to this week. Your added, edited, and logged meals stay yours.</Text>
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planTypeList}>
                 {PLAN_TYPES.map((pt) => {
                   const isSelected = plannerPreferences?.primary === pt.id;
                   return (
                     <Pressable
                       key={pt.id}
-                       accessibilityLabel={`Choose ${pt.label} Program`}
-                       onPress={() => setProgramDetail(pt)}
+                      accessibilityLabel={`Choose ${pt.label} Program`}
+                      onPress={() => setProgramModal(selectProgram(programModal, pt))}
                       style={[styles.planTypeOptionRow, {
                         backgroundColor: isSelected ? colors.accent : colors.card,
                         borderColor: isSelected ? colors.primary : colors.border,
@@ -1168,24 +1196,8 @@ export default function PlannerScreen() {
                   );
                 })}
               </ScrollView>
-        </BottomSheet>
-        <BottomSheet visible={programDetail !== null} onRequestClose={() => setProgramDetail(null)} sheetStyle={[styles.planTypeSheet, { backgroundColor: colors.background }]}>
-              <View style={styles.sheetHandle} />
-              <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planDetailContent}>
-              {programDetail && <>
-                <SheetHeader eyebrow="PROGRAM DETAILS" title={programDetail.label} onClose={() => setProgramDetail(null)} colors={colors} />
-                <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>{programDetail.description}</Text>
-                <View style={[styles.programDetailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[styles.programDetailLabel, { color: colors.primary }]}>HOW IT SHAPES YOUR PLAN</Text>
-                   <Text style={[styles.programDetailText, { color: colors.foreground }]}>Shapes generated meals, nutrition guidance, and this week’s generated meals.</Text>
-                  <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Recipes and custom meals you add remain yours.</Text>
-                  <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Your calorie target and dietary preferences stay in control.</Text>
-                </View>
-                <ScalePressable accessibilityLabel={`Apply ${programDetail.label} to this week`} onPress={() => { const program = programDetail; setProgramDetail(null); setPlanTypeVisible(false); void generate(program.id); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10 }]}>
-                  <Feather name="zap" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Apply to this week</Text>
-                </ScalePressable>
-              </>}
-              </ScrollView>
+            </>
+          )}
         </BottomSheet>
         <BottomSheet visible={customMealType !== null} onRequestClose={() => { setCustomMealType(null); setCustomMealReplaceTarget(null); }} sheetStyle={[styles.formSheet, { backgroundColor: colors.background }]}>
               <View style={styles.sheetHandle} />
