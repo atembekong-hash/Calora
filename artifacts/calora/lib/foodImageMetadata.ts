@@ -1,4 +1,4 @@
-export type FoodImageSource = 'provider' | 'recipe' | 'planner';
+export type FoodImageSource = 'provider' | 'recipe' | 'planner' | 'restaurant_representative';
 
 export type FoodImageCategory = 'breakfast' | 'main' | 'snack' | 'drink';
 
@@ -40,12 +40,22 @@ export function normalizeFoodImageMetadata(
   imageSource: unknown,
 ): { imageUrl?: string; imageSource?: FoodImageSource } {
   const normalizedUrl = normalizeFoodImageUrl(imageUrl);
-  const normalizedSource = imageSource === 'provider' || imageSource === 'recipe' || imageSource === 'planner'
+  const normalizedSource = imageSource === 'provider'
+    || imageSource === 'recipe'
+    || imageSource === 'planner'
+    || imageSource === 'restaurant_representative'
     ? imageSource
     : undefined;
   return {
     imageUrl: normalizedUrl,
-    imageSource: normalizedUrl ? normalizedSource : undefined,
+    // A representative bundled restaurant asset has no URL by design. Keep
+    // that provenance label so the local identity remains truthful after
+    // diary restore; URL-backed sources still require a validated URL.
+    imageSource: normalizedSource === 'restaurant_representative'
+      ? normalizedSource
+      : normalizedUrl
+        ? normalizedSource
+        : undefined,
   };
 }
 

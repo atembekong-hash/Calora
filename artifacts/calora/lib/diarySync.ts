@@ -388,6 +388,7 @@ export function diaryLogSignature(log: FoodLog): string {
     notes: log.notes ?? null,
     imageUrl: log.imageUrl ?? null,
     imageSource: log.imageSource ?? null,
+    imageAssetKey: log.imageAssetKey ?? null,
     preparation: log.preparation ?? null,
     memoryId: log.memoryId ?? null,
     plannerMealId: log.plannerMealId ?? null,
@@ -419,6 +420,7 @@ function toUpsertMutation(log: FoodLog) {
       notes: log.notes ?? null,
       imageUrl: log.imageUrl ?? null,
       imageSource: log.imageSource ?? null,
+      imageAssetKey: log.imageAssetKey,
       time: log.time,
       fiber: log.fiber,
       sugar: log.sugar,
@@ -492,6 +494,7 @@ type ServerDiaryRecord = {
   notes?: string | null;
   imageUrl?: string | null;
   imageSource?: string | null;
+  imageAssetKey?: string;
   time?: string;
   fiber?: number;
   sugar?: number;
@@ -505,7 +508,10 @@ type ServerDiaryRecord = {
 
 function fromServerRecord(record: ServerDiaryRecord): FoodLog {
   const imageSource =
-    record.imageSource === 'provider' || record.imageSource === 'recipe' || record.imageSource === 'planner'
+    record.imageSource === 'provider'
+      || record.imageSource === 'recipe'
+      || record.imageSource === 'planner'
+      || record.imageSource === 'restaurant_representative'
       ? record.imageSource
       : undefined;
   return {
@@ -526,6 +532,7 @@ function fromServerRecord(record: ServerDiaryRecord): FoodLog {
     notes: record.notes ?? undefined,
     imageUrl: record.imageUrl ?? undefined,
     imageSource,
+    imageAssetKey: record.imageAssetKey,
     fiber: record.fiber,
     sugar: record.sugar,
     sodium: record.sodium,

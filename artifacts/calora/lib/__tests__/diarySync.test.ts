@@ -383,12 +383,14 @@ describe('syncDiaryLogs: image metadata', () => {
       ...original,
       imageUrl: 'https://images.openfoodfacts.org/chicken.jpg',
       imageSource: 'provider',
+      imageAssetKey: 'chicken-breast',
     }]);
 
     expect(mockSyncOutbox).toHaveBeenCalledTimes(2);
     const secondPayload = mockSyncOutbox.mock.calls[1][0].mutations[0].payload;
     expect(secondPayload.imageUrl).toBe('https://images.openfoodfacts.org/chicken.jpg');
     expect(secondPayload.imageSource).toBe('provider');
+    expect(secondPayload.imageAssetKey).toBe('chicken-breast');
   });
 
   it('uses a new mutation id for a later edit of the same diary record', async () => {

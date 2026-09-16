@@ -98,6 +98,7 @@ type DiaryUpsertPayload = {
     memoryId?: string;
     plannerMealId?: string;
     sourceRecipeId?: string;
+    imageAssetKey?: string;
   };
 };
 
@@ -107,6 +108,7 @@ const SYNC_METADATA_STRING_LIMITS = {
   memoryId: 128,
   plannerMealId: 128,
   sourceRecipeId: 128,
+  imageAssetKey: 160,
 } as const;
 
 function parseSyncMetadata(payload: Record<string, unknown>): DiaryUpsertPayload["syncMetadata"] {
