@@ -1,0 +1,929 @@
+CALORA — STEP 50 COMPLETE HISTORICAL PRODUCT DELTA FORENSIC AUDIT
+
+OUTPUT REPORT:
+
+50_CALORA_COMPLETE_HISTORICAL_PRODUCT_DELTA_FORENSIC_AUDIT.md
+
+
+MISSION:
+
+FORENSIC INVESTIGATION ONLY.
+
+DO NOT MODIFY CODE.
+DO NOT FIX ANYTHING.
+DO NOT MERGE ANY BRANCH.
+DO NOT CHERRY-PICK.
+DO NOT PUSH.
+DO NOT BUILD.
+DO NOT DEPLOY.
+DO NOT CHANGE DATABASES.
+
+
+==================================================
+WHY THIS AUDIT IS REQUIRED
+==================================================
+
+Step 49 confirmed substantial historical work gaps.
+
+However, Step 49 was primarily seeded by a historical owner prompt containing
+requirements R1–R13.
+
+Those requirements were EXAMPLES of work the owner remembered.
+
+They were NOT intended to represent the complete historical Calora product
+specification.
+
+Therefore:
+
+DO NOT limit this investigation to R1–R13.
+
+DO NOT assume Step 49 discovered every missing feature.
+
+DO NOT assume the historical reports previously identified are the only
+relevant reports.
+
+This mission must independently reconstruct the ENTIRE historical Calora
+product evolution from repository evidence.
+
+
+==================================================
+CANONICAL RELEASE BASELINE
+==================================================
+
+Current known canonical release source:
+
+SHA:
+7cce885c6b3d046a5a8fdb40d92343a87b73c290
+
+TREE:
+1a598be866150d488bc21ccd598de3104c638b02
+
+TestFlight:
+
+Version 1.0.0
+Build 5
+
+EAS Build:
+088c4dc8-0ed9-4293-b7b7-4925045cbbbe
+
+
+Treat this as the CURRENT PRODUCT baseline.
+
+Audit read-only.
+
+
+==================================================
+PRIMARY QUESTION
+==================================================
+
+Across ALL available Calora history:
+
+What product functionality, user experience, UI behavior, integration,
+data flow, intelligence, personalization, animation, visual treatment,
+navigation behavior, reliability work, and feature capability existed or was
+substantially implemented historically but is:
+
+1. absent from current canonical main;
+2. only partially represented;
+3. disconnected from navigation;
+4. disconnected from its backend/data source;
+5. hidden unintentionally;
+6. regressed;
+7. replaced by a weaker implementation;
+8. intentionally superseded by a newer implementation;
+9. present only in historical documentation;
+10. present only in historical code;
+11. present in canonical code but unreachable;
+12. present in canonical code but not visible to the user;
+13. present but behaving materially differently from the historical intended
+    product?
+
+
+==================================================
+DO NOT USE OWNER PROMPTS AS THE BOUNDARY
+==================================================
+
+Step 49 R1–R13 are evidence only.
+
+Start independently from repository history.
+
+The audit must be capable of discovering historical work that the owner has
+forgotten and that was NEVER mentioned in R1–R13.
+
+
+==================================================
+FULL REPOSITORY ARCHAEOLOGY
+==================================================
+
+Enumerate ALL locally available:
+
+branches
+remote branches
+tags
+backup refs
+release refs
+agent refs
+reconciliation refs
+historical commits
+reports
+Markdown documents
+implementation reports
+audit reports
+closure reports
+release reports
+design reports
+screens
+routes
+components
+API routes
+database changes
+feature flags
+tests
+deleted files
+renamed files
+
+
+Use:
+
+git log --all
+git branch -a
+git tag
+git for-each-ref
+git log --all --name-status
+git diff
+git show
+git merge-base
+git branch --contains
+git log --all --diff-filter=D
+git log --all --diff-filter=R
+
+and other READ-ONLY Git inspection as necessary.
+
+
+DO NOT alter refs.
+
+
+==================================================
+REPORT ARCHAEOLOGY
+==================================================
+
+Find EVERY historical Calora report/document that describes:
+
+implementation
+feature completion
+redesign
+remediation
+forensic work
+production readiness
+UI/UX
+images
+recipes
+Planner
+Coach
+Health
+Progress
+onboarding
+Smart Scan
+camera
+Food Memory
+Diary
+authentication
+Premium
+RevenueCat
+localization
+notifications
+referrals
+deep links
+animations
+navigation
+accessibility
+performance
+reliability
+security
+release work
+
+
+Do not stop at reports 16–19.
+
+Create a complete report index.
+
+For every report determine:
+
+what it claimed;
+what source/commit implemented the claim;
+whether that implementation reached canonical ancestry;
+whether equivalent functionality exists today;
+whether current Build 5 exposes it.
+
+
+REPORT TITLES ARE NOT PROOF.
+
+
+==================================================
+HISTORICAL FEATURE EXTRACTION
+==================================================
+
+Construct a MASTER HISTORICAL FEATURE CATALOG.
+
+Extract product capabilities independently from:
+
+historical code
+historical routes
+historical components
+historical tests
+historical reports
+commit messages
+deleted files
+renamed files
+navigation configurations
+API contracts
+database schema history
+
+
+Each historical feature gets a unique ID:
+
+HF-001
+HF-002
+HF-003
+...
+
+Do not artificially limit the number.
+
+If there are 30, report 30.
+
+If there are 100+, report all meaningful product capabilities.
+
+
+==================================================
+AUDIT ALL PRODUCT DOMAINS
+==================================================
+
+At minimum independently investigate:
+
+APP LAUNCH
+
+ONBOARDING
+
+AUTHENTICATION
+
+ACCOUNT CREATION
+
+SESSION RESTORATION
+
+HOME
+
+TODAY
+
+DASHBOARD
+
+MEAL LOGGING
+
+MANUAL LOGGING
+
+VOICE LOGGING
+
+BARCODE
+
+CAMERA
+
+SMART SCAN
+
+RECEIPT SCAN
+
+LABEL SCAN
+
+TEXT INPUT
+
+CAPTURE REVIEW
+
+CAPTURE APPROVAL
+
+FOOD MEMORY
+
+LIVING MEMORY
+
+RECIPES
+
+DISCOVER
+
+PLUS
+
+PREMIUM RECIPES
+
+CREATE-YOUR-OWN RECIPES
+
+RECIPE DETAILS
+
+RECIPE IMAGES
+
+RECIPE NUTRITION
+
+RECIPE FRESHNESS
+
+SEARCH
+
+FILTERING
+
+SAVED RECIPES
+
+PLANNER
+
+WEEKLY PLANNER
+
+WEEKLY PROGRAMS
+
+PROGRAM SWITCHING
+
+MEAL REPLACEMENT
+
+SHOPPING LIST
+
+PROGRESS
+
+INSIGHTS
+
+WELLNESS
+
+WEIGHT
+
+ACTIVITY
+
+HEALTHKIT
+
+HEALTH CONNECT
+
+HEALTH DATA DISPLAY
+
+COACH
+
+CONTEXTUAL INTELLIGENCE
+
+CONTEXTUAL INSIGHTS
+
+NOTIFICATIONS
+
+DIARY
+
+SYNC
+
+PROFILE
+
+SETTINGS
+
+PAYWALL
+
+REVENUECAT
+
+PREMIUM ENTITLEMENTS
+
+REFERRALS
+
+DEEP LINKS
+
+ACCOUNT DELETION
+
+LOGOUT
+
+LOCALIZATION
+
+LANGUAGES
+
+ACCESSIBILITY
+
+DARK MODE
+
+LIGHT MODE
+
+3D UI
+
+ICONS
+
+ANIMATIONS
+
+MOTION
+
+IMAGES
+
+MEAL IMAGE UNIQUENESS
+
+NAVIGATION
+
+OFFLINE BEHAVIOR
+
+ERROR STATES
+
+LOADING STATES
+
+CACHE
+
+PERFORMANCE
+
+BACKGROUND/RESUME
+
+SECURITY
+
+ACCOUNT ISOLATION
+
+PRIVACY
+
+OBSERVABILITY
+
+RELEASE RELIABILITY
+
+
+This list is a MINIMUM, not a maximum.
+
+
+==================================================
+DESIGN / UI ARCHAEOLOGY
+==================================================
+
+Do not audit functionality only.
+
+Investigate historical visual/product work.
+
+Look for evidence of:
+
+3D icon system
+animations
+motion
+compact widgets
+banking-style compact information hierarchy
+large typography
+spacing changes
+dark/light mode
+screen redesigns
+card redesigns
+navigation redesigns
+Progress relocation
+Coach presentation
+Planner visual changes
+recipe imagery
+meal-specific imagery
+image uniqueness
+image loading
+header controls
+tab redesigns
+Plus menu design
+camera UX
+onboarding UX
+
+
+Determine whether historical visual work survived current canonical source.
+
+
+==================================================
+DELETED FEATURE AUDIT
+==================================================
+
+This is critical.
+
+Search Git history for files/routes/components/tests that were DELETED.
+
+For every meaningful deletion ask:
+
+Was it intentionally removed?
+
+Was it replaced?
+
+Did functionality disappear accidentally?
+
+Does another current implementation provide equivalent behavior?
+
+
+Create:
+
+DELETED_BUT_SUPERSEDED
+
+DELETED_AND_INTENTIONALLY_REMOVED
+
+DELETED_WITH_FUNCTIONALITY_LOST
+
+classification.
+
+
+==================================================
+ROUTE / NAVIGATION DIFFERENTIAL
+==================================================
+
+Build:
+
+HISTORICAL ROUTE INVENTORY
+
+versus
+
+CURRENT CANONICAL ROUTE INVENTORY.
+
+
+Identify:
+
+missing screens
+renamed screens
+hidden screens
+orphaned screens
+unreachable screens
+deep-link-only screens
+replaced screens
+features removed from tabs
+features moved elsewhere
+
+
+Do not assume a missing route means a missing feature.
+
+Trace replacement destinations.
+
+
+==================================================
+COMPONENT DIFFERENTIAL
+==================================================
+
+Find historically significant UI components absent from canonical main.
+
+Determine whether each was:
+
+replaced
+renamed
+absorbed
+deleted intentionally
+lost.
+
+
+Pay particular attention to components representing major UX rather than
+generic primitives.
+
+
+==================================================
+API DIFFERENTIAL
+==================================================
+
+Compare historical and current API capabilities.
+
+Identify historical endpoints/contracts that:
+
+still exist;
+were renamed;
+were removed;
+were intentionally deprecated;
+were replaced;
+are called by no current client;
+are required by orphaned historical features.
+
+
+DO NOT restore deprecated/insecure endpoints.
+
+
+==================================================
+DATA MODEL DIFFERENTIAL
+==================================================
+
+Read-only inspection only.
+
+Compare historical product data concepts against current data models.
+
+Look for historically implemented concepts no longer surfaced.
+
+DO NOT modify schemas or migrations.
+
+
+==================================================
+TEST ARCHAEOLOGY
+==================================================
+
+Historical tests are especially important.
+
+A deleted test can reveal a lost requirement.
+
+Search all history for tests describing behaviors no longer covered today.
+
+For each meaningful historical test:
+
+identify behavior;
+identify current equivalent;
+determine whether current implementation still satisfies the contract;
+classify missing coverage separately from missing functionality.
+
+
+==================================================
+CURRENT CANONICAL PRODUCT MAP
+==================================================
+
+Independently reconstruct current canonical Build 5 from source.
+
+Do NOT reuse Step 49 conclusions blindly.
+
+Map every reachable user-facing capability.
+
+For each:
+
+route
+entry point
+component
+state
+API
+persistence
+feature gate
+Premium requirement
+auth requirement
+visible output
+tests
+
+
+==================================================
+HISTORICAL → CURRENT COMPARISON
+==================================================
+
+For every HF item classify EXACTLY ONE:
+
+PRESERVED_EQUIVALENT
+
+PRESERVED_BUT_CHANGED
+
+SUPERSEDED_BY_BETTER_CURRENT_IMPLEMENTATION
+
+PARTIALLY_PRESERVED
+
+PRESENT_BUT_DISCONNECTED
+
+PRESENT_BUT_HIDDEN
+
+PRESENT_BUT_BROKEN
+
+HISTORICALLY_IMPLEMENTED_BUT_LOST
+
+DOCUMENTED_BUT_IMPLEMENTATION_UNPROVEN
+
+INTENTIONALLY_REMOVED
+
+OBSOLETE_OR_UNSAFE_DO_NOT_RESTORE
+
+UNVERIFIABLE
+
+
+==================================================
+USER-VISIBLE IMPACT
+==================================================
+
+For every missing/degraded historical capability answer:
+
+Would the owner notice this while physically using Build 5?
+
+YES
+NO
+POSSIBLY
+
+
+Explain exactly what would feel different.
+
+
+This is important because the owner reports that Build 5 feels like a large
+amount of work is missing.
+
+
+==================================================
+PRODUCT COMPLETENESS DELTA
+==================================================
+
+Create a dedicated section:
+
+"WHY BUILD 5 FEELS INCOMPLETE"
+
+
+Do not give vague conclusions.
+
+List concrete user-visible differences between the historically intended
+Calora experience and current Build 5.
+
+
+==================================================
+DO NOT CONFUSE SAFETY HARDENING WITH PRODUCT COMPLETENESS
+==================================================
+
+Canonical main contains substantial:
+
+security
+release validation
+build provenance
+API hardening
+account isolation
+signing controls
+deployment controls.
+
+
+Those are valuable.
+
+But they do NOT substitute for missing product functionality or UX.
+
+Evaluate PRODUCT COMPLETENESS separately from RELEASE/SECURITY MATURITY.
+
+
+==================================================
+RECOVERY SAFETY
+==================================================
+
+For each historically lost feature classify recovery strategy:
+
+SAFE_TO_REIMPLEMENT_FROM_CURRENT_CONTRACT
+
+SAFE_TO_PORT_SELECTIVELY_AFTER_REVIEW
+
+MUST_REDESIGN_FOR_CURRENT_ARCHITECTURE
+
+DO_NOT_RESTORE
+
+
+Never recommend wholesale branch merge.
+
+
+==================================================
+PRIORITY
+==================================================
+
+For confirmed product gaps assign:
+
+P0 security/data-loss
+
+P1 core product flow
+
+P2 substantial missing product capability
+
+P3 UX/polish
+
+P4 cosmetic
+
+
+Also assign:
+
+USER_VISIBILITY:
+HIGH
+MEDIUM
+LOW
+
+
+==================================================
+NO REMEDIATION
+==================================================
+
+DO NOT CHANGE SOURCE.
+
+Even if an obvious fix is found.
+
+This step exists to determine the TRUE scope before remediation begins.
+
+
+==================================================
+OUTPUT REPORT
+==================================================
+
+Create:
+
+50_CALORA_COMPLETE_HISTORICAL_PRODUCT_DELTA_FORENSIC_AUDIT.md
+
+
+The report MUST include:
+
+1. Executive summary
+2. Canonical SHA/tree
+3. Build 5 identity
+4. Complete refs/branches inspected
+5. Complete historical report index
+6. Historical commit eras/timeline
+7. Master historical feature catalog
+8. Current canonical feature catalog
+9. Historical route inventory
+10. Current route inventory
+11. Route differential
+12. Historical major component inventory
+13. Current major component inventory
+14. Component differential
+15. Deleted-feature archaeology
+16. Historical API inventory
+17. Current API inventory
+18. API differential
+19. Historical data-model concepts
+20. Current data-model concepts
+21. Historical test-contract archaeology
+22. Current test coverage
+23. Onboarding delta
+24. Home/Today delta
+25. logging delta
+26. Smart Scan/capture delta
+27. Food Memory delta
+28. Recipes delta
+29. Discover delta
+30. Plus/Premium delta
+31. Planner delta
+32. Weekly Programs delta
+33. Shopping delta
+34. Progress/Insights delta
+35. Health delta
+36. Coach/intelligence delta
+37. Diary/sync delta
+38. Profile/settings delta
+39. RevenueCat/paywall delta
+40. referrals/deep-links delta
+41. localization delta
+42. notifications/background delta
+43. accessibility delta
+44. dark/light mode delta
+45. 3D/icon/motion/animation delta
+46. image/meal-image delta
+47. navigation delta
+48. reliability delta
+49. security/account-isolation delta
+50. dead/orphaned functionality
+51. historically implemented functionality lost
+52. intentionally superseded functionality
+53. obsolete/unsafe functionality not to restore
+54. current backend-only/hidden functionality
+55. user-visible missing functionality
+56. WHY BUILD 5 FEELS INCOMPLETE
+57. severity matrix
+58. user-visibility matrix
+59. recovery-safety matrix
+60. dependency graph
+61. proposed remediation phases
+62. remaining uncertainties
+63. exact recommendation for Step 51
+
+
+==================================================
+MASTER DELTA TABLE
+==================================================
+
+Include:
+
+| HF ID | Product area | Historical capability | Historical evidence | Current equivalent | Classification | User-visible impact | Severity | Recovery strategy |
+
+
+This table must cover ALL meaningful historical capabilities discovered,
+not merely R1–R13.
+
+
+==================================================
+FINAL QUESTIONS
+==================================================
+
+Answer explicitly:
+
+A. How many meaningful historical product capabilities were identified?
+
+B. How many are fully preserved/equivalent?
+
+C. How many were superseded by newer implementations?
+
+D. How many are partially preserved?
+
+E. How many are present but disconnected/hidden/broken?
+
+F. How many were historically implemented but lost?
+
+G. How many are documented but implementation cannot be proven?
+
+H. Which missing capabilities would most strongly explain the owner's
+   perception that Build 5 feels substantially incomplete?
+
+I. Is there an entire historical development phase that failed to reach
+   canonical main?
+
+J. Are there useful implementations outside canonical ancestry beyond the
+   already-known onboarding/freshness work?
+
+K. Which historical code should never be restored?
+
+L. Can remediation now be safely divided into controlled phases?
+
+M. What exact phases and dependency order are recommended?
+
+
+==================================================
+FINAL VERDICT
+==================================================
+
+Use EXACTLY ONE:
+
+MAJOR HISTORICAL PRODUCT DELTA CONFIRMED — MULTI-PHASE RECOVERY REQUIRED
+
+MODERATE HISTORICAL PRODUCT DELTA CONFIRMED — TARGETED RECOVERY REQUIRED
+
+CANONICAL PRODUCT SUBSTANTIALLY MATCHES HISTORICAL IMPLEMENTATION — DEVICE-SPECIFIC INVESTIGATION REQUIRED
+
+HISTORICAL PRODUCT RECONSTRUCTION INCOMPLETE — ADDITIONAL EVIDENCE REQUIRED
+
+
+==================================================
+STOP
+==================================================
+
+After writing the report:
+
+STOP.
+
+DO NOT IMPLEMENT STEP 51.
+
+DO NOT PUSH.
+
+DO NOT BUILD.
+
+DO NOT DEPLOY.
+
+Wait for owner review.
