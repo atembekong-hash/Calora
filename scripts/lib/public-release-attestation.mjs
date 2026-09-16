@@ -52,12 +52,17 @@ export function sanitizePublishedReleaseAttestation(value) {
 
 export async function fetchPublishedReleaseAttestation(origin) {
   const canonicalOrigin = canonicalHttpsOrigin(origin);
-  const response = await fetch(`${canonicalOrigin}/api/version`, {
-    cache: "no-store",
-    redirect: "manual",
-    signal: AbortSignal.timeout(10_000),
-    headers: { "user-agent": "calora-public-release-verifier/1.0" },
-  });
+  let response;
+  try {
+    response = await fetch(`${canonicalOrigin}/api/version`, {
+      cache: "no-store",
+      redirect: "manual",
+      signal: AbortSignal.timeout(10_000),
+      headers: { "user-agent": "calora-public-release-verifier/1.0" },
+    });
+  } catch {
+    throw new Error("Published release attestation could not be fetched.");
+  }
   if (
     response.type === "opaqueredirect" ||
     new URL(response.url).origin !== canonicalOrigin

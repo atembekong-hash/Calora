@@ -335,6 +335,73 @@ globalThis.fetch = async (url, options) => {
   }
 });
 
+test("sanitizes rejected release fetch errors before writing a report", async () => {
+  const fixtureRoot = await mkdtemp(
+    path.join(tmpdir(), "calora-account-deletion-monitor-"),
+  );
+  const logPath = path.join(fixtureRoot, "monitor.ndjson");
+  const reportPath = path.join(fixtureRoot, "report.json");
+  const preloadPath = path.join(fixtureRoot, "rejected-release-fetch.mjs");
+  const providerError = "provider-internal-hostname and request token";
+
+  await Promise.all([
+    writeFile(
+      logPath,
+      `${JSON.stringify({
+        time: "2026-09-05T10:20:00.000Z",
+        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+        route: "/v1/sync",
+        count: 1,
+      })}\n`,
+    ),
+    writeFile(
+      preloadPath,
+      `
+globalThis.fetch = async () => {
+  throw new Error(${JSON.stringify(providerError)});
+};
+`,
+    ),
+  ]);
+
+  try {
+    await assert.rejects(
+      execFileAsync(
+        process.execPath,
+        [
+          "--import",
+          preloadPath,
+          monitorPath,
+          "--log-file",
+          logPath,
+          "--release-url",
+          "https://example.test",
+          "--report-file",
+          reportPath,
+          "--require-fence",
+        ],
+        {
+          cwd: workspaceDir,
+          env: { ...process.env },
+        },
+      ),
+      (error) => {
+        assert.equal(error.code, 1);
+        const output = `${error.stdout}\n${error.stderr}`;
+        assert.match(
+          output,
+          /Published release attestation could not be fetched\./,
+        );
+        assert.equal(output.includes(providerError), false);
+        return true;
+      },
+    );
+    await assert.rejects(access(reportPath));
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
 test("rejects invalid release JSON before retaining its payload or writing a report", async () => {
   const fixtureRoot = await mkdtemp(
     path.join(tmpdir(), "calora-account-deletion-monitor-"),
