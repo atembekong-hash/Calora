@@ -1,0 +1,833 @@
+CALORA — STEP 51 TARGETED DEVELOPMENT-WINDOW FORENSIC AUDIT
+
+OUTPUT REPORT:
+
+51_CALORA_TARGETED_DEVELOPMENT_WINDOW_MISSING_WORK_FORENSIC_REPORT.md
+
+
+==================================================
+MISSION
+==================================================
+
+FORENSIC AUDIT ONLY.
+
+DO NOT MODIFY CODE.
+DO NOT MERGE.
+DO NOT CHERRY-PICK.
+DO NOT RESTORE FILES.
+DO NOT PUSH.
+DO NOT BUILD.
+DO NOT DEPLOY.
+DO NOT CHANGE DATABASES.
+
+
+==================================================
+IMPORTANT CORRECTION FROM OWNER
+==================================================
+
+Step 50 reconstructed the entire historical Calora product.
+
+That broad reconstruction was useful, but it included historical work that the
+owner intentionally does NOT consider missing work.
+
+Most importantly:
+
+THE HISTORICAL FITNESS FEATURE WAS INTENTIONALLY ROLLED BACK.
+
+Fitness must NOT be treated as a recovery candidate.
+
+Do not recommend restoring:
+
+historical Fitness tab
+historical FitnessScreen
+historical More/Fitness navigation
+historical fitness.ts
+historical Fitness navigation tests
+LES MILLS-related historical Fitness presentation
+
+The rollback itself is intentional product history.
+
+Likewise, do not treat every deleted or superseded historical feature as
+something that should return.
+
+
+==================================================
+WHAT THE OWNER ACTUALLY REMEMBERS
+==================================================
+
+The owner believes the substantial missing work occurred within a much narrower
+development period.
+
+The remembered historical prompt contained work involving:
+
+1. onboarding keyboard/input visibility;
+2. onboarding appearing again after completion;
+3. final onboarding agreement UX;
+4. Calora Coach completeness/sanitization;
+5. Plus Recipes reloading whenever opened;
+6. Plus Recipes pagination/continuous scrolling;
+7. Discover and Plus recipe freshness/variety;
+8. missing calorie/nutrition information on recipe cards;
+9. Progress header history/memory icon adjustment;
+10. camera/Smart Scan entries appearing in Home Today;
+11. connected Health data display investigation;
+12. bug minimization/reliability;
+13. complete application user-flow forensic mapping.
+
+IMPORTANT:
+
+This prompt is an ANCHOR.
+
+It is NOT the complete scope.
+
+The owner remembers that additional work may have been performed:
+
+SHORTLY BEFORE this prompt,
+
+DURING this prompt/remediation sequence,
+
+and
+
+SHORTLY AFTER this prompt.
+
+The purpose of Step 51 is to reconstruct THAT DEVELOPMENT WINDOW.
+
+
+==================================================
+KNOWN HISTORICAL ANCHORS
+==================================================
+
+Step 50 identified the following divergent reports:
+
+16_CALORA_POST_INSTALL_DEFECT_REMEDIATION_REPORT.md
+
+17_CALORA_COMPLETE_USER_FLOW_FORENSIC_MAP.md
+
+18_CALORA_PLUS_RECIPE_FRESHNESS_FINAL_CLOSURE_REPORT.md
+
+19_CALORA_FINAL_POST_INSTALL_GITHUB_SYNC_REPORT.md
+
+
+It also identified relevant historical implementation evidence including:
+
+cafea90
+→ onboarding keyboard-aware/agreement work
+
+c37b83d
+→ recipe freshness/rotation work
+
+
+These are starting anchors.
+
+DO NOT assume they define the entire window.
+
+
+==================================================
+PRIMARY OBJECTIVE
+==================================================
+
+Determine ALL meaningful Calora product work performed in the development
+window surrounding these anchors.
+
+We want to know:
+
+WHAT WAS BEING WORKED ON IMMEDIATELY BEFORE?
+
+WHAT WAS IMPLEMENTED DURING THE REMEDIATION?
+
+WHAT WAS IMPLEMENTED IMMEDIATELY AFTER?
+
+WHAT RELATED COMMITS/REPORTS/TASKS BELONG TO THE SAME DEVELOPMENT SEQUENCE?
+
+WHICH OF THOSE CHANGES REACHED CURRENT CANONICAL MAIN?
+
+WHICH DID NOT?
+
+WHICH CURRENT IMPLEMENTATIONS are equivalent replacements?
+
+WHICH USER-VISIBLE BEHAVIORS are genuinely absent today?
+
+
+==================================================
+DO NOT START FROM ALL CALORA HISTORY
+==================================================
+
+Unlike Step 50:
+
+DO NOT make ancient Calora history the primary search space.
+
+DO NOT treat every historical feature as relevant.
+
+DO NOT resurrect intentionally abandoned product experiments.
+
+Instead:
+
+identify the commit/report chronology surrounding the known anchors and expand
+outward carefully until the development context clearly changes.
+
+
+==================================================
+DETERMINE THE WINDOW FROM EVIDENCE
+==================================================
+
+Do not invent an arbitrary number of commits.
+
+First locate:
+
+cafea90
+c37b83d
+
+reports 16
+17
+18
+19
+
+release/calora-onboarding-and-plus
+
+and their parent/child/reachable commit relationships.
+
+
+Then construct the chronological sequence around them.
+
+Inspect commits immediately before and after.
+
+Continue expanding backward and forward while commits are still clearly part of
+the same owner-request/remediation/product-development sequence.
+
+STOP expanding when evidence shows the repository moved into a materially
+different development mission.
+
+
+Document exactly why the chosen boundaries were selected.
+
+
+==================================================
+BRANCH TOPOLOGY
+==================================================
+
+Map the relevant topology between:
+
+release/calora-onboarding-and-plus
+
+current canonical origin/main
+
+the branch/ref from which the historical work originated
+
+any reconciliation refs containing portions of that work
+
+any agent/subrepl refs that contain adjacent commits from the same sequence.
+
+
+For every relevant commit determine:
+
+COMMIT SHA
+
+PARENT
+
+DATE
+
+SUBJECT
+
+BRANCH/REF
+
+FILES CHANGED
+
+PRODUCT AREA
+
+ANCESTOR OF CURRENT MAIN:
+YES / NO
+
+EQUIVALENT CURRENT IMPLEMENTATION:
+YES / PARTIAL / NO
+
+
+==================================================
+PROMPT-ADJACENT COMMIT ARCHAEOLOGY
+==================================================
+
+Inspect ALL meaningful commits in the selected development window.
+
+Do not search only commit messages matching the owner's remembered words.
+
+Agents may have used unrelated commit subjects.
+
+Inspect changed files and tests to determine actual behavior.
+
+For every meaningful commit classify:
+
+DIRECTLY_FROM_REMEMBERED_PROMPT
+
+LIKELY_PRE_PROMPT_RELATED_WORK
+
+LIKELY_POST_PROMPT_RELATED_WORK
+
+SAME_DEVELOPMENT_SEQUENCE
+
+UNRELATED
+
+
+Exclude unrelated commits from recovery conclusions.
+
+
+==================================================
+REPORT ARCHAEOLOGY
+==================================================
+
+Identify every report created in or directly connected to this development
+window.
+
+Do not stop at reports 16–19.
+
+Look immediately before report 16.
+
+Look immediately after report 19.
+
+Look for numbered and unnumbered reports.
+
+For each report determine:
+
+what task triggered it;
+what it claimed changed;
+corresponding commit(s);
+whether those commits reached canonical main;
+whether current source has equivalent behavior.
+
+
+==================================================
+FILE-LEVEL DIFFERENTIAL
+==================================================
+
+For the targeted window, construct a complete list of product files that were:
+
+ADDED
+
+MODIFIED
+
+RENAMED
+
+DELETED
+
+
+Then compare each meaningful change against canonical main.
+
+Do not compare files only by filename.
+
+Compare behavior.
+
+A historical file may be gone while its functionality exists elsewhere.
+
+
+==================================================
+TEST-CONTRACT DIFFERENTIAL
+==================================================
+
+This is critical.
+
+Identify every test added or materially changed in the targeted window.
+
+Tests often reveal owner requirements more precisely than reports.
+
+For each historical test contract determine:
+
+1. What behavior did it require?
+2. Does an equivalent test exist on canonical main?
+3. Does canonical implementation still satisfy the behavior?
+4. Was the test lost because functionality was lost?
+5. Was it removed because architecture changed?
+6. Is the behavior currently untested?
+
+
+Create a dedicated LOST TEST CONTRACTS section.
+
+
+==================================================
+USER-VISIBLE DIFFERENTIAL
+==================================================
+
+The owner is specifically concerned with work that would be noticeable when
+physically using Calora.
+
+For every targeted historical change classify:
+
+USER_VISIBLE_AND_PRESERVED
+
+USER_VISIBLE_BUT_CHANGED
+
+USER_VISIBLE_AND_PARTIAL
+
+USER_VISIBLE_AND_MISSING
+
+INTERNAL_ONLY
+
+SUPERSEDED
+
+INTENTIONALLY_REMOVED
+
+
+Prioritize USER_VISIBLE_AND_MISSING and USER_VISIBLE_AND_PARTIAL.
+
+
+==================================================
+KNOWN AREAS TO TRACE, BUT NOT LIMIT TO
+==================================================
+
+Trace the remembered areas:
+
+Onboarding
+
+Coach
+
+Recipes
+
+Discover
+
+Plus
+
+nutrition presentation
+
+Progress/Memory interaction
+
+Smart Scan → Home Today
+
+Health display
+
+reliability
+
+user flows
+
+
+BUT ALSO identify any OTHER product area touched during the same development
+window.
+
+This is the central purpose of Step 51.
+
+
+==================================================
+SPECIAL RECIPE INVESTIGATION
+==================================================
+
+Step 50 already found strong evidence around recipe behavior.
+
+Reconstruct the exact historical recipe work in this window:
+
+Plus submenu caching/remount behavior
+
+pagination
+
+continuous loading
+
+provider exhaustion
+
+Discover freshness
+
+Plus freshness
+
+recently-shown exclusion
+
+rotation
+
+session behavior
+
+deduplication
+
+nutrition completeness
+
+nutrition pending states
+
+nutrition unavailable states
+
+recipe cards
+
+recipe detail
+
+image behavior
+
+Premium behavior
+
+
+Determine exactly which historical recipe behaviors failed to reach canonical
+main.
+
+
+==================================================
+SPECIAL ONBOARDING INVESTIGATION
+==================================================
+
+Reconstruct all onboarding work in this window, not merely cafea90.
+
+Look for:
+
+keyboard avoidance
+
+scroll behavior
+
+focused input visibility
+
+small-screen behavior
+
+agreement UI
+
+agreement accessibility
+
+completion persistence
+
+draft persistence
+
+startup routing
+
+auth hydration interaction
+
+relaunch behavior
+
+tests
+
+visual changes
+
+
+Determine whether cafea90 was one commit in a larger onboarding remediation
+sequence.
+
+
+==================================================
+SPECIAL COACH INVESTIGATION
+==================================================
+
+Determine what "sanitize the Calora Coach chat and make sure implementation is
+complete" actually caused the agent to change during this window.
+
+Do not infer from the wording.
+
+Trace commits/files/tests.
+
+Separate:
+
+safe current restrictions
+
+from
+
+actual missing UX/reliability functionality.
+
+
+DO NOT recommend restoring unsafe unrestricted Coach behavior.
+
+
+==================================================
+SPECIAL SMART SCAN → TODAY INVESTIGATION
+==================================================
+
+Trace whether this development window contained fixes for:
+
+capture approval
+
+local diary insertion
+
+Food Memory
+
+Home Today propagation
+
+daily totals
+
+cache/state invalidation
+
+persistence
+
+restart behavior
+
+sync
+
+date/timezone behavior
+
+
+Determine whether later canonical work replaced those historical fixes.
+
+
+==================================================
+EXPLICIT EXCLUSIONS
+==================================================
+
+Do NOT classify these as missing merely because they existed historically:
+
+Fitness tab
+
+FitnessScreen
+
+More/Fitness shell
+
+old Progress screen
+
+obsolete navigation
+
+unsafe unrestricted Coach
+
+obsolete client-owned security logic
+
+old referral qualification logic
+
+weaker account isolation
+
+deprecated APIs
+
+
+These require no recovery unless CURRENT functionality independently has a
+confirmed defect.
+
+
+==================================================
+CANONICAL BASELINE
+==================================================
+
+Compare against exact canonical source:
+
+origin/main
+
+SHA:
+7cce885c6b3d046a5a8fdb40d92343a87b73c290
+
+TREE:
+1a598be866150d488bc21ccd598de3104c638b02
+
+
+No mutation.
+
+
+==================================================
+CLASSIFICATION
+==================================================
+
+For each meaningful targeted-window item use EXACTLY ONE:
+
+PRESERVED_EQUIVALENT
+
+PRESERVED_BY_NEWER_IMPLEMENTATION
+
+PRESERVED_BUT_CHANGED
+
+PARTIALLY_PRESERVED
+
+HISTORICAL_IMPLEMENTATION_MISSING_FROM_MAIN
+
+PRESENT_BUT_DISCONNECTED
+
+PRESENT_BUT_BROKEN
+
+TEST_CONTRACT_LOST
+
+DOCUMENTATION_ONLY
+
+INTENTIONALLY_REMOVED
+
+UNRELATED_TO_TARGET_WINDOW
+
+UNVERIFIABLE
+
+
+==================================================
+RECOVERY RELEVANCE
+==================================================
+
+For each genuine gap classify:
+
+RECOVER_NOW
+
+REIMPLEMENT_CLEANLY
+
+VERIFY_ON_DEVICE_FIRST
+
+NO_RECOVERY_NEEDED
+
+DO_NOT_RESTORE
+
+
+This is analysis only.
+
+Do not actually recover anything.
+
+
+==================================================
+MOST IMPORTANT OUTPUT
+==================================================
+
+Create a section titled exactly:
+
+WHAT WAS DONE AROUND THE OWNER'S REMEMBERED PROMPT?
+
+
+Explain chronologically:
+
+what work immediately preceded it;
+
+what the prompt triggered;
+
+what additional work the agent discovered and performed;
+
+what happened immediately afterward;
+
+where the resulting commits went;
+
+which pieces reached main;
+
+which pieces did not.
+
+
+==================================================
+SECOND CRITICAL OUTPUT
+==================================================
+
+Create:
+
+TARGET-WINDOW MISSING WORK LIST
+
+
+This must contain ONLY genuine relevant gaps from this development period.
+
+Do not contaminate this list with old intentionally rolled-back features.
+
+
+For each gap include:
+
+ID
+
+feature
+
+historical commit
+
+historical behavior
+
+current behavior
+
+files involved
+
+tests involved
+
+why it is missing
+
+recommended future treatment
+
+
+==================================================
+REPORT
+==================================================
+
+Create:
+
+51_CALORA_TARGETED_DEVELOPMENT_WINDOW_MISSING_WORK_FORENSIC_REPORT.md
+
+
+Required sections:
+
+1. Executive summary
+2. Canonical baseline
+3. Known historical anchors
+4. Method used to determine development window
+5. Exact start boundary
+6. Exact end boundary
+7. Branch topology
+8. Chronological commit timeline
+9. Reports in the targeted window
+10. Files changed in the targeted window
+11. Tests changed in the targeted window
+12. Lost test contracts
+13. What happened immediately before the remembered prompt
+14. What the remembered prompt triggered
+15. Additional agent-discovered work during the sequence
+16. What happened immediately after
+17. Onboarding reconstruction
+18. Coach reconstruction
+19. Recipe/Discover/Plus reconstruction
+20. Nutrition reconstruction
+21. Progress/Memory reconstruction
+22. Smart Scan → Home reconstruction
+23. Health-display reconstruction
+24. Reliability/user-flow reconstruction
+25. OTHER product work discovered in the same window
+26. Current canonical equivalents
+27. Genuine missing implementations
+28. Partial implementations
+29. Broken/disconnected implementations
+30. Superseded implementations
+31. Intentionally removed work
+32. Explicit Fitness exclusion
+33. User-visible differential
+34. TARGET-WINDOW MISSING WORK LIST
+35. Recovery relevance matrix
+36. Remaining device-verification questions
+37. WHAT WAS DONE AROUND THE OWNER'S REMEMBERED PROMPT?
+38. Exact recommendation for Step 52
+
+
+==================================================
+MANDATORY TABLE
+==================================================
+
+| TW ID | Historical work | Commit(s) | Relation to remembered prompt | Current canonical equivalent | Classification | User-visible? | Recovery relevance |
+
+
+Include every meaningful item from the targeted development window.
+
+
+==================================================
+FINAL QUESTIONS
+==================================================
+
+A. What exact development window surrounded the owner's remembered prompt?
+
+B. How many meaningful product changes occurred in that window?
+
+C. Which occurred immediately before the prompt?
+
+D. Which were directly caused by the prompt?
+
+E. Which additional tasks did the agent perform during/after the remediation?
+
+F. Which changes reached canonical main?
+
+G. Which changes did not?
+
+H. Which missing changes are visible in Build 5?
+
+I. Did Step 50 miss any relevant prompt-adjacent work because its scope was too
+broad?
+
+J. Are there lost tests proving additional intended behaviors?
+
+K. Apart from the owner's remembered requirements, what OTHER relevant work from
+the same development window is missing?
+
+L. After excluding Fitness and intentionally rolled-back work, how much genuine
+recovery remains?
+
+
+==================================================
+FINAL VERDICT
+==================================================
+
+Use EXACTLY ONE:
+
+TARGETED DEVELOPMENT WINDOW CONTAINS SUBSTANTIAL UNRECOVERED WORK
+
+TARGETED DEVELOPMENT WINDOW CONTAINS LIMITED UNRECOVERED WORK
+
+TARGETED DEVELOPMENT WINDOW SUBSTANTIALLY PRESERVED IN CANONICAL MAIN
+
+TARGETED DEVELOPMENT WINDOW CANNOT BE RECONSTRUCTED WITH AVAILABLE EVIDENCE
+
+
+==================================================
+STOP
+==================================================
+
+After creating the report:
+
+STOP.
+
+DO NOT IMPLEMENT.
+
+DO NOT MERGE.
+
+DO NOT PUSH.
+
+DO NOT BUILD.
+
+DO NOT DEPLOY.
+
+Wait for owner review.
