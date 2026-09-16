@@ -22,7 +22,7 @@ jobs:
 
       - name: Audit required branch checks
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.CALORA_RELEASE_GATE_ADMIN_READ_TOKEN }}
         run: node scripts/audit-required-checks.mjs
 
       - name: Set up pnpm
