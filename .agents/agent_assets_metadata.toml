@@ -28,3 +28,17 @@ mtime_ms = 1789531182395
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/2046ba55-39e2-4188-83ae-2f42eebe8985/36a9b0be-bba4-4a13-a8b0-47bcfe6a4f8e"
 storage_version_token = "1789531193300355"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "LzHT6Sk7ePoDozXJZXdO-"
+uri = "file://CALORA_RELEASE_ONBOARDING_PLUS_COMPLETE_WORK_INVENTORY.md"
+type = "text"
+title = "Calora Release Onboarding Plus Complete Work Inventory"
+description = "Read-only forensic reconstruction of the branch history, product work, backend/contracts, security hardening, release verification, native/EAS work, evidence limits, dependencies, and blank owner-review index."
+logical_id = "4943d3d0-ae4c-4dfb-b7c2-21315dba5e16"
+content_hash = "sha256:5ace6bac437b3d9f4cd5c9e383c57673a5ac7080890376fb941836345a0279d1"
+size = 48771
+mtime_ms = 1789566056625
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/4943d3d0-ae4c-4dfb-b7c2-21315dba5e16/2743880f-39af-454c-80df-472e30642913"
+storage_version_token = "1789566077039559"
+content_type = "text/markdown"
