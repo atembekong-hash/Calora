@@ -69,3 +69,4 @@
 - [Railway deployment identity](railway-deployment-identity.md) — Railway GitHub deployment events qualify production as `<project> / production`; preserve the SHA and match only that production suffix.
 - [Mobile/API runtime provenance](mobile-api-runtime-provenance.md) — a current mobile bundle can appear stale when production and development API origins report different source releases.
 - [Release verifier fixtures](release-verifier-fixtures.md) — synthetic verifier responses must include the complete attestation shape and same-origin response URL.
+- [Protected release check drift](protected-release-check-drift.md) — a required GitHub status can outlive or diverge from the workflow that should publish it; verify both sides.
