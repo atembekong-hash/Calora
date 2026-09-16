@@ -1,0 +1,393 @@
+Planner Reconstruction Directive — Product Excellence Extension
+
+Continue the current Planner reconstruction and edit implementation.
+
+Do not discard or restart the work already completed.
+
+Instead, expand the scope from "implementing missing planner features" to "building the strongest meal-planning experience in any nutrition application."
+
+The implementation should remain fully compatible with everything already built.
+
+Shift in objective
+
+Do not think of this as finishing an edit mode.
+
+Think of this as designing the operating system for meal planning.
+
+Every interaction should reduce cognitive load.
+
+Every interaction should preserve context.
+
+Every interaction should make planning feel calm, intelligent, and effortless.
+
+The Planner should feel alive without becoming distracting.
+
+It should never feel like a static CRUD interface.
+
+It should never feel like a collection of unrelated cards.
+
+It should feel like one continuous planning experience.
+
+
+---
+
+First responsibility
+
+Continue implementing everything that is still missing from the current reconstruction.
+
+Do not skip any remaining edit functionality.
+
+Complete:
+
+direct meal editing
+
+replacement
+
+deletion
+
+move
+
+copy
+
+serving adjustments
+
+custom meal insertion
+
+explicit edit mode
+
+production-quality planner behavior
+
+all remaining visual polish
+
+
+Those remain required.
+
+
+---
+
+Second responsibility
+
+While implementing those features, stop treating the Planner as a single screen.
+
+Evaluate whether the current Planner architecture is complete.
+
+Question whether additional planner surfaces should exist.
+
+Do not add tabs simply because other apps have them.
+
+Add them only if they reduce friction and improve long-term planning.
+
+If a new Planner section makes the product substantially better, implement it.
+
+
+---
+
+Think like a product architect
+
+The Planner is not merely where users assign meals.
+
+It is where users design their nutrition strategy.
+
+The Planner should become the user's planning workspace.
+
+Evaluate whether the current experience would benefit from dedicated surfaces such as:
+
+• Weekly Planner
+
+• Saved Plans
+
+• Meal Templates
+
+• Smart Collections
+
+• Recipes
+
+• Shopping
+
+• Nutrition Overview
+
+• Grocery Preparation
+
+• Batch Cooking
+
+• Schedule
+
+• Goals
+
+• Favorites
+
+• Seasonal Planning
+
+• Dining Out
+
+• Household Planning
+
+• Plan History
+
+• Upcoming Weeks
+
+• Recovery Planning
+
+• Adaptive Suggestions
+
+These are examples only.
+
+Do not implement them blindly.
+
+Challenge every idea.
+
+Only keep what genuinely improves the planning experience.
+
+
+---
+
+Design philosophy
+
+Nothing should exist because it looks impressive.
+
+Everything should exist because it reduces work.
+
+The Planner should remove decisions instead of creating more.
+
+The interface should remain calm.
+
+Minimal.
+
+Focused.
+
+Highly legible.
+
+Professional.
+
+No clutter.
+
+No unnecessary controls.
+
+No visual noise.
+
+No decorative animation.
+
+
+---
+
+Living interactions
+
+The Planner should feel alive through behavior rather than decoration.
+
+Examples include:
+
+Meals smoothly moving into place.
+
+Context preserved after edits.
+
+Selected days transitioning naturally.
+
+Shopping automatically reflecting planning changes.
+
+Nutrition summaries updating instantly.
+
+Cards acknowledging completed edits.
+
+Subtle state transitions.
+
+Adaptive shortcuts.
+
+Useful empty states.
+
+Context-aware recommendations.
+
+Every motion should explain a state change.
+
+Never animate simply because something changed.
+
+
+---
+
+Planning continuity
+
+Planning should feel like one continuous workflow.
+
+Nothing should feel disconnected.
+
+Recipe
+
+↓
+
+Planner
+
+↓
+
+Shopping
+
+↓
+
+Diary
+
+↓
+
+Progress
+
+↓
+
+Coach
+
+Every transition should preserve as much context as possible.
+
+The user should never feel like they entered a different application.
+
+
+---
+
+Empty-state philosophy
+
+An empty meal slot should never communicate failure.
+
+It should communicate possibility.
+
+Instead of saying nothing exists,
+
+it should intelligently offer:
+
+saved meals
+
+favorite meals
+
+recipes
+
+recent meals
+
+custom meals
+
+AI suggestions
+
+meal templates
+
+meal duplication
+
+appropriate recommendations based on existing habits
+
+
+---
+
+Planner intelligence
+
+The Planner should gradually become more useful without taking control.
+
+Examples:
+
+Frequently planned breakfasts become easier to reuse.
+
+Frequently paired meals become suggestions.
+
+Repeated weekly patterns become templates.
+
+Common grocery combinations become reusable.
+
+Frequently adjusted serving sizes become defaults.
+
+Frequently swapped meals become quick replacements.
+
+Everything remains user-controlled.
+
+Nothing happens automatically without consent.
+
+
+---
+
+Editing philosophy
+
+Editing should feel direct.
+
+Not administrative.
+
+Users should never wonder:
+
+Can I edit this?
+
+Where do I edit this?
+
+How do I replace this?
+
+How do I undo this?
+
+How do I save this?
+
+The interface should answer those questions visually before the user asks them.
+
+
+---
+
+Premium interaction quality
+
+Study interaction quality from products such as:
+
+Apple Reminders
+
+Things 3
+
+Craft
+
+Linear
+
+Not to copy their appearance,
+
+but to understand:
+
+clarity
+
+motion
+
+editing flow
+
+responsiveness
+
+feedback
+
+state transitions
+
+navigation
+
+information density
+
+
+---
+
+Final challenge
+
+When the implementation is complete, do not stop.
+
+Perform a complete Planner Experience Audit.
+
+Forget that you built it.
+
+Review it as if you were hired to determine whether this Planner deserves to become the benchmark for nutrition applications.
+
+Question every layout.
+
+Every interaction.
+
+Every transition.
+
+Every animation.
+
+Every gesture.
+
+Every confirmation.
+
+Every empty state.
+
+Every piece of copy.
+
+Every spacing decision.
+
+Every hierarchy decision.
+
+Every visual weight.
+
+Every workflow.
+
+If something can be made clearer, faster, calmer, simpler, more elegant, or more intuitive without reducing capability, improve it.
+
+Do not stop when every feature works.
+
+Stop only when the Planner feels like a product people genuinely enjoy using, where planning meals becomes almost effortless.

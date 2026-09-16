@@ -1,0 +1,75 @@
+MISSION: PREPARE OWNER ACCOUNT AS THE SINGLE CONTEXTUAL INSIGHTS PILOT
+
+We have conclusively established that the previously documented qa@calora.dev pilot account does not exist in production Supabase Auth.
+
+Do not create qa@calora.dev.
+Do not fabricate a test identity.
+Do not associate existing consent records with arbitrary users.
+
+We will instead use my existing Calora owner/test account as the dedicated single pilot.
+
+Your task is to prepare the system for this safely.
+
+STEP 1 — IDENTIFY CANDIDATE ACCOUNTS
+
+Inspect the 13 existing production Supabase Auth accounts.
+
+Return enough NON-SENSITIVE information for me to identify which account is mine.
+
+Prefer:
+- email address
+- account creation date
+- last sign-in date
+- provider
+- whether active/banned
+
+Do NOT expose:
+- passwords
+- tokens
+- secrets
+- session credentials
+- private authentication material
+
+STEP 2 — DO NOT MODIFY ANYTHING YET
+
+Do not assign pilot metadata.
+Do not change consent.
+Do not enable rollout.
+Do not activate Fact Context.
+Do not create a nonce.
+Do not change production configuration.
+
+I must explicitly identify which account is mine before any account is designated as the pilot.
+
+STEP 3 — VERIFY PILOT MECHANISM
+
+While remaining read-only, determine the exact two server-owned pilot markers required by the current implementation.
+
+Also determine exactly how current Fact Context consent must be completed through the Calora application for the selected account.
+
+Confirm that the selected account can complete consent through the normal product flow rather than through direct database manipulation.
+
+STEP 4 — RETURN
+
+Return ONLY:
+
+OWNER PILOT PREPARATION: PASS/FAIL
+
+AVAILABLE ACCOUNTS:
+<numbered list containing only the minimum safe identifying information necessary for me to recognize my account>
+
+REQUIRED PILOT MARKERS:
+<marker names only, no secrets>
+
+FACT CONTEXT CONSENT FLOW:
+<exact user-facing steps I must perform in Calora>
+
+CURRENT ROLLOUT: ON/OFF
+ACTIVE PILOTS: <number>
+ACTIVE NONCES: <number>
+PRODUCTION HEALTH: PASS/FAIL
+
+HUMAN ACTION REQUIRED:
+Tell me to identify the numbered account that belongs to me.
+
+Do not make any production mutation.

@@ -1,0 +1,52 @@
+import type { CoachFactContextV1 } from './coachFactContext';
+import { isCoachFactContextCurrent } from './coachFactContext';
+
+export type CoachFactRequestScope = {
+  accountId: string | null;
+  hydrationGeneration: number;
+  nonce: string;
+  aborted: boolean;
+};
+
+/** In-memory only scope guard. Call invalidate on sign-out, clear, or hydration reset. */
+export class CoachFactRequestLifecycle {
+  private static readonly instances = new Set<CoachFactRequestLifecycle>();
+  private active: CoachFactRequestScope | null = null;
+
+  constructor() {
+    CoachFactRequestLifecycle.instances.add(this);
+  }
+
+  begin(context: CoachFactContextV1, accountId: string | null, hydrationGeneration: number): CoachFactRequestScope {
+    this.invalidate();
+    const scope = { accountId, hydrationGeneration, nonce: context.requestNonce, aborted: false };
+    this.active = scope;
+    return scope;
+  }
+
+  invalidate() {
+    if (this.active) this.active.aborted = true;
+    this.active = null;
+  }
+
+  /** Release only the request that acquired this scope; never cancel a newer nonce. */
+  complete(scope: CoachFactRequestScope) {
+    if (this.active !== scope) return;
+    scope.aborted = true;
+    this.active = null;
+  }
+
+  /** Used by account lifecycle fences before a new identity may hydrate. */
+  static invalidateAll() {
+    CoachFactRequestLifecycle.instances.forEach((lifecycle) => lifecycle.invalidate());
+  }
+
+  canAccept(scope: CoachFactRequestScope, context: CoachFactContextV1, current: Pick<CoachFactRequestScope, 'accountId' | 'hydrationGeneration'>) {
+    return this.active === scope
+      && !scope.aborted
+      && scope.accountId === current.accountId
+      && scope.hydrationGeneration === current.hydrationGeneration
+      && scope.nonce === context.requestNonce
+      && isCoachFactContextCurrent(context);
+  }
+}

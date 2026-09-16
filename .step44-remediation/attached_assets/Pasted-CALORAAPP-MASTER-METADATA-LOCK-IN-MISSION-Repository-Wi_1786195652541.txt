@@ -1,0 +1,1948 @@
+CALORAAPP MASTER METADATA LOCK-IN MISSION
+
+Repository-Wide Product Identity, Metadata, Configuration, Store, Legal, Subscription and Application Alignment
+
+You are the autonomous senior technical owner responsible for permanently establishing the approved CaloraApp product identity and metadata throughout this existing mobile application project.
+
+This is an EXISTING and nearly completed application.
+
+This is NOT a request to rebuild, redesign, rename blindly, or replace working systems.
+
+Your mission is to:
+
+Audit → Map → Normalize → Implement → Propagate → Validate → Regression Test → Report
+
+The final result must establish one authoritative CaloraApp identity across every applicable part of the repository and application.
+
+Do not simply change visible text.
+
+Do not perform global search-and-replace without understanding context.
+
+Do not overwrite valid credentials, production identifiers, existing integrations, database configuration, authentication configuration, or store configuration.
+
+Do not trigger a build or deployment unless I explicitly instruct you to do so.
+
+---
+
+1. APPROVED PRODUCT IDENTITY
+
+Treat the following as the approved canonical product metadata.
+
+Product
+
+Official product name:
+
+CaloraApp
+
+Short name:
+
+CaloraApp
+
+Publisher:
+
+Etiendem Technologies
+
+Product type:
+
+AI-powered calorie and nutrition tracking mobile application
+
+Primary positioning:
+
+AI Nutrition & Calorie Tracker
+
+Brand tagline:
+
+Eat Smarter. Live Better.
+
+Platforms:
+
+iOS and Android
+
+Primary store category:
+
+Health & Fitness
+
+Secondary category where supported:
+
+Food & Drink
+
+Copyright:
+
+© 2026 Etiendem Technologies
+
+Primary production domain:
+
+mycaloraapp.com
+
+Provisional production API hostname:
+
+api.mycaloraapp.com
+
+Premium product display name:
+
+CaloraApp Pro
+
+---
+
+2. CRITICAL RULE ABOUT EXISTING TECHNICAL IDENTIFIERS
+
+The preferred technical identifiers are:
+
+iOS Bundle ID:
+
+"com.etiendem.caloraapp"
+
+Android application/package ID:
+
+"com.etiendem.caloraapp"
+
+Application URL scheme:
+
+"caloraapp"
+
+HOWEVER:
+
+DO NOT CHANGE an existing bundle ID, Android application ID, package name, OAuth identifier, RevenueCat application identity, Firebase identity, deep-link identity, signing configuration, or other production-bound identifier until you inspect the repository and determine whether the existing identifier has already been registered or connected to an external service.
+
+Technical identifiers can have external dependencies.
+
+Changing them blindly can break:
+
+- Google Sign-In
+- Sign in with Apple
+- RevenueCat
+- Google Play
+- App Store Connect
+- Firebase
+- OAuth
+- deep links
+- push notifications
+- signing
+- builds
+- backend authentication
+- existing users
+
+Therefore:
+
+First determine the current identifiers.
+
+Then classify each as:
+
+SAFE TO CHANGE
+
+MIGRATION REQUIRED
+
+EXTERNALLY REGISTERED / DO NOT CHANGE AUTOMATICALLY
+
+ALREADY CORRECT
+
+If the current production-bound identifier differs from the preferred identifier, preserve it temporarily and document the discrepancy.
+
+Do not invent a migration.
+
+---
+
+3. FIRST PHASE: COMPLETE FORENSIC AUDIT
+
+Before editing anything, inspect the entire repository.
+
+Map every location where product identity or metadata currently exists.
+
+Search for all current and historical product names, including:
+
+- Calora
+- CaloraApp
+- EatWise
+- EatWiseApp
+- placeholder names
+- template names
+- Replit-generated names
+- old app names
+- test branding
+- development branding
+
+Also search for relevant terms such as:
+
+- appName
+- displayName
+- name
+- slug
+- scheme
+- bundleIdentifier
+- package
+- applicationId
+- productName
+- publisher
+- company
+- copyright
+- description
+- tagline
+- support
+- privacy
+- terms
+- legal
+- subscription
+- premium
+- pro
+- RevenueCat
+- entitlement
+- offering
+- monthly
+- annual
+- domain
+- API URL
+- support email
+- privacy email
+- contact email
+
+Do not assume the file structure.
+
+Discover it.
+
+---
+
+4. BUILD A METADATA DEPENDENCY MAP
+
+Before implementation, create an internal dependency map showing every location that needs review.
+
+Inspect at minimum, where applicable:
+
+- package.json
+- app.json
+- app.config.js
+- app.config.ts
+- Expo configuration
+- eas.json
+- AndroidManifest.xml
+- Android Gradle configuration
+- iOS configuration
+- Info.plist
+- native project files
+- environment files
+- ".env.example"
+- configuration modules
+- constants
+- localization files
+- navigation
+- Settings
+- About
+- onboarding
+- authentication
+- paywall
+- subscription screens
+- account screens
+- splash screen
+- app icon configuration
+- notifications
+- emails
+- backend
+- database
+- API configuration
+- analytics
+- error monitoring
+- RevenueCat
+- legal pages
+- privacy links
+- support links
+- README
+- internal documentation
+- tests
+- fixtures
+- seed data
+- web application/PWA metadata if present
+- manifest files
+- Open Graph metadata
+- robots/sitemap where applicable
+
+The goal is to understand where product identity currently lives before changing it.
+
+---
+
+5. ESTABLISH A SINGLE SOURCE OF TRUTH
+
+Where technically appropriate, establish a centralized product metadata/configuration source instead of scattering literal strings throughout the application.
+
+The exact implementation should follow the existing architecture.
+
+Conceptually, the canonical metadata should contain:
+
+Product name:
+"CaloraApp"
+
+Short name:
+"CaloraApp"
+
+Publisher:
+"Etiendem Technologies"
+
+Tagline:
+"Eat Smarter. Live Better."
+
+Descriptor:
+"AI Nutrition & Calorie Tracker"
+
+Domain:
+"mycaloraapp.com"
+
+API host:
+"api.mycaloraapp.com"
+
+Premium display name:
+"CaloraApp Pro"
+
+Copyright:
+"© 2026 Etiendem Technologies"
+
+Support email:
+"support@mycaloraapp.com"
+
+Billing email:
+"billing@mycaloraapp.com"
+
+Privacy email:
+"privacy@mycaloraapp.com"
+
+Security email:
+"security@mycaloraapp.com"
+
+Legal email:
+"legal@mycaloraapp.com"
+
+General contact:
+"contact@mycaloraapp.com"
+
+Transactional sender:
+"noreply@mycaloraapp.com"
+
+Official URLs:
+
+Main:
+"https://mycaloraapp.com"
+
+Privacy:
+"https://mycaloraapp.com/privacy"
+
+Terms:
+"https://mycaloraapp.com/terms"
+
+Support:
+"https://mycaloraapp.com/support"
+
+Contact:
+"https://mycaloraapp.com/contact"
+
+Account deletion:
+"https://mycaloraapp.com/delete-account"
+
+Subscriptions:
+"https://mycaloraapp.com/subscriptions"
+
+Help:
+"https://mycaloraapp.com/help"
+
+Do not expose server secrets through this configuration.
+
+Public product metadata and secret environment configuration must remain separate.
+
+---
+
+6. APPLICATION DISPLAY NAME
+
+Ensure the customer-facing application name is consistently:
+
+CaloraApp
+
+Audit every place where users can encounter the app name.
+
+This includes:
+
+- device home screen
+- splash/loading experience
+- onboarding
+- authentication
+- headers
+- Settings
+- About
+- subscription/paywall
+- notifications
+- dialogs
+- error messages
+- sharing
+- account deletion
+- emails
+- legal links
+- accessibility labels
+- app metadata
+
+Remove obsolete product names where they refer to this application.
+
+Do NOT replace unrelated occurrences where the same word has another technical meaning.
+
+---
+
+7. BRAND POSITIONING
+
+Use:
+
+AI Nutrition & Calorie Tracker
+
+as the primary functional descriptor where a functional product description is appropriate.
+
+Use:
+
+Eat Smarter. Live Better.
+
+as the brand tagline where a marketing tagline is appropriate.
+
+Do not force the tagline onto every screen.
+
+Do not clutter the interface with repeated branding.
+
+The existing UI design system remains authoritative.
+
+---
+
+8. PRODUCT DESCRIPTION PRINCIPLE
+
+Where product descriptions exist, align them with this core proposition:
+
+CaloraApp helps people understand what they eat, track it with less effort, plan ahead, and make better nutrition decisions over time.
+
+The conceptual product loop is:
+
+Capture → Understand → Plan → Improve → Repeat
+
+Do not necessarily display this exact loop everywhere.
+
+Use it to keep product messaging coherent.
+
+---
+
+9. NUTRITION AND AI POSITIONING
+
+Do not describe CaloraApp as an application that can determine exact calories merely from a photograph.
+
+Photo analysis has uncertainty involving:
+
+- portion size
+- weight
+- hidden ingredients
+- cooking oils
+- sauces
+- restaurant preparation
+- ingredients not visible in an image
+- how much food was actually consumed
+
+The product should position AI/photo recognition as an intelligent starting point that the customer can review.
+
+Where applicable, preserve or introduce:
+
+Review before adding
+
+The user remains the final authority over their food diary.
+
+Do not weaken existing confidence indicators or nutrition provenance systems if already implemented.
+
+---
+
+10. STORE METADATA SOURCE
+
+Create a repository-controlled metadata specification for future App Store and Google Play submission.
+
+Do not attempt to publish anything.
+
+Recommended metadata:
+
+Apple App Store
+
+App name:
+
+CaloraApp
+
+Subtitle:
+
+AI Nutrition & Calorie Tracker
+
+Primary category:
+
+Health & Fitness
+
+Secondary category:
+
+Food & Drink
+
+Google Play
+
+App name:
+
+CaloraApp
+
+Category:
+
+Use the closest appropriate current Google Play category based on the actual available Play Console taxonomy.
+
+Short description:
+
+Track calories, scan meals, understand nutrition, and reach your goals with AI.
+
+Do not force a category that does not exist in the current store taxonomy.
+
+---
+
+11. STORE LONG-DESCRIPTION DIRECTION
+
+Create or update the repository's store-listing metadata so future listings follow this opening:
+
+Nutrition tracking should not feel like data entry. CaloraApp helps you log meals faster, understand what you eat, plan ahead, and see the habits shaping your progress.
+
+Organize the listing around capabilities actually present in the production application.
+
+Potential sections include:
+
+Smart Food Logging
+
+Photo scanning, barcode scanning, search and other implemented logging methods.
+
+Nutrition Insights
+
+Calories, macros and available nutrient information.
+
+Meal Planning
+
+Plan meals around the user's nutrition goals.
+
+Recipes
+
+Discover, organize or use recipes according to actual implemented functionality.
+
+Progress
+
+Understand nutrition and progress trends.
+
+AI Coach
+
+Contextual AI-supported nutrition guidance within appropriate wellness boundaries.
+
+Personalization
+
+Use corrections, repeated meals and preferences where this capability actually exists.
+
+CRITICAL:
+
+Do not claim any feature that does not exist.
+
+Store metadata must describe the production application truthfully.
+
+---
+
+12. PREMIUM PRODUCT IDENTITY
+
+The premium tier is:
+
+CaloraApp Pro
+
+Canonical internal entitlement ID:
+
+"caloraapp_pro"
+
+Preferred monthly product ID:
+
+"caloraapp_pro_monthly"
+
+Preferred annual product ID:
+
+"caloraapp_pro_annual"
+
+Preferred RevenueCat offering:
+
+"default"
+
+However, inspect existing RevenueCat and store configuration first.
+
+If product IDs already exist and are externally registered, DO NOT rename them automatically.
+
+External store product IDs may be effectively permanent.
+
+If they differ from these preferred identifiers, preserve the registered IDs and map them to the canonical CaloraApp Pro business model.
+
+Document the difference.
+
+---
+
+13. APPROVED SUBSCRIPTION BUSINESS MODEL
+
+CaloraApp Pro has two subscription paths.
+
+Monthly
+
+Target introductory offer:
+
+7-day free trial
+
+Then target introductory price:
+
+$4.99/month
+
+Target standard price after the applicable introductory period:
+
+$9.99/month
+
+Annual
+
+Target introductory offer:
+
+7-day free trial
+
+Target first-year price:
+
+$35.99/year
+
+Target standard renewal:
+
+$69.99/year
+
+Standard annual monthly equivalent:
+
+Approximately $5.83/month
+
+Standard annual savings versus twelve payments of $9.99:
+
+Approximately 42%
+
+IMPORTANT:
+
+These are business requirements.
+
+Do not simulate unsupported subscription pricing inside application code.
+
+Apple and Google store configuration must remain authoritative.
+
+If current store mechanisms cannot represent a requested offer exactly, report the limitation instead of building a fake client-side billing system.
+
+---
+
+14. SUBSCRIPTION DISPLAY RULES
+
+Where subscription pricing is displayed, prefer dynamic localized store pricing.
+
+Do not hardcode U.S. prices as the billing authority.
+
+The app may use U.S. pricing in informational metadata, but the live paywall should use authoritative store/RevenueCat product data where available.
+
+Users must understand:
+
+1. What they pay now.
+2. When they will next be charged.
+3. What that next charge will be.
+
+For annual introductory pricing, the intended presentation is conceptually:
+
+7 days free
+
+$35.99 first year
+
+Then $69.99/year
+
+For monthly:
+
+7 days free
+
+$4.99/month during the applicable introductory period
+
+Then $9.99/month
+
+Only show trial language when the customer is actually eligible.
+
+---
+
+15. SUBSCRIPTION DISCLOSURE
+
+Where applicable, use clear subscription language equivalent to:
+
+7 days free for eligible customers. After the trial, your selected subscription begins automatically unless canceled. Introductory pricing applies only to eligible customers. Your subscription automatically renews at the applicable renewal price unless canceled before renewal.
+
+Do not use deceptive subscription UX.
+
+Do not hide renewal prices.
+
+Do not use fake scarcity.
+
+Do not create false countdown timers.
+
+Do not use misleading savings calculations.
+
+---
+
+16. REVENUECAT AUDIT AND ALIGNMENT
+
+Determine whether RevenueCat is already installed.
+
+If yes:
+
+Audit:
+
+- SDK configuration
+- project/app identifiers
+- API key handling
+- customer identity
+- offerings
+- products
+- packages
+- entitlements
+- restore purchases
+- subscription status
+- authentication linkage
+- error handling
+- sandbox configuration
+
+Align customer-facing terminology to:
+
+CaloraApp Pro
+
+without destroying externally registered IDs.
+
+If RevenueCat is not yet implemented, document that fact.
+
+Do not establish a second subscription architecture simply because metadata is being normalized.
+
+---
+
+17. OFFICIAL WEB INFRASTRUCTURE
+
+Normalize application references to the approved production domain:
+
+mycaloraapp.com
+
+Approved URL architecture:
+
+Main:
+"https://mycaloraapp.com"
+
+Privacy:
+"https://mycaloraapp.com/privacy"
+
+Terms:
+"https://mycaloraapp.com/terms"
+
+Support:
+"https://mycaloraapp.com/support"
+
+Contact:
+"https://mycaloraapp.com/contact"
+
+Delete account:
+"https://mycaloraapp.com/delete-account"
+
+Subscriptions:
+"https://mycaloraapp.com/subscriptions"
+
+Help:
+"https://mycaloraapp.com/help"
+
+Provisional API hostname:
+
+"https://api.mycaloraapp.com"
+
+IMPORTANT:
+
+Do not automatically replace a currently functioning production API URL with "api.mycaloraapp.com" unless that hostname is actually configured and operational.
+
+If the existing backend uses another functioning endpoint, preserve it and report the migration requirement.
+
+Product metadata and live network configuration are different concerns.
+
+Never break a working backend merely to make naming consistent.
+
+---
+
+18. EMAIL IDENTITY
+
+Approved email architecture:
+
+Customer support:
+"support@mycaloraapp.com"
+
+Billing:
+"billing@mycaloraapp.com"
+
+Privacy:
+"privacy@mycaloraapp.com"
+
+Security:
+"security@mycaloraapp.com"
+
+Legal:
+"legal@mycaloraapp.com"
+
+General contact:
+"contact@mycaloraapp.com"
+
+Transactional:
+"noreply@mycaloraapp.com"
+
+Use these addresses only in appropriate customer-facing metadata.
+
+Do not assume these inboxes or aliases already exist.
+
+Do not configure outbound email using nonexistent credentials.
+
+Report which addresses require external creation or DNS/email-provider configuration.
+
+---
+
+19. SETTINGS
+
+Audit the existing Settings architecture.
+
+Where appropriate, ensure it provides access to:
+
+CaloraApp Pro
+
+Manage Subscription
+
+Restore Purchases
+
+Help & Support
+
+Privacy Policy
+
+Terms of Use
+
+Contact
+
+Delete Account
+
+About CaloraApp
+
+Do not create duplicate settings rows if equivalent functionality already exists.
+
+Preserve the existing visual language.
+
+---
+
+20. ABOUT CALORAAPP
+
+Create or normalize the About experience where one already exists or naturally belongs.
+
+Recommended information:
+
+CaloraApp
+
+AI Nutrition & Calorie Tracker
+
+Eat Smarter. Live Better.
+
+Version:
+Read dynamically from the actual application version.
+
+Publisher:
+
+Etiendem Technologies
+
+Copyright:
+
+© 2026 Etiendem Technologies
+
+Include appropriate links for:
+
+- website
+- support
+- privacy
+- terms
+
+Do not hardcode the version number if the runtime can retrieve it from app metadata.
+
+---
+
+21. ACCOUNT MANAGEMENT
+
+Audit account-management functionality.
+
+Ensure terminology consistently refers to:
+
+- CaloraApp account
+- CaloraApp Pro subscription
+- account deletion
+- subscription management
+- purchase restoration
+
+Do not imply that deleting a CaloraApp account automatically cancels an Apple App Store or Google Play subscription.
+
+If necessary, add clear wording informing subscribed users that store subscription management is separate from account deletion.
+
+Do not change actual deletion behavior without understanding the existing backend.
+
+---
+
+22. LEGAL METADATA
+
+Establish canonical references for:
+
+Privacy Policy
+
+"https://mycaloraapp.com/privacy"
+
+Terms of Use
+
+"https://mycaloraapp.com/terms"
+
+Subscription Information
+
+"https://mycaloraapp.com/subscriptions"
+
+Account Deletion
+
+"https://mycaloraapp.com/delete-account"
+
+Where the application contains outdated, placeholder or incorrect legal URLs, replace them with canonical references only after verifying that doing so will not create broken navigation.
+
+If the pages do not exist yet, report them as external launch blockers.
+
+Do not pretend nonexistent pages are operational.
+
+---
+
+23. NUTRITION AND HEALTH DISCLAIMER
+
+Where legally and UX-appropriate, establish a consistent disclaimer based on:
+
+Nutrition values, AI analysis, photo estimates, recommendations and other information provided by CaloraApp are estimates and are intended for general informational and wellness purposes. They are not medical advice.
+
+Do not plaster this disclaimer across normal workflows.
+
+Place it where appropriate, such as:
+
+- Terms
+- onboarding where necessary
+- AI Coach information
+- nutrition-estimation explanations
+- relevant About/help/legal areas
+
+Do not make medical claims.
+
+Do not imply diagnosis or treatment capability.
+
+---
+
+24. AI COACH TERMINOLOGY
+
+Audit AI Coach text.
+
+Ensure it does not make unsupported medical claims.
+
+It may provide nutrition and wellness information based on the application's available context.
+
+It must not present itself as:
+
+- a doctor
+- a registered dietitian unless legally and factually true
+- a diagnostic system
+- an emergency service
+- a substitute for professional medical care
+
+Do not weaken the usefulness of the feature with constant warnings.
+
+Use sensible boundaries.
+
+---
+
+25. PRIVACY AND DATA INVENTORY
+
+Conduct a code-level privacy inventory.
+
+Determine whether CaloraApp actually collects, processes, stores or transmits:
+
+- name
+- email
+- account ID
+- authentication data
+- age/date of birth
+- sex if collected
+- height
+- weight
+- body measurements
+- calorie goals
+- macro goals
+- food diary
+- recipes
+- meal plans
+- food photos
+- camera data
+- barcode data
+- activity/exercise
+- AI Coach conversations
+- device identifiers
+- notification tokens
+- analytics
+- crash diagnostics
+- subscription information
+- purchase information
+- approximate location
+- precise location
+- health-platform data
+- any other user-generated data
+
+For each data type identify:
+
+Collected?
+
+Stored?
+
+Where?
+
+Transmitted?
+
+To whom?
+
+Purpose?
+
+Retention behavior?
+
+Deletion behavior?
+
+This audit will later be used to complete:
+
+Apple App Privacy
+
+and
+
+Google Play Data Safety.
+
+Do not guess those declarations.
+
+---
+
+26. THIRD-PARTY SERVICE INVENTORY
+
+Identify every third-party SDK/API/service used by the application.
+
+Examples may include:
+
+- RevenueCat
+- OpenAI or another AI provider
+- nutrition database providers
+- image analysis services
+- authentication providers
+- Google services
+- Apple services
+- database provider
+- object storage
+- analytics
+- crash reporting
+- email
+- hosting
+- push notifications
+
+For every detected provider document:
+
+- service name
+- purpose
+- environment variables
+- data sent
+- whether secrets are server-side
+- privacy implications
+- production readiness
+
+Do not expose actual secret values in the final report.
+
+---
+
+27. ENVIRONMENT VARIABLES
+
+Audit environment configuration.
+
+Classify variables as:
+
+PUBLIC CLIENT CONFIGURATION
+
+or
+
+SERVER SECRET
+
+Do not move server secrets into client-accessible Expo/public environment variables.
+
+Normalize naming only where safe.
+
+Update ".env.example" or equivalent documentation without inserting real secret values.
+
+---
+
+28. AUTHENTICATION IDENTITY
+
+Audit:
+
+- email authentication
+- Google Sign-In
+- Sign in with Apple
+- anonymous/guest access
+- OAuth callbacks
+- redirect URIs
+- account IDs
+- subscription customer identity
+
+Ensure customer-facing branding says CaloraApp.
+
+Do not modify OAuth client IDs, bundle IDs, redirect URIs or authentication configuration blindly.
+
+If branding needs to be changed in Google Cloud, Apple Developer or another external console, report that as an external action.
+
+---
+
+29. DEEP LINKS AND URL SCHEME
+
+Preferred application scheme:
+
+"caloraapp"
+
+Audit the current scheme first.
+
+If another scheme is already externally configured, determine the migration consequences before changing it.
+
+Test all existing deep-link routes after any safe modification.
+
+This includes:
+
+- authentication callbacks
+- password reset
+- email verification
+- subscription links
+- notification navigation
+- sharing
+- universal/app links if implemented
+
+---
+
+30. NOTIFICATIONS
+
+Audit notification branding.
+
+Ensure visible notifications identify the product appropriately as:
+
+CaloraApp
+
+Do not alter notification behavior unrelated to branding.
+
+Check:
+
+- notification channel names
+- push titles
+- reminder copy
+- meal reminders
+- subscription messages
+- background notification configuration
+
+Remove obsolete product names.
+
+---
+
+31. EMAIL TEMPLATES
+
+Search for all transactional email templates.
+
+Examples:
+
+- welcome
+- verification
+- password reset
+- subscription
+- support
+- account deletion
+- security
+
+Normalize customer-facing branding to:
+
+CaloraApp
+
+and appropriate sender identity to:
+
+Etiendem Technologies / CaloraApp
+
+Do not change live sender domains or credentials unless the approved email infrastructure is actually configured.
+
+---
+
+32. ANALYTICS AND CRASH REPORTING
+
+Audit analytics and crash reporting metadata.
+
+Where projects contain product/environment labels, normalize human-readable CaloraApp naming where safe.
+
+Do NOT create new external analytics projects merely for naming consistency.
+
+Do NOT destroy historical analytics continuity.
+
+Preserve production project IDs unless migration is explicitly required.
+
+---
+
+33. DATABASE
+
+Inspect the database for product-specific metadata.
+
+Do not rename tables or columns merely for branding.
+
+Database schema stability is more important than cosmetic naming.
+
+Only change database-level product names where:
+
+- they are customer-facing
+- they are configuration values
+- the change is safe
+
+Do not perform destructive migrations.
+
+---
+
+34. APP ICON, SPLASH AND ASSETS
+
+Audit:
+
+- app icon
+- adaptive Android icon
+- iOS icon
+- splash screen
+- favicon
+- web/PWA icon
+- notification icon
+- logo assets
+- social/share assets
+
+Confirm that the active assets belong to CaloraApp.
+
+Do not generate a new logo unless necessary and authorized.
+
+Do not redesign approved branding.
+
+Remove obsolete branding only after verifying which assets are actually referenced.
+
+---
+
+35. LIGHT AND DARK MODES
+
+CaloraApp supports:
+
+Light mode
+
+and
+
+Dark mode
+
+Metadata changes must not damage either.
+
+Test affected screens in both themes.
+
+Do not introduce hardcoded colors that violate the existing design system.
+
+---
+
+36. LOCALIZATION
+
+Audit localization/i18n files.
+
+Product name should normally remain:
+
+CaloraApp
+
+across languages.
+
+Do not translate the brand name.
+
+Translate descriptive copy only through the existing localization architecture.
+
+Remove obsolete brand names from translated resources where safe.
+
+Do not destroy translation keys or replace localization with hardcoded English.
+
+---
+
+37. ACCESSIBILITY
+
+Review affected metadata and UI for:
+
+- screen-reader labels
+- accessible names
+- image descriptions
+- buttons
+- legal links
+- subscription labels
+- touch targets
+- text scaling
+- clipping
+
+Ensure old product names do not remain hidden inside accessibility labels.
+
+---
+
+38. WEB/PWA METADATA IF PRESENT
+
+If this repository includes a web application or PWA, audit:
+
+- "<title>"
+- meta description
+- manifest
+- application-name
+- theme metadata
+- favicon
+- Open Graph
+- Twitter/social metadata
+- install name
+- canonical URLs
+
+Normalize them to CaloraApp where appropriate.
+
+Do not create unnecessary web infrastructure if no web application exists.
+
+---
+
+39. DOCUMENTATION
+
+Update applicable internal documentation to reflect the canonical product identity.
+
+This may include:
+
+- README
+- setup instructions
+- architecture documentation
+- environment documentation
+- deployment notes
+- store metadata files
+- subscription documentation
+
+Do not erase useful development history.
+
+Do not rewrite unrelated documentation.
+
+---
+
+40. STORE SCREENSHOT METADATA
+
+Create documentation for the future store screenshot sequence.
+
+Recommended narrative:
+
+Screenshot 1
+
+Meet CaloraApp
+
+Supporting message:
+
+Smarter nutrition starts here.
+
+Screenshot 2
+
+Log meals in seconds
+
+Show Smart Scan or the strongest implemented fast-logging flow.
+
+Screenshot 3
+
+Know what you're eating
+
+Show nutrition analysis.
+
+Screenshot 4
+
+See your day at a glance
+
+Show the main calorie/nutrition dashboard.
+
+Screenshot 5
+
+Plan meals around your goals
+
+Show Planner.
+
+Screenshot 6
+
+Find meals worth eating
+
+Show Recipes.
+
+Screenshot 7
+
+Understand your progress
+
+Show progress analytics.
+
+Screenshot 8
+
+Guidance when you need it
+
+Show AI Coach.
+
+Do not create fake screenshots or claim unimplemented features.
+
+---
+
+41. RELEASE VERSIONING
+
+Document the release convention:
+
+Initial production release:
+
+"1.0.0"
+
+Patch:
+
+"1.0.1"
+
+Feature release:
+
+"1.1.0"
+
+Major generation:
+
+"2.0.0"
+
+Do NOT reset existing build numbers or version codes if production/test builds already exist.
+
+iOS build numbers and Android versionCode values must continue increasing.
+
+---
+
+42. NO BLIND GLOBAL REPLACEMENT
+
+This rule is critical.
+
+Do NOT run a repository-wide replacement such as:
+
+Replace "Calora" with "CaloraApp"
+
+without reviewing contexts.
+
+A word can appear in:
+
+- database keys
+- migration history
+- API contracts
+- external IDs
+- file paths
+- class names
+- OAuth configuration
+- cached storage keys
+- analytics events
+- store product IDs
+
+Changing those may break compatibility.
+
+Classify every replacement as:
+
+CUSTOMER-FACING BRAND
+
+INTERNAL SAFE
+
+PERSISTED CONTRACT
+
+EXTERNAL CONTRACT
+
+HISTORICAL
+
+Only change the first two automatically.
+
+---
+
+43. PRESERVE PERSISTED USER DATA
+
+Do not rename storage keys, database identifiers, AsyncStorage keys, SecureStore keys, cache namespaces or persisted state merely to make branding prettier unless a backward-compatible migration is implemented.
+
+Existing user data must survive this metadata mission.
+
+---
+
+44. PRESERVE API COMPATIBILITY
+
+Do not rename API endpoints, tRPC procedures, JSON properties or database fields solely because they contain an old internal project name unless there is a genuine technical reason.
+
+Customer-facing consistency does not require breaking API contracts.
+
+---
+
+45. TESTING MISSION
+
+After implementation, perform a full metadata-focused functionality test.
+
+Test:
+
+1. Fresh app launch.
+2. Splash.
+3. Onboarding.
+4. Signup.
+5. Login.
+6. Dashboard.
+7. Smart Scan.
+8. Barcode logging.
+9. Food logging.
+10. Meal review.
+11. Planner.
+12. Recipes.
+13. Progress.
+14. AI Coach.
+15. Settings.
+16. CaloraApp Pro/paywall.
+17. Subscription management.
+18. Restore purchases.
+19. Help.
+20. Privacy.
+21. Terms.
+22. Contact.
+23. Account management.
+24. Delete account.
+25. Logout.
+26. Login again.
+27. Deep links.
+28. Notifications where testable.
+29. Light mode.
+30. Dark mode.
+
+For every flow verify:
+
+- correct product name
+- correct links
+- correct publisher
+- no obsolete branding
+- no broken navigation
+- no missing assets
+- no layout regression
+- no authentication regression
+- no subscription regression
+- no persistence regression
+
+---
+
+46. SEARCH AGAIN AFTER IMPLEMENTATION
+
+Once changes are complete, perform another repository-wide forensic search.
+
+Search again for:
+
+- old product names
+- placeholder domains
+- placeholder emails
+- old legal URLs
+- old subscription names
+- incorrect publisher names
+- stale app titles
+- outdated package references
+- template branding
+
+For every remaining occurrence, explain why it remains.
+
+Do not simply claim "all references removed."
+
+Prove it.
+
+---
+
+47. STATIC VALIDATION
+
+Run all appropriate existing project checks, including where available:
+
+- TypeScript/type checking
+- lint
+- unit tests
+- integration tests
+- formatting checks
+- configuration validation
+- dependency checks
+- Expo diagnostics
+- existing test suite
+
+Fix regressions caused by this mission.
+
+Do not use this mission as an excuse to refactor unrelated code.
+
+---
+
+48. DO NOT BUILD OR DEPLOY
+
+Do not:
+
+- trigger an EAS build
+- create an APK
+- create an AAB
+- create an IPA
+- submit to Google Play
+- submit to App Store Connect
+- deploy production infrastructure
+- modify DNS
+- purchase services
+- publish RevenueCat products
+
+unless I explicitly authorize it.
+
+You may prepare configuration and report external actions required.
+
+---
+
+49. EXTERNAL DEPENDENCY REPORT
+
+Identify every item that cannot be completed purely from this repository.
+
+Examples:
+
+- domain DNS
+- email aliases
+- App Store Connect app record
+- Apple bundle identifier
+- Google Play application record
+- RevenueCat project configuration
+- OAuth consent-screen branding
+- Google Cloud credentials
+- Sign in with Apple
+- Privacy Policy hosting
+- Terms hosting
+- subscription product creation
+- store pricing
+- store introductory offers
+- screenshots
+- store feature graphics
+
+Do not fake completion of external work.
+
+Mark each item:
+
+COMPLETE
+
+REQUIRES OWNER ACTION
+
+REQUIRES STORE CONFIGURATION
+
+REQUIRES CREDENTIAL
+
+BLOCKED
+
+---
+
+50. CREATE A CANONICAL PROJECT DOCUMENT
+
+Create an appropriate repository document such as:
+
+"docs/CALORAAPP_PRODUCT_METADATA.md"
+
+or the best equivalent location based on the repository structure.
+
+It must become the human-readable canonical specification for product identity.
+
+Include:
+
+Identity
+
+CaloraApp
+
+Publisher
+
+Etiendem Technologies
+
+Positioning
+
+AI Nutrition & Calorie Tracker
+
+Tagline
+
+Eat Smarter. Live Better.
+
+Domain
+
+mycaloraapp.com
+
+Official URLs
+
+All approved URLs.
+
+Official Emails
+
+All approved addresses.
+
+Technical Identifiers
+
+Actual identifiers currently in use plus preferred identifiers and migration status.
+
+Subscription Identity
+
+CaloraApp Pro and actual store/RevenueCat identifiers.
+
+Pricing Strategy
+
+Approved introductory and standard pricing.
+
+Store Metadata
+
+Approved store-facing metadata.
+
+Legal Metadata
+
+Canonical legal URLs and disclaimer.
+
+Versioning
+
+Release convention.
+
+External Dependencies
+
+Anything managed outside the repository.
+
+This document must distinguish clearly between:
+
+CANONICAL BUSINESS METADATA
+
+and
+
+CURRENT TECHNICAL CONFIGURATION
+
+so future agents do not blindly overwrite production identifiers.
+
+---
+
+51. OPTIONAL MACHINE-READABLE METADATA
+
+If appropriate for the existing architecture, establish a machine-readable metadata configuration consumed by safe parts of the application.
+
+Do not introduce unnecessary abstraction.
+
+The objective is to reduce duplicated literals and future inconsistencies.
+
+Never place:
+
+- private API keys
+- RevenueCat secret keys
+- database credentials
+- OAuth secrets
+- signing credentials
+
+inside this public metadata object.
+
+---
+
+52. FINAL REGRESSION PASS
+
+After metadata implementation, perform a regression test against all major existing application areas.
+
+This mission must not damage:
+
+- authentication
+- user profiles
+- onboarding
+- food database
+- Smart Scan
+- photo analysis
+- barcode scanning
+- meal logging
+- nutrition calculations
+- dashboard
+- calorie widgets
+- planner
+- recipes
+- shopping lists
+- progress
+- AI Coach
+- settings
+- themes
+- subscription code
+- backend connectivity
+- persistence
+- analytics
+- accessibility
+
+If a regression is discovered:
+
+Investigate → repair → retest.
+
+Do not leave a regression merely because it appears unrelated to branding.
+
+---
+
+53. FINAL REPORT
+
+At the end, provide a detailed:
+
+CALORAAPP METADATA LOCK-IN REPORT
+
+The report must contain:
+
+1. Executive Summary
+
+What was established.
+
+2. Repository Audit
+
+Where identity and metadata were found.
+
+3. Canonical Metadata
+
+Final approved values.
+
+4. Existing Technical Identifiers
+
+Actual bundle ID, package ID, scheme and other important identifiers found.
+
+5. Identifier Decisions
+
+What was changed, preserved or flagged.
+
+6. Branding Changes
+
+Every customer-facing branding area updated.
+
+7. Subscription Metadata
+
+Actual entitlement, products and offering configuration discovered or established.
+
+8. Domain and URL Alignment
+
+What was updated and what remains external.
+
+9. Email Alignment
+
+What was updated and what still needs configuration.
+
+10. Legal Alignment
+
+Privacy, Terms, subscription and deletion URLs.
+
+11. Privacy Inventory
+
+Actual data types and third-party processors detected.
+
+12. Authentication Review
+
+Any branding or identifier dependencies.
+
+13. Third-Party Services
+
+Every detected external integration.
+
+14. Files Changed
+
+List every modified file and the reason.
+
+15. Files Created
+
+List every new file and purpose.
+
+16. Tests Performed
+
+Exact validation performed and results.
+
+17. Regression Results
+
+Confirm major existing flows remain operational.
+
+18. Remaining Old References
+
+List every old/legacy brand reference intentionally retained and why.
+
+19. External Actions Required
+
+Everything that must still be configured outside Replit.
+
+20. Production Blockers
+
+Anything preventing release.
+
+21. Final Status
+
+Choose exactly one:
+
+METADATA LOCK-IN COMPLETE
+
+COMPLETE WITH EXTERNAL ACTIONS REQUIRED
+
+BLOCKED
+
+---
+
+54. DEFINITION OF DONE
+
+Do not declare this mission complete because the app title changed.
+
+Completion requires alignment across every applicable layer:
+
+Product Identity
+
+↓
+
+Mobile Configuration
+
+↓
+
+Visible Application UI
+
+↓
+
+Authentication
+
+↓
+
+Subscriptions
+
+↓
+
+Settings & Account
+
+↓
+
+Domains & Contact
+
+↓
+
+Legal
+
+↓
+
+Store Metadata
+
+↓
+
+Notifications & Email
+
+↓
+
+Analytics / External Integrations
+
+↓
+
+Documentation
+
+↓
+
+Testing
+
+The result must leave CaloraApp with one coherent product identity and one documented source of truth.
+
+---
+
+55. OPERATING RULES
+
+Throughout this mission:
+
+Inspect before editing.
+
+Preserve working functionality.
+
+Do not guess external configuration.
+
+Do not expose secrets.
+
+Do not change externally registered identifiers blindly.
+
+Do not destroy persisted user data.
+
+Do not invent legal or privacy facts.
+
+Do not claim nonexistent URLs are live.
+
+Do not hardcode billing state.
+
+Do not trigger a build.
+
+Do not deploy.
+
+Do not stop at superficial branding.
+
+When uncertainty exists, investigate the repository and available configuration first.
+
+If the uncertainty concerns an external system that cannot be verified from the available environment, preserve the existing configuration and document what needs owner verification.
+
+Begin now with the forensic repository audit.
+
+Do not make changes until the dependency map is complete.

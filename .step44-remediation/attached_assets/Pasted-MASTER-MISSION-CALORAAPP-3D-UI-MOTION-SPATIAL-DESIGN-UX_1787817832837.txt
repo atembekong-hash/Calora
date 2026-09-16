@@ -1,0 +1,1466 @@
+MASTER MISSION: CALORAAPP 3D UI, MOTION, SPATIAL DESIGN, UX COMPRESSION, AND SAFE VISUAL MODERNIZATION
+
+You are working on an existing production-bound application called CaloraApp.
+
+This is NOT a greenfield redesign.
+
+The application already contains substantial working functionality, business logic, navigation, integrations, data handling, authentication, subscriptions, nutrition features, planning features, progress tracking, scanning, recipes, CaloraApp Coach, profile/settings, and other interconnected systems.
+
+Your mission is to substantially elevate the visual and interactive quality of the ENTIRE CaloraApp while preserving its existing capabilities and avoiding regressions.
+
+The desired result is:
+
+RICH WITHOUT LOOKING BUSY.
+
+CaloraApp should become:
+- More dimensional.
+- More tactile.
+- More elegant.
+- More compact.
+- More spatially intelligent.
+- More animated.
+- More visually distinctive.
+- Easier to understand.
+- Faster to operate.
+- Less cluttered.
+- Less repetitive.
+- More premium.
+- More emotionally satisfying to interact with.
+
+The application must retain its functional depth.
+
+DO NOT achieve simplicity by deleting useful functionality.
+
+Achieve simplicity by improving:
+- hierarchy,
+- progressive disclosure,
+- compact controls,
+- grouping,
+- navigation,
+- information density,
+- iconography,
+- spatial organization,
+- interaction design,
+- motion,
+- 3D treatment,
+- contextual actions,
+- and visual prioritization.
+
+==================================================
+0. PRIME DIRECTIVE: DO NO HARM
+==================================================
+
+Treat this as controlled modernization of a working system.
+
+DO NOT begin by rewriting screens.
+
+DO NOT perform a broad refactor merely because the existing architecture is imperfect.
+
+DO NOT replace working infrastructure unless necessary for this mission.
+
+DO NOT modify unrelated systems.
+
+DO NOT delete existing features because they appear visually inconvenient.
+
+DO NOT silently change business rules.
+
+DO NOT silently change navigation behavior.
+
+DO NOT silently change API contracts.
+
+DO NOT silently change database schemas.
+
+DO NOT silently change authentication.
+
+DO NOT silently change authorization.
+
+DO NOT silently change subscriptions, RevenueCat, purchase handling, entitlements, trials, pricing logic, or restore-purchase behavior.
+
+DO NOT silently change Supabase configuration.
+
+DO NOT silently change backend endpoints.
+
+DO NOT silently change nutrition calculations.
+
+DO NOT silently change user data structures.
+
+DO NOT silently change analytics or telemetry behavior.
+
+DO NOT silently change Coach/contextual-intelligence behavior.
+
+DO NOT silently change health integrations.
+
+DO NOT introduce new third-party dependencies simply to achieve a visual effect when the existing stack can reasonably provide it.
+
+DO NOT trigger a production build, store submission, database migration, destructive command, production deployment, or irreversible infrastructure operation unless explicitly required and demonstrably safe.
+
+Prefer additive, reversible changes.
+
+Before touching any important shared component, determine everywhere it is used.
+
+Before removing anything, prove that it is redundant.
+
+Before changing shared design primitives, determine the blast radius.
+
+Before changing navigation, identify every route that depends on it.
+
+Before changing state management, determine all consumers.
+
+Before changing a data-bound component, understand the data lifecycle.
+
+When uncertainty exists, investigate rather than guess.
+
+==================================================
+1. ESTABLISH A RECOVERY POINT FIRST
+==================================================
+
+Before implementation:
+
+1. Inspect repository status.
+2. Identify the current branch.
+3. Identify uncommitted changes.
+4. Identify the current known-good commit.
+5. Record the repository state.
+6. Do not overwrite unrelated user work.
+7. Establish a reversible checkpoint using the project's existing version-control workflow.
+8. Record files that were already modified before this mission.
+9. Distinguish pre-existing failures from failures introduced by this mission.
+
+Never use destructive Git operations merely to simplify your work.
+
+Never discard existing uncommitted work.
+
+The current application must remain recoverable.
+
+==================================================
+2. DISCOVER THE APPLICATION BEFORE REDESIGNING IT
+==================================================
+
+Perform a read-only discovery pass first.
+
+Map the application.
+
+Identify every meaningful:
+
+- screen,
+- tab,
+- route,
+- modal,
+- bottom sheet,
+- drawer,
+- overlay,
+- menu,
+- card,
+- widget,
+- action,
+- form,
+- button,
+- input,
+- selector,
+- chart,
+- graph,
+- list,
+- empty state,
+- loading state,
+- error state,
+- disabled state,
+- confirmation state,
+- destructive action,
+- navigation path,
+- user journey,
+- settings control,
+- subscription surface,
+- Coach surface,
+- contextual-intelligence surface,
+- scanning surface,
+- nutrition logging surface,
+- recipe surface,
+- planning surface,
+- progress surface,
+- profile/account surface.
+
+Create a FEATURE PRESERVATION MATRIX.
+
+For every major screen record:
+
+SCREEN
+FEATURE
+CURRENT LOCATION
+CURRENT USER ACTION
+DEPENDENCY
+DATA SOURCE
+NAVIGATION DESTINATION
+STATE
+MUST PRESERVE?
+PROPOSED UI TREATMENT
+VALIDATION REQUIRED
+
+This matrix becomes the protection contract for implementation.
+
+Nothing marked MUST PRESERVE may disappear accidentally.
+
+==================================================
+3. ESTABLISH THE CURRENT VISUAL BASELINE
+==================================================
+
+Inspect the actual application and existing implementation.
+
+Do not redesign based on assumptions.
+
+Determine the current:
+
+- color system,
+- dark theme,
+- light theme,
+- typography,
+- spacing,
+- cards,
+- borders,
+- radii,
+- shadows,
+- elevation,
+- iconography,
+- photography,
+- illustration,
+- button system,
+- navigation system,
+- segmented controls,
+- chips,
+- inputs,
+- sheets,
+- modals,
+- empty states,
+- loading indicators,
+- charts,
+- progress indicators,
+- interactive states,
+- motion,
+- accessibility behavior,
+- responsive behavior.
+
+Preserve strong existing Calora identity.
+
+The current dark visual language based around deep green surfaces, coral primary actions, mint/green positive feedback, food photography, large typography, restrained borders, and generous space should be treated as an existing brand foundation rather than casually replaced.
+
+Light and dark mode must remain members of ONE design system.
+
+Do not create two unrelated applications.
+
+==================================================
+4. DESIGN THESIS
+==================================================
+
+The guiding principle is:
+
+FEATURE DENSITY WITHOUT VISUAL DENSITY.
+
+A screen may contain substantial capability while presenting only the controls relevant to the current moment.
+
+Reduce clutter through:
+- hierarchy,
+- grouping,
+- compact controls,
+- progressive disclosure,
+- contextual actions,
+- expandable surfaces,
+- menus,
+- intelligent defaults,
+- sheets,
+- compact action clusters,
+- icon-first actions where understandable,
+- and better information architecture.
+
+Do NOT reduce clutter by simply removing features.
+
+==================================================
+5. COMPACT ACTION ARCHITECTURE
+==================================================
+
+A major inspiration is the efficient presentation used by polished financial applications where several actions such as Send, Deposit, Utilities, and More can occupy very little dashboard space while remaining immediately understandable.
+
+Apply this principle appropriately to Calora.
+
+Investigate where large Calora controls can become compact action systems.
+
+Examples may include:
+
+- Log food
+- Scan
+- Barcode
+- Voice
+- Water
+- Exercise
+- Saved meal
+- Restaurant
+- Quick add
+- Create recipe
+- Plan
+- Shopping
+- Coach
+- Weight logging
+- Health connection
+
+Do NOT automatically place all these actions together.
+
+Determine which actions belong on which screen.
+
+Frequently used actions should remain immediately reachable.
+
+Secondary actions can use progressive disclosure.
+
+Rare actions should not compete visually with primary content.
+
+A compact action system may use:
+- dimensional icon buttons,
+- compact labeled tiles,
+- horizontal action rails,
+- contextual floating controls,
+- expandable action clusters,
+- sheets,
+- menus,
+- or another coherent interaction pattern.
+
+Keep touch targets accessible even when visual footprints become smaller.
+
+Visual compactness must NOT produce tiny tap targets.
+
+==================================================
+6. CALORA 3D DESIGN LANGUAGE
+==================================================
+
+Create a coherent 3D system.
+
+Do NOT scatter random 3D graphics throughout the app.
+
+3D should communicate:
+- importance,
+- interaction,
+- state,
+- progress,
+- category,
+- reward,
+- or context.
+
+Potential dimensional subjects include:
+
+- food,
+- ingredients,
+- water,
+- hydration,
+- body weight,
+- scales,
+- meal planning,
+- shopping,
+- recipes,
+- scanning,
+- camera recognition,
+- nutrition,
+- macros,
+- achievements,
+- streaks,
+- Coach intelligence,
+- contextual signals,
+- goals,
+- progress,
+- empty states.
+
+Define:
+
+- geometry,
+- perspective,
+- material,
+- lighting,
+- shadow softness,
+- dimensional depth,
+- detail level,
+- active states,
+- dark-mode behavior,
+- light-mode behavior,
+- animation behavior,
+- performance constraints.
+
+The visual direction should favor tasteful depth.
+
+Avoid:
+- cartoon overload,
+- excessive gloss,
+- cheap gradients,
+- random glassmorphism,
+- excessive neon,
+- visual gimmicks,
+- giant decorative objects,
+- 3D elements that obscure information.
+
+The richest objects should exist against relatively quiet surfaces.
+
+==================================================
+7. DEPTH HIERARCHY
+==================================================
+
+Create clear depth levels.
+
+Example conceptual hierarchy:
+
+LEVEL 0
+Background and structural surfaces.
+
+LEVEL 1
+Standard content cards.
+
+LEVEL 2
+Interactive controls.
+
+LEVEL 3
+Primary actions and selected objects.
+
+LEVEL 4
+Temporary overlays, sheets, expanded objects, Coach moments.
+
+LEVEL 5
+Rare celebratory or milestone moments.
+
+Do not give everything the same shadow, elevation, glow, or dimensional treatment.
+
+Depth itself must communicate hierarchy.
+
+==================================================
+8. MOTION MUST BECOME PART OF CALORA'S IDENTITY
+==================================================
+
+Calora should contain significantly richer motion.
+
+However, motion must remain controlled.
+
+Create a formal CALORA MOTION SYSTEM.
+
+Define at minimum:
+
+MICRO MOTION
+Frequent, subtle feedback.
+
+Examples:
+- button press,
+- icon response,
+- toggle transition,
+- selection,
+- chip state,
+- card press,
+- tiny numerical updates,
+- progress movement.
+
+TRANSITION MOTION
+Used when context changes.
+
+Examples:
+- tab transitions,
+- day switching,
+- card expansion,
+- sheet presentation,
+- navigation,
+- chart changes,
+- planner changes,
+- Coach transitions.
+
+SEMANTIC MOTION
+Used to explain what happened.
+
+Examples:
+- meal logged,
+- calories updated,
+- macros updated,
+- water logged,
+- weight recorded,
+- plan generated,
+- scan completed.
+
+CELEBRATORY MOTION
+Reserved for meaningful events.
+
+Examples:
+- daily target achieved,
+- meaningful streak,
+- weekly plan completed,
+- important progress milestone,
+- major achievement.
+
+==================================================
+9. EXAMPLES OF DESIRED MOTION
+==================================================
+
+Explore appropriate implementation of:
+
+- calorie-ring animation,
+- macro changes,
+- animated number transitions,
+- progress graph drawing,
+- weight graph updates,
+- hydration feedback,
+- subtle liquid movement,
+- meal logging feedback,
+- scan-result reveal,
+- card expansion,
+- contextual Coach transitions,
+- planner construction,
+- shopping-list completion,
+- selected-tab motion,
+- button depth response,
+- 3D object tilt,
+- spring settling,
+- subtle parallax,
+- image reveal,
+- skeleton-to-content transitions,
+- success confirmations,
+- empty-state animation,
+- contextual action expansion.
+
+Do not blindly implement every example.
+
+Use them where they improve comprehension or delight.
+
+==================================================
+10. MOTION HIERARCHY
+==================================================
+
+If everything moves dramatically, nothing feels important.
+
+Therefore:
+
+Frequent interactions:
+small motion.
+
+Context changes:
+medium motion.
+
+Important accomplishments:
+larger motion.
+
+Major moments:
+rare cinematic motion.
+
+Never let animation slow routine logging.
+
+Users should be able to log food quickly.
+
+Motion should usually happen alongside completion rather than forcing users to wait for it.
+
+==================================================
+11. MOTION ACCESSIBILITY
+==================================================
+
+Respect reduced-motion preferences where supported.
+
+Provide restrained alternatives for significant motion.
+
+Avoid:
+- flashing,
+- rapid repeated movement,
+- unnecessary continuous animation,
+- disorienting zooming,
+- excessive parallax,
+- animation that blocks input.
+
+==================================================
+12. PERFORMANCE BUDGET
+==================================================
+
+Premium design that causes lag is a failed design.
+
+Protect:
+
+- startup time,
+- navigation responsiveness,
+- scrolling,
+- memory usage,
+- battery consumption,
+- image loading,
+- camera performance,
+- lower-end device performance.
+
+Avoid unnecessary continuous rendering.
+
+Pause off-screen animation.
+
+Do not animate expensive layout properties when better techniques exist.
+
+Reuse animation primitives.
+
+Lazy-load heavy visual resources where appropriate.
+
+Do not introduce huge 3D asset packages without justification.
+
+Favor GPU-friendly transformations.
+
+Measure rather than assuming performance is acceptable.
+
+==================================================
+13. TODAY / HOME
+==================================================
+
+Preserve its primary role as the user's immediate daily command center.
+
+Maintain:
+- daily context,
+- calorie state,
+- eaten/burned,
+- macros,
+- hydration,
+- date navigation,
+- trust/confidence,
+- meal information,
+- logging entry points,
+- relevant contextual information.
+
+Investigate whether secondary actions can become a compact dimensional action system.
+
+The calorie system should remain visually dominant.
+
+Explore tasteful animation for:
+- calorie progress,
+- numerical changes,
+- macros,
+- hydration,
+- day transitions,
+- logging.
+
+Do not overload the dashboard.
+
+==================================================
+14. RECIPES
+==================================================
+
+Preserve all existing recipe functionality.
+
+Improve:
+- visual discovery,
+- imagery,
+- filtering,
+- actions,
+- recipe states,
+- scanning/navigation relationships,
+- saved content,
+- recipe creation where applicable.
+
+Food photography should remain important.
+
+Use dimensional elements mainly for actions, categories, state, and interaction rather than competing with the food itself.
+
+==================================================
+15. SCAN
+==================================================
+
+Scan is a central action and already occupies the center navigation position.
+
+Treat it as a signature Calora interaction.
+
+Explore:
+- dimensional camera control,
+- scanning feedback,
+- recognition states,
+- confidence visualization,
+- result assembly,
+- review transitions,
+- logging completion.
+
+The user must remain the final authority before uncertain recognition is accepted.
+
+Do not let animation slow scanning.
+
+==================================================
+16. PROGRESS
+==================================================
+
+Preserve:
+- Overview,
+- Trends,
+- Weight,
+- charts,
+- goals,
+- logging rhythm,
+- data trust,
+- weight logging,
+- health synchronization states,
+- existing insights.
+
+Charts should become more alive but remain analytically readable.
+
+Possible improvements:
+- draw-in animations,
+- point emphasis,
+- animated values,
+- compact insights,
+- progressive disclosure.
+
+Do not sacrifice numerical clarity for decoration.
+
+==================================================
+17. PLAN
+==================================================
+
+Preserve:
+- Today,
+- Week,
+- Shopping,
+- weekly navigation,
+- program,
+- meal slots,
+- editing,
+- meal cards,
+- logging,
+- nutrition information,
+- shopping functionality,
+- plan generation.
+
+The Plan screen already contains substantial information.
+
+Focus strongly on compression and hierarchy.
+
+Meal photography remains valuable.
+
+Explore richer transitions when:
+- changing days,
+- changing weeks,
+- building a week,
+- replacing meals,
+- logging planned meals,
+- opening meal details.
+
+==================================================
+18. CALORAAPP COACH
+==================================================
+
+Coach should feel intelligent, calm, contextual, and connected to the rest of Calora.
+
+Preserve:
+- chat,
+- suggestions,
+- weekly read,
+- contextual intelligence,
+- history,
+- existing navigation,
+- relevant privacy/context behavior.
+
+Explore a subtle visual identity for intelligence.
+
+Possible motifs:
+- signal,
+- pulse,
+- layered context,
+- softly animated intelligence object,
+- dimensional signal icon.
+
+Avoid generic chatbot aesthetics.
+
+Do not turn Coach into a distracting animated character unless such a decision is explicitly approved.
+
+==================================================
+19. PROFILE & SETTINGS
+==================================================
+
+Preserve:
+- profile editing,
+- account,
+- membership,
+- subscription controls,
+- referral/invite system,
+- saved meals,
+- living memory,
+- appearance,
+- text size,
+- measurement units,
+- reminders,
+- health data,
+- export,
+- delete local data,
+- delete account,
+- sign out,
+- privacy,
+- help,
+- About,
+- and every existing setting.
+
+This area contains many features.
+
+It is an ideal candidate for information compression.
+
+Improve hierarchy without hiding important account, privacy, billing, or destructive actions in misleading locations.
+
+Never use dark patterns.
+
+Subscription pricing and status must remain truthful and store-driven.
+
+==================================================
+20. NAVIGATION
+==================================================
+
+Preserve the established core navigation unless evidence proves a change is necessary.
+
+Current major structure includes:
+- Home,
+- Recipes,
+- Scan,
+- Progress,
+- Plan.
+
+Coach and Profile have their established entry points.
+
+Do not casually rearrange navigation.
+
+Improve visual feedback and motion while keeping muscle memory intact.
+
+The center Scan action may receive richer dimensional treatment because of its importance.
+
+==================================================
+21. LIGHT + DARK MODE
+==================================================
+
+Every redesigned component must work intentionally in BOTH themes.
+
+Do not design dark mode first and mechanically invert it.
+
+Do not design light mode first and merely darken it.
+
+Validate:
+- contrast,
+- surfaces,
+- depth,
+- shadows,
+- borders,
+- icons,
+- images,
+- disabled states,
+- semantic colors,
+- charts,
+- 3D lighting,
+- overlays,
+- sheets,
+- navigation.
+
+3D assets must not appear pasted onto one theme.
+
+==================================================
+22. DESIGN TOKENS
+==================================================
+
+Centralize the design system where the architecture permits.
+
+Define reusable tokens for:
+
+- colors,
+- semantic colors,
+- typography,
+- spacing,
+- radius,
+- borders,
+- elevation,
+- shadows,
+- icon sizes,
+- touch targets,
+- motion duration,
+- easing,
+- springs,
+- opacity,
+- overlays,
+- component states.
+
+Avoid dozens of arbitrary one-off values.
+
+Do not perform a dangerous whole-project token migration in one pass.
+
+Adopt carefully.
+
+==================================================
+23. COMPONENT SYSTEM
+==================================================
+
+Where appropriate, create or improve reusable primitives for:
+
+- primary buttons,
+- secondary buttons,
+- icon actions,
+- compact actions,
+- cards,
+- dimensional cards,
+- chips,
+- status pills,
+- tabs,
+- segmented controls,
+- inputs,
+- list rows,
+- sheets,
+- modals,
+- empty states,
+- loading states,
+- progress elements,
+- chart containers,
+- section headers,
+- image cards,
+- navigation elements.
+
+Do not create abstraction for abstraction's sake.
+
+Shared components must simplify maintenance rather than obscure behavior.
+
+==================================================
+24. RESPONSIVENESS
+==================================================
+
+Do not optimize only for the device used in screenshots.
+
+Validate across representative:
+- narrow phones,
+- standard phones,
+- larger phones,
+- Android layouts,
+- iOS layouts,
+- safe areas,
+- navigation modes,
+- keyboard states,
+- text scaling.
+
+Prevent:
+- clipped text,
+- overlapping buttons,
+- off-screen actions,
+- broken cards,
+- inaccessible controls,
+- fixed-height content failures.
+
+==================================================
+25. CONTENT DENSITY
+==================================================
+
+Use the following hierarchy:
+
+PRIMARY
+What the user needs now.
+
+SECONDARY
+Useful supporting context.
+
+TERTIARY
+Available on demand.
+
+Do not show tertiary information at primary prominence.
+
+This is one of the main mechanisms for reducing clutter without removing capability.
+
+==================================================
+26. ACCESSIBILITY
+==================================================
+
+Visual refinement must not weaken accessibility.
+
+Preserve or improve:
+- contrast,
+- readable typography,
+- text scaling,
+- screen-reader semantics,
+- button labels,
+- focus behavior,
+- touch targets,
+- reduced motion,
+- error communication,
+- destructive-action confirmation.
+
+Never rely only on color to communicate important state.
+
+==================================================
+27. IMPLEMENTATION STRATEGY
+==================================================
+
+DO NOT redesign the entire application in one uncontrolled pass.
+
+Work in controlled phases.
+
+PHASE A
+Discovery and baseline.
+
+PHASE B
+Feature Preservation Matrix.
+
+PHASE C
+Visual + Spatial + Motion Audit.
+
+PHASE D
+Calora 3D UI + Motion Design System.
+
+PHASE E
+Shared primitives.
+
+PHASE F
+Pilot implementation on a limited representative surface.
+
+PHASE G
+Validate the pilot.
+
+PHASE H
+Expand incrementally to remaining screens.
+
+PHASE I
+Cross-screen consistency pass.
+
+PHASE J
+Full regression testing.
+
+PHASE K
+Final forensic audit.
+
+Do not proceed from one major implementation phase to another if the current phase introduces unresolved critical regressions.
+
+==================================================
+28. PILOT BEFORE MASS MIGRATION
+==================================================
+
+Before changing every screen, prove the new system on a small but representative portion of the application.
+
+The pilot should test:
+- dark mode,
+- light mode,
+- 3D treatment,
+- compact actions,
+- animation,
+- cards,
+- typography,
+- interaction,
+- navigation,
+- performance.
+
+Validate the approach before propagating it.
+
+If the pilot exposes architectural or performance problems, solve them before expansion.
+
+==================================================
+29. CHANGE-SCOPE CONTROL
+==================================================
+
+For every implementation batch:
+
+Before editing:
+- state what will change,
+- identify affected files,
+- identify affected screens,
+- identify shared dependencies,
+- identify regression risks.
+
+After editing:
+- run relevant tests,
+- run type checking,
+- run linting where available,
+- inspect errors,
+- validate affected flows,
+- compare behavior against baseline.
+
+Do not accumulate dozens of unrelated changes before testing.
+
+==================================================
+30. NEVER HIDE FAILURES
+==================================================
+
+Do not:
+- comment out failing tests,
+- weaken assertions,
+- remove validation,
+- suppress TypeScript errors,
+- use broad `any` merely to silence errors,
+- disable lint rules without justification,
+- swallow exceptions,
+- replace working behavior with placeholders,
+- mock production functionality and call it complete.
+
+Fix root causes.
+
+If something cannot be safely fixed, document the blocker.
+
+==================================================
+31. TESTING
+==================================================
+
+After each meaningful implementation batch run all relevant available checks.
+
+At minimum investigate:
+
+- type checking,
+- linting,
+- unit tests,
+- component tests,
+- integration tests,
+- navigation tests,
+- existing E2E tests,
+- build validation.
+
+Then perform flow-level verification.
+
+Test:
+- startup,
+- authentication,
+- onboarding where applicable,
+- Home,
+- Recipes,
+- Scan,
+- Progress,
+- Plan,
+- Coach,
+- Profile,
+- settings,
+- account,
+- subscription surfaces,
+- referral,
+- saved meals,
+- health states,
+- export,
+- reminders,
+- theme switching,
+- text sizing,
+- measurement units,
+- sign out,
+- destructive-action safeguards.
+
+==================================================
+32. INTERACTION FORENSICS
+==================================================
+
+Verify every touched:
+
+- button,
+- tab,
+- icon,
+- chip,
+- selector,
+- input,
+- toggle,
+- menu,
+- sheet,
+- modal,
+- card action,
+- back button,
+- navigation action,
+- link.
+
+Confirm:
+- visible,
+- reachable,
+- tappable,
+- correctly routed,
+- responsive,
+- not obstructed,
+- correct state after interaction.
+
+Animation must never create invisible overlays that intercept touches.
+
+==================================================
+33. SCROLL FORENSICS
+==================================================
+
+Every screen must remain fully scrollable where content requires scrolling.
+
+Check:
+- sticky headers,
+- bottom navigation,
+- keyboard,
+- modals,
+- sheets,
+- safe areas,
+- long content,
+- dynamic content,
+- text scaling.
+
+No content should become trapped behind navigation.
+
+==================================================
+34. DATA INTEGRITY
+==================================================
+
+A UI modernization must not corrupt application data.
+
+Explicitly protect:
+- diary entries,
+- meals,
+- recipes,
+- plans,
+- shopping lists,
+- weight history,
+- profile data,
+- settings,
+- reminders,
+- account state,
+- subscription state,
+- referral state,
+- saved meals,
+- Coach context,
+- living memory,
+- health data references.
+
+If a visual component writes data, validate both read and write behavior after modification.
+
+==================================================
+35. SECURITY AND PRIVACY
+==================================================
+
+Do not weaken security to simplify UI implementation.
+
+Never expose:
+- secrets,
+- API keys,
+- access tokens,
+- refresh tokens,
+- service credentials,
+- private user data.
+
+Do not log sensitive values for debugging.
+
+Preserve authentication boundaries.
+
+Preserve authorization boundaries.
+
+Preserve account-deletion safeguards.
+
+Preserve privacy messaging only when technically accurate.
+
+==================================================
+36. SUBSCRIPTION SAFETY
+==================================================
+
+Treat subscription surfaces as financially sensitive.
+
+Do not hard-code fake store availability.
+
+Do not invent pricing.
+
+Do not claim a subscription is active unless entitlement state confirms it.
+
+Do not change product identifiers casually.
+
+Do not change RevenueCat configuration unless necessary and verified.
+
+Do not alter trial rules without explicit authorization.
+
+Restore Purchases and Manage Subscription must remain functional.
+
+==================================================
+37. VISUAL REGRESSION REVIEW
+==================================================
+
+After implementation, inspect representative screens in both themes.
+
+Compare:
+- hierarchy,
+- density,
+- alignment,
+- typography,
+- spacing,
+- imagery,
+- card consistency,
+- icon consistency,
+- motion consistency,
+- theme consistency,
+- clipping,
+- overflow.
+
+Look specifically for UI that became prettier but harder to use.
+
+Reject such changes.
+
+==================================================
+38. SUCCESS CRITERIA
+==================================================
+
+The mission succeeds only if:
+
+1. Existing major features remain available.
+2. Existing major flows still work.
+3. Visual clutter is measurably reduced.
+4. High-frequency actions require no unnecessary additional steps.
+5. Information hierarchy is clearer.
+6. 3D treatment feels coherent.
+7. Motion feels coherent.
+8. Motion improves feedback and comprehension.
+9. Light mode remains polished.
+10. Dark mode remains polished.
+11. Performance remains acceptable.
+12. Accessibility is preserved or improved.
+13. Navigation remains understandable.
+14. No important business logic was accidentally altered.
+15. No data integrity regression was introduced.
+16. No authentication regression was introduced.
+17. No subscription regression was introduced.
+18. No major responsive regression was introduced.
+19. No known critical test regression remains.
+20. The result feels recognizably CaloraApp rather than a generic template.
+
+==================================================
+39. FINAL FORENSIC PASS
+==================================================
+
+When implementation appears complete, assume something may still be wrong.
+
+Perform a final independent review.
+
+Search for:
+- broken imports,
+- dead code introduced by the redesign,
+- unused components,
+- duplicated components,
+- old design remnants,
+- hard-coded theme values,
+- inconsistent spacing,
+- inconsistent radii,
+- inaccessible controls,
+- missing reduced-motion behavior,
+- animation leaks,
+- timers not cleaned up,
+- off-screen animations,
+- unnecessary rerenders,
+- image memory problems,
+- navigation regressions,
+- stale references,
+- TODOs,
+- FIXMEs,
+- temporary hacks,
+- debug logs,
+- commented-out code,
+- placeholder behavior,
+- swallowed errors.
+
+Do not declare completion merely because the application compiles.
+
+==================================================
+40. FINAL REPORT
+==================================================
+
+Create and SAVE a persistent report inside the project.
+
+Use a filename whose identifying words appear at the BEGINNING of the filename so it is easy to distinguish on mobile.
+
+Suggested filename:
+
+CALORA_3D_UI_MOTION_REDESIGN_FINAL_REPORT.md
+
+The report must contain:
+
+1. Executive summary
+2. Initial repository state
+3. Baseline findings
+4. Feature Preservation Matrix
+5. Visual audit findings
+6. Spatial/UX audit findings
+7. Motion audit findings
+8. 3D design system created
+9. Motion system created
+10. Design tokens created/changed
+11. Shared components created/changed
+12. Screen-by-screen changes
+13. Features intentionally compressed
+14. Features moved through progressive disclosure
+15. Features explicitly preserved
+16. Files modified
+17. Dependencies added or removed and why
+18. Tests executed
+19. Test results
+20. Typecheck results
+21. Lint results
+22. Build-validation results
+23. Flow-validation results
+24. Light-mode validation
+25. Dark-mode validation
+26. Responsive validation
+27. Accessibility findings
+28. Performance findings
+29. Security/privacy findings
+30. Subscription-safety findings
+31. Known limitations
+32. Remaining risks
+33. Blockers
+34. Before/after evidence where available
+35. Final production-readiness verdict
+
+For every important claim, include evidence where reasonably available.
+
+Do not write "tested" without stating what was tested and the result.
+
+==================================================
+41. FINAL VERDICT
+==================================================
+
+Finish with exactly one evidence-based verdict:
+
+PASS
+The redesign is implemented and independently validated with no known release-blocking regression attributable to this mission.
+
+CONDITIONAL PASS
+The redesign is substantially complete but clearly documented non-critical limitations remain.
+
+FAIL
+Important regressions, unresolved safety problems, or incomplete implementation remain.
+
+Never manufacture PASS.
+
+==================================================
+42. AUTONOMOUS EXECUTION RULE
+==================================================
+
+Proceed autonomously through investigation, planning, implementation, testing, correction, and final verification.
+
+Do not repeatedly stop for ordinary implementation decisions that can be safely resolved from the repository and established design principles.
+
+However, autonomy does NOT authorize destructive action.
+
+STOP and report before proceeding if you encounter a decision that would require:
+
+- destructive production-data changes,
+- irreversible database migration,
+- replacement of core architecture,
+- removal of a major existing feature,
+- material changes to authentication,
+- material changes to subscription products or pricing,
+- new paid infrastructure,
+- exposure of secrets,
+- deletion of user data,
+- or another high-impact decision that cannot be safely inferred.
+
+For normal implementation choices, investigate and continue.
+
+For dangerous or irreversible choices, stop.
+
+==================================================
+43. CORE STANDARD
+==================================================
+
+Do not optimize for the number of files changed.
+
+Do not optimize for how dramatic the redesign appears.
+
+Do not optimize for novelty.
+
+Optimize for:
+
+BEAUTY
++
+CLARITY
++
+COMPACTNESS
++
+DEPTH
++
+MOTION
++
+SPEED
++
+ACCESSIBILITY
++
+FUNCTIONAL PRESERVATION
++
+RELIABILITY.
+
+The final application should contain MORE perceived richness with LESS perceived clutter.
+
+A user should feel that CaloraApp has become more sophisticated without having to relearn the application.
+
+A developer should find the visual system more coherent rather than more fragile.
+
+A feature should never disappear merely because there was not enough room for it.
+
+Find a better way to present it.
+
+Begin with the read-only discovery, recovery checkpoint, Feature Preservation Matrix, and Visual + Spatial + Motion Audit.
+
+Only then begin controlled implementation.

@@ -1,0 +1,1513 @@
+CALORA INTELLIGENCE MASTER BLUEPRINT
+
+Production Architecture, Product Intelligence, Contextual Insights & Calora Coach Integration
+
+Mission
+
+Evolve the existing Calora application from a nutrition-tracking application into a context-aware nutrition intelligence system.
+
+Calora should not merely record what a user eats.
+
+It should progressively understand:
+
+1. What happened.
+2. What is happening now.
+3. Why it may be happening.
+4. Whether a meaningful pattern exists.
+5. What is likely to happen next.
+6. What action would be useful now.
+7. Whether previous recommendations actually helped.
+
+The result should feel less like a collection of AI features and more like a coherent intelligence layer running quietly throughout Calora.
+
+This intelligence must be useful, restrained, evidence-aware, explainable, privacy-conscious, and deeply integrated into the existing product.
+
+---
+
+1. NON-NEGOTIABLE IMPLEMENTATION RULE
+
+Calora already exists. Do not rebuild it.
+
+Do not begin implementation immediately.
+
+First perform a forensic architecture audit of the current application.
+
+Map:
+
+- existing screens
+- navigation
+- dashboard
+- food logging
+- meal records
+- nutrition calculations
+- goals
+- onboarding data
+- user preferences
+- recipes
+- premium recipes
+- AI recipe generation
+- restaurant data
+- Planner
+- shopping lists
+- Progress
+- Activities if present
+- Calora Coach
+- authentication
+- Supabase
+- APIs
+- local state
+- server state
+- database schema
+- caching
+- background processes
+- notification infrastructure
+- subscription/paywall logic
+- analytics
+- localization
+- error handling
+- existing AI/LLM integrations
+
+Identify what can be reused before proposing anything new.
+
+The Intelligence system must be added as a modular layer around the existing architecture.
+
+Do not replace stable systems merely because another architecture appears cleaner.
+
+Preserve existing functionality unless a change is explicitly required by this blueprint.
+
+---
+
+2. PRODUCT PRINCIPLE
+
+Calora Intelligence is not a screen.
+
+It is a system.
+
+Think of it as the nervous system running throughout Calora.
+
+The user should encounter intelligence naturally while using the application rather than needing to visit a special AI area.
+
+The system should operate roughly as:
+
+User Data → Context → Analysis → Pattern Detection → Insight → Prediction → Recommendation → Coach Communication → User Action → Outcome → Learning
+
+The intelligence system produces understanding.
+
+Calora Coach communicates and explores that understanding.
+
+The interface surfaces the right portion of it at the right moment.
+
+---
+
+3. THE THREE-LAYER MODEL
+
+Maintain strict separation between these layers.
+
+Layer A: Calora Intelligence Engine
+
+The brain.
+
+Responsible for:
+
+- data interpretation
+- context assembly
+- nutrition analysis
+- behavioral pattern detection
+- trend analysis
+- anomaly detection
+- correlations
+- prediction
+- prioritization
+- recommendation generation
+- confidence scoring
+- evidence tracking
+- learning from outcomes
+
+It should normally operate invisibly.
+
+---
+
+Layer B: Contextual Insight Delivery
+
+The nervous system.
+
+Responsible for deciding:
+
+- which insight matters
+- where it should appear
+- when it should appear
+- how much information is appropriate
+- whether the user should be interrupted
+- whether the information belongs on Home, Planner, Recipes, Progress, meal logging, or elsewhere
+
+Contextual insights are therefore outputs of the Intelligence Engine, not a separate competing AI product.
+
+---
+
+Layer C: Calora Coach
+
+The human-facing intelligence interface.
+
+Coach should consume trusted outputs from the Intelligence Engine and turn them into useful conversations.
+
+Coach can:
+
+- explain an insight
+- answer follow-up questions
+- explore alternatives
+- help create a plan
+- explain trends
+- discuss meals
+- explain recommendations
+- help users act on insights
+
+Coach should not maintain an independent contradictory understanding of the user.
+
+One intelligence system. Multiple interfaces.
+
+---
+
+4. INTELLIGENCE MATURITY MODEL
+
+Do not attempt to solve everything with one LLM call.
+
+Build intelligence in layers.
+
+Level 1: Descriptive Intelligence
+
+Answer:
+
+What happened?
+
+Examples:
+
+- calories consumed
+- remaining calories
+- protein consumed
+- fiber consumed
+- meal distribution
+- activity totals
+- hydration if tracked
+- weight changes
+
+This should primarily come from deterministic calculations.
+
+---
+
+Level 2: Diagnostic Intelligence
+
+Answer:
+
+What appears to be driving it?
+
+Example:
+
+«Your calorie intake was higher than usual this week. Dinner accounted for most of the increase.»
+
+Avoid pretending correlation proves causation.
+
+Use language such as:
+
+- appears associated with
+- coincided with
+- contributed to
+- tends to occur when
+
+unless stronger evidence exists.
+
+---
+
+Level 3: Pattern Intelligence
+
+Answer:
+
+Is this recurring?
+
+Possible patterns:
+
+- weekday versus weekend intake
+- recurring low-protein breakfasts
+- late-night eating
+- restaurant-day changes
+- meal-skipping patterns
+- recurring nutrient gaps
+- adherence patterns
+- logging consistency
+- activity and intake relationships
+- weight trend relationships
+
+Require adequate observations before presenting patterns as meaningful.
+
+---
+
+Level 4: Predictive Intelligence
+
+Answer:
+
+What is likely to happen next?
+
+Example:
+
+«At your current pace, you may finish today roughly 300 calories above your target.»
+
+Predictions must include uncertainty.
+
+Never present estimates as facts.
+
+---
+
+Level 5: Prescriptive Intelligence
+
+Answer:
+
+What is the smallest useful action now?
+
+Example:
+
+«Dinner is your largest remaining meal and protein is still low. A protein-forward dinner would bring today's balance closer to target.»
+
+Prefer practical actions over lectures.
+
+---
+
+Level 6: Adaptive Intelligence
+
+Answer:
+
+What works for this particular user?
+
+Calora should gradually learn from:
+
+- accepted suggestions
+- ignored suggestions
+- rejected suggestions
+- changed meals
+- repeated foods
+- recipe saves
+- planner edits
+- shopping behavior
+- logging habits
+- goal progress
+- Coach interactions
+
+Do not assume that ignored advice means the advice was wrong.
+
+Treat behavior as evidence, not certainty.
+
+---
+
+5. CONTEXT MODEL
+
+An insight is only as good as its context.
+
+Create a structured User Nutrition Context rather than sending arbitrary raw history to an LLM.
+
+Potential context dimensions include:
+
+Current state
+
+- current date/time
+- calories consumed
+- calories remaining
+- macros
+- relevant micronutrients
+- meals logged
+- planned meals
+- recent activity
+- current goal state
+
+Historical state
+
+Where enough data exists:
+
+- 7-day trends
+- 14-day trends
+- 30-day trends
+- personal baselines
+- recurring patterns
+- logging consistency
+
+User preferences
+
+Where available:
+
+- dietary preferences
+- allergies
+- exclusions
+- disliked foods
+- favorite foods
+- cuisine preferences
+- meal habits
+- budget preferences
+- preparation preferences
+
+Planning context
+
+- current meal plan
+- upcoming meals
+- shopping list
+- ingredients already available
+- saved recipes
+- recent recipes
+
+Goal context
+
+Use only information legitimately collected by Calora.
+
+Examples:
+
+- calorie target
+- macro targets
+- nutrition goals
+- weight-related goals
+- activity goals
+
+Never infer sensitive personal information merely because it might improve personalization.
+
+---
+
+6. INSIGHT OBJECT MODEL
+
+Do not allow AI-generated prose to become the primary data model.
+
+Create structured insight objects.
+
+Example conceptual structure:
+
+Insight
+- id
+- type
+- category
+- priority
+- title
+- summary
+- explanation
+- evidence
+- dataWindow
+- confidence
+- uncertainty
+- recommendedAction
+- alternativeActions
+- relatedScreen
+- relatedEntities
+- generatedAt
+- expiresAt
+- source
+- safetyClassification
+- dismissible
+- coachExpandable
+
+This makes insights:
+
+- testable
+- auditable
+- reusable
+- rankable
+- localizable
+- measurable
+- explainable
+
+The UI should render structured intelligence rather than blindly displaying generated text.
+
+---
+
+7. EVIDENCE AND CONFIDENCE
+
+Every meaningful insight should have an internal evidence trail.
+
+Example:
+
+Insight:
+Protein intake has been below target recently.
+
+Evidence:
+5 of the previous 7 sufficiently logged days were below the user's configured protein target.
+
+Confidence:
+High
+
+Confidence should depend on factors such as:
+
+- number of observations
+- completeness of logs
+- recency
+- consistency
+- strength of the detected pattern
+- reliability of underlying data
+
+Low-quality data must produce weaker language or no insight.
+
+Silence is better than false intelligence.
+
+---
+
+8. INSIGHT PRIORITY ENGINE
+
+Calora must not flood the interface with observations.
+
+Score candidate insights using factors such as:
+
+Priority = Relevance × Impact × Confidence × Timeliness × Actionability
+
+Apply suppression for:
+
+- repetition
+- stale information
+- conflicting recommendations
+- recently dismissed insights
+- low-confidence patterns
+
+A user should generally see the few things that matter most.
+
+Not everything Calora knows needs to be shown.
+
+---
+
+9. HOME / TODAY EXPERIENCE
+
+The Home screen should become the clearest expression of Calora Intelligence.
+
+Do not turn it into an AI dashboard.
+
+Preserve its simplicity.
+
+Introduce a prominent but restrained area such as:
+
+Today's Focus
+
+Example:
+
+«Protein is the main gap today. You are 34 g below target with dinner remaining.»
+
+Action:
+
+See options
+
+Another day might show:
+
+«You're tracking close to your usual weekday pattern. No major adjustment is needed.»
+
+Another:
+
+«Lunch has been lighter than usual today. Your planned dinner still keeps the day close to target.»
+
+The purpose is to answer:
+
+What matters most right now?
+
+Only surface an insight when it adds value.
+
+---
+
+10. POST-LOGGING INTELLIGENCE
+
+Logging food is one of Calora's richest intelligence moments.
+
+After a meal or food is logged, calculate its effect.
+
+Possible response:
+
+«Lunch added 31 g of protein. You're now at 72% of today's protein target.»
+
+Or:
+
+«This meal used most of today's remaining sodium allowance. Your calorie balance remains on track.»
+
+Avoid judgmental language.
+
+Avoid:
+
+«Bad choice.»
+
+Avoid:
+
+«You shouldn't have eaten this.»
+
+The system explains consequences. The user remains in control.
+
+---
+
+11. RECIPES
+
+Recipes should become context-aware.
+
+Instead of only:
+
+Recommended Recipe
+
+Calora can explain:
+
+Why it fits today
+
+«Higher in protein and uses ingredients already on your shopping list.»
+
+Or:
+
+«Fits your remaining dinner calories better than your recent saved recipes.»
+
+Recommendations should consider available context, but must not pretend data exists when it does not.
+
+---
+
+12. AI RECIPE CREATION
+
+The existing AI recipe capability can become much stronger.
+
+Possible inputs:
+
+- available ingredients
+- shopping list
+- calorie allowance
+- macro needs
+- dietary preferences
+- meal type
+- preparation time
+- previous meals
+
+Example:
+
+«You have about 620 calories available for dinner and are behind on protein. I can build dinner around the chicken, spinach, and rice already on your list.»
+
+The user should be able to modify constraints before generation.
+
+---
+
+13. PLANNER
+
+Planner should consume the same intelligence.
+
+Instead of simply generating a weekly plan, Calora can explain important decisions.
+
+Example:
+
+Why this plan?
+
+«Breakfasts are slightly higher in protein because your recent mornings have consistently fallen below your configured protein target.»
+
+The plan should remain editable.
+
+Calora proposes.
+
+The user decides.
+
+---
+
+14. SHOPPING LIST INTELLIGENCE
+
+Where supported by existing architecture, connect planning, recipes, and shopping.
+
+Potential intelligence:
+
+«Three planned dinners use spinach this week, so the list consolidates it into one item.»
+
+Or:
+
+«You already marked eggs as available, so they were not added again.»
+
+Do not create complicated inventory management unless the current product requires it.
+
+---
+
+15. PROGRESS
+
+Progress should move from:
+
+chart → user interpretation
+
+toward:
+
+chart → Calora interpretation → user exploration
+
+Example:
+
+Calora's Read
+
+«Your 14-day average is moving gradually toward your target. Weekend intake remains more variable than weekdays.»
+
+Allow:
+
+Ask Coach about this
+
+Coach receives the exact insight and evidence context.
+
+The user should never have to explain the chart again.
+
+---
+
+16. CALORA COACH 2.0
+
+The current Coach should be audited before modification.
+
+Do not rebuild its interface unless necessary.
+
+Its intelligence architecture should change.
+
+Coach becomes the conversational interface to the same Intelligence Engine.
+
+Conceptual flow:
+
+User question
+      ↓
+Intent detection
+      ↓
+Relevant context retrieval
+      ↓
+Intelligence Engine
+      ↓
+Evidence / insight retrieval
+      ↓
+Safety layer
+      ↓
+Coach response
+
+Coach should distinguish between:
+
+Known
+
+Information directly available from Calora.
+
+Calculated
+
+Information derived deterministically.
+
+Inferred
+
+Patterns derived from observations.
+
+Predicted
+
+Future estimates.
+
+Suggested
+
+Recommended actions.
+
+These categories should affect response wording.
+
+---
+
+17. DEEP-LINKED COACH CONVERSATIONS
+
+Every meaningful insight should optionally support:
+
+Ask Coach
+
+Example:
+
+Home:
+
+«Protein is your main gap today.»
+
+User taps:
+
+Ask Coach
+
+Coach already knows:
+
+- which insight was tapped
+- evidence behind it
+- current nutrition state
+- relevant goal
+- related meals
+
+Coach can immediately say:
+
+«Most of the gap comes from breakfast and lunch. Dinner can cover much of it without changing your calorie target significantly.»
+
+No repeated explanation from the user.
+
+This is critical.
+
+---
+
+18. COACH MEMORY
+
+Do not give Coach unlimited opaque memory.
+
+Create controlled memory categories.
+
+Potential persistent information:
+
+- explicit preferences
+- accepted dietary choices
+- recurring user-selected goals
+- relevant stable preferences
+
+Potential temporary context:
+
+- today's meals
+- current plan
+- active insight
+- recent conversation
+
+Do not convert every conversation into permanent memory.
+
+Users should retain meaningful control over personalization data.
+
+---
+
+19. FEEDBACK LOOP
+
+Every insight should support learning where appropriate.
+
+Potential signals:
+
+- opened
+- ignored
+- dismissed
+- expanded
+- asked Coach
+- recommendation accepted
+- alternative selected
+- action completed
+
+Use this carefully.
+
+Example:
+
+If the user repeatedly rejects high-protein breakfast suggestions but accepts protein-rich lunches, future recommendations may shift toward lunch.
+
+That is adaptation.
+
+Do not interpret every click as preference truth.
+
+---
+
+20. COLD START
+
+Calora must behave intelligently even when little history exists.
+
+Stage 1
+
+Use:
+
+- onboarding information
+- configured goals
+- today's data
+- deterministic nutrition rules
+
+Stage 2
+
+After sufficient observations:
+
+Introduce simple trends.
+
+Stage 3
+
+After adequate history:
+
+Introduce behavioral patterns.
+
+Stage 4
+
+With stronger longitudinal evidence:
+
+Introduce cautious predictions and deeper personalization.
+
+Never fabricate history.
+
+If Calora does not know, it should say so.
+
+---
+
+21. EXPLAINABILITY
+
+Users should be able to understand why Calora produced important recommendations.
+
+Provide lightweight explanations such as:
+
+Why am I seeing this?
+
+Example:
+
+«Based on your last seven sufficiently logged days and today's intake.»
+
+For deeper cases:
+
+Show details
+
+The goal is trust without turning Calora into an analytics laboratory.
+
+---
+
+22. SAFETY AND NUTRITION BOUNDARIES
+
+Nutrition is health-adjacent.
+
+The Intelligence Engine must distinguish wellness guidance from medical advice.
+
+Calora must not:
+
+- diagnose diseases
+- claim symptoms prove a condition
+- recommend dangerous restriction
+- encourage starvation
+- present uncertain medical claims as facts
+- recommend unsafe weight-loss behavior
+- replace professional medical care
+- make unsupported causal claims
+
+Implement explicit safety rules rather than relying solely on LLM behavior.
+
+Higher-risk requests should receive appropriate boundaries and safer guidance.
+
+---
+
+23. DETERMINISTIC FIRST, AI SECOND
+
+Do not use an LLM for calculations that ordinary code can perform reliably.
+
+Use deterministic logic for:
+
+- calories
+- macro totals
+- nutrient totals
+- remaining targets
+- averages
+- percentages
+- date ranges
+- basic trends
+- thresholds
+- goal calculations
+
+Use statistical or rules-based systems for:
+
+- pattern detection
+- anomaly detection
+- baselines
+- trend strength
+- confidence calculations
+
+Use LLMs primarily for:
+
+- natural-language explanation
+- conversational interaction
+- summarization of validated findings
+- generation where creativity is genuinely useful
+
+The language model should communicate intelligence.
+
+It should not invent the underlying facts.
+
+---
+
+24. INTELLIGENCE PIPELINE
+
+Design the system approximately as:
+
+DATA SOURCES
+      ↓
+Normalization
+      ↓
+User Nutrition Context
+      ↓
+Feature Computation
+      ↓
+Rules / Statistics / Pattern Detection
+      ↓
+Candidate Insights
+      ↓
+Evidence Validation
+      ↓
+Confidence Scoring
+      ↓
+Safety Filtering
+      ↓
+Priority Ranking
+      ↓
+Insight Store
+      ↓
+Delivery Layer
+      ↓
+Home / Logging / Recipes / Planner / Progress / Coach
+      ↓
+User Response
+      ↓
+Feedback Signals
+
+Keep modules replaceable.
+
+Do not construct one giant intelligence function.
+
+---
+
+25. PERFORMANCE
+
+Intelligence must not make Calora feel slower.
+
+Requirements:
+
+- avoid unnecessary LLM requests
+- cache appropriate insights
+- invalidate intelligently when relevant data changes
+- perform deterministic calculations locally or server-side where appropriate
+- lazy-load deeper analysis
+- precompute suitable summaries
+- avoid blocking food logging on AI generation
+- provide graceful loading states
+- fail silently where an optional insight cannot load
+
+Core Calora functionality must continue working when AI services are unavailable.
+
+AI failure must never equal application failure.
+
+---
+
+26. COST CONTROL
+
+Do not send the user's entire nutrition history to an LLM after every action.
+
+Create compact structured context.
+
+Use:
+
+- precomputed aggregates
+- summaries
+- targeted retrieval
+- cached insights
+- event-driven recomputation
+- smaller models where appropriate
+- deterministic systems whenever possible
+
+Track:
+
+- calls per active user
+- tokens per feature
+- cost per active user
+- cache hit rate
+- latency
+- failed calls
+
+An intelligent product that cannot be economically operated is not production-ready.
+
+---
+
+27. PRIVACY
+
+Use data minimization.
+
+Only provide a model with information required for the current task.
+
+Do not expose:
+
+- authentication secrets
+- API keys
+- unnecessary identifiers
+- unrelated private data
+
+Review current Supabase access controls and Row Level Security before expanding data access.
+
+All new intelligence tables and services must respect user isolation.
+
+---
+
+28. OBSERVABILITY
+
+Every intelligence failure should be diagnosable.
+
+Track internally:
+
+- insight type
+- generation method
+- evidence source
+- confidence
+- latency
+- model used where applicable
+- token usage
+- safety rejection
+- generation failure
+- fallback used
+- user feedback signal
+
+Never log secrets or unnecessary sensitive content.
+
+---
+
+29. MEASUREMENT
+
+Do not judge success by how much AI text Calora generates.
+
+Measure whether intelligence helps.
+
+Potential metrics:
+
+Utility
+
+- insight expansion rate
+- Ask Coach rate
+- recommendation acceptance
+- dismissals
+- repeat engagement
+
+Quality
+
+- unsupported insight rate
+- contradiction rate
+- user corrections
+- low-confidence suppression
+- stale insight rate
+
+Product
+
+- logging retention
+- planner engagement
+- recipe saves
+- Coach engagement
+- weekly retention
+
+Technical
+
+- latency
+- failure rate
+- cost per user
+- cache performance
+- AI availability
+
+---
+
+30. UX RULES
+
+Intelligence must obey Calora's existing design philosophy.
+
+Keep:
+
+- clean layouts
+- strong spacing
+- readable typography
+- low clutter
+- clear hierarchy
+- smooth scrolling
+- light and dark mode
+- mobile-first interaction
+- minimal unnecessary confirmation
+
+Do not cover every screen with cards labeled AI.
+
+Do not use decorative intelligence.
+
+One strong insight is usually more useful than five weak ones.
+
+---
+
+31. NOTIFICATION INTELLIGENCE
+
+Do not create a nagging notification system.
+
+Notifications should eventually be driven by significance.
+
+Bad:
+
+«Don't forget to log lunch!»
+
+Potentially useful:
+
+«Dinner is still unplanned and today's protein target is unusually far behind. Want three quick options?»
+
+Even this should respect notification preferences and frequency limits.
+
+Do not implement notification intelligence in the first phase unless the existing architecture makes it safe and appropriate.
+
+---
+
+32. CONTRADICTION PREVENTION
+
+One central system must determine user nutrition context.
+
+Home, Planner, Recipes, Progress, and Coach should not independently calculate conflicting interpretations.
+
+Example failure:
+
+Home:
+
+«Increase protein.»
+
+Coach:
+
+«Your protein intake looks excellent.»
+
+Planner:
+
+«Reduce protein.»
+
+Prevent this through shared context, shared calculations, evidence versioning, and consistent targets.
+
+---
+
+33. INSIGHT LIFECYCLE
+
+Insights must expire.
+
+Example:
+
+An insight generated before lunch may become invalid after dinner is logged.
+
+Support:
+
+generate
+→ validate
+→ display
+→ update
+→ suppress
+→ expire
+
+Never allow stale advice to linger simply because it was cached.
+
+---
+
+34. FAILURE STATES
+
+Design deliberately for:
+
+- incomplete logging
+- no history
+- conflicting data
+- missing API information
+- offline mode
+- LLM timeout
+- API quota failure
+- malformed AI response
+- deleted meals
+- changed goals
+- changed dietary preferences
+- timezone changes
+- duplicate logs
+- extreme outliers
+- stale cache
+- missing recipe nutrition
+
+The application must remain usable.
+
+---
+
+35. IMPLEMENTATION STRATEGY
+
+Do not implement the entire blueprint in one operation.
+
+Execution must be divided into controlled phases.
+
+Phase 0: Forensic Audit
+
+No production behavior changes.
+
+Deliver:
+
+- architecture map
+- current data-flow map
+- current Coach architecture
+- relevant schema
+- reusable systems
+- risks
+- proposed integration points
+- migration requirements
+
+STOP.
+
+Request approval.
+
+---
+
+Phase 1: Intelligence Foundation
+
+Build behind feature flags:
+
+- context model
+- insight schema
+- evidence model
+- deterministic calculations
+- confidence framework
+- insight repository/service
+- safety framework
+- observability
+
+Do not broadly change UI.
+
+Test.
+
+STOP.
+
+---
+
+Phase 2: Today's Intelligence
+
+Introduce intelligence on Home.
+
+Start with a very small number of high-confidence insight types.
+
+Test:
+
+- accuracy
+- latency
+- visual quality
+- dark mode
+- light mode
+- stale insight invalidation
+- offline/failure behavior
+
+STOP.
+
+---
+
+Phase 3: Meal Logging Intelligence
+
+Add post-log impact intelligence.
+
+Validate calculations against existing nutrition totals.
+
+STOP.
+
+---
+
+Phase 4: Progress Intelligence
+
+Add interpretation to existing Progress data.
+
+Add:
+
+Ask Coach about this
+
+STOP.
+
+---
+
+Phase 5: Coach 2.0
+
+Connect Coach to structured Intelligence Engine outputs.
+
+Preserve useful existing Coach behavior.
+
+Add contextual deep linking.
+
+Verify that Coach never contradicts deterministic application data.
+
+STOP.
+
+---
+
+Phase 6: Recipes
+
+Add context-aware recommendation explanations.
+
+STOP.
+
+---
+
+Phase 7: Planner
+
+Integrate intelligence with planning.
+
+STOP.
+
+---
+
+Phase 8: Adaptive Intelligence
+
+Only after sufficient data architecture exists.
+
+Introduce:
+
+- feedback learning
+- preference adaptation
+- pattern personalization
+- cautious predictive models
+
+STOP.
+
+---
+
+Phase 9: Proactive Intelligence
+
+Only after previous systems prove reliable.
+
+Evaluate:
+
+- intelligent notifications
+- proactive warnings
+- weekly summaries
+- upcoming-plan adjustments
+
+Do not implement merely because they are technically possible.
+
+---
+
+36. TESTING REQUIREMENTS
+
+Every phase requires:
+
+Unit testing
+
+For:
+
+- calculations
+- confidence
+- ranking
+- thresholds
+- expiration
+- context construction
+
+Integration testing
+
+For:
+
+- database
+- APIs
+- Coach
+- recipes
+- planner
+- progress
+- authentication
+
+Real-user flow testing
+
+Simulate:
+
+- new user
+- one-day user
+- regular user
+- inconsistent logger
+- heavy logger
+- missing data
+- changed goals
+- offline user
+- AI service failure
+
+Adversarial testing
+
+Attempt to force:
+
+- hallucinated nutrition values
+- contradictions
+- unsupported conclusions
+- stale recommendations
+- cross-user data exposure
+- prompt injection through user-generated content
+- malformed structured output
+- unsafe nutrition recommendations
+
+---
+
+37. ACCEPTANCE STANDARD
+
+A feature is not complete because it renders.
+
+It is complete only when:
+
+1. The underlying numbers are correct.
+2. The evidence supports the conclusion.
+3. Confidence is appropriate.
+4. The insight is useful.
+5. The insight appears at the correct moment.
+6. The wording reflects uncertainty honestly.
+7. Coach can explain it.
+8. It does not contradict another Calora surface.
+9. It does not noticeably slow core flows.
+10. Failure does not break the application.
+11. User data remains isolated and protected.
+12. Light and dark mode remain correct.
+13. Existing functionality remains intact.
+14. Tests pass.
+15. The implementation can be observed and debugged.
+
+---
+
+38. FINAL PRODUCT EXPERIENCE
+
+The desired experience is subtle.
+
+A user opens Calora.
+
+Calora identifies the one thing that matters today.
+
+The user logs lunch.
+
+Calora explains what changed.
+
+The user opens Recipes.
+
+Calora understands what fits the remaining day.
+
+The user opens Planner.
+
+Calora explains why certain meals fit the user's current pattern.
+
+The user opens Progress.
+
+Calora interprets the trend rather than leaving the user alone with a chart.
+
+The user asks Coach:
+
+«Why has my progress slowed?»
+
+Coach already has the relevant context and evidence.
+
+It explains the likely factors carefully and offers a practical next step.
+
+Tomorrow, the system updates its understanding as new evidence arrives.
+
+The user does not need to think about an Intelligence Engine.
+
+They simply experience an application that increasingly understands their nutrition context.
+
+---
+
+39. CORE PRODUCT RULE
+
+Before displaying any intelligence, ask:
+
+«Is this true enough, useful enough, timely enough, and actionable enough to deserve the user's attention?»
+
+If the answer is no:
+
+Do not show it.
+
+The goal is not maximum intelligence output.
+
+The goal is maximum useful understanding with minimum noise.
+
+---
+
+40. INSTRUCTION TO REPLIT AGENT
+
+Treat this document as the architectural and product blueprint for Calora Intelligence.
+
+Do not implement the entire blueprint now.
+
+Your first task is PHASE 0: FORENSIC AUDIT ONLY.
+
+Inspect the actual repository and compare the current implementation against this blueprint.
+
+Produce:
+
+1. Current Architecture Map
+2. Current Data Flow Map
+3. Current Calora Coach Architecture
+4. Existing nutrition intelligence already present
+5. Existing reusable components and services
+6. Database/schema implications
+7. Required new services or modules
+8. Security and privacy risks
+9. Performance risks
+10. AI/API cost risks
+11. Potential regression points
+12. Recommended Intelligence Engine architecture adapted specifically to this repository
+13. Proposed feature-flag strategy
+14. Proposed migration strategy
+15. Exact Phase 1 implementation plan
+16. Files expected to be created
+17. Existing files expected to be modified
+18. Tests required before and after those modifications
+
+Do not modify production code during Phase 0.
+
+Do not redesign unrelated Calora features.
+
+Do not remove existing functionality.
+
+Do not trigger a build.
+
+Do not make speculative architectural changes.
+
+Do not proceed to Phase 1 automatically.
+
+Return the forensic report and wait for explicit approval.
+
+Audit first. Understand second. Design against reality third. Implementation comes only after approval.

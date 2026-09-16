@@ -1,0 +1,89 @@
+Macro records are complete on N of the last 7 local-calendar days.
+
+
+
+It describes the quality of the stored record, not whether the person's diet was nutritionally complete. 
+
+Replit considered several alternatives and ranked this first because it can reuse existing local data without Coach, persistence, network, server, database, or LLM work. 
+
+I agree with the choice, with one important requirement: the wording must remain about records. “Your macros were complete 5 of 7 days” would be misleading. The approved wording avoids that problem.
+
+Authorize implementation
+
+Send Replit:
+
+> AUTHORIZE CALORA INTELLIGENCE PHASE 2A.5 IMPLEMENTATION
+
+The Phase 2A.5 Authorization Brief is approved.
+
+Implement:
+
+Phase 2A.5 — Local 7-Day Macro Record Coverage
+
+Treat CALORA_INTELLIGENCE_PHASE_2A_5_AUTHORIZATION_BRIEF.md as the authoritative specification.
+
+Accept the exact fixed user-facing wording:
+
+“Macro records are complete on N of the last 7 local-calendar days.”
+
+This statement refers strictly to the completeness of Calora's stored macro fields, never the completeness, adequacy, quality, or healthfulness of the user's nutrition.
+
+Implement only the scope defined in the authorization brief:
+
+1. Pure strict local macro-record-coverage calculation.
+
+
+2. nutrition.seven_day_macro_record_coverage sanitized Foundation fact.
+
+
+3. Dedicated scoped seven-day watermark.
+
+
+4. Required invalidation wiring.
+
+
+5. Default-OFF intelligence.insights.progress_macro_record_coverage feature flag.
+
+
+6. Explicit Progress-only selector candidate at priority 110.
+
+
+7. Complete focused privacy, account-isolation, failure, watermark, date/timezone/DST, threshold, regression and performance tests.
+
+
+8. Full Calora and API typechecks/test suites.
+
+
+9. Flag-OFF Progress browser smoke.
+
+
+
+Preserve the exact qualification rule:
+
+A date qualifies only when it contains at least one included food log and every included food log for that date has finite, non-negative calories, protein, carbohydrates, and fat values.
+
+Require at least 3 distinct qualifying dates within the inclusive seven-day local-calendar window.
+
+Duplicate records on the same date must count as only one qualifying date.
+
+Malformed, future-dated, stale, ambiguous, low-confidence, mixed-watermark, unhydrated, guest, account-transition, or otherwise unsafe states must fail closed to silence.
+
+Do not infer skipped meals, adherence, consistency, effort, diet quality, calorie sufficiency, macro adequacy, nutritional balance, causality, health status, success, failure, recommendations, predictions, or forecasts.
+
+Add no persistence, API/server/database work, network calls, analytics, notifications, background processing, Coach integration, LLM generation, Planner/Recipe Intelligence, evidence UI, personalization, scoring, or another Intelligence capability.
+
+Keep Coach Fact Context completely dark and unchanged.
+
+Keep the Phase 2A.5 flag OFF by default.
+
+Automatically create:
+
+docs/CALORA_INTELLIGENCE_PHASE_2A_5_MACRO_RECORD_COVERAGE_REPORT.md
+
+Include exact files changed, calculation logic, field/date rules, threshold, copy, priority, Foundation schema, watermark design, flag state, rollback behavior, account-isolation/privacy/no-I/O proof, exact test commands/counts/results, performance result, defects discovered/fixed, and deferred validation debt.
+
+After implementation, inspect the final diff and confirm that no unrelated behavior changed.
+
+Create a clean checkpoint/commit and STOP.
+
+Do not begin, define, or implement Phase 2A.6 without explicit authorization.
