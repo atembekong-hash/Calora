@@ -1,0 +1,941 @@
+CALORA INTELLIGENCE — PHASE 1 FOUNDATION IMPLEMENTATION
+
+Mission
+
+Proceed with Phase 1 of the Calora Intelligence architecture based on the completed Phase 0 forensic audit.
+
+This phase is foundational only.
+
+The purpose is to create a deterministic, evidence-aware, versioned Intelligence Facts layer that can later support contextual insights, Progress interpretation, Planner intelligence, Recipes intelligence, and Calora Coach.
+
+Do not implement the visible Intelligence experience yet.
+
+Do not redesign Calora.
+
+Do not rewrite Coach.
+
+Do not introduce predictive or prescriptive AI behavior.
+
+The objective is to establish one trusted facts layer beneath the existing product.
+
+---
+
+1. PHASE 1 CORE PRINCIPLE
+
+The Intelligence system must not become a second source of nutrition truth.
+
+Existing Calora state remains authoritative for:
+
+- diary entries
+- food logs
+- user profile
+- goals
+- planner
+- shopping
+- recipes
+- weight
+- wellness
+- activity
+- local persistence
+
+The Intelligence Foundation is read-only.
+
+It consumes existing state and derives structured facts from it.
+
+Architecture:
+
+Existing Calora State
+        ↓
+Context Adapters
+        ↓
+Deterministic Facts
+        ↓
+Evidence / Provenance
+        ↓
+Confidence / Freshness
+        ↓
+Lifecycle / Invalidation
+        ↓
+Future Insights / Coach / UI
+
+No LLM should be required for this pipeline.
+
+---
+
+2. NON-NEGOTIABLE RESTRICTIONS
+
+During this phase:
+
+- Do not redesign any visible screen.
+- Do not add Intelligence cards to Today.
+- Do not add post-log insights.
+- Do not alter Planner UX.
+- Do not alter Recipes UX.
+- Do not alter Progress UX.
+- Do not rewrite Calora Coach.
+- Do not make Coach authoritative over nutrition calculations.
+- Do not add proactive notifications.
+- Do not implement adaptive learning.
+- Do not implement user feedback learning.
+- Do not implement prediction.
+- Do not implement causal reasoning.
+- Do not modify nutrition targets automatically.
+- Do not create an LLM-driven nutrition calculator.
+- Do not make existing local-first logging dependent on the server.
+- Do not trigger a production build.
+- Do not make unrelated cleanup changes.
+
+If a requirement cannot be implemented safely without violating these boundaries, stop and report the issue.
+
+---
+
+3. STEP 1 — CREATE THE INTELLIGENCE TYPE CONTRACTS
+
+Create a dedicated Intelligence domain layer.
+
+Recommended location:
+
+artifacts/calora/lib/intelligence/
+
+Create or adapt files such as:
+
+types.ts
+facts.ts
+contextAdapter.ts
+confidence.ts
+evidence.ts
+invalidation.ts
+featureFlags.ts
+
+Exact structure may differ if repository conventions require it.
+
+Define strongly typed contracts for:
+
+IntelligenceFact
+
+Must support at minimum:
+
+id
+factType
+value
+unit
+timeWindow
+generatedAt
+validFrom
+validUntil
+calculationVersion
+sourceWatermark
+confidence
+evidence
+freshness
+missingData
+
+---
+
+IntelligenceEvidence
+
+Must distinguish evidence origin such as:
+
+verified
+provider
+barcode
+nutrition_label
+manual
+user_corrected
+food_memory
+recipe_estimate
+ai_estimate
+derived
+unknown
+
+Do not flatten AI estimates into verified evidence.
+
+---
+
+IntelligenceContext
+
+Must represent the current deterministic state required for fact computation.
+
+Potential fields:
+
+date
+timezone
+dayBoundary
+foodLogs
+profile
+goals
+weight
+water
+mood
+activity
+planner
+shopping
+recipes
+healthSnapshot
+missingData
+sourceVersion
+
+Only include fields actually available in the current repository.
+
+---
+
+InsightCandidate
+
+Define now for future compatibility, but do not implement broad insight delivery.
+
+It should be able to support:
+
+type
+priority
+confidence
+evidenceReferences
+factReferences
+validity
+recommendedSurface
+status
+
+---
+
+InsightConfidence
+
+Must support explicit confidence levels and/or normalized scores.
+
+The meaning must be deterministic.
+
+---
+
+InsightStatus
+
+Support at minimum:
+
+candidate
+active
+suppressed
+expired
+invalidated
+
+---
+
+InsightInvalidationEvent
+
+Support source changes such as:
+
+food_added
+food_updated
+food_deleted
+goal_changed
+target_changed
+weight_changed
+timezone_changed
+preference_changed
+planner_changed
+source_refreshed
+
+---
+
+4. STEP 2 — BUILD THE DETERMINISTIC FACTS ENGINE
+
+Extract or wrap existing calculation logic rather than creating a competing implementation.
+
+Reuse existing arithmetic from:
+
+- Food Memory
+- Today
+- Progress
+- weeklySignals
+- livingState
+- other relevant deterministic helpers
+
+The purpose is to converge calculations.
+
+The Facts Engine should initially support only high-confidence deterministic facts.
+
+Examples:
+
+Daily nutrition facts
+
+- calories consumed
+- calorie target
+- calories remaining
+- protein consumed
+- protein target
+- protein remaining
+- carbohydrates consumed
+- carbohydrate target
+- fat consumed
+- fat target
+
+Where available and reliable:
+
+- fiber
+- sodium
+- sugar
+- additional nutrients already supported by Calora
+
+---
+
+Meal distribution facts
+
+Examples:
+
+breakfast calories
+lunch calories
+dinner calories
+snack calories
+percentage of daily calories by meal
+
+---
+
+Logging completeness facts
+
+Examples:
+
+number of meals logged
+days sufficiently logged
+days partially logged
+days with no logs
+
+Do not infer “the user skipped breakfast” solely because breakfast was not logged.
+
+Distinguish:
+
+not logged
+logged zero
+unknown
+
+where appropriate.
+
+---
+
+Evidence partitions
+
+Daily totals should be able to report what portion came from:
+
+verified/provider data
+manual/user-entered data
+user-corrected data
+AI-estimated data
+recipe-estimated data
+unknown provenance
+
+Do not necessarily change existing user-visible totals.
+
+This partition is for Intelligence evidence quality.
+
+---
+
+5. CALCULATION VERSIONING
+
+Every deterministic fact must include a calculation schema/version.
+
+Example:
+
+calculationVersion: "nutrition-facts-v1"
+
+Do not hard-code the version independently in many locations.
+
+Create one shared source.
+
+If future calculation rules change, old facts must remain identifiable by version.
+
+---
+
+6. SOURCE WATERMARK
+
+Facts must be tied to the state from which they were calculated.
+
+Create a lightweight deterministic source watermark or fingerprint.
+
+It should change when relevant inputs change.
+
+Examples:
+
+- food added
+- food deleted
+- food modified
+- goal modified
+- target modified
+- weight modified
+- timezone changed
+
+Avoid expensive full-history hashing on every render if a cheaper reliable strategy exists.
+
+Document the chosen strategy.
+
+---
+
+7. FRESHNESS MODEL
+
+Each fact must carry freshness state.
+
+Suggested categories:
+
+fresh
+stale
+expired
+unknown
+
+Freshness should not be determined by AI.
+
+It should be derived from deterministic source state, timestamps, and invalidation rules.
+
+---
+
+8. MISSING-DATA MODEL
+
+Missing data must be treated as a first-class state.
+
+Examples:
+
+missing_target
+incomplete_day
+missing_weight
+missing_macros
+unknown_provenance
+insufficient_history
+
+Do not convert absent data into zero unless the domain explicitly means zero.
+
+This distinction is essential for future Intelligence.
+
+---
+
+9. EVIDENCE QUALITY MODEL
+
+Implement deterministic evidence classification.
+
+At minimum distinguish:
+
+Stronger evidence
+
+- nutrition label
+- barcode/provider value
+- structured known food
+- explicit user correction
+
+Moderate evidence
+
+- user-entered value
+- manually assembled food
+
+Estimated evidence
+
+- AI capture
+- AI recipe nutrition
+- other generated estimates
+
+Unknown evidence
+
+- legacy or unclassified entries
+
+Do not automatically rank all providers above user corrections.
+
+Document the exact ordering and reasoning.
+
+The system must retain provenance rather than reducing everything to one confidence number.
+
+---
+
+10. CONFIDENCE FRAMEWORK
+
+Build confidence from observable conditions.
+
+Factors may include:
+
+- evidence quality
+- data completeness
+- sample size
+- consistency
+- freshness
+- proportion of estimated inputs
+- conflicting values
+
+Initial Phase 1 confidence must remain simple and explainable.
+
+Avoid opaque scoring.
+
+Example:
+
+HIGH
+MEDIUM
+LOW
+INSUFFICIENT
+
+If numeric scores are used internally, map them clearly to the user-facing categories.
+
+---
+
+11. WEIGHT BASELINE UNIFICATION
+
+The audit found potential disagreement between Coach and Progress weight baselines.
+
+Create one shared deterministic selector for weight baseline and trend calculations.
+
+Do not redesign Progress.
+
+Do not change existing visible behavior unless tests prove the existing logic is inconsistent or incorrect.
+
+First create the shared helper and parity tests.
+
+If current systems disagree, report:
+
+CURRENT PROGRESS RESULT
+CURRENT COACH RESULT
+PROPOSED CANONICAL RESULT
+WHY THEY DIFFER
+
+Do not silently choose one.
+
+---
+
+12. READ-ONLY LOCAL CONTEXT ADAPTER
+
+Build a read-only adapter from "CaloraContext".
+
+The adapter must not mutate Calora state.
+
+It should expose the minimum required Intelligence context.
+
+It must preserve:
+
+- local-first operation
+- offline operation
+- existing hydration
+- AsyncStorage behavior
+- current diary ownership
+- existing synchronization behavior
+
+Do not create a second copy of all user state.
+
+---
+
+13. FEATURE FLAGS
+
+Create safe-by-default feature flags.
+
+At minimum:
+
+intelligence.foundation.enabled
+intelligence.facts.local_adapter
+intelligence.facts.server_adapter
+intelligence.insights.today
+intelligence.insights.post_log
+intelligence.insights.progress
+intelligence.coach.fact_context
+intelligence.evidence.display
+intelligence.observability
+intelligence.feedback
+intelligence.proactive
+
+For Phase 1:
+
+foundation = test/controlled
+local_adapter = test/controlled
+server_adapter = OFF
+today = OFF
+post_log = OFF
+progress = OFF
+coach.fact_context = OFF
+feedback = OFF
+proactive = OFF
+
+Visible behavior must remain unchanged with all delivery flags disabled.
+
+---
+
+14. INVALIDATION ENGINE
+
+Build deterministic invalidation.
+
+Facts must be invalidated or recomputed when relevant state changes.
+
+Cover at minimum:
+
+- food added
+- food edited
+- food deleted
+- target changed
+- goal changed
+- weight changed
+- timezone changed
+- day boundary changes
+- preference changes that affect facts
+- planner changes where relevant
+
+Do not leave stale facts active.
+
+Create unit tests for every invalidation path.
+
+---
+
+15. PERFORMANCE REQUIREMENTS
+
+Do not recompute long periods of history on every React render.
+
+Use:
+
+- memoized pure functions
+- selectors
+- stable input fingerprints
+- incremental calculation where useful
+- bounded history windows
+- lazy computation
+
+Do not optimize blindly.
+
+Measure.
+
+Track calculation duration in development/test observability.
+
+Today and logging must remain fast.
+
+---
+
+16. DO NOT PERSIST EVERYTHING YET
+
+Do not begin by creating server tables for every Intelligence fact.
+
+Phase 1 should first prove the model locally and deterministically.
+
+Before adding persistent Intelligence tables, verify:
+
+1. migration authority
+2. Drizzle/startup DDL parity
+3. production RLS
+4. deletion behavior
+5. retention behavior
+6. tenancy guarantees
+
+If these cannot be confirmed from the repository, document them as blockers.
+
+Do not guess.
+
+---
+
+17. SCHEMA / MIGRATION INVESTIGATION
+
+The audit found two schema authorities:
+
+- Drizzle schema
+- startup DDL
+
+Investigate and report exactly:
+
+- which currently creates production schema;
+- whether both are required;
+- which tables differ;
+- whether fresh deployments can diverge;
+- whether a migration framework already exists but was missed;
+- the safest route toward one canonical migration process.
+
+Do not perform a destructive schema migration.
+
+If a clean, additive fix is obvious and safe, propose it first.
+
+Wait for approval before altering production migration architecture.
+
+---
+
+18. SUPABASE RLS VERIFICATION
+
+Production RLS was UNKNOWN in Phase 0.
+
+If repository-accessible policy definitions exist, inspect them.
+
+If RLS configuration exists only in the external Supabase console and cannot be confirmed, explicitly report:
+
+RLS VERIFICATION BLOCKED: EXTERNAL CONSOLE ACCESS REQUIRED
+
+Do not assume API-level filtering equals RLS.
+
+Do not enable server-persisted Intelligence data until tenant isolation is confirmed.
+
+---
+
+19. OBSERVABILITY
+
+Add safe development/test instrumentation for:
+
+- fact generation duration
+- calculation version
+- source watermark
+- invalidation reason
+- confidence category
+- evidence category counts
+- missing-data state
+- feature-flag state
+- failures
+
+Do not log:
+
+- raw food notes
+- raw Coach messages
+- raw photos
+- raw audio
+- full provider payloads
+- secrets
+- authentication tokens
+
+---
+
+20. NO LLM IN PHASE 1 FACT GENERATION
+
+The following must be deterministic:
+
+- totals
+- target comparisons
+- evidence quality
+- confidence calculation
+- freshness
+- expiry
+- source watermark
+- missing-data state
+- fact validity
+- baseline selection
+
+Do not use OpenAI or another model to calculate these.
+
+LLMs belong later in the explanation layer.
+
+---
+
+21. TESTING GATE 1 — PARITY
+
+Before any existing calculation is replaced or consumed by future UI, compare the Facts Engine against current Calora behavior.
+
+Test representative users:
+
+- new user
+- one-day user
+- regular logger
+- inconsistent logger
+- heavy logger
+- AI-estimate-heavy user
+- barcode/provider-heavy user
+- user with edited entries
+- user with partial macros
+- offline user
+
+For each:
+
+compare:
+
+CURRENT TODAY TOTALS
+vs
+INTELLIGENCE FACT TOTALS
+
+and where applicable:
+
+CURRENT PROGRESS RESULT
+vs
+INTELLIGENCE RESULT
+
+Differences must be explained.
+
+Do not silently alter current behavior.
+
+---
+
+22. TESTING GATE 2 — PROVENANCE
+
+Verify that:
+
+- provider data remains provider data;
+- manual data remains manual data;
+- corrected values remain corrected;
+- AI estimates remain estimated;
+- recipe estimates remain estimated;
+- unknown legacy data remains unknown.
+
+A generated estimate must never become “verified” through aggregation.
+
+---
+
+23. TESTING GATE 3 — INVALIDATION
+
+Test:
+
+log food
+→ facts update
+
+edit food
+→ previous facts invalidated
+→ new facts calculated
+
+delete food
+→ stale facts disappear
+
+change target
+→ target comparison changes
+
+change weight
+→ weight fact changes
+
+change timezone
+→ day assignments recalculated correctly
+
+No stale result may remain active.
+
+---
+
+24. TESTING GATE 4 — LOCAL-FIRST RESILIENCE
+
+With API unavailable:
+
+- food logging must work;
+- Today must render;
+- deterministic facts must still compute;
+- no Intelligence error may block navigation;
+- no infinite retry loop;
+- no user-visible regression.
+
+The Intelligence Foundation must degrade to silence rather than breaking Calora.
+
+---
+
+25. TESTING GATE 5 — PERFORMANCE
+
+Measure before and after:
+
+- Today render
+- meal log completion
+- food edit
+- food deletion
+- Progress opening
+- app hydration
+
+Report significant regressions.
+
+Do not accept a slower core logging experience simply because Intelligence is working.
+
+---
+
+26. REQUIRED PHASE 1 DELIVERABLES
+
+At completion, provide:
+
+A. Architecture summary
+
+What was built and why.
+
+B. Exact files created
+
+Include paths and roles.
+
+C. Exact files modified
+
+Include what changed and why.
+
+D. Canonical fact types implemented
+
+List each.
+
+E. Evidence model
+
+Explain categories and ordering.
+
+F. Confidence model
+
+Explain rules.
+
+G. Freshness/invalidation model
+
+Explain triggers.
+
+H. Calculation versioning
+
+Explain current version strategy.
+
+I. Parity test results
+
+Show current Calora versus Intelligence facts.
+
+J. Regression test results
+
+Report pass/fail.
+
+K. Performance comparison
+
+Before versus after where measurable.
+
+L. Schema/migration findings
+
+Especially Drizzle versus startup DDL.
+
+M. RLS status
+
+Verified or still UNKNOWN.
+
+N. Remaining blockers
+
+Do not hide them.
+
+O. Recommended Phase 2 entry point
+
+Recommendation only.
+
+Do not begin Phase 2.
+
+---
+
+27. FAILURE RULE
+
+If the new Facts Engine disagrees materially with existing Calora calculations:
+
+STOP.
+
+Do not force migration to the new result.
+
+Investigate the discrepancy.
+
+Classify it as:
+
+existing logic bug
+new facts bug
+ambiguous product rule
+missing data
+provenance mismatch
+timezone/day-boundary mismatch
+
+Return the evidence.
+
+Wait for approval.
+
+---
+
+28. SUCCESS STANDARD
+
+Phase 1 succeeds when Calora has one deterministic Intelligence Foundation capable of answering:
+
+- What do we actually know?
+- Where did the data come from?
+- How complete is it?
+- How fresh is it?
+- How confident are we?
+- Which calculation version produced it?
+- What changed since the last calculation?
+- When should this fact stop being trusted?
+
+All of this must happen without changing the visible Calora experience.
+
+---
+
+FINAL INSTRUCTION
+
+Implement Phase 1 only.
+
+Use the actual repository discovered during Phase 0.
+
+Reuse existing systems wherever possible.
+
+Prefer extraction and adapters over duplication.
+
+Keep every visible Intelligence delivery flag disabled.
+
+Do not rewrite Coach.
+
+Do not redesign UI.
+
+Do not trigger a production build.
+
+When implementation and testing are complete, return the full Phase 1 report and STOP for approval before any Phase 2 work.

@@ -1,0 +1,779 @@
+Autonomous Security Production Certification Mission
+
+Mission
+
+MISSION: Perform a complete security audit, adversarial validation, remediation, and production-security certification of the entire application and every system it depends upon.
+
+Treat the application as potentially insecure until evidence demonstrates otherwise.
+
+Your responsibility is to discover the complete attack surface, identify exploitable weaknesses and unsafe assumptions, repair root causes, verify every repair, test for regressions, and determine whether the application is fit for production.
+
+Operate only against the application's authorized codebase, accounts, infrastructure, test environments, and systems. Never perform destructive testing against real users, real financial transactions, or unauthorized third-party infrastructure.
+
+Do not limit the audit to a predefined vulnerability checklist. Use the architecture and observed behavior of the actual application to discover additional attack paths.
+
+---
+
+1. Build the Complete Security Model
+
+Before changing code, understand the system.
+
+Map:
+
+- Applications and clients
+- Frontend and mobile code
+- Backend services
+- APIs and endpoints
+- Databases
+- Storage
+- Authentication systems
+- Authorization systems
+- User roles
+- Administrative capabilities
+- Payments and entitlements
+- AI and model integrations
+- File handling
+- Background workers
+- Queues and scheduled jobs
+- Webhooks
+- Push notifications
+- Email systems
+- Analytics
+- Logging and monitoring
+- Third-party SDKs
+- External APIs
+- Cloud services
+- Deployment infrastructure
+- CI/CD
+- Environment configuration
+- Secrets
+- Dependencies
+- Build and release pipeline
+- Network boundaries
+- Publicly reachable services
+- Sensitive data flows
+
+Identify every trust boundary and every point where untrusted data enters the system.
+
+Identify what each security boundary protects and what would happen if that boundary failed.
+
+Create a Security Surface Map and use it as the audit plan.
+
+---
+
+2. Threat Model the Application
+
+For every important system, determine:
+
+- What assets require protection?
+- Who can access them?
+- Who should never access them?
+- What does the system trust?
+- Can that trust be manipulated?
+- What happens if the client lies?
+- What happens if requests are modified?
+- What happens if identifiers are changed?
+- What happens if requests are replayed?
+- What happens if operations occur out of order?
+- What happens if two operations occur simultaneously?
+- What happens if an authenticated user becomes malicious?
+- What happens if one account attempts to access another account?
+- What happens if a low-privilege user attempts privileged operations?
+- What happens if an integration is compromised or unavailable?
+
+Prioritize testing according to likelihood, exploitability, and impact.
+
+---
+
+3. Authentication and Session Security
+
+Audit every authentication mechanism.
+
+Test applicable scenarios involving:
+
+- Registration
+- Login
+- Logout
+- Email verification
+- OTP
+- Password reset
+- Account recovery
+- Social authentication
+- Token creation
+- Token validation
+- Token refresh
+- Token expiration
+- Token revocation
+- Session persistence
+- Concurrent sessions
+- Cross-device sessions
+- Remember-me behavior
+- Reauthentication
+- Deleted accounts
+- Disabled accounts
+- Expired accounts
+
+Attempt to identify:
+
+- Authentication bypass
+- Account enumeration
+- Weak recovery mechanisms
+- OTP abuse
+- Replay
+- Session fixation
+- Stale sessions
+- Improper logout
+- Weak token validation
+- Missing expiration enforcement
+- Client-side authentication trust
+- Improper session invalidation
+- Brute-force exposure
+- Missing or ineffective rate limiting
+
+Authentication success alone is insufficient. Verify the entire session lifecycle.
+
+---
+
+4. Authorization and Account Isolation
+
+Treat authorization as a separate security boundary from authentication.
+
+Enumerate protected resources and privileged operations.
+
+For each one, test access as:
+
+Unauthenticated user → legitimate owner → different authenticated user → lower-privilege user → elevated user
+
+Attempt unauthorized access to applicable:
+
+- Profiles
+- Accounts
+- Classes
+- Student information
+- Teacher information
+- Files
+- Messages
+- History
+- AI conversations
+- Purchases
+- Subscription state
+- Premium functionality
+- Settings
+- Private records
+- Administrative functionality
+- Internal APIs
+
+Test both read and write operations.
+
+Changing a route, request, object identifier, account identifier, client state, or UI state must never grant authority that the backend has not independently verified.
+
+Verify authorization at the authoritative server boundary.
+
+---
+
+5. API Security
+
+Inventory every API endpoint and classify it by sensitivity.
+
+Test applicable endpoints for:
+
+- Missing authentication
+- Missing authorization
+- Broken object-level authorization
+- Broken function-level authorization
+- Excessive data exposure
+- Mass assignment
+- Parameter manipulation
+- Input validation failures
+- Injection
+- Unsafe filtering
+- Pagination abuse
+- Resource exhaustion
+- Rate-limit bypass
+- Replay
+- Duplicate operations
+- Race conditions
+- Improper HTTP behavior
+- Unsafe error responses
+- Sensitive metadata exposure
+- Unexpected methods
+- Invalid content types
+- Oversized input
+- Malformed requests
+
+Do not assume an endpoint is protected because the frontend does not expose it.
+
+---
+
+6. Input and Injection Security
+
+Identify every location accepting user-controlled or externally controlled input.
+
+Validate defenses against applicable:
+
+- SQL injection
+- NoSQL injection
+- Command injection
+- Template injection
+- Cross-site scripting
+- HTML injection
+- Header injection
+- Path traversal
+- Unsafe file paths
+- Unsafe redirects
+- Server-side request forgery
+- XML-related attacks where applicable
+- Deserialization risks
+- Malformed structured input
+- Unexpected Unicode
+- Extremely large input
+- Unexpected file content
+- Type confusion
+
+Trace input through the entire system rather than testing only the UI.
+
+---
+
+7. Business Logic and Abuse Testing
+
+Do not restrict the audit to technical vulnerabilities.
+
+Attempt to misuse legitimate functionality in unintended ways.
+
+Test applicable scenarios involving:
+
+- Skipping required steps
+- Reordering workflows
+- Repeating one-time actions
+- Replaying operations
+- Manipulating client state
+- Changing identifiers
+- Bypassing limits
+- Bypassing feature restrictions
+- Circumventing premium requirements
+- Creating inconsistent account states
+- Exploiting race conditions
+- Duplicate submissions
+- Unauthorized role changes
+- Abusing invitations or classroom membership
+- Manipulating rewards, quotas, credits, or usage limits
+- Exploiting cancellation or restoration logic
+
+Assume attackers understand the product's business rules.
+
+---
+
+8. Payment and Entitlement Security
+
+Where payments exist, verify:
+
+- Server-side purchase verification
+- Receipt validation
+- Subscription validation
+- Entitlement integrity
+- Restore-purchase security
+- Cancellation handling
+- Refund handling
+- Revocation handling
+- Expiration
+- Renewal
+- Grace periods
+- Webhook authenticity
+- Webhook replay resistance
+- Duplicate webhook handling
+- Idempotency
+- Account switching
+- Cross-device synchronization
+
+Attempt to obtain paid functionality without legitimate entitlement using authorized test environments.
+
+Never perform unauthorized financial transactions.
+
+The client must not be the sole authority for paid entitlement.
+
+---
+
+9. Data Security and Privacy
+
+Identify and classify sensitive data.
+
+Trace it through:
+
+Collection → Transmission → Processing → Storage → Retrieval → Logging → Backup → Deletion
+
+Verify:
+
+- Minimum necessary collection
+- Appropriate access controls
+- Secure transport
+- Secure storage
+- Account isolation
+- Appropriate retention
+- Safe deletion
+- Safe logging
+- Safe analytics
+- Safe backups
+- No unintended disclosure
+- No sensitive information in URLs where inappropriate
+- No secrets in client-visible code
+- No sensitive information in error messages
+
+Test whether one user can obtain another user's information through any available interface.
+
+---
+
+10. Secrets and Credential Security
+
+Search the complete accessible project for exposed:
+
+- API keys
+- Private keys
+- Service credentials
+- Database credentials
+- Tokens
+- Signing secrets
+- Webhook secrets
+- Cloud credentials
+- Production environment values
+- Hardcoded passwords
+- Debug credentials
+- Test credentials accidentally usable in production
+
+Inspect source code, configuration, environment handling, build configuration, deployment files, and version-controlled artifacts where available.
+
+Determine whether exposed credentials require rotation.
+
+Never reproduce secret values in reports.
+
+---
+
+11. Client and Mobile Security
+
+Assume the client device is controlled by an adversary.
+
+Never treat client-side checks as authoritative security controls.
+
+Audit applicable:
+
+- Local storage
+- Secure storage
+- Cached data
+- Authentication tokens
+- Sensitive files
+- Logs
+- Screenshots
+- Clipboard behavior
+- Deep links
+- Universal/app links
+- Inter-app communication
+- WebViews
+- Debug functionality
+- Development menus
+- Build configuration
+- Production flags
+- Client-side entitlement checks
+- Client-side role checks
+- Network communication
+
+Verify that manipulating client state cannot create unauthorized server state.
+
+---
+
+12. Web Security
+
+Where web surfaces exist, validate applicable:
+
+- HTTPS enforcement
+- Cookie security
+- SameSite behavior
+- CSRF defenses
+- CORS configuration
+- Content Security Policy
+- Security headers
+- Clickjacking protections
+- XSS defenses
+- Redirect handling
+- Browser storage
+- Cache behavior
+- Sensitive page caching
+- Cross-origin behavior
+
+Test actual runtime configuration rather than configuration files alone.
+
+---
+
+13. File and Media Security
+
+Where files, images, documents, camera content, or uploads exist, test:
+
+- File type validation
+- File size limits
+- Filename handling
+- Path handling
+- MIME validation
+- Malformed files
+- Unexpected content
+- Unauthorized file access
+- Cross-account file access
+- Public URL exposure
+- Metadata exposure
+- Storage permissions
+- Deletion
+- Replacement
+- Duplicate upload
+- Processing failures
+
+Do not trust extensions or client-provided MIME types alone.
+
+---
+
+14. AI Security
+
+Where AI or LLM functionality exists, treat model input and output as untrusted.
+
+Test applicable:
+
+- Prompt injection
+- Indirect prompt injection
+- Instruction manipulation
+- Unauthorized data retrieval
+- Cross-user context leakage
+- Conversation isolation
+- Sensitive prompt leakage
+- Tool or function authorization
+- Model-generated unsafe actions
+- Retrieval boundary violations
+- File-based prompt injection
+- Excessive resource consumption
+- Abuse of AI endpoints
+- Rate-limit enforcement
+
+The model must never become an authorization mechanism.
+
+Verify sensitive actions independently outside the model.
+
+---
+
+15. Dependency and Supply-Chain Security
+
+Audit:
+
+- Direct dependencies
+- Transitive dependencies where tooling permits
+- Package versions
+- Known vulnerabilities
+- Deprecated packages
+- Unmaintained critical packages
+- Suspicious packages
+- Lockfiles
+- Build scripts
+- Installation scripts
+- Package integrity
+- Dependency configuration
+
+Determine whether vulnerable dependencies are actually exploitable in this application's context before making disruptive upgrades.
+
+Repair critical and relevant dependency risk without introducing unnecessary instability.
+
+---
+
+16. Infrastructure and Deployment Security
+
+Where access permits, audit:
+
+- Production configuration
+- Development configuration accidentally enabled
+- Debug mode
+- Public services
+- Database exposure
+- Storage permissions
+- Cloud permissions
+- Network boundaries
+- TLS configuration
+- Environment variables
+- Administrative interfaces
+- Default credentials
+- CI/CD permissions
+- Deployment credentials
+- Artifact handling
+- Backup access
+- Logging
+- Monitoring
+- Error reporting
+
+Production security must be verified against the configuration that will actually be deployed.
+
+---
+
+17. Error Handling and Information Disclosure
+
+Deliberately trigger failures.
+
+Inspect whether errors expose:
+
+- Stack traces
+- Internal paths
+- Database details
+- Infrastructure information
+- Secrets
+- Tokens
+- User information
+- Internal identifiers
+- Debug output
+- Implementation details useful to an attacker
+
+Errors should provide users enough information to recover without revealing sensitive internals.
+
+---
+
+18. Availability and Abuse Resistance
+
+Within safe test limits, evaluate applicable:
+
+- Rate limiting
+- Request throttling
+- Expensive endpoints
+- AI usage limits
+- Upload limits
+- Repeated submissions
+- Login attempts
+- OTP generation
+- Password recovery
+- Search
+- Account creation
+- Invitation creation
+- Resource creation
+- Retry storms
+- Duplicate requests
+
+Do not perform destructive denial-of-service testing.
+
+Identify paths where inexpensive attacker actions can create disproportionate server cost or resource consumption.
+
+---
+
+19. Logging, Detection, and Recovery
+
+Verify security-relevant events can be detected without leaking sensitive data.
+
+Inspect applicable logging for:
+
+- Authentication failures
+- Suspicious access attempts
+- Permission failures
+- Administrative operations
+- Payment verification failures
+- Unexpected server errors
+- Abuse and rate-limit events
+
+Verify logs do not contain passwords, full credentials, private tokens, or unnecessary sensitive information.
+
+Determine whether serious security incidents could reasonably be investigated after occurrence.
+
+---
+
+20. Code-Level Security Review
+
+Do not rely exclusively on black-box testing.
+
+Inspect security-critical implementation for:
+
+- Missing authorization
+- Unsafe trust assumptions
+- Insecure defaults
+- Validation gaps
+- Error handling weaknesses
+- Race conditions
+- Sensitive data exposure
+- Unsafe cryptographic usage
+- Hardcoded secrets
+- Debug code
+- Dead security controls
+- Duplicate security implementations
+- Bypassed middleware
+- Unsafe administrative functionality
+
+Trace critical controls from entry point to authoritative enforcement.
+
+---
+
+21. Automated Security Analysis
+
+Where appropriate and available, use relevant automated analysis such as:
+
+- Static analysis
+- Dependency vulnerability scanning
+- Secret scanning
+- Configuration scanning
+- Type checking
+- Security-focused tests
+- Existing test suites
+
+Treat automated tools as evidence sources, not as proof of security.
+
+Investigate important findings manually.
+
+---
+
+22. Repair Protocol
+
+For every confirmed security defect:
+
+1. Reproduce it safely.
+2. Determine the root cause.
+3. Determine the affected trust boundary.
+4. Assess severity and realistic impact.
+5. Search for the same weakness elsewhere.
+6. Implement the strongest maintainable repair.
+7. Verify the exploit path no longer succeeds.
+8. Verify legitimate behavior still succeeds.
+9. Regression-test affected systems.
+10. Retest related attack paths.
+11. Record objective evidence.
+
+Do not merely hide vulnerable UI.
+
+Do not suppress errors instead of repairing their cause.
+
+Do not weaken another security control to make a test pass.
+
+---
+
+23. Security Validation Ledger
+
+Maintain a live Security Validation Ledger throughout the mission.
+
+For every security surface record:
+
+- Surface
+- Asset protected
+- Trust boundary
+- Threat tested
+- Severity
+- Expected behavior
+- Actual behavior
+- Vulnerability found
+- Root cause
+- Repair
+- Exploit retest
+- Functional regression result
+- Evidence
+- Residual risk
+
+Use:
+
+NOT TESTED → IN PROGRESS → VULNERABLE → REPAIRING → RETESTING → PASSED
+
+Never mark PASSED because code looks correct.
+
+PASSED requires objective validation evidence.
+
+---
+
+24. Final Adversarial Regression Sweep
+
+After individual security surfaces have passed, perform a fresh application-wide adversarial sweep.
+
+Approach the application as if you had not participated in the repairs.
+
+Focus especially on combinations of individually safe behaviors that may become unsafe when chained together.
+
+Revalidate:
+
+- Authentication
+- Authorization
+- Account isolation
+- Role boundaries
+- APIs
+- Sessions
+- Sensitive data
+- Payments
+- Entitlements
+- AI
+- Files
+- Integrations
+- Secrets
+- Dependencies
+- Production configuration
+- Business logic
+
+Attempt to identify attack paths missed during the first audit.
+
+If a new weakness is discovered, reopen the affected security surface, repair it, recertify it, and repeat the relevant regression testing.
+
+---
+
+Strict Production Security Gate
+
+Do not certify production security merely because:
+
+- The application builds.
+- Automated tests pass.
+- A vulnerability scanner reports no findings.
+- Authentication works.
+- HTTPS is enabled.
+- Secrets were removed.
+- Dependencies were updated.
+- Previously discovered vulnerabilities were repaired.
+
+Production-security readiness requires evidence across the complete mapped attack surface.
+
+The mission may conclude only when:
+
+- The Security Surface Map is complete to the extent reasonably discoverable.
+- Every critical security boundary has been tested.
+- Every applicable high-risk attack path has been exercised safely.
+- No known unresolved critical or high-severity exploitable vulnerability remains.
+- Security repairs have been independently retested.
+- Legitimate user workflows still function after security repairs.
+- Relevant regression testing has passed.
+- Production configuration has been reviewed where accessible.
+- Untested surfaces and external limitations are explicitly identified.
+- Residual security risk is documented honestly.
+
+Never claim the application is "unhackable," "100% secure," or permanently vulnerability-free.
+
+Certify only what the evidence supports.
+
+---
+
+Final Security Certification Report
+
+Provide:
+
+1. Executive security verdict
+2. Security Surface Map
+3. Security Validation Ledger
+4. Threat model
+5. Vulnerabilities discovered
+6. Severity and realistic impact
+7. Root causes
+8. Repairs performed
+9. Verification evidence
+10. Authentication findings
+11. Authorization and account-isolation findings
+12. API findings
+13. Business-logic findings
+14. Payment and entitlement findings
+15. Data and privacy findings
+16. Client/mobile findings
+17. Web findings
+18. AI security findings
+19. Dependency and supply-chain findings
+20. Infrastructure and configuration findings
+21. Secrets findings without exposing secret values
+22. Abuse-resistance findings
+23. Regression results
+24. Untested surfaces
+25. Residual risks
+26. Final production-security readiness verdict
+
+Work autonomously through:
+
+DISCOVER → THREAT MODEL → TEST → ATTACK SAFELY → INVESTIGATE → REPAIR → RETEST → REGRESSION TEST → REPEAT → CERTIFY
+
+Do not stop at the first successful repair.
+
+Do not confuse absence of discovered vulnerabilities with proof of security.
+
+Continue until the defined production-security gate is satisfied or an external blocker prevents further authorized validation.

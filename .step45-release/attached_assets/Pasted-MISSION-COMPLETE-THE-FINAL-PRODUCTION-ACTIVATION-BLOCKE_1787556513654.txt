@@ -1,0 +1,130 @@
+MISSION: COMPLETE THE FINAL PRODUCTION ACTIVATION BLOCKER FOR CALORA CONTEXTUAL INSIGHTS / COACH FACT CONTEXT
+
+Goal: resolve the remaining production activation blocker in one controlled mission, without reopening completed implementation work and without performing broad new audits.
+
+Current known state:
+
+- Contextual Insights implementation is approximately 92% complete.
+- No launch-critical Contextual Insights code gaps were identified.
+- Shared contextual intelligence already exists across Today, Planner, Recipes, and Progress.
+- Coach consent/scope alignment has been corrected.
+- Targeted Coach/Fact Context tests and Calora typecheck passed.
+- Production remains deny-all.
+- Fact Context rollout is false.
+- Active pilot count is 0.
+- Active nonce count is 0.
+- The remaining blocker is production release provenance/attestation and activation readiness, not Contextual Insights feature development.
+
+DO NOT spend time redesigning, expanding, or re-auditing Contextual Insights.
+
+Your mission is to determine the shortest safe path from the current state to a verified single-pilot production activation.
+
+1. Inspect the CURRENT source, CURRENT deployment configuration, CURRENT production runtime identity, and existing release-attestation implementation.
+
+2. Determine exactly what is genuinely required to prove:
+
+SOURCE = BUILD = DEPLOYED LIVE RUNTIME
+
+3. Reuse every existing release identity, digest, version endpoint, attestation, deployment, and verification mechanism already implemented.
+
+4. Do not invent additional enterprise-grade infrastructure unless it is technically required for this application.
+
+5. Distinguish clearly between:
+   - a real security requirement,
+   - a desirable defense-in-depth improvement,
+   - an optional future hardening measure.
+
+Optional hardening must NOT block the pilot.
+
+6. If the currently validated source differs from the deployed production revision, prepare the exact validated source for production and use the normal approved Replit production publishing path.
+
+7. Do not activate Fact Context during deployment verification.
+
+8. After deployment, independently verify:
+   - production is healthy;
+   - deployed release identity matches the validated source;
+   - `/api/version` or the equivalent trusted release identity matches;
+   - Coach remains unavailable while the process gate is off;
+   - Fact Context remains unavailable while the process gate is off;
+   - global rollout remains false;
+   - active reviewed pilot memberships remain 0;
+   - active nonces remain 0;
+   - no provider request occurred.
+
+9. Run only the tests required to validate production-critical Coach/Fact Context and release-provenance behavior. Do NOT repeatedly run the entire application test suite unless a relevant change justifies it.
+
+10. If an external signing key, protected secret, deployment action, or other genuinely human-only control is required, STOP only at that exact point and tell me precisely:
+   - what action I must perform;
+   - where to perform it in Replit;
+   - the exact field/control involved;
+   - what value/type is required;
+   - what NOT to expose in chat;
+   - what you will verify immediately afterward.
+
+Do not create new blockers based on hypothetical threat models.
+
+11. Once the release is proven equivalent to the validated source, perform the FINAL SINGLE-PILOT ACTIVATION PREFLIGHT.
+
+Do not activate the pilot unless every required runtime authorization layer is proven safe:
+- dedicated pilot identity;
+- account active/not banned/not suspended;
+- current consent;
+- exact reviewed cohort membership model;
+- global master enable behavior;
+- process gate;
+- fail-closed rate protection;
+- nonce/replay protection;
+- no Legacy Coach bypass;
+- no unrelated account eligibility;
+- rollback path.
+
+12. If all required conditions pass, state:
+
+FINAL PRODUCTION ACTIVATION PREFLIGHT: PASS
+
+and provide the exact minimal human-controlled activation sequence.
+
+If a genuine blocker remains, state:
+
+FINAL PRODUCTION ACTIVATION PREFLIGHT: BLOCKED
+
+and identify ONE concrete blocker only.
+
+Do not create additional tasks unless the blocker cannot be resolved inside this mission.
+
+COST CONTROL:
+
+Be surgical.
+Reuse existing evidence.
+Avoid duplicate investigations.
+Avoid repeated full-suite tests.
+Avoid speculative security expansion.
+Do not revisit completed Contextual Insights work.
+Complete as much as possible in this single mission.
+
+REPORT REQUIREMENT:
+
+Save the complete final report to:
+
+docs/production/CONTEXTUAL_INSIGHTS_FINAL_ACTIVATION_READINESS_REPORT.md
+
+The report must contain:
+- current source identity;
+- deployed runtime identity;
+- source/build/runtime equivalence result;
+- tests actually executed;
+- production control state;
+- remaining blocker, if any;
+- final preflight verdict;
+- exact activation procedure if PASS;
+- exact rollback procedure;
+- all files changed;
+- all production changes made;
+- any human action still required.
+
+At the end of the task, reply in chat with ONLY:
+
+CONTEXTUAL INSIGHTS ACTIVATION STATUS: [PASS or BLOCKED]
+BLOCKER: [none or one sentence]
+HUMAN ACTION REQUIRED: [none or one sentence]
+REPORT FILE: docs/production/CONTEXTUAL_INSIGHTS_FINAL_ACTIVATION_READINESS_REPORT.md

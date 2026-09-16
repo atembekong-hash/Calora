@@ -1,0 +1,590 @@
+CALORA — SAFE FULL-BRANCH RECONCILIATION PREFLIGHT
+
+SOURCE BRANCH:
+
+release/calora-onboarding-and-plus
+
+CANONICAL DESTINATION:
+
+main
+
+
+OWNER DECISION:
+
+I have reviewed:
+
+CALORA_RELEASE_ONBOARDING_PLUS_COMPLETE_WORK_INVENTORY.md
+
+The inventory identified 14 meaningful work items.
+
+OWNER DECISION:
+
+ALL 14 WORK ITEMS ARE APPROVED FOR RECONCILIATION CONSIDERATION.
+
+I am no longer requesting that forensic/audit/scanning/release work be
+automatically excluded.
+
+However, this DOES NOT authorize a blind Git merge.
+
+The objective is:
+
+PRESERVE the complete meaningful work represented by
+release/calora-onboarding-and-plus
+
+WHILE ALSO PRESERVING everything newer, safer, or already corrected on
+current main.
+
+Current main remains the canonical production/release branch.
+
+
+==================================================
+CRITICAL SAFETY RULE
+==================================================
+
+THIS IS PREFLIGHT ONLY.
+
+DO NOT MERGE YET.
+
+DO NOT:
+
+- git merge
+- cherry-pick
+- rebase
+- reset
+- force-push
+- push
+- modify main
+- modify the source branch
+- delete branches
+- deploy
+- modify production
+- modify production database
+- run destructive migrations
+- trigger EAS
+- build Android
+- build iOS
+- submit TestFlight
+- trigger a production GitHub workflow
+
+The purpose of this mission is to establish the safest exact reconciliation
+procedure BEFORE any source mutation occurs.
+
+
+==================================================
+MISSION 1 — REFRESH AND FREEZE BOTH IDENTITIES
+==================================================
+
+Fetch current Git refs.
+
+Establish the CURRENT exact identities of:
+
+origin/main
+
+and
+
+release/calora-onboarding-and-plus
+
+Also inspect:
+
+origin/release/calora-onboarding-and-plus
+
+because the previous inventory found a discrepancy between the local source
+branch and its origin-tracking ref.
+
+Record for each relevant ref:
+
+- full commit SHA
+- tree SHA
+- commit timestamp
+- subject
+- clean/dirty state where applicable
+
+Determine:
+
+- merge base
+- ahead/behind counts
+- unique commit counts
+- local-vs-origin source-branch discrepancy
+- whether either ref changed since the previous inventory
+
+DO NOT silently choose between the local and remote release branch.
+
+Explain which source identity contains the complete owner-reviewed 14-item
+inventory and why.
+
+
+==================================================
+MISSION 2 — MAP ALL 14 APPROVED WORK ITEMS TO MAIN
+==================================================
+
+Use:
+
+CALORA_RELEASE_ONBOARDING_PLUS_COMPLETE_WORK_INVENTORY.md
+
+as the owner-approved work inventory.
+
+For EACH of Items 01–14 determine its relationship to CURRENT main.
+
+Classify each item as:
+
+A — PRESENT IN MAIN, IDENTICAL
+
+B — PRESENT IN MAIN, SUPERSEDED BY A NEWER/SAFER IMPLEMENTATION
+
+C — PARTIALLY PRESENT IN MAIN
+
+D — GENUINELY MISSING FROM MAIN
+
+E — HISTORY/REPORT/EVIDENCE DIFFERENCE ONLY
+
+F — CONFLICTING IMPLEMENTATIONS REQUIRING MANUAL RECONCILIATION
+
+
+IMPORTANT:
+
+Do not use commit presence alone.
+
+A commit may be absent from main while its resulting functionality is already
+present through a later independent implementation.
+
+Compare:
+
+- actual source trees
+- file contents
+- behavior
+- contracts
+- tests
+- configuration
+- generated clients
+- migrations
+- runtime implementation
+
+The objective is FUNCTIONAL reconciliation, not commit-history duplication.
+
+
+==================================================
+MISSION 3 — COMPLETE PATH-LEVEL THREE-WAY ANALYSIS
+==================================================
+
+Perform a three-way comparison using the merge base:
+
+BASE
+vs
+CURRENT MAIN
+vs
+SOURCE BRANCH
+
+Analyze every meaningful changed runtime/configuration path.
+
+Pay particular attention to:
+
+artifacts/calora/
+artifacts/api-server/
+lib/db/
+lib/api-spec/
+lib/api-client-react/
+lib/api-zod/
+supabase/migrations/
+scripts/
+.github/workflows/
+docs/
+Expo/EAS configuration
+native-auth configuration
+assets/images
+
+Classify conflicts into:
+
+MAIN SHOULD WIN
+
+SOURCE SHOULD WIN
+
+COMBINE BOTH
+
+MANUAL RECONCILIATION REQUIRED
+
+NON-RUNTIME / HISTORY ONLY
+
+Do not execute these resolutions yet.
+
+
+==================================================
+MISSION 4 — PROTECT CURRENT MAIN
+==================================================
+
+Current main contains work completed AFTER or independently of the source
+branch.
+
+Absolutely protect newer main functionality.
+
+The reconciliation must NOT regress current:
+
+- production API compatibility remediation
+- restored capture approval endpoint/contract
+- capture authentication and owner scoping
+- capture idempotency
+- recipe pagination compatibility
+- nextOffset compatibility
+- terminalReason compatibility
+- current authentication/security
+- account deletion fences
+- database protections
+- synchronization protections
+- current production release attestation
+- current Expo/EAS configuration
+- Expo Router entry point
+- pnpm/xmldom remediation
+- image-size/EAS archive remediation
+- correct artifacts/calora working directory
+- eas submit.production configuration
+- Apple Health privacy-purpose strings
+- GitHub TestFlight workflow
+- current iOS/TestFlight fixes
+- current release-validation/hardening work
+- any newer implementation on main that supersedes source-branch code
+
+If source-branch code would downgrade any of these, MAIN MUST WIN unless a
+carefully combined implementation is required.
+
+
+==================================================
+MISSION 5 — DATABASE AND MIGRATION SAFETY
+==================================================
+
+Compare all database and migration work represented by the source branch with
+current main.
+
+Determine:
+
+- which migrations are already represented
+- which schema effects already exist
+- whether any migration is genuinely missing
+- whether migrations were superseded
+- whether duplicate application could be dangerous
+- whether migration ordering differs
+- whether Coach Fact Context migrations require special treatment
+
+DO NOT execute migrations.
+
+DO NOT use drizzle-kit push.
+
+DO NOT mutate production.
+
+No database operation may be included in the later execution plan unless its
+necessity is proven.
+
+
+==================================================
+MISSION 6 — API CONTRACT SAFETY
+==================================================
+
+Compare source vs main API behavior and generated contracts.
+
+Audit at minimum:
+
+- capture
+- recipes
+- premium recipes
+- planner
+- restaurant foods
+- diary
+- sync
+- profile
+- account
+- referrals
+- Coach
+- Coach Fact Context
+
+Ensure reconciliation cannot reintroduce the previously discovered contract
+regressions.
+
+Explicitly verify preservation of:
+
+POST /api/v1/capture/:sessionId/approve
+
+and all recipe response fields consumed by released mobile clients.
+
+
+==================================================
+MISSION 7 — IOS WEEKLY PROGRAM TAP INVESTIGATION
+==================================================
+
+There is a currently observed iOS symptom:
+
+Plan tab
+→ gear icon
+→ weekly/meal programs
+
+The program list opens successfully.
+
+However, tapping an individual meal program on iOS appears not to respond.
+
+Investigate whether the source branch contains behavior related to:
+
+- program item Pressable
+- onPress handlers
+- program selection
+- program application
+- navigation
+- modal/sheet state
+- gesture arbitration
+- ScrollView/FlatList touch interception
+- pointerEvents
+- overlays
+- zIndex
+- platform-specific behavior
+- iOS-specific gesture handling
+- program provenance
+- planner state transitions
+
+Compare source branch, merge base, and current main.
+
+Determine whether reconciliation of source-branch work would:
+
+FIX THE ISSUE
+
+HAVE NO EFFECT
+
+POSSIBLY REGRESS IT
+
+or
+
+INSUFFICIENT EVIDENCE
+
+DO NOT fix it during this preflight.
+
+If it is an independent iOS defect, identify it separately rather than
+forcing an unrelated source-branch change into main.
+
+
+==================================================
+MISSION 8 — PRESERVE ALL OWNER-APPROVED WORK
+==================================================
+
+All 14 inventory items remain approved for consideration.
+
+This includes:
+
+01 Initial application foundation
+
+02 Onboarding/auth/account/persistence
+
+03 Home/Plus/Recipes/Planner/navigation
+
+04 Smart Scan/Capture/Food Memory
+
+05 Progress/wellness/diary/nutrition/health
+
+06 Coach/intelligence/visual/interactions
+
+07 Database security/account isolation
+
+08 Coach Fact Context
+
+09 Image/release/deletion/reliability hardening
+
+10 Late product fixes
+
+11 Brand/domain/referral/auth deep links
+
+12 Git/GitHub reconciliation
+
+13 Mandatory CI release gate
+
+14 Native auth/Expo/iOS/EAS/TestFlight work
+
+But "preserve" does NOT mean duplicate obsolete history or overwrite newer
+main implementations.
+
+If main already contains a better implementation of an approved work item,
+preserving the newer main implementation satisfies the owner's preservation
+requirement.
+
+For mixed items, distinguish:
+
+RUNTIME IMPLEMENTATION
+
+TESTS
+
+RELEASE CONTROL
+
+REPORTS/EVIDENCE
+
+DOCUMENTATION
+
+so that reconciliation does not accidentally replace current runtime code
+merely to reproduce historical reports.
+
+
+==================================================
+MISSION 9 — DETERMINE THE SAFEST INTEGRATION METHOD
+==================================================
+
+After completing the analysis, determine the safest technical method.
+
+Possible strategies include:
+
+1. CLEAN THREE-WAY MERGE WITH CONTROLLED CONFLICT RESOLUTION
+
+2. TARGETED PORT OF MISSING CHANGES
+
+3. SELECTIVE CHERRY-PICK + MANUAL RECONCILIATION
+
+4. SYNTHETIC RECONCILIATION COMMIT BUILT FROM CURRENT MAIN
+
+5. HYBRID APPROACH
+
+Do not prefer a Git merge merely because it is convenient.
+
+Prefer the method that:
+
+- preserves current main
+- recovers genuinely missing approved work
+- avoids duplicated historical commits
+- minimizes regression risk
+- produces a reviewable final diff
+- keeps rollback straightforward
+
+
+==================================================
+MISSION 10 — DESIGN ROLLBACK BEFORE EXECUTION
+==================================================
+
+Record current main's exact SHA/tree as:
+
+PRE-RECONCILIATION MAIN
+
+Design a rollback procedure that can return to that exact source identity.
+
+Do NOT perform rollback.
+
+Do NOT create destructive history.
+
+The later reconciliation must be implemented through normal auditable Git
+history.
+
+
+==================================================
+MISSION 11 — VALIDATION PLAN
+==================================================
+
+Design the validation suite that MUST pass after reconciliation.
+
+Include:
+
+- full workspace typecheck
+- mobile tests
+- API tests
+- security tests
+- persistence tests
+- onboarding tests
+- authentication tests
+- planner tests
+- recipe tests
+- premium recipe tests
+- capture tests
+- diary/sync tests
+- Coach tests
+- Coach Fact Context tests
+- database/migration safety checks
+- Expo config validation
+- native auth preflight
+- iOS signing/prebuild validation where non-mutating
+- release-attestation validation
+- generated API contract cleanliness
+- Git diff/tree verification
+
+Also define manual device checks for later:
+
+ANDROID:
+Plan → gear → weekly programs → select program
+
+IOS:
+Plan → gear → weekly programs → select program
+
+These device checks occur AFTER a later authorized build.
+Do not build now.
+
+
+==================================================
+MISSION 12 — PRODUCE EXACT EXECUTION PLAN
+==================================================
+
+Produce a step-by-step reconciliation procedure.
+
+For every step specify:
+
+- source identity
+- target identity
+- exact files/areas involved
+- expected change
+- conflict policy
+- required validation
+- rollback point
+
+If targeted changes are required, identify them precisely.
+
+If no application recovery is actually required for an item, say so.
+
+The final execution plan must be deterministic enough that a separate agent
+could perform it without guessing.
+
+
+==================================================
+OUTPUT
+==================================================
+
+Produce:
+
+CALORA_RELEASE_ONBOARDING_PLUS_SAFE_RECONCILIATION_PREFLIGHT.md
+
+Include:
+
+1. Executive summary
+2. Current branch identities
+3. Local/remote release-branch discrepancy
+4. Merge-base analysis
+5. Item 01–14 reconciliation matrix
+6. Path-level three-way analysis
+7. Missing functionality
+8. Superseded functionality
+9. Conflict inventory
+10. Database/migration analysis
+11. API contract analysis
+12. iOS weekly-program investigation
+13. Current-main protection matrix
+14. Recommended reconciliation method
+15. Exact execution plan
+16. Validation plan
+17. Rollback plan
+18. Risks/blockers
+19. Confirmation that no mutation/deployment/build occurred
+
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+READY FOR CONTROLLED RECONCILIATION
+
+RECONCILIATION BLOCKED — REMEDIATION REQUIRED
+
+INSUFFICIENT EVIDENCE — DO NOT RECONCILE
+
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP AFTER THE REPORT.
+
+DO NOT EXECUTE THE RECONCILIATION.
+
+DO NOT MERGE.
+DO NOT CHERRY-PICK.
+DO NOT MODIFY MAIN.
+DO NOT PUSH.
+DO NOT DEPLOY.
+DO NOT BUILD ANDROID.
+DO NOT BUILD IOS.
+DO NOT TRIGGER EAS.
+DO NOT SUBMIT TESTFLIGHT.
+
+Wait for explicit owner authorization.
