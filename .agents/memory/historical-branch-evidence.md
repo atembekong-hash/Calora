@@ -26,3 +26,20 @@ remain available through Profile and Insights.
 
 **How to apply:** When a historical route disappears, trace its former state,
 provider, and visible outputs independently before classifying it as lost.
+
+The Step 51 targeted window is best modeled as an expanded adjacent product
+sequence from the pre-prompt Coach work (`0ba0ef5`) through the final bounded
+Coach Fact Context integration (`2486ae3`), with the report-16–19 core nested
+inside it (`53eddce` through `22cbe8a`). Its genuine recovery scope excludes
+the intentional Fitness/More rollback and is limited to onboarding keyboard and
+agreement UX, recipe freshness/remount behavior, nutrition-state presentation,
+and a disconnected Health workout destination requiring a new product decision.
+
+**Why:** The broader historical branch mixes product remediation with release
+control, superseded architecture, and intentional rollbacks. A bounded
+ancestry-and-mission window prevents those items from inflating missing-work
+conclusions.
+
+**How to apply:** Treat the Step 51 report as the evidence boundary for future
+recovery planning; reimplement against canonical architecture rather than
+merging the historical release branch wholesale.
