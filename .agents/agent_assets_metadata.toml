@@ -14,3 +14,17 @@ mtime_ms = 1789453843287
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/1fb9b1a3-ff77-40e5-8299-1e257f792d1f/3a2a2438-9c15-4682-afa7-b412d36c56f2"
 storage_version_token = "1789453853154887"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "GCtumW2pdsFtMVS_JXOJm"
+uri = "file://CALORA_PRODUCTION_API_DEPLOYMENT_FINAL_REPORT.md"
+type = "text"
+title = "Calora Production API Deployment Final Report"
+description = "Verified production deployment report for the exact authorized API candidate, including health, version, compatibility smoke tests, rollback identity, and failed-build diagnosis."
+logical_id = "2046ba55-39e2-4188-83ae-2f42eebe8985"
+content_hash = "sha256:70fbc970013d7a73f93982a5a1e6650fa39e532e9f0754648c39459abbcbbd40"
+size = 7371
+mtime_ms = 1789522015645
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/2046ba55-39e2-4188-83ae-2f42eebe8985/74c1afe0-7c46-43a4-82d9-91958b7c4e3e"
+storage_version_token = "1789522032371653"
+content_type = "text/markdown"
