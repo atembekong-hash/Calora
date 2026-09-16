@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { GeneratePlannerBody } from "@workspace/api-zod";
 import { plannerImageKeyForMeal, type PlannerImageKey } from "@workspace/api-zod/planner-image-identity";
+import { orderProgramMeals } from "@workspace/api-zod/planner-program-eligibility";
+import type { PlannerProgramId } from "@workspace/api-zod/planner-program-pools";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
@@ -465,13 +467,26 @@ function makeMeal(meal: CatalogMeal, day: string, index: number) {
 }
 
 function catalogForPlanType(meals: CatalogMeal[], planType: string | null): CatalogMeal[] {
-  if (planType === "plant-based-week") {
-    return meals.filter((meal) => meal.diets.includes("Vegetarian") || meal.diets.includes("Vegan"));
-  }
-  if (planType === "quick-and-easy") {
-    return meals.filter((meal) => meal.prepMinutes <= 20);
-  }
-  return meals;
+  return orderProgramMeals(planType as PlannerProgramId | undefined, meals);
+}
+
+function buildStarterWeek(catalog: CatalogMeal[], weekStart: string) {
+  const byRole = new Map(
+    (["Breakfast", "Lunch", "Dinner", "Snack"] as const).map((role) => [
+      role,
+      catalog.filter((meal) => meal.meal === role),
+    ]),
+  );
+  return Array.from({ length: 7 }, (_, dayIndex) =>
+    (["Breakfast", "Lunch", "Dinner", "Snack"] as const).map((role, mealIndex) => {
+      const candidates = byRole.get(role) ?? [];
+      // Preserve current main's stable starter-week fallback: one canonical
+      // meal per role, repeated across the week when the provider is absent.
+      const meal = candidates[0];
+      if (!meal) throw new Error(`No eligible ${role} meals are available for this Program.`);
+      return makeMeal(meal, dateFromWeekStart(weekStart, dayIndex), mealIndex);
+    }),
+  ).flat();
 }
 
 function parseSelection(content: string) {
@@ -582,19 +597,15 @@ router.post("/v1/planner/generate", async (req, res) => {
     if (!content) throw new Error("Planner provider returned no plan");
     const selection = parseSelection(content);
      const byId = new Map(programCatalog.map((meal) => [meal.id, meal]));
-    const fallback = {
-       breakfast: programCatalog.find((meal) => meal.meal === "Breakfast") ?? programCatalog[0],
-       lunch: programCatalog.find((meal) => meal.meal === "Lunch") ?? programCatalog[3],
-       dinner: programCatalog.find((meal) => meal.meal === "Dinner") ?? programCatalog[7],
-       snack: programCatalog.find((meal) => meal.meal === "Snack") ?? programCatalog[10],
-    };
+    const fallback = buildStarterWeek(programCatalog, weekStart);
     const meals = Array.from({ length: 7 }, (_, dayIndex) => {
       const chosen = selection.days?.[dayIndex] ?? {};
+      const fallbackDay = fallback.slice(dayIndex * 4, dayIndex * 4 + 4);
       return [
-        byId.get(chosen.breakfast ?? "") ?? fallback.breakfast,
-        byId.get(chosen.lunch ?? "") ?? fallback.lunch,
-        byId.get(chosen.dinner ?? "") ?? fallback.dinner,
-        byId.get(chosen.snack ?? "") ?? fallback.snack,
+        byId.get(chosen.breakfast ?? "") ?? fallbackDay[0],
+        byId.get(chosen.lunch ?? "") ?? fallbackDay[1],
+        byId.get(chosen.dinner ?? "") ?? fallbackDay[2],
+        byId.get(chosen.snack ?? "") ?? fallbackDay[3],
       ].map((meal, mealIndex) => makeMeal(meal, dateFromWeekStart(weekStart, dayIndex), mealIndex));
     }).flat();
     res.json({ weekStart, provider: `${BRAND_NAME} AI planner`, message: "Your week is balanced around your goals and preferences.", meals });
@@ -603,18 +614,7 @@ router.post("/v1/planner/generate", async (req, res) => {
     // workspace in an error state. Keep the response contract intact when the
     // upstream model is slow or unavailable so local-first clients can proceed
     // with an editable starter week instead of receiving a transport failure.
-    const fallback = {
-       breakfast: programCatalog.find((meal) => meal.meal === "Breakfast") ?? programCatalog[0],
-       lunch: programCatalog.find((meal) => meal.meal === "Lunch") ?? programCatalog[3],
-       dinner: programCatalog.find((meal) => meal.meal === "Dinner") ?? programCatalog[7],
-       snack: programCatalog.find((meal) => meal.meal === "Snack") ?? programCatalog[10],
-    };
-    const meals = Array.from({ length: 7 }, (_, dayIndex) => [
-      makeMeal(fallback.breakfast, dateFromWeekStart(weekStart, dayIndex), 0),
-      makeMeal(fallback.lunch, dateFromWeekStart(weekStart, dayIndex), 1),
-      makeMeal(fallback.dinner, dateFromWeekStart(weekStart, dayIndex), 2),
-      makeMeal(fallback.snack, dateFromWeekStart(weekStart, dayIndex), 3),
-    ]).flat();
+    const meals = buildStarterWeek(programCatalog, weekStart);
     res.json({
       weekStart,
       provider: `${BRAND_NAME} starter planner`,

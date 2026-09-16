@@ -3,6 +3,8 @@ import type { ShoppingItem } from '@/context/CaloraContext';
 import { addDays, dateFromKey, dateKey } from '@/lib/dates';
 import type { PlanTypeId } from '@/lib/planType';
 import { plannerImageKeyForMeal, plannerImageKeyForMealId } from '@/lib/mealImageIdentity';
+import { orderProgramMeals } from '@workspace/api-zod/planner-program-eligibility';
+import type { PlannerProgramId } from '@workspace/api-zod/planner-program-pools';
 
 export const plannerMealTypes: PlannerMeal['meal'][] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -434,33 +436,12 @@ export function plannerDate(weekStart: string, offset: number) {
   return addDays(weekStart, offset);
 }
 
-const PLANT_BASED_MEAL_IDS = new Set([
-  'berry-oats',
-  'egg-toast',
-  'yogurt-parfait',
-  'smoothie-bowl',
-  'banana-pancakes',
-  'chia-pudding',
-  'lentil-soup',
-  'greek-salad',
-  'chickpea-bowl',
-  'stir-fry',
-  'med-pasta',
-  'apple-almond',
-  'edamame',
-  'trail-mix',
-  'hummus-veggies',
-  'banana-pb',
-]);
-
 export function plannerCatalogForProgram(programId?: PlanTypeId): PlannerMeal[] {
-  if (programId === 'plant-based-week') {
-    return plannerCatalog.filter((meal) => PLANT_BASED_MEAL_IDS.has(meal.id));
-  }
-  if (programId === 'quick-and-easy') {
-    return plannerCatalog.filter((meal) => (meal.prepMinutes ?? 0) <= 20);
-  }
-  return plannerCatalog;
+  const ordered = orderProgramMeals(programId as PlannerProgramId | undefined, plannerCatalog);
+  // Offline planning must remain usable even if a future catalog edit makes a
+  // Program too narrow. The server still reports an explicit 400 for that
+  // condition; the local client keeps the editable starter week available.
+  return ordered.length > 0 ? ordered : plannerCatalog;
 }
 
 export function createStarterPlannerMeals(weekStart = getPlannerWeekStart(), programId?: PlanTypeId): PlannerMeal[] {
