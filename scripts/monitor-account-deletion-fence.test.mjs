@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { access, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
@@ -15,9 +18,15 @@ import {
   parseAccountDeletionFenceSignal,
 } from "../artifacts/api-server/src/lib/account-deletion-fence-schema.mjs";
 
+const execFileAsync = promisify(execFile);
 const workspaceDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
+);
+const monitorPath = path.join(
+  workspaceDir,
+  "scripts",
+  "monitor-account-deletion-fence.mjs",
 );
 
 test("counts sanitized deletion-fence events by route and separates sync 503s", () => {
@@ -227,6 +236,103 @@ test("fails closed on malformed structured fence signals", () => {
     () => summarizeAccountDeletionFenceLogs("{not-json}"),
     /invalid JSON on line 1/,
   );
+});
+
+test("rejects redirected release data before reading its payload or writing a report", async () => {
+  const fixtureRoot = await mkdtemp(
+    path.join(tmpdir(), "calora-account-deletion-monitor-"),
+  );
+  const logPath = path.join(fixtureRoot, "monitor.ndjson");
+  const reportPath = path.join(fixtureRoot, "report.json");
+  const preloadPath = path.join(fixtureRoot, "redirected-release.mjs");
+  const fetchCalledPath = path.join(fixtureRoot, "fetch-called.json");
+  const payloadReadPath = path.join(fixtureRoot, "payload-read.json");
+
+  await Promise.all([
+    writeFile(
+      logPath,
+      `${JSON.stringify({
+        time: "2026-09-05T10:20:00.000Z",
+        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+        route: "/v1/sync",
+        count: 1,
+      })}\n`,
+    ),
+    writeFile(
+      preloadPath,
+      `
+import { writeFile } from "node:fs/promises";
+
+globalThis.fetch = async (url, options) => {
+  await writeFile(
+    ${JSON.stringify(fetchCalledPath)},
+    JSON.stringify({ url, redirect: options?.redirect }),
+  );
+  return {
+    type: "basic",
+    url: "https://attacker.example/api/version",
+    ok: true,
+    status: 200,
+    json: async () => {
+      await writeFile(${JSON.stringify(payloadReadPath)}, "payload read");
+      return {
+        schemaVersion: "calora.release-attestation.v1",
+        gitCommit: "${"a".repeat(40)}",
+        sourceTree: "${"b".repeat(40)}",
+        sourceDigest: "${"c".repeat(64)}",
+        buildTimestamp: "2026-09-05T10:14:25.616Z",
+        releaseId: "calora-api-aaaaaaaaaaaa-20260905101425616",
+      };
+    },
+  };
+};
+`,
+    ),
+  ]);
+
+  try {
+    await assert.rejects(
+      execFileAsync(
+        process.execPath,
+        [
+          "--import",
+          preloadPath,
+          monitorPath,
+          "--log-file",
+          logPath,
+          "--release-url",
+          "https://example.test",
+          "--report-file",
+          reportPath,
+          "--require-fence",
+        ],
+        {
+          cwd: workspaceDir,
+          env: { ...process.env },
+        },
+      ),
+      (error) => {
+        assert.equal(error.code, 1);
+        assert.match(
+          `${error.stdout}\n${error.stderr}`,
+          /redirected off the canonical origin/,
+        );
+        return true;
+      },
+    );
+
+    assert.deepEqual(
+      JSON.parse(await readFile(fetchCalledPath, "utf8")),
+      {
+        url: "https://example.test/api/version",
+        redirect: "manual",
+      },
+    );
+    await assert.rejects(access(reportPath));
+    await assert.rejects(access(payloadReadPath));
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
 });
 
 test("uses one shared fence schema for API construction and monitor parsing", () => {
