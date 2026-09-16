@@ -335,6 +335,152 @@ globalThis.fetch = async (url, options) => {
   }
 });
 
+test("rejects invalid release JSON before retaining its payload or writing a report", async () => {
+  const fixtureRoot = await mkdtemp(
+    path.join(tmpdir(), "calora-account-deletion-monitor-"),
+  );
+  const logPath = path.join(fixtureRoot, "monitor.ndjson");
+  const reportPath = path.join(fixtureRoot, "report.json");
+  const preloadPath = path.join(fixtureRoot, "invalid-json-release.mjs");
+  const untrustedPayload = "untrusted-invalid-json-payload";
+
+  await Promise.all([
+    writeFile(
+      logPath,
+      `${JSON.stringify({
+        time: "2026-09-05T10:20:00.000Z",
+        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+        route: "/v1/sync",
+        count: 1,
+      })}\n`,
+    ),
+    writeFile(
+      preloadPath,
+      `
+globalThis.fetch = async () => ({
+  type: "basic",
+  url: "https://example.test/api/version",
+  ok: true,
+  status: 200,
+  json: async () => {
+    throw new SyntaxError(${JSON.stringify(`Unexpected token ${untrustedPayload}`)});
+  },
+});
+`,
+    ),
+  ]);
+
+  try {
+    await assert.rejects(
+      execFileAsync(
+        process.execPath,
+        [
+          "--import",
+          preloadPath,
+          monitorPath,
+          "--log-file",
+          logPath,
+          "--release-url",
+          "https://example.test",
+          "--report-file",
+          reportPath,
+          "--require-fence",
+        ],
+        {
+          cwd: workspaceDir,
+          env: { ...process.env },
+        },
+      ),
+      (error) => {
+        assert.equal(error.code, 1);
+        const output = `${error.stdout}\n${error.stderr}`;
+        assert.match(output, /did not return valid JSON/);
+        assert.equal(output.includes(untrustedPayload), false);
+        return true;
+      },
+    );
+    await assert.rejects(access(reportPath));
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test("rejects invalid release attestation data before retaining its payload or writing a report", async () => {
+  const fixtureRoot = await mkdtemp(
+    path.join(tmpdir(), "calora-account-deletion-monitor-"),
+  );
+  const logPath = path.join(fixtureRoot, "monitor.ndjson");
+  const reportPath = path.join(fixtureRoot, "report.json");
+  const preloadPath = path.join(fixtureRoot, "invalid-attestation-release.mjs");
+  const untrustedPayload = "untrusted-attestation-payload";
+
+  await Promise.all([
+    writeFile(
+      logPath,
+      `${JSON.stringify({
+        time: "2026-09-05T10:20:00.000Z",
+        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+        route: "/v1/sync",
+        count: 1,
+      })}\n`,
+    ),
+    writeFile(
+      preloadPath,
+      `
+globalThis.fetch = async () => ({
+  type: "basic",
+  url: "https://example.test/api/version",
+  ok: true,
+  status: 200,
+  json: async () => ({
+    schemaVersion: "calora.release-attestation.v1",
+    gitCommit: ${JSON.stringify(untrustedPayload)},
+    sourceTree: "${"b".repeat(40)}",
+    sourceDigest: "${"c".repeat(64)}",
+    buildTimestamp: "2026-09-05T10:14:25.616Z",
+    releaseId: "calora-api-aaaaaaaaaaaa-20260905101425616",
+    credential: ${JSON.stringify(untrustedPayload)},
+  }),
+});
+`,
+    ),
+  ]);
+
+  try {
+    await assert.rejects(
+      execFileAsync(
+        process.execPath,
+        [
+          "--import",
+          preloadPath,
+          monitorPath,
+          "--log-file",
+          logPath,
+          "--release-url",
+          "https://example.test",
+          "--report-file",
+          reportPath,
+          "--require-fence",
+        ],
+        {
+          cwd: workspaceDir,
+          env: { ...process.env },
+        },
+      ),
+      (error) => {
+        assert.equal(error.code, 1);
+        const output = `${error.stdout}\n${error.stderr}`;
+        assert.match(output, /attestation has an invalid shape/);
+        assert.equal(output.includes(untrustedPayload), false);
+        return true;
+      },
+    );
+    await assert.rejects(access(reportPath));
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
 test("uses one shared fence schema for API construction and monitor parsing", () => {
   assert.deepEqual(createAccountDeletionFenceSignal("/v1/sync", 2), {
     errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
