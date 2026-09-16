@@ -283,6 +283,18 @@ export default function CoachScreen() {
         }]);
         return;
       }
+      if (result.kind === 'failure') {
+        const message = result.error.retryable
+          ? 'Coach is temporarily unavailable. Nothing changed. Please try again.'
+          : 'Coach could not safely use that response. Nothing changed. Your local Progress data is still available.';
+        setTurns((current) => [...current, {
+          id: `failure-${Date.now()}`,
+          role: 'assistant',
+          content: message,
+          announce: true,
+        }]);
+        return;
+      }
 
       // Only Fact Context responses can contain a provider result.
       const message = result.response.message;

@@ -29,6 +29,13 @@ export class CoachFactRequestLifecycle {
     this.active = null;
   }
 
+  /** Release only the request that acquired this scope; never cancel a newer nonce. */
+  complete(scope: CoachFactRequestScope) {
+    if (this.active !== scope) return;
+    scope.aborted = true;
+    this.active = null;
+  }
+
   /** Used by account lifecycle fences before a new identity may hydrate. */
   static invalidateAll() {
     CoachFactRequestLifecycle.instances.forEach((lifecycle) => lifecycle.invalidate());

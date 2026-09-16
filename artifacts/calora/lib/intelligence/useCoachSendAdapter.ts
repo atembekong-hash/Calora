@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { CoachMessage, CoachResponse, CoachFactContextResponse } from '@workspace/api-client-react';
 import { CoachFactActivationCoordinator } from './coachFactActivationCoordinator';
 import { CoachLifecycleEpoch, registerCoachLifecycleEpoch, type EpochInvalidationReason } from './coachLifecycleEpoch';
+import type { CoachFactRequestError } from './coachFactContextClient';
 import type { IntelligenceFact } from './types';
 
 export type CoachSendAdapterInput = {
@@ -36,6 +37,7 @@ export type CoachSendAdapterInput = {
 export type CoachSendResult =
   | { kind: 'fact_context_response'; response: CoachFactContextResponse }
   | { kind: 'unavailable'; reason: string }
+  | { kind: 'failure'; error: CoachFactRequestError }
   | { kind: 'stale'; reason: 'epoch_advanced' };
 
 export type CoachSendAdapterHook = {
@@ -149,6 +151,9 @@ export function createCoachSendAdapter(): CoachSendAdapterWithCleanup {
       // This branch is unreachable: coordinator.request with a fact_context
       // selection cannot return { kind: 'legacy' }. Guard for type safety.
       return { kind: 'unavailable', reason: 'unexpected_legacy' };
+    }
+    if (result.kind === 'failure') {
+      return result;
     }
     return { kind: 'unavailable', reason: result.reason };
   };
