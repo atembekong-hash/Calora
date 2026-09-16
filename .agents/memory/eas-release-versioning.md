@@ -7,4 +7,4 @@ Calora's production EAS profile enables automatic version increments. EAS may up
 
 **Why:** A release requirement can name a precise native build number while the production profile independently increments only the local source value, resulting in a queued artifact with an unintended version and an unusable paid build.
 
-**How to apply:** Before queuing a production build, compare App Store Connect and EAS history, reconcile the requested final native version with the active EAS increment policy, and prove the queued record reports that number before any submission. Re-resolve Expo config afterward because the CLI may rewrite local version values.
+**How to apply:** Before queuing a production build, compare App Store Connect and EAS history, use local version control with `autoIncrement: false` when an exact number is required, and fail closed unless the source number equals the live floor plus one. Re-resolve Expo config afterward because the CLI may rewrite local version values.
