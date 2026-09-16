@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { runBuildNumberPreflight } = require('./ios-build-number-preflight');
 
 const projectRoot = path.resolve(__dirname, '..');
 const appConfigPath = path.join(projectRoot, 'app.json');
@@ -414,6 +415,8 @@ function runEasBuild({ rehearsal = false, bundleIdentifier } = {}) {
 
 async function main() {
   const appleRehearsal = process.argv.includes('--apple-rehearsal');
+  const queueBuild = process.argv.includes('--queue-build');
+  const productionBuildRequest = queueBuild || appleRehearsal;
   const expiryMonitor = process.argv.some(
     (argument) => argument === '--warn-days' || argument.startsWith('--warn-days='),
   );
@@ -441,6 +444,26 @@ async function main() {
       FAILURE_CLASSES.HOST_PLATFORM,
     );
     return 1;
+  }
+
+  if (productionBuildRequest) {
+    try {
+      const proof = await runBuildNumberPreflight();
+      console.log(
+        [
+          '[ios-signing] BUILD NUMBER PREFLIGHT PASSED',
+          `[ios-signing] Safe next iOS build number: ${proof.selectedNextBuildNumber}.`,
+          `[ios-signing] Resolved production iOS build number: ${proof.predictedProductionBuildNumber}.`,
+        ].join('\n'),
+      );
+    } catch (error) {
+      printFailure(
+        `The production iOS build-number safety gate failed: ${error.message}`,
+        identity.bundleIdentifier,
+        FAILURE_CLASSES.LOCAL_CONFIGURATION,
+      );
+      return 1;
+    }
   }
 
   const token = getToken();
@@ -489,7 +512,7 @@ async function main() {
     ].join('\n'),
   );
 
-  if (process.argv.includes('--queue-build') || appleRehearsal) {
+  if (queueBuild || appleRehearsal) {
     console.log(
       appleRehearsal
         ? '[ios-signing] EAS record is ready; running the controlled Apple certificate rehearsal...'

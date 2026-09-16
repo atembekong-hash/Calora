@@ -46,7 +46,7 @@
     "production": {
       "extends": "base",
       "environment": "production",
-      "autoIncrement": true,
+      "autoIncrement": false,
       "credentialsSource": "remote",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://calorie-coach-pie35449.replit.app",
