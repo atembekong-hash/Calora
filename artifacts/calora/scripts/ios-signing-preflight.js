@@ -279,11 +279,15 @@ function evaluateCredentialReadiness(credentials, now = new Date()) {
       reason: `The assigned iOS provisioning profile expired on ${formatDate(profileExpiration)}.`,
     };
   }
-  if (provisioningProfile.status && provisioningProfile.status !== 'ACTIVE') {
+  const normalizedProfileStatus =
+    typeof provisioningProfile.status === 'string'
+      ? provisioningProfile.status.trim().toUpperCase()
+      : null;
+  if (normalizedProfileStatus !== 'ACTIVE') {
     return {
       ready: false,
       failureClass: FAILURE_CLASSES.EAS_RECORD,
-      reason: `The assigned iOS provisioning profile is not active (status: ${provisioningProfile.status}).`,
+      reason: `The assigned iOS provisioning profile is not active (status: ${provisioningProfile.status ?? 'missing'}).`,
     };
   }
 

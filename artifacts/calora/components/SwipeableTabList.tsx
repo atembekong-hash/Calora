@@ -1,7 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import {
   PanResponder,
-  StyleSheet,
   useWindowDimensions,
   View,
   type StyleProp,
@@ -135,7 +134,7 @@ export function SwipeableTabList<T extends string>({
       accessibilityRole="tablist"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint="Swipe left or right to switch sections"
-      style={[style, styles.gestureSurface]}
+      style={style}
       testID={testID}
     >
       {children}
@@ -292,7 +291,7 @@ export function SwipeableSectionPager<T extends string>({
         {...panResponder.panHandlers}
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
-        style={[style, styles.gestureSurface, animatedStyle]}
+        style={[style, animatedStyle]}
         testID={testID}
       >
         {children}
@@ -300,9 +299,3 @@ export function SwipeableSectionPager<T extends string>({
     </SwipeGestureExclusionContext.Provider>
   );
 }
-
-const styles = StyleSheet.create({
-  gestureSurface: {
-    userSelect: 'none',
-  },
-});
