@@ -416,6 +416,53 @@ test("public release verifier prints safe default fallback for invalid and out-o
   }
 });
 
+test("rejects off-origin and opaque redirect release attestations before reading payloads", async () => {
+  const output = await runNode(`
+import assert from "node:assert/strict";
+import { fetchPublishedReleaseAttestation } from ${JSON.stringify(
+    pathToFileURL(publicReleaseAttestationPath).href,
+  )};
+
+for (const { name, type, responseUrl } of [
+  {
+    name: "off-origin final URL",
+    type: "basic",
+    responseUrl: "https://attacker.example/api/version",
+  },
+  {
+    name: "opaque redirect",
+    type: "opaqueredirect",
+    responseUrl: "https://example.test/api/version",
+  },
+]) {
+  let payloadRead = false;
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, "https://example.test/api/version");
+    assert.equal(options.redirect, "manual");
+    return {
+      type,
+      url: responseUrl,
+      ok: true,
+      status: 200,
+      json: async () => {
+        payloadRead = true;
+        return {};
+      },
+    };
+  };
+
+  await assert.rejects(
+    fetchPublishedReleaseAttestation("https://example.test"),
+    /Published release attestation redirected off the canonical origin/,
+  );
+  assert.equal(payloadRead, false, name);
+}
+
+process.stdout.write("off-origin checks passed\\n");
+`);
+  assert.match(output.stdout, /off-origin/);
+});
+
 test("passes when production files claim the callback and signed app", async () => {
   const result = await checkNativeAssociations({
     origin: "https://example.com",
