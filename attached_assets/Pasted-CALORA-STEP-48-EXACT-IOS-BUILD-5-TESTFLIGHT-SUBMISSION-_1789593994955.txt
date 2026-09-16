@@ -1,0 +1,730 @@
+CALORA — STEP 48 EXACT IOS BUILD 5 TESTFLIGHT SUBMISSION
+
+OUTPUT REPORT:
+
+48_CALORA_IOS_BUILD_5_TESTFLIGHT_SUBMISSION_REPORT.md
+
+
+==================================================
+OWNER AUTHORIZATION
+==================================================
+
+Step 47 ended with:
+
+IOS BUILD 5 VERIFIED — READY FOR OWNER TESTFLIGHT SUBMISSION AUTHORIZATION
+
+
+The owner now explicitly AUTHORIZES:
+
+ONE deterministic TestFlight submission of the EXACT existing EAS build:
+
+EAS BUILD ID:
+088c4dc8-0ed9-4293-b7b7-4925045cbbbe
+
+
+EXPECTED BUILD IDENTITY:
+
+Marketing version:
+1.0.0
+
+iOS build number:
+5
+
+Bundle identifier:
+com.etiendem.caloraapp
+
+Canonical Git SHA:
+7cce885c6b3d046a5a8fdb40d92343a87b73c290
+
+Expo project ID:
+1f202325-5b9a-4260-978f-abbd3252b9ee
+
+App Store Connect App ID:
+6800321660
+
+Apple Team:
+B5344GJRMT
+
+
+THIS STEP MUST NOT BUILD ANYTHING.
+
+
+==================================================
+STRICT AUTHORIZATION
+==================================================
+
+AUTHORIZED:
+
+1. verify canonical GitHub source read-only;
+2. verify Step 47 EAS build read-only;
+3. verify exact IPA/build provenance;
+4. verify build 5 is not already present in App Store Connect;
+5. verify App Store Connect credential availability safely;
+6. submit EXACT EAS build ID:
+   088c4dc8-0ed9-4293-b7b7-4925045cbbbe
+7. monitor that exact submission;
+8. verify Apple/TestFlight processing state;
+9. inspect existing internal testing group state;
+10. create Step 48 report.
+
+
+NOT AUTHORIZED:
+
+- EAS build;
+- iOS rebuild;
+- Android build;
+- Android submission;
+- submission of any other EAS build;
+- eas submit --latest unless independently proven to resolve exactly to the
+  authorized build and no explicit-build mechanism exists;
+- App Store production release;
+- external TestFlight distribution;
+- public testing;
+- API deployment;
+- Replit production publish;
+- database mutation;
+- migration;
+- schema change;
+- application source change;
+- Git commit/push;
+- version-number change;
+- automatic rebuild/retry.
+
+
+==================================================
+MISSION 1 — VERIFY CANONICAL GITHUB SOURCE
+==================================================
+
+Fetch origin read-only.
+
+Require:
+
+origin/main SHA:
+7cce885c6b3d046a5a8fdb40d92343a87b73c290
+
+origin/main TREE:
+1a598be866150d488bc21ccd598de3104c638b02
+
+
+If canonical source unexpectedly changed:
+
+STOP.
+
+Do not submit.
+
+Final verdict:
+
+TESTFLIGHT SUBMISSION BLOCKED — CANONICAL SOURCE CHANGED
+
+
+==================================================
+MISSION 2 — VERIFY EXACT AUTHORIZED EAS BUILD
+==================================================
+
+Query EAS directly for:
+
+088c4dc8-0ed9-4293-b7b7-4925045cbbbe
+
+
+Require:
+
+status:
+FINISHED
+
+platform:
+IOS
+
+profile:
+production
+
+distribution:
+STORE
+
+Git SHA:
+7cce885c6b3d046a5a8fdb40d92343a87b73c290
+
+marketing version:
+1.0.0
+
+build number:
+5
+
+bundle:
+com.etiendem.caloraapp
+
+project ID:
+1f202325-5b9a-4260-978f-abbd3252b9ee
+
+
+If ANY identity differs:
+
+STOP.
+
+Final verdict:
+
+TESTFLIGHT SUBMISSION BLOCKED — BUILD IDENTITY MISMATCH
+
+
+==================================================
+MISSION 3 — VERIFY IPA PROVENANCE
+==================================================
+
+Use the artifact belonging specifically to EAS build:
+
+088c4dc8-0ed9-4293-b7b7-4925045cbbbe
+
+
+Verify available metadata again.
+
+Where practical inspect the IPA metadata read-only.
+
+
+Require:
+
+CFBundleIdentifier:
+com.etiendem.caloraapp
+
+CFBundleShortVersionString:
+1.0.0
+
+CFBundleVersion:
+5
+
+
+Do not modify/re-sign/repackage the IPA.
+
+
+==================================================
+MISSION 4 — APP STORE CONNECT PRE-SUBMISSION CHECK
+==================================================
+
+Using authenticated read-only App Store Connect access verify current builds for:
+
+App ID:
+6800321660
+
+
+Determine whether version 1.0.0 build 5 is already present.
+
+
+If build 5 is already present:
+
+DO NOT submit a duplicate.
+
+Record its actual Apple/TestFlight state and stop safely.
+
+
+If build 5 is NOT present:
+
+continue.
+
+
+==================================================
+MISSION 5 — CREDENTIAL SAFETY
+==================================================
+
+Verify required submission credentials by metadata/name only.
+
+Expected:
+
+EXPO_ASC_KEY_ID
+EXPO_ASC_ISSUER_ID
+EXPO_ASC_API_KEY_P8
+APPLE_APP_STORE_ID
+APPLE_TEAM_ID
+
+and required Expo authentication.
+
+
+Never print:
+
+private key
+API key contents
+Expo token
+authorization header
+GitHub token
+Apple credential material
+
+
+==================================================
+MISSION 6 — DETERMINE EXACT SUBMISSION MECHANISM
+==================================================
+
+Use a deterministic submission mechanism tied to exact EAS build:
+
+088c4dc8-0ed9-4293-b7b7-4925045cbbbe
+
+
+Prefer supported explicit build-ID submission.
+
+
+For example, if supported by installed EAS CLI:
+
+eas submit --platform ios --id 088c4dc8-0ed9-4293-b7b7-4925045cbbbe --profile production --non-interactive
+
+
+Verify actual CLI syntax before executing.
+
+
+DO NOT blindly use:
+
+eas submit --latest
+
+
+If explicit build ID is unsupported, use another deterministic supported
+mechanism that proves the selected artifact is exactly the authorized build.
+
+
+If deterministic selection cannot be established:
+
+STOP.
+
+Final verdict:
+
+TESTFLIGHT SUBMISSION BLOCKED — DETERMINISTIC BUILD SELECTION FAILED
+
+
+==================================================
+MISSION 7 — FINAL PRE-SUBMISSION FREEZE
+==================================================
+
+Immediately before submission reverify:
+
+EAS build ID:
+088c4dc8-0ed9-4293-b7b7-4925045cbbbe
+
+status:
+FINISHED
+
+version:
+1.0.0
+
+build:
+5
+
+bundle:
+com.etiendem.caloraapp
+
+Git SHA:
+7cce885c6b3d046a5a8fdb40d92343a87b73c290
+
+
+Reverify Apple does not already contain build 5.
+
+
+Only then submit.
+
+
+==================================================
+MISSION 8 — EXACTLY ONE TESTFLIGHT SUBMISSION
+==================================================
+
+Submit EXACTLY ONE time.
+
+
+Authorized artifact:
+
+088c4dc8-0ed9-4293-b7b7-4925045cbbbe
+
+
+No rebuild.
+
+No second submission.
+
+No automatic retry.
+
+
+Capture the EAS submission ID immediately.
+
+
+==================================================
+MISSION 9 — SUBMISSION PROVENANCE
+==================================================
+
+Record:
+
+EAS submission ID
+EAS build ID
+Expo project ID
+App Store Connect App ID
+bundle
+marketing version
+build number
+submission creation timestamp
+
+
+Require:
+
+build:
+5
+
+version:
+1.0.0
+
+
+==================================================
+MISSION 10 — MONITOR EAS SUBMISSION
+==================================================
+
+Monitor the exact submission to terminal EAS state.
+
+
+If successful:
+
+record success.
+
+
+If failed:
+
+DO NOT retry.
+
+DO NOT rebuild.
+
+STOP.
+
+Final verdict:
+
+TESTFLIGHT SUBMISSION FAILED — NO RETRY AUTHORIZED
+
+
+==================================================
+MISSION 11 — VERIFY APPLE RECEIPT
+==================================================
+
+After successful EAS submission query App Store Connect read-only.
+
+
+Look specifically for:
+
+version:
+1.0.0
+
+build:
+5
+
+
+Do not assume EAS submission success means Apple processing is finished.
+
+
+Record:
+
+Apple build ID
+uploaded date/time
+processing state
+
+
+==================================================
+MISSION 12 — CLASSIFY TESTFLIGHT STATE
+==================================================
+
+Classify build 5 exactly as:
+
+UPLOADED
+
+PROCESSING
+
+READY TO TEST
+
+TESTING
+
+INVALID/REJECTED
+
+UNKNOWN
+
+
+Use actual Apple evidence.
+
+
+If Apple is still processing:
+
+Final verdict:
+
+TESTFLIGHT BUILD 5 PROCESSING — WAIT FOR APPLE
+
+
+If Apple has completed processing and build is valid/available:
+
+continue to internal testing verification.
+
+
+==================================================
+MISSION 13 — INTERNAL TESTING GROUP
+==================================================
+
+Inspect existing group:
+
+Calora Internal Testers
+
+
+Do not create an external group.
+
+
+Determine whether build 5 is:
+
+automatically assigned
+
+already available
+
+or requires owner/manual assignment.
+
+
+If supported and already configured for automatic internal distribution,
+record the resulting state.
+
+
+Do NOT expand testing beyond the existing internal group.
+
+
+==================================================
+MISSION 14 — NO PRODUCTION RELEASE
+==================================================
+
+Do NOT:
+
+submit for App Review
+release to App Store
+configure production rollout
+create external TestFlight testing
+create public links
+
+
+This is INTERNAL TESTFLIGHT ONLY.
+
+
+==================================================
+MISSION 15 — WEEKLY PROGRAMS PROVENANCE
+==================================================
+
+Confirm submitted build source contains:
+
+Weekly Programs deterministic modal state machine.
+
+
+Expected owner test after TestFlight availability:
+
+Calora
+→ Plan
+→ gear
+→ Weekly Programs
+→ tap program
+
+
+Expected:
+
+program detail opens immediately.
+
+
+Do not claim physical-device success.
+
+
+==================================================
+MISSION 16 — GITHUB INTEGRITY
+==================================================
+
+After submission fetch origin read-only.
+
+
+Require GitHub canonical source remains:
+
+SHA:
+7cce885c6b3d046a5a8fdb40d92343a87b73c290
+
+TREE:
+1a598be866150d488bc21ccd598de3104c638b02
+
+
+No Git modification is authorized.
+
+
+==================================================
+MISSION 17 — STRICT BOUNDARY CONFIRMATION
+==================================================
+
+Confirm:
+
+New EAS build:
+NONE
+
+Android build:
+NONE
+
+Android submission:
+NONE
+
+API deployment:
+NONE
+
+Replit production publish:
+NONE
+
+Database mutation:
+NONE
+
+Schema change:
+NONE
+
+Migration:
+NONE
+
+Seed:
+NONE
+
+App Store production release:
+NONE
+
+
+Only the existing EAS iOS build 5 may be submitted.
+
+
+==================================================
+MISSION 18 — OWNER DEVICE TEST PLAN
+==================================================
+
+If build 5 reaches READY TO TEST or TESTING, include:
+
+
+1. Open TestFlight.
+
+2. Confirm Calora shows:
+
+Version:
+1.0.0
+
+Build:
+5
+
+
+3. Install/update Calora.
+
+
+4. Open:
+
+Plan
+→ gear
+→ Weekly Programs
+
+
+5. Tap one Weekly Program.
+
+EXPECTED:
+
+detail opens immediately.
+
+
+6. Back/close.
+
+EXPECTED:
+
+normal return;
+no stuck overlay;
+touch remains responsive.
+
+
+7. Tap another program.
+
+EXPECTED:
+
+detail opens immediately.
+
+
+8. Tap Apply.
+
+EXPECTED:
+
+program applies;
+modal closes normally.
+
+
+9. Repeat selector → detail → back → another program at least twice.
+
+
+10. Smoke test:
+
+Home
+Recipes
+Smart Scan
+Coach
+Diary/Profile
+auth/session persistence
+
+
+Do not fabricate these results.
+
+
+==================================================
+OUTPUT REPORT
+==================================================
+
+Create:
+
+48_CALORA_IOS_BUILD_5_TESTFLIGHT_SUBMISSION_REPORT.md
+
+
+Report MUST contain:
+
+1. Executive summary
+2. Canonical GitHub SHA/tree
+3. Authorized EAS build ID
+4. EAS build identity verification
+5. IPA identity verification
+6. App Store Connect pre-submission state
+7. Credential availability
+8. Deterministic submission mechanism
+9. Final pre-submission freeze
+10. EAS submission ID
+11. Submission provenance
+12. Submission status
+13. Submission timestamps
+14. Apple receipt verification
+15. Apple build ID
+16. Apple processing state
+17. Exact TestFlight classification
+18. Internal testing group state
+19. Weekly Programs source provenance
+20. GitHub post-submission verification
+21. Confirmation no new build occurred
+22. Android/API/database boundaries
+23. Confirmation no App Store production release occurred
+24. Owner physical-device test plan
+25. Remaining uncertainties
+26. Exact recommendation for Step 49
+
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+TESTFLIGHT BUILD 5 VERIFIED — OWNER DEVICE TESTING REQUIRED
+
+TESTFLIGHT BUILD 5 SUBMITTED — APPLE PROCESSING PENDING
+
+TESTFLIGHT BUILD 5 PROCESSING — WAIT FOR APPLE
+
+TESTFLIGHT SUBMISSION BLOCKED — CANONICAL SOURCE CHANGED
+
+TESTFLIGHT SUBMISSION BLOCKED — BUILD IDENTITY MISMATCH
+
+TESTFLIGHT SUBMISSION BLOCKED — DETERMINISTIC BUILD SELECTION FAILED
+
+TESTFLIGHT SUBMISSION FAILED — NO RETRY AUTHORIZED
+
+TESTFLIGHT BUILD 5 INVALID OR REJECTED — REMEDIATION REQUIRED
+
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after:
+
+- exact build 5 verification;
+- exactly one deterministic TestFlight submission;
+- EAS submission monitoring;
+- Apple/TestFlight state verification;
+- Step 48 report.
+
+
+DO NOT BUILD AGAIN.
+
+DO NOT RELEASE TO APP STORE.
+
+If build 5 becomes READY TO TEST or TESTING, wait for the owner to install it
+and perform Step 49 physical-device verification.
