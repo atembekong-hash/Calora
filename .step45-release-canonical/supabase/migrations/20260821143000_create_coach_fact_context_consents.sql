@@ -1,0 +1,18 @@
+-- NEUTRALIZED: This migration is intentionally inert.
+--
+-- The canonical authority for calora_coach_fact_context_consents is the
+-- @workspace/db Drizzle schema (lib/db/src/schema/index.ts) deployed via
+-- `pnpm --filter db push` in scripts/post-merge.sh.
+--
+-- A Supabase migration that re-creates the same table would introduce a second
+-- deployment authority and risk state divergence (missing CHECK constraint,
+-- missing primary-key/FK, duplicate DDL). This file is retained as an
+-- immutable audit artifact but contains no executable DDL.
+--
+-- Schema, index, FK (user_id → calora_users ON DELETE CASCADE), and state
+-- constraint (state IN ('consented_current','revoked')) are all declared in
+-- lib/db/src/schema/index.ts and pushed by the canonical managed-DB path.
+--
+-- The mobile client never accesses this ledger through the Supabase public
+-- data API; it is read and written only by the authenticated API server via
+-- the service role, which is enforced at the application layer.

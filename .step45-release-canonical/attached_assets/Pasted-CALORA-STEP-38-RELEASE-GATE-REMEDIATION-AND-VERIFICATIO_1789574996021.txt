@@ -1,0 +1,756 @@
+CALORA — STEP 38 RELEASE GATE REMEDIATION AND VERIFICATION
+
+OUTPUT REPORT:
+
+38_CALORA_RELEASE_GATE_REMEDIATION_AND_VERIFICATION_REPORT.md
+
+
+==================================================
+OWNER AUTHORIZATION
+==================================================
+
+Step 37 concluded:
+
+ROOT CAUSE PARTIALLY IDENTIFIED — ADDITIONAL EVIDENCE REQUIRED
+
+
+The proven release-gate mismatch is:
+
+1. main branch protection requires the exact context:
+
+   Run release validation suite
+
+2. .github/workflows/release-validation.yml defines the job:
+
+   Run release validation suite
+
+3. but the canonical workflow currently declares:
+
+   pull_request
+   workflow_dispatch
+
+4. and does NOT declare a push trigger for main.
+
+5. The failed canonical GitHub workflow run created:
+
+   0 jobs
+   0 check runs
+   no runner logs
+   no annotations
+
+6. The release-validation script suite passed locally:
+
+   47 tests
+   0 failures
+
+
+I now authorize the MINIMUM release-gate remediation necessary to make the
+required validation check run on canonical main.
+
+This authorization includes:
+
+- editing ONLY the release-validation workflow as required;
+- adding the minimum intended main push trigger;
+- validating that workflow;
+- committing the workflow-only remediation;
+- pushing the resulting canonical main commit normally to GitHub;
+- observing the automatically triggered GitHub validation;
+- verifying the required check.
+
+This authorization DOES NOT include:
+
+- Calora application feature changes
+- API behavior changes
+- database changes
+- migrations
+- branch-protection changes
+- ruleset changes
+- secret changes
+- production deployment
+- Replit production publish
+- EAS build
+- Android build
+- iOS build
+- TestFlight submission
+- App Store submission
+- force push
+- history rewriting
+
+
+==================================================
+MISSION 1 — FREEZE CURRENT STATE
+==================================================
+
+Fetch origin without modifying history.
+
+Record:
+
+origin/main SHA
+origin/main TREE
+
+local main SHA
+local main TREE
+
+ahead/behind
+
+working-tree status
+
+
+The last verified GitHub canonical main from Step 37 was:
+
+SHA:
+8d93248db69e985ba490a957575bde2b7b38cbf3
+
+TREE:
+0a0ac2b83abce082bbc870c58029376cc4541a4a
+
+
+Step 37 also observed local documentation-only commits ahead of origin/main.
+
+Those local documentation/evidence commits MUST NOT be confused with runtime
+changes.
+
+Classify every local-only commit.
+
+
+If origin/main has advanced with any new commit since Step 37:
+
+STOP.
+
+Do not push.
+
+Do not overwrite GitHub.
+
+Produce the report with:
+
+RELEASE GATE REMEDIATION BLOCKED — REMOTE MAIN CHANGED
+
+
+==================================================
+MISSION 2 — RECONFIRM THE PROVEN MISMATCH
+==================================================
+
+Before editing anything, independently reconfirm:
+
+A. main branch protection currently requires exactly:
+
+Run release validation suite
+
+B. .github/workflows/release-validation.yml currently contains the job name:
+
+Run release validation suite
+
+C. the workflow currently does NOT declare:
+
+push:
+  branches:
+    - main
+
+D. the current workflow retains:
+
+pull_request
+workflow_dispatch
+
+
+If any of those assumptions are no longer true:
+
+STOP.
+
+Do not remediate based on stale evidence.
+
+Document the current configuration.
+
+
+==================================================
+MISSION 3 — MINIMUM WORKFLOW REMEDIATION
+==================================================
+
+If the Step 37 mismatch is reconfirmed, modify ONLY:
+
+.github/workflows/release-validation.yml
+
+
+Preserve the existing:
+
+pull_request:
+workflow_dispatch:
+
+
+Add the minimum explicit push trigger scoped to canonical main.
+
+The intended event structure is semantically:
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+
+Do not unnecessarily reformat or rewrite unrelated workflow content.
+
+Preserve:
+
+workflow name:
+Release validation
+
+job ID:
+release-validation
+
+job display name:
+Run release validation suite
+
+runner:
+ubuntu-latest
+
+timeout:
+15 minutes
+
+permissions:
+contents: read
+administration: read
+
+checkout action
+
+required-check audit
+
+pnpm setup
+
+Node setup
+
+frozen-lockfile installation
+
+workspace scripts tests
+
+
+Do NOT rename:
+
+Run release validation suite
+
+
+The branch-protection required context depends on that exact name.
+
+
+==================================================
+MISSION 4 — NO BRANCH-PROTECTION WORKAROUND
+==================================================
+
+DO NOT:
+
+- remove the required status check;
+- rename the required status check;
+- weaken main branch protection;
+- disable protection;
+- alter rulesets;
+- bypass GitHub Actions;
+- mark the gate successful manually.
+
+The purpose is to make the required check genuinely run and pass.
+
+
+==================================================
+MISSION 5 — STATIC WORKFLOW VALIDATION
+==================================================
+
+Before committing:
+
+validate the modified workflow.
+
+At minimum verify:
+
+- YAML parses;
+- Prettier/formatting passes;
+- GitHub Actions structure is valid as far as locally testable;
+- workflow name unchanged;
+- job ID unchanged;
+- job display name unchanged;
+- push is scoped ONLY to main;
+- pull_request remains;
+- workflow_dispatch remains;
+- permissions remain;
+- validation commands remain;
+- no secret or variable dependency was added;
+- no unrelated workflow changed.
+
+
+Run:
+
+pnpm --filter @workspace/scripts test
+
+Expected:
+
+47 tests or the current legitimate equivalent, all passing.
+
+
+Also run:
+
+pnpm run typecheck
+
+git diff --check
+
+
+If validation fails:
+
+DO NOT PUSH.
+
+Return:
+
+RELEASE GATE REMEDIATION FAILED VALIDATION — NOT PUSHED
+
+
+==================================================
+MISSION 6 — DIFF SAFETY AUDIT
+==================================================
+
+Before commit, inspect the complete Git diff.
+
+The remediation runtime/config diff should be limited to:
+
+.github/workflows/release-validation.yml
+
+
+Documentation/report evidence may be preserved separately if already present,
+but must be explicitly classified.
+
+There must be NO unexpected changes under:
+
+artifacts/calora/
+artifacts/api-server/
+lib/db/
+lib/api-spec/
+lib/api-client-react/
+lib/api-zod/
+native project configuration
+Expo configuration
+EAS configuration
+production configuration
+
+
+If unexpected runtime/config/security/database/native changes exist:
+
+STOP.
+
+DO NOT PUSH.
+
+
+==================================================
+MISSION 7 — COMMIT THE REMEDIATION
+==================================================
+
+Create one clearly identifiable workflow remediation commit.
+
+Suggested subject:
+
+Fix main release validation trigger
+
+
+Record:
+
+REMEDIATION COMMIT SHA
+REMEDIATION TREE
+
+
+The commit must contain the intended workflow change and no unrelated
+application/runtime changes.
+
+
+==================================================
+MISSION 8 — PRE-PUSH CANONICAL VERIFICATION
+==================================================
+
+Fetch origin again immediately before push.
+
+Verify:
+
+origin/main has NOT advanced since Mission 1.
+
+Verify:
+
+origin/main is an ancestor of the remediation candidate.
+
+Verify:
+
+behind = 0.
+
+Verify:
+
+working tree = clean.
+
+
+Record:
+
+FINAL PRE-PUSH SHA
+FINAL PRE-PUSH TREE
+
+origin/main SHA
+origin/main TREE
+
+ahead
+behind
+
+
+If remote advanced:
+
+DO NOT PUSH.
+
+
+==================================================
+MISSION 9 — NORMAL GITHUB PUSH
+==================================================
+
+If every gate passes, push canonical main normally:
+
+git push origin main
+
+
+DO NOT use:
+
+--force
+--force-with-lease
+
+
+Do not push historical branches.
+
+Do not push reconciliation branches.
+
+Do not manually trigger the release workflow yet.
+
+The normal main push should itself be the proof that the new push trigger works.
+
+
+==================================================
+MISSION 10 — VERIFY AUTOMATIC WORKFLOW CREATION
+==================================================
+
+After the normal push, observe GitHub Actions for the EXACT NEW canonical SHA.
+
+Verify that:
+
+1. Release validation is automatically created from event:
+
+   push
+
+2. branch is:
+
+   main
+
+3. head SHA equals the exact new canonical SHA.
+
+4. the workflow creates a NON-ZERO job count.
+
+5. a check run exists named EXACTLY:
+
+   Run release validation suite
+
+
+This is critical.
+
+Do not accept merely an overall workflow object as proof.
+
+
+==================================================
+MISSION 11 — VERIFY REQUIRED CHECK EXECUTION
+==================================================
+
+Wait for the exact required check to finish.
+
+Record:
+
+workflow run ID
+workflow run number
+event
+branch
+head SHA
+job ID
+job name
+check-run ID
+check-run name
+started time
+completed time
+status
+conclusion
+
+
+Required result:
+
+status:
+completed
+
+conclusion:
+success
+
+
+Also prove that the job actually reached the expected steps:
+
+- checkout;
+- required-check audit;
+- pnpm setup;
+- Node setup;
+- dependency installation;
+- Run release validation suite.
+
+
+Record the result of each step.
+
+
+==================================================
+MISSION 12 — VERIFY REQUIRED-CHECK AUDIT
+==================================================
+
+Pay particular attention to:
+
+node scripts/audit-required-checks.mjs
+
+
+Determine whether the GitHub Actions token has sufficient permission to inspect
+the main branch required-check configuration.
+
+If this step fails because:
+
+administration: read
+
+is not granted or supported as expected:
+
+DO NOT weaken branch protection.
+
+DO NOT bypass the audit.
+
+Record the exact error.
+
+Stop with:
+
+RELEASE GATE REMEDIATION INCOMPLETE — WORKFLOW EXECUTED BUT CHECK FAILED
+
+
+Do not make a second speculative fix in the same mission.
+
+
+==================================================
+MISSION 13 — POST-PUSH CANONICAL VERIFICATION
+==================================================
+
+After successful required check:
+
+fetch origin again.
+
+Verify:
+
+local main SHA == origin/main SHA
+
+local main TREE == origin/main TREE
+
+ahead = 0
+behind = 0
+
+working tree = clean
+
+
+Record the NEW canonical GitHub SHA/tree.
+
+This new SHA supersedes:
+
+8d93248db69e985ba490a957575bde2b7b38cbf3
+
+as the candidate for future release work.
+
+
+==================================================
+MISSION 14 — PRESERVE APPLICATION INVARIANTS
+==================================================
+
+Confirm the workflow-only remediation did NOT alter:
+
+- durable capture acceptance;
+- Weekly Programs deterministic modal state machine;
+- shared Planner Program pools/eligibility;
+- bounded Coach lifecycle;
+- Coach Fact Context two-key restriction;
+- diary image provenance/imageAssetKey sync;
+- capture compatibility;
+- recipe nextOffset;
+- recipe terminalReason;
+- authentication/PKCE;
+- account isolation;
+- deletion fences;
+- sync ownership;
+- API contracts;
+- Expo Router;
+- EAS configuration;
+- Apple Health privacy strings;
+- TestFlight configuration.
+
+
+The application runtime tree should remain unchanged except for documentation
+and the authorized GitHub workflow change.
+
+
+==================================================
+MISSION 15 — OTHER WORKFLOW FAILURES
+==================================================
+
+Do NOT attempt to fix:
+
+Native encrypted recovery
+
+or
+
+Native auth preflight
+
+in Step 38 unless they are somehow directly required for the exact
+Run release validation suite check to complete.
+
+
+Record their state if automatically triggered by the new main push.
+
+Treat them separately.
+
+Do not expand Step 38 into a broad CI repair mission.
+
+
+==================================================
+MISSION 16 — NO TESTFLIGHT YET
+==================================================
+
+Even if the release validation check succeeds:
+
+DO NOT:
+
+- trigger EAS;
+- build iOS;
+- build Android;
+- submit TestFlight;
+- submit App Store;
+- deploy API;
+- publish Replit production;
+- modify database.
+
+
+A green release gate is the END of Step 38.
+
+TestFlight requires separate owner authorization.
+
+
+==================================================
+MISSION 17 — FAILURE HANDLING
+==================================================
+
+If the workflow still produces:
+
+0 jobs
+0 check runs
+no logs
+
+after the explicit main push trigger is committed:
+
+STOP.
+
+Do not make another speculative workflow change.
+
+Report:
+
+RELEASE GATE REMEDIATION INCOMPLETE — CONTROLLER FAILURE PERSISTS
+
+
+If a real job now starts but a step fails:
+
+capture the FIRST real failing step and exact error.
+
+Do not automatically patch it.
+
+Report:
+
+RELEASE GATE REMEDIATION INCOMPLETE — WORKFLOW EXECUTED BUT CHECK FAILED
+
+
+If GitHub remote advances unexpectedly:
+
+do not push.
+
+
+==================================================
+OUTPUT REPORT
+==================================================
+
+Create:
+
+38_CALORA_RELEASE_GATE_REMEDIATION_AND_VERIFICATION_REPORT.md
+
+
+Report MUST contain:
+
+1. Executive summary
+2. Step 37 root-cause basis
+3. Starting origin/main SHA/tree
+4. Starting local main SHA/tree
+5. Local-only commit classification
+6. Branch-protection required-context verification
+7. Original workflow trigger verification
+8. Exact workflow remediation
+9. Complete workflow diff
+10. Static workflow validation
+11. Local scripts-test result
+12. Typecheck result
+13. git diff --check result
+14. Remediation commit SHA/tree
+15. Pre-push origin/main verification
+16. Exact push command/method
+17. Push result
+18. New canonical GitHub SHA/tree
+19. Automatically created Release validation run ID
+20. Workflow event/branch/head-SHA verification
+21. Job count
+22. Required check-run identity
+23. Required check execution result
+24. Per-step GitHub Actions results
+25. Required-check audit result
+26. Other automatically triggered workflow observations
+27. Application/runtime invariants
+28. Database/migration confirmation
+29. Confirmation no EAS/mobile build/TestFlight/deployment occurred
+30. Post-push local/origin ahead-behind verification
+31. Working-tree cleanliness
+32. Remaining uncertainties
+33. Exact recommendation for Step 39
+
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+RELEASE GATE VERIFIED — READY FOR OWNER TESTFLIGHT AUTHORIZATION
+
+RELEASE GATE REMEDIATION BLOCKED — REMOTE MAIN CHANGED
+
+RELEASE GATE REMEDIATION FAILED VALIDATION — NOT PUSHED
+
+RELEASE GATE REMEDIATION INCOMPLETE — CONTROLLER FAILURE PERSISTS
+
+RELEASE GATE REMEDIATION INCOMPLETE — WORKFLOW EXECUTED BUT CHECK FAILED
+
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after:
+
+- minimum workflow remediation;
+- normal GitHub push if all pre-push gates pass;
+- automatic workflow observation;
+- exact required-check verification;
+- numbered report.
+
+DO NOT BUILD IOS.
+
+DO NOT BUILD ANDROID.
+
+DO NOT TRIGGER EAS.
+
+DO NOT SUBMIT TESTFLIGHT.
+
+DO NOT DEPLOY API.
+
+DO NOT PUBLISH REPLIT PRODUCTION.
+
+DO NOT MODIFY DATABASE.
+
+Wait for explicit owner authorization for Step 39.

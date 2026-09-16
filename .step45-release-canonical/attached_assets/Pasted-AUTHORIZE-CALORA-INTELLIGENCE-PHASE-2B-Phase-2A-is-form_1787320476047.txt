@@ -1,0 +1,299 @@
+AUTHORIZE CALORA INTELLIGENCE PHASE 2B
+
+Phase 2A is formally closed.
+
+Proceed with:
+
+Phase 2B — Intelligence Consolidation and Coach Fact Context Activation-Readiness Review
+
+Treat CALORA_INTELLIGENCE_PHASE_2A_6_STRATEGIC_DECISION.md and all previous Coach Fact Context architecture, forensic audit, consent, migration, dark-architecture, and activation-evidence reports as authoritative inputs.
+
+This is a review, consolidation and readiness phase, not an activation phase.
+
+Do not modify production behavior.
+
+Mission
+
+Determine whether the Intelligence system built through Phase 2A and the dark Coach Fact Context architecture are coherent, maintainable, privacy-bounded, secure and product-ready enough to justify a later separately authorized controlled activation.
+
+1. Build the definitive Intelligence ownership matrix
+
+Map every:
+
+Foundation fact;
+
+selector candidate;
+
+delivery surface;
+
+feature flag;
+
+server gate;
+
+Coach gate;
+
+consent gate;
+
+cohort gate;
+
+invalidation rule;
+
+freshness/watermark contract;
+
+account-isolation boundary;
+
+owner/consumer relationship.
+
+
+Identify orphaned, duplicate, ambiguous or overlapping responsibilities.
+
+2. Review the selector architecture
+
+Audit the complete one-card hierarchy:
+
+calorie status;
+
+protein balance;
+
+meal distribution;
+
+weight short trend;
+
+nutrition coverage;
+
+macro record coverage;
+
+weight baseline.
+
+
+Determine whether priorities remain correct.
+
+Identify possible future consolidation or retirement, but do not change behavior.
+
+Specifically examine:
+
+Weight Baseline vs Weight Short Trend;
+
+Nutrition Coverage vs Macro Record Coverage.
+
+
+3. Freeze Phase 2A expansion
+
+No new Foundation facts.
+
+No new selector candidates.
+
+No new Progress cards.
+
+No new longitudinal Intelligence.
+
+No Planner or Recipe Intelligence.
+
+Phase 2A is closed unless explicitly reopened later.
+
+4. Audit Coach Fact Context readiness
+
+Revalidate the complete boundary:
+
+account-scoped local state
+
+→ Intelligence Foundation
+
+→ sanitized CoachFactContextV1
+
+→ authenticated backend
+
+→ risk gate
+
+→ bounded LLM
+
+→ deterministic claim validation
+
+→ response
+
+Verify:
+
+allowlist integrity;
+
+no raw Foundation egress;
+
+TTL/expiry;
+
+nonce lifecycle;
+
+account switching;
+
+sign-out;
+
+hydration reset;
+
+consent enforcement;
+
+consent revocation;
+
+cohort controls;
+
+client/server gate disagreement;
+
+high-risk pre-egress suppression;
+
+prompt-injection defenses;
+
+unsupported-claim rejection;
+
+conversation-history contamination protection;
+
+no legacy/new context coexistence;
+
+privacy-safe logging;
+
+fail-closed provider/server behavior.
+
+
+5. Freeze the Coach allowlist
+
+Document the exact facts currently eligible for CoachFactContextV1.
+
+Do not expand it.
+
+Determine whether every currently allowed fact still deserves admission.
+
+Longitudinal Phase 2A.3/2A.4/2A.5 facts must not automatically enter Coach merely because they now exist.
+
+6. Review the legacy Coach retirement path
+
+Determine exactly what remains necessary before the broad legacy CoachContext can eventually be retired.
+
+Identify:
+
+functionality still dependent on it;
+
+migration dependencies;
+
+consent dependencies;
+
+rollback requirements;
+
+conversation continuity issues;
+
+quality differences;
+
+privacy differences;
+
+remaining technical blockers.
+
+
+Do not retire it yet.
+
+7. Create an activation prerequisite checklist
+
+Separate requirements into:
+
+BLOCKING BEFORE ANY CONTROLLED ACTIVATION
+
+and
+
+DEFERRED PRE-PRODUCTION VALIDATION
+
+Physical Android/iOS, responsive-layout, large-text, TalkBack, VoiceOver and related device/accessibility validation are intentionally deferred by product authorization.
+
+Keep them documented as pending and do not mark them passed, but do not let them block this Phase 2B architectural/readiness review.
+
+Do not classify a genuinely security-critical account-isolation, consent, privacy, claim-validation or cross-account issue as deferred merely because it is inconvenient.
+
+8. Define the activation GO/NO-GO rubric
+
+Establish objective criteria for a future controlled Fact Context activation.
+
+Include:
+
+privacy;
+
+security;
+
+consent;
+
+account isolation;
+
+factual integrity;
+
+hallucination containment;
+
+legacy separation;
+
+rollback;
+
+observability;
+
+provider failure;
+
+latency;
+
+response usefulness;
+
+cohort containment.
+
+
+Define what evidence would justify:
+
+NO-GO
+
+INTERNAL-ONLY
+
+LIMITED OPT-IN
+
+and eventually
+
+BROADER MIGRATION
+
+Do not activate any of them.
+
+9. Challenge the architecture
+
+Do not rubber-stamp previous work.
+
+Search for architectural weaknesses introduced across Phases 2A.0–2A.5 and the Coach hardening work.
+
+Identify hidden coupling, duplicate concepts, unsafe assumptions, dead flags, stale documentation, inadequate tests, inconsistent fail-closed behavior or unnecessary complexity.
+
+If a blocker exists, say so.
+
+Hard boundaries
+
+Keep every currently default-OFF Intelligence capability OFF.
+
+Keep Coach Fact Context client/server/cohort gates OFF.
+
+Do not migrate users.
+
+Do not expand Coach's fact allowlist.
+
+Do not change production behavior.
+
+Do not add persistence, APIs, databases, analytics, notifications, background processing or new LLM capability.
+
+Do not implement Phase 2C.
+
+Required report
+
+Automatically create and save:
+
+docs/CALORA_INTELLIGENCE_PHASE_2B_CONSOLIDATION_READINESS_REPORT.md
+
+End with exactly one:
+
+PHASE 2B VERDICT: READY FOR SEPARATE CONTROLLED-ACTIVATION AUTHORIZATION
+
+PHASE 2B VERDICT: REMEDIATION REQUIRED
+
+or
+
+PHASE 2B VERDICT: DO NOT PROCEED
+
+If remediation is required, identify the smallest exact remediation task.
+
+If ready, identify the smallest safe first activation stage.
+
+Save the report and STOP.
+
+Do not activate anything.

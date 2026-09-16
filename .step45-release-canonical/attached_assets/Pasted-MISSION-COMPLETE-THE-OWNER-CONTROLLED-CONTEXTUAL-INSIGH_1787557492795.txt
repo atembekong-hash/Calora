@@ -1,0 +1,66 @@
+MISSION: COMPLETE THE OWNER-CONTROLLED CONTEXTUAL INSIGHTS PRODUCTION RELEASE VERIFICATION
+
+Use the existing Consolidated Contextual Insights Production Readiness Report as the authoritative runbook.
+
+Do not perform another audit.
+Do not redesign anything.
+Do not create another security architecture.
+Do not activate Fact Context.
+Do not create unnecessary reports.
+
+The unsupported provider-attestation dependency has already been removed.
+
+Your job now is to execute the remaining supported production release procedure as far as your available Replit permissions allow.
+
+1. Identify the exact clean reviewed release commit, tree, and source digest.
+
+2. Confirm the workspace is clean and suitable for production release.
+
+3. Configure the required production release variables:
+   RELEASE_SENSITIVE_ACTIVATION_REQUESTED=true
+   RELEASE_SENSITIVE_ACTIVATION_COMMIT=<exact clean reviewed 40-character commit>
+
+4. Keep COACH_FACT_CONTEXT_ENABLED disabled or absent.
+
+5. Publish/deploy the exact reviewed source using the normal supported Replit production workflow.
+
+6. Wait for production health to succeed.
+
+7. Run the existing verify:release-identity verifier against the canonical production HTTPS origin.
+
+8. Confirm:
+   - reviewed source commit = deployed commit = live runtime commit;
+   - source tree matches;
+   - source digest matches;
+   - /api/healthz returns healthy;
+   - Fact Context rollout remains false;
+   - active reviewed pilots = 0;
+   - active nonces = 0;
+   - Fact Context remains inaccessible while disabled;
+   - no unauthorized provider execution occurs.
+
+9. Do NOT activate Contextual Insights/Fact Context after verification.
+
+If you possess the required permissions, EXECUTE the deployment and verification rather than merely explaining the procedure.
+
+If Replit prevents you from performing a required owner-controlled action, STOP immediately. Do not search for alternative architectures, create new blockers, repeat tests, or consume tokens investigating an already-understood limitation.
+
+In that case, tell me the exact manual action I must perform in the Replit UI, including the exact setting/button involved. I will perform it manually and return.
+
+COST CONTROL:
+Use the existing implementation, tests, verifier, and report.
+Do not repeat completed work.
+Do not run broad test suites.
+Do not generate another long report unless production state actually changes.
+
+Return only:
+
+PRODUCTION DEPLOYMENT: [SUCCESS/BLOCKED]
+SOURCE = LIVE RUNTIME: [YES/NO]
+RELEASE IDENTITY VERIFICATION: [PASS/FAIL/NOT RUN]
+PRODUCTION HEALTH: [PASS/FAIL/NOT RUN]
+FACT CONTEXT ROLLOUT: [FALSE/TRUE]
+ACTIVE PILOTS: [number]
+ACTIVE NONCES: [number]
+CONTEXTUAL INSIGHTS READY FOR CONTROLLED ACTIVATION: [YES/NO]
+HUMAN ACTION REQUIRED: [NONE or exact Replit UI action]

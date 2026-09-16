@@ -1,0 +1,194 @@
+Mission
+
+MISSION: Certify every interactive element in the application for production readiness through complete real-user interaction and responsiveness validation.
+
+1. Discover Every Interactive Element
+
+Before testing, create a complete Interaction Map of the application.
+
+Identify every applicable:
+
+- Button
+- Tab
+- Link
+- Icon action
+- Card
+- Menu
+- Dropdown
+- Toggle
+- Checkbox
+- Radio control
+- Input field
+- Search field
+- Selector
+- Slider
+- Modal
+- Dialog
+- Bottom sheet
+- Navigation control
+- Back control
+- Floating action button
+- Swipe action
+- Long-press action
+- Gesture
+- Expand/collapse control
+- Pagination control
+- Refresh action
+- Upload control
+- Camera control
+- Keyboard action
+- Submit action
+- Retry action
+- Close and dismiss control
+- Any other tappable, clickable, focusable, draggable, or interactive element
+
+Map each element to its screen, expected action, destination or state change, and dependencies.
+
+Do not assume an element works because it renders correctly.
+
+2. Test Every Interaction as a Real User
+
+Navigate through the application naturally and exercise every discovered interactive element.
+
+For each interaction verify:
+
+1. It responds immediately and reliably.
+2. It performs the intended action.
+3. It leads to the correct screen, state, or result.
+4. It provides appropriate visual feedback.
+5. Loading states behave correctly.
+6. Disabled states behave correctly.
+7. Repeated or rapid interaction does not produce unintended behavior.
+8. Back, cancel, close, retry, and recovery actions work correctly.
+9. State remains correct after navigation.
+10. Data is preserved or cleared as intended.
+
+Test the interaction from its genuine user context, not in isolation.
+
+3. Test Interaction Resilience
+
+Where relevant, test:
+
+- Single tap or click
+- Rapid repeated taps
+- Double taps
+- Accidental repeated submission
+- Slow interaction
+- Back navigation
+- Gesture navigation
+- Keyboard interaction
+- Screen rotation or resize
+- App backgrounding and return
+- Slow network
+- Network interruption
+- Loading states
+- Empty states
+- Error states
+- Disabled states
+- Long content
+- Small screens
+- Large screens
+- Different supported device sizes
+- Light and dark themes
+- Accessibility interaction
+
+Pay particular attention to dead buttons, incorrect destinations, duplicate actions, delayed responses, overlapping touch targets, blocked controls, invisible controls, stale state, navigation loops, and interactions that appear successful but do nothing.
+
+4. Repair Until Every Interaction Passes
+
+Whenever an interaction fails:
+
+1. Identify the root cause.
+2. Determine whether the underlying component is shared elsewhere.
+3. Repair the root cause.
+4. Retest the affected interaction.
+5. Retest the complete user flow containing it.
+6. Regression-test every other location using the affected shared component or behavior.
+7. Repeat until stable.
+
+Do not fix individual instances when the actual defect exists in a shared component.
+
+5. Strict Pass Gate
+
+An interactive element is PASSED only when:
+
+- It responds reliably.
+- It performs the correct action.
+- Navigation or state changes are correct.
+- Visual feedback is appropriate.
+- Loading, disabled, error, and recovery states behave correctly where applicable.
+- Rapid or repeated interaction does not create duplicate or corrupted actions.
+- The interaction remains usable across supported screen sizes and input methods.
+- Related functionality remains stable after regression testing.
+- Objective execution evidence confirms the result.
+
+Rendering correctly is not evidence that an element works.
+
+Maintain a live Interaction Validation Ledger containing:
+
+- Screen
+- Interactive element
+- Expected behavior
+- Actual behavior
+- Status
+- Issue discovered
+- Root cause
+- Repair
+- Regression result
+- Evidence
+- Remaining limitation
+
+Use:
+
+NOT TESTED → IN PROGRESS → BLOCKED → REPAIRED → RETESTING → PASSED
+
+Never mark PASSED without actually exercising the interaction.
+
+6. Final Whole-App Interaction Sweep
+
+After every mapped interaction has passed, navigate through the complete application again as a real user.
+
+Verify that:
+
+- No dead controls remain.
+- No broken links or navigation paths remain.
+- No tabs lead to incorrect states.
+- No actions trigger twice unexpectedly.
+- No interactive elements are blocked or unreachable.
+- No controls overlap or interfere with each other.
+- Back and forward navigation remain consistent.
+- Forms submit correctly.
+- Modals, menus, sheets, and dialogs open and close correctly.
+- Shared components behave consistently throughout the application.
+- Major user journeys can be completed without interaction failure.
+
+If any defect appears, reopen it, repair it, regression-test the affected systems, and repeat the relevant final checks.
+
+Completion Standard
+
+The mission ends only when:
+
+- Every discovered interactive element has been accounted for.
+- Every required interaction has been exercised as a real user.
+- Every required interaction has passed.
+- Shared interactive components have been regression-tested.
+- The final whole-application interaction sweep has passed.
+- No unresolved production-blocking interaction defect remains.
+- Any external blocker or untestable interaction is explicitly documented.
+
+Final Report
+
+Provide:
+
+1. Interaction Map
+2. Interaction Validation Ledger
+3. Broken or unreliable interactions discovered
+4. Root causes
+5. Repairs made
+6. Responsive and device-specific findings
+7. Accessibility interaction findings
+8. Regression results
+9. Remaining limitations
+10. Final interaction-readiness verdict
+
+Work autonomously until the mission is complete or an external blocker makes further execution impossible.

@@ -1,0 +1,149 @@
+TASK #503 — RE-ATTEST CURRENT PRODUCTION RELEASE BEFORE SINGLE-PILOT ACTIVATION
+
+The Task #502 activation attempt correctly stopped before making any production changes because additional tasks were merged after the previous release attestation.
+
+Do not activate Calora Coach or Fact Context yet.
+
+Mission:
+
+Establish a fresh, independent release attestation for the CURRENT production state and latest validated source so that Task #502 can safely resume afterward.
+
+1. Identify every production-relevant commit and merged task added after the previous successful attestation.
+
+2. Determine whether those changes affect:
+   - API behavior
+   - Coach
+   - Fact Context
+   - authentication
+   - authorization
+   - consent
+   - rollout/cohort controls
+   - nonce/replay protection
+   - Supabase interaction
+   - RevenueCat
+   - provider execution
+   - deployment configuration
+   - security boundaries
+   - production runtime behavior
+
+3. Verify the complete current source tree is clean and contains no unexplained modified, staged, ignored-sensitive, or untracked production files.
+
+4. Run the complete relevant validation suite against the latest source, including:
+   - full API tests
+   - Coach/Fact Context regressions
+   - authentication tests
+   - authorization tests
+   - security and negative-path tests
+   - typechecking
+   - build validation
+   - diff validation
+   - provenance validation
+
+5. If the latest validated source is not currently deployed, publish the validated production build using the established trusted release process.
+
+6. Obtain the CURRENT production release identity:
+   - Git commit
+   - Git tree
+   - SHA-256 source digest
+   - release ID
+   - build timestamp
+
+7. Query the live production /api/version endpoint and independently prove that the serving production release matches the newly validated source exactly.
+
+8. Recompute the source digest independently rather than trusting only the runtime-reported value.
+
+9. Confirm runtime environment variables cannot override or forge the embedded release identity.
+
+10. Confirm the production build would fail closed if Git provenance were missing, malformed, dirty, modified, or contained unexplained untracked files.
+
+11. Recheck production runtime health after deployment.
+
+12. Verify the security baseline remains deny-all:
+   - Coach process gate remains off unless required solely for non-activating verification
+   - Fact Context rollout remains false
+   - active reviewed pilot memberships remain 0
+   - active Fact Context nonces remain 0
+   - no pilot activation has occurred
+   - no unauthorized provider execution has occurred
+
+13. Verify that none of the work performed during this task activates Coach, Fact Context, a pilot cohort, consent, provider access, RevenueCat entitlement changes, or any user-facing rollout.
+
+14. Inspect available production logs for unexpected Coach, Fact Context, OpenAI, nonce, activation, legacy fallback, or authorization activity.
+
+15. Perform a final independent comparison between:
+   A. latest validated Git source
+   B. production build identity
+   C. live runtime identity
+
+All three must match.
+
+If they do not match, investigate and remediate the discrepancy, rebuild/redeploy when safe, and repeat validation.
+
+Do not weaken the attestation requirements simply to obtain PASS.
+
+REPORT FILE REQUIREMENT:
+
+Create and save the complete permanent report at:
+
+docs/production/TASK_503_CURRENT_RELEASE_REATTESTATION_REPORT.md
+
+The report must contain:
+
+- PASS/BLOCKED verdict
+- reason Task #502 was paused
+- commits/tasks merged since the previous attestation
+- production-relevant change analysis
+- exact Git commit
+- exact Git tree
+- SHA-256 source digest
+- release ID
+- build timestamp
+- live /api/version evidence
+- independent digest verification
+- source cleanliness/provenance evidence
+- build evidence
+- deployment evidence
+- production runtime evidence
+- complete tests executed and results
+- regression results
+- security-control verification
+- current rollout state
+- current pilot membership count
+- current nonce count
+- production log findings
+- files changed by this task
+- deployment changes
+- remaining uncertainties
+- final recommendation on whether Task #502 may resume
+
+Never write secrets, tokens, credentials, private keys, bearer tokens, or sensitive user information into the report.
+
+PASS requires independently proving that the latest validated source, trusted production build, and currently serving production runtime are the same release.
+
+If this cannot be proved, verdict = BLOCKED.
+
+Do not perform single-pilot activation during this task.
+
+Do not broaden any rollout.
+
+Do not change pilot membership.
+
+Do not activate provider execution.
+
+Maintain the existing safe deny-all production posture throughout the operation.
+
+Continue autonomously through investigation, validation, any necessary safe remediation, deployment, revalidation, production verification, and report creation until a defensible PASS or genuine external blocker is reached.
+
+At completion, return only:
+
+VERDICT
+CURRENT PRODUCTION RELEASE ID
+GIT COMMIT
+SHA-256 SOURCE DIGEST
+WHETHER SOURCE = BUILD = LIVE RUNTIME
+CURRENT FACT CONTEXT ROLLOUT STATE
+ACTIVE PILOT COUNT
+ACTIVE NONCE COUNT
+WHETHER TASK #502 IS CLEARED TO RESUME
+REPORT FILE PATH
+ANY HUMAN-ACTION BLOCKER

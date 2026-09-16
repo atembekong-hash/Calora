@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1753923600000,
+      "tag": "0001_task_473_coach_fact_context",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787827621763,
+      "tag": "0002_cross_device_diary_restore",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788602296199,
+      "tag": "0003_recovery_warning_suppression",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788691200000,
+      "tag": "0004_recovery_warning_summary",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,203 @@
+TASK #504 — RESOLVE PROTECTED RELEASE ATTESTATION BLOCKER AND DEPLOY VALIDATED SOURCE
+
+Task #503 correctly returned BLOCKED because the latest validated source does not match the currently serving production release.
+
+Do NOT resume Task #502.
+Do NOT activate Calora Coach.
+Do NOT activate Fact Context.
+Do NOT add pilot members.
+Do NOT weaken, bypass, mock, disable, or substitute any release-attestation security control.
+
+MISSION
+
+Determine exactly what can be completed autonomously to produce and deploy a properly attested production release from the latest validated source.
+
+Current validated source:
+Git commit:
+65fa97c7123037ae6ed68ba0ab40e9c30faca633
+
+Git tree:
+b5f4644b5218114107426c291534cae8749ef7f1
+
+SHA-256 source digest:
+29ba18d471206bcda06eaa507b037339949fb34a3495376654954b6c1ca6b484
+
+Current production is an older release and must NOT be treated as equivalent.
+
+PHASE 1 — BLOCKER FORENSICS
+
+Inspect the complete release, deployment, attestation, provider-package, CI/CD, Replit deployment, and production configuration.
+
+Identify precisely:
+
+1. Which protected inputs are required.
+2. Which already exist.
+3. Where each is expected to originate.
+4. Which can be generated safely.
+5. Which require an external trusted system.
+6. Which require human authorization.
+7. Which must never exist inside the ordinary workspace.
+8. Whether Replit's deployment control plane can provide the required protected execution boundary.
+9. Whether the existing architecture already contains a supported workflow that has simply not been executed.
+10. Whether any configuration error is unnecessarily preventing the trusted release process.
+
+Do not expose secret values.
+
+PHASE 2 — SAFE AUTOMATIC REMEDIATION
+
+Automatically fix every blocker that can be corrected safely without weakening the trust model.
+
+This may include code, scripts, configuration validation, release tooling, verifier tooling, documentation, CI/CD preparation, or deployment integration.
+
+Do not invent evidence.
+
+Do not fabricate signatures.
+
+Do not create fake provider attestations.
+
+Do not move protected signing material into source control.
+
+Do not downgrade the attestation standard merely to obtain PASS.
+
+PHASE 3 — PROTECTED RELEASE
+
+If the required protected deployment capability is available and authorized:
+
+1. Revalidate the exact source.
+2. Execute the trusted production build.
+3. Generate the required signed release evidence through the approved mechanism.
+4. Generate/verify provider-package evidence.
+5. Publish the exact validated build.
+6. Query the canonical production HTTPS origin.
+7. Query /api/version.
+8. Independently verify:
+
+validated source
+=
+trusted signed build
+=
+deployed artifact
+=
+live production runtime
+
+9. Verify release ID, Git commit, Git tree, source digest and build timestamp.
+10. Verify deployment health.
+11. Verify externally retained evidence where supported.
+
+PHASE 4 — SECURITY RECHECK
+
+After deployment confirm:
+
+Fact Context rollout = false
+
+Active reviewed pilot memberships = 0
+
+Active Fact Context nonces = 0
+
+No pilot activation occurred.
+
+No unauthorized Coach execution occurred.
+
+No unauthorized provider execution occurred.
+
+Legacy Coach remains unavailable.
+
+Fact Context remains unavailable before authorization while the production deny-all posture is active.
+
+Inspect production logs for unexpected execution.
+
+PHASE 5 — HUMAN BLOCKER HANDOFF
+
+If any required step genuinely cannot be completed from Replit:
+
+STOP only at that boundary.
+
+Do not merely state that an "authorized operator" is required.
+
+Give me the exact human procedure.
+
+Specify:
+
+- system/service I must open
+- exact setting or control involved
+- exact action I must perform
+- what value or artifact must be created
+- where it must be stored
+- what must NOT be copied into chat or source control
+- how I verify success
+- what I should tell Replit after completing it
+
+Keep the human procedure as short as safely possible.
+
+REPORT FILE REQUIREMENT
+
+Create and save the permanent report:
+
+docs/production/TASK_504_PROTECTED_RELEASE_ATTESTATION_AND_DEPLOYMENT_REPORT.md
+
+The report must contain:
+
+- executive verdict
+- blocker root cause
+- architecture examined
+- protected inputs required
+- existing inputs discovered
+- missing inputs
+- remediation performed
+- files changed
+- tests executed
+- test results
+- trusted-build evidence
+- signature/manifest verification status
+- provider-package verification status
+- deployment evidence
+- canonical HTTPS verification
+- /api/version evidence
+- source/build/runtime comparison
+- production health
+- rollout state
+- pilot count
+- nonce count
+- production log findings
+- unresolved risks
+- exact human-action requirements, if any
+- whether Task #502 is cleared to resume
+
+Never place secret material in the report.
+
+SUCCESS CONDITION
+
+PASS only when there is defensible evidence that:
+
+LATEST VALIDATED SOURCE
+=
+TRUSTED PRODUCTION BUILD
+=
+DEPLOYED ARTIFACT
+=
+LIVE PRODUCTION RUNTIME
+
+and the required release/provider attestation evidence has been verified.
+
+If protected infrastructure or human authorization prevents completion, return BLOCKED with the exact minimal human action required.
+
+Do not activate the pilot even after PASS.
+
+Task #502 remains responsible for pilot activation.
+
+At completion return only:
+
+VERDICT
+ROOT CAUSE
+VALIDATED COMMIT
+DEPLOYED COMMIT
+SOURCE = BUILD = LIVE RUNTIME: YES/NO
+SIGNED RELEASE ATTESTATION: VERIFIED/NOT VERIFIED
+PROVIDER PACKAGE ATTESTATION: VERIFIED/NOT VERIFIED
+PRODUCTION HEALTH
+FACT CONTEXT ROLLOUT
+ACTIVE PILOT COUNT
+ACTIVE NONCE COUNT
+TASK #502 CLEARED TO RESUME: YES/NO
+HUMAN ACTION REQUIRED
+REPORT FILE PATH
