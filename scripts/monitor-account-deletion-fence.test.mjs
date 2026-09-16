@@ -265,6 +265,20 @@ test("uses one shared fence schema for API construction and monitor parsing", ()
 const ACCOUNT_DELETION_FENCE_CALL_SITES = [
   {
     file: "capture.ts",
+    invocation:
+      'accountDeletionFenceSignal("/v1/capture/:sessionId/approve")',
+    routes: ["/v1/capture/:sessionId/approve"],
+    countSource: "builder default count",
+  },
+  {
+    file: "capture.ts",
+    invocation:
+      'accountDeletionFenceSignal("/v1/capture/:sessionId/approve")',
+    routes: ["/v1/capture/:sessionId/approve"],
+    countSource: "builder default count",
+  },
+  {
+    file: "capture.ts",
     invocation: 'accountDeletionFenceSignal("/v1/capture/analyze")',
     routes: ["/v1/capture/analyze"],
     countSource: "builder default count",

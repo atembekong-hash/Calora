@@ -68,3 +68,4 @@
 - [Disposable provider failure rehearsal](disposable-provider-failure-rehearsal.md) — stage live erasure failures per customer; never invalidate the global provider credential.
 - [Railway deployment identity](railway-deployment-identity.md) — Railway GitHub deployment events qualify production as `<project> / production`; preserve the SHA and match only that production suffix.
 - [Mobile/API runtime provenance](mobile-api-runtime-provenance.md) — a current mobile bundle can appear stale when production and development API origins report different source releases.
+- [Release verifier fixtures](release-verifier-fixtures.md) — synthetic verifier responses must include the complete attestation shape and same-origin response URL.
