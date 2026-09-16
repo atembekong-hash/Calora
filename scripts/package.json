@@ -8,6 +8,7 @@
     "monitor-native-associations": "node ./monitor-native-associations.mjs",
     "provision-qa-account": "tsx ./src/provisionQaAccount.ts",
     "test": "node --test ./*.test.mjs",
+    "audit:required-checks": "node ./audit-required-checks.mjs",
     "test:release:build-clean-checkout": "node --test ./release-build-clean-checkout.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

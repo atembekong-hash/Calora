@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  administration: read
 
 jobs:
   release-validation:
@@ -16,6 +17,11 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
+      - name: Audit required branch checks
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/audit-required-checks.mjs
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
