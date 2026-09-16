@@ -79,6 +79,16 @@ The suite creates an ephemeral confirmed user, hits both endpoints with a real J
 ### Why Supabase signup was broken for new accounts
 Anonymous sign-ins are disabled and email confirmation delivery fails in the Replit preview environment (no SMTP relay configured). The admin API (`email_confirm: true`) bypasses delivery entirely — this is the canonical path for QA account creation.
 
+## Release validation
+
+The repository-level `pnpm test` command runs the Calora, API-server, and scripts
+validation suites. The scripts suite includes the release-boundary clean-checkout
+regression test, which can also be run directly with:
+
+```sh
+pnpm --filter @workspace/scripts run test:release:build-clean-checkout
+```
+
 ## Gotchas
 
 _Populate as you build — sharp edges, "always run X before Y" rules._
