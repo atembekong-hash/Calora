@@ -120,6 +120,9 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('query.isError && recipes.length > 0');
     expect(source).toContain('onPress={() => query.refetch()}');
     expect(source).toContain('if (data?.nextOffset == null || query.isFetching || loadingMoreRef.current) return;');
+    expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = () => {');
+    expect(source).toContain('onContentSizeChange={(_, contentHeight) => {');
+    expect(source).toContain('loadMorePremiumRecipesIfAtEnd();');
     expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
     expect(source).toContain('recipesScrollRef.current?.scrollTo({ y: section === \'discover\' ? discoverScrollYRef.current : 0, animated: false })');
   });

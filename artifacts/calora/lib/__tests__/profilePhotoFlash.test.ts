@@ -713,7 +713,7 @@ describe('real CaloraProvider — transactional notifications and live export', 
     const { result } = await renderAndAwaitHydration();
     let exported = '';
     await act(async () => {
-      result.current.completeOnboarding(ACCOUNT_PROFILE, true);
+      await result.current.completeOnboarding(ACCOUNT_PROFILE, true);
       result.current.updateProfile({ name: 'Same Stack User' });
       result.current.addLog({
         name: 'Same stack snack', date: '2026-08-07', meal: 'Snack',
@@ -950,6 +950,69 @@ describe('real CaloraProvider — cross-session guarantee: photo flash is preven
 });
 
 describe('real CaloraProvider — account switch during hydration', () => {
+  it('treats a legacy saved profile without onboardingComplete as already onboarded', async () => {
+    _asyncStore[STORAGE_KEY] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      profile: ACCOUNT_PROFILE,
+    });
+
+    const handle = await renderAndAwaitHydration();
+
+    expect(handle.result.current.onboardingComplete).toBe(true);
+    expect(handle.result.current.profile?.name).toBe('User A');
+  });
+
+  it('durably saves onboarding completion before a cold relaunch', async () => {
+    const firstLaunch = await renderAndAwaitHydration();
+
+    await act(async () => {
+      await firstLaunch.result.current.completeOnboarding(ACCOUNT_PROFILE, true);
+    });
+
+    // Completion must already be durable at the boundary returned to the
+    // onboarding screen; no additional autosave/render turn is required.
+    const persisted = await readPersistedSnapshot(STORAGE_KEY);
+    expect(persisted?.onboardingComplete).toBe(true);
+    expect(persisted?.profile?.name).toBe('User A');
+
+    firstLaunch.unmount();
+    const secondLaunch = await renderAndAwaitHydration();
+    expect(secondLaunch.result.current.onboardingComplete).toBe(true);
+    expect(secondLaunch.result.current.profile?.name).toBe('User A');
+  });
+
+  it('restores every unfinished onboarding answer with its saved step after a cold relaunch', async () => {
+    const draft = {
+      name: 'Draft User',
+      age: '37',
+      height: '181',
+      weight: '84.5',
+      targetWeight: '79',
+      goal: 'maintain' as const,
+      activity: 'high' as const,
+      diet: 'Vegetarian' as const,
+      consent: true,
+    };
+    const firstLaunch = await renderAndAwaitHydration();
+
+    await act(async () => {
+      firstLaunch.result.current.setOnboardingDraft(draft);
+      firstLaunch.result.current.setOnboardingStep(5);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    const persisted = await readPersistedSnapshot(STORAGE_KEY);
+    expect(persisted?.onboardingComplete).toBe(false);
+    expect(persisted?.onboardingStep).toBe(5);
+    expect(persisted?.onboardingDraft).toEqual(draft);
+
+    firstLaunch.unmount();
+    const secondLaunch = await renderAndAwaitHydration();
+    expect(secondLaunch.result.current.onboardingComplete).toBe(false);
+    expect(secondLaunch.result.current.onboardingStep).toBe(5);
+    expect(secondLaunch.result.current.onboardingDraft).toEqual(draft);
+  });
+
   it('does not apply User A hydration after the provider switches to User B', async () => {
     const userAKey = storageKeyForAccount('user-a');
     const userBKey = storageKeyForAccount('user-b');
@@ -1052,7 +1115,7 @@ describe('real CaloraProvider — account switch during hydration', () => {
     const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
     await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
 
-    act(() => { handle.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+    await act(async () => { await handle.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
     activeAccountId = 'user-b';
     handle.rerender();
     await act(async () => {

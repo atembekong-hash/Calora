@@ -465,7 +465,9 @@ async function providerFetch(path: string, params: Record<string, string | numbe
 
 export async function listPremiumRecipes(input: { query?: string; category?: string; limit: number; offset: number }) {
   const status = premiumProviderStatus();
-  if (status.status !== "available") return { ...status, recipes: [], nextOffset: null };
+  if (status.status !== "available") {
+    return { ...status, recipes: [], nextOffset: null, terminalReason: status.message };
+  }
   if (fatSecretTransportEnabled) {
     const payload = await fatSecretFetch("/recipes/search/v3", { search_expression: input.query || input.category || "", max_results: input.limit, page_number: Math.floor(input.offset / input.limit) });
     const search = payload.recipes && typeof payload.recipes === "object" ? payload.recipes as Record<string, unknown> : {};
@@ -475,11 +477,22 @@ export async function listPremiumRecipes(input: { query?: string; category?: str
     const nextOffset = total != null
       ? input.offset + recipes.length < total ? input.offset + recipes.length : null
       : recipes.length === input.limit ? input.offset + recipes.length : null;
-    return { ...status, recipes, nextOffset };
+    return {
+      ...status,
+      recipes,
+      nextOffset,
+      terminalReason: nextOffset === null ? "No more Premium recipes are available from the provider." : null,
+    };
   }
   const payload = await providerFetch("/recipes", input);
   const recipes = (payload?.recipes ?? []).map(normalizePremiumRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe));
-  return { ...status, recipes, nextOffset: payload?.nextOffset ?? (recipes.length === input.limit ? input.offset + recipes.length : null) };
+  const nextOffset = payload?.nextOffset ?? (recipes.length === input.limit ? input.offset + recipes.length : null);
+  return {
+    ...status,
+    recipes,
+    nextOffset,
+    terminalReason: nextOffset === null ? "No more Premium recipes are available from the provider." : null,
+  };
 }
 
 export async function getPremiumRecipe(sourceId: string) {

@@ -210,7 +210,11 @@ function PostLogIntelligenceHost() {
  * providers unmounts old in-memory data before the next identity hydrates.
  */
 function AccountScopedProviders({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  // Do not hydrate the guest namespace while Supabase is still restoring a
+  // persisted session. Mounting guest first can show onboarding and autosave
+  // against the wrong account before the authenticated scope is known.
+  if (authLoading) return null;
   const accountId = user?.id ?? null;
   const scopeKey = accountId ?? 'guest';
   const scopedQueryClient = useMemo(() => createQueryClient(), [scopeKey]);

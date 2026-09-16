@@ -1,3 +1,18 @@
 {
-  "expo": {}
+  "expo": {
+    "name": "Calora",
+    "slug": "calora",
+    "owner": "vvault07",
+    "ios": {
+      "bundleIdentifier": "com.etiendem.caloraapp"
+    },
+    "android": {
+      "package": "com.etiendem.caloraapp"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1f202325-5b9a-4260-978f-abbd3252b9ee"
+      }
+    }
+  }
 }

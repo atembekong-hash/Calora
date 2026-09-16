@@ -962,6 +962,12 @@ components:
             True while the server's background nutrition warm-up is still
             running.  Clients should refetch the list shortly so recipe cards
             can show calorie estimates as soon as they are available.
+        nextOffset:
+          type: [integer, "null"]
+          description: Offset for the next page, or null when this is the terminal page.
+        terminalReason:
+          type: [string, "null"]
+          description: Stable human-readable reason included when no next page exists.
     RecipePhotoGenerateInput:
       type: object
       required: [title]
@@ -1013,6 +1019,7 @@ components:
         message: { type: [string, "null"] }
         recipes: { type: array, items: { $ref: "#/components/schemas/PremiumRecipe" } }
         nextOffset: { type: [integer, "null"] }
+        terminalReason: { type: [string, "null"] }
     PremiumRecipe:
       allOf:
         - $ref: "#/components/schemas/Recipe"

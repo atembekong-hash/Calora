@@ -2,6 +2,9 @@
 
 # compiled output
 dist
+# Keep the complete compiled implementation of Calora's vendored security package.
+!vendor/image-size/dist/
+!vendor/image-size/dist/**
 tmp
 out-tsc
 *.tsbuildinfo

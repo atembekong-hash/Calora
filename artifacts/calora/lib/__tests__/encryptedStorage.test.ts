@@ -1,4 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { nativeRandomBytes } = vi.hoisted(() => ({
+  nativeRandomBytes: vi.fn(async (byteCount: number) =>
+    Uint8Array.from({ length: byteCount }, (_, index) => (index + 1) % 256)),
+}));
+
+vi.mock('expo-crypto', () => ({
+  getRandomBytesAsync: nativeRandomBytes,
+}));
+
 import {
   ENCRYPTED_PREFIX,
   ENCRYPTION_KEY_NAME,
@@ -37,6 +47,11 @@ class MemorySecureStore {
 }
 
 describe('EncryptedStorageAdapter', () => {
+  beforeEach(() => {
+    nativeRandomBytes.mockClear();
+    vi.unstubAllGlobals();
+  });
+
   it('does not send the iOS-only keychain option to Android SecureStore', () => {
     const secureStore = {
       AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 1,
@@ -69,6 +84,22 @@ describe('EncryptedStorageAdapter', () => {
     expect(secure.values[ENCRYPTION_KEY_NAME]).toHaveLength(64);
     await expect(encrypted.getItem('@calora/account-state-v3:user-a')).resolves.toBe(state);
     await expect(encrypted.getRawItem('@calora/account-state-v3:user-a')).resolves.toBe(raw);
+  });
+
+  it('uses Expo Crypto’s native random-byte bridge for keys and GCM nonces', async () => {
+    const backing = new MemoryStorage();
+    const secure = new MemorySecureStore();
+    const encrypted = new EncryptedStorageAdapter(backing, secure);
+
+    vi.stubGlobal('crypto', undefined);
+    try {
+      await encrypted.setItem('@calora/account-state-v3:native-random', JSON.stringify({ profile: { name: 'Private person' } }));
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(nativeRandomBytes).toHaveBeenCalledWith(32);
+    expect(nativeRandomBytes).toHaveBeenCalledWith(12);
   });
 
   it('migrates valid legacy plaintext once and leaves no plaintext snapshot behind', async () => {

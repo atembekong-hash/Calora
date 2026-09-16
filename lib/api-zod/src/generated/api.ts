@@ -568,7 +568,9 @@ export const ListRecipesResponse = zod.object({
   "source": zod.string(),
   "sourceUrl": zod.string().url()
 })),
-  "warmupPending": zod.boolean().optional().describe('True while the server\'s background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available.\n')
+  "warmupPending": zod.boolean().optional().describe('True while the server\'s background nutrition warm-up is still running.  Clients should refetch the list shortly so recipe cards can show calorie estimates as soon as they are available.\n'),
+  "nextOffset": zod.number().int().nullish().describe('Offset for the next page, or null when this is the terminal page.'),
+  "terminalReason": zod.string().nullish().describe('Stable human-readable reason included when no next page exists.')
 })
 
 
@@ -699,7 +701,8 @@ export const ListPremiumRecipesResponse = zod.object({
   "fiberG": zod.number().nullish(),
   "sodiumMg": zod.number().nullish()
 }))),
-  "nextOffset": zod.number().int().nullish()
+  "nextOffset": zod.number().int().nullish(),
+  "terminalReason": zod.string().nullish()
 })
 
 

@@ -9,7 +9,6 @@
  */
 
 import { gcm } from '@noble/ciphers/aes.js';
-import { randomBytes } from '@noble/ciphers/utils.js';
 import type { StorageAdapter } from './persistenceManager';
 
 const ENCRYPTED_PREFIX = 'calora.encrypted.v1:';
@@ -87,6 +86,20 @@ function associatedData(storageKey: string): Uint8Array {
 }
 
 /**
+ * Uses the host Web Crypto CSPRNG on web, while native Expo runtimes load the
+ * platform bridge lazily. React Native does not guarantee
+ * globalThis.crypto.getRandomValues, which @noble/ciphers requires.
+ */
+async function secureRandomBytes(byteCount: number): Promise<Uint8Array> {
+  const webCrypto = globalThis.crypto;
+  if (typeof webCrypto?.getRandomValues === 'function') {
+    return webCrypto.getRandomValues(new Uint8Array(byteCount));
+  }
+  const crypto = await import('expo-crypto');
+  return crypto.getRandomBytesAsync(byteCount);
+}
+
+/**
  * AsyncStorage adapter that encrypts every value and transparently migrates a
  * valid legacy plaintext JSON value on its first read.
  */
@@ -118,7 +131,7 @@ export class EncryptedStorageAdapter implements StorageAdapter {
       if (!create) {
         throw new EncryptedStorageError('The local encryption key is unavailable.');
       }
-      const generated = randomBytes(KEY_BYTES);
+      const generated = await secureRandomBytes(KEY_BYTES);
       await this.secureKeyStore.setItem(ENCRYPTION_KEY_NAME, bytesToHex(generated));
       return generated;
     })();
@@ -162,7 +175,7 @@ export class EncryptedStorageAdapter implements StorageAdapter {
 
   async setItem(key: string, value: string): Promise<void> {
     const keyBytes = await this.getKey(true);
-    const nonce = randomBytes(NONCE_BYTES);
+    const nonce = await secureRandomBytes(NONCE_BYTES);
     const ciphertext = gcm(keyBytes, nonce, associatedData(key)).encrypt(utf8(value));
     await this.backing.setItem(key, encodeEnvelope({
       nonce: bytesToHex(nonce),
