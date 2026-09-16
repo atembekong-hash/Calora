@@ -111,8 +111,8 @@ describe('Recipes Discover layout contracts', () => {
     );
 
     expect(source).toContain('placeholderData: offset > 0 ? (previousData) => previousData : undefined');
-    expect(source).toContain('const recipes = loadedRecipes');
-    expect(source).toContain('data.recipes : [...current, ...data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id))]');
+    expect(source).toContain('mergeRecipePages([], data.recipes)');
+    expect(source).toContain('mergeRecipePages(current, data.recipes)');
     expect(source).toContain('testID="plus-recipe-grid"');
     expect(source).toContain('testID="plus-recipe-pagination-loading"');
     expect(source).toContain('testID="plus-recipe-pagination-error"');
@@ -125,5 +125,23 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('loadMorePremiumRecipesIfAtEnd();');
     expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
     expect(source).toContain('recipesScrollRef.current?.scrollTo({ y: section === \'discover\' ? discoverScrollYRef.current : 0, animated: false })');
+  });
+
+  it('uses bounded session freshness, server next offsets, and truthful nutrition presentation', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("getRecipeFreshnessSession(`discover:${user?.id ?? 'signed-out'}:${search}:${category}`)");
+    expect(source).toContain("getRecipeFreshnessSession(`plus:${userId ?? 'signed-out'}:${search}:${category}`)");
+    expect(source).toContain('mergeRecipePages([], page)');
+    expect(source).toContain('setRemoteNextOffset(response?.nextOffset ?? null)');
+    expect(source).toContain('setRemoteOffset(remoteNextOffset)');
+    expect(source).toContain("nutritionState === 'loading'");
+    expect(source).toContain("nutritionState === 'unavailable' || nutritionState === 'error'");
+    expect(source).toContain('formatRecipeNutrition(scaledKcal');
+    expect(source).toContain('Some nutrition values are unavailable from this recipe source.');
+    expect(source).not.toContain('Number(detail.calories) || 0');
   });
 });

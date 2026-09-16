@@ -1,0 +1,313 @@
+import React, { useEffect, useMemo } from 'react';
+import { AppState, StyleSheet, Text, View } from 'react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+  useFonts,
+} from '@expo-google-fonts/inter';
+import { Stack, useRouter } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import * as Notifications from 'expo-notifications';
+import { CaloraProvider, useCalora } from '@/context/CaloraContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { setAuthTokenGetter, setBaseUrl } from '@workspace/api-client-react';
+import { supabase } from '@/lib/supabase';
+import { getApiBaseUrl } from '@/lib/api-config';
+import { AppStatusBar } from '@/components/AppChrome';
+import { initializeRevenueCat, SubscriptionProvider } from '@/lib/revenuecat';
+import { ReferralActivator } from '@/components/ReferralActivator';
+import { useDiarySync } from '@/hooks/useDiarySync';
+import { isNotificationOwnedByScope, recordReceivedNotification } from '@/lib/notificationInbox';
+
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync();
+
+const apiBaseUrl = getApiBaseUrl();
+setBaseUrl(apiBaseUrl);
+console.info('[CaloraApp][network] API base configured', { origin: apiBaseUrl });
+
+// Attach the Supabase access token to every API call when signed in.
+setAuthTokenGetter(async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+});
+
+// Configure RevenueCat once at startup. In Expo Go / web preview the SDK
+// runs in Preview API Mode against the Test Store, so this is always safe.
+try {
+  initializeRevenueCat();
+} catch (err) {
+  console.warn('[CaloraApp][billing] RevenueCat unavailable:', err);
+}
+
+// Configure foreground notification display (required by expo-notifications).
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        // Disable window-focus refetching — on mobile (native) there are no
+        // browser focus events. On web preview, focus events from user interaction
+        // would trigger mid-click re-renders that swap DOM nodes and break
+        // button presses in modals. Individual queries set their own staleTime.
+        refetchOnWindowFocus: false,
+      },
+    },
+  });
+}
+
+/**
+ * Listens for notification taps and navigates to the relevant tab.
+ * Must be inside the router context so useRouter works.
+ */
+function NotificationHandler() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const { notificationScopeReady, notificationPreferences } = useCalora();
+
+  useEffect(() => {
+    // No listener exists until the current scope has passed its serialized
+    // native reconciliation. This makes A → B → guest a hard inbox boundary.
+    if (!notificationScopeReady) return;
+
+    const accountId = user?.id ?? null;
+    const scopeToken = notificationPreferences.scopeToken;
+    let active = true;
+    const isCaloraNotification = (notification: Notifications.Notification) =>
+      isNotificationOwnedByScope(notification, scopeToken);
+    const capture = (notification: Notifications.Notification) => {
+      if (!active) return;
+      if (!isCaloraNotification(notification)) return;
+      void recordReceivedNotification(accountId, notification).catch((error) => {
+        console.warn('[CaloraApp][notifications] Could not save notification:', error);
+      });
+    };
+    const navigateFor = (notification: Notifications.Notification) => {
+      if (!active) return;
+      if (!isCaloraNotification(notification)) return;
+      const category = notification.request.content.data?.category;
+      if (category === 'hydration' || category === 'meal' || category === 'goal') {
+        router.navigate('/');
+      }
+    };
+    const capturePresented = async () => {
+      try {
+        const presented = await Notifications.getPresentedNotificationsAsync();
+        if (!active) return;
+        presented.forEach(capture);
+      } catch (error) {
+        console.warn('[CaloraApp][notifications] Could not read presented notifications:', error);
+      }
+    };
+
+    // Capture notifications received while the app is open.
+    const receivedSubscription = Notifications.addNotificationReceivedListener(capture);
+
+    // Capture a notification that launched or resumed the app, then navigate
+    // to the relevant tab when the user taps it.
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        capture(response.notification);
+        navigateFor(response.notification);
+      },
+    );
+
+    // Response listeners do not replay a tap that launched the process before
+    // React mounted. Read it only after this account scope is ready, through
+    // the same tagged capture path (delivery identity makes replay idempotent).
+    void Notifications.getLastNotificationResponseAsync()
+      .then(async (response) => {
+        if (!response || !active) return;
+        try {
+          // Legacy/no-token and prior-scope responses fail closed.
+          if (isCaloraNotification(response.notification)) {
+            capture(response.notification);
+            navigateFor(response.notification);
+          }
+        } finally {
+          // Consume accepted and rejected retained responses so neither can
+          // replay after a later account/guest transition.
+          if (active) await Notifications.clearLastNotificationResponseAsync();
+        }
+      })
+      .catch((error) => {
+        console.warn('[CaloraApp][notifications] Could not read launch notification:', error);
+      });
+
+    // On native, keep notifications that are still presented in sync with the
+    // inbox so a user can review them after returning from the lock screen.
+    void capturePresented();
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') void capturePresented();
+    });
+
+    return () => {
+      active = false;
+      receivedSubscription.remove();
+      responseSubscription.remove();
+      appStateSubscription.remove();
+    };
+  }, [notificationPreferences.scopeToken, notificationScopeReady, router, user?.id]);
+
+  return null;
+}
+
+/** Invisible worker that background-syncs confirmed diary logs to the server. */
+function DiarySyncWorker() {
+  useDiarySync();
+  return null;
+}
+
+/** One account-keyed, non-blocking home for an already-sanitized transient. */
+function PostLogIntelligenceHost() {
+  const { postLogInsight, clearPostLogInsight, hydrated, colors, fontScale } = useCalora();
+  useEffect(() => {
+    if (!hydrated || !postLogInsight) {
+      if (!hydrated) clearPostLogInsight();
+      return;
+    }
+    const timeout = setTimeout(clearPostLogInsight, 4200);
+    return () => clearTimeout(timeout);
+  }, [clearPostLogInsight, hydrated, postLogInsight]);
+
+  if (!hydrated || !postLogInsight) return null;
+  return (
+    <View pointerEvents="none" style={styles.postLogWrap}>
+      <View
+        testID="post-log-intelligence"
+        accessibilityRole="summary"
+        accessibilityLiveRegion="polite"
+        accessibilityLabel={`${postLogInsight.title}. ${postLogInsight.message}`}
+        style={[styles.postLogCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+      >
+        <Text style={[styles.postLogEyebrow, { color: colors.primary, fontSize: 10 * fontScale }]}>JUST LOGGED</Text>
+        <Text style={[styles.postLogTitle, { color: colors.foreground, fontSize: 14 * fontScale }]}>{postLogInsight.title}</Text>
+        <Text style={[styles.postLogMessage, { color: colors.mutedForeground, fontSize: 12 * fontScale }]}>{postLogInsight.message}</Text>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Auth changes are a hard privacy boundary. Keying the state and query
+ * providers unmounts old in-memory data before the next identity hydrates.
+ */
+function AccountScopedProviders({ children }: { children: React.ReactNode }) {
+  const { user, isLoading: authLoading } = useAuth();
+  // Do not hydrate the guest namespace while Supabase is still restoring a
+  // persisted session. Mounting guest first can show onboarding and autosave
+  // against the wrong account before the authenticated scope is known.
+  if (authLoading) return null;
+  const accountId = user?.id ?? null;
+  const scopeKey = accountId ?? 'guest';
+  const scopedQueryClient = useMemo(() => createQueryClient(), [scopeKey]);
+
+  return (
+    <CaloraProvider key={scopeKey} accountId={accountId}>
+      <QueryClientProvider key={scopeKey} client={scopedQueryClient}>
+        <SubscriptionProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <KeyboardProvider>
+              <AppStatusBar />
+              <DiarySyncWorker />
+              <ReferralActivator />
+              <PostLogIntelligenceHost />
+              {children}
+            </KeyboardProvider>
+          </GestureHandlerRootView>
+        </SubscriptionProvider>
+      </QueryClientProvider>
+    </CaloraProvider>
+  );
+}
+
+function RootLayoutNav() {
+  return (
+    <>
+      <NotificationHandler />
+      <Stack screenOptions={{ headerBackTitle: 'Back', contentStyle: { backgroundColor: 'transparent' } }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="saved-recipes" options={{ headerShown: false }} />
+        <Stack.Screen name="coach" options={{ headerShown: false }} />
+        <Stack.Screen name="memory" options={{ headerShown: false }} />
+        <Stack.Screen name="restaurants" options={{ headerShown: false }} />
+        <Stack.Screen name="meal-image-preview" options={{ headerShown: false }} />
+        <Stack.Screen name="encrypted-recovery-preview" options={{ headerShown: false }} />
+        {/* Auth screens group — sign-in, sign-up, forgot/reset password, callback */}
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
+      </Stack>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) return null;
+
+  return (
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <AccountScopedProviders>
+            <RootLayoutNav />
+          </AccountScopedProviders>
+        </AuthProvider>
+      </ErrorBoundary>
+    </SafeAreaProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  postLogWrap: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 98,
+    zIndex: 100,
+  },
+  postLogCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  postLogEyebrow: { fontFamily: 'Inter_700Bold', letterSpacing: 0.9, marginBottom: 3 },
+  postLogTitle: { fontFamily: 'Inter_700Bold', lineHeight: 20 },
+  postLogMessage: { fontFamily: 'Inter_400Regular', lineHeight: 18, marginTop: 3 },
+});

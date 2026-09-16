@@ -7,8 +7,11 @@ export function hasCurrentPremiumAccess(input: {
   isSuccess: boolean;
   isFetchedAfterMount: boolean;
   isFetching: boolean;
+  isStale?: boolean;
 }): boolean {
-  return input.isSuccess && input.isFetchedAfterMount && !input.isFetching;
+  return input.isSuccess
+    && !input.isFetching
+    && (input.isFetchedAfterMount || input.isStale === false);
 }
 
 /**

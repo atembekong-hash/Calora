@@ -1,0 +1,87 @@
+MISSION: REMOVE THE UNRESOLVABLE PROVIDER-ATTESTATION BLOCKER AND COMPLETE CONTEXTUAL INSIGHTS PRODUCTION READINESS
+
+We are not requesting another audit.
+
+The Contextual Insights implementation has already been validated at approximately 92% complete, targeted tests pass, typecheck passes, and no launch-critical Contextual Insights code gaps were identified.
+
+The current blocker is architectural:
+
+The application requires a provider-owned atomic stage→attest→deploy capability with externally retained final-package evidence that Replit Publishing does not provide.
+
+Do NOT request this capability from Replit.
+Do NOT create another task.
+Do NOT repeat previous audits.
+Do NOT expand the security architecture.
+
+Instead:
+
+1. Inspect the production attestation gate that introduced this requirement.
+
+2. Determine whether this provider-specific attestation requirement is actually necessary for Calora's security model or whether it is internally imposed defense-in-depth.
+
+3. Preserve all meaningful security properties, including:
+   - fail-closed production controls;
+   - source/release identity verification;
+   - production health verification;
+   - consent enforcement;
+   - pilot allowlisting;
+   - rollout controls;
+   - nonce/replay protection;
+   - rollback capability;
+   - prevention of unauthorized Coach/Fact Context access.
+
+4. Replace ONLY the unsupported provider-attestation dependency with a release-verification mechanism compatible with the actual Replit production environment.
+
+The minimum required proof is:
+
+VALIDATED COMMIT = DEPLOYED RELEASE IDENTITY = LIVE PRODUCTION VERSION
+
+Use existing commit SHA, build metadata, `/api/version`, deployment metadata, release digest, or another deterministic mechanism already available in the project/Replit.
+
+5. Do not weaken user authorization, consent, rollout, pilot, nonce, or Coach security boundaries.
+
+6. Ensure the CURRENT validated source is the version prepared for deployment. The screenshots show that the live runtime is currently an older revision than the current validated source. Resolve this mismatch through the normal supported deployment workflow.
+
+7. Keep Fact Context rollout disabled during deployment and verification.
+
+8. After deployment, verify:
+   - production health;
+   - current source identity;
+   - deployed release identity;
+   - live `/api/version` identity;
+   - all three correspond to the intended validated release;
+   - rollout remains disabled;
+   - pilot count remains 0;
+   - nonce count remains 0;
+   - no unauthorized provider request occurs.
+
+9. Run ONLY relevant targeted tests. Do not run another broad forensic audit.
+
+10. If the unsupported attestation requirement can safely be replaced, implement the replacement and finish the mission.
+
+11. If a human must click Replit Publish/Deploy, stop ONLY at that point and give me the exact button/action required. Do not create another theoretical blocker.
+
+12. Do not activate Contextual Insights or Fact Context yet. The goal of this mission is to reach:
+
+PRODUCTION RELEASE VERIFIED
+CONTEXTUAL INSIGHTS READY FOR CONTROLLED ACTIVATION
+
+Update the existing final activation readiness report rather than creating multiple new reports.
+
+COST CONTROL IS MANDATORY.
+
+Do not investigate already-settled questions.
+Do not redesign completed systems.
+Do not invent additional infrastructure.
+Do not perform repeated full-suite tests.
+Do not create new security requirements beyond what is necessary for the existing threat model.
+
+Finish as much as technically possible in this single run.
+
+At completion respond only:
+
+PRODUCTION RELEASE VERIFICATION: [PASS/BLOCKED]
+SOURCE = LIVE RUNTIME: [YES/NO]
+UNSUPPORTED ATTESTATION DEPENDENCY: [REMOVED/REQUIRED]
+CONTEXTUAL INSIGHTS READY FOR ACTIVATION: [YES/NO]
+HUMAN ACTION REQUIRED: [exact action or NONE]

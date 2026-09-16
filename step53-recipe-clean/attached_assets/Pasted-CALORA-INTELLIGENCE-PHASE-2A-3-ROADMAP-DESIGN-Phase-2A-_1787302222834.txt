@@ -1,0 +1,142 @@
+CALORA INTELLIGENCE: PHASE 2A.3 ROADMAP DESIGN
+
+Phase 2A.0, Phase 2A.1, and Phase 2A.2 are complete at the implementation level.
+
+Do not implement anything yet.
+
+Your task is to design the next Intelligence roadmap decision.
+
+Perform a repository-grounded architectural and product analysis of the completed Intelligence Foundation, Progress Intelligence, Today Intelligence, and Post-Log Intelligence.
+
+Determine what the most valuable and technically appropriate next Intelligence capability should be for Calora.
+
+Evaluate at minimum:
+
+Coach Intelligence integration
+
+proactive Intelligence
+
+persistent personalization
+
+longitudinal/trend Intelligence
+
+meal-level Intelligence
+
+nutrition-pattern Intelligence
+
+goal/progress forecasting
+
+Planner Intelligence
+
+Recipe Intelligence
+
+evidence/explanation UI
+
+feedback and learning mechanisms
+
+server-assisted Intelligence
+
+
+Do not assume any of these should be built next.
+
+Rank the candidates using:
+
+1. user value;
+
+
+2. dependency readiness;
+
+
+3. architectural risk;
+
+
+4. privacy risk;
+
+
+5. hallucination/factual-integrity risk;
+
+
+6. persistence requirements;
+
+
+7. server/network requirements;
+
+
+8. performance cost;
+
+
+9. UX complexity;
+
+
+10. regression risk;
+
+
+11. reversibility through feature flags;
+
+
+12. ability to reuse the existing deterministic Foundation facts.
+
+
+
+Recommend one capability as the proposed Phase 2A.3.
+
+Then define:
+
+exact objective;
+
+user experience;
+
+trigger;
+
+data inputs;
+
+output;
+
+Foundation facts reused;
+
+any new facts required;
+
+persistence policy;
+
+network/server policy;
+
+account-isolation requirements;
+
+privacy boundary;
+
+failure behavior;
+
+feature flag;
+
+implementation boundary;
+
+explicit exclusions;
+
+validation requirements;
+
+rollback strategy;
+
+prerequisites;
+
+measurable acceptance criteria.
+
+
+Preserve all currently completed Intelligence behavior.
+
+Do not enable or implement Phase 2A.3.
+
+Produce a proposed Phase 2A.3 specification for review and authorization.
+
+Also automatically write the full analysis and proposed specification to:
+
+docs/CALORA_INTELLIGENCE_PHASE_2A_3_PROPOSAL.md
+
+End with one of:
+
+RECOMMEND PHASE 2A.3: <capability>
+
+or
+
+DO NOT PROCEED: <reason>
+
+Wait for explicit authorization before creating an implementation task or modifying production code.

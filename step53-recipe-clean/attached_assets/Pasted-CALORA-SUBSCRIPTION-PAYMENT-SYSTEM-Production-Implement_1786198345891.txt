@@ -1,0 +1,820 @@
+CALORA SUBSCRIPTION & PAYMENT SYSTEM
+
+Production Implementation Mission
+
+You are the autonomous senior technical owner responsible for designing, implementing, configuring, testing, and validating the complete subscription and payment system for this calorie-tracking mobile application.
+
+The application is being built in Replit and is nearing completion.
+
+Do not treat this mission as merely adding a paywall.
+
+Your responsibility is to establish a complete, production-grade subscription architecture covering:
+
+- iOS subscriptions
+- Android subscriptions
+- subscription state
+- introductory pricing
+- free trials
+- renewals
+- upgrades and plan changes
+- cancellations
+- expiration
+- billing failures
+- entitlement management
+- purchase restoration
+- cross-device access
+- subscription management
+- pricing disclosure
+- analytics
+- security
+- legal and store compliance
+- testing
+- failure recovery
+
+The final experience must be simple enough that a normal user can understand exactly what they are paying today and what they will pay later.
+
+---
+
+1. BUSINESS MODEL
+
+The application is a premium calorie and nutrition tracking product.
+
+There are two subscription choices:
+
+Monthly
+
+Introductory price:
+
+$4.99/month
+
+Standard price after the introductory period:
+
+$9.99/month
+
+Annual
+
+Introductory first-year price:
+
+$35.99/year
+
+Equivalent monthly cost:
+
+Approximately $3.00/month
+
+Standard renewal price:
+
+$69.99/year
+
+Equivalent monthly cost:
+
+Approximately $5.83/month
+
+The annual standard price represents roughly a 42% saving compared with paying $9.99 monthly for twelve months.
+
+---
+
+2. FREE TRIAL
+
+Eligible new subscribers should receive:
+
+7 days free
+
+The trial must be implemented using the official subscription mechanisms supported by Apple and Google wherever applicable.
+
+Do not create a fake client-side trial timer.
+
+Eligibility must be determined from authoritative subscription information.
+
+A reinstall, logout, account recreation, device change, or local-storage deletion must never allow someone to repeatedly obtain introductory access if the store rules say that user is no longer eligible.
+
+---
+
+3. INTRODUCTORY PRICING
+
+The intended commercial journey is:
+
+New annual subscriber
+
+Day 1 through Day 7:
+
+Free
+
+After the trial:
+
+$35.99 for the first year
+
+At the applicable renewal:
+
+$69.99/year
+
+New monthly subscriber
+
+Day 1 through Day 7:
+
+Free
+
+After the trial:
+
+$4.99/month during the intended introductory pricing period
+
+After the introductory pricing period:
+
+$9.99/month
+
+However, do not blindly encode these assumptions.
+
+Before implementation, verify exactly how Apple App Store subscriptions and Google Play subscriptions currently support introductory offers, offer eligibility, billing periods, base plans, price phases, and automatic transition to standard pricing.
+
+The store configuration must be the source of truth for charges.
+
+If either platform cannot implement the exact desired commercial structure natively, STOP that part of implementation and document:
+
+1. What the platform supports.
+2. What it does not support.
+3. Why.
+4. The closest compliant implementation.
+5. Any business-model adjustment required.
+
+Do not simulate unsupported subscription behavior inside the application.
+
+---
+
+4. PRICING TRANSPARENCY
+
+A user must never reasonably believe that $35.99/year is their permanent annual price if the subscription will later renew for $69.99/year.
+
+Likewise, monthly users must understand the transition from introductory pricing to standard pricing.
+
+The paywall should communicate this plainly.
+
+Example concept:
+
+7 days free
+
+Then:
+
+$35.99 for your first year
+
+Renews at:
+
+$69.99/year unless canceled
+
+For monthly:
+
+7 days free
+
+Then:
+
+$4.99/month during your introductory period
+
+Then:
+
+$9.99/month unless canceled
+
+Do not hide renewal pricing in tiny text.
+
+Do not use deceptive countdown timers.
+
+Do not use preselected consent tricks.
+
+Do not create fake scarcity.
+
+Do not obscure cancellation information.
+
+The conversion strategy should come from product value and a strong introductory offer.
+
+---
+
+5. PAYWALL UX
+
+Build or refine a polished mobile paywall consistent with the application's existing design system.
+
+Do not redesign the rest of the application.
+
+The paywall should have a clear hierarchy.
+
+Present the value proposition first.
+
+Then present Monthly and Annual.
+
+The Annual option may be visually emphasized as the recommended option because it provides the strongest value.
+
+Display useful information such as:
+
+ANNUAL
+7 days free
+$35.99 first year
+Then $69.99/year
+Approximately $3.00/month during first year
+
+MONTHLY
+7 days free
+$4.99/month introductory price
+Then $9.99/month
+
+Where accurate, show:
+
+Save approximately 42% with annual billing at the standard annual price compared with 12 months at the standard monthly price.
+
+Do not calculate savings against misleading comparison periods.
+
+The primary CTA should dynamically match the actual selected offer.
+
+Examples:
+
+Start 7-Day Free Trial
+
+or
+
+Continue with Annual
+
+depending on eligibility.
+
+Never display "Start Free Trial" to someone who is not actually eligible for a free trial.
+
+---
+
+6. DYNAMIC STORE PRICING
+
+Do not hardcode displayed prices when production store APIs provide localized product information.
+
+Retrieve and display the authoritative product information supplied by Apple, Google, or the subscription-management layer.
+
+This includes, where available:
+
+- localized price
+- currency
+- billing period
+- introductory offer
+- trial duration
+- standard renewal price
+- eligibility
+
+A user in another country should see appropriate localized store pricing rather than a hardcoded "$35.99" string if their storefront uses different pricing.
+
+The business prices above define the intended U.S. pricing strategy.
+
+---
+
+7. SUBSCRIPTION INFRASTRUCTURE
+
+First inspect the existing application and determine whether a subscription SDK or service already exists.
+
+If RevenueCat is already integrated, evaluate and extend it rather than creating a second competing subscription architecture.
+
+If no subscription infrastructure exists, determine the most reliable architecture for this Expo/React Native/Replit application.
+
+Prefer authoritative server/store subscription state over local flags.
+
+Never implement premium access using something like:
+
+"isPremium = true"
+
+stored only in local storage.
+
+Premium entitlement must survive:
+
+- reinstall
+- logout/login
+- device replacement
+- app update
+- app rebuild
+- cache deletion
+
+when the same legitimate account and subscription are restored.
+
+---
+
+8. USER IDENTITY
+
+Subscription ownership must integrate correctly with the application's authentication system.
+
+Map the application's authenticated user identity to the subscription customer identity.
+
+Avoid creating duplicate anonymous subscription identities when users sign out and back in.
+
+Handle:
+
+- first signup
+- login
+- logout
+- Google authentication
+- Apple authentication if present
+- account switching
+- reinstall
+- multiple devices
+- anonymous-to-authenticated transitions
+
+The same authenticated customer should receive the correct premium entitlement on another device where platform rules permit it.
+
+---
+
+9. ENTITLEMENT MODEL
+
+Create one authoritative premium entitlement, for example:
+
+Calora Pro
+
+Both subscription plans should unlock the same premium entitlement unless the existing product requirements explicitly require separate feature tiers.
+
+Subscription state should support at minimum:
+
+- never subscribed
+- trial eligible
+- trial active
+- introductory period
+- active monthly
+- active annual
+- canceled but still active
+- billing issue
+- grace period
+- expired
+- refunded/revoked where applicable
+
+Do not equate "canceled" with "immediately remove access."
+
+If a customer cancels but has already paid through a future date, premium access should normally remain until entitlement expiration.
+
+---
+
+10. SUBSCRIPTION MANAGEMENT SCREEN
+
+Create or refine a Subscription / Membership section inside Settings.
+
+An active subscriber should be able to understand:
+
+Current plan
+
+Subscription status
+
+Current billing period
+
+Next renewal date or expiration date
+
+Renewal price where reliably available
+
+Manage Subscription
+
+Restore Purchases
+
+If canceled:
+
+Your subscription remains active until [date].
+
+If trialing:
+
+Free trial ends [date].
+
+If there is a billing problem:
+
+Display an appropriate message and direct the customer to the supported billing-management path.
+
+Do not build a fake cancellation button that merely changes application state.
+
+Subscription cancellation and billing management must use the appropriate Apple or Google subscription-management mechanisms.
+
+---
+
+11. RESTORE PURCHASES
+
+Implement a reliable:
+
+Restore Purchases
+
+flow.
+
+Test it.
+
+It must properly restore eligible subscription access after:
+
+- reinstalling the application
+- installing on another compatible device
+- signing back into the app
+- losing local application data
+
+Display clear outcomes.
+
+Examples:
+
+Purchases restored successfully.
+
+or:
+
+No active purchases were found for this account.
+
+Do not leave users staring at an indefinite loading spinner.
+
+---
+
+12. SERVER-SIDE SUBSCRIPTION STATE
+
+Where the architecture requires backend subscription state, synchronize it securely.
+
+Do not trust client-submitted claims that someone is premium.
+
+Where supported, use verified store/subscription-provider events to track material lifecycle events.
+
+Design for events such as:
+
+- trial started
+- initial purchase
+- renewal
+- cancellation
+- expiration
+- billing issue
+- refund
+- product change
+- entitlement revocation
+
+Webhook/event handling must be:
+
+- authenticated
+- idempotent
+- safe against duplicate delivery
+- logged
+- retryable
+
+Never grant premium access because the client simply sends a request saying a purchase succeeded.
+
+---
+
+13. NOTIFICATIONS
+
+Design appropriate subscription lifecycle communication.
+
+Possible events include:
+
+- trial ending
+- annual renewal approaching
+- payment problem
+- subscription expired
+
+Do not assume that every billing notification should be generated by the application itself.
+
+Determine what Apple and Google already communicate and what the application may legally and technically send without creating confusing duplicate notices.
+
+If email notifications are implemented, use the application's verified backend user data and existing email infrastructure.
+
+Never expose secrets in the mobile client.
+
+---
+
+14. ANALYTICS
+
+Instrument the subscription funnel without collecting unnecessary sensitive data.
+
+Track useful events such as:
+
+- paywall_viewed
+- plan_selected
+- trial_started
+- purchase_started
+- purchase_completed
+- purchase_failed
+- purchase_cancelled
+- restore_started
+- restore_completed
+- subscription_management_opened
+
+Where available, distinguish:
+
+- monthly
+- annual
+- trial eligible
+- non-trial eligible
+- introductory offer
+- standard offer
+
+Do not send payment credentials or sensitive store data into ordinary analytics systems.
+
+---
+
+15. SECURITY
+
+Conduct a subscription-specific security review.
+
+Verify that:
+
+- API keys are handled correctly
+- secret keys are server-side only
+- premium state cannot be trivially modified locally
+- purchase responses are validated appropriately
+- backend endpoints require authentication where necessary
+- webhook signatures/authentication are verified
+- duplicate events cannot create incorrect entitlement state
+- logs do not expose payment information
+- production and sandbox environments are separated correctly
+
+Do not store credit-card information.
+
+Apple and Google should handle payment credentials for native mobile subscriptions.
+
+---
+
+16. FAILURE STATES
+
+Design and test every important failure path.
+
+Test:
+
+1. Purchase succeeds.
+2. User cancels purchase sheet.
+3. Purchase fails.
+4. Network disappears during purchase.
+5. Network disappears immediately after purchase.
+6. App closes during purchase.
+7. Store response is delayed.
+8. User taps purchase repeatedly.
+9. Restore succeeds.
+10. Restore finds nothing.
+11. Subscription expires.
+12. Subscription is canceled but still entitled.
+13. Billing enters grace period.
+14. Payment fails.
+15. Subscription renews.
+16. User reinstalls the app.
+17. User changes devices.
+18. User logs into another app account.
+19. User changes Monthly to Annual where supported.
+20. User changes Annual to Monthly where supported.
+21. User is not eligible for the advertised introductory offer.
+22. Store product information temporarily fails to load.
+
+Every failure state must have a deliberate UX.
+
+Never show premium access before entitlement is confirmed.
+
+Never charge twice because of repeated taps.
+
+---
+
+17. ACCESSIBILITY
+
+The paywall must work with:
+
+- screen readers
+- dynamic text/font scaling
+- sufficient contrast
+- large touch targets
+- light mode
+- dark mode
+
+Prices, renewal information, buttons, legal links, and subscription terms must remain readable on smaller screens.
+
+Nothing important may be clipped.
+
+The page must scroll naturally where required.
+
+---
+
+18. LEGAL AND STORE REQUIREMENTS
+
+Audit the implementation against current Apple App Store and Google Play subscription requirements.
+
+Ensure required links and disclosures are present.
+
+This may include:
+
+- Terms of Use
+- Privacy Policy
+- subscription duration
+- subscription price
+- automatic renewal disclosure
+- cancellation information
+- restore purchases
+- recurring billing language
+
+Use the current official platform requirements.
+
+Do not rely on outdated assumptions.
+
+---
+
+19. DO NOT DAMAGE THE EXISTING APPLICATION
+
+This application is nearly complete.
+
+Before editing anything:
+
+1. Inspect the current architecture.
+2. Identify authentication.
+3. Identify backend architecture.
+4. Identify database schema.
+5. Identify existing payment/subscription code.
+6. Identify existing RevenueCat or equivalent integration.
+7. Identify Settings architecture.
+8. Identify current premium feature gates.
+9. Identify analytics.
+10. Identify environment-variable handling.
+
+Create a dependency map before implementation.
+
+Reuse existing working infrastructure wherever sound.
+
+Do not rewrite unrelated systems.
+
+Do not redesign unrelated screens.
+
+Do not remove working features.
+
+Do not trigger a production build unless explicitly instructed.
+
+---
+
+20. IMPLEMENTATION PHASES
+
+Execute this mission in controlled phases.
+
+Phase 1: Forensic audit
+
+Map the existing subscription, authentication, backend, database, and account architecture.
+
+Phase 2: Commercial configuration
+
+Define the exact products, base plans, offers, trial configuration, entitlement, and renewal behavior required for Apple and Google.
+
+Phase 3: Subscription architecture
+
+Implement authoritative customer identity, entitlement resolution, restoration, and synchronization.
+
+Phase 4: Paywall
+
+Implement the complete paywall and dynamic eligibility states.
+
+Phase 5: Subscription management
+
+Implement Settings subscription status, restore purchases, and management links.
+
+Phase 6: Backend lifecycle
+
+Implement required webhook/event synchronization and secure subscription-state handling.
+
+Phase 7: Analytics
+
+Instrument the subscription funnel.
+
+Phase 8: Functional testing
+
+Test every purchase and lifecycle flow available in the development environment.
+
+Phase 9: Regression testing
+
+Verify that authentication, onboarding, dashboard, food logging, AI features, plans, recipes, settings, account management, and other existing functionality remain intact.
+
+Phase 10: Production-readiness audit
+
+Perform a final forensic review of the complete payment system.
+
+---
+
+21. TEST AS A REAL USER
+
+Do not stop after confirming that code compiles.
+
+Test the actual experience.
+
+Follow the complete journey:
+
+Install/open application
+
+→ Create account/login
+
+→ Complete onboarding
+
+→ Encounter premium offer
+
+→ Select Monthly
+
+→ Verify displayed terms
+
+→ Start purchase
+
+→ Verify entitlement
+
+→ Restart application
+
+→ Verify premium remains
+
+→ Sign out
+
+→ Sign back in
+
+→ Verify entitlement
+
+→ Restore purchases
+
+→ Open subscription management
+
+→ Verify subscription information
+
+Then repeat for Annual.
+
+Test trial-eligible and non-trial-eligible states.
+
+Test canceled, expired, billing-problem, and restoration states wherever sandbox/store tooling permits.
+
+A flow is complete only when the end-to-end behavior has been verified.
+
+---
+
+22. CRITICAL BUSINESS RULE
+
+The customer must always be able to answer three questions before purchasing:
+
+What will I pay today?
+
+When will I be charged again?
+
+How much will that next charge be?
+
+If the interface makes any of these unclear, the paywall is not finished.
+
+---
+
+23. FINAL REPORT
+
+At completion, produce a detailed Payment System Production Readiness Report containing:
+
+A. Architecture
+
+Explain how purchases and entitlements work.
+
+B. Store configuration
+
+List every Apple and Google subscription product, offer, base plan, entitlement, trial, and renewal configuration.
+
+C. Pricing
+
+Document introductory and standard prices.
+
+D. User journeys
+
+Document each tested subscription flow.
+
+E. Security
+
+Document purchase validation and entitlement protection.
+
+F. Failure handling
+
+Document every tested failure state.
+
+G. Files changed
+
+List every modified or created file and why.
+
+H. Database changes
+
+List migrations or schema changes.
+
+I. Environment variables
+
+List required variable names without exposing secret values.
+
+J. External configuration
+
+Identify anything that must still be completed in App Store Connect, Google Play Console, RevenueCat, backend hosting, DNS, email provider, or another external service.
+
+K. Test evidence
+
+Provide test results and screenshots where possible.
+
+L. Known limitations
+
+State anything that could not be tested and why.
+
+M. Production blockers
+
+Clearly identify any remaining issue that prevents real-money production release.
+
+---
+
+24. DEFINITION OF DONE
+
+This mission is NOT complete merely because:
+
+- the paywall appears
+- a purchase button exists
+- subscription products load
+- code compiles
+- tests pass in isolation
+
+It is complete only when the subscription system has been traced from:
+
+Store → Purchase → Verification → Customer Identity → Entitlement → Application Access → Renewal/Cancellation → Restoration
+
+and the supported flows work end to end.
+
+The final system should feel simple to the customer even though the infrastructure behind it is rigorous.
+
+Build for trust.
+
+Build for recovery.
+
+Build for store compliance.
+
+Build for real paying customers.
+
+Begin with the forensic audit.
+
+Do not make destructive changes before understanding the existing implementation.

@@ -1,0 +1,702 @@
+FINAL PHASE 2B ACTIVATION-READINESS REVIEW
+
+Mission
+
+Perform an independent, adversarial, evidence-driven final activation-readiness review of Calora Coach Fact Context Phase 2B.
+
+The purpose is to determine whether the dormant Fact Context architecture is genuinely safe for a future tightly controlled cohort activation.
+
+This task does NOT authorize activation.
+
+Do not trust previous reports, implementation claims, comments, test names, or intended architecture as proof.
+
+Inspect the current repository and verify every material claim independently from code, configuration, database behavior, tests, runtime paths, and reproducible evidence.
+
+Start from the current authoritative repository state.
+
+
+---
+
+1. Establish the exact current state
+
+Before reviewing readiness:
+
+verify repository/branch state;
+
+verify relevant commits are present;
+
+inspect the Phase 2B reports and remediation history;
+
+identify every Phase 2B client, server, database, rollout, consent, lifecycle, security, and test component;
+
+construct the actual request/data-flow from Coach UI to provider and back;
+
+identify every gate capable of permitting or denying Fact Context.
+
+
+Confirm independently that the current production-safe state is:
+
+client Fact Context gate OFF;
+
+server Fact Context gate OFF;
+
+named cohort empty/disabled;
+
+no account eligible;
+
+Fact Context allowlist unchanged;
+
+legacy Coach remains operational;
+
+Longitudinal Intelligence remains OFF.
+
+
+If any of these statements is false, STOP and report it as a blocker.
+
+
+---
+
+2. Verify the real database authority
+
+Independently prove that Coach Fact Context durable consent belongs to the canonical managed PostgreSQL/Drizzle architecture.
+
+Trace the complete production deployment path.
+
+Verify:
+
+canonical schema ownership;
+
+migration/deployment mechanism;
+
+DATABASE_URL target;
+
+no competing active Supabase DDL;
+
+production deployment can actually create/update the consent schema;
+
+schema and runtime expectations agree;
+
+constraints survive deployment;
+
+deletion cascade is real;
+
+metadata-only storage is maintained.
+
+
+Inspect the database schema rather than relying only on ORM declarations.
+
+Test where safely possible.
+
+Any ambiguity over which database owns consent is an activation blocker.
+
+
+---
+
+3. Attack durable consent
+
+Attempt to violate the consent boundary.
+
+Test:
+
+no consent;
+
+valid consent;
+
+revoked consent;
+
+stale document version;
+
+malformed state;
+
+duplicate acceptance;
+
+duplicate revocation;
+
+concurrent operations;
+
+account A/B isolation;
+
+sign-out/sign-in;
+
+deletion;
+
+recreated account;
+
+stale cache;
+
+server restart;
+
+client restart;
+
+direct API attempts bypassing the client.
+
+
+Confirm that authorization ultimately depends upon authoritative server/database state.
+
+Cached or client-side consent must never independently authorize Fact Context.
+
+
+---
+
+4. Attack the Fact Context contract
+
+Enumerate the exact frozen Fact Context allowlist.
+
+Attempt to inject prohibited information through:
+
+extra JSON properties;
+
+nested objects;
+
+arrays;
+
+legacy Coach context;
+
+raw Foundation state;
+
+food logs;
+
+meals;
+
+nutrition history;
+
+weight;
+
+notes;
+
+recipes;
+
+planner data;
+
+shopping data;
+
+photos or image metadata;
+
+arbitrary strings;
+
+prototype/property tricks where applicable;
+
+malformed types;
+
+oversized payloads.
+
+
+Prove strict rejection rather than silent forwarding.
+
+Trace the final provider-bound payload.
+
+No prohibited field may reach provider egress.
+
+
+---
+
+5. Attack time and replay boundaries
+
+Independently verify the reported:
+
+60-second lifetime;
+
+server-observed expiry;
+
+10-second maximum future clock skew.
+
+
+Test exact boundaries and adversarial cases:
+
+valid current context;
+
++9 seconds;
+
++10 seconds;
+
+just beyond +10 seconds;
+
+far future;
+
+expired;
+
+exactly at expiry;
+
+old generated timestamp;
+
+incorrect interval;
+
+short interval;
+
+long interval;
+
+malformed timestamp;
+
+replay before expiry;
+
+replay after expiry;
+
+server/client clock disagreement.
+
+
+Look specifically for alternate routes that bypass freshness validation.
+
+
+---
+
+6. Prove exactly-one architecture
+
+Trace the real Coach send boundary.
+
+Verify that CoachFactActivationCoordinator, or its current canonical equivalent, owns architecture selection.
+
+Every request must resolve to exactly one state:
+
+LEGACY
+
+FACT_CONTEXT
+
+or an intentional safe refusal/no-send state.
+
+Attempt to cause:
+
+both architectures to execute;
+
+two provider requests;
+
+legacy context inside Fact Context;
+
+Fact Context inside legacy requests;
+
+UI bypass of coordinator;
+
+helper-function bypass;
+
+retry into the other architecture;
+
+stale selection reuse;
+
+race-driven architecture switching.
+
+
+Search the repository for every Coach request invocation and verify there is no alternate production send path bypassing this authority.
+
+
+---
+
+7. Attack lifecycle isolation
+
+Inspect the synchronous lifecycle epoch/fence.
+
+Start a pending request and mutate lifecycle state before completion.
+
+Test independently:
+
+A → B account switch;
+
+B → A switch;
+
+sign-out;
+
+sign-in as another account;
+
+hydration reset;
+
+local-data clear;
+
+account deletion;
+
+consent revocation;
+
+client gate rollback;
+
+server gate rollback;
+
+cohort removal;
+
+request expiry.
+
+
+In every invalidating case, prove that a stale response cannot become visible.
+
+Specifically attempt to make an Account A response appear in Account B.
+
+Treat any cross-account response possibility as a critical blocker.
+
+
+---
+
+8. Attack asynchronous races
+
+Exercise:
+
+rapid repeated sends;
+
+overlapping requests;
+
+slow provider response;
+
+provider timeout;
+
+provider completion immediately before invalidation;
+
+completion immediately after invalidation;
+
+consent revoke during provider execution;
+
+gate rollback during provider execution;
+
+cohort removal during provider execution;
+
+network interruption;
+
+duplicate completion;
+
+component unmount/remount;
+
+app background/foreground where testable.
+
+
+Verify stale completion suppression and request ownership.
+
+Look for TOCTOU vulnerabilities between authorization, provider egress, and response settlement.
+
+
+---
+
+9. Verify server-side rollout control
+
+Inspect the named cohort mechanism.
+
+Prove:
+
+default deny;
+
+empty current membership;
+
+client cannot self-enroll;
+
+unauthenticated requests cannot influence membership;
+
+deterministic membership;
+
+account-scoped evaluation;
+
+server authority;
+
+rapid removal;
+
+rapid global gate shutdown;
+
+privacy-safe operation;
+
+no Fact Context content stored in cohort configuration;
+
+no accidental percentage rollout.
+
+
+Attempt unauthorized enrollment.
+
+Attempt direct API bypass.
+
+
+---
+
+10. Perform a simulated activation and rollback rehearsal
+
+Do this only in isolated test/staging conditions. Never enable production traffic.
+
+Simulate one authorized test account becoming eligible.
+
+Verify the complete path:
+
+consent → eligibility → architecture selection → sanitization → risk screening → provider egress → response validation → UI settlement.
+
+Then, while requests are active, independently test:
+
+server gate OFF;
+
+cohort removal;
+
+consent revoke;
+
+client gate OFF.
+
+
+Confirm rollback stops new Fact Context egress and prevents stale responses where required.
+
+Restore all controls to deny-all afterward.
+
+
+---
+
+11. Verify failure containment
+
+Force failures in:
+
+database access;
+
+consent lookup;
+
+malformed consent record;
+
+rollout lookup;
+
+sanitization;
+
+risk screening;
+
+provider request;
+
+provider timeout;
+
+provider malformed response;
+
+response validation;
+
+lifecycle validation.
+
+
+Fact Context must fail closed.
+
+Determine precisely when legacy Coach remains available and when no-send is required.
+
+Ensure failure after sanitized Fact Context egress does not silently retry using broader legacy context.
+
+
+---
+
+12. Privacy and observability audit
+
+Inspect every new or modified log, error, metric, telemetry event and diagnostic path.
+
+Verify none exposes:
+
+Fact Context values;
+
+Foundation facts;
+
+prompts;
+
+Coach messages;
+
+consent-sensitive content;
+
+unnecessary account identifiers;
+
+prohibited nutrition/user data.
+
+
+Verify errors and debugging paths do not accidentally defeat the privacy boundary.
+
+
+---
+
+13. Regression verification
+
+Run:
+
+Calora TypeScript;
+
+complete Calora regression suite;
+
+API TypeScript;
+
+complete API regression suite;
+
+real-database consent integration tests;
+
+focused Fact Context tests;
+
+architecture-selection tests;
+
+lifecycle/epoch tests;
+
+adversarial TTL tests;
+
+rollout/cohort tests;
+
+rollback tests;
+
+relevant static/security checks available in the repository.
+
+
+Record exact commands and exact results.
+
+Do not weaken, skip, delete, or rewrite failing tests merely to obtain a pass.
+
+
+---
+
+14. Review production deployment readiness
+
+Determine whether a future activation could actually be executed safely.
+
+Verify:
+
+database deployment order;
+
+backward compatibility;
+
+server deployment order;
+
+mobile compatibility;
+
+old-client behavior;
+
+gate defaults;
+
+cohort configuration procedure;
+
+rollback procedure;
+
+consent version behavior;
+
+deployment failure recovery.
+
+
+Identify any situation where partial deployment could accidentally expose Fact Context.
+
+
+---
+
+15. Independent review requirement
+
+After completing the primary review, perform a second independent review pass focused specifically on:
+
+security assumptions;
+
+cross-account isolation;
+
+race conditions;
+
+database authority;
+
+rollout safety;
+
+hidden bypass paths.
+
+
+Treat the first review's conclusions as untrusted inputs.
+
+Reconcile discrepancies before issuing the verdict.
+
+
+---
+
+Hard boundaries
+
+This task is review and validation only.
+
+Do not repair substantive defects during the review.
+
+Small instrumentation or test harness changes necessary to obtain evidence are permitted, but they must not alter production behavior.
+
+If a defect is discovered, document it.
+
+Do NOT activate Fact Context.
+
+At completion the repository/runtime must retain:
+
+Client gate: OFF
+
+Server gate: OFF
+
+Cohort: EMPTY / DENY ALL
+
+Allowlist: UNCHANGED
+
+Legacy Coach: AVAILABLE
+
+Longitudinal Intelligence: OFF
+
+Physical-device and accessibility validation remain deferred. Do not falsely mark them passed.
+
+
+---
+
+REQUIRED FINAL REPORT
+
+Create:
+
+docs/CALORA_INTELLIGENCE_PHASE_2B_FINAL_ACTIVATION_READINESS_REVIEW.md
+
+Include:
+
+1. executive verdict;
+
+
+2. repository state reviewed;
+
+
+3. architecture/data-flow map;
+
+
+4. database/deployment findings;
+
+
+5. durable-consent findings;
+
+
+6. Fact Context contract/allowlist findings;
+
+
+7. TTL/replay findings;
+
+
+8. exactly-one-architecture evidence;
+
+
+9. lifecycle/account-isolation evidence;
+
+
+10. race-condition findings;
+
+
+11. cohort/rollout findings;
+
+
+12. simulated activation evidence;
+
+
+13. rollback evidence;
+
+
+14. failure-containment findings;
+
+
+15. privacy/observability findings;
+
+
+16. production-deployment analysis;
+
+
+17. complete test evidence;
+
+
+18. independent second-pass findings;
+
+
+19. every discovered defect ranked Critical / High / Medium / Low;
+
+
+20. remaining blockers;
+
+
+21. deferred validation debt;
+
+
+22. exact final gate/cohort state.
+
+
+
+Do not use vague language such as "looks good."
+
+Every important PASS must be tied to reproducible evidence.
+
+End the report with exactly one:
+
+FINAL PHASE 2B VERDICT: READY FOR CONTROLLED ACTIVATION
+
+FINAL PHASE 2B VERDICT: REMEDIATION REQUIRED
+
+FINAL PHASE 2B VERDICT: DO NOT ACTIVATE
+
+Save the report, present the verdict, and STOP.
+
+Do not automatically create an activation task even if the verdict is READY.

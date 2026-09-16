@@ -1,0 +1,205 @@
+Mission
+
+MISSION: Certify the entire authentication and account-access system for production readiness through complete real-user validation.
+
+1. Discover the Authentication System
+
+Before testing, map every authentication and account-access flow, including where each flow starts, where it ends, and what systems it touches.
+
+Cover all applicable flows such as:
+
+- Sign up
+- Sign in
+- Sign out
+- Email verification
+- OTP or code verification
+- Forgot password
+- Password reset
+- Session creation
+- Session persistence
+- Session expiration
+- Token refresh
+- Account recovery
+- Social sign-in
+- Apple sign-in
+- Google sign-in
+- Multi-device access
+- Account deletion
+- Re-authentication for sensitive actions
+- Locked, disabled, suspended, or invalid accounts
+- Returning-user access
+- New-user access
+- Role or permission-based access
+
+Identify the related screens, APIs, database operations, tokens, cookies or local storage, permissions, integrations, redirects, session states, and dependencies.
+
+Do not assume a flow works because its code exists.
+
+2. Validate One Authentication Flow at a Time
+
+Use the application as a real production user.
+
+For each authentication flow:
+
+1. Start from the genuine entry point.
+2. Execute the entire flow end to end.
+3. Use realistic accounts and data.
+4. Validate the successful path.
+5. Test relevant failures and edge cases.
+6. Confirm the correct user state after completion.
+7. Verify persistence, redirects, permissions, and data integrity.
+
+Test relevant cases such as:
+
+- Valid credentials
+- Invalid credentials
+- Wrong password
+- Unknown email
+- Duplicate account
+- Invalid or expired OTP
+- Reused verification code
+- Expired reset link
+- Interrupted login
+- Network failure
+- Slow network
+- App restart during authentication
+- Logout and login again
+- Token expiration
+- Session refresh
+- Multiple devices
+- Multiple tabs or sessions where applicable
+- Offline recovery
+- Account state changes during an active session
+- Unauthorized route access
+- Deep-link access while logged out
+- Access after logout
+- Back-navigation after logout
+- Protected data remaining visible after session termination
+
+3. Inspect the Full Authentication Stack
+
+Continuously verify:
+
+- UI and UX
+- Error messages
+- Loading states
+- Navigation and redirects
+- Accessibility
+- API behavior
+- Database writes and reads
+- Session state
+- Token storage
+- Token refresh
+- Token revocation
+- Secure logout
+- Authorization checks
+- Password handling
+- Sensitive-data exposure
+- Rate limiting where applicable
+- Brute-force resistance
+- Account enumeration risk
+- Replay or stale-session behavior
+- Cross-device consistency
+- Recovery behavior
+- Logging and error handling
+- Production polish
+
+Do not rely on frontend behavior alone. Confirm server-side enforcement where applicable.
+
+4. Repair Until the Flow Passes
+
+If any defect is found:
+
+1. Identify the root cause.
+2. Determine whether similar authentication paths share the same defect.
+3. Repair the root cause using a maintainable solution.
+4. Retest the complete flow from its original entry point.
+5. Regression-test related authentication and account-access flows.
+6. Repeat until the flow passes completely.
+
+Do not move to the next flow until the current one is certified.
+
+5. Strict Pass Gate
+
+An authentication flow is PASSED only when:
+
+- It succeeds end to end as a real user.
+- Expected failure states behave correctly.
+- Authentication state is correct after completion.
+- Unauthorized access is prevented.
+- Session persistence and termination behave correctly.
+- Relevant security and privacy conditions are satisfied.
+- Related flows remain stable after regression testing.
+- Objective execution evidence supports the result.
+
+A successful build, passing unit tests, code inspection, or a working login screen is not sufficient by itself.
+
+Maintain a live Authentication Validation Ledger containing:
+
+- Flow
+- Status
+- Entry point
+- Expected end state
+- Dependencies
+- Issues found
+- Root causes
+- Repairs
+- Functional result
+- Security result
+- Regression result
+- Evidence
+- Remaining limitations
+
+Use:
+
+NOT TESTED → IN PROGRESS → BLOCKED → REPAIRED → RETESTING → PASSED
+
+Never mark PASSED without evidence.
+
+6. Final Authentication Regression Sweep
+
+After every authentication flow has passed, perform one final end-to-end authentication regression sweep.
+
+Verify that:
+
+- New users can create and access accounts.
+- Returning users can sign in reliably.
+- Sessions persist correctly.
+- Expired sessions recover correctly.
+- Logout fully terminates access.
+- Protected areas reject unauthenticated users.
+- Password recovery works.
+- Verification flows work.
+- Social authentication works where applicable.
+- Authentication changes have not broken onboarding, profile access, subscriptions, classroom access, settings, or other dependent systems.
+
+If any defect appears, reopen the affected flow, repair it, recertify it, and repeat the relevant regression checks.
+
+Completion Standard
+
+The mission ends only when:
+
+- Every applicable authentication flow has been accounted for.
+- Every required flow has passed real-user end-to-end validation.
+- Relevant security checks have passed.
+- Relevant regression testing has passed.
+- The final authentication sweep has passed.
+- No unresolved production-blocking authentication defect remains.
+- Any external blocker or unavoidable limitation is documented with evidence.
+
+Final Report
+
+Provide:
+
+1. Authentication Flow Map
+2. Authentication Validation Ledger
+3. Issues discovered
+4. Root causes
+5. Repairs made
+6. Verification evidence
+7. Security findings
+8. Regression results
+9. Remaining risks or limitations
+10. Final authentication production-readiness verdict
+
+Work autonomously until the mission is complete or an external blocker makes further execution impossible.

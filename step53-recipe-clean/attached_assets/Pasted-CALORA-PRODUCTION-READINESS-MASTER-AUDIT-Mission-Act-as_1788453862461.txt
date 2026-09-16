@@ -1,0 +1,1099 @@
+CALORA PRODUCTION READINESS MASTER AUDIT
+
+Mission
+
+Act as an independent senior engineering, security, QA, mobile, backend, DevOps, and product-readiness team conducting a forensic production audit of Calora, a React Native / Expo mobile application for Android and iOS.
+
+Your objective is simple:
+
+«Determine, through evidence and real execution, whether Calora is genuinely safe, stable, secure, reliable, and ready for public production release.»
+
+Do not assume that any existing implementation works.
+
+Do not trust previous agent reports, comments, TODO status, test claims, or apparent code completeness without verification.
+
+Do not optimize for finding a few obvious bugs.
+
+Attempt to uncover everything that could reasonably cause:
+
+- crashes
+- broken user journeys
+- incorrect nutrition data
+- authentication failures
+- unauthorized data access
+- payment failures
+- subscription entitlement errors
+- lost user data
+- privacy violations
+- exposed credentials
+- API failures
+- poor performance
+- broken layouts
+- unusable controls
+- platform-specific failures
+- App Store or Google Play rejection
+- production incidents
+
+Treat this as the final engineering investigation before real customers receive the application.
+
+---
+
+PHASE 0: PROTECT THE PROJECT
+
+Before modifying anything:
+
+1. Inspect the repository structure.
+2. Identify the active branch and current commit.
+3. Record the baseline state.
+4. Identify build and deployment configuration.
+5. Identify production, staging, development, and local environments.
+6. Identify all environment variables and secrets by NAME only.
+7. Never expose secret VALUES in reports or logs.
+8. Determine whether tests can safely interact with external services.
+9. Do not perform destructive operations against production data.
+10. Do not trigger a production deployment or mobile build unless explicitly required and safe.
+
+Create a recoverable checkpoint before remediation.
+
+Audit first.
+
+Fix second.
+
+Never make large speculative rewrites merely to make the architecture look cleaner.
+
+---
+
+PHASE 1: COMPLETE SYSTEM DISCOVERY
+
+Before broad testing, reverse-engineer the application.
+
+Inspect the entire repository and identify:
+
+- applications
+- packages
+- screens
+- routes
+- navigation
+- components
+- hooks
+- services
+- state management
+- database access
+- Supabase integration
+- authentication
+- APIs
+- server functions
+- background processes
+- storage
+- caching
+- analytics
+- Sentry/error reporting
+- subscriptions
+- RevenueCat or equivalent billing systems
+- Expo configuration
+- EAS configuration
+- Android configuration
+- iOS configuration
+- permissions
+- localization
+- feature flags
+- environment configuration
+- CI/CD
+- tests
+- scripts
+- third-party SDKs
+- external services
+
+Search for abandoned, duplicate, deprecated, experimental, unreachable, or conflicting implementations.
+
+Produce a System Inventory.
+
+---
+
+PHASE 2: APPLICATION FLOW MAP
+
+Do not begin random testing.
+
+First construct a complete Application Flow Map.
+
+Identify every meaningful user journey.
+
+For each flow document:
+
+- flow ID
+- name
+- purpose
+- starting point
+- prerequisites
+- screens involved
+- components involved
+- navigation involved
+- APIs involved
+- database operations
+- authentication requirements
+- permissions
+- external services
+- expected states
+- error states
+- success condition
+- dependencies on other flows
+
+Include major flows and secondary flows.
+
+Examples include, but are not limited to:
+
+- first launch
+- onboarding
+- signup
+- login
+- Google OAuth
+- session restoration
+- logout
+- account management
+- account deletion
+- dashboard
+- calorie tracking
+- food search
+- food logging
+- editing food
+- deleting food
+- barcode scanning
+- food-photo analysis
+- meal management
+- recipes
+- recipe discovery
+- premium recipes
+- AI recipe generation
+- weekly planner
+- shopping lists
+- nutrition goals
+- progress
+- AI features
+- subscription purchase
+- trial activation
+- subscription restoration
+- entitlement changes
+- settings
+- localization
+- light mode
+- dark mode
+- offline/error states
+
+Discover the actual flows from the application. Do not restrict the audit to this example list.
+
+Create a dependency graph.
+
+Determine the correct testing order.
+
+Foundational systems must be validated before features that depend upon them.
+
+---
+
+PHASE 3: STATIC CODE FORENSICS
+
+Inspect the complete codebase.
+
+Look for:
+
+- runtime errors
+- incorrect assumptions
+- unhandled promises
+- unsafe null handling
+- stale closures
+- race conditions
+- memory leaks
+- state synchronization problems
+- duplicate requests
+- infinite loops
+- incorrect hooks
+- broken navigation
+- unreachable screens
+- orphaned code
+- dead code
+- temporary hacks
+- debug code
+- TODO/FIXME markers
+- hard-coded values
+- duplicated business logic
+- fragile abstractions
+- weak error handling
+- silent failures
+- dependency conflicts
+- deprecated APIs
+- incompatible packages
+- platform-specific assumptions
+- unsafe TypeScript escapes
+- excessive "any"
+- suppressed errors
+- disabled lint rules
+- commented-out security logic
+- mock data accidentally reachable in production
+
+Inspect package versions and dependency health.
+
+Identify known risky or obsolete dependencies where evidence supports the finding.
+
+Do not perform dependency upgrades merely because newer versions exist.
+
+---
+
+PHASE 4: AUTHENTICATION FORENSICS
+
+Treat authentication as a critical system.
+
+Test:
+
+- signup
+- login
+- Google OAuth
+- OAuth redirects
+- PKCE
+- code verifier handling
+- deep links
+- session persistence
+- token refresh
+- expired sessions
+- invalid tokens
+- revoked sessions
+- logout
+- relaunch after logout
+- concurrent sessions
+- interrupted OAuth
+- duplicate OAuth attempts
+- network failure during authentication
+- account deletion
+- authentication error messages
+
+Test cold-start session restoration.
+
+Test background-to-foreground restoration.
+
+Attempt to access authenticated screens while unauthenticated.
+
+Attempt to access another user's data.
+
+Authentication UI success is not sufficient. Verify backend authorization.
+
+---
+
+PHASE 5: SUPABASE, DATABASE AND DATA ISOLATION
+
+Audit:
+
+- schema
+- migrations
+- foreign keys
+- indexes
+- constraints
+- defaults
+- RLS
+- storage policies
+- database functions
+- triggers
+- RPC functions
+- service-role usage
+- client access
+- ownership checks
+
+For every user-owned table determine whether:
+
+«User A can read, create, update, or delete User B's information.»
+
+Test it where safe.
+
+Do not infer RLS safety simply because RLS is enabled.
+
+Inspect each relevant policy.
+
+Test malformed identifiers and direct API requests where appropriate.
+
+Look for:
+
+- missing policies
+- overly broad policies
+- insecure joins
+- client-supplied ownership fields
+- privilege escalation
+- accidental public access
+- orphaned records
+- inconsistent cascading deletion
+- duplicate records
+- race conditions
+- partial writes
+
+Verify that account deletion handles user data correctly.
+
+---
+
+PHASE 6: SECURITY AUDIT
+
+Assume an attacker can inspect the mobile bundle and network traffic.
+
+Search for:
+
+- exposed secrets
+- private API credentials
+- service-role keys
+- administrative tokens
+- unsafe environment variables
+- secrets committed to Git history where detectable
+- insecure local storage
+- sensitive logs
+- PII leakage
+- authorization bypasses
+- insecure deep links
+- injection risks
+- unsafe URL handling
+- weak input validation
+- replay problems
+- unrestricted endpoints
+- abuse of AI endpoints
+- unrestricted expensive API calls
+- missing rate controls
+- insecure file uploads
+- unsafe dependency behavior
+
+Distinguish public mobile configuration from genuine secrets. Do not incorrectly classify intentionally public client identifiers as compromised credentials.
+
+Attempt reasonable abuse scenarios.
+
+For every security finding explain:
+
+- attack path
+- prerequisite
+- potential impact
+- evidence
+- remediation
+
+Never perform destructive exploitation.
+
+---
+
+PHASE 7: EXTERNAL API FORENSICS
+
+Discover every external API.
+
+For each integration test:
+
+- valid requests
+- invalid requests
+- authentication failure
+- expired credentials
+- empty results
+- malformed data
+- unexpected fields
+- missing fields
+- HTTP errors
+- rate limiting
+- timeout
+- slow response
+- network loss
+- duplicate requests
+- retry behavior
+- cancellation
+- caching
+- quota exhaustion
+
+Pay particular attention to nutrition, food, restaurant, recipe, barcode, AI, image-analysis, and other data providers discovered in the project.
+
+Check whether secrets that belong on a server are exposed to the mobile client.
+
+Verify fallback behavior.
+
+The application must fail gracefully when a provider fails.
+
+---
+
+PHASE 8: NUTRITION DATA INTEGRITY
+
+Calora makes decisions using nutrition information. Incorrect numbers are a product failure even if the application never crashes.
+
+Audit calculations involving:
+
+- calories
+- serving size
+- units
+- grams
+- portions
+- macros
+- micronutrients
+- daily totals
+- remaining calories
+- goals
+- meal totals
+- recipe totals
+- planner totals
+
+Test conversions and rounding.
+
+Check:
+
+- zero
+- negative values
+- decimals
+- very large quantities
+- missing nutrition values
+- conflicting serving units
+- duplicate entries
+- timezone boundaries
+- day transitions
+- edits after logging
+- deletion
+- repeated logging
+
+Trace important numbers from source data through transformation, storage, retrieval, calculation, and UI presentation.
+
+Do not assume a displayed number is correct because it looks plausible.
+
+---
+
+PHASE 9: SUBSCRIPTIONS AND PAYMENTS
+
+Treat payment logic as release-critical.
+
+Audit the actual billing implementation discovered in the repository.
+
+Test or safely simulate:
+
+- free user
+- trial
+- new subscription
+- monthly subscription
+- annual subscription
+- successful purchase
+- cancelled purchase
+- interrupted purchase
+- failed purchase
+- pending purchase
+- restore purchases
+- reinstall
+- device change
+- expired subscription
+- cancelled renewal
+- entitlement expiration
+- billing grace period where supported
+- refunded purchase where supported
+- subscription state refresh
+- offline entitlement behavior
+- duplicate purchase attempts
+
+Verify that premium access is controlled by authoritative entitlement state.
+
+Attempt to access premium functionality without entitlement.
+
+Look for client-side-only premium gates that can be bypassed.
+
+Verify that legitimate paying users are not incorrectly locked out.
+
+Do not make real financial transactions without explicit authorization.
+
+---
+
+PHASE 10: UI AND INTERACTION FORENSICS
+
+Inventory every interactive element:
+
+- buttons
+- tabs
+- links
+- icons
+- cards
+- menus
+- dropdowns
+- toggles
+- text fields
+- selectors
+- date controls
+- modals
+- sheets
+- gestures
+- camera controls
+- back controls
+
+For each meaningful control verify:
+
+1. It can be activated.
+2. It performs the correct action.
+3. It gives appropriate feedback.
+4. Repeated activation does not corrupt state.
+5. Rapid activation does not create duplicate actions.
+6. Disabled states behave correctly.
+7. Loading states behave correctly.
+8. Errors do not leave the UI trapped.
+
+Search for controls that look interactive but do nothing.
+
+Search for invisible overlays blocking touches.
+
+Test keyboard behavior.
+
+Test scrolling.
+
+Test nested scrolling.
+
+Test modal dismissal.
+
+Test Android back behavior.
+
+Test navigation history.
+
+---
+
+PHASE 11: RESPONSIVE DESIGN AND ACCESSIBILITY
+
+Test representative device sizes and platform differences where the available environment permits.
+
+Inspect:
+
+- small phones
+- large phones
+- unusual aspect ratios
+- Android
+- iOS
+- portrait orientation
+- safe areas
+- status bars
+- navigation bars
+- keyboard open
+- larger text settings
+- light mode
+- dark mode
+
+Look for:
+
+- clipping
+- overlap
+- hidden content
+- unreadable text
+- truncated labels
+- inaccessible buttons
+- off-screen controls
+- broken scroll areas
+- incorrect safe-area padding
+- keyboard-covered inputs
+- low contrast
+- tiny touch targets
+
+Audit accessibility fundamentals:
+
+- labels
+- roles
+- focus
+- screen-reader meaning
+- contrast
+- dynamic text tolerance
+- touch target size
+
+Do not claim device validation for devices that were not actually executed or faithfully emulated. Clearly separate real testing from static inspection.
+
+---
+
+PHASE 12: PERFORMANCE
+
+Measure where tooling permits.
+
+Investigate:
+
+- cold start
+- warm start
+- dashboard loading
+- navigation
+- food search
+- image processing
+- barcode scanning
+- recipe loading
+- planner generation
+- AI operations
+- list rendering
+- image rendering
+- network requests
+- memory growth
+- repeated navigation
+
+Look for:
+
+- unnecessary rerenders
+- oversized images
+- huge bundles
+- blocking operations
+- serial requests that could safely be parallel
+- repeated API calls
+- missing pagination
+- unbounded lists
+- memory leaks
+- expensive calculations on render
+
+Provide measurements rather than vague statements whenever measurements are available.
+
+---
+
+PHASE 13: NETWORK AND FAILURE ENGINEERING
+
+Test degraded conditions where possible:
+
+- offline
+- connection lost during operation
+- slow connection
+- intermittent connection
+- API timeout
+- HTTP 401
+- HTTP 403
+- HTTP 404
+- HTTP 429
+- HTTP 500
+- malformed server response
+- empty response
+
+Verify:
+
+- loading states terminate
+- retries are bounded
+- users receive understandable feedback
+- data is not silently lost
+- duplicate records are not created
+- screens do not freeze
+- application recovery is possible
+
+---
+
+PHASE 14: MOBILE LIFECYCLE
+
+Test:
+
+- cold launch
+- warm launch
+- background
+- foreground
+- app killed during an operation
+- relaunch
+- session restoration
+- interrupted upload
+- interrupted API request
+- interrupted authentication
+- interrupted purchase
+- low-memory behavior where practical
+
+Look for stale state and incomplete operations.
+
+---
+
+PHASE 15: PRIVACY AND PERMISSIONS
+
+Inventory every permission requested.
+
+Determine whether each permission is necessary.
+
+Inspect:
+
+- camera
+- photo library
+- notifications
+- tracking
+- location if present
+- health-related integrations if present
+- storage
+
+Verify permission-denied behavior.
+
+Check privacy-sensitive data flows.
+
+Determine what information is collected, transmitted, stored, logged, and sent to third parties.
+
+Flag inconsistencies between actual application behavior and privacy disclosures where the relevant disclosures are available.
+
+---
+
+PHASE 16: LOCALIZATION
+
+Calora supports multiple languages.
+
+Audit:
+
+- untranslated strings
+- hard-coded English
+- missing translation keys
+- fallback behavior
+- interpolation
+- plurals
+- long translated text
+- layout expansion
+- RTL readiness if applicable
+- Unicode
+- date formatting
+- number formatting
+- decimal separators
+- units
+
+Do not claim every language has been linguistically verified unless native-quality verification actually occurred.
+
+---
+
+PHASE 17: BUILD AND RELEASE CONFIGURATION
+
+Inspect:
+
+- app.json / app.config
+- Expo configuration
+- EAS configuration
+- Android package
+- iOS bundle identifier
+- versioning
+- permissions
+- signing assumptions
+- environment configuration
+- production API endpoints
+- deep links
+- OAuth callbacks
+- icons
+- splash configuration
+- update configuration
+- release channels
+- source maps
+- error reporting
+- production logging
+
+Look for development URLs, localhost references, test credentials, debug switches, staging endpoints, or mock systems leaking into production.
+
+Validate build configuration without initiating a new build unless explicitly authorized.
+
+---
+
+PHASE 18: OBSERVABILITY
+
+Determine whether production failures can actually be diagnosed.
+
+Audit:
+
+- crash reporting
+- Sentry
+- error boundaries
+- API error capture
+- structured logging
+- breadcrumbs
+- release identifiers
+- source maps
+- useful diagnostic context
+- privacy-safe logs
+
+Check whether important failures disappear silently.
+
+Observability must not leak passwords, tokens, nutrition information, or other sensitive user data unnecessarily.
+
+---
+
+PHASE 19: ADVERSARIAL REAL-USER TESTING
+
+Now stop behaving like the developer.
+
+Behave like:
+
+- an impatient user
+- a confused user
+- a user who taps twice
+- a user who enters strange data
+- a user with bad internet
+- a user who denies permissions
+- a user who backgrounds the application mid-operation
+- a user who closes the application unexpectedly
+- a free user attempting premium functionality
+- a returning user with stale state
+- a user with incomplete profile data
+- a user whose API request fails
+- a user with unusual device settings
+
+Try to break workflows.
+
+Explore unexpected sequences.
+
+Do not restrict testing to intended happy paths.
+
+---
+
+PHASE 20: DEFECT REGISTER
+
+Every confirmed issue must receive a unique identifier.
+
+Use severity:
+
+P0 BLOCKER
+
+Catastrophic release blocker.
+
+Examples:
+
+- serious security compromise
+- broad unauthorized data exposure
+- payment system fundamentally broken
+- application unusable for major users
+- destructive data corruption
+
+P1 CRITICAL
+
+Major production failure requiring correction before release.
+
+P2 HIGH
+
+Significant defect that materially harms reliability, security, correctness, or important UX.
+
+P3 MEDIUM
+
+Real defect with limited impact or practical workaround.
+
+P4 LOW
+
+Minor defect, polish issue, or low-risk improvement.
+
+For every defect record:
+
+- ID
+- title
+- severity
+- affected flow
+- affected platform
+- file/component
+- reproduction steps
+- expected behavior
+- actual behavior
+- evidence
+- likely root cause
+- confidence level
+- recommended correction
+- regression risk
+- verification method
+
+Separate:
+
+CONFIRMED
+
+from
+
+SUSPECTED / REQUIRES VERIFICATION
+
+Never inflate the report with speculative defects.
+
+---
+
+PHASE 21: REMEDIATION
+
+Only after the initial audit and defect register are sufficiently complete should remediation begin.
+
+Fix issues in this order:
+
+1. P0
+2. P1
+3. P2
+4. P3
+5. P4 when justified
+
+For every fix:
+
+1. reproduce the defect
+2. identify root cause
+3. design the smallest safe correction
+4. inspect dependencies
+5. implement
+6. test locally
+7. test the original reproduction case
+8. test adjacent functionality
+9. run regression tests
+10. record evidence
+
+Avoid broad rewrites unless the existing architecture makes a safe local correction impossible.
+
+Never mark an issue fixed merely because code was changed.
+
+---
+
+PHASE 22: REGRESSION MATRIX
+
+Every repair must trigger regression analysis.
+
+Map:
+
+Defect → Changed Components → Dependent Flows → Regression Tests → Result
+
+Re-run all affected flows.
+
+After significant changes, rerun foundational flows including:
+
+- launch
+- authentication
+- session restoration
+- dashboard
+- core food logging
+- data persistence
+- navigation
+- subscriptions where affected
+
+A repair that breaks another flow is not complete.
+
+---
+
+PHASE 23: FINAL CLEAN-ROOM VALIDATION
+
+After remediation, perform a final validation from a fresh-user perspective.
+
+Do not rely on previous successful tests.
+
+Re-test the production candidate as though this is the first time you have seen it.
+
+Validate the complete Application Flow Map again, prioritizing critical paths.
+
+Compare results against the original defect register.
+
+Every P0, P1, and P2 finding must have a final status backed by evidence.
+
+---
+
+EVIDENCE STANDARD
+
+Use this hierarchy:
+
+Level A
+
+Executed and observed directly.
+
+Level B
+
+Verified through automated tests or controlled simulation.
+
+Level C
+
+Strongly verified through code/configuration inspection.
+
+Level D
+
+Inference only.
+
+Every major conclusion must state its evidence level.
+
+Do not represent Level C or D evidence as real-device testing.
+
+Screenshots alone do not prove backend correctness.
+
+Code inspection alone does not prove runtime behavior.
+
+A successful build does not prove production readiness.
+
+---
+
+ANTI-HALLUCINATION RULE
+
+Never claim:
+
+- "tested"
+- "verified"
+- "secure"
+- "working"
+- "production ready"
+- "passed"
+
+unless you possess evidence supporting the claim.
+
+When testing is impossible because of missing credentials, hardware, sandbox restrictions, third-party access, Apple/Google configuration, or another limitation, report:
+
+NOT VERIFIED
+
+Explain precisely why.
+
+Then provide the exact validation procedure required.
+
+Unknown is an acceptable result.
+
+Fabricated certainty is not.
+
+---
+
+COMPLETION GATES
+
+Calora may receive GO FOR PRODUCTION only when:
+
+- zero unresolved P0 issues
+- zero unresolved P1 issues
+- zero unjustified P2 issues
+- critical flows pass
+- authentication is verified
+- user data isolation is verified
+- core nutrition calculations are verified
+- payment entitlement behavior is verified
+- production configuration is verified
+- crash-critical paths are verified
+- major API integrations are verified
+- regression testing passes
+- no known release-blocking security vulnerability remains
+
+If these conditions are not met, the verdict must be:
+
+NO-GO FOR PRODUCTION
+
+Do not soften the verdict.
+
+---
+
+REQUIRED FINAL DELIVERABLE
+
+Produce a final CALORA PRODUCTION READINESS REPORT containing:
+
+1. Executive Summary
+2. Final GO / NO-GO Verdict
+3. Confidence Level
+4. Testing Environment
+5. Repository / Commit Audited
+6. System Inventory
+7. Application Flow Map
+8. Architecture Assessment
+9. Authentication Assessment
+10. Database / Supabase / RLS Assessment
+11. Security Assessment
+12. External API Assessment
+13. Nutrition Data Integrity Assessment
+14. Subscription and Payment Assessment
+15. UI / Interaction Assessment
+16. Responsive Design Assessment
+17. Accessibility Assessment
+18. Performance Assessment
+19. Network Resilience Assessment
+20. Mobile Lifecycle Assessment
+21. Privacy Assessment
+22. Localization Assessment
+23. Build / Release Assessment
+24. Observability Assessment
+25. Complete Defect Register
+26. Remediation Log
+27. Regression Matrix
+28. Remaining Risks
+29. NOT VERIFIED Items
+30. Required Manual / Physical-Device Tests
+31. Store-Release Blockers
+32. Final Production Checklist
+33. Final Recommendation
+
+Include quantitative evidence where available.
+
+---
+
+FINAL OPERATING PRINCIPLE
+
+The goal is not to make the repository look clean.
+
+The goal is not to produce a long report.
+
+The goal is not to confirm previous work.
+
+The goal is to discover the truth about the application before customers discover it for us.
+
+Assume hidden defects exist.
+
+Search for them systematically.
+
+Prove what works.
+
+Expose what does not.
+
+Fix confirmed defects carefully.
+
+Retest everything affected.
+
+Do not declare Calora production ready until the evidence supports that conclusion.
+
+Begin with Phase 0: Protect the Project, then perform System Discovery and the Application Flow Map before broad execution.

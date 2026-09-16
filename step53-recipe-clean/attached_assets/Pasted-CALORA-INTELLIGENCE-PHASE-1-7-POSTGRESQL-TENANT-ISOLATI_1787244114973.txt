@@ -1,0 +1,634 @@
+CALORA INTELLIGENCE — PHASE 1.7 POSTGRESQL TENANT-ISOLATION HARDENING
+
+Mission
+
+Proceed with Phase 1.7: PostgreSQL Tenant-Isolation Hardening for Calora.
+
+The previous Supabase security work established that:
+
+- Supabase is the active Calora authentication provider;
+- the Calora application tables do not live in Supabase;
+- the real Calora domain data lives in the separate managed PostgreSQL database;
+- Phase 2 remains blocked until tenant isolation is proven in the database that actually stores Calora user data.
+
+This phase must therefore inspect, harden, validate, and document the actual PostgreSQL authorization and tenant-isolation model used by Calora.
+
+This is not a UI task.
+
+This is not Phase 2.
+
+Do not enable visible Intelligence.
+
+Do not enable server-persisted Intelligence facts yet.
+
+---
+
+1. CORE SECURITY QUESTION
+
+Establish the exact authorization chain:
+
+Supabase authenticated user
+        ↓
+Supabase user identity
+        ↓
+Calora API bearer verification
+        ↓
+Calora internal user mapping
+        ↓
+internal user_id
+        ↓
+PostgreSQL queries
+        ↓
+user-owned Calora records
+
+Document every trust boundary.
+
+Do not assume the chain is secure merely because the API currently filters by "user_id".
+
+Prove it.
+
+---
+
+2. NON-NEGOTIABLE RESTRICTIONS
+
+During Phase 1.7:
+
+- Do not enable Phase 2.
+- Do not add visible Intelligence.
+- Do not change Coach behavior.
+- Do not enable "intelligence.facts.server_adapter".
+- Do not create persistent Intelligence facts.
+- Do not introduce adaptive learning.
+- Do not introduce prediction.
+- Do not introduce proactive notifications.
+- Do not redesign Calora.
+- Do not perform destructive database operations.
+- Do not add broad PostgreSQL RLS blindly.
+- Do not break existing API/database access.
+- Do not trust client-supplied ownership fields.
+- Do not weaken existing API authorization.
+- Do not expose database credentials to mobile code.
+- Do not trigger a production build unless explicitly instructed.
+
+If database-level isolation cannot be implemented safely with the current connection model, report that plainly.
+
+---
+
+3. OBJECTIVE A — MAP AUTH TO DATABASE IDENTITY
+
+Inspect the actual repository and database path.
+
+Determine:
+
+1. how Supabase bearer tokens are verified;
+2. which Supabase identity field is trusted;
+3. how that external identity maps to "calora_users";
+4. how the internal Calora UUID is derived;
+5. whether the mapping can be forged;
+6. whether every user-specific API route uses the verified internal identity;
+7. whether any route trusts "user_id" from request body/query/path;
+8. whether any helper can query user-owned rows without passing verified identity;
+9. whether service/admin routes bypass normal ownership checks;
+10. whether background jobs operate across users and how they are constrained.
+
+Produce a trust-boundary diagram.
+
+---
+
+4. OBJECTIVE B — DATABASE CONNECTION MODEL
+
+Inspect how the API connects to PostgreSQL.
+
+Determine:
+
+- connection pool/library;
+- database role used;
+- whether every API request uses the same DB role;
+- whether per-user DB roles exist;
+- whether PostgreSQL session variables are set;
+- whether transaction-local identity is available;
+- whether PgBouncer or another pooler is involved;
+- whether prepared statements or transaction pooling would affect session-based security;
+- whether database credentials are server-only;
+- whether any client has direct PostgreSQL access.
+
+This determines whether PostgreSQL RLS can work correctly.
+
+---
+
+5. OBJECTIVE C — DETERMINE WHETHER RLS IS APPROPRIATE
+
+Do not assume RLS is automatically the right answer.
+
+Evaluate at least these models:
+
+Model A — API-only authorization
+
+All user isolation enforced in application queries.
+
+Model B — PostgreSQL RLS using a request-scoped user context
+
+Example conceptual model:
+
+API verifies Supabase token
+→ resolves internal user ID
+→ starts transaction
+→ sets transaction-local user context
+→ PostgreSQL RLS checks that context
+
+Model C — Separate database roles
+
+Evaluate only if architecture supports it.
+
+Model D — Hybrid
+
+API ownership checks plus database-enforced RLS or views.
+
+Compare:
+
+- correctness;
+- security strength;
+- compatibility with current pooling;
+- performance;
+- operational complexity;
+- failure modes;
+- testability;
+- risk of accidental cross-user access.
+
+Recommend one model.
+
+Do not implement RLS until the connection model proves it safe.
+
+---
+
+6. OBJECTIVE D — DATABASE ROLE AND GRANT AUDIT
+
+Inspect PostgreSQL:
+
+- roles;
+- login privileges;
+- database ownership;
+- schema ownership;
+- table ownership;
+- table grants;
+- sequence grants;
+- function execution grants;
+- SECURITY DEFINER functions;
+- triggers;
+- views;
+- materialized views;
+- extensions that affect access;
+- public-schema permissions.
+
+Identify whether the application DB role can:
+
+- read all Calora rows;
+- update all Calora rows;
+- delete all Calora rows;
+- create schema objects;
+- bypass RLS;
+- assume other roles.
+
+Classify each capability as:
+
+EXPECTED
+OVER-PRIVILEGED
+REQUIRED FOR SERVER OPERATION
+SHOULD BE REMOVED
+UNKNOWN
+
+---
+
+7. OBJECTIVE E — TABLE OWNERSHIP MODEL
+
+Review all Calora tables.
+
+At minimum:
+
+- "calora_users"
+- "calora_profiles"
+- "calora_diary_entries"
+- "calora_weight_entries"
+- "calora_saved_meals"
+- "calora_recipes"
+- "calora_recipe_items"
+- "calora_ai_capture_sessions"
+- "calora_ai_capture_candidates"
+- "calora_subscriptions"
+- "calora_sync_mutations"
+- "calora_consent_events"
+- "calora_referral_codes"
+- "calora_referral_qualifications"
+- "calora_referral_redemptions"
+- "calora_food_items"
+- "calora_recipe_nutrition"
+- "calora_capture_rate_limits"
+- "calora_account_deletion_states"
+
+Classify each:
+
+USER-OWNED
+USER-OWNED CHILD
+SHARED
+SERVICE-ONLY
+SYSTEM/OPERATIONAL
+TWO-PARTY
+UNKNOWN
+
+Document the exact ownership predicate for every user-owned resource.
+
+---
+
+8. OBJECTIVE F — CHILD OWNERSHIP
+
+Pay special attention to transitive ownership.
+
+At minimum:
+
+recipe_items
+→ recipes
+→ user_id
+
+and:
+
+capture_candidates
+→ capture_sessions
+→ user_id
+
+Test whether any API/database query can access child rows without validating the parent owner.
+
+If yes, fix the weakest safe layer.
+
+---
+
+9. OBJECTIVE G — API AUTHORIZATION FORENSIC TEST
+
+Search every API route touching user-owned data.
+
+For each route classify:
+
+AUTHENTICATED
+USER-SCOPED
+SERVICE-ONLY
+PUBLIC
+UNSAFE
+UNKNOWN
+
+Check:
+
+- SELECT paths;
+- INSERT paths;
+- UPDATE paths;
+- DELETE paths;
+- bulk operations;
+- synchronization;
+- account deletion;
+- referrals;
+- recipe operations;
+- capture operations;
+- subscriptions;
+- consent;
+- future Intelligence integration points.
+
+Identify any route where a caller could substitute another user's identifier.
+
+---
+
+10. OBJECTIVE H — REAL CROSS-USER ADVERSARIAL TESTS
+
+Create or use two dedicated non-production identities:
+
+USER_A
+USER_B
+
+Use normal Supabase-authenticated sessions.
+
+Create representative records for both users.
+
+Then verify USER_A cannot read, modify, or delete USER_B resources.
+
+Test at minimum:
+
+- profile;
+- diary;
+- weights;
+- saved meals;
+- recipes;
+- recipe items;
+- capture sessions;
+- capture candidates;
+- consent events;
+- sync mutations.
+
+Where applicable test:
+
+- GET/list;
+- direct ID fetch;
+- update by guessed ID;
+- delete by guessed ID;
+- bulk/sync mutation;
+- child resource access.
+
+Also verify USER_A can still perform valid operations on USER_A data.
+
+Do not claim tenant isolation without executed negative tests.
+
+---
+
+11. OBJECTIVE I — DIRECT DATABASE ADVERSARIAL TEST
+
+If PostgreSQL RLS or another DB-level mechanism is implemented, test it directly.
+
+Verify that the effective application database role cannot access another user's rows when the transaction user context is USER_A.
+
+Test SELECT, INSERT, UPDATE, DELETE.
+
+If the application DB role necessarily remains fully privileged and database isolation cannot be meaningfully enforced, report:
+
+DATABASE-LEVEL TENANT ISOLATION: NOT ENFORCEABLE WITH CURRENT CONNECTION MODEL
+
+Then describe the strongest safe architecture available.
+
+Do not pretend API filtering equals DB isolation.
+
+---
+
+12. OBJECTIVE J — SAFE RLS IMPLEMENTATION, ONLY IF APPROPRIATE
+
+If and only if the investigation proves PostgreSQL RLS is compatible with the current connection/pooling model:
+
+1. design request-scoped identity propagation;
+2. use transaction-local state rather than unsafe global session state where appropriate;
+3. prevent identity leakage between pooled connections;
+4. define RLS policies for user-owned tables;
+5. define transitive policies for child tables;
+6. keep shared tables intentionally shared;
+7. keep operational tables inaccessible to user context;
+8. ensure admin/service operations use a deliberate bypass path;
+9. source-control all policy definitions;
+10. test rollback.
+
+Do not rely on client-supplied user IDs to populate the DB identity context.
+
+The API must derive the database identity from the verified Supabase token.
+
+---
+
+13. OBJECTIVE K — SERVICE / ADMIN ACCESS
+
+Audit every path that needs cross-user access.
+
+Examples:
+
+- account deletion;
+- RevenueCat reconciliation;
+- referrals;
+- support/admin operations;
+- cleanup;
+- scheduled jobs;
+- sync recovery.
+
+For each:
+
+- document why it needs elevated access;
+- enforce explicit service context;
+- prevent ordinary user calls from reaching it;
+- validate auditability;
+- ensure the elevated path cannot be triggered by forged user identifiers.
+
+---
+
+14. OBJECTIVE L — ACCOUNT DELETION END-TO-END
+
+Test account deletion against the real managed PostgreSQL database.
+
+Verify:
+
+- write fence starts;
+- new user writes are rejected;
+- user-owned records are removed or transitioned as designed;
+- child rows are handled;
+- retries are safe;
+- deletion is idempotent;
+- Supabase Auth deletion remains coordinated;
+- no orphaned private rows remain;
+- no future Intelligence records can escape deletion once persistence exists.
+
+Use dedicated non-production accounts only.
+
+Do not delete real user accounts.
+
+---
+
+15. OBJECTIVE M — DATA RETENTION BOUNDARY
+
+Confirm what persistent data exists today and which records survive account deletion.
+
+Classify:
+
+USER DATA
+SHARED DATA
+OPERATIONAL DATA
+AUDIT/COMPLIANCE DATA
+TEMPORARY DATA
+
+Flag anything that retains user-identifiable data without an explicit retention purpose.
+
+---
+
+16. OBJECTIVE N — DATABASE CREDENTIAL SECURITY
+
+Verify:
+
+- DB URL/password are server-side only;
+- no mobile file contains them;
+- no Expo public variable contains them;
+- no logs print them;
+- CI or task output does not expose them;
+- no generated report contains them;
+- least privilege is used where practical.
+
+---
+
+17. OBJECTIVE O — SECURITY REGRESSION TEST SUITE
+
+Add permanent tests where useful.
+
+At minimum create reusable coverage for:
+
+- verified identity mapping;
+- cross-user read rejection;
+- cross-user update rejection;
+- cross-user delete rejection;
+- child-resource ownership;
+- service/admin route boundary;
+- account deletion;
+- sync ownership;
+- malformed/forged user ID attempts.
+
+Do not make these one-off manual checks only.
+
+---
+
+18. OBJECTIVE P — FULL VALIDATION
+
+After all approved changes run:
+
+pnpm --filter @workspace/calora run typecheck
+pnpm --filter @workspace/api-server run typecheck
+pnpm --filter @workspace/api-server test
+pnpm --filter @workspace/calora test
+
+Also run:
+
+- database integration tests;
+- tenant-isolation tests;
+- account-deletion tests;
+- any new PostgreSQL RLS tests;
+- relevant security/static tests.
+
+Record exact test counts.
+
+---
+
+19. ACCEPTANCE GATES
+
+Classify each gate:
+
+Auth identity mapping
+
+"PASS / PARTIAL / FAIL"
+
+API tenant isolation
+
+"PASS / PARTIAL / FAIL"
+
+Child ownership
+
+"PASS / PARTIAL / FAIL"
+
+Database role/grants
+
+"PASS / PARTIAL / FAIL"
+
+Database-level isolation
+
+"PASS / PARTIAL / NOT IMPLEMENTED / NOT COMPATIBLE / FAIL"
+
+Cross-user tests
+
+"PASS / PARTIAL / FAIL"
+
+Service/admin boundary
+
+"PASS / PARTIAL / FAIL"
+
+Account deletion
+
+"PASS / PARTIAL / FAIL"
+
+Credential security
+
+"PASS / PARTIAL / FAIL"
+
+Full regression suite
+
+"PASS / FAIL"
+
+Phase 2 readiness
+
+"APPROVE / APPROVE WITH CONDITIONS / DO NOT APPROVE"
+
+Do not soften failed gates.
+
+---
+
+20. PHASE 2 SECURITY STANDARD
+
+Phase 2 may only be recommended if:
+
+1. user identity mapping is proven;
+2. cross-user API access is rejected;
+3. child-resource ownership is enforced;
+4. service/admin paths are deliberate and protected;
+5. account deletion works across the real data store;
+6. the database authorization model is documented and defensible;
+7. any chosen DB-level isolation mechanism is tested;
+8. existing tests remain green.
+
+Do not require RLS merely for appearance.
+
+Require a security model that actually works with the architecture.
+
+---
+
+21. AUTOMATIC REPORT REQUIREMENT
+
+This is mandatory.
+
+When Phase 1.7 work and validation are complete, automatically create and save:
+
+"docs/CALORA_INTELLIGENCE_PHASE_1_7_POSTGRES_TENANT_ISOLATION_REPORT.md"
+
+Do not wait for me to request the report.
+
+The report must include:
+
+1. Executive verdict
+2. Exact database/environment inspected
+3. Auth → API → internal user → PostgreSQL trust chain
+4. Connection/pooling model
+5. Database role and grants inventory
+6. Table ownership classification
+7. API authorization matrix
+8. Child ownership findings
+9. Chosen tenant-isolation architecture
+10. RLS decision and reasoning
+11. Policies or protections added
+12. Cross-user USER_A/USER_B test matrix
+13. Same-user success tests
+14. Direct database isolation tests
+15. Service/admin access review
+16. Account-deletion results
+17. Retention findings
+18. Credential-security findings
+19. Files created
+20. Files modified
+21. Database changes performed
+22. Exact test commands
+23. Test counts/results
+24. Remaining unknowns
+25. Remaining blockers
+26. Acceptance-gate matrix
+27. Phase 2 readiness verdict
+
+Never include secret values.
+
+Do not report planned work as completed.
+
+Do not mark isolation PASS without executed evidence.
+
+Use:
+
+UNKNOWN
+NOT VERIFIED
+NOT TESTED
+BLOCKED
+NOT COMPATIBLE
+
+where appropriate.
+
+After saving the report, give only a concise completion summary and the exact path.
+
+---
+
+22. FINAL STOP CONDITION
+
+When Phase 1.7 is complete:
+
+- save the report automatically;
+- keep all visible Intelligence delivery disabled;
+- keep "intelligence.facts.server_adapter" disabled unless separately approved;
+- do not begin Phase 2.
+
+STOP for review.
