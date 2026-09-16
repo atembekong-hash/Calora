@@ -34,7 +34,7 @@ describe("released mobile API compatibility contract", () => {
     expect(apiSpec).toContain("operationId: approveCapture");
     expect(generatedClient).toContain("getApproveCaptureUrl");
     expect(generatedClient).toContain("/api/v1/capture/${sessionId}/approve");
-    expect(mobileScan).toContain("approveCapture(analysis.sessionId)");
+    expect(mobileScan).toContain("approveCapture(accepted.captureSessionId)");
   });
 
   it("keeps open-source and Premium recipe pagination fields in every contract layer", () => {
