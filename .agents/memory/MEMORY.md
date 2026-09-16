@@ -23,6 +23,7 @@
 - [Referral rewards design](referral-rewards.md) — server-authoritative, claim-first idempotent RevenueCat promo grants that always extend end dates; cap counted under a row lock.
 - [EAS release versioning](eas-release-versioning.md) — production auto-increment can override explicit native versions and must be reconciled before queuing release builds.
 - [App Store Connect TestFlight groups](apple-testflight-group-query.md) — prove internal assignment through the beta-group builds collection; inverse relationship reads may be forbidden.
+- [Historical branch evidence](historical-branch-evidence.md) — old closure reports and release branches require current-tree and ancestry proof before recovery.
 - [Program provenance](program-provenance.md) — record which Program shaped a week only when generation materially changed it; server 200 starter responses are fallbacks, never Program-shaped.
 - [Authenticated request retry](authed-request-retry.md) — a 401 with a token means refresh once and retry; sign-in prompts only when there is truly no session.
 - [Rapid interaction QA](rapid-interaction-qa.md) — short tap guards need a true same-action gesture test, not two delayed automation commands.

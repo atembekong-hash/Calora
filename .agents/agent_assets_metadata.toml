@@ -84,3 +84,17 @@ mtime_ms = 1789594639993
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/1a0c38f0-e06b-4767-9a32-e91c522e0836/af816c98-31f7-4b7f-a5fc-5574db42f81d"
 storage_version_token = "1789594665641290"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "U9_m2RAXgXWrtZCQW5QFN"
+uri = "file://49_CALORA_HISTORICAL_REQUIREMENTS_MISSING_WORK_FORENSIC_REPORT.md"
+type = "text"
+title = "Calora Step 49 Forensic Audit Report"
+description = "Read-only audit of historical requirements against canonical source, commit ancestry, current tests, feature wiring, data flows, and native coverage. No application code, build, deployment, database, or Git history changes were made."
+logical_id = "75d0ac0b-da5a-468d-965f-d47cc0b61a6f"
+content_hash = "sha256:db58ed33751ecc8b6f56cd586c12b294f847870e2a7672fee173475ad507febc"
+size = 43265
+mtime_ms = 1789595999679
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/75d0ac0b-da5a-468d-965f-d47cc0b61a6f/856d715a-8477-467f-8314-b0054478a9b9"
+storage_version_token = "1789596031191943"
+content_type = "text/markdown"
