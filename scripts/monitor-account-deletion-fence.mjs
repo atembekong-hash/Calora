@@ -232,7 +232,16 @@ async function main() {
 
   const output = `${JSON.stringify(report)}\n`;
   if (reportPath) {
-    await writeFile(reportPath, output, { encoding: "utf8", flag: "wx" });
+    try {
+      await writeFile(reportPath, output, { encoding: "utf8", flag: "wx" });
+    } catch (error) {
+      if (error?.code === "EEXIST") {
+        throw new Error(
+          "Monitoring report path already exists; refusing to overwrite the protected report. Choose a new --report-file path.",
+        );
+      }
+      throw error;
+    }
   }
   console.log(output.trim());
 }

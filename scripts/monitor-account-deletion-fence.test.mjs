@@ -612,6 +612,11 @@ globalThis.fetch = async () => ({
       ),
       (error) => {
         assert.equal(error.code, 1);
+        const output = `${error.stdout}\n${error.stderr}`;
+        assert.match(
+          output,
+          /Monitoring report path already exists; refusing to overwrite the protected report\. Choose a new --report-file path\./,
+        );
         return true;
       },
     );
