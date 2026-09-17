@@ -236,9 +236,10 @@ router.post("/v1/referral/activate", async (req, res) => {
     let redemption = rows[0];
 
     // ── Qualification check ───────────────────────────────────────────────
-    // Any valid meal saved through an authenticated diary persistence route
-    // qualifies. The query independently verifies server ownership; local logs
-    // and an activation request alone cannot claim a reward.
+    // Only a capture-backed meal save qualifies. The qualification query
+    // independently verifies the server-issued capture anchor; plain diary
+    // rows, unanchored sync rows, local logs, and an activation request alone
+    // cannot claim a reward.
     // The stamp is an atomic UPDATE so concurrent activations qualify exactly
     // once; a loser re-reads the fresh row and works from the winner's state.
     if (redemption.qualifiedAt === null) {
@@ -248,14 +249,14 @@ router.post("/v1/referral/activate", async (req, res) => {
           status: "pending",
           referredRewarded: false,
           referrerRewarded: false,
-          message: "Save your first meal to unlock your invite reward.",
+          message: "Capture and confirm a meal to unlock your invite reward.",
         });
         return;
       }
 
       const stamped = await db
         .update(referralRedemptionsTable)
-        .set({ qualifiedAt: sql`now()`, qualifiedSignal: "diary_sync" })
+        .set({ qualifiedAt: sql`now()`, qualifiedSignal: "server_capture" })
         .where(
           and(
             eq(referralRedemptionsTable.id, redemption.id),
@@ -276,7 +277,7 @@ router.post("/v1/referral/activate", async (req, res) => {
             status: "pending",
             referredRewarded: false,
             referrerRewarded: false,
-            message: "Save your first meal to unlock your invite reward.",
+            message: "Capture and confirm a meal to unlock your invite reward.",
           });
           return;
         }

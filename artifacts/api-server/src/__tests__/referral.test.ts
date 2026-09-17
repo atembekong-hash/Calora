@@ -3,7 +3,8 @@
  *
  * POST /v1/referral/activate must never grant rewards on the client's word
  * alone: a redemption needs a server-observed saved-meal signal before any
- * RevenueCat grant happens.
+ * RevenueCat grant happens. A client-controlled diary row is not a qualifying
+ * signal; the mocked qualification helper represents a server-verified capture.
  *
  * Strategy:
  * - Mock @workspace/db with a thenable chain that serves queued results

@@ -2,8 +2,9 @@
  * Referral qualification against the real database schema.
  *
  * A referral becomes eligible only after the authenticated referred account
- * successfully saves a valid diary meal. Capture mode, client id, and the
- * retired SYNC_QUALIFICATION_REQUIRE_SESSION setting do not change that rule.
+ * successfully saves a meal anchored to a server-created qualifying capture.
+ * Plain diary saves and unanchored sync entries remain valid logs but do not
+ * unlock rewards.
  */
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
@@ -29,6 +30,7 @@ describe.skipIf(!HAS_DB)('referral qualification (real schema)', () => {
   const referrerId = `it-referrer-${run}`;
   const code = `ITCODE${run.toUpperCase()}`;
   const referredIds: string[] = [];
+  const captureSessionIds: string[] = [];
 
   function actAs(id: string) {
     verifyBearerToken.mockResolvedValue({ id, email: `${id}@example.com` });
@@ -60,6 +62,30 @@ describe.skipIf(!HAS_DB)('referral qualification (real schema)', () => {
     );
   }
 
+  async function seedCaptureSession(referred: string, mode = 'food') {
+    const user = await pool.query<{ id: string }>(
+      `INSERT INTO calora_users (external_id, email)
+       VALUES ($1, $2)
+       ON CONFLICT (external_id) DO UPDATE SET email = EXCLUDED.email
+       RETURNING id`,
+      [referred, `${referred}@example.com`],
+    );
+    const sessionId = randomUUID();
+    captureSessionIds.push(sessionId);
+    await pool.query(
+      `INSERT INTO calora_ai_capture_sessions (id, user_id, mode, status)
+       VALUES ($1, $2, $3, 'review')`,
+      [sessionId, user.rows[0].id, mode],
+    );
+    await pool.query(
+      `INSERT INTO calora_ai_capture_candidates
+         (session_id, name, calories, protein_g, carbs_g, fat_g, confidence, evidence)
+       VALUES ($1, 'Server analyzed meal', 520, 42, 45, 18, 85, '{}'::jsonb)`,
+      [sessionId],
+    );
+    return sessionId;
+  }
+
   beforeAll(async () => {
     pool = (await import('@workspace/db')).pool;
     const express = (await import('express')).default;
@@ -89,6 +115,12 @@ describe.skipIf(!HAS_DB)('referral qualification (real schema)', () => {
        (SELECT id FROM calora_users WHERE external_id = ANY($1::text[]))`,
       [referredIds],
     );
+    if (captureSessionIds.length > 0) {
+      await pool.query(
+        `DELETE FROM calora_ai_capture_sessions WHERE id = ANY($1::uuid[])`,
+        [captureSessionIds],
+      );
+    }
     await pool.query(`DELETE FROM calora_users WHERE external_id = ANY($1::text[])`, [referredIds]);
     await pool.query(`DELETE FROM calora_referral_codes WHERE user_id = $1`, [referrerId]);
   });
@@ -110,13 +142,38 @@ describe.skipIf(!HAS_DB)('referral qualification (real schema)', () => {
     expect(grantPromoDays).not.toHaveBeenCalled();
   });
 
-  it('qualifies a normal authenticated manual diary save and grants 30 days to both people', async () => {
+  it('does not qualify a fabricated authenticated manual diary save', async () => {
     const referred = `it-manual-${run}`;
     await seedPendingRedemption(referred);
     actAs(referred);
 
     const saved = await request(app).post('/v1/diary').send(validMeal());
     expect(saved.status).toBe(201);
+
+    const activation = await request(app).post('/v1/referral/activate').send({});
+    expect(activation.status).toBe(200);
+    expect(activation.body).toMatchObject({ status: 'pending', referredRewarded: false, referrerRewarded: false });
+    expect(grantPromoDays).not.toHaveBeenCalled();
+  });
+
+  it('qualifies a synced meal only when it carries a server-created capture anchor', async () => {
+    const referred = `it-capture-sync-${run}`;
+    await seedPendingRedemption(referred);
+    const captureSessionId = await seedCaptureSession(referred);
+    actAs(referred);
+
+    const synced = await request(app).post('/v1/sync').send({
+      deviceId: randomUUID(),
+      mutations: [{
+        mutationId: randomUUID(),
+        entity: 'diaryEntry',
+        operation: 'upsert',
+        clientUpdatedAt: '2026-08-11T14:00:00.000Z',
+        payload: { clientId: randomUUID(), captureSessionId, ...validMeal() },
+      }],
+    });
+    expect(synced.status).toBe(200);
+    expect(synced.body.accepted).toHaveLength(1);
 
     const activation = await request(app).post('/v1/referral/activate').send({});
     expect(activation.status).toBe(200);
@@ -130,11 +187,10 @@ describe.skipIf(!HAS_DB)('referral qualification (real schema)', () => {
     expect(grantPromoDays).not.toHaveBeenCalled();
   });
 
-  it('qualifies a synced meal without a capture session even when the retired flag is set', async () => {
+  it('does not qualify an unanchored synced meal', async () => {
     const referred = `it-sync-${run}`;
     await seedPendingRedemption(referred);
     actAs(referred);
-    process.env.SYNC_QUALIFICATION_REQUIRE_SESSION = 'true';
 
     const mutationId = randomUUID();
     const synced = await request(app).post('/v1/sync').send({
@@ -152,9 +208,7 @@ describe.skipIf(!HAS_DB)('referral qualification (real schema)', () => {
 
     const activation = await request(app).post('/v1/referral/activate').send({});
     expect(activation.status).toBe(200);
-    expect(activation.body).toMatchObject({ status: 'rewarded', referredRewarded: true, referrerRewarded: true });
-    expect(grantPromoDays).toHaveBeenCalledWith(referred, 30);
-    expect(grantPromoDays).toHaveBeenCalledWith(referrerId, 30);
-    delete process.env.SYNC_QUALIFICATION_REQUIRE_SESSION;
+    expect(activation.body).toMatchObject({ status: 'pending', referredRewarded: false, referrerRewarded: false });
+    expect(grantPromoDays).not.toHaveBeenCalled();
   });
 });
