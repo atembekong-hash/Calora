@@ -76,11 +76,11 @@ function makeRawExport(overrides: Record<string, unknown> = {}): string {
 /** Build a test FileShareAdapter with vi.fn() mocks. */
 function makeAdapter(cacheDirectory = 'file:///cache/'): {
   adapter: FileShareAdapter;
-  writeAsStringAsync: ReturnType<typeof vi.fn>;
-  shareAsync: ReturnType<typeof vi.fn>;
+  writeAsStringAsync: ReturnType<typeof vi.fn<(fileUri: string, contents: string) => Promise<void>>>;
+  shareAsync: ReturnType<typeof vi.fn<(uri: string, options: { mimeType: string; dialogTitle: string }) => Promise<void>>>;
 } {
-  const writeAsStringAsync = vi.fn().mockResolvedValue(undefined);
-  const shareAsync = vi.fn().mockResolvedValue(undefined);
+  const writeAsStringAsync = vi.fn<(fileUri: string, contents: string) => Promise<void>>().mockResolvedValue(undefined);
+  const shareAsync = vi.fn<(uri: string, options: { mimeType: string; dialogTitle: string }) => Promise<void>>().mockResolvedValue(undefined);
   return {
     adapter: { cacheDirectory, writeAsStringAsync, shareAsync },
     writeAsStringAsync,
@@ -92,12 +92,12 @@ function makeAdapter(cacheDirectory = 'file:///cache/'): {
 // Shared spies — reset before every test
 // ---------------------------------------------------------------------------
 
-let onNoData: ReturnType<typeof vi.fn>;
-let onData: ReturnType<typeof vi.fn>;
+const onNoData = vi.fn<() => void>();
+const onData = vi.fn<(payload: ExportPayload) => void>();
 
 beforeEach(() => {
-  onNoData = vi.fn();
-  onData   = vi.fn();
+  onNoData.mockReset();
+  onData.mockReset();
 });
 
 // ---------------------------------------------------------------------------

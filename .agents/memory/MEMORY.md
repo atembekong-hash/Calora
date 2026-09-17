@@ -73,3 +73,4 @@
 - [GitHub controller validity](github-actions-controller-validity.md) — an active workflow/run can still fail before jobs; compare same-push hosted runs and require controller or owner-UI evidence before patching.
 - [EAS worktree provenance](eas-worktree-provenance.md) — nested temporary worktrees can lose Git metadata to workspace checkpoints, causing EAS to fingerprint the outer repository.
 - [Agent publish boundary](agent-publish-boundary.md) — deployment status readers do not imply the task runtime can publish; never claim source-to-runtime alignment without a callable mutation and live verification.
+- [Dependency audit freshness](dependency-audit-freshness.md) — compare platform findings with the current lockfile and local audit when an audit result names versions no longer present.

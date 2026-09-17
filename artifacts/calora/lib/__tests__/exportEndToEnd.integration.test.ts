@@ -102,11 +102,11 @@ function makeStoredSnapshot(overrides: Record<string, unknown> = {}): string {
 
 function makeAdapter(cacheDirectory = 'file:///cache/'): {
   adapter: FileShareAdapter;
-  writeAsStringAsync: ReturnType<typeof vi.fn>;
-  shareAsync: ReturnType<typeof vi.fn>;
+  writeAsStringAsync: ReturnType<typeof vi.fn<(fileUri: string, contents: string) => Promise<void>>>;
+  shareAsync: ReturnType<typeof vi.fn<(uri: string, options: { mimeType: string; dialogTitle: string }) => Promise<void>>>;
 } {
-  const writeAsStringAsync = vi.fn().mockResolvedValue(undefined);
-  const shareAsync         = vi.fn().mockResolvedValue(undefined);
+  const writeAsStringAsync = vi.fn<(fileUri: string, contents: string) => Promise<void>>().mockResolvedValue(undefined);
+  const shareAsync         = vi.fn<(uri: string, options: { mimeType: string; dialogTitle: string }) => Promise<void>>().mockResolvedValue(undefined);
   return {
     adapter: { cacheDirectory, writeAsStringAsync, shareAsync },
     writeAsStringAsync,
@@ -118,14 +118,14 @@ function makeAdapter(cacheDirectory = 'file:///cache/'): {
 // Shared callback spies — reset before every test
 // ---------------------------------------------------------------------------
 
-let setLoading: ReturnType<typeof vi.fn>;
-let onNoData:   ReturnType<typeof vi.fn>;
-let onError:    ReturnType<typeof vi.fn>;
+const setLoading = vi.fn<(loading: boolean) => void>();
+const onNoData   = vi.fn<() => void>();
+const onError    = vi.fn<() => void>();
 
 beforeEach(() => {
-  setLoading = vi.fn();
-  onNoData   = vi.fn();
-  onError    = vi.fn();
+  setLoading.mockReset();
+  onNoData.mockReset();
+  onError.mockReset();
 });
 
 // ---------------------------------------------------------------------------
