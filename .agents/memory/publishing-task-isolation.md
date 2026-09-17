@@ -8,6 +8,10 @@ inside an active isolated Agent task. Repointing local branches in the task copy
 does not change the applied main project and therefore does not change the
 Publishing source.
 
+Release attestation may hash the complete repository tree, so documentation or
+audit-only commits after the deployed code can make an otherwise runtime-
+equivalent deployment fail exact source-tree verification.
+
 **Why:** Repeated successful builds can receive new deployment commit IDs while
 serving the same applied-main source tree. A task copy that is older than
 applied main cannot be published as an exact historical tree without omitting
