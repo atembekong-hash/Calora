@@ -1,0 +1,754 @@
+CALORA — STEP 54B FINAL SOURCE REMEDIATION CANONICALIZATION
+
+OUTPUT REPORT:
+
+54B_CALORA_FINAL_SOURCE_REMEDIATION_CANONICALIZATION_REPORT.md
+
+
+==================================================
+MISSION
+==================================================
+
+Canonicalize the already-completed and validated Step 54A remediation.
+
+THIS IS CANONICALIZATION ONLY.
+
+Do NOT implement additional product changes.
+
+Do NOT refactor.
+
+Do NOT fix unrelated issues.
+
+Do NOT start Step 55.
+
+Do NOT build or deploy.
+
+
+Step 54A already remediated:
+
+1. AI-estimated nutrition unknown→zero coercion;
+2. user-created recipe blank macro→zero coercion;
+3. Planner custom/edit nutrition zero fallback;
+4. stale OpenAPI/generated profile and weight operations;
+5. missing Plus remount request-count coverage;
+6. missing recipe freshness account/scope isolation coverage;
+7. missing partial/unknown nutrition coverage.
+
+
+Step 54B exists ONLY to:
+
+freeze that exact validated implementation;
+
+audit scope;
+
+commit it;
+
+push it safely to canonical main;
+
+verify the exact new canonical SHA/tree;
+
+verify the exact-SHA GitHub Release validation gate.
+
+
+==================================================
+KNOWN PRE-STEP-54A CANONICAL BASELINE
+==================================================
+
+origin/main before Step 54A:
+
+SHA:
+f9148dc2070debf7ce944b229caa83b6d8f906f6
+
+TREE:
+4a10536808297bd85933be65941d0df9136f336b
+
+
+Fetch origin immediately.
+
+If origin/main has unexpectedly advanced beyond this baseline:
+
+STOP.
+
+Do NOT merge.
+
+Do NOT rebase.
+
+Do NOT force push.
+
+Do NOT automatically transplant Step 54A onto the new main.
+
+Final verdict:
+
+STEP 54B BLOCKED — CANONICAL MAIN CHANGED
+
+
+==================================================
+1. FREEZE STEP 54A
+==================================================
+
+Do not change the Step 54A implementation.
+
+Inspect:
+
+git status
+
+git diff --stat
+
+git diff
+
+git diff --check
+
+git log --oneline --decorate -20
+
+
+Identify EXACTLY where the Step 54A validated changes currently live:
+
+uncommitted working tree;
+
+existing local commit;
+
+isolated branch/worktree;
+
+or another local branch.
+
+
+Record this in the report.
+
+
+==================================================
+2. VERIFY STEP 54A SCOPE
+==================================================
+
+The functional changes must correspond ONLY to the authorized Step 54A areas:
+
+AI nutrition parsing;
+
+user-created recipe nutrition parsing;
+
+Planner custom/edit nutrition validation;
+
+nutrition truthfulness helpers/contracts;
+
+OpenAPI removal of confirmed stale profile/weight operations;
+
+regenerated API clients/Zod artifacts caused by that OpenAPI change;
+
+Plus remount request-count tests;
+
+recipe freshness account/scope isolation tests;
+
+partial/unknown nutrition tests.
+
+
+Inspect EVERY changed path.
+
+No unrelated product change may be included.
+
+
+Specifically confirm no functional changes to:
+
+Onboarding;
+
+Smart Scan;
+
+Food Memory;
+
+Home;
+
+Diary;
+
+Sync;
+
+Weekly Programs;
+
+Coach;
+
+Health;
+
+Insights/Progress;
+
+Profile UI;
+
+RevenueCat;
+
+Auth/PKCE;
+
+Referrals;
+
+Account deletion;
+
+EAS configuration;
+
+iOS build-number controls.
+
+
+Fitness must remain excluded.
+
+
+==================================================
+3. VERIFY GENERATED CONTRACT CHANGES
+==================================================
+
+Step 54A removed stale:
+
+/v1/profile
+
+/v1/weights
+
+
+from OpenAPI after confirming there was no current released mobile runtime
+consumer.
+
+Verify that the generated artifacts correspond EXACTLY to the updated OpenAPI.
+
+Use the repository's canonical generation command:
+
+pnpm --filter @workspace/api-spec run codegen
+
+
+After generation, require:
+
+git diff against the frozen Step 54A implementation shows no unexpected
+generated drift.
+
+
+Verify current active API contracts remain present and unchanged where
+applicable, including:
+
+capture;
+
+capture approval;
+
+recipes;
+
+premium recipes;
+
+planner;
+
+diary;
+
+sync;
+
+Coach Fact Context;
+
+referrals;
+
+account deletion/active account routes.
+
+
+Do not introduce new API architecture.
+
+
+==================================================
+4. RECONFIRM CRITICAL NUTRITION CONTRACT
+==================================================
+
+Without changing source, inspect the final Step 54A implementation and confirm:
+
+AI missing macro != zero;
+
+AI null macro != zero;
+
+AI empty macro != zero;
+
+AI invalid macro != zero;
+
+AI explicit numeric zero == zero;
+
+user-created blank macro != zero;
+
+user-created explicit zero == zero;
+
+Planner blank/invalid nutrition cannot silently become zero;
+
+Planner explicit zero remains zero;
+
+partial nutrition remains partial;
+
+unknown nutrition remains unavailable/null according to current model;
+
+NaN/Infinity cannot enter valid nutrition state.
+
+
+If any of these statements are false:
+
+STOP.
+
+Do not commit/push.
+
+Final verdict:
+
+STEP 54B FAILED SOURCE RECONFIRMATION — NOT PUSHED
+
+
+==================================================
+5. RECONFIRM STEP 54A VALIDATION
+==================================================
+
+The Step 54A report recorded:
+
+Calora:
+87 test files
+1,185 tests passed
+
+API server:
+36 test files
+438 tests passed
+4 intentional skipped tests
+
+Scripts:
+47 tests passed
+
+Typechecks:
+Calora PASS
+API server PASS
+
+Codegen:
+PASS
+
+git diff --check:
+PASS
+
+
+Re-run the appropriate validation against the EXACT frozen implementation
+that will be committed.
+
+At minimum:
+
+pnpm install --frozen-lockfile
+
+pnpm --filter @workspace/api-spec run codegen
+
+pnpm run typecheck
+
+pnpm --filter @workspace/calora test
+
+pnpm --filter @workspace/api-server test
+
+pnpm --filter @workspace/scripts test
+
+Calora static-security tests
+
+focused nutrition tests
+
+focused recipe tests
+
+focused Planner tests
+
+focused Plus tests
+
+focused freshness tests
+
+account/auth isolation tests
+
+API compatibility tests
+
+git diff --check
+
+
+Expo preview is NOT required to overcome the previously observed environment
+ENOSPC file-watcher limitation.
+
+However:
+
+run the repository's non-interactive Expo configuration validation if
+available.
+
+Do NOT alter OS watcher limits.
+
+Do NOT make application changes merely to work around ENOSPC.
+
+
+No failing test may be:
+
+deleted;
+
+skipped;
+
+weakened;
+
+or changed merely to force green.
+
+
+==================================================
+6. CREATE NARROW COMMIT(S)
+==================================================
+
+If Step 54A changes are still uncommitted:
+
+create narrow functional commit(s).
+
+
+Preferred subjects:
+
+Preserve unknown nutrition across recipe and planner flows
+
+Retire stale profile and weight API contracts
+
+
+If the changes are tightly coupled and repository history is cleaner with one
+commit, one narrow commit is acceptable.
+
+
+Tests should accompany the behavior they protect.
+
+
+Do not include unrelated untracked artifacts.
+
+
+The Step 54A/54B reports may be handled according to the established report
+workflow, but they must not contaminate functional scope.
+
+
+Record for every commit:
+
+SHA
+
+tree SHA
+
+parent SHA
+
+subject
+
+changed paths
+
+
+==================================================
+7. FETCH ORIGIN AGAIN BEFORE PUSH
+==================================================
+
+Immediately before push:
+
+git fetch origin
+
+
+Require origin/main to still be the expected pre-Step-54A canonical ancestor:
+
+f9148dc2070debf7ce944b229caa83b6d8f906f6
+
+
+Verify the Step 54A functional commit(s) descend cleanly from it.
+
+
+If origin/main advanced unexpectedly:
+
+STOP.
+
+NO PUSH.
+
+NO MERGE.
+
+NO REBASE.
+
+NO FORCE.
+
+
+Verdict:
+
+STEP 54B BLOCKED — CANONICAL MAIN CHANGED
+
+
+==================================================
+8. PUSH TO CANONICAL MAIN
+==================================================
+
+If and ONLY if ancestry/scope/validation are clean:
+
+perform a normal fast-forward-compatible push to:
+
+origin/main
+
+
+NO FORCE PUSH.
+
+NO FORCE-WITH-LEASE.
+
+NO REBASE OF DIVERGENT MAIN.
+
+NO RESET OF REMOTE MAIN.
+
+NO HISTORICAL BRANCH MERGE.
+
+NO HISTORICAL CHERRY-PICK.
+
+
+Record exact push command and result.
+
+
+==================================================
+9. VERIFY NEW CANONICAL MAIN
+==================================================
+
+Fetch origin after push.
+
+Record exact:
+
+origin/main SHA
+
+origin/main tree
+
+
+Verify:
+
+the Step 54A functional commit(s) are ancestors of origin/main;
+
+the new canonical tree contains the validated Step 54A implementation;
+
+the old canonical SHA remains in ancestry;
+
+no unrelated commit was introduced.
+
+
+==================================================
+10. GITHUB RELEASE VALIDATION
+==================================================
+
+Wait for the automatic workflow:
+
+Release validation
+
+
+Required check:
+
+Run release validation suite
+
+
+The release gate must correspond to the EXACT new canonical origin/main SHA.
+
+
+Record:
+
+workflow run number if available;
+
+workflow run ID;
+
+required check-run ID;
+
+head SHA;
+
+status;
+
+conclusion.
+
+
+Require:
+
+head SHA == new origin/main SHA
+
+status == completed
+
+conclusion == success
+
+
+If the workflow/check fails:
+
+STOP.
+
+Do not build.
+
+Final verdict:
+
+STEP 54B CANONICALIZED — RELEASE GATE FAILED
+
+
+==================================================
+11. FINAL SOURCE-GAP CLOSURE
+==================================================
+
+After successful release validation, answer explicitly:
+
+A. Are all five direct Step 51 recovery targets now present in canonical main?
+
+B. Is R-05 nutrition truthfulness now fully recovered at source/test level?
+
+C. Can any audited AI/user-created/Planner path still silently convert unknown
+nutrition to zero?
+
+D. Does explicit real zero remain zero?
+
+E. Is Plus remount provider-request behavior now directly tested?
+
+F. Is two-account recipe freshness isolation now directly tested?
+
+G. Are stale profile/weight generated operations removed from canonical
+contracts?
+
+H. Were any active API routes accidentally removed?
+
+I. Did Step 52 onboarding remain preserved?
+
+J. Did Step 53 freshness remain preserved?
+
+K. Is Smart Scan → Food Memory → Home Today → outbox/sync preserved?
+
+L. Is bounded Coach safety preserved?
+
+M. Is Premium/RevenueCat protection preserved?
+
+N. Is account isolation preserved?
+
+O. Was Fitness kept excluded?
+
+P. Are there any remaining P0 findings?
+
+Q. Are there any remaining P1 findings?
+
+R. Are there any remaining SOURCE-LEVEL blockers to Step 55?
+
+S. Is canonical main ready for owner authorization of Step 55?
+
+
+==================================================
+12. NO BUILD / DEPLOYMENT
+==================================================
+
+ABSOLUTELY NO:
+
+EAS build;
+
+iOS build;
+
+Android build;
+
+TestFlight submission;
+
+App Store submission;
+
+API production deployment;
+
+Replit publish;
+
+database mutation;
+
+migration;
+
+schema change;
+
+seed change.
+
+
+This remains true even if release validation succeeds.
+
+
+==================================================
+REPORT
+==================================================
+
+Create:
+
+54B_CALORA_FINAL_SOURCE_REMEDIATION_CANONICALIZATION_REPORT.md
+
+
+Required sections:
+
+1. Executive summary
+2. Starting canonical SHA/tree
+3. Location/state of frozen Step 54A changes
+4. Exact Step 54A changed paths
+5. Scope audit
+6. Nutrition source reconfirmation
+7. OpenAPI/generated contract verification
+8. Active API route preservation
+9. Plus request-count test verification
+10. Freshness account-isolation test verification
+11. Validation results
+12. Calora test totals
+13. API test totals
+14. Scripts test totals
+15. Security validation
+16. Typecheck result
+17. Codegen result
+18. Expo config result
+19. git diff --check
+20. Functional commit(s)
+21. Commit SHA/tree/parent
+22. Pre-push origin/main verification
+23. Push command/result
+24. New canonical SHA/tree
+25. Ancestry verification
+26. Release validation workflow run ID
+27. Required check-run ID
+28. Exact check head SHA
+29. Release check status/conclusion
+30. Five-target recovery closure matrix
+31. Confirmation Step 52 preserved
+32. Confirmation Step 53 preserved
+33. Confirmation Smart Scan/Home preserved
+34. Confirmation Coach safety preserved
+35. Confirmation Premium/account isolation preserved
+36. Confirmation Fitness excluded
+37. Confirmation no database changes
+38. Confirmation no build/deployment/TestFlight
+39. Remaining device-only verification
+40. Remaining live-provider verification
+41. Remaining source-level blockers, if any
+42. Exact recommendation for Step 55
+
+
+==================================================
+MANDATORY RECOVERY CLOSURE MATRIX
+==================================================
+
+Include:
+
+| Recovery ID | Target | Canonical source | Automated tests | Status | Device verification still required? |
+
+
+Rows:
+
+R-01 Keyboard-aware onboarding
+R-02 Agreement semantics
+R-03 Plus remount behavior
+R-04 Discover/Plus freshness
+R-05 Nutrition truthfulness
+
+
+Status must be exactly one:
+
+RECOVERED_AND_VERIFIED
+
+RECOVERED_SOURCE_ONLY
+
+PARTIALLY_RECOVERED
+
+BROKEN
+
+MISSING
+
+
+==================================================
+FINAL VERDICT
+==================================================
+
+Use EXACTLY ONE:
+
+FINAL SOURCE RECOVERY CANONICALIZED — READY FOR STEP 55 AUTHORIZATION
+
+STEP 54B BLOCKED — CANONICAL MAIN CHANGED
+
+STEP 54B FAILED SOURCE RECONFIRMATION — NOT PUSHED
+
+STEP 54B FAILED VALIDATION — NOT PUSHED
+
+STEP 54B CANONICALIZED — RELEASE GATE FAILED
+
+STEP 54B INCOMPLETE — ADDITIONAL SOURCE REMEDIATION REQUIRED
+
+
+==================================================
+STOP
+==================================================
+
+After producing the Step 54B report:
+
+STOP.
+
+DO NOT START STEP 55.
+
+DO NOT BUILD.
+
+DO NOT DEPLOY.
+
+DO NOT SUBMIT TESTFLIGHT.
+
+Wait for owner review.
