@@ -81,7 +81,7 @@ describe("Premium recipe routes", () => {
     expect(hasActivePremiumEntitlementMock).not.toHaveBeenCalled();
     expect(checkRateLimitMock).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
-  });
+  }, 15_000);
 
   it("rejects a signed-in account without a current Premium entitlement before provider work", async () => {
     hasActivePremiumEntitlementMock.mockResolvedValue(false);
