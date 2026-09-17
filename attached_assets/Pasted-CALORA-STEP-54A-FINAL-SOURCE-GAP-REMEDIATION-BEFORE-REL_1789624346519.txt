@@ -1,0 +1,930 @@
+CALORA — STEP 54A FINAL SOURCE-GAP REMEDIATION BEFORE RELEASE CANDIDATE
+
+OUTPUT REPORT:
+
+54A_CALORA_FINAL_SOURCE_GAP_REMEDIATION_REPORT.md
+
+
+==================================================
+MISSION
+==================================================
+
+Remediate ONLY the remaining source/test findings established by the
+read-only Step 54 verification.
+
+This is the final source-level closure before Step 55 release-candidate work.
+
+DO NOT broaden scope.
+
+DO NOT build.
+
+DO NOT deploy.
+
+DO NOT submit TestFlight.
+
+
+==================================================
+CANONICAL BASELINE
+==================================================
+
+Expected origin/main:
+
+SHA:
+f9148dc2070debf7ce944b229caa83b6d8f906f6
+
+TREE:
+4a10536808297bd85933be65941d0df9136f336b
+
+
+Fetch origin and verify this exact baseline before modification.
+
+If canonical main has unexpectedly advanced:
+
+STOP.
+
+Do not merge/rebase/force.
+
+Verdict:
+
+STEP 54A BLOCKED — CANONICAL MAIN CHANGED
+
+
+==================================================
+AUTHORITATIVE FINDINGS
+==================================================
+
+Step 54 established:
+
+P0:
+NONE
+
+P1:
+NONE
+
+
+Remaining source/test findings:
+
+P2-S54-01
+AI estimate missing macros become zero.
+
+P2-S54-02
+User-created recipe blank macros become zero.
+
+P2-S54-03
+Planner blank macro input becomes zero.
+
+P2-S54-04
+OpenAPI/generated profile and weight operations are stale.
+
+
+Missing focused tests:
+
+- direct Plus remount provider-request-count test;
+- direct two-account freshness-session isolation test;
+- rendered partial-nutrition state coverage;
+- complete unknown-not-zero coverage.
+
+
+These are the ONLY authorized remediation areas.
+
+
+==================================================
+PART 1 — AI NUTRITION ESTIMATE TRUTHFULNESS
+==================================================
+
+Current problem:
+
+artifacts/api-server/src/routes/recipes.ts
+
+The AI estimate path uses patterns equivalent to:
+
+Number(value) || 0
+
+
+This collapses:
+
+missing
+
+undefined
+
+null
+
+invalid numeric input
+
+into zero.
+
+
+That violates Calora's nutrition truthfulness contract.
+
+
+Implement a safe parser that distinguishes:
+
+KNOWN FINITE ZERO
+
+KNOWN FINITE POSITIVE VALUE
+
+UNKNOWN / MISSING
+
+INVALID
+
+
+Requirements:
+
+- real numeric 0 remains 0;
+- positive finite values remain unchanged;
+- missing values remain unavailable/null according to the current contract;
+- null remains unknown;
+- undefined remains unknown;
+- empty string must not silently become measured zero;
+- NaN/infinity must not enter nutrition state;
+- malformed AI output must fail safely;
+- calories and macros must follow current nutrition provenance rules;
+- partial estimates must remain explicitly partial;
+- no fabricated nutrition.
+
+
+Do not weaken existing AI response validation.
+
+
+==================================================
+PART 2 — USER-CREATED RECIPE INPUT
+==================================================
+
+Current problem:
+
+CreateRecipeModal in:
+
+artifacts/calora/app/(tabs)/recipes.tsx
+
+
+Blank protein/carbohydrate/fat inputs currently pass through numeric
+coercion that can produce 0.
+
+
+Fix the distinction between:
+
+user explicitly entered 0
+
+and
+
+user left field blank.
+
+
+Blank means:
+
+UNKNOWN / NOT PROVIDED
+
+
+Explicit 0 means:
+
+KNOWN ZERO
+
+
+Preserve current requirement for calories if calories are intentionally
+required by Create Recipe.
+
+
+Do not invent missing macros.
+
+Do not automatically calculate macros unless an existing authoritative
+product rule already does so.
+
+
+Ensure resulting recipe model and diary handoff preserve null/unknown values.
+
+
+==================================================
+PART 3 — PLANNER CUSTOM / EDIT INPUT
+==================================================
+
+Current problem:
+
+artifacts/calora/app/(tabs)/planner.tsx
+
+
+Blank nutrition fields can be converted to zero via parsing/default behavior.
+
+
+Implement the same semantic distinction:
+
+blank → unknown
+
+explicit numeric 0 → zero
+
+finite positive → value
+
+invalid → validation/unavailable according to current UX
+
+
+Do not allow:
+
+NaN
+
+Infinity
+
+implicit zero fabrication.
+
+
+Preserve existing Planner behavior and current weekly-program architecture.
+
+
+==================================================
+PART 4 — END-TO-END NUTRITION TRUTHFULNESS
+==================================================
+
+Trace and verify:
+
+AI estimate
+→ recipe model
+→ recipe card/detail
+→ diary handoff
+→ Planner handoff
+
+
+AND:
+
+user-created recipe
+→ recipe model
+→ recipe detail
+→ diary
+→ Planner
+
+
+AND:
+
+Planner custom/edit
+→ stored Planner meal
+→ displayed nutrition
+
+
+For every path prove:
+
+unknown remains unknown;
+
+real zero remains zero;
+
+partial nutrition remains partial;
+
+complete nutrition remains complete;
+
+unknown is never presented as authoritative zero.
+
+
+==================================================
+PART 5 — OPENAPI PROFILE / WEIGHT CONTRACT DRIFT
+==================================================
+
+Step 54 established that OpenAPI/generated client advertises:
+
+GET /v1/profile
+PUT /v1/profile
+GET /v1/weights
+POST /v1/weights
+
+
+but current API route registration does not provide those routes.
+
+Current mobile architecture uses local-first profile/weight state.
+
+
+DO NOT blindly implement server routes merely because OpenAPI contains them.
+
+
+First determine whether ANY current canonical runtime source calls these
+generated profile/weight operations.
+
+
+If NO current runtime consumer exists and historical evidence shows they are
+obsolete:
+
+retire the stale OpenAPI operations cleanly;
+
+regenerate/update generated contract artifacts using the repository's
+canonical generation process;
+
+update compatibility tests accordingly.
+
+
+If a CURRENT runtime consumer actually depends on these routes:
+
+STOP.
+
+Do not delete the contract.
+
+Report:
+
+STEP 54A BLOCKED — ACTIVE PROFILE/WEIGHT CONTRACT REQUIRES OWNER REVIEW
+
+
+Do not invent a new profile/weight backend architecture.
+
+
+==================================================
+PART 6 — PLUS REMOUNT REQUEST-COUNT TEST
+==================================================
+
+Step 54 found the source policy correct but lacked a direct integration-level
+request-count contract.
+
+
+Add deterministic coverage proving:
+
+1. open Plus;
+2. provider request occurs when required;
+3. valid fresh data becomes cached;
+4. unmount/navigate away;
+5. remount while cache remains fresh;
+6. unnecessary provider request does NOT occur;
+7. stale cache becomes eligible for revalidation;
+8. explicit invalidation behaves correctly;
+9. entitlement denial prevents protected cache visibility;
+10. account switch cannot reuse another account's request/cache state.
+
+
+No flaky timers.
+
+Use controlled/fake time where appropriate.
+
+
+==================================================
+PART 7 — TWO-ACCOUNT FRESHNESS ISOLATION TEST
+==================================================
+
+Add direct deterministic test:
+
+Account A
+→ Discover/Plus freshness history
+
+
+Account B
+→ independent freshness history
+
+
+Prove:
+
+A's recently-shown IDs do not affect B;
+
+B's history does not affect A;
+
+surface scope remains separate;
+
+query/category scope remains separate;
+
+36-ID bound remains intact;
+
+24-hour expiry remains intact;
+
+8-scope cap remains intact.
+
+
+Do not change the existing bounded design unless the test demonstrates an
+actual implementation defect.
+
+
+==================================================
+PART 8 — PARTIAL NUTRITION RENDER TEST
+==================================================
+
+Add rendered/component-level coverage proving a partial nutrition record:
+
+does not appear complete;
+
+does not display missing macro as zero;
+
+shows the current truthful partial/unavailable presentation;
+
+preserves any real zero values;
+
+does not display undefined;
+
+does not display NaN.
+
+
+==================================================
+PRESERVE EVERYTHING ELSE
+==================================================
+
+Do NOT modify or regress:
+
+Step 52 onboarding keyboard behavior;
+
+agreement semantics;
+
+onboarding persistence;
+
+Step 53 recipe freshness;
+
+36-ID recent history;
+
+24-hour TTL;
+
+8-scope cap;
+
+stable-ID deduplication;
+
+authoritative nextOffset;
+
+terminalReason;
+
+Plus account scoping;
+
+Premium entitlement;
+
+RevenueCat;
+
+Smart Scan;
+
+Food Memory;
+
+Home Today;
+
+diary outbox;
+
+sync;
+
+Weekly Programs;
+
+Coach Fact Context;
+
+Coach consent/fencing;
+
+Health;
+
+Insights/Progress;
+
+Profile UI;
+
+referrals;
+
+account deletion;
+
+auth/PKCE;
+
+release gate;
+
+EAS configuration;
+
+iOS build-number controls.
+
+
+Fitness remains intentionally excluded.
+
+DO NOT restore Fitness.
+
+
+==================================================
+NO DATABASE CHANGES
+==================================================
+
+No:
+
+schema change;
+
+migration;
+
+seed change;
+
+database mutation.
+
+
+If any becomes necessary:
+
+STOP.
+
+Verdict:
+
+STEP 54A BLOCKED — DATABASE CHANGE REQUIRES OWNER REVIEW
+
+
+==================================================
+NO NEW API ARCHITECTURE
+==================================================
+
+Removing confirmed stale OpenAPI operations is permitted ONLY if no current
+runtime consumer exists.
+
+Do not:
+
+create new profile backend;
+
+create new weight backend;
+
+change active sync architecture;
+
+change active diary architecture;
+
+change capture API;
+
+change recipe API semantics beyond preserving truthful nullable nutrition
+already supported by the current contract.
+
+
+==================================================
+TEST REQUIREMENTS
+==================================================
+
+Add explicit tests for:
+
+AI missing macro → unknown
+
+AI null macro → unknown
+
+AI empty macro → unknown
+
+AI explicit 0 → 0
+
+AI positive finite macro → value
+
+AI invalid macro → unavailable/fails safely
+
+user-created blank macro → unknown
+
+user-created explicit 0 → 0
+
+user-created positive → value
+
+Planner blank macro → unknown
+
+Planner explicit 0 → 0
+
+Planner positive → value
+
+recipe → diary unknown preservation
+
+recipe → Planner unknown preservation/guard
+
+partial nutrition presentation
+
+no NaN presentation
+
+no undefined presentation
+
+Plus fresh-remount request count
+
+Plus stale-remount revalidation
+
+Plus account-switch request isolation
+
+freshness Account A/B isolation
+
+freshness surface isolation
+
+freshness query/category isolation
+
+freshness bounds and expiry
+
+
+==================================================
+FULL VALIDATION
+==================================================
+
+Run:
+
+pnpm install --frozen-lockfile
+
+pnpm run typecheck
+
+pnpm --filter @workspace/calora test
+
+pnpm --filter @workspace/scripts test
+
+API server full tests
+
+Calora static-security tests
+
+focused recipe tests
+
+focused Planner tests
+
+focused diary tests
+
+focused Plus tests
+
+focused freshness tests
+
+Premium/RevenueCat tests
+
+auth/account-isolation tests
+
+OpenAPI/generated-contract compatibility tests
+
+Expo config validation
+
+git diff --check
+
+
+Run canonical release-validation scripts where appropriate.
+
+
+Do not:
+
+skip failures;
+
+delete tests;
+
+weaken assertions;
+
+change expectations simply to make tests green.
+
+
+==================================================
+SCOPE AUDIT
+==================================================
+
+Before commit inspect every changed path.
+
+Every runtime change must correspond directly to:
+
+nutrition truthfulness;
+
+stale profile/weight contract retirement if proven obsolete;
+
+or required tests.
+
+
+No unrelated refactoring.
+
+No formatting sweep.
+
+No dependency upgrade.
+
+
+==================================================
+COMMIT
+==================================================
+
+If all validation passes:
+
+create narrow functional commit(s).
+
+
+Suggested subjects:
+
+Preserve unknown nutrition across recipe and planner flows
+
+Retire stale profile and weight API contracts
+
+
+Test-only changes may remain with their corresponding functional commit.
+
+
+Record:
+
+commit SHA
+
+tree SHA
+
+parent SHA
+
+changed paths
+
+
+==================================================
+PUSH TO CANONICAL MAIN
+==================================================
+
+Before push:
+
+fetch origin again.
+
+Verify origin/main has not unexpectedly advanced.
+
+
+If safe:
+
+normal fast-forward-compatible push to main.
+
+
+NO FORCE PUSH.
+
+NO HISTORY REWRITE.
+
+NO HISTORICAL BRANCH MERGE.
+
+NO HISTORICAL CHERRY-PICK.
+
+
+==================================================
+POST-PUSH RELEASE GATE
+==================================================
+
+Fetch after push.
+
+Record exact new:
+
+origin/main SHA
+
+origin/main tree
+
+
+Wait for:
+
+Release validation
+
+
+Required check:
+
+Run release validation suite
+
+
+Require:
+
+exact new SHA;
+
+completed;
+
+success.
+
+
+If release validation fails:
+
+STOP.
+
+Do not build.
+
+
+==================================================
+NO BUILD / DEPLOYMENT
+==================================================
+
+Step 54A does NOT authorize:
+
+EAS build;
+
+iOS build;
+
+Android build;
+
+TestFlight submission;
+
+App Store submission;
+
+API production deployment;
+
+Replit publish;
+
+database mutation;
+
+migration;
+
+schema change;
+
+seed change.
+
+
+==================================================
+REPORT
+==================================================
+
+Create:
+
+54A_CALORA_FINAL_SOURCE_GAP_REMEDIATION_REPORT.md
+
+
+Required sections:
+
+1. Executive summary
+2. Starting canonical SHA/tree
+3. Step 54 findings addressed
+4. AI nutrition root cause
+5. AI nutrition remediation
+6. User-created recipe root cause
+7. User-created recipe remediation
+8. Planner nutrition root cause
+9. Planner remediation
+10. End-to-end nutrition truthfulness trace
+11. OpenAPI/profile/weight consumer audit
+12. Contract drift disposition
+13. Plus request-count test
+14. Two-account freshness isolation test
+15. Partial nutrition render test
+16. Exact changed paths
+17. Scope audit
+18. Focused test results
+19. Calora full test result
+20. API full test result
+21. Scripts test result
+22. Security result
+23. Typecheck result
+24. Expo/config result
+25. Contract compatibility result
+26. git diff --check
+27. Functional commit(s)
+28. Push result
+29. New canonical SHA/tree
+30. Release validation run/check IDs
+31. Exact release-check conclusion
+32. Confirmation Fitness excluded
+33. Confirmation Step 52/53 preserved
+34. Confirmation no database changes
+35. Confirmation no build/deployment occurred
+36. Remaining device verification
+37. Remaining live-provider verification
+38. Exact recommendation for Step 55
+
+
+==================================================
+MANDATORY TRUTHFULNESS MATRIX
+==================================================
+
+Include:
+
+| Path | Missing value | Explicit zero | Positive value | Invalid value | Result |
+
+
+Rows:
+
+AI estimate protein
+AI estimate carbs
+AI estimate fat
+User-created protein
+User-created carbs
+User-created fat
+Planner custom protein
+Planner custom carbs
+Planner custom fat
+Recipe → diary
+Recipe → Planner
+
+
+Result must show that missing and explicit zero remain semantically distinct.
+
+
+==================================================
+FINAL QUESTIONS
+==================================================
+
+Answer explicitly:
+
+A. Can any audited recipe/planner nutrition path still silently convert unknown
+to zero?
+
+B. Does explicit real zero remain zero?
+
+C. Does partial nutrition remain visibly partial?
+
+D. Is the Plus fresh-remount behavior now directly request-count tested?
+
+E. Is two-account recipe freshness isolation directly tested?
+
+F. Were stale profile/weight OpenAPI operations safely retired, or was an active
+consumer found?
+
+G. Did any active API contract change?
+
+H. Did any database/schema/migration change?
+
+I. Did Step 52 onboarding remain intact?
+
+J. Did Step 53 freshness remain intact?
+
+K. Was Fitness kept excluded?
+
+L. Are there any P0 findings?
+
+M. Are there any P1 findings?
+
+N. Are there any remaining source-level blockers to a controlled release
+candidate?
+
+O. Is canonical main ready for Step 55?
+
+
+==================================================
+FINAL VERDICT
+==================================================
+
+Use EXACTLY ONE:
+
+FINAL SOURCE GAPS REMEDIATED — READY FOR STEP 55 RELEASE-CANDIDATE AUTHORIZATION
+
+FINAL SOURCE REMEDIATION INCOMPLETE — ADDITIONAL WORK REQUIRED
+
+STEP 54A BLOCKED — CANONICAL MAIN CHANGED
+
+STEP 54A BLOCKED — ACTIVE PROFILE/WEIGHT CONTRACT REQUIRES OWNER REVIEW
+
+STEP 54A BLOCKED — DATABASE CHANGE REQUIRES OWNER REVIEW
+
+STEP 54A FAILED VALIDATION — NOT PUSHED
+
+STEP 54A PUSHED — RELEASE GATE FAILED
+
+
+==================================================
+STOP
+==================================================
+
+After producing the report:
+
+STOP.
+
+DO NOT START STEP 55.
+
+DO NOT BUILD.
+
+DO NOT DEPLOY.
+
+DO NOT SUBMIT TESTFLIGHT.
+
+Wait for owner review.
