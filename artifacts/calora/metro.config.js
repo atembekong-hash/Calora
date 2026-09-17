@@ -21,6 +21,7 @@ config.resolver.blockList = [
       ? [config.resolver.blockList]
       : []),
   /\/\.step[^/]*\//,
+  /\/artifacts\/calora\/static-build(?:\/|$)/,
 ];
 
 // 2. Let Metro resolve modules from both the project and workspace node_modules
