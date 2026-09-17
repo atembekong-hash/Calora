@@ -34,7 +34,7 @@ import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy'
 import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
-import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition, isFiniteNutritionValue } from '@/lib/recipeNutrition';
+import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition, isFiniteNutritionValue, parseNutritionInput } from '@/lib/recipeNutrition';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -1322,8 +1322,19 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
       setError('Enter a recipe name.');
       return;
     }
-    if (!Number.isFinite(Number(calories)) || Number(calories) <= 0) {
+    const parsedCalories = parseNutritionInput(calories);
+    if (parsedCalories === null || parsedCalories <= 0) {
       setError('Enter calories above zero to log this recipe.');
+      return;
+    }
+    const optionalMacros = [
+      ['Protein', protein],
+      ['Carbs', carbs],
+      ['Fat', fat],
+    ] as const;
+    const invalidMacro = optionalMacros.find(([label, value]) => value.trim() && parseNutritionInput(value) === null);
+    if (invalidMacro) {
+      setError(`${invalidMacro[0]} must be a finite number from 0 to 100,000.`);
       return;
     }
     Keyboard.dismiss();
@@ -1333,10 +1344,10 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
       tags: ['My recipes'],
       source: `Created in ${BRAND.name}`,
       sourceUrl: URLS.main,
-      calories: Number(calories),
-      proteinG: Number(protein) || 0,
-      carbsG: Number(carbs) || 0,
-      fatG: Number(fat) || 0,
+      calories: parsedCalories,
+      proteinG: parseNutritionInput(protein),
+      carbsG: parseNutritionInput(carbs),
+      fatG: parseNutritionInput(fat),
       category: 'Personal',
       area: null,
       image: null,

@@ -82,7 +82,7 @@ vi.mock("../lib/rate-limit.js", () => ({
 // Imports that depend on the mocked modules (must come after vi.mock calls).
 // ---------------------------------------------------------------------------
 import express from "express";
-import recipesRouter from "../routes/recipes.js";
+import recipesRouter, { parseNutritionEstimate } from "../routes/recipes.js";
 
 // ---------------------------------------------------------------------------
 // Minimal Express app that mounts the recipes router
@@ -93,6 +93,21 @@ function buildApp() {
   app.use(recipesRouter);
   return app;
 }
+
+describe("AI nutrition estimate parsing", () => {
+  it.each([
+    [{ calories: 450, proteinG: 0, carbsG: 70, fatG: 12 }, { calories: 450, proteinG: 0, carbsG: 70, fatG: 12 }],
+    [{ calories: 450, proteinG: 15, carbsG: 70, fatG: 12 }, { calories: 450, proteinG: 15, carbsG: 70, fatG: 12 }],
+    [{ calories: 450, proteinG: null, carbsG: 70, fatG: 12 }, null],
+    [{ calories: 450, carbsG: 70, fatG: 12 }, null],
+    [{ calories: 450, proteinG: "", carbsG: 70, fatG: 12 }, null],
+    [{ calories: 450, proteinG: "not-a-number", carbsG: 70, fatG: 12 }, null],
+    [{ calories: 450, proteinG: Number.NaN, carbsG: 70, fatG: 12 }, null],
+    [{ calories: 450, proteinG: 15, carbsG: Number.POSITIVE_INFINITY, fatG: 12 }, null],
+  ] as const)("keeps missing and invalid values unavailable while preserving real values", (input, expected) => {
+    expect(parseNutritionEstimate(input)).toEqual(expected);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Shared fixtures

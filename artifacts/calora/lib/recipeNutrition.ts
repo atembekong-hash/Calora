@@ -15,6 +15,13 @@ export function isFiniteNutritionValue(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+export function parseNutritionInput(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 export function hasCompleteNutrition(input: RecipeNutritionInput): boolean {
   return [input.calories, input.proteinG, input.carbsG, input.fatG].every(isFiniteNutritionValue);
 }

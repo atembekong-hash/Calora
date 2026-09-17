@@ -149,6 +149,26 @@ const THEMEALDB_TIMEOUT_MS = 8_000;
 
 type NutritionEstimate = { calories: number; proteinG: number; carbsG: number; fatG: number };
 
+function parseFiniteNutritionValue(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value >= 0 ? Math.round(value) : null;
+  }
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : null;
+}
+
+export function parseNutritionEstimate(input: Record<string, unknown>): NutritionEstimate | null {
+  const calories = parseFiniteNutritionValue(input.calories);
+  const proteinG = parseFiniteNutritionValue(input.proteinG);
+  const carbsG = parseFiniteNutritionValue(input.carbsG);
+  const fatG = parseFiniteNutritionValue(input.fatG);
+  if (calories === null || calories <= 0 || proteinG === null || carbsG === null || fatG === null) {
+    return null;
+  }
+  return { calories, proteinG, carbsG, fatG };
+}
+
 type ConceptRequest = {
   ingredients?: unknown;
   mealType?: unknown;
@@ -504,12 +524,7 @@ async function estimateNutrition(name: string, ingredients: string[]): Promise<N
     );
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const calories = Math.round(Number(parsed.calories) || 0);
-    const proteinG = Math.round(Number(parsed.proteinG) || 0);
-    const carbsG = Math.round(Number(parsed.carbsG) || 0);
-    const fatG = Math.round(Number(parsed.fatG) || 0);
-    if (calories <= 0) return null; // nonsensical estimate — skip
-    return { calories, proteinG, carbsG, fatG };
+    return parseNutritionEstimate(parsed);
   } catch {
     return null;
   } finally {

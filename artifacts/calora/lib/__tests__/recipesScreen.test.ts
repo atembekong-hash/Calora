@@ -127,4 +127,18 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
     expect(source).toContain('recipesScrollRef.current?.scrollTo({ y: section === \'discover\' ? discoverScrollYRef.current : 0, animated: false })');
   });
+
+  it('keeps blank user-entered macros unknown and renders partial nutrition explicitly', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('proteinG: parseNutritionInput(protein)');
+    expect(source).toContain('carbsG: parseNutritionInput(carbs)');
+    expect(source).toContain('fatG: parseNutritionInput(fat)');
+    expect(source).toContain('const nutritionIncomplete = nutritionState === \'available\' && !hasCompleteNutrition(detail)');
+    expect(source).toContain('Some nutrition values are unavailable from this recipe source.');
+    expect(source).toContain('formatRecipeNutrition(scaledProtein');
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition } from '../recipeNutrition';
+import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition, parseNutritionInput } from '../recipeNutrition';
 
 describe('recipe nutrition states', () => {
   it('keeps zero available while missing values remain unavailable', () => {
@@ -9,5 +9,17 @@ describe('recipe nutrition states', () => {
     expect(getRecipeNutritionState({ pending: true })).toBe('loading');
     expect(getRecipeNutritionState({ error: true })).toBe('error');
     expect(hasCompleteNutrition({ calories: 100, proteinG: null, carbsG: 1, fatG: 1 })).toBe(false);
+  });
+
+  it.each([
+    ['', null],
+    ['   ', null],
+    ['0', 0],
+    ['12.5', 12.5],
+    ['NaN', null],
+    ['Infinity', null],
+    ['-1', null],
+  ] as const)('parses nutrition input %j without fabricating zero', (input, expected) => {
+    expect(parseNutritionInput(input)).toBe(expected);
   });
 });
