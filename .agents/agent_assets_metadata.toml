@@ -56,3 +56,17 @@ mtime_ms = 1789567679520
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/f1a758da-8eca-42dc-b541-1fda5ee00396/1d651013-be4b-4e9a-b668-c461e1449130"
 storage_version_token = "1789567698169338"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "GZN4FRJa4gq2KrmNmefQj"
+uri = "file://55_CALORA_CONTROLLED_IOS_RELEASE_CANDIDATE_BUILD_REPORT.md"
+type = "text"
+title = "Calora Step 55 build report"
+description = "Owner-review report documenting the single finished EAS build, IPA identity, and blocked source-provenance verdict."
+logical_id = "b523a5bd-8a94-4ee5-b1d8-145186f9798b"
+content_hash = "sha256:7e71908925bb78883d283d8c0a52d99e01054c6a7b7090e03a2e7f7c2f1d3fea"
+size = 18972
+mtime_ms = 1789631219450
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/b523a5bd-8a94-4ee5-b1d8-145186f9798b/63a87f88-ef7e-416e-a25e-9da1e7c3eb28"
+storage_version_token = "1789631256685389"
+content_type = "text/markdown"

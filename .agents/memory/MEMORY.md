@@ -71,3 +71,4 @@
 - [Release verifier fixtures](release-verifier-fixtures.md) — synthetic verifier responses must include the complete attestation shape and same-origin response URL.
 - [Protected release check drift](protected-release-check-drift.md) — a required GitHub status can outlive or diverge from the workflow that should publish it; verify both sides.
 - [GitHub controller validity](github-actions-controller-validity.md) — an active workflow/run can still fail before jobs; compare same-push hosted runs and require controller or owner-UI evidence before patching.
+- [EAS worktree provenance](eas-worktree-provenance.md) — nested temporary worktrees can lose Git metadata to workspace checkpoints, causing EAS to fingerprint the outer repository.
