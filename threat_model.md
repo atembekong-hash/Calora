@@ -76,9 +76,16 @@ MUST require a valid Bearer token and derive identity server-side.
 
 Sync accepts a bounded outbox (≤100 mutations, UUID mutation ids, server-side
 idempotency table); deletes and updates are scoped to the authenticated owner.
-Referral qualification requires a server-owned capture/diary event, not a client
-claim. **Guarantee:** business-critical state (referral eligibility, ownership)
-MUST be validated server-side against server-recorded events.
+Referral qualification is server-owned and scoped to the authenticated user,
+but is **method-agnostic and content-unverified**: any single saved diary row
+qualifies (see `referral-qualification.ts` `hasSavedDiaryEntry`). Because both
+`POST /v1/diary` and `POST /v1/sync` accept fully client-controlled nutrition
+payloads with no required capture anchor, an attacker can fabricate a meal and
+farm 30-day Pro grants for referrer + referred across throwaway accounts
+(tracked as new finding AC-2026-001, HIGH). **Guarantee:** business-critical
+state (referral eligibility, ownership) MUST be validated server-side against a
+fraud-resistant server-recorded signal, not merely the existence of a
+client-populated row.
 
 ### Information Disclosure
 
