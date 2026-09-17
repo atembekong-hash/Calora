@@ -13,76 +13,6 @@ export interface HealthStatus {
   status: string;
 }
 
-export type ProfileInputGoal = typeof ProfileInputGoal[keyof typeof ProfileInputGoal];
-
-
-export const ProfileInputGoal = {
-  lose: 'lose',
-  maintain: 'maintain',
-  gain: 'gain',
-} as const;
-
-export type ProfileInputActivity = typeof ProfileInputActivity[keyof typeof ProfileInputActivity];
-
-
-export const ProfileInputActivity = {
-  low: 'low',
-  moderate: 'moderate',
-  high: 'high',
-} as const;
-
-export type ProfileInputDiet = typeof ProfileInputDiet[keyof typeof ProfileInputDiet];
-
-
-export const ProfileInputDiet = {
-  Everything: 'Everything',
-  Vegetarian: 'Vegetarian',
-  Vegan: 'Vegan',
-  High_protein: 'High protein',
-} as const;
-
-export interface ProfileInput {
-  /**
-     * @minLength 1
-     * @maxLength 120
-     */
-  name: string;
-  goal: ProfileInputGoal;
-  activity: ProfileInputActivity;
-  diet: ProfileInputDiet;
-  /**
-     * @minimum 13
-     * @maximum 120
-     */
-  age: number;
-  /**
-     * @minimum 80
-     * @maximum 250
-     */
-  heightCm: number;
-  /**
-     * @minimum 25
-     * @maximum 500
-     */
-  weightKg: number;
-  /**
-     * @minimum 25
-     * @maximum 500
-     */
-  targetWeightKg: number;
-  /**
-     * @minimum 800
-     * @maximum 10000
-     */
-  calorieTarget: number;
-  /** @minLength 1 */
-  consentVersion: string;
-}
-
-export type Profile = ProfileInput & {
-  updatedAt: string;
-};
-
 export interface Provenance {
   source: string;
   verifiedAt: string | null;
@@ -194,30 +124,6 @@ export interface DiaryEntryPatch {
   notes?: string | null;
   clientUpdatedAt?: string;
 }
-
-export type WeightEntryInputSource = typeof WeightEntryInputSource[keyof typeof WeightEntryInputSource];
-
-
-export const WeightEntryInputSource = {
-  manual: 'manual',
-  health: 'health',
-} as const;
-
-export interface WeightEntryInput {
-  entryDate: string;
-  /**
-     * @minimum 25
-     * @maximum 500
-     */
-  weightKg: number;
-  source: WeightEntryInputSource;
-  clientUpdatedAt: string;
-}
-
-export type WeightEntry = WeightEntryInput & {
-  id: string;
-  createdAt: string;
-};
 
 export type SyncMutationEntity = typeof SyncMutationEntity[keyof typeof SyncMutationEntity];
 
@@ -1650,11 +1556,6 @@ limit?: number;
 export type SearchFoods200 = {
   items: FoodItem[];
   provenance: Provenance;
-};
-
-export type ListWeightsParams = {
-from?: string;
-to?: string;
 };
 
 export type ListRecipesParams = {

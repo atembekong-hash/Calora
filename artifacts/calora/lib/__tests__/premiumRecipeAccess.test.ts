@@ -30,6 +30,11 @@ describe("Premium recipe display authorization", () => {
     })).toBe(true);
   });
 
+  it("uses a fresh account-scoped cache without treating stale cache as access proof", () => {
+    expect(hasCurrentPremiumAccess({ isSuccess: true, isFetchedAfterMount: false, isFetching: false, isStale: false })).toBe(true);
+    expect(hasCurrentPremiumAccess({ isSuccess: true, isFetchedAfterMount: false, isFetching: false, isStale: true })).toBe(false);
+  });
+
   it("keeps an already verified same-account catalogue visible during revalidation", () => {
     expect(canDisplayPremiumCatalogue({
       hasCurrentAccess: false,

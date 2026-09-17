@@ -10,14 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
-  - name: profile
-    description: User profile and consent
   - name: diary
     description: Food diary entries
   - name: foods
     description: Verified food search
-  - name: weights
-    description: Weight trend entries
   - name: sync
     description: Offline outbox synchronization
   - name: privacy
@@ -46,37 +42,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
-  /v1/profile:
-    get:
-      operationId: getProfile
-      tags: [profile]
-      summary: Get the current profile
-      security: [{ bearerAuth: [] }]
-      responses:
-        "200":
-          description: Current profile
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Profile"
-    put:
-      operationId: updateProfile
-      tags: [profile]
-      summary: Create or update the current profile
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ProfileInput"
-      responses:
-        "200":
-          description: Updated profile
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Profile"
   /v1/diary:
     get:
       operationId: listDiaryEntries
@@ -191,48 +156,6 @@ paths:
                       $ref: "#/components/schemas/FoodItem"
                   provenance:
                     $ref: "#/components/schemas/Provenance"
-  /v1/weights:
-    get:
-      operationId: listWeights
-      tags: [weights]
-      summary: List weight entries
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - name: from
-          in: query
-          required: false
-          schema: { type: string, format: date }
-        - name: to
-          in: query
-          required: false
-          schema: { type: string, format: date }
-      responses:
-        "200":
-          description: Weight entries
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/WeightEntry"
-    post:
-      operationId: createWeight
-      tags: [weights]
-      summary: Add a weight entry
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/WeightEntryInput"
-      responses:
-        "201":
-          description: Created weight entry
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/WeightEntry"
   /v1/sync:
     post:
       operationId: syncOutbox
@@ -763,27 +686,6 @@ components:
           type: string
       required:
         - status
-    ProfileInput:
-      type: object
-      required: [name, goal, activity, diet, age, heightCm, weightKg, targetWeightKg, calorieTarget, consentVersion]
-      properties:
-        name: { type: string, minLength: 1, maxLength: 120 }
-        goal: { type: string, enum: [lose, maintain, gain] }
-        activity: { type: string, enum: [low, moderate, high] }
-        diet: { type: string, enum: [Everything, Vegetarian, Vegan, "High protein"] }
-        age: { type: integer, minimum: 13, maximum: 120 }
-        heightCm: { type: number, minimum: 80, maximum: 250 }
-        weightKg: { type: number, minimum: 25, maximum: 500 }
-        targetWeightKg: { type: number, minimum: 25, maximum: 500 }
-        calorieTarget: { type: integer, minimum: 800, maximum: 10000 }
-        consentVersion: { type: string, minLength: 1 }
-    Profile:
-      allOf:
-        - $ref: "#/components/schemas/ProfileInput"
-        - type: object
-          required: [updatedAt]
-          properties:
-            updatedAt: { type: string, format: date-time }
     Provenance:
       type: object
       required: [source, verifiedAt, correctionVersion]
@@ -859,22 +761,6 @@ components:
         fatG: { type: number, minimum: 0 }
         notes: { type: string, nullable: true }
         clientUpdatedAt: { type: string, format: date-time }
-    WeightEntryInput:
-      type: object
-      required: [entryDate, weightKg, source, clientUpdatedAt]
-      properties:
-        entryDate: { type: string, format: date }
-        weightKg: { type: number, minimum: 25, maximum: 500 }
-        source: { type: string, enum: [manual, health] }
-        clientUpdatedAt: { type: string, format: date-time }
-    WeightEntry:
-      allOf:
-        - $ref: "#/components/schemas/WeightEntryInput"
-        - type: object
-          required: [id, createdAt]
-          properties:
-            id: { type: string, format: uuid }
-            createdAt: { type: string, format: date-time }
     SyncMutation:
       type: object
       required: [mutationId, entity, operation, clientUpdatedAt, payload]

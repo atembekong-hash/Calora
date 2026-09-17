@@ -33,6 +33,24 @@ test('accepts active App Store credentials with future expirations', () => {
   });
 });
 
+test('accepts active status representations after normalization', () => {
+  for (const status of ['ACTIVE', 'active', 'Active', '  active  ']) {
+    assert.equal(
+      evaluateCredentialReadiness(
+        validCredentials({
+          provisioningProfile: {
+            expiration: '2027-01-01T00:00:00.000Z',
+            status,
+          },
+        }),
+        now,
+      ).ready,
+      true,
+      `expected ${JSON.stringify(status)} to be accepted`,
+    );
+  }
+});
+
 test('warns separately for each signing credential inside the expiration window', () => {
   const result = evaluateCredentialExpiryRisk(
     validCredentials({
@@ -115,18 +133,20 @@ test('fails when the distribution certificate is expired', () => {
 });
 
 test('fails when the provisioning profile is not active', () => {
-  const result = evaluateCredentialReadiness(
-    validCredentials({
-      provisioningProfile: {
-        expiration: '2027-01-01T00:00:00.000Z',
-        status: 'REVOKED',
-      },
-    }),
-    now,
-  );
-  assert.equal(result.ready, false);
-  assert.equal(result.failureClass, 'EAS_RECORD');
-  assert.match(result.reason, /not active/i);
+  for (const status of ['REVOKED', 'EXPIRED', 'INACTIVE', 'INVALID', 'DISABLED', 'UNKNOWN', null]) {
+    const result = evaluateCredentialReadiness(
+      validCredentials({
+        provisioningProfile: {
+          expiration: '2027-01-01T00:00:00.000Z',
+          status,
+        },
+      }),
+      now,
+    );
+    assert.equal(result.ready, false, `expected ${String(status)} to be rejected`);
+    assert.equal(result.failureClass, 'EAS_RECORD');
+    assert.match(result.reason, /not active/i);
+  }
 });
 
 test('does not include certificate material in readiness output', () => {

@@ -33,6 +33,8 @@ import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/pr
 import { PREMIUM_RECIPE_REFRESH_POLICY } from '@/lib/premiumRecipeRefreshPolicy';
 import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premiumRecipeAccess';
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
+import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
+import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition, isFiniteNutritionValue, parseNutritionInput } from '@/lib/recipeNutrition';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -137,13 +139,13 @@ function RecipeMeta({ recipe, colors, compact = false }: { recipe: BrowseRecipe;
   const estimated = recipeProvenance(recipe).nutritionConfidence === 'estimated';
   // Non-local recipes always have AI-estimated nutrition — prefix with ~ so
   // the user knows it is approximate. Local recipes have user-entered values.
-  const nutrition = recipe.calories
+  const nutrition = isFiniteNutritionValue(recipe.calories)
     ? `${estimated ? '~' : ''}${formatCalories(recipe.calories)}`
     : recipeNutritionLabel(recipe);
   return (
     <View style={[styles.recipeMeta, compact && styles.compactRecipeMeta]}>
-      <Text style={[styles.recipeKcal, { color: recipe.calories ? colors.foreground : colors.warning }]}>{nutrition}</Text>
-      {recipe.proteinG ? <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{estimated ? '~' : ''}{formatGrams(recipe.proteinG)} P</Text> : null}
+      <Text style={[styles.recipeKcal, { color: isFiniteNutritionValue(recipe.calories) ? colors.foreground : colors.warning }]}>{nutrition}</Text>
+      {isFiniteNutritionValue(recipe.proteinG) ? <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{estimated ? '~' : ''}{formatGrams(recipe.proteinG)} P</Text> : null}
       {recipe.prepMinutes ? <Text style={[styles.recipeMetaText, { color: colors.mutedForeground }]}>{recipe.prepMinutes} min</Text> : null}
     </View>
   );
@@ -433,10 +435,12 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const [filterVisible, setFilterVisible] = useState(false);
   const [loadedRecipes, setLoadedRecipes] = useState<PremiumRecipe[]>([]);
   const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  const [freshnessVisit, setFreshnessVisit] = useState(0);
   const loadingMoreRef = useRef(false);
   const hasMountedFiltersRef = useRef(false);
   const premiumParams = { query: search || undefined, category: category || undefined, limit: RECIPE_PAGE_SIZE, offset };
   const userId = session?.user.id ?? null;
+  const freshnessSession = useMemo(() => getRecipeFreshnessSession(`plus:${userId ?? 'signed-out'}:${search}:${category}`), [category, search, userId]);
   const premiumQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(premiumParams));
   // Plus access is revalidated when this section mounts and when the app
   // returns to the foreground. Do not refetch on every browser focus or on a
@@ -457,7 +461,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const accessDenied = accessDeniedStatus !== null;
   // A cached response only describes a past entitlement. Never render it until
   // a request mounted for this screen has verified current server access.
-  const currentAccess = hasCurrentPremiumAccess(query);
+  const currentAccess = hasCurrentPremiumAccess({ ...query, isStale: query.isStale });
   const hasVerifiedCurrentAccount = loadedForUserId === userId;
   const canDisplayCatalogue = canDisplayPremiumCatalogue({
     hasCurrentAccess: currentAccess,
@@ -489,10 +493,14 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   }, [query.refetch]);
   useEffect(() => {
     if (!data?.recipes) return;
-    setLoadedRecipes((current) => offset === 0 || loadedForUserId !== userId ? data.recipes : [...current, ...data.recipes.filter((recipe) => !current.some((item) => item.id === recipe.id))]);
+    setLoadedRecipes((current) => offset === 0 || loadedForUserId !== userId ? mergeRecipePages([], data.recipes) : mergeRecipePages(current, data.recipes));
     setLoadedForUserId(userId);
     loadingMoreRef.current = false;
   }, [data?.recipes, loadedForUserId, offset, userId]);
+  useEffect(() => {
+    if (!visible || !userId) return;
+    setFreshnessVisit(freshnessSession.beginVisit());
+  }, [freshnessSession, userId, visible]);
   useEffect(() => {
     onLoadedRecipesChange(loadedRecipes);
   }, [loadedRecipes, onLoadedRecipesChange]);
@@ -548,6 +556,11 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const fetchedSavedRecipes = missingSavedQueries
     .filter((savedQuery) => savedQuery.isSuccess && !savedQuery.error && savedQuery.data)
     .map((savedQuery) => savedQuery.data as PremiumRecipe);
+  const recipes = useMemo(() => freshnessSession.order(loadedRecipes, freshnessVisit), [freshnessSession, freshnessVisit, loadedRecipes]);
+  useEffect(() => {
+    if (!visible || !userId || freshnessVisit === 0 || recipes.length === 0) return;
+    freshnessSession.remember(recipes.slice(0, RECIPE_PAGE_SIZE));
+  }, [freshnessSession, freshnessVisit, recipes, userId, visible]);
   if (!visible) return null;
   if (!session) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Plus sources require sign-in.</Text><Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text></Pressable></View>;
   if (accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="award" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{accessDeniedStatus === 401 ? 'Sign in for Plus recipes' : 'Plus required'}</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{accessDeniedStatus === 401 ? 'Your session ended. Sign in again.' : 'An active Calora Plus membership is required.'}</Text><Pressable accessibilityLabel={accessDeniedStatus === 401 ? 'Sign in to access Plus recipes' : 'View Plus membership options'} onPress={() => accessDeniedStatus === 401 ? router.push('/auth/sign-in') : router.push({ pathname: '/(tabs)/profile', params: { tab: 'membership' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>{accessDeniedStatus === 401 ? 'Sign in' : 'View membership'}</Text></Pressable></View>;
@@ -559,7 +572,6 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   if (data?.status === 'error' && !hasLoadedRecipes) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus is unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'Try again. Discover is still available.'}</Text><Pressable accessibilityLabel="Retry loading Plus recipes" onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
    if (data?.status === 'restricted') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus recipes are not available</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'This recipe provider is not enabled for this account yet. Discover remains available.'}</Text></View>;
    if (data?.status === 'unavailable') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="link-2" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus source not connected</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message}</Text></View>;
-  const recipes = loadedRecipes;
   const savedRecipes = mergeSavedPremiumRecipes(savedRecipeIds, knownSavedRecipes, fetchedSavedRecipes);
   return (
     <>
@@ -857,7 +869,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   }
 
   if (!detail) return null;
-  const canLog = Boolean(detail.calories && detail.calories > 0);
+  const canLog = isFiniteNutritionValue(detail.calories) && detail.calories >= 0;
   // True when the server returned nutritionPending: the recipe is loaded but
   // AI estimation is running in the background — poll until it lands.
   const nutritionPending = !local && !premium && Boolean((detailQuery.data as (Recipe & { nutritionPending?: boolean }) | undefined)?.nutritionPending);
@@ -873,10 +885,12 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
 
   // Nutrition scaled to current servingCount for display
   const approxPrefix = recipeProvenance(detail).nutritionConfidence === 'estimated' ? '~' : '';
-  const scaledKcal = detail.calories ? Math.round(detail.calories * servingCount) : null;
-  const scaledProtein = detail.proteinG ? Math.round(detail.proteinG * servingCount) : null;
-  const scaledCarbs = detail.carbsG ? Math.round(detail.carbsG * servingCount) : null;
-  const scaledFat = detail.fatG ? Math.round(detail.fatG * servingCount) : null;
+  const nutritionState = getRecipeNutritionState({ calories: detail.calories, proteinG: detail.proteinG, carbsG: detail.carbsG, fatG: detail.fatG, loading: isFetchingDetail, pending: nutritionPending, unavailable: nutritionUnavailable || premiumNutritionUnavailable, error: premium ? premiumDetailQuery.isError : detailQuery.isError });
+  const scaledKcal = isFiniteNutritionValue(detail.calories) ? detail.calories * servingCount : null;
+  const scaledProtein = isFiniteNutritionValue(detail.proteinG) ? detail.proteinG * servingCount : null;
+  const scaledCarbs = isFiniteNutritionValue(detail.carbsG) ? detail.carbsG * servingCount : null;
+  const scaledFat = isFiniteNutritionValue(detail.fatG) ? detail.fatG * servingCount : null;
+  const nutritionIncomplete = nutritionState === 'available' && !hasCompleteNutrition(detail);
   const servingLabel = servingCount === 0.5 ? '½' : servingCount === 1.5 ? '1½' : servingCount === 2.5 ? '2½' : servingCount === 3.5 ? '3½' : String(servingCount);
 
   // --- review flow (local recipes only) ---
@@ -916,10 +930,10 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     // Pre-scale the nutrition so eatenFraction=1.0 in the draft equals exactly what the user selected
     const scaled = {
       ...detail,
-      calories: detail.calories ? detail.calories * diaryServings : null,
-      proteinG: detail.proteinG ? detail.proteinG * diaryServings : null,
-      carbsG: detail.carbsG ? detail.carbsG * diaryServings : null,
-      fatG: detail.fatG ? detail.fatG * diaryServings : null,
+      calories: isFiniteNutritionValue(detail.calories) ? detail.calories * diaryServings : null,
+      proteinG: isFiniteNutritionValue(detail.proteinG) ? detail.proteinG * diaryServings : null,
+      carbsG: isFiniteNutritionValue(detail.carbsG) ? detail.carbsG * diaryServings : null,
+      fatG: isFiniteNutritionValue(detail.fatG) ? detail.fatG * diaryServings : null,
     };
     const draft = createRecipeDraft(scaled, dateKey(), diaryMealType);
     // Pass the draft directly: createRecipeDraft calls setFoodDrafts which is
@@ -956,6 +970,11 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   };
   const addToPlan = () => {
     if (!detail) return;
+    const { calories, proteinG, carbsG, fatG } = detail;
+    if (!isFiniteNutritionValue(calories) || !isFiniteNutritionValue(proteinG) || !isFiniteNutritionValue(carbsG) || !isFiniteNutritionValue(fatG)) {
+      onPlanned('Nutrition is unavailable for this recipe, so it was not added to your plan.');
+      return;
+    }
     const plannedMeal: PlannerMeal = {
       id: `recipe-plan-${Date.now()}-${detail.id}`,
       day: planDay,
@@ -963,10 +982,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
       name: detail.name,
       image: detail.image ?? '',
       serving: '1 serving',
-      calories: Number(detail.calories) || 0,
-      proteinG: Number(detail.proteinG) || 0,
-      carbsG: Number(detail.carbsG) || 0,
-      fatG: Number(detail.fatG) || 0,
+      calories, proteinG, carbsG, fatG,
       ingredients: detail.ingredients ?? [],
       description: detail.description ?? 'A recipe added to your weekly plan.',
       prepMinutes: detail.prepMinutes ?? undefined,
@@ -1036,20 +1052,20 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
 
                 {/* Nutrition strip — values scale with servingCount */}
                 <Surface tier="flat" radius="lg" style={styles.nutritionStrip}>
-                  {(isFetchingDetail && !detail.calories) || nutritionPending ? (
+                  {nutritionState === 'loading' ? (
                     <View style={styles.nutritionLoading}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>{nutritionPending ? 'Estimating nutrition…' : 'Estimating nutrition…'}</Text></View>
-                  ) : nutritionUnavailable || premiumNutritionUnavailable ? (
+                  ) : nutritionState === 'unavailable' || nutritionState === 'error' ? (
                     <View style={styles.nutritionLoading}>
                       <Feather name="alert-circle" size={14} color={colors.mutedForeground} />
-                      <Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>Nutrition unavailable</Text>
-                      {!premium && <Pressable accessibilityLabel="Retry nutrition estimate" onPress={() => detailQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable>}
+                      <Text style={[styles.nutritionLoadingText, { color: colors.mutedForeground }]}>{nutritionState === 'error' ? 'Nutrition could not load' : 'Nutrition unavailable'}</Text>
+                      <Pressable accessibilityLabel="Retry nutrition estimate" onPress={() => premium ? premiumDetailQuery.refetch() : detailQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable>
                     </View>
                   ) : (
                     <>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: scaledKcal ? colors.foreground : colors.mutedForeground }]}>{scaledKcal ? `${approxPrefix}${scaledKcal}` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{scaledProtein ? `${approxPrefix}${scaledProtein}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{scaledCarbs ? `${approxPrefix}${scaledCarbs}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
-                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{scaledFat ? `${approxPrefix}${scaledFat}g` : '—'}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: isFiniteNutritionValue(scaledKcal) ? colors.foreground : colors.mutedForeground }]}>{formatRecipeNutrition(scaledKcal, '', approxPrefix === '~')}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>kcal</Text></View>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatRecipeNutrition(scaledProtein, 'g', approxPrefix === '~')}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>protein</Text></View>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatRecipeNutrition(scaledCarbs, 'g', approxPrefix === '~')}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>carbs</Text></View>
+                      <View style={styles.nutritionCell}><Text style={[styles.nutritionValue, { color: colors.foreground }]}>{formatRecipeNutrition(scaledFat, 'g', approxPrefix === '~')}</Text><Text style={[styles.nutritionLabel, { color: colors.mutedForeground }]}>fat</Text></View>
                     </>
                   )}
                 </Surface>
@@ -1084,6 +1100,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                 {!local && canLog && recipeProvenance(detail).nutritionConfidence === 'estimated' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="cpu" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Estimated per serving; values may vary.</Text></View>}
                 {premium && recipeProvenance(detail).nutritionConfidence === 'verified' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="check-circle" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Verified nutrition: {recipeProvenance(detail).nutritionSource}</Text></View>}
                 {nutritionUnavailable && !isFetchingDetail && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Nutrition estimate failed. Retry above or check back later.</Text></View>}
+                {nutritionIncomplete && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="info" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Some nutrition values are unavailable from this recipe source.</Text></View>}
                  {isLocalRecipe(detail) && ['calora_ai', 'user_created'].includes(recipeProvenance(detail).sourceType) && detail.imageStatus === 'failed' && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="image" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Recipe photo unavailable.</Text><Pressable accessibilityLabel="Retry recipe photo" onPress={() => onRetryPhoto(detail)}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}
                 {!canLog && !nutritionUnavailable && !local && !detailQuery.isLoading && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>No verified nutrition. Save it, then add nutrition before logging.</Text></View>}
                 {premiumFields && ((premiumFields.dietary?.length ?? 0) || (premiumFields.allergens?.length ?? 0) || (premiumFields.equipment?.length ?? 0) || premiumFields.fiberG || premiumFields.sodiumMg) ? <View style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{premiumFields.dietary?.length ? `Dietary: ${premiumFields.dietary.join(', ')}. ` : ''}{premiumFields.allergens?.length ? `Allergens: ${premiumFields.allergens.join(', ')}. ` : ''}{premiumFields.equipment?.length ? `Equipment: ${premiumFields.equipment.join(', ')}. ` : ''}{premiumFields.fiberG ? `Fiber ${premiumFields.fiberG}g. ` : ''}{premiumFields.sodiumMg ? `Sodium ${premiumFields.sodiumMg}mg.` : ''}</Text></View> : null}
@@ -1235,9 +1252,9 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
             <View style={[styles.reviewTotalCard, { backgroundColor: colors.hero, marginTop: 14 }]}>
               <View>
                 <Text style={[styles.reviewTotalLabel, { color: colors.heroMuted }]}>YOU'RE LOGGING</Text>
-                <Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{Math.round((detail.calories ?? 0) * diaryServings)} kcal</Text>
+                <Text style={[styles.reviewTotalValue, { color: colors.onHero }]}>{formatRecipeNutrition(isFiniteNutritionValue(detail.calories) ? detail.calories * diaryServings : null, ' kcal')}</Text>
               </View>
-              <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {Math.round((detail.proteinG ?? 0) * diaryServings)}g{'\n'}C {Math.round((detail.carbsG ?? 0) * diaryServings)}g{'\n'}F {Math.round((detail.fatG ?? 0) * diaryServings)}g</Text>
+              <Text style={[styles.reviewTotalMacros, { color: colors.heroMuted }]}>P {formatRecipeNutrition(isFiniteNutritionValue(detail.proteinG) ? detail.proteinG * diaryServings : null, 'g')}{'\n'}C {formatRecipeNutrition(isFiniteNutritionValue(detail.carbsG) ? detail.carbsG * diaryServings : null, 'g')}{'\n'}F {formatRecipeNutrition(isFiniteNutritionValue(detail.fatG) ? detail.fatG * diaryServings : null, 'g')}</Text>
             </View>
             <ScalePressable accessibilityLabel="Confirm diary entry" onPress={logToDiary} scale={0.96} haptic="light" style={[styles.primaryAction, { backgroundColor: diaryLogged ? colors.accent : colors.primary }]}>
               <Feather name={diaryLogged ? 'check-circle' : 'plus-circle'} size={16} color={diaryLogged ? colors.accentForeground : colors.primaryForeground} />
@@ -1305,8 +1322,19 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
       setError('Enter a recipe name.');
       return;
     }
-    if (!Number.isFinite(Number(calories)) || Number(calories) <= 0) {
+    const parsedCalories = parseNutritionInput(calories);
+    if (parsedCalories === null || parsedCalories <= 0) {
       setError('Enter calories above zero to log this recipe.');
+      return;
+    }
+    const optionalMacros = [
+      ['Protein', protein],
+      ['Carbs', carbs],
+      ['Fat', fat],
+    ] as const;
+    const invalidMacro = optionalMacros.find(([label, value]) => value.trim() && parseNutritionInput(value) === null);
+    if (invalidMacro) {
+      setError(`${invalidMacro[0]} must be a finite number from 0 to 100,000.`);
       return;
     }
     Keyboard.dismiss();
@@ -1316,10 +1344,10 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
       tags: ['My recipes'],
       source: `Created in ${BRAND.name}`,
       sourceUrl: URLS.main,
-      calories: Number(calories),
-      proteinG: Number(protein) || 0,
-      carbsG: Number(carbs) || 0,
-      fatG: Number(fat) || 0,
+      calories: parsedCalories,
+      proteinG: parseNutritionInput(protein),
+      carbsG: parseNutritionInput(carbs),
+      fatG: parseNutritionInput(fat),
       category: 'Personal',
       area: null,
       image: null,
@@ -1388,7 +1416,9 @@ export default function RecipesScreen() {
   const [planNoticeVisible, setPlanNoticeVisible] = useState(false);
   const planNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [remoteOffset, setRemoteOffset] = useState(0);
+  const [remoteNextOffset, setRemoteNextOffset] = useState<number | null>(0);
   const [remoteRecipes, setRemoteRecipes] = useState<Recipe[]>([]);
+  const [discoverFreshnessVisit, setDiscoverFreshnessVisit] = useState(0);
   const [premiumSavedRecipes, setPremiumSavedRecipes] = useState<PremiumRecipe[]>([]);
   const [premiumCatalogueRecipes, setPremiumCatalogueRecipes] = useState<PremiumRecipe[]>([]);
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
@@ -1409,28 +1439,35 @@ export default function RecipesScreen() {
     const matchesSearch = haystack.includes(search.toLowerCase());
     return matchesSearch;
   }), [category, localRecipes, search]);
+  const discoverFreshnessSession = useMemo(() => getRecipeFreshnessSession(`discover:${user?.id ?? 'signed-out'}:${search}:${category}`), [category, search, user?.id]);
   const recipesQuery = useListRecipes({ query: search || undefined, category: category === 'For you' || category === 'My recipes' || category === 'Quick' ? undefined : category, limit: RECIPE_PAGE_SIZE, offset: remoteOffset }, { query: { queryKey: ['recipes', search, category, remoteOffset], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   useEffect(() => {
     setRemoteOffset(0);
+    setRemoteNextOffset(0);
     setRemoteRecipes([]);
     setHasMoreRemote(true);
     loadingMoreRef.current = false;
   }, [search, category]);
   useEffect(() => {
-    const page = recipesQuery.data?.recipes;
+    const response = recipesQuery.data;
+    const page = response?.recipes;
     if (!page) return;
     setRemoteRecipes((current) => {
-      if (remoteOffset === 0) return page;
-      const existing = new Set(current.map((recipe) => recipe.id));
-      return [...current, ...page.filter((recipe) => !existing.has(recipe.id))];
+      if (remoteOffset === 0) return mergeRecipePages([], page);
+      return mergeRecipePages(current, page);
     });
-    setHasMoreRemote(page.length === RECIPE_PAGE_SIZE);
+    setRemoteNextOffset(response?.nextOffset ?? null);
+    setHasMoreRemote(response?.nextOffset != null);
     loadingMoreRef.current = false;
   }, [recipesQuery.data, remoteOffset]);
   useEffect(() => {
+    if (activeSection !== 'discover') return;
+    setDiscoverFreshnessVisit(discoverFreshnessSession.beginVisit());
+  }, [activeSection, discoverFreshnessSession]);
+  useEffect(() => {
     const page = recipesQuery.data?.recipes;
-    if (category === 'My recipes' || !page || page.length < RECIPE_PAGE_SIZE) return;
-    const nextOffset = remoteOffset + RECIPE_PAGE_SIZE;
+    const nextOffset = recipesQuery.data?.nextOffset;
+    if (category === 'My recipes' || !page || nextOffset == null) return;
     const params = {
       query: search || undefined,
       category: category === 'For you' || category === 'Quick' ? undefined : category,
@@ -1442,7 +1479,7 @@ export default function RecipesScreen() {
       queryFn: ({ signal }) => listRecipes(params, { signal }),
       staleTime: 1000 * 60 * 10,
     }).catch(() => undefined);
-  }, [category, queryClient, recipesQuery.data?.recipes, remoteOffset, search]);
+  }, [category, queryClient, recipesQuery.data?.nextOffset, recipesQuery.data?.recipes, search]);
   useEffect(() => {
     if (!recipeId) return;
     const matchingRecipe = [...localRecipes, ...remoteRecipes].find((recipe) => recipe.id === recipeId);
@@ -1482,7 +1519,12 @@ export default function RecipesScreen() {
   }, [localRecipes, updateRecipe]);
   const selectedRecipe = selected && isLocalRecipe(selected) ? localRecipes.find((recipe) => recipe.id === selected.id) ?? selected : selected;
   const visibleLocal = category === 'My recipes' ? localMatches : [];
-  const visibleRemote = category === 'My recipes' ? [] : category === 'Quick' ? remoteRecipes.filter((r) => r.prepMinutes != null && r.prepMinutes <= 30) : remoteRecipes;
+  const freshRemoteRecipes = useMemo(() => discoverFreshnessSession.order(remoteRecipes, discoverFreshnessVisit), [discoverFreshnessSession, discoverFreshnessVisit, remoteRecipes]);
+  useEffect(() => {
+    if (activeSection !== 'discover' || discoverFreshnessVisit === 0 || freshRemoteRecipes.length === 0) return;
+    discoverFreshnessSession.remember(freshRemoteRecipes.slice(0, RECIPE_PAGE_SIZE));
+  }, [activeSection, discoverFreshnessSession, discoverFreshnessVisit, freshRemoteRecipes]);
+  const visibleRemote = category === 'My recipes' ? [] : category === 'Quick' ? freshRemoteRecipes.filter((r) => r.prepMinutes != null && r.prepMinutes <= 30) : freshRemoteRecipes;
   const recipeSuggestions = useMemo(() => {
     const premiumSelected = selectedRecipe ? recipeProvenance(selectedRecipe).sourceType === 'premium' : false;
     const pool: BrowseRecipe[] = premiumSelected
@@ -1493,9 +1535,9 @@ export default function RecipesScreen() {
   const savedRecipes = [...localRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
   const savedDiscoverRecipes = savedRecipes.filter((recipe) => !isLocalRecipe(recipe));
   const loadMoreRecipes = () => {
-    if (activeSection !== 'discover' || category === 'My recipes' || !hasMoreRemote || recipesQuery.isFetching || loadingMoreRef.current) return;
+    if (activeSection !== 'discover' || category === 'My recipes' || !hasMoreRemote || remoteNextOffset == null || recipesQuery.isFetching || loadingMoreRef.current) return;
     loadingMoreRef.current = true;
-    setRemoteOffset((current) => current + RECIPE_PAGE_SIZE);
+    setRemoteOffset(remoteNextOffset);
   };
   const loadMorePremiumRecipesIfAtEnd = () => {
     const { offsetY, viewportHeight, contentHeight } = recipeScrollMetricsRef.current;

@@ -24,6 +24,7 @@ import { ShoppingListSheet } from '@/components/ShoppingListSheet';
 import { SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
+import { parseNutritionInput } from '@/lib/recipeNutrition';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
@@ -43,9 +44,8 @@ function formatShoppingDays(days: string[] | undefined): string {
 }
 
 function parseNutritionValue(value: string, label: string): number | null {
-  if (!value.trim()) return 0;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100000) return null;
+  const parsed = parseNutritionInput(value);
+  if (parsed === null || parsed > 100000) return null;
   return parsed;
 }
 
@@ -444,6 +444,7 @@ export default function PlannerScreen() {
       setFormError(`${invalid[0][0].toUpperCase()} must be a finite number from 0 to 100,000.`);
       return;
     }
+    const [calories, proteinG, carbsG, fatG] = nutrition.map(([, value]) => value as number);
     // An edited program-generated meal becomes user-authored (edited- id) so an
     // explicit Program rebuild preserves it. Diary logs referencing the old id
     // are re-pointed so the "Logged" link survives the re-id.
@@ -453,10 +454,10 @@ export default function PlannerScreen() {
       id: nextId,
       name: editName.trim(),
       serving: editServing.trim() || '1 serving',
-       calories: nutrition[0][1] ?? 0,
-       proteinG: nutrition[1][1] ?? 0,
-       carbsG: nutrition[2][1] ?? 0,
-       fatG: nutrition[3][1] ?? 0,
+       calories,
+       proteinG,
+       carbsG,
+       fatG,
     } : meal);
     if (nextId !== editMeal.id) {
       logs.filter((log) => log.plannerMealId === editMeal.id).forEach((log) => updateLog(log.id, { plannerMealId: nextId }));
@@ -498,6 +499,7 @@ export default function PlannerScreen() {
       setFormError(`${invalid[0][0][0].toUpperCase() + invalid[0][0].slice(1)} must be a finite number from 0 to 100,000.`);
       return;
     }
+    const [calories, proteinG, carbsG, fatG] = nutrition.map(([, value]) => value as number);
     const targetDay = customMealReplaceTarget?.day ?? selectedDay;
     const custom: PlannerMeal = {
       id: `custom-${Date.now()}`,
@@ -506,10 +508,10 @@ export default function PlannerScreen() {
       name: customName.trim(),
       image: '',
       serving: customServing.trim() || '1 serving',
-       calories: nutrition[0][1] ?? 0,
-       proteinG: nutrition[1][1] ?? 0,
-       carbsG: nutrition[2][1] ?? 0,
-       fatG: nutrition[3][1] ?? 0,
+       calories,
+       proteinG,
+       carbsG,
+       fatG,
       ingredients: customIngredients.split(/[,;\n]/).map((item) => item.trim()).filter(Boolean),
       description: 'A custom meal added to your plan.',
     };

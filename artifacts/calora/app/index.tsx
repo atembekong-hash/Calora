@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   Easing,
@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useCalora, ActivityLevel, DietPreference, Goal, OnboardingDraft, Profile } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
 import { formatWhole } from '@/lib/formatters';
@@ -265,6 +266,8 @@ export default function OnboardingScreen() {
     }
     moveToStep(Math.min(step + 1, ONBOARDING_STEPS - 1));
   };
+  const isFinalStep = step === ONBOARDING_STEPS - 1;
+  const keyboardDismissMode = Platform.OS === 'ios' ? 'interactive' : 'on-drag';
 
   // Show generic loading only on the initial read — not during a retry, where
   // the error screen (with its spinner button) should remain visible instead.
@@ -368,7 +371,13 @@ export default function OnboardingScreen() {
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 22, paddingBottom: insets.bottom + 30 }]} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollViewCompat
+        testID="onboarding-keyboard-safe-scroll"
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 22, paddingBottom: insets.bottom + 32 }]}
+        bottomOffset={insets.bottom + 72}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={keyboardDismissMode}
+      >
          <View style={styles.progressRow}>
           <View style={styles.brandMark}><Feather name="sun" size={18} color={colors.primaryForeground} /></View>
           <Text style={[styles.brand, { color: colors.foreground }]}>{BRAND.name}</Text>
@@ -412,9 +421,9 @@ export default function OnboardingScreen() {
              <Text style={[styles.title, { color: colors.foreground }]}>Let’s make this personal.</Text>
              <Text style={[styles.body, { color: colors.mutedForeground }]}>A few basics help Calora speak to you, not at you.</Text>
              <OnboardingIllustration scene="basics" colors={colors} />
-             <View style={styles.formGrid}>
-               <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>What should we call you?</Text><TextInput value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
-               <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>Age</Text><TextInput value={age} onChangeText={(nextValue) => { setAge(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
+              <View style={styles.formGrid}>
+                <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>What should we call you?</Text><TextInput testID="onboarding-name-input" accessibilityLabel="Your name" value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
+                <View style={styles.fullField}><Text style={[styles.label, { color: colors.mutedForeground }]}>Age</Text><TextInput testID="onboarding-age-input" accessibilityLabel="Age" value={age} onChangeText={(nextValue) => { setAge(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.input }]} /></View>
              </View>
            </View>
          )}
@@ -424,8 +433,8 @@ export default function OnboardingScreen() {
             <Text style={[styles.title, { color: colors.foreground }]}>Set your starting target.</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>These details create a starting estimate, not a medical recommendation.</Text>
              <OnboardingIllustration scene="metrics" colors={colors} />
-            <View style={styles.formGrid}>
-               {[['Height (cm)', height, setHeight], ['Current weight (kg)', weight, setWeight], ['Goal weight (kg)', targetWeight, setTargetWeight]].map(([label, value, setter]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput value={value as string} onChangeText={(nextValue) => { (setter as (value: string) => void)(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: personalDetailsError ? colors.destructive : colors.input }]} /></View>)}
+             <View style={styles.formGrid}>
+                {[['Height (cm)', height, setHeight, 'onboarding-height-input'], ['Current weight (kg)', weight, setWeight, 'onboarding-weight-input'], ['Goal weight (kg)', targetWeight, setTargetWeight, 'onboarding-target-weight-input']].map(([label, value, setter, testID]) => <View key={label as string} style={styles.halfField}><Text style={[styles.label, { color: colors.mutedForeground }]}>{label as string}</Text><TextInput testID={testID as string} accessibilityLabel={label as string} value={value as string} onChangeText={(nextValue) => { (setter as (value: string) => void)(nextValue); if (personalDetailsError) setPersonalDetailsError(''); }} keyboardType="decimal-pad" style={[styles.input, { color: colors.foreground, backgroundColor: colors.card, borderColor: personalDetailsError ? colors.destructive : colors.input }]} /></View>)}
             </View>
              {!!personalDetailsError && <Text accessibilityRole="alert" style={[styles.personalDetailsError, { color: colors.destructive }]}>{personalDetailsError}</Text>}
              <View style={[styles.targetPreview, { backgroundColor: colors.accent }]}><Feather name="target" size={18} color={colors.accentForeground} /><Text style={[styles.targetText, { color: colors.accentForeground }]}>{calorieTarget === null ? 'Enter valid details to see your starting target.' : <>Starting target: <Text style={styles.targetBold}>{formatWhole(calorieTarget)} kcal/day</Text></>}</Text></View>
@@ -462,9 +471,17 @@ export default function OnboardingScreen() {
             <Text style={[styles.title, { color: colors.foreground }]}>Review before you start.</Text>
             <Text style={[styles.body, { color: colors.mutedForeground }]}>{BRAND.name} is a wellness tool, not a doctor. Your data stays local in this preview and can be exported or deleted from settings.</Text>
              <OnboardingIllustration scene="review" colors={colors} />
-            <Pressable onPress={() => setConsent(!consent)} style={[styles.consentCard, { backgroundColor: consent ? colors.accent : colors.card, borderColor: consent ? colors.primary : colors.border }]}>
-              <View style={[styles.consentCheck, { backgroundColor: consent ? colors.primary : colors.muted }]}><Feather name={consent ? 'check' : 'shield'} size={17} color={consent ? colors.primaryForeground : colors.mutedForeground} /></View>
-              <View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: colors.foreground }]}>I understand and agree</Text><Text style={[styles.optionBody, { color: colors.mutedForeground }]}>I’ll review AI estimates before logging them and understand calorie targets are starting estimates.</Text></View>
+             <Pressable
+               testID="onboarding-consent"
+               accessibilityRole="checkbox"
+               accessibilityState={{ checked: consent }}
+               accessibilityLabel="Required agreement: I understand and agree"
+               accessibilityHint={consent ? 'Required agreement accepted. Tap to withdraw consent.' : 'Required agreement. Tap to agree before entering Calora.'}
+               onPress={() => setConsent((current) => !current)}
+               style={[styles.consentCard, { backgroundColor: consent ? colors.accent : colors.card, borderColor: consent ? colors.primary : colors.border }]}
+             >
+               <View style={[styles.consentCheck, { backgroundColor: consent ? colors.primary : colors.muted }]}><Feather name={consent ? 'check' : 'circle'} size={17} color={consent ? colors.primaryForeground : colors.mutedForeground} /></View>
+               <View style={{ flex: 1 }}><Text style={[styles.optionTitle, { color: colors.foreground }]}>Required agreement</Text><Text style={[styles.optionBody, { color: colors.mutedForeground }]}>{consent ? 'Agreed. ' : 'Tap to agree. '}I’ll review AI estimates before logging them and understand calorie targets are starting estimates.</Text></View>
             </Pressable>
             <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.summaryCalories, { color: colors.foreground }]}>{formatWhole(calorieTarget)} <Text style={[styles.summaryUnit, { color: colors.mutedForeground }]}>kcal/day</Text></Text>
@@ -476,9 +493,9 @@ export default function OnboardingScreen() {
 
         <View style={styles.bottomActions}>
            {step > 0 && <Pressable onPress={() => moveToStep(step - 1)} style={styles.backButton}><Feather name="arrow-left" size={18} color={colors.mutedForeground} /><Text style={[styles.backText, { color: colors.mutedForeground }]}>Back</Text></Pressable>}
-           <Pressable disabled={step === ONBOARDING_STEPS - 1 && !consent} onPress={step === ONBOARDING_STEPS - 1 ? finish : next} style={[styles.continueButton, { backgroundColor: step === ONBOARDING_STEPS - 1 && !consent ? colors.muted : colors.primary }]}><Text style={[styles.continueText, { color: step === ONBOARDING_STEPS - 1 && !consent ? colors.mutedForeground : colors.primaryForeground }]}>{step === ONBOARDING_STEPS - 1 ? `Enter ${BRAND.name}` : 'Continue'}</Text><Feather name="arrow-right" size={17} color={step === ONBOARDING_STEPS - 1 && !consent ? colors.mutedForeground : colors.primaryForeground} /></Pressable>
+            <Pressable testID={isFinalStep ? 'onboarding-finish' : 'onboarding-continue'} accessibilityRole="button" accessibilityLabel={isFinalStep ? `Enter ${BRAND.name}` : 'Continue onboarding'} accessibilityState={{ disabled: isFinalStep && !consent }} disabled={isFinalStep && !consent} onPress={isFinalStep ? finish : next} style={[styles.continueButton, { backgroundColor: isFinalStep && !consent ? colors.muted : colors.primary }]}><Text style={[styles.continueText, { color: isFinalStep && !consent ? colors.mutedForeground : colors.primaryForeground }]}>{isFinalStep ? `Enter ${BRAND.name}` : 'Continue'}</Text><Feather name="arrow-right" size={17} color={isFinalStep && !consent ? colors.mutedForeground : colors.primaryForeground} /></Pressable>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
     </View>
   );
 }

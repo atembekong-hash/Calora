@@ -22,8 +22,6 @@
 - [CaloraApp metadata lock-in](caloraapp-metadata-lockin.md) — canonical identity (brand.ts), preserved internal identifiers, and post-rename conventions.
 - [Referral rewards design](referral-rewards.md) — server-authoritative, claim-first idempotent RevenueCat promo grants that always extend end dates; cap counted under a row lock.
 - [EAS release versioning](eas-release-versioning.md) — production auto-increment can override explicit native versions and must be reconciled before queuing release builds.
-- [App Store Connect TestFlight groups](apple-testflight-group-query.md) — prove internal assignment through the beta-group builds collection; inverse relationship reads may be forbidden.
-- [Historical branch evidence](historical-branch-evidence.md) — old closure reports and release branches require current-tree and ancestry proof before recovery.
 - [Program provenance](program-provenance.md) — record which Program shaped a week only when generation materially changed it; server 200 starter responses are fallbacks, never Program-shaped.
 - [Authenticated request retry](authed-request-retry.md) — a 401 with a token means refresh once and retry; sign-in prompts only when there is truly no session.
 - [Rapid interaction QA](rapid-interaction-qa.md) — short tap guards need a true same-action gesture test, not two delayed automation commands.
@@ -73,4 +71,3 @@
 - [Release verifier fixtures](release-verifier-fixtures.md) — synthetic verifier responses must include the complete attestation shape and same-origin response URL.
 - [Protected release check drift](protected-release-check-drift.md) — a required GitHub status can outlive or diverge from the workflow that should publish it; verify both sides.
 - [GitHub controller validity](github-actions-controller-validity.md) — an active workflow/run can still fail before jobs; compare same-push hosted runs and require controller or owner-UI evidence before patching.
-- [Release source freeze hygiene](release-source-freeze-hygiene.md) — report and attachment commits can diverge local main from an approved release SHA; re-freeze before native work.
