@@ -31,7 +31,7 @@ export function recipeProvenance(recipe: RecipeLike): CanonicalRecipeProvenance 
   const extendedRecipe = recipe as CaloraRecipe;
   const explicitType = extendedRecipe.sourceType;
   const explicitConfidence = extendedRecipe.nutritionConfidence;
-  const hasNutrition = Boolean(recipe.calories && recipe.calories > 0);
+  const hasNutrition = typeof recipe.calories === 'number' && Number.isFinite(recipe.calories);
   const legacyCreatedPrefix = /^created in\s+/i;
   const legacyProvider = local ? recipe.source.replace(legacyCreatedPrefix, '').trim() : '';
 
