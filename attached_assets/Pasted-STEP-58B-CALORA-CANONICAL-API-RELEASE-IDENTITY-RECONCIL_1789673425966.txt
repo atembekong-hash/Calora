@@ -1,0 +1,852 @@
+STEP 58B — CALORA CANONICAL API RELEASE IDENTITY RECONCILIATION AND PRODUCTION PROMOTION
+
+OUTPUT REPORT:
+
+58B_CALORA_CANONICAL_API_RELEASE_IDENTITY_RECONCILIATION_AND_PRODUCTION_PROMOTION_REPORT.md
+
+
+MISSION
+
+Resolve the final Step 58A repository-attestation mismatch correctly.
+
+Do NOT force the current repository to impersonate the old frozen SHA.
+
+Instead:
+
+1. establish the exact current reviewed repository state containing:
+   - the already-reviewed API runtime;
+   - the Step 58A release-control remediation;
+2. prove that API runtime behavior has not changed unexpectedly;
+3. freeze THIS exact repository SHA/tree/digest as the new canonical production API candidate;
+4. run the complete release gates against that exact identity;
+5. if and only if every gate passes, deploy exactly that candidate;
+6. verify both production hosts report that exact identity.
+
+This is the final API provenance reconciliation.
+
+DO NOT build Android.
+DO NOT change Android versionCode.
+DO NOT build iOS.
+DO NOT create Build 8.
+DO NOT touch TestFlight.
+DO NOT modify database schema/data.
+DO NOT enable Coach.
+DO NOT fix Metro.
+DO NOT introduce new product functionality.
+
+
+==================================================
+1. AUTHORITATIVE HISTORY
+==================================================
+
+Original Step 58 reviewed API candidate:
+
+SHA:
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+TREE:
+0b4185eac78f8b42097fce0334691487df740e53
+
+SOURCE DIGEST:
+f48c9972458e02a92e153ac7b2d4b4d4474520923d85c41e12f637bb49a72120
+
+
+Step 58A current repository identity observed:
+
+SHA:
+f67ee229f9ba8052ab18f05a99edb1c1bf53da63
+
+TREE:
+f9424f749f9d6781755965f000b9a601a22cd9f4
+
+SOURCE DIGEST:
+221f33115bbf3d6bf3c4e8e709336aac3df05fdaa05f74be498bb3ab16ec0099
+
+
+Step 58A proved:
+
+- API runtime source under artifacts/api-server/src and lib/api-* is
+  byte-equivalent to the Step 58 frozen candidate;
+- release-control remediation was required and legitimate;
+- sensitive Coach activation is false;
+- COACH_FACT_CONTEXT_ENABLED is false;
+- sensitive-release checks remain fail-closed;
+- full automated validation passed;
+- no DB mutation occurred;
+- no mobile release occurred;
+- no production deployment occurred.
+
+Old production remains:
+
+SHA:
+dd4d130b03e6f05e52b9a275d58760849aa58590
+
+TREE:
+ffec94339941e4270da869606de9d2627c7a7a98
+
+SOURCE DIGEST:
+2ee23adc3869deb60b89535c30bdae911f8a2f4b7f7951e92f86e936c9a857be
+
+RELEASE:
+calora-api-dd4d130b03e6-20260916120901599
+
+
+==================================================
+2. DO NOT RESTORE OLD SHA
+==================================================
+
+Do NOT:
+
+reset to 5f69c31e;
+
+rebase away Step 58A;
+
+force-push;
+
+rewrite history;
+
+fake Git metadata;
+
+override attestation identity;
+
+hard-code the old SHA;
+
+weaken build.mjs;
+
+make the artifact claim to be 5f69c31e when Git HEAD is not.
+
+
+The Step 58A release-control remediation is legitimate repository state and
+must not be discarded merely to satisfy the old frozen identity.
+
+
+==================================================
+3. FREEZE CURRENT REPOSITORY STATE
+==================================================
+
+Fetch origin.
+
+Record:
+
+workspace HEAD SHA/tree;
+
+origin/main SHA/tree;
+
+branch;
+
+ahead/behind;
+
+working-tree status;
+
+commit history from 5f69c31e to current HEAD;
+
+all changed paths from 5f69c31e to current HEAD.
+
+
+Classify each changed path:
+
+RELEASE_CONTROL
+
+BUILD_CONTROL
+
+REPORT_ONLY
+
+DOCUMENTATION_ONLY
+
+PRODUCT_API
+
+SHARED_CONTRACT
+
+MOBILE_PRODUCT
+
+DATABASE
+
+OTHER
+
+
+Do not mutate anything yet.
+
+
+==================================================
+4. PROVE EXACT RUNTIME EQUIVALENCE
+==================================================
+
+Compare Step 58 original candidate:
+
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+against current intended candidate for ALL production-runtime-relevant paths.
+
+At minimum inspect:
+
+artifacts/api-server/src
+
+artifacts/api-server/package.json
+
+artifacts/api-server/build.mjs
+
+artifacts/api-server/.replit-artifact
+
+lib/api-zod
+
+lib/api-client-react
+
+lib/api-spec
+
+shared runtime configuration consumed by API
+
+workspace dependency/lockfile inputs relevant to API build
+
+.replit production API configuration
+
+
+Separate:
+
+API BUSINESS/RUNTIME BEHAVIOR
+
+RELEASE/BUILD CONTROL BEHAVIOR
+
+
+Require:
+
+No unexpected business/API behavior change.
+
+Expected Step 58A release-control changes are allowed and must be documented.
+
+If unexpected runtime behavior exists:
+
+STOP.
+
+VERDICT:
+
+PRODUCTION PROMOTION BLOCKED — UNREVIEWED RUNTIME DELTA
+
+
+==================================================
+5. DEFINE NEW CANONICAL CANDIDATE
+==================================================
+
+If Section 4 passes:
+
+Define the ACTUAL current clean repository commit as the new production API
+candidate.
+
+Do not reuse the old Step 58 identity.
+
+Record:
+
+NEW_CANDIDATE_SHA
+NEW_CANDIDATE_TREE
+NEW_CANDIDATE_SOURCE_DIGEST
+
+
+The source digest must be calculated by the repository's actual attestation
+mechanism.
+
+The new candidate must include:
+
+- reviewed recipe/nutrition API behavior;
+- reviewed Planner behavior;
+- reviewed seven-day fallback;
+- reviewed capture approval acknowledgement;
+- reviewed diary image provenance;
+- reviewed sync behavior;
+- auth/account fences;
+- bounded Coach safety;
+- Step 58A release-control corrections.
+
+
+==================================================
+6. CANONICAL GIT STATUS
+==================================================
+
+Determine whether the new candidate already exists on origin/main.
+
+If current reviewed candidate is local-only:
+
+prepare the narrowest safe canonicalization.
+
+Before any push:
+
+fetch origin;
+
+prove no unexpected remote divergence;
+
+prove exact changed-path scope;
+
+run git diff --check.
+
+
+Use ONLY a normal fast-forward push.
+
+NO force.
+
+NO force-with-lease.
+
+NO rebase.
+
+NO reset.
+
+NO wholesale historical branch merge.
+
+
+If remote divergence prevents a clean FF:
+
+STOP.
+
+VERDICT:
+
+PRODUCTION PROMOTION BLOCKED — CANONICAL GIT DIVERGENCE
+
+
+==================================================
+7. EXACT CANDIDATE RELEASE GATE
+==================================================
+
+Against NEW_CANDIDATE_SHA run:
+
+frozen dependency installation;
+
+workspace typecheck;
+
+API typecheck;
+
+Calora/shared typecheck;
+
+API full tests;
+
+Calora full tests;
+
+scripts tests;
+
+static/security tests;
+
+account-isolation tests;
+
+deletion-fence tests;
+
+recipe tests;
+
+Planner/program tests;
+
+capture/sync tests;
+
+Coach safety tests;
+
+API/client compatibility tests;
+
+codegen drift check;
+
+git diff --check;
+
+release-attestation tests.
+
+
+Record exact counts.
+
+No failing test may be removed/weakened/skipped to pass.
+
+
+==================================================
+8. COACH SAFETY GATE
+==================================================
+
+Require production ordinary-release state:
+
+COACH_FACT_CONTEXT_ENABLED=false
+
+RELEASE_SENSITIVE_ACTIVATION_REQUESTED=false
+
+
+Verify:
+
+no global rollout change;
+
+no cohort change;
+
+no consent change;
+
+no nonce creation;
+
+no provider activation;
+
+default-deny preserved;
+
+sensitive-release build checks still fail closed if sensitive activation is
+explicitly requested without required evidence.
+
+
+If not:
+
+STOP.
+
+VERDICT:
+
+PRODUCTION PROMOTION BLOCKED — COACH SAFETY FAILED
+
+
+==================================================
+9. DATABASE NO-CHANGE GATE
+==================================================
+
+Reuse Step 58's read-only compatibility evidence only if current API runtime
+requirements remain identical.
+
+Otherwise perform read-only metadata inspection again.
+
+Require no:
+
+migration;
+
+schema change;
+
+seed;
+
+backfill;
+
+manual row mutation;
+
+new required table/column/support object.
+
+
+If DB mutation is required:
+
+STOP.
+
+VERDICT:
+
+PRODUCTION PROMOTION BLOCKED — DATABASE CHANGE REQUIRED
+
+
+==================================================
+10. BUILD EXACT NEW CANDIDATE
+==================================================
+
+Use a CLEAN clone/check-out of NEW_CANDIDATE_SHA.
+
+Require:
+
+git rev-parse HEAD == NEW_CANDIDATE_SHA
+
+git rev-parse HEAD^{tree} == NEW_CANDIDATE_TREE
+
+working tree clean.
+
+
+Run the repository-supported ordinary production build with:
+
+RELEASE_SENSITIVE_ACTIVATION_REQUESTED=false
+
+and production Coach disabled.
+
+
+Capture the emitted:
+
+gitCommit
+
+sourceTree
+
+sourceDigest
+
+releaseId
+
+
+Require:
+
+emitted gitCommit == NEW_CANDIDATE_SHA
+
+emitted sourceTree == NEW_CANDIDATE_TREE
+
+emitted sourceDigest == NEW_CANDIDATE_SOURCE_DIGEST
+
+
+If ANY mismatch:
+
+STOP.
+
+VERDICT:
+
+PRODUCTION PROMOTION BLOCKED — EXACT ATTESTATION FAILED
+
+
+==================================================
+11. NEGATIVE SENSITIVE-RELEASE TEST
+==================================================
+
+Prove build.mjs was NOT weakened.
+
+Using safe test fixtures/environment only, verify an explicitly requested
+sensitive release without required external evidence still FAILS CLOSED.
+
+Do not activate a real provider.
+
+Do not alter production Coach state.
+
+Record PASS/FAIL only.
+
+If it no longer fails closed:
+
+STOP.
+
+VERDICT:
+
+PRODUCTION PROMOTION BLOCKED — RELEASE SECURITY REGRESSION
+
+
+==================================================
+12. ROLLBACK FREEZE
+==================================================
+
+Immediately before deployment verify old production still reports:
+
+dd4d130b03e6f05e52b9a275d58760849aa58590
+
+with its exact tree/digest/release ID.
+
+Record as rollback target.
+
+
+==================================================
+13. EXACT PRODUCTION DEPLOYMENT
+==================================================
+
+ONLY after Sections 1–12 PASS:
+
+Deploy exactly ONE NEW_CANDIDATE release to the existing Calora Replit
+production API.
+
+Target:
+
+calorie-coach-pie35449.replit.app
+
+with:
+
+mycaloraapp.com
+
+remaining the production alias.
+
+
+DO NOT:
+
+deploy Railway;
+
+create parallel service;
+
+change domain;
+
+change mobile API origin;
+
+modify DB;
+
+build mobile;
+
+run Expo OTA.
+
+
+Capture exact deployment/release ID.
+
+
+If this agent runtime cannot invoke the approved production Publishing control
+plane:
+
+DO NOT fake deployment.
+
+STOP and state the exact owner/operator action required.
+
+Allowed verdict:
+
+PRODUCTION CANDIDATE VERIFIED — OWNER PUBLISH ACTION REQUIRED
+
+
+==================================================
+14. LIVE IDENTITY VERIFICATION
+==================================================
+
+After actual promotion query BOTH:
+
+Replit production /api/version
+
+custom-domain /api/version
+
+
+Both must report exactly:
+
+NEW_CANDIDATE_SHA
+
+NEW_CANDIDATE_TREE
+
+NEW_CANDIDATE_SOURCE_DIGEST
+
+
+Both must report the same new releaseId.
+
+
+If not:
+
+rollback if required for safety.
+
+VERDICT:
+
+PRODUCTION PROMOTION FAILED — LIVE IDENTITY MISMATCH
+
+
+==================================================
+15. HEALTH VERIFICATION
+==================================================
+
+Verify both:
+
+/api/healthz
+
+
+Require healthy.
+
+
+==================================================
+16. RUNTIME DELTA CLOSURE
+==================================================
+
+Verify the live deployed source contains:
+
+Recipes/nutrition truthfulness
+
+Planner shared ordering
+
+role-aware seven-day fallback
+
+capture approval acknowledgement
+
+diary image provenance
+
+current idempotent/account-scoped sync
+
+auth/account fences
+
+bounded Coach/default-deny
+
+
+For each classify:
+
+LIVE VERIFIED
+
+DEPLOYED SOURCE VERIFIED — DEVICE/AUTH RETEST REQUIRED
+
+FAILED
+
+
+==================================================
+17. NO MOBILE MUTATION
+==================================================
+
+Prove:
+
+iOS Build 7 unchanged;
+
+no Build 8;
+
+no iOS EAS build;
+
+no TestFlight/App Store action;
+
+Android versionCode unchanged;
+
+no Android build;
+
+no APK;
+
+no Expo OTA.
+
+
+==================================================
+18. NO DATABASE MUTATION
+==================================================
+
+Prove no:
+
+migration;
+
+schema mutation;
+
+seed;
+
+backfill;
+
+manual row mutation;
+
+destructive query.
+
+
+==================================================
+19. METRO REMAINS DEFERRED
+==================================================
+
+Do not fix ENOSPC.
+
+Record:
+
+METRO ENOSPC — DEFERRED
+
+
+==================================================
+20. REPORT
+==================================================
+
+Create:
+
+58B_CALORA_CANONICAL_API_RELEASE_IDENTITY_RECONCILIATION_AND_PRODUCTION_PROMOTION_REPORT.md
+
+
+Required sections:
+
+1. Executive summary
+2. Starting identities
+3. Step 58A mismatch explanation
+4. Commit/path history since Step 58 candidate
+5. Changed-path classification
+6. Runtime equivalence analysis
+7. Release-control delta analysis
+8. New canonical candidate identity
+9. Canonical Git status
+10. Push/canonicalization result if required
+11. Full validation results
+12. Coach safety gate
+13. Database no-change gate
+14. Clean candidate checkout
+15. Ordinary production build
+16. Exact attestation result
+17. Negative sensitive-release test
+18. Rollback identity
+19. Deployment action
+20. Exact deployment/release ID
+21. Replit-host /api/version
+22. Custom-domain /api/version
+23. Health verification
+24. Runtime delta closure
+25. Auth/account preservation
+26. Coach postdeploy safety
+27. Database mutation audit
+28. Mobile mutation audit
+29. Metro status
+30. Remaining device/provider verification
+31. Recommendation for next step
+32. Final verdict
+
+
+==================================================
+21. MANDATORY IDENTITY TABLE
+==================================================
+
+| Identity | SHA | Tree | Digest | Status |
+
+Rows:
+
+Step 58 original candidate
+
+Step 58A repository state
+
+New canonical candidate
+
+Old production
+
+Live production after promotion
+
+
+==================================================
+22. FINAL QUESTIONS
+==================================================
+
+A. Why did Step 58A's exact attestation fail?
+
+B. Was API business/runtime behavior changed by Step 58A?
+
+C. What legitimate release-control changes were introduced?
+
+D. Was the old candidate SHA restored or impersonated?
+
+E. What exact SHA is the NEW canonical candidate?
+
+F. What exact tree?
+
+G. What exact source digest?
+
+H. Is that candidate canonical on origin/main?
+
+I. Did all validation pass?
+
+J. Does the clean production build attest the exact new candidate?
+
+K. Does a sensitive release without evidence still fail closed?
+
+L. Is Coach disabled/default-deny?
+
+M. Was any provider activated?
+
+N. Was the database mutated?
+
+O. What exact production deployment/release ID was created?
+
+P. What does the Replit production /api/version report?
+
+Q. What does mycaloraapp.com /api/version report?
+
+R. Do both exactly equal the new candidate?
+
+S. Are both healthy?
+
+T. Are the Step 57 API deltas now deployed?
+
+U. Was iOS Build 7 changed?
+
+V. Was Android changed/built?
+
+W. Was TestFlight/App Store touched?
+
+X. Was Metro changed?
+
+Y. Was rollback required?
+
+Z. Is production runtime drift now closed?
+
+AA. Is it safe to retest unchanged Build 7?
+
+AB. Is it safe to proceed to Android versionCode 27 after Build 7 retest?
+
+
+==================================================
+23. ALLOWED FINAL VERDICTS
+==================================================
+
+Use exactly one:
+
+PRODUCTION API ALIGNMENT VERIFIED — RUNTIME DRIFT CLOSED
+
+PRODUCTION CANDIDATE VERIFIED — OWNER PUBLISH ACTION REQUIRED
+
+PRODUCTION PROMOTION BLOCKED — UNREVIEWED RUNTIME DELTA
+
+PRODUCTION PROMOTION BLOCKED — CANONICAL GIT DIVERGENCE
+
+PRODUCTION PROMOTION BLOCKED — COACH SAFETY FAILED
+
+PRODUCTION PROMOTION BLOCKED — DATABASE CHANGE REQUIRED
+
+PRODUCTION PROMOTION BLOCKED — EXACT ATTESTATION FAILED
+
+PRODUCTION PROMOTION BLOCKED — RELEASE SECURITY REGRESSION
+
+PRODUCTION PROMOTION FAILED — LIVE IDENTITY MISMATCH
+
+PRODUCTION PROMOTION FAILED — ROLLBACK VERIFIED
+
+
+==================================================
+24. STOP
+==================================================
+
+After producing the report STOP.
+
+Do not start Android Step 59.
+
+Do not rebuild iOS.
+
+Wait for owner review.

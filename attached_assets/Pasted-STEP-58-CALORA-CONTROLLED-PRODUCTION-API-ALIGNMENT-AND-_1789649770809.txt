@@ -1,0 +1,981 @@
+STEP 58 — CALORA CONTROLLED PRODUCTION API ALIGNMENT AND VERIFICATION
+
+MISSION
+
+Perform a controlled production API preflight, deploy the exact reviewed current Calora API only if every safety/compatibility gate passes, and then prove that the live production runtime is serving the intended reviewed API release.
+
+This is a PRODUCTION API ALIGNMENT mission.
+
+DO NOT build Android.
+DO NOT change Android versionCode.
+DO NOT build iOS.
+DO NOT submit anything to TestFlight.
+DO NOT modify iOS Build 7.
+DO NOT make unrelated product changes.
+DO NOT perform database migrations, schema changes, seeds, destructive DB operations, or data backfills.
+DO NOT enable unrestricted Coach or any sensitive Coach rollout.
+DO NOT blindly deploy workspace HEAD merely because it is newer.
+
+The purpose is to fix the production-runtime drift proven by Step 57.
+
+Create the final report:
+
+58_CALORA_CONTROLLED_PRODUCTION_API_ALIGNMENT_AND_VERIFICATION_REPORT.md
+
+
+==================================================
+1. STEP 57 BASELINE — TREAT AS AUTHORITATIVE INPUT
+==================================================
+
+Step 57 final verdict:
+
+RUNTIME DELIVERY DRIFT CONFIRMED — CONTROLLED REMEDIATION REQUIRED
+
+Step 57 established:
+
+Production API:
+commit:
+dd4d130b03e6f05e52b9a275d58760849aa58590
+
+tree:
+ffec94339941e4270da869606de9d2627c7a7a98
+
+release:
+calora-api-dd4d130b03e6-20260916120901599
+
+build timestamp:
+2026-09-16T12:09:01.599Z
+
+
+Development API at the time of Step 57:
+
+commit:
+0d1e02115b082f21a6df51b7db4ac2ce3c1bc5a6
+
+tree:
+7460de05a864ee43e1032ba93d22483731d69895
+
+release:
+calora-api-0d1e02115b08-20260917114622850
+
+
+Public production hosts:
+
+https://calorie-coach-pie35449.replit.app
+
+https://mycaloraapp.com
+
+
+Step 57 proved:
+
+- recent mobile recovery source is not lost;
+- iOS TestFlight Build 7 is not a wrong-source build;
+- Build 7 targets the intended production API;
+- production API is behind current API source;
+- the important runtime deltas are concentrated in:
+  - recipes/nutrition;
+  - Planner/program ordering and fallback;
+  - Smart Scan/capture approval acknowledgement;
+  - diary/sync image provenance;
+- production database tables/columns needed by those deltas appeared compatible;
+- PostgreSQL functions/triggers/policies/support objects were NOT fully proven;
+- production provider/configuration presence was NOT fully proven;
+- Coach safety must remain default-deny;
+- Android versionCode remediation belongs AFTER production API alignment;
+- Metro ENOSPC is a separate issue.
+
+Do not reinterpret Step 57 as permission for a blind deployment.
+
+
+==================================================
+2. FIRST FREEZE CURRENT STATE
+==================================================
+
+Before doing anything mutable, record:
+
+- current workspace HEAD SHA;
+- current workspace tree;
+- current origin/main SHA;
+- current origin/main tree;
+- working-tree status;
+- current branch;
+- ahead/behind relationship;
+- current API product SHA;
+- current mobile product SHA;
+- current production API /api/version;
+- current production /api/healthz;
+- current development API /api/version;
+- current development /api/healthz.
+
+Do NOT assume workspace HEAD itself is the correct production deployment source.
+
+Step 57 showed that workspace HEAD contains a substantial report/release metadata tail.
+
+Identify the exact reviewed source tree containing the intended current API implementation.
+
+Separate:
+
+PRODUCT_API
+SHARED_CONTRACT
+TEST_ONLY
+REPORT_ONLY
+BUILD_RELEASE
+METADATA_ONLY
+UNRELATED_PRODUCT
+
+The deployment candidate must be based on the actual reviewed API/product source, not documentation tail noise.
+
+
+==================================================
+3. DETERMINE EXACT API DEPLOYMENT CANDIDATE
+==================================================
+
+For the intended candidate, identify:
+
+CANDIDATE_SHA
+CANDIDATE_TREE
+CANDIDATE_SOURCE_DIGEST
+
+Prove that it contains the intended current behavior for:
+
+1. recipes/nutrition validation;
+2. Planner program ordering;
+3. role-aware seven-day starter/fallback behavior;
+4. diary image metadata/provenance;
+5. capture approval acknowledgement during sync;
+6. existing authentication/account scoping;
+7. existing deletion fencing;
+8. existing referral behavior;
+9. bounded Coach Fact Context safety;
+10. existing release attestation.
+
+Explicitly compare candidate source with production commit:
+
+dd4d130b03e6f05e52b9a275d58760849aa58590
+
+Produce a path-level and capability-level delta.
+
+Do NOT deploy report-only changes merely to make production match workspace HEAD.
+
+
+==================================================
+4. VERIFY NO UNREVIEWED API CHANGES
+==================================================
+
+Inspect every runtime API path changed between old production and the candidate.
+
+Classify every changed runtime path.
+
+For each changed route, state:
+
+- route/path;
+- HTTP method;
+- authentication requirement;
+- account/owner predicate;
+- request-shape change;
+- response-shape change;
+- DB dependency;
+- provider dependency;
+- backwards compatibility with Build 7;
+- risk level.
+
+If unrelated or unreviewed API behavior is included:
+
+STOP.
+
+Verdict:
+
+PRODUCTION ALIGNMENT BLOCKED — UNREVIEWED API DELTA
+
+
+==================================================
+5. DATABASE SUPPORT-OBJECT PREFLIGHT
+==================================================
+
+Step 57 proved relevant tables/columns appear present, but functions/triggers/policies/support objects were not fully proven.
+
+Perform READ-ONLY production database inspection.
+
+Verify, where applicable:
+
+- required tables;
+- required columns;
+- required indexes;
+- required constraints;
+- required PostgreSQL functions;
+- required triggers;
+- relevant policies;
+- extensions required by the current runtime;
+- transaction assumptions used by sync/capture approval;
+- uniqueness/idempotency support;
+- foreign-key expectations.
+
+Do not print secrets or sensitive row data.
+
+Do NOT mutate the database.
+
+Do NOT run migrations.
+
+Do NOT create/drop/alter anything.
+
+If candidate API requires a DB object not currently available in production:
+
+STOP.
+
+Verdict:
+
+PRODUCTION ALIGNMENT BLOCKED — DATABASE COMPATIBILITY FAILED
+
+
+==================================================
+6. PRODUCTION CONFIGURATION / SECRET PRESENCE
+==================================================
+
+Verify presence/configuration only.
+
+NEVER print secret values.
+
+Check the categories required by the candidate:
+
+- production database connectivity;
+- Supabase authentication/public configuration;
+- OpenAI configuration where required;
+- recipe provider configuration;
+- TheMealDB configuration where applicable;
+- FatSecret/gateway configuration where applicable;
+- object/image storage configuration;
+- RevenueCat verification configuration;
+- CORS configuration;
+- release-attestation configuration;
+- account-deletion controls;
+- referral controls;
+- Coach/Fact Context release controls.
+
+For each category report only:
+
+PRESENT
+ABSENT
+NOT_REQUIRED
+UNVERIFIED
+
+Never expose token/key/password contents.
+
+If a required production configuration is absent and there is no proven safe fallback:
+
+STOP.
+
+Verdict:
+
+PRODUCTION ALIGNMENT BLOCKED — PRODUCTION CONFIGURATION INCOMPLETE
+
+
+==================================================
+7. COACH SAFETY GATE — MANDATORY
+==================================================
+
+Before deployment independently verify that the candidate preserves:
+
+- explicit consent;
+- bounded request/context/history limits;
+- account scoping;
+- nonce/idempotency protections where applicable;
+- expiry fencing;
+- allowlisted actions/navigation;
+- default-deny behavior;
+- provider activation separated from ordinary deployment;
+- no accidental global rollout;
+- no automatic sensitive-provider activation.
+
+Record current safe activation state without exposing sensitive values.
+
+DO NOT enable Coach globally.
+
+DO NOT change cohort membership.
+
+DO NOT change consent records.
+
+DO NOT create activation nonces.
+
+DO NOT enable a provider.
+
+If deployment would automatically activate a sensitive Coach path:
+
+STOP.
+
+Verdict:
+
+PRODUCTION ALIGNMENT BLOCKED — COACH SAFETY GATE FAILED
+
+
+==================================================
+8. BUILD 7 BACKWARDS-COMPATIBILITY GATE
+==================================================
+
+The current TestFlight binary must remain usable.
+
+Known Build 7 identity:
+
+EAS Build ID:
+45900e2d-298f-4ece-9041-0e42513266e4
+
+EAS Git SHA:
+dec8f0d6a9531cb5a2eb73c01706dc75354e743c
+
+version:
+1.0.0
+
+build:
+7
+
+bundle:
+com.etiendem.caloraapp
+
+IPA SHA-256:
+bc634c5e1b8dce89a757f79977eb0c64b00d7a09e47745f2c1e472f103a1ae13
+
+Verify candidate API compatibility with the requests expected by Build 7 for:
+
+- recipes;
+- premium recipes;
+- planner;
+- Weekly Programs;
+- capture;
+- diary;
+- sync;
+- Coach Fact Context;
+- auth/account;
+- referrals;
+- account deletion.
+
+Do not change Build 7.
+
+If candidate breaks a Build 7 request/response contract:
+
+STOP.
+
+Verdict:
+
+PRODUCTION ALIGNMENT BLOCKED — BUILD 7 API COMPATIBILITY FAILED
+
+
+==================================================
+9. RUN FULL PREDEPLOY VALIDATION
+==================================================
+
+Before production mutation run the repository-supported validation suites.
+
+At minimum:
+
+- frozen dependency installation;
+- API typecheck;
+- Calora/mobile typecheck where shared contracts can affect mobile;
+- API tests;
+- relevant Calora tests;
+- API/client compatibility tests;
+- generated contract/codegen drift check;
+- static/security tests;
+- account-isolation tests;
+- deletion-fence tests;
+- capture/sync tests;
+- recipe tests;
+- Planner/program tests;
+- Coach safety tests;
+- git diff --check;
+- release-attestation tests.
+
+Do NOT delete, skip, weaken, rewrite, or bypass failing tests to make deployment pass.
+
+Document exact counts.
+
+If any release-critical validation fails:
+
+STOP.
+
+Verdict:
+
+PRODUCTION ALIGNMENT BLOCKED — PREDEPLOY VALIDATION FAILED
+
+
+==================================================
+10. CREATE A FROZEN DEPLOYMENT CANDIDATE
+==================================================
+
+After all preflight gates pass, freeze the exact candidate.
+
+Record:
+
+CANDIDATE_SHA
+CANDIDATE_TREE
+CANDIDATE_SOURCE_DIGEST
+
+If a source commit is required solely to create the exact deployable reviewed state:
+
+- make the narrowest possible commit;
+- no unrelated product change;
+- no report-only source contamination;
+- no merge of historical branches;
+- no rebase/reset;
+- normal fast-forward push only if a push is genuinely required;
+- run the exact release validation gate against the resulting SHA before deployment.
+
+If no source commit is needed, do not manufacture one.
+
+
+==================================================
+11. CAPTURE ROLLBACK IDENTITY BEFORE DEPLOYMENT
+==================================================
+
+Before production deployment record the exact currently active release:
+
+OLD_PRODUCTION_SHA
+OLD_PRODUCTION_TREE
+OLD_PRODUCTION_SOURCE_DIGEST
+OLD_PRODUCTION_RELEASE_ID
+OLD_PRODUCTION_BUILD_TIMESTAMP
+
+Confirm that the previous known-good release can be identified for rollback.
+
+Do NOT rollback unless the new deployment fails verification.
+
+
+==================================================
+12. CONTROLLED PRODUCTION API DEPLOYMENT
+==================================================
+
+ONLY after Sections 1–11 pass:
+
+Deploy exactly ONE reviewed API candidate to the existing intended Calora production Replit deployment.
+
+Target must remain the existing production API represented by:
+
+https://calorie-coach-pie35449.replit.app
+
+and its production custom-domain alias:
+
+https://mycaloraapp.com
+
+Do NOT create a parallel accidental production service.
+
+Do NOT deploy to Railway.
+
+Do NOT change the mobile API URL.
+
+Do NOT deploy a development-preview URL.
+
+Do NOT change production domains.
+
+Do NOT modify the database.
+
+Do NOT enable Coach.
+
+Do NOT build mobile apps.
+
+Capture the provider deployment/build/release ID and timestamps.
+
+If Replit's deployment mechanism cannot prove what source/artifact is being published:
+
+STOP before promotion.
+
+Verdict:
+
+PRODUCTION ALIGNMENT BLOCKED — DEPLOYMENT PROVENANCE UNVERIFIED
+
+
+==================================================
+13. LIVE RELEASE ATTESTATION — MANDATORY
+==================================================
+
+After deployment query BOTH:
+
+https://calorie-coach-pie35449.replit.app/api/version
+
+https://mycaloraapp.com/api/version
+
+Both must report the SAME newly deployed identity.
+
+Require:
+
+gitCommit == CANDIDATE_SHA
+sourceTree == CANDIDATE_TREE
+sourceDigest == CANDIDATE_SOURCE_DIGEST
+
+Record:
+
+releaseId
+buildTimestamp
+schemaVersion
+
+If either host still reports:
+
+dd4d130b03e6f05e52b9a275d58760849aa58590
+
+or any unexpected identity:
+
+DO NOT call the deployment successful.
+
+Attempt rollback only if necessary to preserve service health.
+
+Final failure verdict:
+
+PRODUCTION API ALIGNMENT FAILED — LIVE PROVENANCE MISMATCH
+
+
+==================================================
+14. HEALTH VERIFICATION
+==================================================
+
+Verify both production hosts:
+
+/api/healthz
+
+Require healthy responses.
+
+Do not stop at healthz alone.
+
+A green health endpoint does NOT prove feature parity.
+
+
+==================================================
+15. RECIPE / NUTRITION SMOKE VERIFICATION
+==================================================
+
+Perform non-destructive/read-only smoke verification where possible.
+
+Verify:
+
+- recipe routes respond;
+- provider-backed behavior does not crash;
+- current nutrition validation path is active;
+- missing/invalid nutrition is not silently represented as truthful zero;
+- explicit valid numeric zero semantics remain correct where allowed;
+- Premium access remains entitlement-gated;
+- no unauthorized Premium exposure occurs.
+
+Do not create fake production user data merely to test this.
+
+If authenticated mutation would be required, mark:
+
+PHYSICAL/AUTHENTICATED RETEST REQUIRED
+
+rather than performing unsafe production writes.
+
+
+==================================================
+16. PLANNER / PROGRAM SMOKE VERIFICATION
+==================================================
+
+Verify route availability and current runtime behavior sufficient to prove:
+
+- current shared program ordering code is deployed;
+- role-aware seven-day fallback code is deployed;
+- existing auth fences remain active.
+
+Do not create destructive production planner data.
+
+Authenticated physical testing may remain pending.
+
+
+==================================================
+17. CAPTURE / SYNC / DIARY VERIFICATION
+==================================================
+
+Verify route reachability and auth behavior for:
+
+- capture;
+- approval;
+- diary;
+- sync.
+
+Prove from deployed identity/source that the live sync implementation includes:
+
+- image metadata/provenance handling;
+- owner-scoped capture acknowledgement;
+- transactional acknowledgement after diary application;
+- idempotency/account fencing.
+
+Unauthenticated protected routes should reject appropriately.
+
+Do not create production test rows solely for this mission.
+
+Mark physical authenticated mutation verification as pending where necessary.
+
+
+==================================================
+18. AUTH / ACCOUNT SAFETY VERIFICATION
+==================================================
+
+Verify protected endpoints continue to require authentication.
+
+Confirm current deployment did not weaken:
+
+- bearer auth;
+- account predicates;
+- owner scoping;
+- deletion fencing;
+- active-account fencing;
+- referral ownership rules;
+- sync ownership rules.
+
+No account impersonation.
+No production account mutation.
+
+
+==================================================
+19. COACH POSTDEPLOY SAFETY VERIFICATION
+==================================================
+
+After deployment reconfirm:
+
+- global/sensitive activation did not change;
+- default-deny remains;
+- no provider became active as a side effect;
+- consent and expiry gates remain;
+- protected Fact Context behavior remains fenced.
+
+Deployment success is NOT authorization to activate Coach.
+
+
+==================================================
+20. VERIFY NO DATABASE MUTATION
+==================================================
+
+Prove Step 58 performed:
+
+- no migration;
+- no schema alteration;
+- no seed;
+- no backfill;
+- no destructive query;
+- no manual row mutation.
+
+Deployment runtime writes caused by normal startup should be identified separately if the architecture performs any.
+
+Do not claim zero DB mutation unless evidence supports it.
+
+
+==================================================
+21. VERIFY NO MOBILE RELEASE ACTIONS
+==================================================
+
+Explicitly prove Step 58 performed:
+
+- no iOS EAS build;
+- no Android EAS build;
+- no TestFlight submission;
+- no App Store submission;
+- no Android versionCode change;
+- no APK creation;
+- no IPA creation;
+- no Expo OTA/mobile update;
+- no mobile API-origin change.
+
+iOS TestFlight Build 7 must remain unchanged.
+
+
+==================================================
+22. DO NOT FIX METRO IN THIS STEP
+==================================================
+
+Metro ENOSPC is a separate development-preview issue.
+
+Do not modify host watcher limits, Metro architecture, Expo configuration, or unrelated development tooling merely to close Step 58.
+
+Record:
+
+METRO ENOSPC — DEFERRED TO SEPARATE CONTROLLED REMEDIATION
+
+unless the problem naturally disappears without a repository or host mutation.
+
+
+==================================================
+23. PRESERVATION MATRIX
+==================================================
+
+Explicitly verify no regression to:
+
+R-01 onboarding keyboard visibility
+R-02 agreement semantics/accessibility
+R-03 Plus remount behavior
+R-04 Discover/Plus freshness
+R-05 nutrition truthfulness
+Weekly Programs modal transition
+Smart Scan approval
+Food Memory
+Home Today
+Diary/outbox/sync
+bounded Coach
+Health
+Premium/RevenueCat
+account isolation
+auth/PKCE
+referrals
+account deletion
+release attestation
+
+Fitness remains intentionally excluded.
+
+Do NOT restore Fitness or More.
+
+
+==================================================
+24. REQUIRED BEFORE/AFTER RUNTIME TABLE
+==================================================
+
+Include:
+
+Layer | Before | After | Expected | Verified?
+
+Rows:
+
+Production Replit host
+Custom-domain host
+Development API
+Candidate source
+Database schema
+Coach activation
+iOS Build 7
+Android versionCode
+Metro preview
+
+
+==================================================
+25. REQUIRED API DELTA CLOSURE TABLE
+==================================================
+
+For each Step 57 runtime delta:
+
+Capability
+Old production behavior
+Candidate behavior
+Live postdeploy behavior
+Build 7 compatibility
+Verification status
+
+Include at minimum:
+
+Recipes/nutrition
+Planner/program ordering
+Seven-day fallback
+Capture approval
+Diary image provenance
+Sync
+Coach Fact Context
+Auth/account isolation
+
+
+==================================================
+26. REQUIRED RELEASE PROVENANCE CHAIN
+==================================================
+
+Document the complete immutable chain:
+
+reviewed candidate SHA
+→ candidate tree
+→ candidate source digest
+→ predeploy validation
+→ deployment build/release ID
+→ production /api/version
+→ custom-domain /api/version
+→ health verification
+→ route smoke verification
+
+Any broken link means Step 58 is not complete.
+
+
+==================================================
+27. ROLLBACK RULE
+==================================================
+
+Rollback is permitted ONLY if:
+
+- new deployment fails health;
+- release attestation mismatches;
+- critical routes fail;
+- auth/account fencing regresses;
+- Coach safety regresses;
+- production configuration is missing;
+- candidate causes an immediate P0/P1 production regression.
+
+If rollback is necessary:
+
+- rollback only to the exact previously recorded production release;
+- verify /api/version after rollback;
+- verify /api/healthz;
+- document why;
+- do not attempt speculative code fixes in production.
+
+Final verdict if rolled back:
+
+PRODUCTION ALIGNMENT FAILED — ROLLBACK VERIFIED
+
+
+==================================================
+28. STEP 58 MUST NOT INCLUDE ANDROID REMEDIATION
+==================================================
+
+Step 57 established:
+
+current Android preview versionCode = 24
+highest observed EAS floor = 26
+next safe versionCode = 27
+
+DO NOT change it in Step 58.
+
+DO NOT build Android.
+
+Step 59 will handle Android versionCode 27 and the provenance-controlled APK only AFTER production API alignment is verified.
+
+
+==================================================
+29. STEP 58 MUST NOT REBUILD IOS
+==================================================
+
+Do not rebuild iOS.
+
+Do not create Build 8.
+
+Do not submit anything.
+
+Build 7 should be retested unchanged against the aligned production API.
+
+A new iOS build is authorized only if a later audit proves a mobile-source/configuration change not already contained in Build 7.
+
+
+==================================================
+30. REQUIRED FINAL REPORT
+==================================================
+
+Create:
+
+58_CALORA_CONTROLLED_PRODUCTION_API_ALIGNMENT_AND_VERIFICATION_REPORT.md
+
+The report must include:
+
+1. Executive summary
+2. Starting safeguards
+3. Step 57 baseline
+4. Current Git identities
+5. Workspace/origin divergence
+6. Candidate-selection methodology
+7. Exact candidate SHA/tree/digest
+8. Candidate path classification
+9. Old-production identity
+10. Production-vs-candidate API delta
+11. Build 7 compatibility analysis
+12. Database table/column preflight
+13. Database support-object preflight
+14. Production configuration presence
+15. Provider configuration presence
+16. Coach safety preflight
+17. Auth/account-isolation preflight
+18. Predeploy test results
+19. Codegen/contract verification
+20. Release-gate result if applicable
+21. Frozen candidate identity
+22. Rollback identity
+23. Deployment action
+24. Deployment provider/release ID
+25. Production Replit-host /api/version
+26. Custom-domain /api/version
+27. Production health verification
+28. Recipe/nutrition smoke verification
+29. Planner smoke verification
+30. Capture/sync/diary verification
+31. Auth/account verification
+32. Coach postdeploy safety verification
+33. Database mutation audit
+34. Mobile-release mutation audit
+35. Metro status
+36. Preservation matrix
+37. Before/after runtime table
+38. API delta closure table
+39. Release provenance chain
+40. Remaining physical-device checks
+41. Remaining provider-dependent checks
+42. Rollback status
+43. Exact recommendation for Step 59
+44. Final verdict
+
+
+==================================================
+31. MANDATORY FINAL QUESTIONS
+==================================================
+
+Answer explicitly:
+
+A. What exact API SHA was deployed?
+B. What exact tree was deployed?
+C. What exact source digest was deployed?
+D. Why was that candidate selected instead of blindly deploying workspace HEAD?
+E. Did every runtime API delta receive review?
+F. Did production require any DB migration?
+G. Were required PostgreSQL support objects verified?
+H. Were required production configuration categories verified without exposing secrets?
+I. Did Coach remain default-deny?
+J. Was any Coach provider activated?
+K. Does Build 7 remain API-compatible?
+L. What exact production deployment/release ID was created?
+M. What does the Replit production host now report from /api/version?
+N. What does mycaloraapp.com now report from /api/version?
+O. Do both identities exactly match the frozen candidate?
+P. Are both health endpoints healthy?
+Q. Are recipe/nutrition changes now live?
+R. Are Planner/program/fallback changes now live?
+S. Is capture approval/sync acknowledgement now live?
+T. Is diary image provenance handling now live?
+U. Were auth/account fences preserved?
+V. Was the database mutated?
+W. Was iOS Build 7 changed or rebuilt?
+X. Was Android versionCode changed?
+Y. Was an Android APK built?
+Z. Was TestFlight/App Store touched?
+AA. Was Metro ENOSPC modified?
+AB. Was rollback required?
+AC. What remains for physical-device verification?
+AD. Is production runtime delivery drift now closed?
+
+
+==================================================
+32. ALLOWED FINAL VERDICTS
+==================================================
+
+Use exactly one:
+
+PRODUCTION API ALIGNMENT VERIFIED — RUNTIME DRIFT CLOSED
+
+PRODUCTION ALIGNMENT BLOCKED — UNREVIEWED API DELTA
+
+PRODUCTION ALIGNMENT BLOCKED — DATABASE COMPATIBILITY FAILED
+
+PRODUCTION ALIGNMENT BLOCKED — PRODUCTION CONFIGURATION INCOMPLETE
+
+PRODUCTION ALIGNMENT BLOCKED — COACH SAFETY GATE FAILED
+
+PRODUCTION ALIGNMENT BLOCKED — BUILD 7 API COMPATIBILITY FAILED
+
+PRODUCTION ALIGNMENT BLOCKED — PREDEPLOY VALIDATION FAILED
+
+PRODUCTION ALIGNMENT BLOCKED — DEPLOYMENT PROVENANCE UNVERIFIED
+
+PRODUCTION API ALIGNMENT FAILED — LIVE PROVENANCE MISMATCH
+
+PRODUCTION ALIGNMENT FAILED — ROLLBACK VERIFIED
+
+
+==================================================
+33. STOP CONDITION
+==================================================
+
+If successful, STOP immediately after producing:
+
+58_CALORA_CONTROLLED_PRODUCTION_API_ALIGNMENT_AND_VERIFICATION_REPORT.md
+
+Do NOT proceed automatically to Android.
+
+Do NOT build versionCode 27.
+
+Do NOT fix Metro.
+
+Do NOT rebuild iOS.
+
+Wait for owner review and explicit authorization for Step 59.

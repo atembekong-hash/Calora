@@ -1,0 +1,1495 @@
+CALORA — STEP 57 PRODUCTION RUNTIME DELIVERY RECONCILIATION AUDIT
+
+OUTPUT REPORT:
+
+57_CALORA_PRODUCTION_RUNTIME_DELIVERY_RECONCILIATION_AUDIT.md
+
+
+==================================================
+MISSION
+==================================================
+
+Perform a COMPLETE READ-ONLY forensic reconciliation of Calora's current
+mobile source, iOS TestFlight Build 7, Android APK lineage, development API,
+and LIVE production API.
+
+The owner reports that substantial recent changes do not appear in the
+installed app.
+
+Recent investigation suggested:
+
+1. recent mobile source changes may actually be present in the mobile build;
+2. production API may be behind development/current source;
+3. Android preview builds may have reused versionCode 24;
+4. Replit/Expo live preview is currently unreliable because Metro hit ENOSPC.
+
+DO NOT assume those conclusions are correct.
+
+PROVE OR DISPROVE EACH ONE.
+
+This step is FORENSIC / READ-ONLY.
+
+DO NOT FIX ANYTHING.
+
+DO NOT DEPLOY.
+
+DO NOT BUILD.
+
+DO NOT CHANGE SOURCE.
+
+DO NOT PUSH.
+
+DO NOT MODIFY DATABASE.
+
+
+==================================================
+KNOWN VERIFIED IOS BUILD 7
+==================================================
+
+TestFlight currently contains:
+
+Calora:
+1.0.0 (7)
+
+EAS Build ID:
+
+45900e2d-298f-4ece-9041-0e42513266e4
+
+Expected canonical build SHA:
+
+dec8f0d6a9531cb5a2eb73c01706dc75354e743c
+
+Expected tree:
+
+f4c820017b82c48052571eb432806b3185aabcfb
+
+Expected IPA SHA-256:
+
+bc634c5e1b8dce89a757f79977eb0c64b00d7a09e47745f2c1e472f103a1ae13
+
+Bundle:
+
+com.etiendem.caloraapp
+
+Version:
+
+1.0.0 (7)
+
+
+Build 7 has already been submitted to internal TestFlight and physically
+launches successfully.
+
+Weekly Programs selector → detail has also physically worked on iOS Build 7.
+
+DO NOT ALTER BUILD 7.
+
+
+==================================================
+IMPORTANT HISTORICAL CONTEXT
+==================================================
+
+A previous Calora incident already demonstrated that:
+
+a current mobile binary can look old when it communicates with an older
+production backend.
+
+Therefore this audit must independently distinguish:
+
+MOBILE SOURCE
+
+MOBILE BINARY
+
+EMBEDDED RUNTIME CONFIG
+
+PRODUCTION API RELEASE
+
+DEVELOPMENT API RELEASE
+
+DATABASE STATE
+
+LOCAL CACHED/PERSISTED APP STATE
+
+REMOTE SERVER DATA
+
+NATIVE BUILD IDENTITY
+
+
+Do not collapse these into one concept.
+
+
+==================================================
+1. FREEZE CURRENT CANONICAL GIT STATE
+==================================================
+
+Fetch origin.
+
+Record:
+
+origin/main SHA
+
+origin/main tree
+
+origin/main commit subject
+
+origin/main commit timestamp
+
+current workspace HEAD
+
+workspace tree
+
+workspace subject
+
+workspace timestamp
+
+workspace clean/dirty state
+
+ahead/behind relationship between workspace and origin/main.
+
+
+Do NOT mutate either repository state.
+
+Do NOT merge.
+
+Do NOT rebase.
+
+Do NOT reset.
+
+Do NOT push.
+
+
+==================================================
+2. MAP RECENT PRODUCT-CODE HISTORY
+==================================================
+
+Audit the relevant development history covering at least:
+
+September 16, 2026
+
+through
+
+September 17, 2026 current time.
+
+
+Classify every relevant commit as:
+
+PRODUCT_MOBILE
+
+PRODUCT_API
+
+SHARED_CONTRACT
+
+DATABASE_SCHEMA
+
+DATABASE_MIGRATION
+
+CONFIGURATION
+
+BUILD_RELEASE
+
+TEST_ONLY
+
+REPORT_DOCUMENTATION
+
+OTHER
+
+
+For each PRODUCT_MOBILE / PRODUCT_API / SHARED_CONTRACT / CONFIGURATION
+commit record:
+
+SHA
+
+timestamp
+
+subject
+
+changed paths
+
+mobile effect
+
+server effect
+
+whether ancestor of current origin/main
+
+whether ancestor of iOS Build 7 SHA
+
+whether included in current development API source
+
+whether included in currently deployed production API source.
+
+
+Do not infer from commit messages alone.
+
+Inspect actual diffs where needed.
+
+
+==================================================
+3. IDENTIFY THE OWNER'S RECENT RECOVERY WORK
+==================================================
+
+Explicitly trace the source state for the recovered areas:
+
+R-01 onboarding keyboard visibility
+
+R-02 agreement semantics/accessibility
+
+R-03 Plus remount behavior
+
+R-04 Discover/Plus freshness
+
+R-05 nutrition truthfulness
+
+
+Also trace:
+
+Weekly Programs iOS modal-state fix
+
+Smart Scan approval
+
+Food Memory
+
+Home Today
+
+diary outbox/sync
+
+bounded Coach
+
+Health
+
+Premium/RevenueCat
+
+account isolation
+
+
+For EACH capability answer separately:
+
+A. Is the mobile implementation present in current origin/main?
+
+B. Is it present in the exact source SHA used by iOS Build 7?
+
+C. Does it require backend behavior to function?
+
+D. If yes, what exact endpoint/service/provider does it require?
+
+E. Does current production provide the required compatible behavior?
+
+F. Could cached/persisted local state make the change visually appear absent?
+
+G. Is physical-device verification still required?
+
+
+Fitness is intentionally excluded.
+
+DO NOT restore or investigate Fitness as missing work.
+
+
+==================================================
+4. VERIFY IOS BUILD 7 SOURCE IDENTITY
+==================================================
+
+Read-only query exact EAS Build ID:
+
+45900e2d-298f-4ece-9041-0e42513266e4
+
+
+Verify:
+
+status
+
+platform
+
+profile
+
+distribution
+
+Git SHA
+
+Git subject
+
+version
+
+build number
+
+bundle identifier
+
+Expo project identity.
+
+
+Require EAS-recorded Git SHA to be compared with:
+
+dec8f0d6a9531cb5a2eb73c01706dc75354e743c
+
+
+Do NOT build or submit anything.
+
+
+==================================================
+5. INSPECT IOS BUILD 7 EMBEDDED RUNTIME CONFIG
+==================================================
+
+Using the exact verified Build 7 artifact where safely available, determine
+the runtime configuration embedded in the iOS binary.
+
+Record WITHOUT EXPOSING SECRETS:
+
+production API base URL
+
+Supabase project/public endpoint identity
+
+RevenueCat configuration presence
+
+environment/profile markers
+
+development/production flags
+
+mock flags
+
+localhost references
+
+Replit preview references
+
+Railway references
+
+production Replit API references.
+
+
+Determine exactly which API host Build 7 calls.
+
+
+If direct artifact inspection is unavailable, derive this from exact build
+source/config and clearly label the evidence level.
+
+
+==================================================
+6. VERIFY CURRENT ANDROID BUILD LINEAGE
+==================================================
+
+Inspect EAS Android build history and repository Android configuration.
+
+Record recent relevant Android builds:
+
+EAS Build ID
+
+timestamp
+
+Git SHA
+
+Git subject
+
+versionName
+
+versionCode
+
+profile
+
+distribution
+
+artifact fingerprint/hash where available.
+
+
+Specifically determine:
+
+Was versionCode 24 reused across multiple distinct APK binaries?
+
+What is the highest Android versionCode already consumed by EAS/release
+history?
+
+Is there evidence of versionCode 25 or 26?
+
+What is the actual current Android floor?
+
+Could the installed Android package plausibly be an older binary despite a
+newer APK having been downloaded?
+
+Does Android package-manager upgrade semantics allow the current workflow to
+replace the installed binary when versionCode is unchanged?
+
+
+Do NOT create an Android build.
+
+
+==================================================
+7. IDENTIFY CURRENT DEVELOPMENT API SOURCE
+==================================================
+
+Determine the exact API source currently represented by the active development
+workspace.
+
+Record:
+
+Git SHA
+
+tree/source identity if available
+
+timestamp
+
+release/version endpoint identity if available
+
+changed API paths since current production release
+
+shared-contract changes
+
+recipe changes
+
+planner changes
+
+capture changes
+
+sync changes
+
+Coach changes
+
+account/auth changes
+
+other server-driven changes.
+
+
+Do NOT deploy it.
+
+
+==================================================
+8. IDENTIFY LIVE PRODUCTION API
+==================================================
+
+Target expected production host:
+
+https://calorie-coach-pie35449.replit.app
+
+
+Read-only query the live production service.
+
+Use repository-supported version/health endpoints where available.
+
+Record:
+
+live URL
+
+provider/deployment target
+
+release ID
+
+Git commit
+
+source tree/hash if exposed
+
+build timestamp
+
+deployment timestamp
+
+health state.
+
+
+Also determine whether:
+
+https://mycaloraapp.com
+
+maps to the same production API release where applicable.
+
+
+Do not deploy or restart anything.
+
+
+==================================================
+9. PROVE DEVELOPMENT VS PRODUCTION API DELTA
+==================================================
+
+Compare the exact current development API source against the exact live
+production API release.
+
+Produce a FILE-LEVEL and CAPABILITY-LEVEL delta.
+
+
+For every server-side difference classify:
+
+P0_SECURITY
+
+P1_FUNCTIONAL
+
+P2_USER_VISIBLE
+
+P3_INTERNAL
+
+TEST_ONLY
+
+REPORT_ONLY
+
+NO_RUNTIME_EFFECT
+
+
+For each runtime difference record:
+
+changed file/path
+
+relevant commit(s)
+
+endpoint/service affected
+
+mobile screen/flow affected
+
+whether iOS Build 7 calls it
+
+whether Android calls it
+
+expected stale symptom
+
+deployment risk
+
+database dependency
+
+backward-compatibility concern.
+
+
+This is one of the most important sections.
+
+Do not simply say "production is one day behind."
+
+Show WHAT functionality is behind.
+
+
+==================================================
+10. API CONTRACT COMPATIBILITY
+==================================================
+
+Compare:
+
+current mobile API expectations
+
+iOS Build 7 mobile expectations
+
+current generated API client/contracts
+
+development API
+
+live production API.
+
+
+Audit at minimum:
+
+recipes
+
+Premium recipes
+
+planner
+
+weekly programs where server-dependent
+
+capture
+
+capture approval
+
+diary
+
+sync
+
+Coach Fact Context
+
+account/auth
+
+referrals
+
+account deletion
+
+active-account handling.
+
+
+For each:
+
+mobile expectation
+
+development implementation
+
+production implementation
+
+compatible YES/NO/PARTIAL
+
+observable consequence.
+
+
+Identify any endpoint that would:
+
+404
+
+return old shape
+
+omit new fields
+
+return stale behavior
+
+fail authorization
+
+silently fall back.
+
+
+==================================================
+11. DATABASE COMPATIBILITY PREFLIGHT — READ ONLY
+==================================================
+
+DO NOT MUTATE DATABASE.
+
+
+Determine whether bringing production API to the current intended source would
+require:
+
+schema changes
+
+migrations
+
+new tables
+
+new columns
+
+new indexes
+
+new constraints
+
+new RLS/security policies
+
+seed changes
+
+data backfill
+
+destructive operations.
+
+
+Compare expected current API database objects against production database
+objects using read-only inspection only.
+
+
+For each dependency classify:
+
+PRESENT_COMPATIBLE
+
+PRESENT_DIFFERENT
+
+MISSING
+
+UNKNOWN
+
+
+If any production deployment would require DB mutation, flag it prominently.
+
+DO NOT perform the mutation.
+
+
+==================================================
+12. PRODUCTION SECRETS / CONFIG COMPATIBILITY
+==================================================
+
+Without printing secret values, verify whether the current intended API
+release requires configuration/secrets that production currently lacks.
+
+Audit presence only for relevant categories such as:
+
+Supabase
+
+recipe provider(s)
+
+RevenueCat verification
+
+Coach/provider credentials
+
+release activation controls
+
+referral/auth configuration
+
+other required production variables.
+
+
+Record:
+
+required
+
+present yes/no/unknown
+
+risk if absent.
+
+
+Never expose secret contents.
+
+
+==================================================
+13. SENSITIVE COACH ACTIVATION SAFETY
+==================================================
+
+The bounded Coach/Fact Context system has intentional safety gates.
+
+Verify whether deploying current API source would alter:
+
+global rollout
+
+consent requirements
+
+allowlist
+
+cohort eligibility
+
+nonce fencing
+
+request bounds
+
+history bounds
+
+expiry
+
+default-deny behavior
+
+sensitive provider activation.
+
+
+Require that no audit operation activates Coach globally.
+
+If a deployment could unintentionally change activation state, classify as
+a deployment blocker.
+
+
+==================================================
+14. RECIPES / PLUS / DISCOVER RUNTIME TRACE
+==================================================
+
+Trace exactly how Build 7 obtains recipe data.
+
+Map:
+
+screen
+
+query/cache layer
+
+API endpoint
+
+production host
+
+server handler
+
+provider
+
+pagination
+
+nutrition enrichment
+
+freshness behavior
+
+entitlement checks.
+
+
+Separate which Step 53/54 behavior is:
+
+purely mobile
+
+server dependent
+
+provider dependent
+
+cache dependent.
+
+
+Determine whether the old production API can make the recovered recipe changes
+appear absent even though the Build 7 mobile source contains them.
+
+
+==================================================
+15. SMART SCAN → HOME TODAY RUNTIME TRACE
+==================================================
+
+Trace Build 7:
+
+camera
+
+capture
+
+analysis
+
+review
+
+approval
+
+Food Memory
+
+local diary
+
+nutrition snapshot
+
+outbox
+
+persistence
+
+Home Today
+
+authenticated sync
+
+production API.
+
+
+Identify precisely which parts are local and which require production.
+
+Determine whether production drift could cause:
+
+approval failure
+
+old response shape
+
+missing nutrition
+
+sync failure
+
+stale Home data
+
+duplicate/retry behavior.
+
+
+Do not perform production writes for the audit.
+
+
+==================================================
+16. PLANNER RUNTIME TRACE
+==================================================
+
+Trace:
+
+Plan tab
+
+Weekly Programs
+
+program selection
+
+detail
+
+Apply
+
+planner generation
+
+recipe/program data
+
+shopping list
+
+server interactions.
+
+
+Separate:
+
+pure mobile behavior
+
+production API behavior
+
+provider behavior
+
+persisted state.
+
+
+Explain why Weekly Programs selector→detail can work physically while other
+Planner behavior could still remain stale.
+
+
+==================================================
+17. LOCAL CACHE / PERSISTED STATE AUDIT
+==================================================
+
+Determine whether existing installed-state data could hide recent changes.
+
+Audit relevant storage/cache layers:
+
+React Query/cache
+
+AsyncStorage or equivalent
+
+account-scoped storage
+
+onboarding persistence
+
+recipe session freshness memory
+
+Food Memory
+
+diary local state
+
+planner state
+
+profile state
+
+Health local state
+
+auth/session state.
+
+
+For each, state whether:
+
+app update preserves it
+
+app reinstall clears it
+
+logout clears/account-switch fences it
+
+stale values can mask new behavior.
+
+
+DO NOT recommend clearing data as the primary fix unless evidence proves it
+is necessary.
+
+We need root cause, not a refresh workaround.
+
+
+==================================================
+18. METRO / EXPO LIVE PREVIEW FAILURE
+==================================================
+
+Investigate the reported:
+
+ENOSPC: System limit for number of file watchers reached
+
+
+Determine:
+
+whether this is still reproducible
+
+whether it affects production EAS builds
+
+whether it affects only local/preview development
+
+whether it can cause source changes to be absent from an installed binary
+
+whether it is independent of production API drift.
+
+
+DO NOT modify host system limits in this audit.
+
+Document remediation separately.
+
+
+==================================================
+19. RELEASE/REPORT COMMIT TAIL
+==================================================
+
+Replit previously reported that workspace HEAD may contain report/log commits
+ahead of product source.
+
+Map those commits.
+
+For each classify:
+
+documentation only
+
+release metadata
+
+product code
+
+configuration
+
+other.
+
+
+Determine whether statements such as:
+
+"the APK contains workspace HEAD"
+
+could be misleading if HEAD only differs by documentation/report commits.
+
+
+Clearly identify the LAST MOBILE PRODUCT SHA and LAST API PRODUCT SHA,
+not merely latest repository HEAD.
+
+
+==================================================
+20. BUILD 7 VISUAL STALENESS ANALYSIS
+==================================================
+
+The owner reports:
+
+"all the changes that were made so far none is reflecting in the app."
+
+
+Do not dismiss this observation.
+
+For each recovered target and recent product change, determine one of:
+
+VISIBLE_IN_BUILD_7_NOW
+
+PRESENT_BUT_REQUIRES_SPECIFIC_FLOW
+
+PRESENT_BUT_BACKEND_BLOCKED
+
+PRESENT_BUT_CACHE_OR_STATE_DEPENDENT
+
+PRESENT_BUT_VISUALLY_SUBTLE
+
+NOT_PRESENT_IN_BUILD_7
+
+UNPROVEN
+
+
+This matrix must explain why the owner could reasonably perceive Build 7 as
+unchanged.
+
+
+==================================================
+21. DETERMINE EXACT ROOT CAUSE(S)
+==================================================
+
+At the end distinguish among:
+
+A. LOST MOBILE SOURCE
+
+B. WRONG MOBILE BUILD SHA
+
+C. STALE PRODUCTION API
+
+D. API CONTRACT DRIFT
+
+E. DATABASE RELEASE DRIFT
+
+F. ANDROID VERSIONCODE COLLISION
+
+G. LOCAL APP CACHE/PERSISTENCE
+
+H. LIVE PREVIEW/METRO FAILURE
+
+I. PROVIDER/CACHE BEHAVIOR
+
+J. OTHER
+
+
+For each:
+
+CONFIRMED
+
+CONTRIBUTING
+
+RULED_OUT
+
+UNPROVEN
+
+
+Do not force a single root cause if multiple independent causes exist.
+
+
+==================================================
+22. SAFE REMEDIATION PLAN — DO NOT EXECUTE
+==================================================
+
+Based only on proven evidence, propose the smallest controlled remediation
+sequence.
+
+
+Possible stages MAY include:
+
+A. production API deployment preflight/remediation;
+
+B. exact production API deployment;
+
+C. production runtime verification;
+
+D. Android versionCode remediation;
+
+E. new Android provenance-controlled APK;
+
+F. Metro/live-preview environment remediation;
+
+G. cache/state-specific device verification;
+
+H. Build 7 re-test after production alignment.
+
+
+But only recommend stages supported by evidence.
+
+
+DO NOT EXECUTE ANY STAGE.
+
+
+==================================================
+23. IOS BUILD 7 DECISION
+==================================================
+
+Answer explicitly:
+
+Does iOS Build 7 need a new native build to receive the missing behavior?
+
+Possible classifications:
+
+NO — PRODUCTION ALIGNMENT ONLY
+
+YES — MOBILE SOURCE MISSING
+
+YES — EMBEDDED CONFIGURATION WRONG
+
+PARTIAL — SOME FIXES REQUIRE BACKEND, OTHERS REQUIRE NEW MOBILE BUILD
+
+UNPROVEN
+
+
+Provide exact evidence.
+
+
+Do NOT create Build 8.
+
+
+==================================================
+24. ANDROID DECISION
+==================================================
+
+Answer explicitly:
+
+Does Android require a new APK after remediation?
+
+Determine:
+
+current versionCode
+
+highest consumed floor
+
+next safe versionCode
+
+whether source change is necessary
+
+whether API deployment alone would fix server-driven behavior
+
+whether a fresh APK is still required to remove binary/version ambiguity.
+
+
+DO NOT modify versionCode.
+
+DO NOT build.
+
+
+==================================================
+25. ABSOLUTE PROHIBITIONS
+==================================================
+
+DO NOT:
+
+deploy production API
+
+publish Replit
+
+restart production intentionally
+
+modify production secrets
+
+change Coach rollout
+
+modify database
+
+run migrations
+
+change schema
+
+change seed data
+
+modify source
+
+modify app.json
+
+increment iOS build
+
+increment Android versionCode
+
+commit
+
+push
+
+merge
+
+rebase
+
+reset
+
+force push
+
+create EAS iOS build
+
+create EAS Android build
+
+submit TestFlight
+
+submit App Store
+
+release publicly
+
+restore Fitness.
+
+
+==================================================
+REPORT
+==================================================
+
+Create:
+
+57_CALORA_PRODUCTION_RUNTIME_DELIVERY_RECONCILIATION_AUDIT.md
+
+
+Required sections:
+
+1. Executive summary
+2. Owner-reported symptom
+3. Audit scope
+4. Read-only safeguards
+5. Current origin/main identity
+6. Current workspace identity
+7. Workspace vs canonical divergence
+8. Recent commit classification
+9. Last mobile product SHA
+10. Last API product SHA
+11. Recovery-target source matrix
+12. iOS Build 7 EAS identity
+13. iOS Build 7 embedded runtime configuration
+14. iOS Build 7 production API target
+15. Android build-history inventory
+16. Android versionCode forensic
+17. Current Android versionCode floor
+18. Current development API identity
+19. Live production API identity
+20. Development-vs-production release delta
+21. File-level API delta
+22. Capability-level API delta
+23. Mobile/API contract compatibility
+24. Database compatibility preflight
+25. Production configuration/secrets preflight
+26. Coach activation safety
+27. Recipes/Plus/Discover runtime trace
+28. Smart Scan/Home runtime trace
+29. Planner runtime trace
+30. Diary/sync runtime trace
+31. Account/auth runtime trace
+32. Cache/persistence analysis
+33. Metro ENOSPC analysis
+34. Report/documentation-tail analysis
+35. Build 7 visual-staleness matrix
+36. Confirmed root causes
+37. Contributing causes
+38. Ruled-out causes
+39. Unproven causes
+40. iOS Build 7 decision
+41. Android APK decision
+42. Proposed remediation sequence
+43. Deployment risk assessment
+44. Build risk assessment
+45. Remaining unknowns
+46. Exact recommendation for Step 58
+
+
+==================================================
+MANDATORY RELEASE IDENTITY TABLE
+==================================================
+
+| Layer | SHA/release | Timestamp | Runtime target | Current? | Evidence |
+
+Rows:
+
+origin/main
+
+workspace HEAD
+
+last mobile product source
+
+last API product source
+
+iOS Build 7
+
+latest relevant Android APK
+
+development API
+
+production API
+
+
+==================================================
+MANDATORY RECOVERY MATRIX
+==================================================
+
+| Capability | Current main | Build 7 | Backend required? | Production compatible? | Cache/state dependent? | Status |
+
+Rows:
+
+R-01 onboarding keyboard
+
+R-02 agreement semantics
+
+R-03 Plus remount
+
+R-04 Discover/Plus freshness
+
+R-05 nutrition truthfulness
+
+Weekly Programs
+
+Smart Scan approval
+
+Food Memory
+
+Home Today
+
+Diary/outbox/sync
+
+Bounded Coach
+
+Health
+
+Premium/RevenueCat
+
+Account isolation
+
+
+==================================================
+MANDATORY API DELTA TABLE
+==================================================
+
+| Capability | Development source | Production source | Difference | User-visible effect | DB dependency | Risk |
+
+
+Include every meaningful runtime delta.
+
+
+==================================================
+MANDATORY ROOT-CAUSE TABLE
+==================================================
+
+| Candidate | Classification | Evidence | User-visible consequence |
+
+Candidates:
+
+Lost mobile source
+
+Wrong iOS build SHA
+
+Stale production API
+
+API contract drift
+
+Database drift
+
+Android versionCode collision
+
+Local cache/persistence
+
+Metro/live preview failure
+
+Provider/cache behavior
+
+Other
+
+
+Classification:
+
+CONFIRMED
+
+CONTRIBUTING
+
+RULED_OUT
+
+UNPROVEN
+
+
+==================================================
+MANDATORY IOS DECISION TABLE
+==================================================
+
+| Question | Answer | Evidence |
+
+Include:
+
+Does Build 7 contain R-01?
+
+Does Build 7 contain R-02?
+
+Does Build 7 contain R-03?
+
+Does Build 7 contain R-04?
+
+Does Build 7 contain R-05?
+
+Does Build 7 point to intended production API?
+
+Is production API current enough for Build 7?
+
+Does Build 7 require rebuilding after API alignment?
+
+Can Build 7 be retested unchanged after backend alignment?
+
+
+==================================================
+FINAL QUESTIONS
+==================================================
+
+A. What exact SHA is current origin/main?
+
+B. What exact SHA is current workspace HEAD?
+
+C. What is the last actual MOBILE PRODUCT SHA?
+
+D. What is the last actual API PRODUCT SHA?
+
+E. Does iOS Build 7 contain the recent mobile recovery work?
+
+F. What exact API host does Build 7 call?
+
+G. What exact release/commit is production API running?
+
+H. What exact release/commit does current development API represent?
+
+I. Is production API behind development?
+
+J. If yes, exactly what user-visible capabilities are behind?
+
+K. Are any DB changes required before production API can be aligned?
+
+L. Are any production secrets/config changes required?
+
+M. Would production alignment alter bounded Coach safety?
+
+N. Is Android versionCode reuse confirmed?
+
+O. What is the actual highest consumed Android versionCode?
+
+P. What is the next safe Android versionCode based on evidence?
+
+Q. Is Metro ENOSPC related to production binaries or only development preview?
+
+R. Can local cache/persistence explain any of the owner's stale observations?
+
+S. Is lost mobile source ruled out?
+
+T. Is wrong iOS Build 7 provenance ruled out?
+
+U. Does iOS Build 7 need to be rebuilt?
+
+V. Does Android need a new APK?
+
+W. What is the smallest safe remediation sequence?
+
+X. Was absolutely NOTHING deployed, built, pushed, or mutated during Step 57?
+
+
+==================================================
+FINAL VERDICT
+==================================================
+
+Use EXACTLY ONE:
+
+RUNTIME DELIVERY DRIFT CONFIRMED — CONTROLLED REMEDIATION REQUIRED
+
+MOBILE BUILD SOURCE GAP CONFIRMED — NEW MOBILE BUILD REQUIRED
+
+MIXED MOBILE AND RUNTIME DRIFT CONFIRMED — CONTROLLED REMEDIATION REQUIRED
+
+NO DELIVERY DRIFT CONFIRMED — FURTHER FORENSICS REQUIRED
+
+AUDIT INCOMPLETE — DO NOT REMEDIATE
+
+
+==================================================
+STOP
+==================================================
+
+After producing the report:
+
+STOP.
+
+DO NOT DEPLOY THE API.
+
+DO NOT BUILD IOS.
+
+DO NOT BUILD ANDROID.
+
+DO NOT CHANGE VERSION CODES.
+
+DO NOT PUSH.
+
+DO NOT MODIFY DATABASE.
+
+Wait for owner review.

@@ -153,6 +153,9 @@ async function verifyStagedProviderPackage(release, artifact) {
 }
 
 async function writeSignedExternalManifest(release, distDir) {
+  const sensitiveActivationRequested = process.env.RELEASE_SENSITIVE_ACTIVATION_REQUESTED === "true";
+  if (!sensitiveActivationRequested) return;
+
   const manifestDir = process.env.RELEASE_ATTESTATION_MANIFEST_DIR;
   const signingKey = process.env.RELEASE_ATTESTATION_SIGNING_KEY;
   const finalArtifactDir = process.env.RELEASE_ATTESTATION_ARTIFACT_DIR;
@@ -390,10 +393,14 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
-  // Provider-signed final-package provenance remains optional defense in depth.
-  // The supported production boundary is the clean reviewed source compiled
-  // into this bundle and independently compared with the canonical live
-  // /api/version identity before any runtime gate may be enabled.
+  // External artifact provenance is required for an explicitly requested
+  // sensitive release, but it must not block an ordinary API release. The
+  // compiled source identity remains the supported production boundary for
+  // ordinary releases, and Coach stays deny-all unless the sensitive build
+  // gate was explicitly authorized.
+  if (sensitiveActivationRequested) {
+    await writeSignedExternalManifest(release, distDir);
+  }
 }
 
 buildAll().catch((err) => {

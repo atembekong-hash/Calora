@@ -1,0 +1,933 @@
+CALORA — STEP 55 CONTROLLED IOS RELEASE-CANDIDATE BUILD
+
+OUTPUT REPORT:
+
+55_CALORA_CONTROLLED_IOS_RELEASE_CANDIDATE_BUILD_REPORT.md
+
+
+==================================================
+MISSION
+==================================================
+
+Create ONE controlled iOS production release-candidate build from the exact
+canonical Calora source.
+
+BUILD ONLY.
+
+DO NOT submit the build to TestFlight in this step.
+
+DO NOT deploy API/backend.
+
+DO NOT modify product functionality.
+
+DO NOT modify database/schema/migrations/seeds.
+
+The objective is:
+
+1. verify exact canonical source;
+2. determine the next safe iOS build number from live Apple + EAS evidence;
+3. make ONLY the minimum build-number change if required;
+4. pass the release gate;
+5. create exactly one production iOS EAS build;
+6. verify its provenance and IPA identity;
+7. STOP for owner review before TestFlight submission.
+
+
+==================================================
+CANONICAL SOURCE BASELINE
+==================================================
+
+Expected canonical origin/main:
+
+SHA:
+755b433240c262487a6d77472c4f7dafaba2615a
+
+TREE:
+61e9a7146e7dce1dce859cfc48487d4da43019a0
+
+
+Previous exact-SHA release validation:
+
+Workflow run:
+35187963067
+
+Required check-run:
+105094029376
+
+Conclusion:
+success
+
+
+Fetch origin before doing anything.
+
+Verify exact SHA/tree.
+
+If origin/main has changed unexpectedly:
+
+STOP.
+
+Verdict:
+
+RELEASE CANDIDATE BLOCKED — CANONICAL MAIN CHANGED
+
+
+==================================================
+SOURCE FREEZE
+==================================================
+
+Use an exact clean checkout/export/worktree of canonical origin/main.
+
+Do NOT build from:
+
+a dirty Replit workspace;
+
+a divergent local branch;
+
+a historical branch;
+
+an uncommitted working tree;
+
+a stale checkout.
+
+
+Record:
+
+git status
+
+HEAD SHA
+
+tree SHA
+
+origin/main SHA
+
+origin/main tree
+
+
+Before build, tracked application-source diff must be NONE except an explicitly
+authorized build-number-only commit described below.
+
+
+==================================================
+RELEASE GATE PRECONDITION
+==================================================
+
+Confirm the exact canonical SHA already has successful:
+
+Release validation
+
+Required check:
+
+Run release validation suite
+
+
+Do not infer this from another commit.
+
+Record exact evidence.
+
+
+==================================================
+CURRENT IOS IDENTITY
+==================================================
+
+Verify from canonical configuration:
+
+app name
+
+Expo slug
+
+Expo project ID
+
+Expo owner
+
+bundle identifier
+
+marketing version
+
+current configured iOS build number
+
+production EAS profile
+
+autoIncrement setting
+
+submission profile
+
+
+Expected known identity includes:
+
+Bundle identifier:
+com.etiendem.caloraapp
+
+Marketing version:
+1.0.0
+
+Expo project ID:
+1f202325-5b9a-4260-978f-abbd3252b9ee
+
+Expo owner:
+vvault07
+
+
+STOP if identity unexpectedly differs.
+
+
+==================================================
+LIVE BUILD-NUMBER FLOOR
+==================================================
+
+DO NOT ASSUME THE NEXT BUILD NUMBER.
+
+Previous known TestFlight build 5 is historical evidence only.
+
+Determine the CURRENT highest consumed iOS build number independently from:
+
+A. Apple App Store Connect / TestFlight
+
+and
+
+B. EAS build history / EAS version state
+
+
+Record separately:
+
+highest Apple-consumed build number;
+
+highest EAS-consumed production iOS build number;
+
+current canonical configured build number.
+
+
+Define:
+
+LIVE_FLOOR =
+max(
+Apple highest consumed,
+EAS highest consumed
+)
+
+
+Define:
+
+NEXT_SAFE_BUILD =
+LIVE_FLOOR + 1
+
+
+If Apple or EAS cannot be queried reliably:
+
+STOP.
+
+Do not guess.
+
+Verdict:
+
+RELEASE CANDIDATE BLOCKED — BUILD NUMBER FLOOR UNVERIFIED
+
+
+==================================================
+BUILD-NUMBER CONTROL
+==================================================
+
+The repository previously moved to deterministic iOS build-number control.
+
+Preserve that architecture.
+
+DO NOT enable uncontrolled autoIncrement.
+
+DO NOT allow EAS to silently choose the build number.
+
+Production autoIncrement must remain disabled if that is the current canonical
+control mechanism.
+
+
+If canonical configured iOS build number is already NEXT_SAFE_BUILD:
+
+do not modify it.
+
+
+If it is NOT NEXT_SAFE_BUILD:
+
+change ONLY the deterministic iOS build number to NEXT_SAFE_BUILD.
+
+
+No other functional/configuration change is authorized.
+
+
+==================================================
+BUILD-NUMBER COMMIT IF REQUIRED
+==================================================
+
+If a build-number update is required:
+
+create one narrow commit.
+
+Suggested subject:
+
+Prepare iOS build <NEXT_SAFE_BUILD> release candidate
+
+
+Record:
+
+parent SHA
+
+commit SHA
+
+tree SHA
+
+changed path(s)
+
+old build number
+
+new build number
+
+
+No product source may change.
+
+
+==================================================
+PUSH BUILD-NUMBER COMMIT
+==================================================
+
+Before push:
+
+fetch origin again.
+
+Require origin/main still equals the expected source ancestor.
+
+
+If it advanced unexpectedly:
+
+STOP.
+
+NO MERGE.
+
+NO REBASE.
+
+NO FORCE.
+
+
+If safe:
+
+normal fast-forward push to main.
+
+
+NO FORCE PUSH.
+NO HISTORY REWRITE.
+
+
+==================================================
+RELEASE GATE AFTER BUILD-NUMBER COMMIT
+==================================================
+
+If a new build-number commit was created:
+
+wait for:
+
+Release validation
+
+Required check:
+
+Run release validation suite
+
+
+Require:
+
+exact new origin/main SHA;
+
+status completed;
+
+conclusion success.
+
+
+DO NOT BUILD until this succeeds.
+
+
+Record:
+
+workflow run ID
+
+check-run ID
+
+head SHA
+
+status
+
+conclusion
+
+
+If it fails:
+
+STOP.
+
+Verdict:
+
+RELEASE CANDIDATE BLOCKED — RELEASE GATE FAILED
+
+
+==================================================
+FINAL BUILD SHA FREEZE
+==================================================
+
+Immediately before invoking EAS, record:
+
+BUILD_SOURCE_SHA
+
+BUILD_SOURCE_TREE
+
+origin/main SHA
+
+origin/main tree
+
+
+Require:
+
+BUILD_SOURCE_SHA == origin/main SHA
+
+
+Working tree must be clean.
+
+
+This exact SHA becomes the immutable release-candidate source identity.
+
+
+==================================================
+PREBUILD VALIDATION
+==================================================
+
+Run against the exact build source:
+
+pnpm install --frozen-lockfile
+
+pnpm run typecheck
+
+pnpm --filter @workspace/calora test
+
+pnpm --filter @workspace/api-server test
+
+pnpm --filter @workspace/scripts test
+
+Calora static-security tests
+
+Expo config validation
+
+git diff --check
+
+
+Verify again:
+
+bundle ID
+
+marketing version
+
+NEXT_SAFE_BUILD
+
+Expo project ID
+
+production profile
+
+autoIncrement disabled
+
+
+If anything fails:
+
+STOP.
+
+DO NOT BUILD.
+
+
+==================================================
+SIGNING PREFLIGHT
+==================================================
+
+Perform the existing repository-supported iOS signing preflight.
+
+Verify:
+
+Apple credentials accessible;
+
+distribution certificate valid;
+
+provisioning profile valid;
+
+bundle identifier matches;
+
+App Store Connect app identity matches;
+
+EAS project identity matches.
+
+
+Handle status values robustly/case-insensitively as already remediated in the
+canonical release tooling.
+
+
+Do NOT create unnecessary replacement credentials.
+
+
+If signing cannot be verified:
+
+STOP.
+
+
+==================================================
+PRODUCTION ENVIRONMENT PREFLIGHT
+==================================================
+
+Verify the production build resolves the intended production configuration.
+
+Confirm at minimum:
+
+production API endpoint;
+
+Supabase configuration presence;
+
+RevenueCat production/public configuration presence as expected;
+
+Expo/EAS project identity;
+
+no localhost;
+
+no Replit development preview URL;
+
+no unintended development API endpoint;
+
+no mock provider mode;
+
+no development-only feature flag accidentally enabled.
+
+
+DO NOT print secret values into the report.
+
+Report only presence, target identity, and safe fingerprints where appropriate.
+
+
+==================================================
+CREATE EXACTLY ONE IOS BUILD
+==================================================
+
+After ALL gates pass:
+
+create exactly ONE iOS production EAS build.
+
+Platform:
+ios
+
+Profile:
+production
+
+Non-interactive where supported.
+
+
+DO NOT use auto-submit.
+
+DO NOT submit to TestFlight.
+
+DO NOT create a second build merely because verification is inconvenient.
+
+
+Capture the exact EAS Build ID immediately.
+
+
+==================================================
+EAS BUILD VERIFICATION
+==================================================
+
+Wait for that exact EAS Build ID to finish.
+
+
+Require:
+
+status:
+FINISHED / successful
+
+platform:
+iOS
+
+profile:
+production
+
+project:
+Calora
+
+bundle identifier:
+com.etiendem.caloraapp
+
+marketing version:
+1.0.0
+
+build number:
+NEXT_SAFE_BUILD
+
+source SHA:
+BUILD_SOURCE_SHA
+
+
+If source SHA/provenance does not match:
+
+STOP.
+
+DO NOT SUBMIT.
+
+
+==================================================
+IPA PROVENANCE VERIFICATION
+==================================================
+
+Download the artifact belonging to the EXACT EAS Build ID.
+
+Do not use an ambiguous "latest" artifact lookup if an exact-ID mechanism is
+available.
+
+
+Verify:
+
+artifact exists;
+
+IPA archive integrity;
+
+IPA SHA-256;
+
+Info.plist identity;
+
+CFBundleIdentifier;
+
+CFBundleShortVersionString;
+
+CFBundleVersion.
+
+
+Expected:
+
+CFBundleIdentifier =
+com.etiendem.caloraapp
+
+CFBundleShortVersionString =
+1.0.0
+
+CFBundleVersion =
+NEXT_SAFE_BUILD
+
+
+Record:
+
+EAS Build ID
+
+artifact size
+
+IPA SHA-256
+
+verified plist values
+
+
+Do not expose signing secrets.
+
+
+==================================================
+SOURCE / BINARY PROVENANCE
+==================================================
+
+Establish an auditable chain:
+
+canonical GitHub SHA
+→ release-validation success
+→ deterministic build number
+→ exact EAS Build ID
+→ exact IPA
+→ verified plist identity
+
+
+Where supported, record EAS metadata proving the build was created from the
+expected Git source/revision.
+
+
+Do not claim stronger provenance than the evidence supports.
+
+
+==================================================
+NO TESTFLIGHT SUBMISSION
+==================================================
+
+ABSOLUTELY DO NOT RUN:
+
+eas submit --latest
+
+eas submit --id ...
+
+eas build:submit
+
+TestFlight workflow submission
+
+App Store upload
+
+
+The build must remain UNSUBMITTED at the end of Step 55.
+
+
+Step 56 will decide whether the exact verified Build ID is authorized for
+TestFlight.
+
+
+==================================================
+NO ANDROID BUILD
+==================================================
+
+Do NOT build Android in this step.
+
+Android release-candidate handling will be separately authorized.
+
+
+==================================================
+NO PRODUCT REMEDIATION
+==================================================
+
+If build/preflight exposes a product defect:
+
+STOP.
+
+Document it.
+
+Do NOT start repairing unrelated source during Step 55.
+
+
+If source remediation is required:
+
+Verdict:
+
+RELEASE CANDIDATE BLOCKED — SOURCE REMEDIATION REQUIRED
+
+
+==================================================
+PRESERVATION CHECK
+==================================================
+
+Confirm the release candidate still contains the canonical recovery work:
+
+R-01 onboarding keyboard
+
+R-02 agreement semantics
+
+R-03 Plus remount
+
+R-04 Discover/Plus freshness
+
+R-05 nutrition truthfulness
+
+
+Also confirm source lineage preserves:
+
+Weekly Programs modal-state fix;
+
+Smart Scan approval;
+
+Food Memory;
+
+Home Today;
+
+diary outbox/sync;
+
+bounded Coach safety;
+
+Health;
+
+Premium/RevenueCat;
+
+account isolation.
+
+
+Fitness remains intentionally excluded.
+
+
+==================================================
+REPORT
+==================================================
+
+Create:
+
+55_CALORA_CONTROLLED_IOS_RELEASE_CANDIDATE_BUILD_REPORT.md
+
+
+Required sections:
+
+1. Executive summary
+2. Starting canonical SHA/tree
+3. Source-freeze verification
+4. Existing release-gate evidence
+5. iOS application identity
+6. Apple build-number evidence
+7. EAS build-number evidence
+8. LIVE_FLOOR calculation
+9. NEXT_SAFE_BUILD
+10. Build-number configuration before change
+11. Build-number change, if required
+12. Build-number commit SHA/tree/parent
+13. Push result, if applicable
+14. Post-change canonical SHA/tree
+15. Exact-SHA release-validation run/check
+16. Final BUILD_SOURCE_SHA/tree
+17. Working-tree cleanliness
+18. Prebuild validation
+19. Test totals
+20. Signing preflight
+21. Production-environment preflight
+22. EAS build command/action
+23. Exact EAS Build ID
+24. EAS build status
+25. EAS source/provenance metadata
+26. Marketing version
+27. iOS build number
+28. Bundle identifier
+29. IPA artifact verification
+30. IPA size
+31. IPA SHA-256
+32. Info.plist verification
+33. Recovery-target preservation
+34. Smart Scan/Home preservation
+35. Coach safety preservation
+36. Premium/account isolation preservation
+37. Fitness exclusion
+38. Confirmation no Android build
+39. Confirmation no TestFlight submission
+40. Confirmation no API/database deployment
+41. Remaining physical-device verification
+42. Remaining live-provider verification
+43. Exact recommendation for Step 56
+
+
+==================================================
+MANDATORY BUILD IDENTITY TABLE
+==================================================
+
+Include:
+
+| Identity | Expected | Observed | Result |
+
+Rows:
+
+Git SHA
+Git tree
+Expo owner
+Expo project ID
+Bundle ID
+Marketing version
+Build number
+EAS profile
+EAS Build ID
+IPA CFBundleIdentifier
+IPA CFBundleShortVersionString
+IPA CFBundleVersion
+
+
+==================================================
+MANDATORY BUILD-NUMBER TABLE
+==================================================
+
+Include:
+
+| Source | Highest consumed / configured value | Evidence |
+
+
+Rows:
+
+Apple App Store Connect
+EAS production iOS history
+Canonical app configuration
+
+
+Then show:
+
+LIVE_FLOOR = ...
+
+NEXT_SAFE_BUILD = ...
+
+
+==================================================
+FINAL QUESTIONS
+==================================================
+
+Answer explicitly:
+
+A. Was the release candidate built from exact canonical main?
+
+B. What exact Git SHA produced it?
+
+C. What exact EAS Build ID was created?
+
+D. What build number was selected?
+
+E. Was that build number proven above both Apple and EAS consumed floors?
+
+F. Did the exact-SHA release gate pass before build?
+
+G. Did all required tests pass before build?
+
+H. Did signing preflight pass?
+
+I. Did production-environment preflight pass?
+
+J. Does the IPA bundle identifier match Calora?
+
+K. Does the IPA marketing version match 1.0.0?
+
+L. Does the IPA build number match NEXT_SAFE_BUILD?
+
+M. Was the IPA SHA-256 recorded?
+
+N. Were all five recovered Step 51 targets preserved?
+
+O. Was Smart Scan/Home preserved?
+
+P. Was bounded Coach safety preserved?
+
+Q. Was Premium/account isolation preserved?
+
+R. Was Fitness kept excluded?
+
+S. Was Android left untouched?
+
+T. Was TestFlight submission avoided?
+
+U. Were API/database/deployment operations avoided?
+
+V. Is this exact EAS Build ID ready for owner authorization to submit to
+TestFlight in Step 56?
+
+
+==================================================
+FINAL VERDICT
+==================================================
+
+Use EXACTLY ONE:
+
+IOS RELEASE CANDIDATE VERIFIED — READY FOR STEP 56 TESTFLIGHT AUTHORIZATION
+
+RELEASE CANDIDATE BLOCKED — CANONICAL MAIN CHANGED
+
+RELEASE CANDIDATE BLOCKED — BUILD NUMBER FLOOR UNVERIFIED
+
+RELEASE CANDIDATE BLOCKED — RELEASE GATE FAILED
+
+RELEASE CANDIDATE BLOCKED — PREBUILD VALIDATION FAILED
+
+RELEASE CANDIDATE BLOCKED — SIGNING PREFLIGHT FAILED
+
+RELEASE CANDIDATE BLOCKED — SOURCE REMEDIATION REQUIRED
+
+IOS RELEASE CANDIDATE BUILD FAILED
+
+IOS RELEASE CANDIDATE PROVENANCE FAILED — DO NOT SUBMIT
+
+
+==================================================
+STOP
+==================================================
+
+After producing the report:
+
+STOP.
+
+DO NOT START STEP 56.
+
+DO NOT SUBMIT TESTFLIGHT.
+
+DO NOT BUILD ANDROID.
+
+DO NOT DEPLOY.
+
+Wait for owner review.

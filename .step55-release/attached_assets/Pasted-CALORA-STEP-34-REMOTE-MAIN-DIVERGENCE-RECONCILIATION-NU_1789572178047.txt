@@ -1,0 +1,554 @@
+CALORA — STEP 34 REMOTE MAIN DIVERGENCE RECONCILIATION
+
+NUMBERED OUTPUT REPORT:
+
+34_CALORA_REMOTE_MAIN_DIVERGENCE_RECONCILIATION_REPORT.md
+
+
+==================================================
+CURRENT VERIFIED STATE
+==================================================
+
+STEP 33 FINAL VERDICT:
+
+LOCAL MAIN INTEGRATION VERIFIED — READY FOR OWNER PUSH REVIEW
+
+
+VERIFIED LOCAL MAIN:
+
+SHA:
+5733add9a39d6fe5cdaabafd143bd3ce7010add3
+
+TREE:
+de05a933d61dbff05082349db98c129ebdeb3a3f
+
+
+STEP 33 REPORTED REMOTE MAIN:
+
+origin/main
+
+SHA:
+d5b15e93a930dc3cd83dfd0751907b6501d1b272
+
+TREE:
+7208584091da3492fccb8e118209f7fcb5d93951
+
+
+STEP 33 REPORTED RELATIONSHIP:
+
+local main ahead 51
+local main behind 2
+
+
+REMOTE-ONLY COMMITS IDENTIFIED:
+
+3f34a13d4744feb5dc095856d5f1a262ea78b020
+Update EAS configuration for Calora artifacts
+
+d5b15e93a930dc3cd83dfd0751907b6501d1b272
+Add Apple Health update usage description
+
+
+==================================================
+MISSION
+==================================================
+
+Safely reconcile the remote-only origin/main work into the already validated
+LOCAL main candidate.
+
+The objective is to produce ONE local main history containing:
+
+1. all validated Step 32/33 reconciliation work;
+
+AND
+
+2. all still-required functionality represented by the two remote-only
+origin/main commits;
+
+WITHOUT:
+
+- losing Step 33 work;
+- duplicating equivalent fixes;
+- downgrading current runtime behavior;
+- weakening security;
+- changing API compatibility;
+- breaking Expo/EAS;
+- breaking iOS/TestFlight configuration;
+- rewriting published history.
+
+
+==================================================
+CRITICAL RULE
+==================================================
+
+DO NOT PUSH.
+
+This step is LOCAL RECONCILIATION ONLY.
+
+DO NOT:
+
+- force-push
+- push main
+- push any branch
+- reset away validated Step 33 work
+- merge the historical release/calora-onboarding-and-plus branch
+- deploy production
+- modify production
+- modify any database
+- run migrations
+- run drizzle-kit push
+- trigger GitHub Actions
+- trigger EAS
+- build Android
+- build iOS
+- create APK/AAB/IPA
+- submit TestFlight
+- submit App Store
+
+STOP AFTER LOCAL RECONCILIATION + VALIDATION + REPORT.
+
+
+==================================================
+MISSION 1 — FETCH AND RE-FREEZE IDENTITIES
+==================================================
+
+Fetch origin.
+
+Then record exact current:
+
+LOCAL main SHA/tree
+
+origin/main SHA/tree
+
+Do not assume Step 33 identities are still current.
+
+Verify whether local main still equals:
+
+5733add9a39d6fe5cdaabafd143bd3ce7010add3
+
+tree
+de05a933d61dbff05082349db98c129ebdeb3a3f
+
+
+Verify whether origin/main still equals:
+
+d5b15e93a930dc3cd83dfd0751907b6501d1b272
+
+tree
+7208584091da3492fccb8e118209f7fcb5d93951
+
+
+If either has changed:
+
+STOP BEFORE RECONCILIATION.
+
+Analyze the new commits first.
+
+If the new change is runtime/config/security/native/API/database/release work,
+do not silently incorporate it.
+
+Document it and return a BLOCKED verdict.
+
+
+==================================================
+MISSION 2 — VERIFY THE TWO REMOTE-ONLY COMMITS
+==================================================
+
+Independently inspect:
+
+3f34a13d4744feb5dc095856d5f1a262ea78b020
+
+and
+
+d5b15e93a930dc3cd83dfd0751907b6501d1b272
+
+
+For EACH commit identify:
+
+- every changed file
+- runtime impact
+- native impact
+- Expo/EAS impact
+- API impact
+- security impact
+- build impact
+- whether equivalent functionality already exists in local main
+- whether local main contains a newer implementation
+- whether the commit can be safely replayed as-is
+- whether semantic/manual reconciliation is required
+
+
+==================================================
+MISSION 3 — EAS CONFIGURATION RECONCILIATION
+==================================================
+
+Audit commit:
+
+3f34a13d4744feb5dc095856d5f1a262ea78b020
+
+
+Preserve the required current iOS/TestFlight fixes, including:
+
+- correct artifacts/calora project context
+- correct Expo project identity
+- Expo Router entry point
+- production EAS build profile
+- production submit profile
+- correct iOS bundle identifier
+- Android package identity
+- correct working directory assumptions
+- pnpm/xmldom remediation
+- image-size/archive remediation
+- TestFlight workflow compatibility
+
+Do NOT blindly replace:
+
+app.json
+eas.json
+package configuration
+workflow configuration
+
+If local main already contains an equivalent or newer setting, retain the
+newer/equivalent version.
+
+If a required remote setting is genuinely absent, integrate only that setting.
+
+The final configuration must represent the union of required behavior,
+not simply whichever file Git considers newer.
+
+
+==================================================
+MISSION 4 — APPLE HEALTH PRIVACY RECONCILIATION
+==================================================
+
+Audit commit:
+
+d5b15e93a930dc3cd83dfd0751907b6501d1b272
+
+
+Ensure the final Calora iOS configuration preserves the required Apple Health
+privacy-purpose strings.
+
+At minimum verify the currently required HealthKit privacy descriptions are
+present and correctly associated with the iOS app configuration.
+
+Do not remove existing privacy-purpose strings.
+
+Do not replace unrelated app configuration.
+
+If the exact Apple Health change already exists in local main, do not duplicate
+it merely to reproduce commit history.
+
+Prove functional/configuration equivalence.
+
+
+==================================================
+MISSION 5 — CHOOSE SAFEST GIT METHOD
+==================================================
+
+After semantic comparison, choose the safest auditable method.
+
+Possible methods:
+
+A. Cherry-pick the two remote commits if they apply cleanly AND produce the
+correct semantic result.
+
+B. Cherry-pick with deliberate semantic conflict resolution if required.
+
+C. Recreate only the genuinely missing settings in one reconciliation commit
+if replaying the historical commits would overwrite newer local behavior.
+
+D. No runtime change if local main is already functionally equivalent, while
+reconciling Git ancestry through the safest non-destructive method.
+
+DO NOT use force operations.
+
+DO NOT discard the Step 33 local main candidate.
+
+Explain exactly why the selected method is safest.
+
+
+==================================================
+MISSION 6 — PROTECT STEP 33 FUNCTIONALITY
+==================================================
+
+After remote reconciliation, prove preservation of all Step 33 functionality:
+
+1. Durable capture acceptance.
+
+2. Weekly Programs deterministic modal state machine.
+
+3. Shared Planner Program pools and eligibility.
+
+4. Coach bounded request lifecycle.
+
+5. Coach Fact Context restricted to:
+
+daily.calorie_status
+daily.protein_status
+
+6. Diary image provenance/imageAssetKey sync.
+
+7. Capture compatibility assertion.
+
+Also preserve:
+
+- capture approval security
+- recipe nextOffset
+- recipe terminalReason
+- Premium entitlement
+- PKCE/auth
+- account isolation
+- deletion fences
+- synchronization ownership
+- current API contracts
+- release attestation
+- release validation
+
+
+==================================================
+MISSION 7 — DATABASE SAFETY
+==================================================
+
+No database change is authorized.
+
+Verify:
+
+- no migration changes
+- no schema changes
+- no migration execution
+- no drizzle-kit push
+- no development DB mutation
+- no production DB mutation
+
+If either remote commit unexpectedly requires a DB change:
+
+STOP.
+
+Return BLOCKED.
+
+Do not perform it.
+
+
+==================================================
+MISSION 8 — FULL VALIDATION
+==================================================
+
+After local remote-main reconciliation, run the complete non-deploying suite.
+
+At minimum:
+
+pnpm --filter @workspace/api-server test
+
+pnpm --filter @workspace/calora test
+
+pnpm --filter @workspace/scripts test
+
+pnpm run typecheck
+
+git diff --check
+
+
+Also run:
+
+- Expo configuration validation
+- EAS configuration/static validation
+- native auth/signing unit tests
+- Apple Health configuration/privacy validation
+- capture focused tests
+- Planner focused tests
+- Weekly Programs modal regression tests
+- Coach/Coach Fact Context tests
+- diary/sync tests
+- Recipes/Premium compatibility tests
+- account/auth/security tests
+- deletion-fence tests
+- generated API contract validation
+- release-attestation validation
+- package/lockfile consistency checks
+
+
+NO EAS BUILD.
+
+NO MOBILE BUILD.
+
+NO DEPLOYMENT.
+
+
+==================================================
+MISSION 9 — GIT DIVERGENCE VERIFICATION
+==================================================
+
+After successful reconciliation:
+
+fetch origin again without modifying local history.
+
+Determine:
+
+git relationship between local main and origin/main.
+
+The desired condition before owner push authorization is:
+
+local main contains origin/main history
+
+AND
+
+local main contains all Step 33 validated reconciliation work.
+
+Ideally:
+
+main is ahead of origin/main
+and behind 0.
+
+If behind remains nonzero:
+
+DO NOT recommend push.
+
+Investigate why.
+
+
+==================================================
+MISSION 10 — FINAL TREE AUDIT
+==================================================
+
+Compare:
+
+STEP 33 LOCAL MAIN:
+
+5733add9a39d6fe5cdaabafd143bd3ce7010add3
+
+against:
+
+POST-STEP-34 LOCAL MAIN
+
+
+Produce a complete changed-file manifest attributable ONLY to remote-main
+reconciliation.
+
+For every changed path state:
+
+- originating remote commit
+- whether remote/local/combined implementation won
+- reason
+- validation covering the change
+
+Confirm Step 33 runtime changes remain present.
+
+
+==================================================
+MISSION 11 — ROLLBACK
+==================================================
+
+Preserve this rollback point:
+
+STEP 33 VERIFIED LOCAL MAIN
+
+SHA:
+5733add9a39d6fe5cdaabafd143bd3ce7010add3
+
+TREE:
+de05a933d61dbff05082349db98c129ebdeb3a3f
+
+
+If reconciliation fails:
+
+do not push.
+
+Safely restore local main to this exact verified state using normal auditable
+Git operations.
+
+Do not rewrite published history.
+
+
+==================================================
+MISSION 12 — FREEZE FINAL PUSH CANDIDATE
+==================================================
+
+If and ONLY if:
+
+- reconciliation succeeds;
+- all tests pass;
+- origin/main is fully contained;
+- Step 33 functionality remains intact;
+- native/EAS/Health configuration is correct;
+- working tree is clean;
+
+record:
+
+FINAL LOCAL MAIN SHA
+FINAL LOCAL MAIN TREE
+
+This becomes the candidate for owner-authorized GitHub push.
+
+DO NOT PUSH IT.
+
+
+==================================================
+OUTPUT
+==================================================
+
+Create:
+
+34_CALORA_REMOTE_MAIN_DIVERGENCE_RECONCILIATION_REPORT.md
+
+
+Report sections:
+
+1. Executive summary
+2. Step 33 starting identity
+3. Refreshed local main identity
+4. Refreshed origin/main identity
+5. Remote divergence verification
+6. Commit 3f34a13 forensic analysis
+7. Commit d5b15e9 forensic analysis
+8. EAS configuration reconciliation
+9. Apple Health privacy reconciliation
+10. Git reconciliation method used
+11. Conflict resolutions
+12. Step 33 functionality preservation
+13. API/security invariant verification
+14. Database/migration verification
+15. Expo/EAS/native validation
+16. Apple Health validation
+17. Full test results
+18. Typecheck results
+19. Generated-contract verification
+20. Final changed-file manifest
+21. Final main vs origin/main relationship
+22. Rollback identity
+23. Final local main SHA/tree
+24. Working-tree cleanliness
+25. Confirmation of no push/deployment/build/database mutation
+26. Remaining uncertainties
+27. Exact recommendation for next owner-authorized step
+
+
+FINAL VERDICT MUST BE EXACTLY ONE OF:
+
+REMOTE MAIN RECONCILIATION VERIFIED — READY FOR OWNER PUSH AUTHORIZATION
+
+REMOTE MAIN RECONCILIATION BLOCKED — DO NOT PUSH
+
+REMOTE MAIN RECONCILIATION FAILED — RESTORED TO STEP 33 SAFE STATE
+
+
+==================================================
+STOP CONDITION
+==================================================
+
+STOP after:
+
+- remote-main reconciliation,
+- complete validation,
+- divergence verification,
+- final SHA/tree freeze,
+- numbered report.
+
+DO NOT PUSH.
+DO NOT DEPLOY.
+DO NOT TRIGGER EAS.
+DO NOT BUILD ANDROID.
+DO NOT BUILD IOS.
+DO NOT SUBMIT TESTFLIGHT.
+
+Wait for explicit owner authorization.

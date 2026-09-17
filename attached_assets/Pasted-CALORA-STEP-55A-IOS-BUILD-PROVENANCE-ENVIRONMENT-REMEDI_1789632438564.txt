@@ -1,0 +1,718 @@
+CALORA — STEP 55A IOS BUILD PROVENANCE ENVIRONMENT REMEDIATION
+
+OUTPUT REPORT:
+
+55A_CALORA_IOS_BUILD_PROVENANCE_ENVIRONMENT_REMEDIATION_REPORT.md
+
+
+==================================================
+MISSION
+==================================================
+
+Fix and VERIFY the Git/EAS source-provenance environment failure discovered
+in Step 55.
+
+THIS STEP MUST NOT CREATE AN EAS BUILD.
+
+THIS STEP MUST NOT SUBMIT TESTFLIGHT.
+
+The objective is to establish a build workspace where EAS unquestionably
+resolves the intended canonical Git repository and SHA.
+
+Step 55 failed because EAS recorded:
+
+b1f5a3e30e41c468ab5c0e4123e4ddb7b3cd436f
+
+instead of intended canonical candidate:
+
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+
+Do not attempt to make the failed Build ID acceptable.
+
+FAILED / UNSUBMITTABLE BUILD:
+
+fffc4d8a-5e1b-48f0-98c9-e2949136cf04
+
+
+That build must remain unsubmitted.
+
+
+==================================================
+CURRENT EXPECTED CANONICAL MAIN
+==================================================
+
+Expected origin/main:
+
+SHA:
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+TREE:
+0b4185eac78f8b42097fce0334691487df740e53
+
+
+Expected commit subject:
+
+Prepare iOS build 6 release candidate
+
+
+Fetch origin.
+
+Verify exact SHA/tree.
+
+If origin/main unexpectedly differs:
+
+STOP.
+
+VERDICT:
+
+PROVENANCE REMEDIATION BLOCKED — CANONICAL MAIN CHANGED
+
+
+==================================================
+DO NOT CHANGE PRODUCT SOURCE
+==================================================
+
+No product remediation is authorized.
+
+Do not change:
+
+Calora screens;
+
+recipes;
+
+Planner;
+
+onboarding;
+
+Smart Scan;
+
+Food Memory;
+
+Home;
+
+Diary;
+
+Sync;
+
+Coach;
+
+Health;
+
+Premium;
+
+RevenueCat;
+
+Auth;
+
+referrals;
+
+account deletion;
+
+API behavior;
+
+database;
+
+schema;
+
+migrations;
+
+seeds.
+
+
+Fitness remains excluded.
+
+
+==================================================
+ROOT-CAUSE REPRODUCTION
+==================================================
+
+Reconstruct Step 55's provenance failure.
+
+Document:
+
+outer Replit workspace Git root;
+
+outer workspace HEAD;
+
+outer workspace tree;
+
+outer workspace commit subject;
+
+temporary candidate directory;
+
+candidate Git root before pruning;
+
+candidate HEAD before pruning;
+
+candidate tree before pruning;
+
+whether .git was a directory or worktree pointer;
+
+whether git worktree metadata became prunable;
+
+what cleanup/pruning operation occurred;
+
+why EAS subsequently resolved the outer workspace Git root.
+
+
+Confirm whether:
+
+b1f5a3e30e41c468ab5c0e4123e4ddb7b3cd436f
+
+belongs to the outer Replit workspace and corresponds to:
+
+Add CALORA step 55 controlled release candidate build notes
+
+
+Do not speculate.
+
+Prove the relationship using Git commands/evidence.
+
+
+==================================================
+CREATE A PROVENANCE-SAFE BUILD CHECKOUT
+==================================================
+
+Create a fresh isolated checkout of canonical origin/main that DOES NOT depend
+on prunable linked-worktree Git metadata.
+
+Preferred architecture:
+
+a real standalone Git clone/check-out with its own durable .git directory.
+
+Do NOT use the Step 55 nested linked-worktree approach.
+
+Do NOT use a source directory whose .git file points to removable outer
+worktree metadata.
+
+Do NOT build from the outer dirty Replit workspace.
+
+
+The isolated checkout must:
+
+contain its own Git metadata;
+
+have origin configured correctly;
+
+resolve origin/main;
+
+checkout exact canonical SHA;
+
+remain valid independently of the outer workspace;
+
+remain clean;
+
+survive git worktree prune in the outer repository;
+
+survive outer workspace Git operations.
+
+
+==================================================
+PROVENANCE-SAFE CHECKOUT VERIFICATION
+==================================================
+
+Inside the isolated checkout record:
+
+pwd
+
+git rev-parse --show-toplevel
+
+git rev-parse HEAD
+
+git rev-parse HEAD^{tree}
+
+git rev-parse origin/main
+
+git status --porcelain
+
+git log -1 --format=%H
+
+git log -1 --format=%s
+
+
+Expected HEAD:
+
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+
+Expected tree:
+
+0b4185eac78f8b42097fce0334691487df740e53
+
+
+Expected subject:
+
+Prepare iOS build 6 release candidate
+
+
+Require:
+
+HEAD == origin/main
+
+working tree clean.
+
+
+==================================================
+OUTER-REPOSITORY ISOLATION TEST
+==================================================
+
+While the isolated clone remains present:
+
+perform SAFE READ-ONLY outer-repository Git operations.
+
+Where safe, run:
+
+git worktree list
+
+git worktree prune --dry-run
+
+
+Do NOT delete or mutate the isolated clone.
+
+
+Then re-run INSIDE isolated clone:
+
+git rev-parse --show-toplevel
+
+git rev-parse HEAD
+
+git rev-parse HEAD^{tree}
+
+git status --porcelain
+
+
+Require identical results.
+
+
+The isolated clone must not depend on outer worktree metadata.
+
+
+==================================================
+EAS WORKING-DIRECTORY PROVENANCE TEST
+==================================================
+
+Without creating a build, verify from the exact directory that WOULD be used
+for EAS:
+
+process working directory;
+
+Git top-level directory;
+
+HEAD SHA;
+
+HEAD tree;
+
+commit subject;
+
+Expo project identity;
+
+app.json build number;
+
+EAS production profile.
+
+
+Confirm EAS CLI/repository wrapper would execute with the isolated clone as
+its repository context rather than the outer Replit workspace.
+
+
+If repository tooling changes working directory before EAS invocation:
+
+trace it.
+
+The final EAS invocation directory must remain inside the isolated standalone
+clone and resolve the intended canonical Git root.
+
+
+==================================================
+NO FAKE PROVENANCE
+==================================================
+
+Do NOT:
+
+override Git SHA metadata with an arbitrary environment variable;
+
+forge EAS metadata;
+
+rewrite Git history;
+
+create a fake commit with another hash;
+
+change EAS records;
+
+manually claim equivalence between different SHAs.
+
+
+The objective is for EAS naturally to discover the correct canonical Git
+repository and commit.
+
+
+==================================================
+BUILD-NUMBER STATE — READ ONLY
+==================================================
+
+Because Step 55 created EAS build 6, the build-number floor may have changed.
+
+DO NOT update app.json in Step 55A.
+
+DO NOT assume the next build number.
+
+
+Read current state from:
+
+Apple App Store Connect;
+
+EAS iOS build history;
+
+canonical app.json.
+
+
+Record:
+
+Apple highest consumed build;
+
+EAS highest consumed build;
+
+canonical configured build number.
+
+
+Calculate informationally:
+
+LIVE_FLOOR =
+max(Apple floor, EAS floor)
+
+NEXT_SAFE_BUILD =
+LIVE_FLOOR + 1
+
+
+This calculation is for the NEXT build step only.
+
+DO NOT commit NEXT_SAFE_BUILD in Step 55A.
+
+
+==================================================
+FAILED BUILD QUARANTINE
+==================================================
+
+Record permanently in the report:
+
+EAS Build ID:
+fffc4d8a-5e1b-48f0-98c9-e2949136cf04
+
+Build number:
+6
+
+Status:
+FINISHED BUT PROVENANCE FAILED
+
+Disposition:
+DO NOT SUBMIT TO TESTFLIGHT
+
+
+Do not delete it merely to hide the failed attempt.
+
+Do not submit it.
+
+
+==================================================
+RELEASE GATE VERIFICATION
+==================================================
+
+Confirm canonical SHA:
+
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+still has successful:
+
+Run release validation suite
+
+
+Known Step 55 check-run:
+
+105115209229
+
+
+Record status/conclusion.
+
+
+==================================================
+PROVENANCE DRY-RUN ASSERTION
+==================================================
+
+Before Step 55A can pass, produce a deterministic assertion script/check that
+can be executed immediately before any future EAS build.
+
+It must fail unless:
+
+git rev-parse HEAD
+==
+git rev-parse origin/main
+
+AND
+
+working tree is clean
+
+AND
+
+expected canonical SHA matches
+
+AND
+
+Git top-level directory is the isolated standalone clone
+
+AND
+
+the app build number equals the explicitly selected next safe build number.
+
+
+The check must not create a build.
+
+
+Prefer a repository/local release script or narrowly scoped reusable command
+only if it can be added without changing product runtime.
+
+If adding repository release tooling would create source changes, STOP and
+report the proposed change instead of silently modifying canonical main.
+
+A temporary verified script outside product source is acceptable for this
+Step 55A dry run.
+
+
+==================================================
+SIMULATED PRE-BUILD SEQUENCE
+==================================================
+
+Perform the exact intended future sequence EXCEPT the EAS build itself:
+
+1. enter standalone isolated clone;
+2. fetch origin;
+3. verify expected canonical SHA;
+4. verify tree;
+5. verify clean status;
+6. verify release gate;
+7. query Apple floor;
+8. query EAS floor;
+9. calculate next safe build;
+10. verify current configured build number state;
+11. verify Git root;
+12. verify Expo project;
+13. verify production EAS profile;
+14. run provenance assertion;
+15. STOP BEFORE EAS BUILD.
+
+
+Do not modify build number.
+
+This is rehearsal only.
+
+
+==================================================
+NO BUILD
+==================================================
+
+ABSOLUTELY NO:
+
+eas build
+
+eas submit
+
+EAS workflow build
+
+iOS native build
+
+Android build
+
+TestFlight submission
+
+App Store submission.
+
+
+==================================================
+NO DEPLOYMENT
+==================================================
+
+No:
+
+API deployment;
+
+Replit publish;
+
+database operation;
+
+migration;
+
+schema change;
+
+seed change.
+
+
+==================================================
+REPORT
+==================================================
+
+Create:
+
+55A_CALORA_IOS_BUILD_PROVENANCE_ENVIRONMENT_REMEDIATION_REPORT.md
+
+
+Required sections:
+
+1. Executive summary
+2. Step 55 failure identity
+3. Failed EAS Build ID quarantine
+4. Expected canonical SHA/tree
+5. Outer Replit Git root
+6. Outer Replit HEAD/tree/subject
+7. Step 55 temporary worktree architecture
+8. Proven root cause
+9. Standalone clone architecture
+10. Standalone clone path
+11. Standalone Git root
+12. Standalone HEAD/tree
+13. Standalone origin/main
+14. Standalone clean-status proof
+15. Outer-repository isolation test
+16. Post-isolation HEAD/tree proof
+17. EAS working-directory trace
+18. Expo project verification
+19. Production profile verification
+20. Current canonical build number
+21. Current Apple build-number floor
+22. Current EAS build-number floor
+23. Informational LIVE_FLOOR
+24. Informational NEXT_SAFE_BUILD
+25. Release gate verification
+26. Provenance dry-run assertion
+27. Simulated pre-build sequence
+28. Confirmation no build occurred
+29. Confirmation failed build 6 was not submitted
+30. Confirmation no Android build
+31. Confirmation no API/database deployment
+32. Remaining blockers
+33. Exact recommendation for next step
+
+
+==================================================
+MANDATORY PROVENANCE TABLE
+==================================================
+
+Include:
+
+| Context | Git root | HEAD SHA | Tree SHA | Commit subject | Clean? | Result |
+
+
+Rows:
+
+Canonical origin/main
+
+Outer Replit workspace
+
+Failed Step 55 EAS metadata
+
+New standalone isolated clone
+
+Post-isolation-test standalone clone
+
+
+==================================================
+MANDATORY BUILD-NUMBER TABLE
+==================================================
+
+Include:
+
+| Source | Current value | Evidence |
+
+
+Rows:
+
+Apple App Store Connect
+
+EAS production iOS history
+
+Canonical app.json
+
+
+Then:
+
+LIVE_FLOOR = ...
+
+NEXT_SAFE_BUILD = ...
+
+
+Do not modify the build number.
+
+
+==================================================
+FINAL QUESTIONS
+==================================================
+
+Answer explicitly:
+
+A. What caused Step 55's Git provenance mismatch?
+
+B. Is the failed EAS Build ID quarantined from TestFlight submission?
+
+C. Does the new isolated checkout have its own durable Git metadata?
+
+D. Does its HEAD equal canonical origin/main?
+
+E. Does its tree equal canonical origin/main?
+
+F. Is it clean?
+
+G. Can outer worktree pruning alter its Git identity?
+
+H. From the intended future EAS working directory, what Git SHA is naturally
+resolved?
+
+I. What is the current Apple build floor?
+
+J. What is the current EAS build floor?
+
+K. What is NEXT_SAFE_BUILD based on fresh evidence?
+
+L. Was canonical app.json left unchanged in Step 55A?
+
+M. Does the canonical SHA still have a successful release gate?
+
+N. Was any EAS/native build created in Step 55A?
+
+O. Was build 6 submitted to TestFlight?
+
+P. Was Android untouched?
+
+Q. Were API/database/deployment operations avoided?
+
+R. Is the environment now safe for ONE new provenance-controlled iOS build?
+
+
+==================================================
+FINAL VERDICT
+==================================================
+
+Use EXACTLY ONE:
+
+IOS BUILD PROVENANCE ENVIRONMENT VERIFIED — READY FOR ONE CONTROLLED REBUILD
+
+PROVENANCE REMEDIATION INCOMPLETE — DO NOT BUILD
+
+PROVENANCE REMEDIATION BLOCKED — CANONICAL MAIN CHANGED
+
+PROVENANCE ROOT CAUSE UNPROVEN — DO NOT BUILD
+
+PROVENANCE DRY RUN FAILED — DO NOT BUILD
+
+
+==================================================
+STOP
+==================================================
+
+After producing the report:
+
+STOP.
+
+DO NOT CREATE A NEW EAS BUILD.
+
+DO NOT START TESTFLIGHT SUBMISSION.
+
+Wait for owner review.

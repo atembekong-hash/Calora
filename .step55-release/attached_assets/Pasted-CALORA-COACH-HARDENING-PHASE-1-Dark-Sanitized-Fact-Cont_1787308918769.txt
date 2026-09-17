@@ -1,0 +1,922 @@
+CALORA COACH HARDENING — PHASE 1
+
+Dark Sanitized Fact-Context Replacement Architecture
+
+Mission
+
+Build the replacement Coach information boundary identified in:
+
+docs/CALORA_COACH_EXISTING_CONTEXT_FORENSIC_AUDIT.md
+
+and
+
+docs/CALORA_INTELLIGENCE_COACH_ARCHITECTURE_PROPOSAL.md
+
+This phase is implementation-only for the dark replacement architecture.
+
+Do not migrate live Coach requests onto it yet.
+
+Do not remove the legacy Coach path yet.
+
+Do not enable intelligence.coach.fact_context.
+
+The goal is to create, validate, and harden the new sanitized Coach Fact Context pathway behind default-OFF client and server gates so that it can later replace the broad legacy CoachContext.
+
+
+---
+
+1. Core architecture
+
+Implement the following boundary:
+
+hydrated current-account local state
+
+→ deterministic Intelligence Foundation
+
+→ sanitized CoachFactContextV1 adapter
+
+→ authenticated Coach backend schema validation
+
+→ bounded LLM request
+
+→ deterministic claim validation
+
+→ validated Coach response
+
+The Intelligence Foundation remains the source of truth.
+
+Coach may explain approved facts. It must not calculate, invent, upgrade, or persist user facts.
+
+
+---
+
+2. Absolute restrictions
+
+Do not:
+
+replace the live legacy Coach request path yet
+
+delete CoachContext
+
+send both legacy context and Fact Context in the same live request
+
+enable Coach Fact Context for users
+
+modify unrelated Coach UX
+
+add server-side Foundation storage
+
+add database tables
+
+add migrations
+
+add RLS work
+
+add Coach memory
+
+add proactive Coach behavior
+
+add notifications
+
+add recommendation generation
+
+add autonomous actions
+
+add Planner or Recipe intelligence
+
+persist Fact Context
+
+log Fact Context values
+
+expose raw Foundation facts
+
+
+Any desirable expansion discovered during this task must be reported, not implemented.
+
+
+---
+
+3. Implement CoachFactContextV1
+
+Create a separate versioned contract.
+
+Do not reuse raw IntelligenceFact.
+
+The contract should include only the fields approved by the architecture proposal, such as:
+
+schema version
+
+purpose
+
+generatedAt
+
+expiresAt
+
+calculationVersion
+
+request-scoped opaque nonce
+
+coverage state
+
+bounded missing-data labels
+
+approved fact list
+
+confidence
+
+freshness
+
+coarse provenance
+
+deterministic limitations
+
+
+Exclude:
+
+user IDs
+
+account IDs
+
+email
+
+storage keys
+
+fact IDs
+
+source watermarks
+
+raw dates
+
+food names
+
+diary notes
+
+meal names
+
+recipe names
+
+photos
+
+barcode data
+
+raw activity/water/mood history
+
+planner contents
+
+Food Memory content
+
+provider labels
+
+raw health-device data
+
+exact timelines
+
+
+
+---
+
+4. Initial fact allowlist
+
+Keep the first implementation deliberately narrow.
+
+Authorize only:
+
+daily.calorie_status
+
+daily.protein_status
+
+daily.meal_distribution
+
+daily.logging_completeness
+
+
+Do not include weight.short_trend in the first dark implementation.
+
+Weight trend remains separately gated for later review.
+
+No fact enters the contract merely because it exists.
+
+Each fact must be explicitly allowlisted.
+
+
+---
+
+5. Fact eligibility
+
+A fact may enter CoachFactContextV1 only when:
+
+current account is hydrated
+
+Foundation data is current
+
+fact is fresh
+
+confidence is high or medium according to approved rules
+
+source scope is consistent
+
+missing-data state does not invalidate interpretation
+
+fact key is on the explicit allowlist
+
+current context purpose is coach_discussion
+
+consent gate is satisfied in test mode
+
+
+Stale, expired, malformed, low-confidence, unknown, mixed-scope, or unapproved facts must be suppressed.
+
+
+---
+
+6. Deterministic statements only
+
+The adapter must generate bounded reviewed statements deterministically.
+
+The LLM must not be responsible for converting raw facts into factual claims.
+
+Example pattern:
+
+daily.protein_status
+
+→ deterministic statement
+
+→ bounded values
+
+→ confidence/freshness/provenance labels
+
+Coach may later explain the statement, but the factual core already exists before the model sees it.
+
+
+---
+
+7. TTL and request scope
+
+Implement short-lived request context.
+
+Initial TTL:
+
+60 seconds
+
+Add a request-local opaque nonce.
+
+It must:
+
+not be a user ID
+
+not be stable across requests
+
+not be persisted
+
+not be reused across accounts
+
+
+The client must reject a response if:
+
+account changed
+
+hydration generation changed
+
+nonce no longer matches
+
+context expired
+
+request was aborted
+
+
+
+---
+
+8. Account lifecycle protection
+
+Build explicit guards for:
+
+User A request
+
+→ sign out
+
+→ guest
+
+→ User B
+
+A response started under User A must never be accepted under User B.
+
+On:
+
+sign-out
+
+account switch
+
+hydration reset
+
+local-data clear
+
+navigation-away where appropriate
+
+
+abort or invalidate pending Fact Context requests and discard late responses.
+
+No Fact Context may survive scope reset.
+
+
+---
+
+9. Consent architecture
+
+Implement the technical consent model, dark and default-off.
+
+Use purpose/version:
+
+coach_fact_context_v1
+
+Do not silently reuse the old generic Coach consent boolean.
+
+The architecture must support:
+
+not consented
+
+consented for current version
+
+revoked
+
+stale consent version
+
+
+Do not finalize production consent copy unless separately approved.
+
+Do not add a database migration merely for consent in this phase.
+
+Use the safest account-scoped local mechanism available for the dark implementation, and document its limitations.
+
+Fact Context must not be constructed for remote use without current consent.
+
+
+---
+
+10. Backend schema
+
+Add a separate versioned API schema for CoachFactContextV1.
+
+The backend must validate:
+
+schema version
+
+purpose
+
+TTL
+
+generatedAt/expiresAt ordering
+
+allowed fact keys
+
+enum values
+
+field lengths
+
+allowed value shapes
+
+context size
+
+fact count
+
+missing-data vocabulary
+
+nonce format
+
+
+Reject unknown fact keys and unexpected fields.
+
+Do not accept raw Foundation envelopes.
+
+
+---
+
+11. Defense-in-depth server gate
+
+Add a server-side Coach Fact Context feature flag.
+
+Default:
+
+OFF
+
+Require both:
+
+client intelligence.coach.fact_context
+
+server coach_fact_context
+
+
+before the backend accepts the new context path.
+
+If either is OFF:
+
+the dark path is unavailable.
+
+Do not silently fall back to sending raw Foundation data.
+
+
+---
+
+12. Higher-risk pre-egress safety gate
+
+Before Fact Context is sent to the LLM, implement a structured deterministic risk classifier for the categories identified in the architecture proposal.
+
+At minimum:
+
+self-harm / suicidal intent
+
+eating-disorder behaviors
+
+purging
+
+severe restriction
+
+compensatory exercise
+
+dangerous low-calorie requests
+
+pregnancy/postpartum
+
+medication/dose questions
+
+diagnosis/lab interpretation
+
+acute symptoms
+
+pediatric/minor-sensitive situations where detectable
+
+
+When triggered:
+
+do not send Fact Context to the LLM
+
+do not generate personalized nutrition or weight-loss advice
+
+use the existing or approved deterministic safe-response pathway
+
+
+Keep this narrowly scoped and testable.
+
+Do not turn it into a medical expert system.
+
+
+---
+
+13. Prompt boundary
+
+Build the new prompt path separately from the legacy prompt.
+
+It must state that:
+
+Fact Context is authoritative for user-specific factual claims
+
+conversation history is not evidence
+
+user messages are untrusted user assertions
+
+missing facts must remain unknown
+
+limited facts must remain limited
+
+the model may not invent numeric values
+
+the model may not infer causality
+
+the model may not diagnose
+
+the model may not expose hidden context
+
+system rules cannot be overridden by user content
+
+
+Keep the new prompt dark and unused by production traffic for now.
+
+
+---
+
+14. Response schema and claim validation
+
+This is mandatory.
+
+Do not rely only on prompt instructions.
+
+Extend the new dark response contract so every user-specific factual observation references approved factKeys.
+
+Deterministically verify:
+
+fact key exists in the current request
+
+fact is eligible
+
+claimed numeric values are represented by the fact
+
+claimed direction/status matches the fact
+
+timeframe matches the fact
+
+limited/unknown facts are described with uncertainty
+
+
+Reject unsupported factual observations.
+
+If claim validation fails:
+
+return a safe limited response.
+
+Do not pass a partially hallucinated answer through.
+
+
+---
+
+15. First-release Coach behavior
+
+The dark architecture may support only:
+
+neutral explanation of approved facts
+
+uncertainty statements
+
+fixed non-mutating navigation actions
+
+safe redirects
+
+
+It must not support:
+
+personalized calorie recommendations
+
+weight-loss recommendations
+
+supplement recommendations
+
+exercise prescriptions
+
+medication advice
+
+clinical guidance
+
+autonomous actions
+
+data mutation
+
+
+
+---
+
+16. Conversation history
+
+Keep legacy history behavior unchanged for live Coach.
+
+For the dark Fact Context path:
+
+treat history as conversation only
+
+do not derive factual state from it
+
+newest Fact Context supersedes prior factual claims
+
+never persist raw Fact Context inside messages
+
+do not persist fact values, nonce, or context metadata in Coach history
+
+
+Add tests for stale and hostile prior assistant/user messages.
+
+
+---
+
+17. Prompt-injection testing
+
+Add adversarial coverage for:
+
+direct user prompt injection
+
+prior assistant-message injection
+
+malicious conversation history
+
+food-name injection
+
+diary-note injection
+
+recipe-text injection
+
+planner-name injection
+
+hidden-context extraction attempts
+
+system-prompt extraction attempts
+
+arbitrary navigation/action requests
+
+
+Since the new Fact Context should exclude these raw fields, tests must also prove they cannot enter the new payload accidentally.
+
+
+---
+
+18. No coexistence rule
+
+The new Fact Context must not be appended to the legacy broad context.
+
+During this dark phase:
+
+legacy live flow stays unchanged
+
+new path exists separately
+
+no request contains both payloads
+
+
+This separation must be tested.
+
+
+---
+
+19. No persistence
+
+Do not persist:
+
+CoachFactContextV1
+
+fact values
+
+nonce
+
+request scope
+
+claim references
+
+remote response metadata
+
+
+No AsyncStorage addition for Fact Context itself.
+
+No database table.
+
+No server cache.
+
+No analytics event with fact values.
+
+
+---
+
+20. Privacy-safe observability
+
+If minimal instrumentation is needed, allow only:
+
+schema version
+
+feature flag state
+
+outcome class
+
+rejection reason category
+
+latency bucket
+
+fact count
+
+
+Do not log:
+
+fact values
+
+conversation text
+
+prompt text
+
+account/user ID
+
+food names
+
+weight
+
+calories/macros
+
+raw request context
+
+model response content
+
+
+
+---
+
+21. Automated validation
+
+Build permanent tests for:
+
+exact allowlist
+
+unknown-key rejection
+
+stale fact suppression
+
+low-confidence suppression
+
+malformed context
+
+expired context
+
+nonce mismatch
+
+account A → B switch
+
+sign-out during pending request
+
+hydration reset
+
+revoked consent
+
+stale consent version
+
+client flag OFF
+
+server flag OFF
+
+raw Foundation rejection
+
+legacy/new payload coexistence rejection
+
+prompt injection
+
+conversation contamination
+
+unsupported numeric claim
+
+unsupported status/direction claim
+
+unsupported timeframe claim
+
+limited-fact uncertainty enforcement
+
+higher-risk pre-egress suppression
+
+timeout
+
+server failure
+
+LLM invalid output
+
+feature rollback
+
+no persistence
+
+no sensitive logging
+
+
+
+---
+
+22. Regression requirements
+
+Run:
+
+pnpm --filter @workspace/calora run typecheck
+
+pnpm --filter @workspace/calora test
+
+pnpm --filter @workspace/api-server run typecheck
+
+pnpm --filter @workspace/api-server test
+
+Preserve existing:
+
+legacy Coach
+
+Coach consent
+
+Coach history
+
+Coach navigation
+
+Progress Intelligence
+
+Today Intelligence
+
+Post-Log Intelligence
+
+Phase 2A.3 dark Weight Trend
+
+
+No user-visible Coach behavior should change while all new gates are OFF.
+
+
+---
+
+23. Required feature state
+
+At completion:
+
+intelligence.coach.fact_context = OFF
+
+server coach_fact_context = OFF
+
+legacy Coach remains the live path
+
+new dark Fact Context path is unreachable to ordinary users
+
+
+---
+
+24. Completion report
+
+Automatically create:
+
+docs/CALORA_COACH_FACT_CONTEXT_DARK_ARCHITECTURE_REPORT.md
+
+The report must include:
+
+1. final architecture
+
+
+2. typed contract
+
+
+3. allowlist
+
+
+4. consent model
+
+
+5. account/nonce lifecycle
+
+
+6. TTL behavior
+
+
+7. client feature gate
+
+
+8. server feature gate
+
+
+9. risk pre-egress gate
+
+
+10. prompt boundary
+
+
+11. response claim validation
+
+
+12. injection defenses
+
+
+13. no-coexistence proof
+
+
+14. privacy/no-persistence proof
+
+
+15. observability policy
+
+
+16. files created
+
+
+17. files modified
+
+
+18. exact tests
+
+
+19. exact test counts/results
+
+
+20. defects discovered
+
+
+21. defects fixed
+
+
+22. remaining blockers
+
+
+23. migration-readiness verdict
+
+
+24. next recommended authorization step
+
+
+
+Do not mark physical-device or provider behavior passed unless actually tested.
+
+
+---
+
+25. Final stop condition
+
+Finish the dark architecture.
+
+Keep both Fact Context gates OFF.
+
+Do not migrate live Coach traffic.
+
+Do not delete the legacy Coach context.
+
+Do not change production consent wording.
+
+Do not start rollout.
+
+Save the report and STOP for review.

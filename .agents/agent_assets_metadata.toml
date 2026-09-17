@@ -56,3 +56,59 @@ mtime_ms = 1789567679520
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/f1a758da-8eca-42dc-b541-1fda5ee00396/1d651013-be4b-4e9a-b668-c461e1449130"
 storage_version_token = "1789567698169338"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "GZN4FRJa4gq2KrmNmefQj"
+uri = "file://55_CALORA_CONTROLLED_IOS_RELEASE_CANDIDATE_BUILD_REPORT.md"
+type = "text"
+title = "Calora Step 55 build report"
+description = "Owner-review report documenting the single finished EAS build, IPA identity, and blocked source-provenance verdict."
+logical_id = "b523a5bd-8a94-4ee5-b1d8-145186f9798b"
+content_hash = "sha256:7e71908925bb78883d283d8c0a52d99e01054c6a7b7090e03a2e7f7c2f1d3fea"
+size = 18972
+mtime_ms = 1789631219450
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/b523a5bd-8a94-4ee5-b1d8-145186f9798b/63a87f88-ef7e-416e-a25e-9da1e7c3eb28"
+storage_version_token = "1789631256685389"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "FXnQnhze6WuhiYlhqeFdf"
+uri = "file://55A_CALORA_IOS_BUILD_PROVENANCE_ENVIRONMENT_REMEDIATION_REPORT.md"
+type = "text"
+title = "Calora Step 55A remediation report"
+description = "No-build provenance remediation report documenting the durable standalone checkout, root-cause evidence, live build floors, and fail-closed dry-run result."
+logical_id = "ad399dd5-01c2-4f94-94aa-f0e3a67ed0f0"
+content_hash = "sha256:c90eedeaaf9892dca2521c55ce69f1358b90f994279acba9c4fcfcb921c7eef5"
+size = 17083
+mtime_ms = 1789632814564
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/ad399dd5-01c2-4f94-94aa-f0e3a67ed0f0/0c0f1a0b-4a1a-42f0-a6fd-8ee7832291e4"
+storage_version_token = "1789632841996536"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "1zyXdbWqfijqdPezGsnBs"
+uri = "file://55B_CALORA_PROVENANCE_CONTROLLED_IOS_RELEASE_CANDIDATE_REBUILD_REPORT.md"
+type = "text"
+title = "Step 55B Calora iOS Release-Candidate Report"
+description = "Verified provenance, exact EAS build, IPA hash, and pre-TestFlight owner handoff."
+logical_id = "b4a2e440-ce9b-4850-a9ae-15b3b9b4f22d"
+content_hash = "sha256:aad2fe822883ed5ddd904073fc5f0f031bf4260958c630f26bc78579572eee45"
+size = 21516
+mtime_ms = 1789641351593
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/b4a2e440-ce9b-4850-a9ae-15b3b9b4f22d/b3cf4fbc-e6c3-4d41-adb7-0e6c715a942e"
+storage_version_token = "1789641371539251"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "fjA0MoLhg69Fre9mr4bCf"
+uri = "file://56_CALORA_EXACT_IOS_BUILD_7_TESTFLIGHT_SUBMISSION_REPORT.md"
+type = "text"
+title = "Step 56 Calora TestFlight Submission Report"
+description = "Exact Build 7 submission, Apple processing, internal TestFlight association, and owner device checklist."
+logical_id = "63c5b9ff-2350-41b0-a822-d37ec12ee698"
+content_hash = "sha256:6fe320fabca663fae8bce3720f96fcec48e0b3e5fc75cfc80c9faa28fa6b989e"
+size = 15105
+mtime_ms = 1789643732640
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/63c5b9ff-2350-41b0-a822-d37ec12ee698/a3e95843-2e7c-494f-b8ac-2a722ce613c4"
+storage_version_token = "1789643759402937"
+content_type = "text/markdown"

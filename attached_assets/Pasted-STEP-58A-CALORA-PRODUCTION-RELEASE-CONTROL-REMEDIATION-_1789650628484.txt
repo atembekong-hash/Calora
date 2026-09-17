@@ -1,0 +1,559 @@
+STEP 58A — CALORA PRODUCTION RELEASE-CONTROL REMEDIATION AND EXACT API PROMOTION
+
+Create final report:
+
+58A_CALORA_PRODUCTION_RELEASE_CONTROL_REMEDIATION_AND_API_PROMOTION_REPORT.md
+
+MISSION
+
+Resolve ONLY the production release-control/configuration blockers identified by Step 58, then—only if every safety gate passes—deploy the exact already-reviewed frozen API candidate and prove the live production identity.
+
+THIS IS NOT A PRODUCT-CODE REMEDIATION.
+
+Do not modify Calora application behavior.
+Do not change API route behavior.
+Do not change database schema/data.
+Do not build Android.
+Do not change Android versionCode.
+Do not build iOS.
+Do not modify or resubmit TestFlight Build 7.
+Do not fix Metro.
+Do not enable unrestricted Coach.
+Do not bypass, weaken, delete, comment out, or disable release-security checks merely to permit deployment.
+
+==================================================
+1. AUTHORITATIVE STEP 58 INPUT
+==================================================
+
+Frozen reviewed candidate:
+
+SHA:
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+TREE:
+0b4185eac78f8b42097fce0334691487df740e53
+
+SOURCE DIGEST:
+f48c9972458e02a92e153ac7b2d4b4d4474520923d85c41e12f637bb49a72120
+
+Current old production:
+
+SHA:
+dd4d130b03e6f05e52b9a275d58760849aa58590
+
+TREE:
+ffec94339941e4270da869606de9d2627c7a7a98
+
+SOURCE DIGEST:
+2ee23adc3869deb60b89535c30bdae911f8a2f4b7f7951e92f86e936c9a857be
+
+RELEASE:
+calora-api-dd4d130b03e6-20260916120901599
+
+Production hosts:
+
+https://calorie-coach-pie35449.replit.app
+https://mycaloraapp.com
+
+Step 58 proved:
+
+- candidate API delta reviewed;
+- Build 7 API-compatible by source review;
+- DB tables/columns compatible;
+- DB support objects compatible;
+- no DB migration required;
+- auth/account fences preserved;
+- bounded Coach safety source preserved.
+
+Step 58 blocked deployment because:
+
+1. RELEASE_SENSITIVE_ACTIVATION_REQUESTED is present;
+2. reviewed-commit control is 7a1fe8e3... rather than candidate 5f69c31e...;
+3. required production release-attestation manifest/artifact/signing configuration is absent;
+4. COACH_FACT_CONTEXT_ENABLED=true while sensitive-release authorization inputs are inconsistent.
+
+==================================================
+2. FREEZE STATE BEFORE MUTATION
+==================================================
+
+Record:
+
+- workspace HEAD/tree;
+- origin/main SHA/tree;
+- working-tree status;
+- production /api/version from both hosts;
+- production /api/healthz from both hosts;
+- all release-control configuration NAMES and presence/status only.
+
+NEVER print secret values.
+
+Do not modify source while performing this inspection.
+
+==================================================
+3. DETERMINE WHY SENSITIVE ACTIVATION IS REQUESTED
+==================================================
+
+Trace exactly:
+
+- where RELEASE_SENSITIVE_ACTIVATION_REQUESTED is defined;
+- whether it is intentionally required for this ordinary API release;
+- relationship to COACH_FACT_CONTEXT_ENABLED;
+- relationship to reviewed-commit control;
+- relationship to build.mjs;
+- relationship to release-attestation signing;
+- whether production deployment itself would activate Coach/provider behavior.
+
+Do not guess.
+
+Determine whether the correct safe state is:
+
+A. sensitive activation is NOT intended for this ordinary API alignment, so the request must be explicitly disabled through the approved control plane;
+
+OR
+
+B. sensitive activation IS intentionally required, in which case every authorization and attestation requirement must be correctly provisioned for candidate 5f69c31e....
+
+Prefer the least-privilege state supported by existing architecture.
+
+DO NOT globally enable Coach.
+
+DO NOT alter user consent/cohort membership/nonces.
+
+==================================================
+4. RECONCILE REVIEWED COMMIT CONTROL
+==================================================
+
+The existing reviewed commit is:
+
+7a1fe8e3...
+
+The reviewed deployment candidate is:
+
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+Determine why they differ.
+
+Do not simply overwrite the value.
+
+Prove:
+
+- what 7a1fe8e3 represents;
+- whether it is stale;
+- whether it belongs to an older sensitive release;
+- whether candidate 5f69c31e has completed the required review;
+- whether changing the reviewed-commit control is authorized by the existing release-control design.
+
+Only if supported by evidence, reconcile the control through the approved mechanism.
+
+Record configuration NAME/status only.
+
+Never expose secret values.
+
+==================================================
+5. RELEASE-ATTESTATION CONFIGURATION
+==================================================
+
+Determine the exact requirements of build.mjs for:
+
+- release-attestation manifest;
+- final artifact directory;
+- signing key;
+- signing-key fingerprint;
+- independently pinned fingerprint/evidence;
+- any manifest identity;
+- candidate SHA/tree/digest binding.
+
+Do not weaken build.mjs.
+
+Do not add fallback logic that makes missing attestation configuration optional.
+
+Do not generate fake evidence.
+
+Do not reuse unrelated signing material without proving it is the correct production release-attestation identity.
+
+If the repository already contains the approved attestation generation/provisioning mechanism, use that mechanism.
+
+Provision configuration through the proper production control plane.
+
+Secret/key values must never appear in:
+- logs;
+- report;
+- source;
+- Git;
+- shell history output;
+- screenshots/artifacts.
+
+Report only PRESENT / VERIFIED / MISSING.
+
+If the required signing/attestation identity cannot be independently proven:
+
+STOP:
+
+PRODUCTION RELEASE CONTROL BLOCKED — ATTESTATION IDENTITY UNVERIFIED
+
+==================================================
+6. COACH SAFETY RECHECK
+==================================================
+
+After configuration remediation but BEFORE deployment verify:
+
+- no global Coach rollout was enabled;
+- no cohort membership changed;
+- no consent changed;
+- no nonce created;
+- no provider activated;
+- bounded Fact Context remains default-deny where authorization is absent;
+- sensitive activation state is exactly the intended reviewed state;
+- reviewed commit binding matches the intended release state if required;
+- expiry/fencing/rate limits/account scoping remain intact.
+
+If any sensitive capability would become unintentionally active:
+
+STOP:
+
+PRODUCTION RELEASE CONTROL BLOCKED — COACH ACTIVATION UNSAFE
+
+==================================================
+7. NO PRODUCT SOURCE DELTA
+==================================================
+
+Before deployment prove that runtime product/API source is still byte-equivalent to the frozen reviewed candidate.
+
+Require:
+
+SHA:
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+TREE:
+0b4185eac78f8b42097fce0334691487df740e53
+
+SOURCE DIGEST:
+f48c9972458e02a92e153ac7b2d4b4d4474520923d85c41e12f637bb49a72120
+
+If fixing release configuration requires changing application/API runtime source:
+
+STOP.
+
+Do not silently create a new candidate.
+
+Verdict:
+
+PRODUCTION RELEASE CONTROL BLOCKED — SOURCE CANDIDATE CHANGED
+
+Configuration/control-plane changes that do not alter candidate product source must be documented separately.
+
+==================================================
+8. FULL PREDEPLOY VALIDATION
+==================================================
+
+Once configuration gates are repaired, run the full suites Step 58 could not run:
+
+- frozen dependency install;
+- API typecheck;
+- mobile/shared-contract typecheck;
+- API full tests;
+- Calora relevant/full tests;
+- scripts tests;
+- static/security tests;
+- account-isolation tests;
+- deletion-fence tests;
+- recipe tests;
+- planner/program tests;
+- capture/sync tests;
+- Coach safety tests;
+- API/client compatibility tests;
+- codegen drift verification;
+- git diff --check;
+- release-attestation build verification.
+
+Do not delete/weaken/skip failing tests to pass.
+
+Record exact test counts.
+
+If any release-critical validation fails:
+
+STOP:
+
+PRODUCTION RELEASE CONTROL BLOCKED — VALIDATION FAILED
+
+==================================================
+9. PROVE RELEASE ATTESTATION BEFORE PROMOTION
+==================================================
+
+Produce the exact deployment artifact using the repository-supported attestation path.
+
+Prove that its attestation binds:
+
+gitCommit =
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+sourceTree =
+0b4185eac78f8b42097fce0334691487df740e53
+
+sourceDigest =
+f48c9972458e02a92e153ac7b2d4b4d4474520923d85c41e12f637bb49a72120
+
+Verify signature/fingerprint using the independently pinned expected identity.
+
+Do not print private signing material.
+
+If identity does not match exactly:
+
+STOP:
+
+PRODUCTION RELEASE CONTROL BLOCKED — ATTESTATION MISMATCH
+
+==================================================
+10. RECORD ROLLBACK TARGET
+==================================================
+
+Immediately before deployment reconfirm old production:
+
+dd4d130b03e6f05e52b9a275d58760849aa58590
+
+and its exact tree/digest/release ID.
+
+Ensure the previous release remains identifiable for rollback.
+
+==================================================
+11. DEPLOY EXACTLY ONE API RELEASE
+==================================================
+
+ONLY after all previous sections PASS:
+
+Deploy exactly the frozen reviewed candidate to the existing Calora Replit production service.
+
+Do not deploy to Railway.
+Do not create another production service.
+Do not change domains.
+Do not change the app API URL.
+Do not mutate DB schema/data.
+Do not build mobile.
+Do not perform Expo OTA update.
+
+Capture exact deployment/build/release ID.
+
+==================================================
+12. LIVE PROVENANCE VERIFICATION
+==================================================
+
+After deployment query BOTH production hosts.
+
+Both /api/version endpoints must report EXACTLY:
+
+gitCommit:
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+sourceTree:
+0b4185eac78f8b42097fce0334691487df740e53
+
+sourceDigest:
+f48c9972458e02a92e153ac7b2d4b4d4474520923d85c41e12f637bb49a72120
+
+Capture releaseId/buildTimestamp/schemaVersion.
+
+Both hosts must agree.
+
+If not:
+
+ROLL BACK to the exact Step 58 old release if required for safety.
+
+Verdict:
+
+PRODUCTION API PROMOTION FAILED — LIVE PROVENANCE MISMATCH
+
+==================================================
+13. HEALTH + ROUTE SMOKE
+==================================================
+
+Verify both /api/healthz endpoints.
+
+Then non-destructively verify:
+
+- recipes;
+- nutrition path;
+- planner;
+- capture route;
+- capture approval route;
+- diary;
+- sync;
+- auth fences;
+- referrals;
+- deletion fences;
+- bounded Coach route behavior.
+
+Protected unauthenticated endpoints should reject correctly.
+
+Do not fabricate production user data.
+
+Authenticated/device mutation testing can remain pending.
+
+==================================================
+14. VERIFY STEP 57 DELTAS ARE NOW LIVE
+==================================================
+
+Explicitly prove live deployment source contains:
+
+1. strict truthful recipe nutrition validation;
+2. shared Planner program ordering;
+3. role-aware seven-day fallback;
+4. diary image metadata/provenance;
+5. transactional owner-scoped capture approval acknowledgement;
+6. current idempotent/account-scoped sync.
+
+For each classify:
+
+LIVE VERIFIED
+SOURCE-DEPLOYMENT VERIFIED / DEVICE RETEST REQUIRED
+FAILED
+
+==================================================
+15. POSTDEPLOY COACH SAFETY
+==================================================
+
+Recheck production after deployment.
+
+Prove:
+
+- no unintended Coach activation;
+- no global rollout change;
+- no provider activation caused by deployment;
+- consent remains required;
+- account scoping remains;
+- nonce/expiry/rate limits remain;
+- fail-closed behavior remains.
+
+==================================================
+16. ABSOLUTE NON-ACTIONS
+==================================================
+
+Step 58A must perform NO:
+
+- Android build;
+- Android versionCode change;
+- APK;
+- iOS build;
+- Build 8;
+- TestFlight submission;
+- App Store action;
+- Expo OTA update;
+- DB migration;
+- schema mutation;
+- seed/backfill;
+- unrelated product change;
+- Metro remediation;
+- Fitness restoration.
+
+iOS Build 7 remains untouched.
+
+==================================================
+17. FINAL REPORT
+==================================================
+
+Create:
+
+58A_CALORA_PRODUCTION_RELEASE_CONTROL_REMEDIATION_AND_API_PROMOTION_REPORT.md
+
+Include:
+
+1. Executive summary
+2. Starting identities
+3. Step 58 blockers
+4. Sensitive activation root cause
+5. Reviewed-commit mismatch root cause
+6. Attestation configuration requirements
+7. Configuration remediation performed
+8. Secret-handling audit
+9. Coach safety preflight
+10. Frozen candidate identity
+11. Proof product source did not change
+12. Database no-change verification
+13. Full validation results
+14. Release-attestation verification
+15. Rollback identity
+16. Deployment action
+17. Exact deployment/release ID
+18. Replit-host /api/version
+19. Custom-domain /api/version
+20. Health verification
+21. Recipe/nutrition verification
+22. Planner verification
+23. Capture/sync/diary verification
+24. Auth/account verification
+25. Coach postdeploy verification
+26. Step 57 delta closure matrix
+27. Mobile no-change audit
+28. DB no-change audit
+29. Metro deferred status
+30. Remaining device/provider checks
+31. Recommendation for next step
+32. Final verdict
+
+==================================================
+18. FINAL QUESTIONS
+==================================================
+
+Answer explicitly:
+
+A. Why was Step 58 blocked?
+B. Was sensitive activation actually required for this release?
+C. What did reviewed commit 7a1fe8e3 represent?
+D. Was the reviewed-commit control safely reconciled?
+E. Were attestation requirements provisioned without weakening build.mjs?
+F. Was signing identity independently verified?
+G. Were any secret values exposed?
+H. Did product/API runtime source change?
+I. What exact SHA/tree/digest was promoted?
+J. Did the full validation suite pass?
+K. Did release attestation pass?
+L. Was Coach globally enabled?
+M. Was any Coach provider activated?
+N. Was the database mutated?
+O. What exact deployment/release ID was created?
+P. What does the Replit production /api/version report?
+Q. What does mycaloraapp.com /api/version report?
+R. Do both exactly match the frozen candidate?
+S. Are both health endpoints healthy?
+T. Are recipe/nutrition changes live?
+U. Are Planner/program/fallback changes live?
+V. Are capture approval/sync/image-provenance changes live?
+W. Were auth/account fences preserved?
+X. Was iOS Build 7 changed?
+Y. Was Android changed/built?
+Z. Was TestFlight/App Store touched?
+AA. Was Metro changed?
+AB. Was rollback required?
+AC. Is runtime delivery drift now closed?
+AD. Is it now safe to proceed to Android versionCode 27?
+
+==================================================
+19. ALLOWED FINAL VERDICTS
+==================================================
+
+Use exactly one:
+
+PRODUCTION API ALIGNMENT VERIFIED — RUNTIME DRIFT CLOSED
+
+PRODUCTION RELEASE CONTROL BLOCKED — ATTESTATION IDENTITY UNVERIFIED
+
+PRODUCTION RELEASE CONTROL BLOCKED — COACH ACTIVATION UNSAFE
+
+PRODUCTION RELEASE CONTROL BLOCKED — SOURCE CANDIDATE CHANGED
+
+PRODUCTION RELEASE CONTROL BLOCKED — VALIDATION FAILED
+
+PRODUCTION RELEASE CONTROL BLOCKED — ATTESTATION MISMATCH
+
+PRODUCTION API PROMOTION FAILED — LIVE PROVENANCE MISMATCH
+
+PRODUCTION API PROMOTION FAILED — ROLLBACK VERIFIED
+
+==================================================
+20. STOP
+==================================================
+
+After creating the Step 58A report, STOP.
+
+Do not proceed to Android automatically.
+
+Wait for owner review.
