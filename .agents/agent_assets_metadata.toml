@@ -126,3 +126,17 @@ mtime_ms = 1789681115938
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/a4ca6bbe-3752-47b6-a9f0-2fc66e2b2b26/3e888c5c-3939-4caa-9726-60e4e626fb22"
 storage_version_token = "1789681119158854"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "o6FJsb3NPO9F5OVrKVozF"
+uri = "file://58D_R4_CALORA_RUNTIME_EQUIVALENT_RELEASE_IDENTITY_RECONCILIATION_REPORT.md"
+type = "text"
+title = "58D_R4_CALORA_RUNTIME_EQUIVALENT_RELEASE_IDENTITY_RECONCILIATION_REPORT.md"
+description = "Completed Step 58D-R4 runtime-equivalence reconciliation report."
+logical_id = "4e24ae51-6716-4ae8-aea4-758653253b8a"
+content_hash = "sha256:f97554ba16c14f5b6bf77253ba847de53e67e2229039c0e64ac857ee3da55823"
+size = 14383
+mtime_ms = 1789683405820
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/4e24ae51-6716-4ae8-aea4-758653253b8a/acdcb1da-542a-47f6-b9e4-2d35a124536c"
+storage_version_token = "1789683924882710"
+content_type = "text/markdown"
