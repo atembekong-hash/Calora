@@ -11,6 +11,18 @@ const config = getDefaultConfig(projectRoot);
 // 1. Watch all files within the monorepo while preserving Expo's defaults
 config.watchFolders = [...new Set([...(config.watchFolders ?? []), workspaceRoot])];
 
+// Historical release snapshots can contain many thousands of files and are not
+// part of the active workspace. Exclude them so the local watcher does not
+// exhaust the container's file-descriptor limit.
+config.resolver.blockList = [
+  ...(Array.isArray(config.resolver.blockList)
+    ? config.resolver.blockList
+    : config.resolver.blockList
+      ? [config.resolver.blockList]
+      : []),
+  /\/\.step[^/]*\//,
+];
+
 // 2. Let Metro resolve modules from both the project and workspace node_modules
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
