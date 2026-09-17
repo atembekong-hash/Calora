@@ -718,3 +718,25 @@ repairing this Step 58 block.
 | AB. Was rollback required? | No |
 | AC. What remains for physical verification? | Build 7 flow retest after API alignment; authenticated/device matrix |
 | AD. Is production runtime drift closed? | No; configuration gate blocked alignment |
+
+## Task 823 control-repair addendum
+
+The release-control repair applied after this preflight keeps ordinary API
+alignment independent from the sensitive Coach activation path:
+
+- production build configuration explicitly pins the reviewed candidate
+  `5f69c31e4816abcfa5fff69389e4699fd4f1428f` while leaving sensitive
+  activation requested as `false`;
+- external final-artifact signing evidence is required only when a sensitive
+  release is explicitly requested, so unavailable provider-retained evidence
+  cannot block an ordinary API release;
+- production runtime and source configuration keep `COACH_FACT_CONTEXT_ENABLED`
+  false, and no provider, cohort, consent, or rollout mutation was performed;
+- the full API and release validation suites pass, and the API workflow starts
+  healthy after the validated configuration replacement.
+
+The reviewed candidate was not published during this task. Both public hosts
+continue to report the unchanged old release
+`dd4d130b03e6f05e52b9a275d58760849aa58590`; the remaining publish and
+post-publish identity/health verification must be completed through the
+approved Publishing control plane once an authorized operator initiates it.

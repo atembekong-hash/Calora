@@ -72,3 +72,4 @@
 - [Protected release check drift](protected-release-check-drift.md) — a required GitHub status can outlive or diverge from the workflow that should publish it; verify both sides.
 - [GitHub controller validity](github-actions-controller-validity.md) — an active workflow/run can still fail before jobs; compare same-push hosted runs and require controller or owner-UI evidence before patching.
 - [EAS worktree provenance](eas-worktree-provenance.md) — nested temporary worktrees can lose Git metadata to workspace checkpoints, causing EAS to fingerprint the outer repository.
+- [Agent publish boundary](agent-publish-boundary.md) — deployment status readers do not imply the task runtime can publish; never claim source-to-runtime alignment without a callable mutation and live verification.

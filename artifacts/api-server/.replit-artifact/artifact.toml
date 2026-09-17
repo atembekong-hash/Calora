@@ -21,6 +21,11 @@ args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
 
 [services.production.build.env]
 NODE_ENV = "production"
+# Ordinary API alignment releases stay independent of the sensitive Coach
+# activation path. A sensitive release must opt in explicitly and provide the
+# separate reviewed-commit and external attestation controls at build time.
+RELEASE_SENSITIVE_ACTIVATION_REQUESTED = "false"
+RELEASE_SENSITIVE_ACTIVATION_COMMIT = "5f69c31e4816abcfa5fff69389e4699fd4f1428f"
 # A sensitive release is built only when an authorized owner sets both:
 # RELEASE_SENSITIVE_ACTIVATION_REQUESTED=true and
 # RELEASE_SENSITIVE_ACTIVATION_COMMIT=<the exact reviewed 40-character Git SHA>.
@@ -35,6 +40,8 @@ args = ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
 [services.production.run.env]
 PORT = "8080"
 NODE_ENV = "production"
+# Keep the runtime Coach gate closed for ordinary API releases.
+COACH_FACT_CONTEXT_ENABLED = "false"
 
 [services.production.health.startup]
 path = "/api/healthz"
