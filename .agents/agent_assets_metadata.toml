@@ -84,3 +84,17 @@ mtime_ms = 1789632814564
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/ad399dd5-01c2-4f94-94aa-f0e3a67ed0f0/0c0f1a0b-4a1a-42f0-a6fd-8ee7832291e4"
 storage_version_token = "1789632841996536"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "1zyXdbWqfijqdPezGsnBs"
+uri = "file://55B_CALORA_PROVENANCE_CONTROLLED_IOS_RELEASE_CANDIDATE_REBUILD_REPORT.md"
+type = "text"
+title = "Step 55B Calora iOS Release-Candidate Report"
+description = "Verified provenance, exact EAS build, IPA hash, and pre-TestFlight owner handoff."
+logical_id = "b4a2e440-ce9b-4850-a9ae-15b3b9b4f22d"
+content_hash = "sha256:aad2fe822883ed5ddd904073fc5f0f031bf4260958c630f26bc78579572eee45"
+size = 21516
+mtime_ms = 1789641351593
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/b4a2e440-ce9b-4850-a9ae-15b3b9b4f22d/b3cf4fbc-e6c3-4d41-adb7-0e6c715a942e"
+storage_version_token = "1789641371539251"
+content_type = "text/markdown"
