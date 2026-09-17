@@ -1,0 +1,838 @@
+CALORA — STEP 56 EXACT IOS BUILD 7 TESTFLIGHT SUBMISSION
+
+OUTPUT REPORT:
+
+56_CALORA_EXACT_IOS_BUILD_7_TESTFLIGHT_SUBMISSION_REPORT.md
+
+
+==================================================
+MISSION
+==================================================
+
+Submit ONLY the exact verified Calora iOS release candidate from Step 55B
+to Apple TestFlight.
+
+This is a SUBMISSION-ONLY step.
+
+DO NOT create another EAS build.
+
+DO NOT use --latest.
+
+DO NOT build Android.
+
+DO NOT modify source.
+
+DO NOT modify the build number.
+
+DO NOT deploy API/backend.
+
+DO NOT modify database/schema/migrations/seeds.
+
+DO NOT release to the public App Store.
+
+DO NOT enable external TestFlight distribution.
+
+
+==================================================
+OWNER AUTHORIZATION
+==================================================
+
+The owner explicitly authorizes TestFlight submission of ONLY:
+
+EAS Build ID:
+
+45900e2d-298f-4ece-9041-0e42513266e4
+
+
+Expected build identity:
+
+Marketing version:
+1.0.0
+
+Build number:
+7
+
+Bundle identifier:
+com.etiendem.caloraapp
+
+Canonical Git SHA:
+dec8f0d6a9531cb5a2eb73c01706dc75354e743c
+
+Canonical Git tree:
+f4c820017b82c48052571eb432806b3185aabcfb
+
+Expected IPA SHA-256:
+bc634c5e1b8dce89a757f79977eb0c64b00d7a09e47745f2c1e472f103a1ae13
+
+
+No other build is authorized.
+
+
+==================================================
+QUARANTINED BUILD — NEVER SUBMIT
+==================================================
+
+The following Step 55 build is permanently excluded from this submission:
+
+EAS Build ID:
+
+fffc4d8a-5e1b-48f0-98c9-e2949136cf04
+
+Build number:
+6
+
+Reason:
+Git/EAS provenance failure
+
+Disposition:
+
+DO NOT SUBMIT TO TESTFLIGHT
+
+
+Do not use it.
+
+Do not use its IPA.
+
+Do not confuse it with build 7.
+
+
+==================================================
+1. VERIFY CANONICAL MAIN — READ ONLY
+==================================================
+
+Fetch origin.
+
+Expected origin/main:
+
+SHA:
+dec8f0d6a9531cb5a2eb73c01706dc75354e743c
+
+TREE:
+f4c820017b82c48052571eb432806b3185aabcfb
+
+
+If origin/main unexpectedly differs:
+
+DO NOT change source.
+
+DO NOT build.
+
+DO NOT automatically merge/rebase.
+
+Document the difference.
+
+The submission may proceed ONLY if the exact already-built EAS Build ID
+remains independently verified as the authorized immutable Step 55B artifact
+and no evidence suggests artifact substitution or invalidation.
+
+Otherwise STOP.
+
+
+==================================================
+2. RE-VERIFY EXACT EAS BUILD ID
+==================================================
+
+Query the EXACT EAS Build ID:
+
+45900e2d-298f-4ece-9041-0e42513266e4
+
+
+Do NOT query/select an ambiguous latest build for submission.
+
+
+Require:
+
+status == FINISHED
+
+platform == iOS
+
+profile == production
+
+distribution == STORE
+
+project == @vvault07/calora
+
+marketing version == 1.0.0
+
+build number == 7
+
+bundle identifier == com.etiendem.caloraapp
+
+EAS-recorded Git SHA ==
+dec8f0d6a9531cb5a2eb73c01706dc75354e743c
+
+
+If ANY identity differs:
+
+STOP.
+
+DO NOT SUBMIT.
+
+VERDICT:
+
+TESTFLIGHT SUBMISSION BLOCKED — BUILD IDENTITY MISMATCH
+
+
+==================================================
+3. RE-VERIFY ARTIFACT IDENTITY
+==================================================
+
+Where the exact artifact remains accessible, verify the artifact belonging to
+the exact EAS Build ID.
+
+Require:
+
+IPA SHA-256 ==
+
+bc634c5e1b8dce89a757f79977eb0c64b00d7a09e47745f2c1e472f103a1ae13
+
+
+Verify Info.plist:
+
+CFBundleIdentifier ==
+com.etiendem.caloraapp
+
+CFBundleShortVersionString ==
+1.0.0
+
+CFBundleVersion ==
+7
+
+
+If artifact identity differs:
+
+STOP.
+
+DO NOT SUBMIT.
+
+VERDICT:
+
+TESTFLIGHT SUBMISSION BLOCKED — ARTIFACT IDENTITY MISMATCH
+
+
+==================================================
+4. VERIFY APP STORE CONNECT TARGET
+==================================================
+
+Before submission verify:
+
+App Store Connect app:
+Calora / caloraapp
+
+App Store Connect app ID:
+6800321660
+
+Apple team ID:
+B5344GJRMT
+
+Bundle identifier:
+com.etiendem.caloraapp
+
+
+Verify the configured submission profile targets this exact application.
+
+
+Do not change credentials unless required.
+
+Do not print private keys, tokens, issuer secrets, or credential contents.
+
+
+==================================================
+5. VERIFY BUILD 7 IS NOT ALREADY SUBMITTED
+==================================================
+
+Before issuing a submission:
+
+check EAS submission history and available Apple/TestFlight state where
+possible.
+
+
+Determine whether this exact EAS Build ID/build 7 already has a successful
+submission.
+
+
+If it is already successfully submitted:
+
+DO NOT submit it a second time.
+
+Instead verify the existing submission and continue with Apple/TestFlight
+verification.
+
+Record:
+
+ALREADY SUBMITTED — EXISTING SUBMISSION REUSED
+
+
+If there is an active/in-progress submission for the exact Build ID:
+
+DO NOT create a duplicate submission.
+
+Wait for and inspect the existing submission.
+
+
+==================================================
+6. EXACT-ID SUBMISSION ONLY
+==================================================
+
+If no successful/in-progress submission exists:
+
+submit ONLY:
+
+45900e2d-298f-4ece-9041-0e42513266e4
+
+
+Use an exact-ID EAS submission mechanism equivalent to:
+
+eas submit --platform ios --id 45900e2d-298f-4ece-9041-0e42513266e4
+
+
+Use the repository's existing production submission profile/configuration.
+
+
+ABSOLUTELY DO NOT USE:
+
+--latest
+
+automatic latest-build selection
+
+build 6
+
+a locally guessed IPA
+
+a newly generated build
+
+
+Capture the exact EAS Submission ID immediately.
+
+
+==================================================
+7. WAIT FOR EXACT SUBMISSION RESULT
+==================================================
+
+Monitor the EXACT EAS Submission ID.
+
+Require the submission to reach successful/finished status.
+
+
+Record:
+
+EAS Submission ID
+
+submitted EAS Build ID
+
+platform
+
+App Store Connect target
+
+status
+
+created time
+
+completed time where available
+
+
+If submission fails:
+
+STOP.
+
+DO NOT automatically resubmit.
+
+Do not create another build.
+
+VERDICT:
+
+EXACT BUILD 7 TESTFLIGHT SUBMISSION FAILED
+
+
+==================================================
+8. VERIFY APPLE RECEIVED BUILD 7
+==================================================
+
+After EAS reports successful submission, independently query App Store
+Connect/TestFlight.
+
+
+Verify Apple has received:
+
+Version:
+1.0.0
+
+Build:
+7
+
+Bundle:
+com.etiendem.caloraapp
+
+
+Where available record:
+
+Apple build ID
+
+upload/processing state
+
+processing completion state
+
+TestFlight availability state.
+
+
+Do NOT treat EAS submission success alone as proof that TestFlight processing
+is complete.
+
+
+==================================================
+9. WAIT FOR APPLE PROCESSING
+==================================================
+
+If Apple reports build 7 as PROCESSING:
+
+do not resubmit.
+
+Wait/poll the existing Apple build at a reasonable interval.
+
+
+When processing completes, verify it reaches a valid TestFlight state such as:
+
+VALID
+
+READY TO TEST
+
+or the current equivalent Apple state.
+
+
+If Apple reports a processing failure:
+
+STOP.
+
+Document Apple's failure/error.
+
+Do NOT create another build.
+
+VERDICT:
+
+BUILD 7 APPLE PROCESSING FAILED
+
+
+==================================================
+10. INTERNAL TESTER GROUP
+==================================================
+
+Target internal group:
+
+Calora Internal Testers
+
+
+After build 7 becomes eligible for internal testing:
+
+verify whether build 7 is already assigned to:
+
+Calora Internal Testers
+
+
+If already assigned:
+
+do not duplicate the assignment.
+
+
+If not assigned and the existing authorized workflow supports safe internal
+group assignment:
+
+assign ONLY build 7 to:
+
+Calora Internal Testers
+
+
+Do NOT:
+
+create an external testing group;
+
+enable public link;
+
+invite external testers;
+
+submit for Beta App Review;
+
+enable external TestFlight testing.
+
+
+Record the resulting group/build association.
+
+
+==================================================
+11. VERIFY INTERNAL TESTING STATE
+==================================================
+
+Verify:
+
+Build 7 is associated with Calora Internal Testers;
+
+build 7 is eligible/available for internal testing;
+
+build 6 is NOT the build being distributed;
+
+the exact bundle/version/build identity remains:
+
+com.etiendem.caloraapp
+1.0.0
+7
+
+
+Where supported, verify the owner's existing internal tester account remains
+associated with the internal group.
+
+Do not expose tester private information beyond what is necessary in the
+report.
+
+
+==================================================
+12. NO PUBLIC APP STORE RELEASE
+==================================================
+
+DO NOT:
+
+create an App Store production release;
+
+submit version 1.0.0 for App Review;
+
+release manually to customers;
+
+release automatically;
+
+configure phased release;
+
+change pricing;
+
+change territories;
+
+change screenshots;
+
+change metadata;
+
+change privacy declarations;
+
+change age rating.
+
+
+This step ends at INTERNAL TESTFLIGHT.
+
+
+==================================================
+13. NO SOURCE OR BUILD MUTATION
+==================================================
+
+DO NOT:
+
+change app.json;
+
+increment build number;
+
+commit source;
+
+push source;
+
+modify product functionality;
+
+create EAS build;
+
+create Android build.
+
+
+The existing immutable build 7 is the only artifact authorized.
+
+
+==================================================
+14. NO BACKEND/DATABASE OPERATIONS
+==================================================
+
+No:
+
+API deployment;
+
+Replit publish;
+
+database mutation;
+
+migration;
+
+schema change;
+
+seed change;
+
+production-data modification.
+
+
+==================================================
+15. PHYSICAL DEVICE TESTING STATUS
+==================================================
+
+Do NOT claim physical-device verification merely because TestFlight
+submission succeeds.
+
+
+After build 7 becomes available internally, mark the release state:
+
+TESTFLIGHT DISTRIBUTION VERIFIED — OWNER DEVICE TESTING REQUIRED
+
+
+The owner will install build 7 from TestFlight and perform physical-device
+verification separately.
+
+
+==================================================
+16. REQUIRED OWNER DEVICE CHECKLIST
+==================================================
+
+Include this checklist in the report for post-submission testing:
+
+[ ] TestFlight shows Calora 1.0.0 (7)
+
+[ ] Build 7 installs successfully
+
+[ ] App launches cleanly
+
+[ ] Existing user/session behavior works
+
+[ ] Fresh-install onboarding works
+
+[ ] Keyboard does not obscure onboarding inputs
+
+[ ] Onboarding agreement/consent is clear and usable
+
+[ ] Onboarding does not repeat incorrectly after completion
+
+[ ] Home Today loads correctly
+
+[ ] Smart Scan camera opens
+
+[ ] Smart Scan capture/review/approval works
+
+[ ] Approved Smart Scan entry appears in Food Memory
+
+[ ] Approved entry appears in Home Today
+
+[ ] Diary/outbox/sync behavior works
+
+[ ] App close/reopen preserves expected state
+
+[ ] Offline/reconnect behavior does not duplicate or lose approved entries
+
+[ ] Date rollover does not place entries on wrong day
+
+[ ] Plan tab opens
+
+[ ] Weekly Programs gear opens selector
+
+[ ] Program selector → detail works on iOS
+
+[ ] Detail back/close works
+
+[ ] Apply program works
+
+[ ] Recipes opens correctly
+
+[ ] Plus opens correctly
+
+[ ] Reopening Plus does not unnecessarily reload fresh data
+
+[ ] Discover/Plus recipes rotate appropriately
+
+[ ] No duplicate stable recipe IDs appear unexpectedly
+
+[ ] Nutrition real zero displays as zero
+
+[ ] Unknown nutrition does NOT display as zero
+
+[ ] Partial/unavailable nutrition is represented truthfully
+
+[ ] Coach opens safely
+
+[ ] Coach consent/gating behaves correctly
+
+[ ] Health permission flow works where applicable
+
+[ ] Health data appears in the intended current destination
+
+[ ] Premium/RevenueCat entitlement behavior works
+
+[ ] Sign in/sign out works
+
+[ ] Account switching does not leak another account's data
+
+[ ] Deep links/auth callbacks work
+
+[ ] Referral flow works where applicable
+
+[ ] Background/resume works
+
+[ ] Process termination/relaunch works
+
+[ ] No obvious crash, freeze, blank screen, or stale old-app experience occurs
+
+
+Fitness is intentionally excluded and must not be treated as a missing
+feature.
+
+
+==================================================
+REPORT
+==================================================
+
+Create:
+
+56_CALORA_EXACT_IOS_BUILD_7_TESTFLIGHT_SUBMISSION_REPORT.md
+
+
+Required sections:
+
+1. Executive summary
+2. Owner authorization
+3. Authorized EAS Build ID
+4. Quarantined build 6 confirmation
+5. Canonical Git SHA/tree
+6. Exact EAS build re-verification
+7. IPA SHA-256 re-verification
+8. Info.plist re-verification
+9. App Store Connect target verification
+10. Existing-submission check
+11. Exact submission command/action
+12. Exact EAS Submission ID
+13. Submission status
+14. Submitted EAS Build ID
+15. Apple App Store Connect receipt
+16. Apple build ID
+17. Apple version/build identity
+18. Apple processing state
+19. TestFlight readiness state
+20. Internal group verification
+21. Build 7 internal-group assignment
+22. Confirmation build 6 not distributed
+23. Confirmation no external testing
+24. Confirmation no public App Store submission/release
+25. Confirmation no new EAS build
+26. Confirmation no Android build
+27. Confirmation no source mutation
+28. Confirmation no API/database/deployment
+29. Physical-device verification status
+30. Complete owner device checklist
+31. Remaining verification
+32. Exact recommendation after device testing
+
+
+==================================================
+MANDATORY SUBMISSION IDENTITY TABLE
+==================================================
+
+| Identity | Authorized/Expected | Observed | Result |
+
+Rows:
+
+EAS Build ID
+
+Canonical Git SHA
+
+EAS-recorded Git SHA
+
+IPA SHA-256
+
+Bundle ID
+
+Marketing version
+
+Build number
+
+EAS Submission ID
+
+App Store Connect app ID
+
+Apple team ID
+
+Apple build ID
+
+Apple processing state
+
+TestFlight state
+
+Internal tester group
+
+
+==================================================
+FINAL QUESTIONS
+==================================================
+
+A. Was ONLY exact EAS Build ID
+45900e2d-298f-4ece-9041-0e42513266e4 submitted?
+
+B. Was --latest avoided?
+
+C. Was quarantined build 6 kept unsubmitted?
+
+D. What exact EAS Submission ID was used?
+
+E. Did EAS submission finish successfully?
+
+F. Did Apple receive version 1.0.0 build 7?
+
+G. What Apple build ID was assigned?
+
+H. Did Apple processing complete successfully?
+
+I. Is build 7 READY TO TEST or equivalent?
+
+J. Is build 7 assigned to Calora Internal Testers?
+
+K. Was external testing avoided?
+
+L. Was public App Store submission/release avoided?
+
+M. Was any new EAS build created?
+
+N. Was Android untouched?
+
+O. Was canonical source left unchanged?
+
+P. Were API/database/deployment operations avoided?
+
+Q. Is build 7 now ready for owner physical-device testing?
+
+
+==================================================
+FINAL VERDICT
+==================================================
+
+Use EXACTLY ONE:
+
+TESTFLIGHT BUILD 7 VERIFIED — OWNER DEVICE TESTING REQUIRED
+
+TESTFLIGHT SUBMISSION BLOCKED — BUILD IDENTITY MISMATCH
+
+TESTFLIGHT SUBMISSION BLOCKED — ARTIFACT IDENTITY MISMATCH
+
+TESTFLIGHT SUBMISSION BLOCKED — APP STORE TARGET MISMATCH
+
+EXACT BUILD 7 TESTFLIGHT SUBMISSION FAILED
+
+BUILD 7 APPLE PROCESSING FAILED
+
+BUILD 7 SUBMITTED — APPLE PROCESSING STILL PENDING
+
+BUILD 7 TESTFLIGHT READY — INTERNAL GROUP ASSIGNMENT FAILED
+
+
+==================================================
+STOP
+==================================================
+
+After producing the report:
+
+STOP.
+
+DO NOT CREATE ANOTHER BUILD.
+
+DO NOT SUBMIT ANOTHER BUILD.
+
+DO NOT START ANDROID RELEASE.
+
+DO NOT RELEASE TO THE PUBLIC APP STORE.
+
+DO NOT DEPLOY.
+
+Wait for owner physical-device testing.
