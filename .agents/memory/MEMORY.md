@@ -74,4 +74,3 @@
 - [Protected release check drift](protected-release-check-drift.md) — a required GitHub status can outlive or diverge from the workflow that should publish it; verify both sides.
 - [GitHub controller validity](github-actions-controller-validity.md) — an active workflow/run can still fail before jobs; compare same-push hosted runs and require controller or owner-UI evidence before patching.
 - [Release source freeze hygiene](release-source-freeze-hygiene.md) — report and attachment commits can diverge local main from an approved release SHA; re-freeze before native work.
-- [Isolated worktree cleanup](isolated-worktree-cleanup.md) — hidden or workspace-local Git worktrees may lose metadata; use a persistent external worktree for canonical branch work.
