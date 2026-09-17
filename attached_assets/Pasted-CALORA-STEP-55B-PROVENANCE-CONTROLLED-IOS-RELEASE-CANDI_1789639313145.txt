@@ -1,0 +1,1064 @@
+CALORA — STEP 55B PROVENANCE-CONTROLLED IOS RELEASE-CANDIDATE REBUILD
+
+OUTPUT REPORT:
+
+55B_CALORA_PROVENANCE_CONTROLLED_IOS_RELEASE_CANDIDATE_REBUILD_REPORT.md
+
+
+==================================================
+MISSION
+==================================================
+
+Create ONE replacement iOS production release-candidate build using the
+proven standalone-clone Git/EAS provenance architecture from Step 55A.
+
+BUILD ONLY.
+
+DO NOT submit to TestFlight.
+
+DO NOT build Android.
+
+DO NOT deploy API/backend.
+
+DO NOT modify database/schema/migrations/seeds.
+
+DO NOT modify product functionality.
+
+
+Step 55A proved:
+
+- canonical origin/main SHA:
+  5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+- canonical tree:
+  0b4185eac78f8b42097fce0334691487df740e53
+
+- Apple floor:
+  5
+
+- EAS floor:
+  6
+
+- informational NEXT_SAFE_BUILD:
+  7
+
+- standalone clone architecture successfully prevents the Step 55 Git
+  provenance failure.
+
+
+The failed Step 55 build remains quarantined:
+
+EAS Build ID:
+fffc4d8a-5e1b-48f0-98c9-e2949136cf04
+
+Build number:
+6
+
+Disposition:
+DO NOT SUBMIT TO TESTFLIGHT
+
+
+==================================================
+1. RE-QUERY LIVE STATE FIRST
+==================================================
+
+Do NOT blindly assume build 7 is still safe.
+
+Before modifying anything:
+
+fetch origin;
+
+query Apple App Store Connect build history;
+
+query EAS production iOS build history;
+
+read canonical app.json.
+
+
+Record:
+
+Apple highest consumed build;
+
+EAS highest consumed build;
+
+canonical configured build number.
+
+
+Calculate:
+
+LIVE_FLOOR =
+max(Apple floor, EAS floor)
+
+NEXT_SAFE_BUILD =
+LIVE_FLOOR + 1
+
+
+If either Apple or EAS floor cannot be reliably verified:
+
+STOP.
+
+VERDICT:
+
+IOS REBUILD BLOCKED — BUILD NUMBER FLOOR UNVERIFIED
+
+
+==================================================
+2. VERIFY CANONICAL MAIN
+==================================================
+
+Expected starting origin/main:
+
+SHA:
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+TREE:
+0b4185eac78f8b42097fce0334691487df740e53
+
+
+If origin/main unexpectedly differs:
+
+STOP.
+
+Do NOT merge.
+
+Do NOT rebase.
+
+Do NOT force.
+
+VERDICT:
+
+IOS REBUILD BLOCKED — CANONICAL MAIN CHANGED
+
+
+==================================================
+3. BUILD-NUMBER-ONLY CHANGE
+==================================================
+
+Canonical app.json is expected to contain iOS build number 6.
+
+If fresh NEXT_SAFE_BUILD is 7:
+
+change ONLY:
+
+expo.ios.buildNumber
+
+from:
+
+6
+
+to:
+
+7
+
+
+If fresh evidence produces a value other than 7:
+
+use the freshly calculated NEXT_SAFE_BUILD instead.
+
+
+Preserve:
+
+marketing version 1.0.0
+
+cli.appVersionSource = local
+
+build.production.autoIncrement = false
+
+bundle identifier com.etiendem.caloraapp
+
+Expo project ID
+
+Expo owner
+
+all other configuration.
+
+
+NO PRODUCT SOURCE CHANGE.
+
+
+==================================================
+4. VALIDATE BUILD-NUMBER DIFF
+==================================================
+
+Before commit:
+
+git diff
+
+git diff --stat
+
+git diff --check
+
+
+Require the only functional changed path to be:
+
+artifacts/calora/app.json
+
+
+Require the only intended functional change to be the iOS build number.
+
+
+If anything else changed:
+
+STOP.
+
+VERDICT:
+
+IOS REBUILD BLOCKED — UNEXPECTED SOURCE DRIFT
+
+
+==================================================
+5. COMMIT AND PUSH
+==================================================
+
+Create one narrow commit.
+
+Subject:
+
+Prepare iOS build <NEXT_SAFE_BUILD> provenance-controlled candidate
+
+
+Record:
+
+parent SHA
+
+commit SHA
+
+tree SHA
+
+changed path
+
+old build number
+
+new build number
+
+
+Immediately before push:
+
+git fetch origin
+
+
+Require origin/main still equals:
+
+5f69c31e4816abcfa5fff69389e4699fd4f1428f
+
+
+If safe:
+
+normal fast-forward push to origin/main.
+
+
+NO FORCE.
+
+NO FORCE-WITH-LEASE.
+
+NO REBASE.
+
+NO MERGE.
+
+NO HISTORY REWRITE.
+
+
+==================================================
+6. EXACT-SHA RELEASE GATE
+==================================================
+
+After push:
+
+fetch origin.
+
+Record exact new:
+
+origin/main SHA
+
+origin/main tree
+
+
+Wait for:
+
+Release validation
+
+Required check:
+
+Run release validation suite
+
+
+Require:
+
+head SHA == exact new origin/main SHA
+
+status == completed
+
+conclusion == success
+
+
+Record:
+
+workflow run ID
+
+check-run ID
+
+head SHA
+
+status
+
+conclusion
+
+
+If release validation fails:
+
+STOP.
+
+DO NOT BUILD.
+
+VERDICT:
+
+IOS REBUILD BLOCKED — RELEASE GATE FAILED
+
+
+==================================================
+7. CREATE FRESH STANDALONE CLONE
+==================================================
+
+DO NOT reuse the failed linked worktree.
+
+DO NOT build from /home/runner/workspace.
+
+DO NOT depend on outer .git/worktrees metadata.
+
+
+Create a FRESH standalone clone outside the Replit checkpointed workspace,
+with its own durable .git directory.
+
+
+Example architecture:
+
+/tmp/calora-step55b-standalone
+
+
+Clone from the configured canonical origin.
+
+Fetch origin.
+
+Checkout the EXACT new canonical SHA created above.
+
+
+Require inside standalone clone:
+
+git rev-parse --show-toplevel
+==
+standalone clone root
+
+git rev-parse HEAD
+==
+new origin/main SHA
+
+git rev-parse HEAD^{tree}
+==
+new origin/main tree
+
+git rev-parse origin/main
+==
+HEAD
+
+git status --porcelain
+==
+empty
+
+
+Record commit subject.
+
+
+==================================================
+8. PROVE STANDALONE GIT DURABILITY
+==================================================
+
+Confirm:
+
+standalone clone contains its own .git directory;
+
+.git is NOT a linked-worktree pointer;
+
+Git identity does not depend on /home/runner/workspace/.git/worktrees.
+
+
+Perform safe outer-repository inspection:
+
+git worktree list --porcelain
+
+git worktree prune --dry-run
+
+
+Then inside standalone clone re-run:
+
+git rev-parse --show-toplevel
+
+git rev-parse HEAD
+
+git rev-parse HEAD^{tree}
+
+git rev-parse origin/main
+
+git status --porcelain
+
+
+Require unchanged values.
+
+
+==================================================
+9. INSTALL / PREBUILD VALIDATION IN STANDALONE CLONE
+==================================================
+
+Run all build preparation FROM THE STANDALONE CLONE.
+
+Do not switch back to the outer workspace.
+
+
+Run:
+
+pnpm install --frozen-lockfile
+
+pnpm run typecheck
+
+pnpm --filter @workspace/calora test
+
+pnpm --filter @workspace/api-server test
+
+pnpm --filter @workspace/scripts test
+
+Calora static-security tests
+
+Expo config validation
+
+git diff --check
+
+
+Generate ignored local test artifacts only where the existing tests require
+them.
+
+They must remain ignored and must not alter canonical Git source.
+
+
+Require all validation to pass.
+
+
+==================================================
+10. RE-QUERY BUILD FLOORS IMMEDIATELY BEFORE BUILD
+==================================================
+
+From the standalone clone, immediately before EAS build:
+
+query Apple build history AGAIN;
+
+query EAS iOS production build history AGAIN.
+
+
+Calculate again:
+
+FINAL_LIVE_FLOOR
+
+FINAL_NEXT_SAFE_BUILD =
+FINAL_LIVE_FLOOR + 1
+
+
+Require:
+
+app.json build number == FINAL_NEXT_SAFE_BUILD
+
+
+If another build has consumed the selected number:
+
+STOP.
+
+Do NOT automatically mutate source again.
+
+Do NOT build.
+
+VERDICT:
+
+IOS REBUILD BLOCKED — BUILD NUMBER FLOOR CHANGED
+
+
+==================================================
+11. FAIL-CLOSED PROVENANCE ASSERTION
+==================================================
+
+Run the Step 55A provenance assertion or an equivalent fail-closed assertion
+from the standalone clone.
+
+
+Require ALL:
+
+Git top-level == standalone clone root
+
+HEAD == origin/main
+
+HEAD == expected new canonical SHA
+
+tree == expected new canonical tree
+
+working tree clean except explicitly allowed ignored build/test artifacts
+
+app.json iOS build number == FINAL_NEXT_SAFE_BUILD
+
+Expo owner == vvault07
+
+Expo project ID ==
+1f202325-5b9a-4260-978f-abbd3252b9ee
+
+bundle ID ==
+com.etiendem.caloraapp
+
+marketing version ==
+1.0.0
+
+production autoIncrement == false
+
+appVersionSource == local
+
+
+If ANY assertion fails:
+
+STOP.
+
+DO NOT BUILD.
+
+VERDICT:
+
+IOS REBUILD BLOCKED — PROVENANCE ASSERTION FAILED
+
+
+==================================================
+12. SIGNING PREFLIGHT
+==================================================
+
+Run existing repository-supported read-only signing preflight.
+
+Require valid:
+
+EAS distribution certificate
+
+provisioning profile
+
+bundle identifier
+
+EAS project identity
+
+App Store Connect app identity
+
+
+Do not create replacement credentials unless explicitly required and owner
+authorized.
+
+
+If signing fails:
+
+STOP.
+
+VERDICT:
+
+IOS REBUILD BLOCKED — SIGNING PREFLIGHT FAILED
+
+
+==================================================
+13. PRODUCTION ENVIRONMENT PREFLIGHT
+==================================================
+
+Verify without exposing secrets:
+
+production API target;
+
+Supabase public configuration present;
+
+RevenueCat iOS public configuration present;
+
+Expo production environment;
+
+no localhost;
+
+no 127.0.0.1;
+
+no Replit development preview URL;
+
+no mock provider;
+
+no unintended development flag.
+
+
+If unsafe:
+
+STOP.
+
+DO NOT BUILD.
+
+
+==================================================
+14. CREATE EXACTLY ONE EAS IOS BUILD
+==================================================
+
+ONLY after every previous gate passes:
+
+create exactly ONE:
+
+iOS
+
+production profile
+
+STORE distribution
+
+non-interactive where supported
+
+auto-submit disabled
+
+
+The build command MUST execute from the proven standalone clone/project
+directory.
+
+
+Capture the exact EAS Build ID immediately.
+
+
+DO NOT create another build in this step.
+
+
+==================================================
+15. VERIFY EXACT EAS BUILD
+==================================================
+
+Wait for the EXACT EAS Build ID.
+
+
+Require:
+
+status == FINISHED
+
+platform == iOS
+
+profile == production
+
+distribution == STORE
+
+project == @vvault07/calora
+
+marketing version == 1.0.0
+
+build number == FINAL_NEXT_SAFE_BUILD
+
+bundle identifier == com.etiendem.caloraapp
+
+
+MOST IMPORTANTLY:
+
+EAS Git commit hash MUST equal the exact new canonical origin/main SHA.
+
+
+EAS commit subject must correspond to the provenance-controlled build-number
+commit.
+
+
+If EAS Git SHA differs by even one character:
+
+STOP.
+
+DO NOT SUBMIT.
+
+VERDICT:
+
+IOS REBUILD PROVENANCE FAILED — DO NOT SUBMIT
+
+
+==================================================
+16. IPA VERIFICATION
+==================================================
+
+Download the IPA belonging to the EXACT EAS Build ID.
+
+Do NOT use an ambiguous latest-build artifact.
+
+
+Verify:
+
+archive integrity
+
+artifact size
+
+SHA-256
+
+Info.plist
+
+
+Require:
+
+CFBundleIdentifier =
+com.etiendem.caloraapp
+
+CFBundleShortVersionString =
+1.0.0
+
+CFBundleVersion =
+FINAL_NEXT_SAFE_BUILD
+
+
+Record exact:
+
+EAS Build ID
+
+artifact size
+
+IPA SHA-256
+
+plist values
+
+
+==================================================
+17. IMMUTABLE PROVENANCE CHAIN
+==================================================
+
+Document:
+
+canonical Git SHA
+→ canonical Git tree
+→ exact release-validation success
+→ deterministic build number
+→ standalone Git root
+→ provenance assertion
+→ exact EAS Build ID
+→ EAS-recorded matching Git SHA
+→ exact IPA SHA-256
+→ verified Info.plist
+
+
+This chain must have NO SHA mismatch.
+
+
+==================================================
+18. PRESERVATION CHECK
+==================================================
+
+Confirm build-number-only lineage preserves:
+
+R-01 onboarding keyboard
+
+R-02 agreement semantics
+
+R-03 Plus remount
+
+R-04 Discover/Plus freshness
+
+R-05 nutrition truthfulness
+
+Weekly Programs modal-state fix
+
+Smart Scan approval
+
+Food Memory
+
+Home Today
+
+diary outbox/sync
+
+bounded Coach safety
+
+Health
+
+Premium/RevenueCat
+
+account isolation
+
+
+Fitness remains excluded.
+
+
+==================================================
+19. FAILED BUILD 6 REMAINS QUARANTINED
+==================================================
+
+Confirm:
+
+fffc4d8a-5e1b-48f0-98c9-e2949136cf04
+
+was NOT submitted.
+
+Do not delete or reuse it.
+
+Do not confuse its IPA with the new build.
+
+
+==================================================
+20. NO TESTFLIGHT
+==================================================
+
+DO NOT RUN:
+
+eas submit --latest
+
+eas submit --id
+
+eas build:submit
+
+App Store upload
+
+TestFlight submission
+
+
+Step 55B is BUILD ONLY.
+
+
+==================================================
+21. NO OTHER OPERATIONS
+==================================================
+
+No Android build.
+
+No API deployment.
+
+No Replit publish.
+
+No database mutation.
+
+No migration.
+
+No schema change.
+
+No seed change.
+
+No product remediation.
+
+
+==================================================
+REPORT
+==================================================
+
+Create:
+
+55B_CALORA_PROVENANCE_CONTROLLED_IOS_RELEASE_CANDIDATE_REBUILD_REPORT.md
+
+
+Required sections:
+
+1. Executive summary
+2. Starting canonical SHA/tree
+3. Failed build 6 quarantine
+4. Initial Apple floor
+5. Initial EAS floor
+6. Initial LIVE_FLOOR
+7. Selected NEXT_SAFE_BUILD
+8. Build-number-only diff
+9. Build-number commit SHA/tree/parent
+10. Push result
+11. New canonical SHA/tree
+12. Exact-SHA release validation
+13. Standalone clone path
+14. Standalone Git root
+15. Standalone .git durability
+16. Standalone HEAD/tree/origin-main
+17. Outer-worktree isolation verification
+18. Prebuild validation
+19. Test totals
+20. Final Apple floor immediately before build
+21. Final EAS floor immediately before build
+22. FINAL_LIVE_FLOOR
+23. FINAL_NEXT_SAFE_BUILD
+24. Provenance assertion
+25. Signing preflight
+26. Production environment preflight
+27. Exact EAS build command/action
+28. Exact EAS Build ID
+29. EAS build status
+30. EAS-recorded Git SHA
+31. EAS-recorded Git subject
+32. Git provenance match result
+33. Marketing version
+34. Build number
+35. Bundle identifier
+36. IPA artifact size
+37. IPA SHA-256
+38. Info.plist verification
+39. Immutable provenance chain
+40. Recovery-target preservation
+41. Smart Scan/Home preservation
+42. Coach safety preservation
+43. Premium/account isolation preservation
+44. Fitness exclusion
+45. Failed build 6 quarantine confirmation
+46. Confirmation no TestFlight submission
+47. Confirmation no Android build
+48. Confirmation no API/database/deployment
+49. Remaining physical-device verification
+50. Exact recommendation for Step 56
+
+
+==================================================
+MANDATORY PROVENANCE TABLE
+==================================================
+
+| Identity | Expected | Observed | Result |
+
+Include:
+
+Canonical Git SHA
+
+Canonical Git tree
+
+Standalone Git root
+
+Standalone HEAD
+
+Standalone origin/main
+
+Working-tree cleanliness
+
+Build number
+
+Expo owner
+
+Expo project ID
+
+Bundle ID
+
+Marketing version
+
+EAS profile
+
+EAS Build ID
+
+EAS-recorded Git SHA
+
+EAS-recorded Git subject
+
+IPA CFBundleIdentifier
+
+IPA CFBundleShortVersionString
+
+IPA CFBundleVersion
+
+IPA SHA-256
+
+
+==================================================
+MANDATORY BUILD-NUMBER TABLE
+==================================================
+
+| Source | Initial value | Final pre-build value | Evidence |
+
+Rows:
+
+Apple App Store Connect
+
+EAS production iOS history
+
+Canonical app.json
+
+
+Show:
+
+INITIAL_LIVE_FLOOR
+
+INITIAL_NEXT_SAFE_BUILD
+
+FINAL_LIVE_FLOOR
+
+FINAL_NEXT_SAFE_BUILD
+
+
+==================================================
+FINAL QUESTIONS
+==================================================
+
+A. What fresh build number was selected?
+
+B. Was it above both live Apple and EAS floors?
+
+C. What exact canonical Git SHA was built?
+
+D. What exact Git tree was built?
+
+E. Did the exact-SHA release gate pass?
+
+F. Was the build created from a standalone clone with durable .git metadata?
+
+G. Did the provenance assertion pass immediately before build?
+
+H. What exact EAS Build ID was created?
+
+I. What Git SHA did EAS record?
+
+J. Does EAS-recorded SHA exactly equal canonical build SHA?
+
+K. Did the EAS build finish successfully?
+
+L. Does IPA bundle ID match Calora?
+
+M. Does IPA marketing version equal 1.0.0?
+
+N. Does IPA build number equal FINAL_NEXT_SAFE_BUILD?
+
+O. Was IPA SHA-256 recorded?
+
+P. Were all five recovered targets preserved?
+
+Q. Was Smart Scan/Home preserved?
+
+R. Was bounded Coach preserved?
+
+S. Was Premium/account isolation preserved?
+
+T. Was Fitness excluded?
+
+U. Does failed build 6 remain unsubmitted?
+
+V. Was the new build left unsubmitted?
+
+W. Was Android untouched?
+
+X. Were API/database/deployment operations avoided?
+
+Y. Is this EXACT EAS Build ID ready for owner authorization for Step 56
+TestFlight submission?
+
+
+==================================================
+FINAL VERDICT
+==================================================
+
+Use EXACTLY ONE:
+
+IOS RELEASE CANDIDATE VERIFIED — READY FOR STEP 56 TESTFLIGHT AUTHORIZATION
+
+IOS REBUILD BLOCKED — CANONICAL MAIN CHANGED
+
+IOS REBUILD BLOCKED — BUILD NUMBER FLOOR UNVERIFIED
+
+IOS REBUILD BLOCKED — BUILD NUMBER FLOOR CHANGED
+
+IOS REBUILD BLOCKED — UNEXPECTED SOURCE DRIFT
+
+IOS REBUILD BLOCKED — RELEASE GATE FAILED
+
+IOS REBUILD BLOCKED — PROVENANCE ASSERTION FAILED
+
+IOS REBUILD BLOCKED — SIGNING PREFLIGHT FAILED
+
+IOS REBUILD BLOCKED — PREBUILD VALIDATION FAILED
+
+IOS REBUILD PROVENANCE FAILED — DO NOT SUBMIT
+
+IOS REBUILD FAILED
+
+
+==================================================
+STOP
+==================================================
+
+After producing the report:
+
+STOP.
+
+DO NOT START STEP 56.
+
+DO NOT SUBMIT TESTFLIGHT.
+
+DO NOT BUILD ANDROID.
+
+DO NOT DEPLOY.
+
+Wait for owner review.
