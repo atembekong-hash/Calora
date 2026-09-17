@@ -1,0 +1,355 @@
+STEP 58E — CALORA USER-VISIBLE CHANGE DELIVERY FORENSIC AUDIT
+
+MISSION
+
+The production API alignment issue has now been resolved under Step 58D-R4.
+
+However, physical testing of the unchanged iOS TestFlight Build 7 still shows that the expected recent Calora changes are NOT visibly reflected in the app.
+
+Therefore DO NOT assume the stale production API was the complete root cause.
+
+Perform a strict READ-ONLY end-to-end forensic audit to determine exactly why the expected changes are still not visible on the physical device.
+
+THIS IS AN AUDIT ONLY.
+
+DO NOT:
+- edit source
+- commit
+- push
+- deploy or Republish
+- trigger EAS
+- create an iOS build
+- create an Android build
+- submit TestFlight
+- modify database data/schema
+- modify secrets/configuration
+- clear user data
+- activate Coach
+- change RevenueCat
+- change Metro
+- restore Fitness
+- perform speculative remediation
+
+==================================================
+1. FREEZE CURRENT IDENTITIES
+==================================================
+
+Record:
+
+A. canonical origin/main SHA + tree
+B. workspace HEAD + tree + Git status
+C. exact iOS Build 7:
+   EAS Build ID:
+   45900e2d-298f-4ece-9041-0e42513266e4
+
+   version:
+   1.0.0 (7)
+
+   EAS recorded Git SHA:
+   dec8f0d6a9531cb5a2eb73c01706dc75354e743c
+
+D. current production API:
+   live gitCommit
+   sourceTree
+   sourceDigest
+   releaseId
+
+E. confirm Step 58D-R4 runtime-equivalence conclusion remains intact.
+
+Do not mutate any identity.
+
+==================================================
+2. DEFINE THE USER-VISIBLE EXPECTATION SET
+==================================================
+
+Audit these previously recovered/remediated capabilities individually:
+
+R-01
+Onboarding keyboard-aware/scroll-visible input behavior.
+
+R-02
+Final onboarding agreement/consent area:
+- prominent interaction
+- accessibility state
+- CTA disabled until agreement.
+
+R-03
+Plus Recipes should not unnecessarily reload every time the submenu is opened/remounted.
+
+R-04
+Discover/Plus recipe freshness:
+- meaningful rotation/variety
+- bounded freshness memory
+- no obvious identical top sequence every opening when alternatives exist.
+
+R-05
+Nutrition truthfulness:
+- unknown nutrition must not appear as fabricated zero
+- legitimate numeric zero remains zero.
+
+Also audit:
+
+A. Weekly Programs iOS modal fix.
+B. Weekly Programs Apply/generation behavior.
+C. Planner program ordering/fallback.
+D. Smart Scan approval flow.
+E. Home Today/sync behavior.
+F. diary image provenance.
+G. bounded/default-deny Coach behavior.
+H. Plus/Discover pagination behavior.
+I. account isolation/auth behavior where relevant.
+J. any other user-visible implementation explicitly recovered during Steps 52–54B.
+
+Fitness is intentionally excluded.
+DO NOT restore or audit Fitness as a missing requirement.
+
+==================================================
+3. BUILD-7 SOURCE MEMBERSHIP PROOF
+==================================================
+
+This is critical.
+
+For EACH expected capability above, identify:
+
+- implementation file(s)
+- implementation commit SHA
+- whether that commit is an ancestor of:
+  dec8f0d6a9531cb5a2eb73c01706dc75354e743c
+
+Do NOT merely say that "recent changes are present."
+
+Produce a per-feature ancestry table:
+
+FEATURE
+IMPLEMENTATION COMMIT
+IMPLEMENTATION PATHS
+ANCESTOR OF BUILD 7? YES/NO
+EXACT BUILD-7 CODE PRESENT? YES/NO
+SERVER DEPENDENCY? YES/NO
+RUNTIME GATE/STATE DEPENDENCY?
+EXPECTED PHYSICAL UI EFFECT
+
+Then inspect the actual file content at Build 7 SHA and prove that the relevant implementation exists there.
+
+If any expected feature was committed AFTER Build 7's SHA or is otherwise absent from Build 7:
+
+MARK IT CLEARLY:
+
+NOT PRESENT IN IOS BUILD 7 — NEW MOBILE BUILD REQUIRED
+
+This finding must not be hidden by backend-equivalence conclusions.
+
+==================================================
+4. CURRENT CANONICAL VS BUILD-7 PRODUCT DIFF
+==================================================
+
+Perform a semantic diff:
+
+dec8f0d6a9531bc5a2eb73c01706dc75354e743c
+vs
+current canonical origin/main
+
+Focus specifically on:
+
+artifacts/calora/**
+and every mobile/shared path consumed by Calora.
+
+Exclude reports, attachment metadata, release reports and bookkeeping noise.
+
+Classify every meaningful difference as:
+
+1. already in Build 7
+2. mobile product change after Build 7
+3. server-only change
+4. release-control change
+5. metadata/report-only
+6. generated/non-runtime
+7. uncertain — manual inspection required
+
+This audit must answer:
+
+ARE THERE USER-VISIBLE MOBILE PRODUCT CHANGES ON CURRENT CANONICAL MAIN THAT ARE NOT IN BUILD 7?
+
+YES or NO.
+
+If YES, enumerate every one.
+
+==================================================
+5. TRACE EACH FEATURE END-TO-END
+==================================================
+
+For every expected feature, trace:
+
+source implementation
+→ build inclusion
+→ runtime configuration
+→ API dependency if applicable
+→ persistence/cache/state dependency
+→ navigation path
+→ rendering condition
+→ expected visible behavior.
+
+Look specifically for conditions that can make implemented code appear unchanged:
+
+- feature flags
+- stale AsyncStorage/MMKV state
+- persisted onboarding-complete state
+- cached recipes
+- React Query/cache lifetime
+- account-scoped cache
+- server pagination state
+- session freshness memory
+- entitlement/premium state
+- RevenueCat state
+- navigation branch
+- platform-specific condition
+- iOS-specific branch
+- environment variable
+- API response shape
+- fallback path
+- stale persisted planner data
+- old diary records
+- image caching
+- Expo Updates/OTA behavior if configured
+- bundle/runtimeVersion/update channel behavior
+- production vs preview configuration.
+
+Do not clear or mutate any state.
+
+==================================================
+6. VERIFY WHAT BUILD 7 CAN ACTUALLY SHOW
+==================================================
+
+Separate expected changes into:
+
+CATEGORY A
+Immediately visible in Build 7 with existing account/state.
+
+CATEGORY B
+Only visible after entering a specific flow.
+
+CATEGORY C
+Only visible with new/fresh data.
+
+CATEGORY D
+Only visible after logout/new onboarding.
+
+CATEGORY E
+Only visible with Premium entitlement.
+
+CATEGORY F
+Only visible after server response/state transition.
+
+CATEGORY G
+Not present in Build 7 and therefore impossible to display without a new mobile build.
+
+This classification is mandatory.
+
+==================================================
+7. DO NOT USE WEEKLY PROGRAMS AS GENERAL PROOF
+==================================================
+
+Weekly Programs has already physically passed its iOS modal interaction test.
+
+Do NOT use that one passing feature to conclude the rest of Build 7 contains or exposes all expected changes.
+
+Each feature requires independent proof.
+
+==================================================
+8. PRODUCTION API CHECK
+==================================================
+
+Do NOT Republish.
+
+Confirm current production remains healthy and runtime-equivalent under the R4 model.
+
+Then determine for each backend-sensitive feature whether the live API actually exposes the response/behavior required by the mobile implementation.
+
+Use read-only/non-destructive checks only.
+
+Do not fabricate production user data.
+
+==================================================
+9. DETERMINE THE REAL ROOT CAUSE
+==================================================
+
+At completion classify the current problem using one or more of:
+
+A. MOBILE BUILD SOURCE GAP
+B. MOBILE RUNTIME CONFIGURATION GAP
+C. FEATURE-GATE / ENTITLEMENT CONDITION
+D. PERSISTED LOCAL STATE / CACHE
+E. SERVER RESPONSE / DATA STATE
+F. TEST-PATH MISUNDERSTANDING
+G. EXPECTED CHANGE WAS NEVER IMPLEMENTED
+H. MULTIPLE CAUSES
+I. OTHER — PROVE IT
+
+Do not select a cause without evidence.
+
+==================================================
+10. DECISION GATE
+==================================================
+
+Answer these questions explicitly:
+
+1. Does Build 7 contain every expected mobile change from Steps 52–54B?
+
+2. Which expected changes are impossible to observe in Build 7?
+
+3. Which expected changes require a specific state/flow before becoming visible?
+
+4. Does current canonical main contain meaningful mobile product code newer than Build 7?
+
+5. Would rebuilding iOS from current canonical main materially change the installed application?
+
+6. Is another API Republish required?
+Expected answer must be evidence-derived, not assumed.
+
+7. Is Android versionCode 27 work safe to begin now, or should the user-visible discrepancy be resolved first?
+
+==================================================
+REPORT
+==================================================
+
+Create:
+
+58E_CALORA_USER_VISIBLE_CHANGE_DELIVERY_FORENSIC_AUDIT_REPORT.md
+
+Use the normal accessible Replit report/attachment pattern so the report appears to the user like the earlier numbered reports.
+
+Do NOT place the only copy under /tmp.
+
+The report must be accessible to the user.
+
+If attaching the report creates only attachment metadata/bookkeeping, explicitly record that separately from product/runtime source.
+
+Do not allow report attachment bookkeeping to be mistaken for a product implementation change.
+
+==================================================
+FINAL VERDICT
+==================================================
+
+Use exactly ONE evidence-supported verdict:
+
+USER-VISIBLE DELIVERY VERIFIED — TARGETED PHYSICAL TEST PATH REQUIRED
+
+or
+
+IOS BUILD 7 SOURCE GAP CONFIRMED — NEW IOS BUILD REQUIRED
+
+or
+
+RUNTIME STATE/GATING GAP CONFIRMED — TARGETED REMEDIATION REQUIRED
+
+or
+
+MULTIPLE USER-VISIBLE DELIVERY GAPS CONFIRMED — CONTROLLED REMEDIATION REQUIRED
+
+or
+
+USER-VISIBLE DISCREPANCY UNRESOLVED — DO NOT REBUILD OR REPUBLISH
+
+STOP after producing the report.
+
+Do not remediate anything in Step 58E.

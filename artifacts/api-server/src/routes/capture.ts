@@ -1,4 +1,4 @@
-import { Router, type IRouter, type Request } from "express";
+import { Router, type IRouter } from "express";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { AnalyzeCaptureBody } from "@workspace/api-zod";
@@ -18,14 +18,9 @@ import {
 // ---------------------------------------------------------------------------
 // DB-backed rate limiter for POST /v1/capture/analyze
 //
-// Bucket key priority:
-//   1. Verified user ID — from a Supabase-validated Bearer token.  This is
-//      the only key that cannot be spoofed: the token is verified before the
-//      bucket is looked up, so a forged or unsigned JWT falls back to IP.
-//   2. req.ip — Express resolves this from the X-Forwarded-For chain using
-//      the configured trust proxy depth (set in app.ts).  Clients cannot
-//      inject arbitrary entries because the trusted proxy overwrites the
-//      outermost hop.
+// Capture analysis is an authenticated, paid-provider operation. The bucket is
+// therefore keyed only by the Supabase-verified user ID; unauthenticated and
+// invalid-token requests are rejected before this limiter or any provider work.
 //
 // A 1-hour fixed window keeps bursting expensive while staying invisible to
 // genuine users logging meals throughout the day.
@@ -51,12 +46,10 @@ export async function resetCaptureRateLimiter(): Promise<void> {
 }
 
 /**
- * Resolve a tamper-resistant rate-limit key for the request.
- * Verified user ID is preferred; req.ip (trusted-proxy-resolved) is the fallback.
+ * Resolve the endpoint-namespaced, tamper-resistant rate-limit key.
  */
-function rateLimitKey(verifiedUser: VerifiedUser | null, req: Request): string {
-  if (verifiedUser) return `user:${verifiedUser.id}`;
-  return `ip:${req.ip ?? req.socket?.remoteAddress ?? "unknown"}`;
+function rateLimitKey(verifiedUser: VerifiedUser): string {
+  return `capture:user:${verifiedUser.id}`;
 }
 
 /**
@@ -68,18 +61,13 @@ function rateLimitKey(verifiedUser: VerifiedUser | null, req: Request): string {
  * Accepts a pre-verified user so the route can verify the token once and
  * share the result across rate limiting and session persistence without a
  * second Supabase round-trip.
- *
- * Anonymous or unverifiable requests persist nothing and fall back to the
- * client-provided/random session id (analysis still works, it just cannot
- * qualify a referral).
  */
 async function persistCaptureSession(
-  user: VerifiedUser | null,
+  user: VerifiedUser,
   mode: string,
   candidates: Array<Pick<CaptureCandidate, "name" | "calories" | "proteinG" | "carbsG" | "fatG" | "confidence" | "serving" | "provenance" | "sourceLabel">>,
 ): Promise<string | null> {
   if (candidates.length === 0) return null;
-  if (!user) return null;
   try {
     const userId = await ensureUserRow(user.id, user.email);
     const sessionId = randomUUID();
@@ -554,9 +542,9 @@ router.post("/v1/capture/:sessionId/approve", async (req, res) => {
 
 router.post("/v1/capture/analyze", async (req, res) => {
   // Verify the Bearer token once and share the result across rate limiting and
-  // session persistence — avoids a second Supabase round-trip.  A missing,
-  // malformed, or cryptographically invalid token resolves to null here, which
-  // directs rate limiting to the trusted req.ip bucket instead.
+  // session persistence — avoids a second Supabase round-trip. Capture can
+  // invoke paid AI providers, so no anonymous or unverifiable request may
+  // reach the limiter, validation, or provider branches.
   let verifiedUser: VerifiedUser | null = null;
   try {
     verifiedUser = await verifyBearerToken(req);
@@ -569,13 +557,19 @@ router.post("/v1/capture/analyze", async (req, res) => {
       res.status(503).json({ message: "Capture is temporarily unavailable. Please try again shortly." });
       return;
     }
-    // Supabase not configured or unreachable — treat as anonymous.
+    logger.error({ err: error }, "Capture authentication verification failed");
+    res.status(503).json({ message: "Capture authentication is temporarily unavailable. Please try again shortly." });
+    return;
+  }
+  if (!verifiedUser) {
+    res.status(401).json({ message: "Please sign in to analyze a capture." });
+    return;
   }
 
   let rate;
   try {
     rate = await checkRateLimit(
-      rateLimitKey(verifiedUser, req),
+      rateLimitKey(verifiedUser),
       CAPTURE_RATE_LIMIT,
       CAPTURE_RATE_WINDOW_SECS,
       { failClosed: true, rethrowAccountDeletionFence: true },

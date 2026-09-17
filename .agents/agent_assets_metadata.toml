@@ -112,3 +112,45 @@ mtime_ms = 1789643732640
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/63c5b9ff-2350-41b0-a822-d37ec12ee698/a3e95843-2e7c-494f-b8ac-2a722ce613c4"
 storage_version_token = "1789643759402937"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "g3DG0kxQD5Xna6dpSxmJy"
+uri = "file://attached_assets/58D_R1_CALORA_EXACT_REPLIT_PUBLISHING_SOURCE_ALIGNMENT_REPORT.md"
+type = "text"
+title = "Calora Step 58D-R1 Publishing Source Alignment Report"
+description = "Download the uncommitted R1 evidence report for owner review."
+logical_id = "a4ca6bbe-3752-47b6-a9f0-2fc66e2b2b26"
+content_hash = "sha256:e342b99cb531da8a047534ca083fcd26c47a471f05d529ec073e8500de22bfdb"
+size = 14944
+mtime_ms = 1789681115938
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/a4ca6bbe-3752-47b6-a9f0-2fc66e2b2b26/3e888c5c-3939-4caa-9726-60e4e626fb22"
+storage_version_token = "1789681119158854"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "o6FJsb3NPO9F5OVrKVozF"
+uri = "file://58D_R4_CALORA_RUNTIME_EQUIVALENT_RELEASE_IDENTITY_RECONCILIATION_REPORT.md"
+type = "text"
+title = "58D_R4_CALORA_RUNTIME_EQUIVALENT_RELEASE_IDENTITY_RECONCILIATION_REPORT.md"
+description = "Completed Step 58D-R4 runtime-equivalence reconciliation report."
+logical_id = "4e24ae51-6716-4ae8-aea4-758653253b8a"
+content_hash = "sha256:f97554ba16c14f5b6bf77253ba847de53e67e2229039c0e64ac857ee3da55823"
+size = 14383
+mtime_ms = 1789683405820
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/4e24ae51-6716-4ae8-aea4-758653253b8a/acdcb1da-542a-47f6-b9e4-2d35a124536c"
+storage_version_token = "1789683924882710"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "KNEpzgpgorLwETWP_B804"
+uri = "file://58E_CALORA_USER_VISIBLE_CHANGE_DELIVERY_FORENSIC_AUDIT_REPORT.md"
+type = "text"
+title = "58E_CALORA_USER_VISIBLE_CHANGE_DELIVERY_FORENSIC_AUDIT_REPORT.md"
+description = "Completed Step 58E read-only user-visible change delivery forensic audit."
+logical_id = "c120707f-9b39-4f5d-8a93-fd44fe5b9c2f"
+content_hash = "sha256:ef7489db69d39738d80ebf26441ad5ba506cca5a4056211d7704fb3265b89e6e"
+size = 21653
+mtime_ms = 1789684459096
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/c120707f-9b39-4f5d-8a93-fd44fe5b9c2f/e12e7a1c-f648-4b0a-8f0b-1bd71902bcc1"
+storage_version_token = "1789684463414197"
+content_type = "text/markdown"

@@ -79,12 +79,14 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
    * Server-verified capture session that originated this diary entry.
    * Written by POST /v1/sync when the client supplies a captureSessionId.
    * The sync handler verifies the session belongs to the authenticated user
-   * and has mode != 'text' before recording it here.  NULL means the entry
-   * was either written via the bare /v1/diary endpoint or synced without a
-   * session reference.
+   * and has a supported capture mode before recording it here. NULL means the
+   * entry was either written via the bare /v1/diary endpoint or synced without
+   * a session reference.
    *
-    * This provenance is retained for nutrition traceability. Referral
-    * qualification instead accepts any valid authenticated saved meal.
+   * This provenance is retained for nutrition traceability. Referral
+   * qualification only accepts rows anchored to a server-created qualifying
+   * capture session; client-only diary rows remain valid but do not unlock
+   * rewards.
    */
   captureSessionId: uuid("capture_session_id").references(() => aiCaptureSessionsTable.id, { onDelete: "set null" }),
   entryDate: date("entry_date").notNull(),
@@ -258,7 +260,7 @@ export const referralRedemptionsTable = pgTable("calora_referral_redemptions", {
    * Activation never grants rewards while this is NULL.
    */
   qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
-  /** Which server-side signal qualified this redemption (saved_meal). */
+  /** Which server-side signal qualified this redemption (server_capture). */
   qualifiedSignal: text("qualified_signal"),
   referredRewardedAt: timestamp("referred_rewarded_at", { withTimezone: true }),
   referrerRewardedAt: timestamp("referrer_rewarded_at", { withTimezone: true }),

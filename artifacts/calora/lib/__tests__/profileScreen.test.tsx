@@ -171,16 +171,18 @@ describe('Profile rendered interactions', () => {
   });
 
   it('shows recovery controls for partial Health Connect and reacts to a health deep link after mount', async () => {
-    render(<ProfileScreen />);
+    const view = render(<ProfileScreen />);
     harness.state.open = 'health';
+    view.rerender(<ProfileScreen />);
     await waitFor(() => expect(screen.getByText(/Some requested categories are not available/)).toBeTruthy());
     expect(screen.getByRole('button', { name: 'Sync health data now' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Disconnect health data' })).toBeTruthy();
   });
 
   it('runs health sync and confirms success or failure in the health sheet', async () => {
-    render(<ProfileScreen />);
+    const view = render(<ProfileScreen />);
     harness.state.open = 'health';
+    view.rerender(<ProfileScreen />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sync health data now' })).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'Sync health data now' }));
@@ -191,8 +193,9 @@ describe('Profile rendered interactions', () => {
 
   it('shows the native sync error instead of reporting a false success', async () => {
     harness.calora.syncHealth.mockResolvedValueOnce({ status: 'failed', message: 'Health Connect could not be read.' });
-    render(<ProfileScreen />);
+    const view = render(<ProfileScreen />);
     harness.state.open = 'health';
+    view.rerender(<ProfileScreen />);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sync health data now' })).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'Sync health data now' }));
