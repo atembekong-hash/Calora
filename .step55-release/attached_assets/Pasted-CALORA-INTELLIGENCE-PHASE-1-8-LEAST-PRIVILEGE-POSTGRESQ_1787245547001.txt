@@ -1,0 +1,737 @@
+CALORA INTELLIGENCE — PHASE 1.8 LEAST-PRIVILEGE POSTGRESQL + RLS ARCHITECTURE
+
+Mission
+
+Proceed with Phase 1.8: Least-Privilege PostgreSQL + RLS Architecture.
+
+The purpose of this phase is to move Calora away from the current shared PostgreSQL superuser runtime model and establish a real, testable database-level tenant-isolation layer behind the existing API authorization layer.
+
+The target architecture is:
+
+Supabase Auth
+      ↓
+Calora API verifies bearer token
+      ↓
+Resolve trusted internal Calora user UUID
+      ↓
+Begin DB transaction
+      ↓
+Set transaction-local trusted user context
+      ↓
+Execute queries through non-superuser API role
+      ↓
+PostgreSQL RLS enforces ownership
+      ↓
+Commit / rollback
+      ↓
+Request identity disappears
+
+This phase must preserve the existing API ownership predicates. RLS is defense in depth, not a replacement for application authorization.
+
+---
+
+1. NON-NEGOTIABLE BOUNDARIES
+
+Do not:
+
+- enable Phase 2;
+- enable visible Intelligence;
+- enable "intelligence.facts.server_adapter";
+- persist Intelligence facts;
+- change Coach behavior;
+- redesign UI;
+- weaken current API ownership checks;
+- expose database credentials to the client;
+- perform destructive production data operations;
+- force RLS onto the current superuser pool and call it secure;
+- use global/session-level request identity that could leak across pooled connections;
+- use client-supplied "user_id" as the database identity source;
+- trigger a production build unless explicitly instructed.
+
+If the managed database platform prevents safe least-privilege role creation or transaction-scoped identity, stop and report the constraint rather than faking database isolation.
+
+---
+
+2. PHASE 1.7 BASELINE
+
+Preserve the established facts:
+
+- Supabase is authentication only.
+- Calora domain data lives in managed PostgreSQL.
+- API authorization currently derives trusted identity from Supabase.
+- The API currently connects as PostgreSQL "postgres".
+- "postgres" is superuser, table owner, and bypasses RLS.
+- No request-specific database identity exists.
+- Existing API tenant isolation tests pass.
+- Existing child-ownership hardening must remain.
+
+Do not regress any of this.
+
+---
+
+3. OBJECTIVE A — SEPARATE SCHEMA ADMINISTRATION FROM API RUNTIME
+
+Create a clean privilege boundary between:
+
+Schema/admin role
+
+Responsible for:
+
+- schema application;
+- DDL;
+- migrations;
+- functions/triggers;
+- RLS policy installation;
+- grants;
+- operational provisioning.
+
+API runtime role
+
+Responsible only for:
+
+- required DML;
+- required function execution;
+- normal application queries.
+
+The API runtime role must not be:
+
+- superuser;
+- database owner;
+- table owner;
+- "BYPASSRLS";
+- capable of arbitrary schema modification;
+- capable of assuming unsafe privileged roles.
+
+Do not remove the managed platform's schema/admin capability if it is required for deployment.
+
+Instead, keep elevated privileges out of the normal request path.
+
+---
+
+4. OBJECTIVE B — CREATE OR PROVISION A LEAST-PRIVILEGE API ROLE
+
+Determine the safest managed mechanism for a dedicated Calora runtime role.
+
+Conceptual name:
+
+"calora_api"
+
+or repository-appropriate equivalent.
+
+Before creation, verify:
+
+- role lifecycle;
+- how credentials are stored;
+- whether Replit-managed deployment can preserve it;
+- whether production propagation is supported;
+- how password/credential rotation works;
+- whether the platform may overwrite custom roles.
+
+The role should receive only required privileges.
+
+Audit every grant explicitly.
+
+---
+
+5. OBJECTIVE C — REQUEST-SCOPED DATABASE IDENTITY
+
+Implement a transaction-local user-context contract.
+
+The identity must come from:
+
+verified Supabase user
+→ server-side Calora user mapping
+→ internal Calora UUID
+
+Never from request JSON.
+
+Use a PostgreSQL transaction-local mechanism such as a custom setting only if compatible with the platform.
+
+Conceptual example:
+
+SET LOCAL app.current_user_id = '<trusted internal uuid>';
+
+Do not copy this syntax blindly if the repository/platform needs another safe mechanism.
+
+Requirements:
+
+- transaction-local;
+- cleared automatically after commit/rollback;
+- impossible for a normal client request to set directly;
+- safe with "pg.Pool";
+- safe if the upstream platform uses pooling;
+- never leak USER_A context into USER_B queries.
+
+---
+
+6. OBJECTIVE D — TRANSACTION CONTRACT
+
+Determine how current user-scoped queries must run under the new security model.
+
+If RLS depends on transaction-local identity, user-owned database operations must execute inside a transaction that establishes the trusted context first.
+
+Create a reusable server-side helper, conceptually:
+
+withAuthenticatedDbUser(...)
+
+or equivalent.
+
+It should:
+
+1. receive only a server-verified internal Calora UUID;
+2. acquire a pooled connection;
+3. begin a transaction;
+4. set transaction-local identity;
+5. execute callback/query work;
+6. commit on success;
+7. rollback on failure;
+8. release connection safely.
+
+Do not permit arbitrary caller-defined SQL identity.
+
+---
+
+7. OBJECTIVE E — RLS DESIGN BY TABLE CLASS
+
+Do not apply identical policies to all 19 tables.
+
+Use the Phase 1.7 classification.
+
+USER-OWNED
+
+Examples:
+
+- profiles
+- diary
+- weights
+- saved meals
+- recipes
+- sync mutations
+- consent
+
+Policy should enforce the row's internal owner against the transaction-local verified Calora user.
+
+USER-OWNED CHILD
+
+Examples:
+
+- recipe items
+- capture candidates
+
+Ownership must traverse the parent.
+
+SHARED
+
+Examples:
+
+- food items
+- recipe nutrition
+
+Do not apply private ownership semantics.
+
+Decide explicit read/write access.
+
+SERVICE-ONLY / SYSTEM
+
+Examples:
+
+- subscriptions where server-managed
+- capture rate limits
+- deletion states
+- referral qualification/redemption where applicable
+
+Normal user-scoped API role should not receive arbitrary direct access.
+
+TWO-PARTY
+
+Referral records require special logic.
+
+Do not shoehorn them into simple one-owner RLS.
+
+---
+
+8. OBJECTIVE F — RLS POLICIES
+
+Where appropriate, implement policies for:
+
+- SELECT
+- INSERT
+- UPDATE
+- DELETE
+
+Use both:
+
+- "USING"
+- "WITH CHECK"
+
+where needed.
+
+Policies must be source-controlled.
+
+Do not trust a submitted "user_id".
+
+For INSERT/UPDATE, the policy must prevent a valid USER_A request from creating or reassigning a row to USER_B.
+
+---
+
+9. OBJECTIVE G — KEEP API AUTHORIZATION
+
+Do not remove existing API predicates.
+
+The target is:
+
+API authorization
++
+database authorization
+
+not one or the other.
+
+For current active routes:
+
+- diary
+- sync
+- capture child flow
+- deletion
+- referral
+
+preserve the existing server-side ownership checks.
+
+RLS should catch future mistakes, not make developers stop scoping queries correctly.
+
+---
+
+10. OBJECTIVE H — ADMIN / SERVICE BYPASS DESIGN
+
+Some operations legitimately need cross-user access.
+
+Examples:
+
+- account deletion;
+- deletion recovery;
+- operational cleanup;
+- referral settlement;
+- future administrative jobs.
+
+Design a deliberate elevated execution path.
+
+Requirements:
+
+- ordinary API requests cannot invoke it arbitrarily;
+- elevated path uses a separate role or explicit trusted context;
+- no user-controlled identifier is accepted as authorization;
+- elevated access is logged safely;
+- service role must not become the default runtime connection.
+
+Do not give "calora_api" "BYPASSRLS".
+
+---
+
+11. OBJECTIVE I — ACCOUNT DELETION COMPATIBILITY
+
+RLS must not break account deletion.
+
+Test:
+
+1. authenticated deletion request;
+2. deletion state/fence;
+3. privileged worker behavior;
+4. deletion of direct user-owned rows;
+5. cascade to child records;
+6. referral anonymization behavior;
+7. operational records;
+8. Supabase Auth deletion;
+9. retry and recovery;
+10. idempotency.
+
+Use disposable non-production identities.
+
+---
+
+12. OBJECTIVE J — REAL SUPABASE USER_A / USER_B TEST
+
+Phase 1.7 used real PostgreSQL data but mocked the Supabase verifier boundary.
+
+This phase should close that gap if safe.
+
+Create two disposable Supabase Auth accounts:
+
+"USER_A"
+
+"USER_B"
+
+Use real Supabase sessions/tokens.
+
+Run requests through the real Calora API auth path.
+
+Then prove:
+
+USER_A cannot access USER_B data.
+
+USER_B cannot access USER_A data.
+
+Test both API and database-level enforcement.
+
+Delete the disposable test users afterward.
+
+Do not use real customer accounts.
+
+---
+
+13. OBJECTIVE K — DIRECT DATABASE RLS TEST
+
+Using the effective non-superuser API role:
+
+Establish USER_A transaction-local context.
+
+Verify:
+
+- USER_A can SELECT own rows;
+- USER_A cannot SELECT USER_B rows;
+- USER_A cannot UPDATE USER_B rows;
+- USER_A cannot DELETE USER_B rows;
+- USER_A cannot INSERT a row owned by USER_B.
+
+Repeat for child ownership.
+
+Then establish USER_B context and repeat.
+
+This must be a genuine DB-level test, not merely an API response test.
+
+---
+
+14. OBJECTIVE L — CONNECTION-LEAK TEST
+
+This is critical.
+
+Test pooled connection identity isolation.
+
+Example adversarial sequence:
+
+Request 1:
+USER_A
+→ transaction
+→ set local A
+→ query
+→ commit
+
+Same physical pooled connection reused
+
+Request 2:
+USER_B
+→ transaction
+→ set local B
+→ query
+
+Verify USER_B cannot inherit USER_A identity.
+
+Also test:
+
+- rollback;
+- thrown exception;
+- timeout;
+- early return;
+- connection release;
+- retry.
+
+No request context may survive transaction completion.
+
+---
+
+15. OBJECTIVE M — FAILURE MODE TESTING
+
+Test:
+
+- missing user context;
+- malformed user context;
+- unauthenticated request;
+- invalid Supabase token;
+- missing internal user mapping;
+- transaction failure;
+- DB reconnect;
+- connection-pool exhaustion where practical;
+- RLS policy error;
+- admin operation under normal user role.
+
+Fail closed for user-owned data.
+
+---
+
+16. OBJECTIVE N — ROLE/GRANT HARDENING
+
+Audit the final runtime role.
+
+Confirm it cannot:
+
+- create/drop arbitrary tables;
+- alter policies;
+- disable RLS;
+- assume "postgres";
+- grant itself privileges;
+- read system/service-only data outside defined paths;
+- execute dangerous functions;
+- bypass RLS.
+
+Document every privilege retained.
+
+---
+
+17. OBJECTIVE O — RLS FORCE DECISION
+
+Evaluate whether "FORCE ROW LEVEL SECURITY" is appropriate for relevant tables.
+
+Do not enable it automatically.
+
+Consider:
+
+- table ownership;
+- migration/admin operations;
+- service tasks;
+- support tooling;
+- managed platform behavior.
+
+Document the final decision.
+
+---
+
+18. OBJECTIVE P — SOURCE CONTROL AND DEPLOYMENT
+
+All role, grant, policy, helper-function, and RLS changes must be source-controlled through the established managed database lifecycle.
+
+Do not reintroduce API startup DDL.
+
+Verify:
+
+- development application;
+- deployment path;
+- production propagation method;
+- rollback method.
+
+If production propagation cannot be proven, mark:
+
+"PRODUCTION SECURITY PROPAGATION: NOT VERIFIED"
+
+and do not approve Phase 2.
+
+---
+
+19. OBJECTIVE Q — PERFORMANCE
+
+Measure the overhead introduced by:
+
+- acquiring transaction;
+- setting local user context;
+- RLS policy evaluation;
+- commit/rollback.
+
+Compare representative user-scoped API operations before and after.
+
+Do not invent numbers.
+
+Watch especially:
+
+- diary list;
+- diary create;
+- diary delete;
+- sync;
+- capture first-log.
+
+Security overhead should be measured, not assumed.
+
+---
+
+20. OBJECTIVE R — FULL REGRESSION
+
+Execute all relevant existing validation:
+
+pnpm --filter @workspace/calora run typecheck
+pnpm --filter @workspace/api-server run typecheck
+pnpm --filter @workspace/api-server test
+pnpm --filter @workspace/calora test
+
+Plus:
+
+- DB role tests;
+- direct RLS tests;
+- cross-user API tests;
+- real Supabase USER_A/USER_B tests;
+- account deletion;
+- child ownership;
+- pool leakage;
+- rollback/error cleanup;
+- support/admin access.
+
+Record exact counts.
+
+---
+
+21. ROLLBACK REQUIREMENT
+
+Before implementing security changes, define rollback.
+
+Rollback must be able to restore a functioning API if:
+
+- role credentials fail;
+- grants are incomplete;
+- RLS blocks legitimate operations;
+- managed deployment does not preserve roles;
+- transaction wrapper causes regression.
+
+Do not leave Calora unable to access its database.
+
+Do not solve rollback by permanently returning to superuser after declaring the new architecture secure.
+
+---
+
+22. ACCEPTANCE GATES
+
+Evaluate:
+
+Least-privilege runtime role
+
+"PASS / PARTIAL / FAIL / BLOCKED"
+
+Migration/runtime privilege separation
+
+"PASS / PARTIAL / FAIL"
+
+Request-local identity
+
+"PASS / PARTIAL / FAIL"
+
+Pool identity isolation
+
+"PASS / PARTIAL / FAIL"
+
+RLS user-owned tables
+
+"PASS / PARTIAL / FAIL"
+
+Child-table RLS
+
+"PASS / PARTIAL / FAIL"
+
+Shared/system table access
+
+"PASS / PARTIAL / FAIL"
+
+Service/admin bypass
+
+"PASS / PARTIAL / FAIL"
+
+Real USER_A / USER_B API isolation
+
+"PASS / PARTIAL / FAIL / NOT TESTED"
+
+Direct DB isolation
+
+"PASS / PARTIAL / FAIL"
+
+Account deletion
+
+"PASS / PARTIAL / FAIL"
+
+Production propagation
+
+"VERIFIED / NOT VERIFIED / FAIL"
+
+Performance
+
+"PASS / PARTIAL / FAIL / NOT MEASURABLE"
+
+Regression suite
+
+"PASS / FAIL"
+
+Phase 2 readiness
+
+"APPROVE / APPROVE WITH CONDITIONS / DO NOT APPROVE"
+
+No soft language for failed security gates.
+
+---
+
+23. PHASE 2 APPROVAL STANDARD
+
+Recommend Phase 2 only if:
+
+1. normal API runtime no longer uses PostgreSQL superuser;
+2. runtime role cannot bypass RLS;
+3. trusted per-request DB identity is transaction-local;
+4. pooled connections cannot leak identity;
+5. user-owned RLS works;
+6. child ownership works;
+7. API authorization remains intact;
+8. cross-user API tests pass;
+9. direct DB tests pass;
+10. admin/service operations still work safely;
+11. account deletion works;
+12. deployment of the security model is proven;
+13. existing regression suites remain green.
+
+If any core item fails, keep Phase 2 blocked.
+
+---
+
+24. AUTOMATIC REPORT REQUIREMENT
+
+This is mandatory.
+
+When Phase 1.8 is complete, automatically create and save:
+
+"docs/CALORA_INTELLIGENCE_PHASE_1_8_LEAST_PRIVILEGE_RLS_REPORT.md"
+
+Do not wait for me to ask.
+
+The report must contain:
+
+1. Executive verdict
+2. Previous vs final connection architecture
+3. Roles created/changed
+4. Runtime role privileges
+5. Admin/migration role privileges
+6. Request-scoped identity design
+7. Transaction wrapper design
+8. RLS policy matrix
+9. Child-table policies
+10. Shared/system table handling
+11. Service/admin bypass model
+12. FORCE RLS decision
+13. Real USER_A/USER_B results
+14. Direct database isolation results
+15. Pool identity-leak tests
+16. Failure-mode tests
+17. Account-deletion results
+18. Performance measurements
+19. Files created
+20. Files modified
+21. Database changes
+22. Secrets/environment changes, without values
+23. Exact test commands
+24. Test counts/results
+25. Deployment/production propagation evidence
+26. Rollback design
+27. Remaining unknowns
+28. Remaining blockers
+29. Acceptance-gate matrix
+30. Phase 2 readiness verdict
+
+Never include credentials, passwords, tokens, database URLs, or secret values.
+
+Do not claim production propagation without evidence.
+
+Do not mark database isolation PASS unless it was tested using the effective non-superuser runtime role.
+
+After saving the report, give only a concise summary and the exact saved path.
+
+---
+
+25. FINAL STOP CONDITION
+
+When Phase 1.8 finishes:
+
+- save the report automatically;
+- keep all Intelligence delivery flags off;
+- keep persistent Intelligence disabled;
+- do not begin Phase 2.
+
+STOP for review.

@@ -1,0 +1,85 @@
+Nutrition logged on 5 of the last 7 local-calendar days.
+
+
+
+It does not interpret the missing two days as skipped meals, poor adherence, inconsistency, or anything about diet quality. It reports only what Calora can prove from recorded data. 
+
+That distinction is important.
+
+The algorithm is also conservative. It counts distinct logged dates, requires at least 3 logged days out of the last 7 before showing anything, and produces only the fixed count-based observation. 
+
+It remains Progress-only, behind a new default-OFF flag:
+
+intelligence.insights.progress_nutrition_coverage = false
+
+It does not touch Today, Post-Log, Coach, Planner, Recipes, notifications, or background processing.  
+
+And there is no persistence, API, database, server, LLM, Coach, telemetry, or background work. 
+
+Send Replit this
+
+> AUTHORIZE CALORA INTELLIGENCE PHASE 2A.4 IMPLEMENTATION
+
+The Phase 2A.4 Authorization Brief is approved.
+
+Implement:
+
+Calora Intelligence Phase 2A.4 — Local 7-Day Nutrition Coverage
+
+Treat CALORA_INTELLIGENCE_PHASE_2A_4_AUTHORIZATION_BRIEF.md as the authoritative implementation specification.
+
+Accept the proposed fixed wording:
+
+“Nutrition logged on N of the last 7 local-calendar days.”
+
+Accept the minimum eligibility threshold of 3 distinct qualifying logged days within the inclusive 7-day local-calendar window.
+
+Preserve the exact priority specified in the brief: this candidate remains below calorie status, protein balance, meal distribution, and the separately gated weight-trend candidate.
+
+Implement only the scope authorized in Section 21:
+
+1. strict local date/timezone validation;
+
+
+2. nutrition.seven_day_coverage Foundation fact, type/family and invalidation;
+
+
+3. one pure explicitly opted-in Progress selector candidate;
+
+
+4. dedicated default-OFF intelligence.insights.progress_nutrition_coverage flag;
+
+
+5. existing Progress delivery-path integration;
+
+
+6. complete privacy, isolation, failure, performance and regression tests;
+
+
+7. completion report.
+
+
+
+Maintain all suppression, account-isolation, sanitization, fail-closed and no-I/O requirements from the authorization brief.
+
+Missing days must never be interpreted as skipped meals, non-adherence, inconsistency, inadequate nutrition, or diet quality.
+
+Do not introduce recommendations, predictions, scoring, personalization, persistence, analytics, notifications, server/API/database work, Coach, LLMs, Planner/Recipe Intelligence, evidence UI, or another Intelligence capability.
+
+Keep Coach Fact Context completely dark. Do not alter its gates, cohorts, consent architecture, routing, or migration state.
+
+Keep the new Phase 2A.4 flag OFF by default.
+
+Run the complete focused and regression validation specified in the Authorization Brief.
+
+Automatically create and save:
+
+docs/CALORA_INTELLIGENCE_PHASE_2A_4_NUTRITION_COVERAGE_REPORT.md
+
+Record exact files changed, implementation details, fact schema, threshold, wording, priority, suppression behavior, privacy/isolation proof, no-I/O proof, feature-flag state, rollback behavior, exact test commands/counts/results, performance result, defects found/fixed, and remaining deferred validation debt.
+
+Do not mark deferred device/accessibility checks as passed.
+
+When implementation and validation are complete, inspect the final diff, create a clean checkpoint/commit, save the report, and STOP.
+
+Do not begin or invent Phase 2A.5 without explicit authorization.

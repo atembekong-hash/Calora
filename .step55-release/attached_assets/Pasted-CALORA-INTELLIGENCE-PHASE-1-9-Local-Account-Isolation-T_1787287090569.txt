@@ -1,0 +1,778 @@
+CALORA INTELLIGENCE — PHASE 1.9
+
+Local Account Isolation + Transient Insight Engine
+
+Mission
+
+Proceed with Phase 1.9: Local Account Isolation + Transient Insight Engine.
+
+This phase has two goals:
+
+1. make Calora’s local state safe across sign-out, account switching, and shared-device use;
+2. build a pure, deterministic, transient contextual-insight selector over the existing Intelligence Foundation.
+
+Do not enable visible Contextual Intelligence yet.
+
+Do not add persistent Intelligence data.
+
+Do not change Coach behavior.
+
+Do not begin Phase 2A UI rollout.
+
+---
+
+1. ESTABLISHED BASELINE
+
+Treat the following as established:
+
+- the deterministic Intelligence Foundation exists;
+- it is local-first and read-only;
+- it does not require a server adapter;
+- no persistent Intelligence table exists;
+- no persistent Intelligence profile/history exists;
+- "intelligence.facts.server_adapter" remains OFF;
+- all visible Intelligence flags remain OFF;
+- Calora currently persists broad local state through a fixed AsyncStorage key;
+- account-switch/shared-device state isolation has not yet been proven safe.
+
+The purpose of this task is to close that local privacy gap and prepare the transient insight layer.
+
+---
+
+2. NON-NEGOTIABLE RESTRICTIONS
+
+Do not:
+
+- enable Today Intelligence UI;
+- enable post-log Intelligence UI;
+- enable Progress Intelligence UI;
+- enable Coach fact context;
+- persist Intelligence facts;
+- create Intelligence history;
+- create a behavioral profile;
+- add server APIs for Intelligence;
+- enable "intelligence.facts.server_adapter";
+- add a background worker;
+- add proactive notifications;
+- add adaptive learning;
+- use an LLM to establish factual nutrition state;
+- redesign unrelated Calora screens;
+- migrate the PostgreSQL database;
+- modify PostgreSQL RLS;
+- trigger a production build unless explicitly instructed.
+
+If an account-isolation change could destroy user data unexpectedly, stop and report the risk before implementing it.
+
+---
+
+3. OBJECTIVE A — MAP CURRENT LOCAL PERSISTENCE
+
+Perform a forensic map of all persistent client state.
+
+Inspect:
+
+- AsyncStorage keys;
+- persistence manager;
+- CaloraContext hydration;
+- auth/session state;
+- living memory;
+- Coach history;
+- food logs;
+- profile/goals;
+- weights;
+- water;
+- mood;
+- activity;
+- planner;
+- shopping;
+- recipes;
+- reminders;
+- health snapshots;
+- sync outbox;
+- any React Query persistence if present;
+- any other storage mechanism.
+
+Create a matrix:
+
+STATE DOMAIN
+STORAGE LOCATION
+CURRENT KEY
+USER-SPECIFIC?
+CLEARED ON SIGN-OUT?
+NAMESPACED BY ACCOUNT?
+RISK
+
+Do not assume a state domain is safe because it is not obviously visible.
+
+---
+
+4. OBJECTIVE B — DEFINE THE ACCOUNT-LOCAL STATE IDENTITY
+
+The local persistence namespace must derive from the authenticated identity that Calora already trusts.
+
+Do not use:
+
+- display name;
+- email alone;
+- client-generated arbitrary owner ID.
+
+Use the stable authenticated identity already available from the Supabase session, or a safer existing canonical account identifier.
+
+Document the chosen namespace source.
+
+Conceptually:
+
+calora_state:<stable_authenticated_user_identity>
+
+The exact key format should follow repository conventions.
+
+Do not expose sensitive identifiers unnecessarily in logs.
+
+---
+
+5. OBJECTIVE C — ACCOUNT-AWARE PERSISTENCE
+
+Implement a safe account-aware persistence strategy.
+
+Requirements:
+
+- User A local data cannot hydrate into User B session.
+- User B local data cannot hydrate into User A session.
+- signing out must not leave User A’s active in-memory state visible;
+- switching accounts must establish the new account namespace before hydration;
+- anonymous/pre-auth state must be deliberately separated from authenticated state;
+- stale account data must never be merged into the wrong account automatically.
+
+Prefer namespacing over destructive deletion if Calora legitimately supports returning users on the same device.
+
+Do not destroy prior account state merely because another account signs in unless product policy requires it.
+
+---
+
+6. OBJECTIVE D — SIGN-OUT SAFETY
+
+Audit the exact sign-out flow.
+
+When sign-out occurs:
+
+1. stop current persistence writes;
+2. clear active in-memory user state;
+3. clear or detach user-specific transient state;
+4. detach the current persistence namespace;
+5. clear any user-specific query/cache state;
+6. clear transient Intelligence state if any exists;
+7. complete auth sign-out;
+8. ensure the signed-out UI cannot render the previous user’s data.
+
+Ordering matters.
+
+Do not allow a final autosave after sign-out to write previous-user state into the next namespace.
+
+---
+
+7. OBJECTIVE E — ACCOUNT SWITCH SAFETY
+
+Test direct account switching.
+
+Scenario:
+
+USER_A signs in
+→ logs meals
+→ changes planner
+→ adds weight
+→ saves recipe
+→ signs out
+
+USER_B signs in
+
+Verify USER_B sees none of USER_A’s:
+
+- food logs;
+- profile/goals;
+- weights;
+- water/mood/activity;
+- planner;
+- shopping;
+- recipes;
+- reminders;
+- health data;
+- Coach history;
+- living memory;
+- sync state;
+- derived Intelligence facts.
+
+Then switch back to USER_A and verify USER_A state is restored only from USER_A’s own namespace if preservation is intended.
+
+---
+
+8. OBJECTIVE F — COLD START AND LEGACY MIGRATION
+
+Existing users may already have state stored under the old fixed key.
+
+Design a safe migration.
+
+Determine:
+
+- whether legacy local state can be confidently associated with the currently authenticated user;
+- whether it should migrate once into that user’s account namespace;
+- what happens when no authenticated user is available;
+- how duplicate migration is prevented;
+- how migration failure is handled;
+- how rollback works.
+
+Do not attach ambiguous legacy data to a new account automatically.
+
+If ownership cannot be established safely:
+
+LEGACY STATE OWNERSHIP: UNKNOWN
+
+and use a conservative recovery strategy.
+
+---
+
+9. OBJECTIVE G — QUERY/CACHE ISOLATION
+
+Inspect:
+
+- TanStack Query cache;
+- recipe API cache;
+- any other runtime cache;
+- Coach context/history;
+- living memory;
+- temporary drafts.
+
+Confirm whether each is:
+
+- global;
+- account-scoped;
+- screen-scoped;
+- transient.
+
+User-specific cache must be cleared or namespaced on account change.
+
+Shared public/provider recipe data may remain shared if it contains no private user data.
+
+Do not clear harmless shared caches unnecessarily.
+
+---
+
+10. OBJECTIVE H — LOCAL SECURITY TEST SUITE
+
+Create permanent tests for:
+
+- USER_A → sign out → USER_B;
+- USER_A → USER_B → USER_A;
+- account switching before hydration completes;
+- sign-out during pending autosave;
+- corrupted old persistence snapshot;
+- legacy fixed-key migration;
+- no-session startup;
+- app restart with USER_A;
+- app restart with USER_B;
+- auth token refresh without account change;
+- failed sign-out;
+- storage write failure.
+
+Verify no cross-account leakage.
+
+---
+
+11. OBJECTIVE I — TRANSIENT INSIGHT SELECTOR
+
+Once local account isolation is proven, build a pure contextual-insight selector.
+
+Recommended location:
+
+artifacts/calora/lib/intelligence/
+
+Potential file:
+
+insightSelector.ts
+
+The selector must consume existing Foundation facts only.
+
+It must not query raw storage independently.
+
+It must not fetch network data.
+
+It must not persist output.
+
+---
+
+12. INSIGHT SELECTOR INPUT
+
+Input should be structured Foundation output.
+
+Conceptually:
+
+facts
+evidence
+confidence
+freshness
+missingData
+date/timezone
+
+Do not pass arbitrary raw application state if Foundation facts already contain the required information.
+
+The selector must be deterministic.
+
+Same inputs must produce the same result.
+
+---
+
+13. INSIGHT SELECTOR OUTPUT
+
+Use a structured transient result.
+
+Conceptually:
+
+ContextualInsight
+- id/type
+- category
+- priority
+- titleKey or structured message payload
+- supportingFacts
+- evidenceClass
+- confidence
+- freshness
+- state
+- reason
+- generatedAt
+- expiresAt if required
+
+Possible states:
+
+active
+no_insight
+insufficient_data
+low_confidence
+stale
+
+Do not make prose generated by an LLM the data contract.
+
+---
+
+14. ALLOWED PHASE 1.9 INSIGHT TYPES
+
+Keep the initial set narrow.
+
+Allowed:
+
+Current calorie status
+
+Examples of deterministic meaning:
+
+- substantially below configured target so far;
+- near configured target;
+- above configured target.
+
+Avoid moral language.
+
+Macro balance
+
+Only where reliable targets and data exist.
+
+Examples:
+
+- protein remains materially below target;
+- macro data incomplete;
+- target already reached.
+
+Meal distribution
+
+Examples:
+
+- majority of recorded calories concentrated in one meal;
+- no breakfast log;
+- no dinner log.
+
+Do not infer “skipped meal.”
+
+Use "not_logged".
+
+Logging completeness
+
+Examples:
+
+- incomplete day;
+- no logs;
+- partial macro information.
+
+Weight baseline
+
+Only expose already-defined deterministic baseline facts.
+
+Do not make health conclusions from them.
+
+---
+
+15. INSIGHT TYPES NOT ALLOWED YET
+
+Do not implement:
+
+- behavioral diagnosis;
+- causal claims;
+- prediction;
+- “you always” language;
+- psychological interpretation;
+- health diagnosis;
+- medical advice;
+- future weight prediction;
+- autonomous meal intervention;
+- persistent recommendation learning;
+- cross-week behavioral profiling;
+- Coach-generated insight;
+- LLM-derived factual insight.
+
+---
+
+16. PRIORITY RULES
+
+Implement a simple deterministic priority model.
+
+The selector should favor:
+
+1. data-integrity or missing-data warnings;
+2. high-confidence significant current-state facts;
+3. meaningful target deviations;
+4. meal distribution;
+5. lower-priority descriptive facts.
+
+Avoid displaying five observations at once.
+
+The selector should normally return one primary insight.
+
+Optionally support a bounded secondary insight internally, but do not create a feed.
+
+---
+
+17. CONFIDENCE GATE
+
+Do not produce an active contextual insight when confidence is inadequate.
+
+Examples:
+
+INSUFFICIENT
+→ insufficient_data
+
+LOW
+→ low_confidence or no_insight depending on type
+
+MEDIUM/HIGH
+→ potentially eligible
+
+Rules may vary by insight type.
+
+A strong warning about missing data can itself be valid even when nutrition confidence is low.
+
+---
+
+18. FRESHNESS GATE
+
+Do not use stale facts as current insights.
+
+The selector must respect Foundation freshness and watermark semantics.
+
+When relevant state changes:
+
+meal added
+meal edited
+meal deleted
+target changed
+timezone changed
+
+the previous transient output must no longer be treated as current.
+
+Because no insight is persisted, recomputation from updated facts should naturally replace it.
+
+---
+
+19. NO PERSISTENCE GUARANTEE
+
+Prove that ContextualInsight output is not written to:
+
+- AsyncStorage;
+- PostgreSQL;
+- Supabase;
+- React Query persistent cache;
+- local files;
+- Coach history;
+- living memory;
+- analytics payloads.
+
+No new persistence key should be introduced for Intelligence.
+
+---
+
+20. NO NETWORK GUARANTEE
+
+Prove selector execution results in:
+
+- zero API requests;
+- zero LLM requests;
+- zero provider requests;
+- zero server-fact-adapter calls.
+
+Use tests or instrumentation where appropriate.
+
+---
+
+21. NO SENSITIVE LOGGING
+
+Do not log:
+
+- raw meal contents;
+- calorie history;
+- weight;
+- user-specific derived insight text;
+- raw evidence references;
+- user IDs.
+
+Development observability may record safe categories such as:
+
+insight_type
+confidence_class
+selector_duration
+no_insight_reason
+
+without nutrition content.
+
+---
+
+22. ACCOUNT BOUNDARY FOR INSIGHTS
+
+Every insight must be tied only to the currently hydrated account state.
+
+On:
+
+- sign-out;
+- account switch;
+- hydration reset;
+
+transient insight state must immediately disappear.
+
+No previous-user insight may flash on screen even temporarily.
+
+Create tests specifically for this.
+
+---
+
+23. FEATURE FLAGS
+
+Keep all user-visible flags OFF.
+
+Current required state:
+
+intelligence.facts.server_adapter = OFF
+intelligence.insights.today = OFF
+intelligence.insights.post_log = OFF
+intelligence.insights.progress = OFF
+intelligence.coach.fact_context = OFF
+intelligence.feedback = OFF
+intelligence.proactive = OFF
+
+The selector itself may exist behind the Foundation development/test boundary.
+
+Do not wire it into visible screens yet.
+
+---
+
+24. PERFORMANCE
+
+Measure:
+
+- account-aware hydration;
+- namespace switching;
+- local fact generation;
+- contextual insight selection.
+
+Use representative fixtures.
+
+Report actual timing.
+
+Do not claim device performance from Node/Vitest measurements.
+
+Ensure no obvious O(n²) behavior over food logs or history.
+
+---
+
+25. REGRESSION SAFETY
+
+Preserve:
+
+- existing logging;
+- offline operation;
+- planner;
+- recipes;
+- Progress;
+- Coach;
+- Supabase authentication;
+- diary sync;
+- existing persistence behavior for the same user;
+- existing account deletion.
+
+The user should notice no new Intelligence feature after Phase 1.9.
+
+---
+
+26. FULL VALIDATION
+
+Run at minimum:
+
+pnpm --filter @workspace/calora run typecheck
+pnpm --filter @workspace/calora test
+pnpm --filter @workspace/api-server run typecheck
+pnpm --filter @workspace/api-server test
+
+Also run:
+
+- new account-isolation tests;
+- legacy migration tests;
+- persistence failure tests;
+- transient selector tests;
+- no-network tests;
+- no-persistence tests;
+- account-switch insight leakage tests;
+- performance fixture.
+
+Record exact counts.
+
+---
+
+27. ACCEPTANCE GATES
+
+Local account isolation
+
+"PASS / PARTIAL / FAIL"
+
+Sign-out safety
+
+"PASS / PARTIAL / FAIL"
+
+Account-switch safety
+
+"PASS / PARTIAL / FAIL"
+
+Legacy state migration
+
+"PASS / PARTIAL / FAIL"
+
+Cache isolation
+
+"PASS / PARTIAL / FAIL"
+
+Insight determinism
+
+"PASS / PARTIAL / FAIL"
+
+Confidence/freshness gates
+
+"PASS / PARTIAL / FAIL"
+
+No persistence
+
+"PASS / FAIL"
+
+No network
+
+"PASS / FAIL"
+
+No cross-user insight leakage
+
+"PASS / FAIL"
+
+Performance
+
+"PASS / PARTIAL / FAIL"
+
+Regression suite
+
+"PASS / FAIL"
+
+Phase 2A visible rollout readiness
+
+"APPROVE / APPROVE WITH CONDITIONS / DO NOT APPROVE"
+
+---
+
+28. PHASE 2A ROLLOUT STANDARD
+
+Recommend visible Today Intelligence only if:
+
+1. local account isolation is proven;
+2. sign-out clears active user state;
+3. switching accounts cannot expose old state;
+4. insight output is deterministic;
+5. insight output is transient;
+6. no persistence exists;
+7. no network exists;
+8. evidence/confidence/freshness gates work;
+9. no previous-user insight can flash;
+10. regression suites pass.
+
+If any of these fail, keep visible Intelligence disabled.
+
+---
+
+29. AUTOMATIC REPORT REQUIREMENT
+
+This is mandatory.
+
+When Phase 1.9 is complete, automatically create and save:
+
+"docs/CALORA_INTELLIGENCE_PHASE_1_9_LOCAL_ISOLATION_TRANSIENT_INSIGHT_REPORT.md"
+
+Do not wait for me to request it.
+
+The report must include:
+
+1. Executive verdict
+2. Local persistence map
+3. Account namespace design
+4. Sign-out lifecycle
+5. Account-switch lifecycle
+6. Legacy migration strategy
+7. Query/cache isolation
+8. Files created
+9. Files modified
+10. Persistence changes
+11. Insight selector architecture
+12. Allowed insight types
+13. Explicitly excluded insight types
+14. Priority rules
+15. Confidence rules
+16. Freshness rules
+17. No-persistence proof
+18. No-network proof
+19. Sensitive-logging review
+20. USER_A / USER_B local isolation tests
+21. Account-switch insight leakage tests
+22. Performance measurements
+23. Exact test commands
+24. Test counts/results
+25. Remaining unknowns
+26. Remaining blockers
+27. Acceptance-gate matrix
+28. Phase 2A visible rollout verdict
+29. Exact recommended Phase 2A implementation scope
+
+Never include secrets or sensitive user data in the report.
+
+Do not claim a test passed unless executed.
+
+Do not claim local account isolation is safe without an actual USER_A / USER_B switching test.
+
+---
+
+30. FINAL STOP CONDITION
+
+When Phase 1.9 finishes:
+
+- automatically save the report;
+- leave all visible Intelligence flags OFF;
+- do not add Today Intelligence UI;
+- do not add Coach integration;
+- do not persist insights;
+- do not begin Phase 2A rollout.
+
+STOP for review.

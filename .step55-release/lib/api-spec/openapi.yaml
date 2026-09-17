@@ -1,0 +1,1536 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: diary
+    description: Food diary entries
+  - name: foods
+    description: Verified food search
+  - name: sync
+    description: Offline outbox synchronization
+  - name: privacy
+    description: Data export and deletion
+  - name: recipes
+    description: Open-source recipe discovery
+  - name: capture
+    description: Smart camera capture and food recognition
+  - name: planner
+    description: Personalized weekly meal planning
+  - name: coach
+    description: Context-aware nutrition coaching
+  - name: referral
+    description: Invite-a-friend referral rewards
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /v1/diary:
+    get:
+      operationId: listDiaryEntries
+      tags: [diary]
+      summary: List diary entries for a date
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/DateQuery"
+      responses:
+        "200":
+          description: Diary entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [date, entries]
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  entries:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DiaryEntry"
+    post:
+      operationId: createDiaryEntry
+      tags: [diary]
+      summary: Add a diary entry
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiaryEntryInput"
+      responses:
+        "201":
+          description: Created diary entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiaryEntry"
+  /v1/diary/{entryId}:
+    patch:
+      operationId: updateDiaryEntry
+      tags: [diary]
+      summary: Edit a diary entry
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiaryEntryPatch"
+      responses:
+        "200":
+          description: Updated diary entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiaryEntry"
+    delete:
+      operationId: deleteDiaryEntry
+      tags: [diary]
+      summary: Delete a diary entry
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/EntryId"
+      responses:
+        "204":
+          description: Entry deleted
+  /v1/foods/search:
+    get:
+      operationId: searchFoods
+      tags: [foods]
+      summary: Search verified foods and brands
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+        - name: barcode
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Matching verified foods
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, provenance]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FoodItem"
+                  provenance:
+                    $ref: "#/components/schemas/Provenance"
+  /v1/sync:
+    post:
+      operationId: syncOutbox
+      tags: [sync]
+      summary: Apply offline mutations and return merged records
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncRequest"
+      responses:
+        "200":
+          description: Conflict-safe sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResponse"
+  /v1/recipes:
+    get:
+      operationId: listRecipes
+      tags: [recipes]
+      summary: Browse open-source recipes
+      parameters:
+        - name: query
+          in: query
+          required: false
+          description: Search meal names. For TheMealDB Premium V2 ingredient matching, provide two to four comma-separated ingredients.
+          schema: { type: string, maxLength: 120 }
+        - name: category
+          in: query
+          required: false
+          schema: { type: string, maxLength: 80 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 30, default: 12 }
+        - name: offset
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Recipe cards
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecipeList"
+  /v1/recipes/photo:
+    post:
+      operationId: generateRecipePhoto
+      tags: [recipes]
+      summary: Generate a private photo for a completed Calora AI recipe
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipePhotoGenerateInput"
+      responses:
+        "200":
+          description: Private photo reference and temporary display URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imageId, imageUrl, imageUrlExpiresAt]
+                properties:
+                  imageId: { type: string, format: uuid }
+                  imageUrl: { type: string, format: uri }
+                  imageUrlExpiresAt: { type: string, format: date-time }
+        "401": { description: A signed-in Calora account is required }
+        "429": { description: Recipe photo quota exceeded }
+        "502": { description: Photo generation or private storage failed }
+  /v1/recipes/photo-url:
+    post:
+      operationId: refreshRecipePhotoUrl
+      tags: [recipes]
+      summary: Refresh a signed display URL for a private recipe photo
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipePhotoUrlInput"
+      responses:
+        "200":
+          description: Temporary private display URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imageUrl, imageUrlExpiresAt]
+                properties:
+                  imageUrl: { type: string, format: uri }
+                  imageUrlExpiresAt: { type: string, format: date-time }
+        "401": { description: A signed-in Calora account is required }
+        "404": { description: Recipe photo is unavailable }
+  /v1/recipes/{recipeId}:
+    get:
+      operationId: getRecipe
+      tags: [recipes]
+      summary: Get an open-source recipe detail
+      parameters:
+        - name: recipeId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Recipe detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
+  /v1/premium-recipes:
+    get:
+      operationId: listPremiumRecipes
+      tags: [recipes]
+      summary: Browse a configured Premium recipe provider
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema: { type: string, maxLength: 120 }
+        - { name: category, in: query, required: false, schema: { type: string, maxLength: 80 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 30, default: 18 } }
+        - { name: offset, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        "200":
+          description: Premium provider catalogue or its truthful availability state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PremiumRecipeList" }
+        "401":
+          description: A signed-in Calora account is required
+        "403":
+          description: An active Calora Premium entitlement is required
+        "429":
+          description: Premium recipe quota exceeded
+        "503":
+          description: Entitlement verification or abuse protection is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+  /v1/premium-recipes/{sourceId}:
+    get:
+      operationId: getPremiumRecipe
+      tags: [recipes]
+      summary: Get a Premium recipe detail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: sourceId, in: path, required: true, schema: { type: string, minLength: 1 } }
+      responses:
+        "200":
+          description: Premium recipe detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PremiumRecipe" }
+        "401":
+          description: A signed-in Calora account is required
+        "403":
+          description: An active Calora Premium entitlement is required
+        "429":
+          description: Premium recipe quota exceeded
+        "503":
+          description: Entitlement verification or abuse protection is temporarily unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+  /v1/restaurant-foods:
+    get:
+      operationId: listRestaurantFoods
+      tags: [foods]
+      summary: Search branded restaurant foods from the configured nutrition provider
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: query, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 120 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 30, default: 20 } }
+        - { name: offset, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        "200":
+          description: Branded food matches or a truthful provider availability state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RestaurantFoodList" }
+        "401":
+          description: A signed-in Calora account is required
+        "429":
+          description: Search quota exceeded
+  /v1/restaurant-foods/{sourceId}:
+    get:
+      operationId: getRestaurantFood
+      tags: [foods]
+      summary: Get nutrition and serving options for a branded restaurant food
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: sourceId, in: path, required: true, schema: { type: string, minLength: 1 } }
+      responses:
+        "200":
+          description: Branded food nutrition detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RestaurantFood" }
+        "401":
+          description: A signed-in Calora account is required
+        "404":
+          description: Food item not found
+        "429":
+          description: Detail quota exceeded
+  /v1/capture/analyze:
+    post:
+      operationId: analyzeCapture
+      tags: [capture]
+      summary: Analyze a barcode or food photo for review
+      security: [{ bearerAuth: [] }]
+      description: |
+        Accepts either a barcode or a base64-encoded camera image. Barcode
+        requests are enriched from public nutrition sources and food photos
+        are analyzed by managed vision. Results remain review-only until the
+        user explicitly adds them to the diary.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaptureAnalyzeInput"
+      responses:
+        "200":
+          description: Reviewable capture result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaptureAnalysis"
+        "400":
+          description: Invalid capture input
+        "502":
+          description: Capture provider unavailable
+  /v1/capture/{sessionId}/approve:
+    post:
+      operationId: approveCapture
+      tags: [capture]
+      summary: Confirm a reviewed image or barcode capture
+      description: |
+        Confirms an authenticated user's short-lived, server-issued image or
+        barcode capture proof after review. This capture action is independent
+        of referral qualification.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Capture confirmed
+        "401":
+          description: Not signed in
+        "409":
+          description: Capture expired, already used, or belongs to another account
+  /v1/planner/generate:
+    post:
+      operationId: generatePlanner
+      tags: [planner]
+      summary: Generate a personalized weekly meal plan
+      description: |
+        Uses the user's goals and preferences to select a reviewable weekly
+        meal plan from Calora's nutrition-labeled meal catalog. The client
+        keeps the resulting plan locally for offline use.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlannerGenerateInput"
+      responses:
+        "200":
+          description: Generated weekly meal plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlannerGenerateResponse"
+        "400":
+          description: Invalid planner input
+        "502":
+          description: Planner provider unavailable
+  /v1/coach/fact-context/respond:
+    post:
+      operationId: respondCoachFactContext
+      tags: [coach]
+      summary: Dark, sanitized Coach Fact Context response path
+      description: |
+        An intentionally disabled replacement path for future Coach rollout.
+        It accepts only a short-lived, allowlisted Fact Context and never
+        accepts the legacy broad CoachContext.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachFactContextRequest"
+      responses:
+        "200":
+          description: Validated dark Coach response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachFactContextResponse"
+        "400":
+          description: Invalid, expired, or unsafe fact context request
+        "401":
+          description: Not signed in
+        "403":
+          description: Current server-confirmed consent is required
+        "404":
+          description: Dark fact context path is disabled
+        "502":
+          description: Coach provider unavailable
+  /v1/coach/fact-context/consent:
+    get:
+      operationId: getCoachFactContextConsent
+      tags: [coach]
+      summary: Read current server-authoritative Fact Context consent status
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current purpose-scoped consent status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachFactConsentStatus" }
+        "401":
+          description: Not signed in
+  /v1/coach/fact-context/consent/accept:
+    post:
+      operationId: acceptCoachFactContextConsent
+      tags: [coach]
+      summary: Accept the current Fact Context disclosure version
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CoachFactConsentAccept" }
+      responses:
+        "200":
+          description: Current purpose-scoped consent status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachFactConsentStatus" }
+        "400":
+          description: Invalid consent request
+        "401":
+          description: Not signed in
+  /v1/coach/fact-context/consent/revoke:
+    post:
+      operationId: revokeCoachFactContextConsent
+      tags: [coach]
+      summary: Revoke Fact Context consent for future requests
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current purpose-scoped consent status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoachFactConsentStatus" }
+        "401":
+          description: Not signed in
+  /v1/privacy/export:
+    post:
+      operationId: requestDataExport
+      tags: [privacy]
+      summary: Request a portable data export
+      security: [{ bearerAuth: [] }]
+      responses:
+        "202":
+          description: Export request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExportRequest"
+  /v1/privacy/delete:
+    post:
+      operationId: requestDataDeletion
+      tags: [privacy]
+      summary: Request deletion of the account and its data
+      security: [{ bearerAuth: [] }]
+      responses:
+        "202":
+          description: Deletion request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletionRequest"
+  /v1/referral:
+    get:
+      operationId: getReferral
+      tags: [referral]
+      summary: Get the caller's referral code, invite link, and reward stats
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Referral summary for the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralSummary"
+        "401":
+          description: Missing or invalid token
+  /v1/referral/redeem:
+    post:
+      operationId: redeemReferral
+      tags: [referral]
+      summary: Redeem an invite code on a new account
+      description: |
+        Records a pending referral redemption for the authenticated user.
+        Rewards unlock for both parties once the new user saves their first
+        meal. One redemption per account; self-referrals are
+        rejected.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReferralRedeemInput"
+      responses:
+        "200":
+          description: Redemption recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralRedeemResult"
+        "400":
+          description: Invalid or self-referral code
+        "401":
+          description: Missing or invalid token
+        "404":
+          description: Unknown invite code
+        "409":
+          description: Account already redeemed an invite code
+  /v1/diary/first-log:
+    post:
+      operationId: syncFirstDiaryEntry
+      tags: [diary]
+      summary: Persist the user's first capture-backed food log on the server
+      description: |
+        The diary is local-first; this endpoint durably records the user's
+        capture-backed food log server-side. It is retained for capture
+        persistence compatibility; referral qualification instead accepts any
+        valid authenticated meal save.
+        Idempotent — once any diary entry exists for the user, repeat calls
+        return the existing state without writing again.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiaryFirstLogInput"
+      responses:
+        "200":
+          description: Diary entry persisted (or already present)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiaryFirstLogResult"
+        "400":
+          description: Invalid entry payload
+        "401":
+          description: Missing or invalid token
+  /v1/referral/activate:
+    post:
+      operationId: activateReferral
+      tags: [referral]
+      summary: Unlock referral rewards after the first saved meal
+      description: |
+        Called once the referred user records their first saved meal through an
+        authenticated Calora diary persistence route. Grants 30 days of Pro to
+        both parties with no referral cap. Idempotent — repeat calls return the
+        current state without granting again.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Activation state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralActivateResult"
+        "401":
+          description: Missing or invalid token
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    DateQuery:
+      name: date
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+    EntryId:
+      name: entryId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    ApiMessage:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    Provenance:
+      type: object
+      required: [source, verifiedAt, correctionVersion]
+      properties:
+        source: { type: string }
+        verifiedAt: { type: string, format: date-time, nullable: true }
+        correctionVersion: { type: integer, minimum: 1 }
+    FoodItem:
+      type: object
+      required: [id, name, servingAmount, servingUnit, calories, proteinG, carbsG, fatG, provenance]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        brand: { type: string, nullable: true }
+        barcode: { type: string, nullable: true }
+        servingAmount: { type: number }
+        servingUnit: { type: string }
+        calories: { type: number }
+        proteinG: { type: number }
+        carbsG: { type: number }
+        fatG: { type: number }
+        provenance: { $ref: "#/components/schemas/Provenance" }
+    DiaryEntryInput:
+      type: object
+      required: [entryDate, meal, name, serving, calories, proteinG, carbsG, fatG, provenance, confidence, clientUpdatedAt]
+      properties:
+        entryDate: { type: string, format: date }
+        meal: { type: string, enum: [Breakfast, Lunch, Dinner, Snack] }
+        name: { type: string, minLength: 1 }
+        serving: { type: string, minLength: 1 }
+        calories: { type: number, minimum: 0 }
+        proteinG: { type: number, minimum: 0 }
+        carbsG: { type: number, minimum: 0 }
+        fatG: { type: number, minimum: 0 }
+        provenance: { type: string, enum: ["USDA verified", "Brand verified", "Barcode verified", "Photo estimate", Manual, Recipe] }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        clientUpdatedAt: { type: string, format: date-time }
+        notes: { type: string, nullable: true }
+        imageUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          nullable: true
+          description: |
+            Optional http(s) URL of a representative image for this entry
+            (e.g. an Open Food Facts product photo). Omitted or null when no
+            image is associated. The server only stores absolute http/https
+            URLs; other values are rejected or dropped.
+        imageSource:
+          type: string
+          maxLength: 80
+          nullable: true
+          description: |
+            Optional short label describing where the image came from
+            (e.g. "Open Food Facts", "user_photo"). Null when no image is set.
+    DiaryEntry:
+      allOf:
+        - $ref: "#/components/schemas/DiaryEntryInput"
+        - type: object
+          required: [id, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            updatedAt: { type: string, format: date-time }
+    DiaryEntryPatch:
+      type: object
+      minProperties: 1
+      properties:
+        meal: { type: string, enum: [Breakfast, Lunch, Dinner, Snack] }
+        serving: { type: string }
+        calories: { type: number, minimum: 0 }
+        proteinG: { type: number, minimum: 0 }
+        carbsG: { type: number, minimum: 0 }
+        fatG: { type: number, minimum: 0 }
+        notes: { type: string, nullable: true }
+        clientUpdatedAt: { type: string, format: date-time }
+    SyncMutation:
+      type: object
+      required: [mutationId, entity, operation, clientUpdatedAt, payload]
+      properties:
+        mutationId: { type: string, format: uuid }
+        entity: { type: string, enum: [profile, diaryEntry, weight, savedMeal] }
+        operation: { type: string, enum: [upsert, delete] }
+        clientUpdatedAt: { type: string, format: date-time }
+        payload: { type: object, additionalProperties: true }
+    SyncRequest:
+      type: object
+      required: [deviceId, mutations]
+      properties:
+        deviceId: { type: string, minLength: 1 }
+        cursor: { type: string, nullable: true }
+        mutations:
+          type: array
+          maxItems: 100
+          items: { $ref: "#/components/schemas/SyncMutation" }
+    SyncConflict:
+      type: object
+      required: [mutationId, reason]
+      properties:
+        mutationId: { type: string, format: uuid }
+        reason: { type: string, enum: [stale_write, validation_failed, unauthorized, unsupported_entity, unsupported_operation, invalid_mutation_id, server_error] }
+        serverRecord: { type: object, nullable: true, additionalProperties: true }
+    SyncDiaryRecord:
+      type: object
+      required: [clientId, entryDate, meal, name, serving, calories, proteinG, carbsG, fatG, provenance, confidence, clientUpdatedAt]
+      properties:
+        clientId: { type: string, minLength: 1, maxLength: 128 }
+        captureSessionId: { type: string, format: uuid, nullable: true }
+        entryDate: { type: string, format: date }
+        meal: { type: string, enum: [Breakfast, Lunch, Dinner, Snack] }
+        name: { type: string }
+        serving: { type: string }
+        calories: { type: number, minimum: 0 }
+        proteinG: { type: number, minimum: 0 }
+        carbsG: { type: number, minimum: 0 }
+        fatG: { type: number, minimum: 0 }
+        provenance: { type: string, enum: [USDA verified, Brand verified, Barcode verified, Photo estimate, Manual, Recipe] }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        notes: { type: string, nullable: true }
+        imageUrl: { type: string, nullable: true }
+        imageSource: { type: string, nullable: true }
+        time: { type: string, maxLength: 40 }
+        fiber: { type: number, minimum: 0 }
+        sugar: { type: number, minimum: 0 }
+        sodium: { type: number, minimum: 0 }
+        preparation: { type: string, maxLength: 500 }
+        memoryId: { type: string, maxLength: 128 }
+        plannerMealId: { type: string, maxLength: 128 }
+        sourceRecipeId: { type: string, maxLength: 128 }
+        clientUpdatedAt: { type: string, format: date-time }
+    SyncResponse:
+      type: object
+      required: [accepted, conflicts, records, nextCursor]
+      properties:
+        accepted: { type: array, items: { type: string, format: uuid } }
+        conflicts: { type: array, items: { $ref: "#/components/schemas/SyncConflict" } }
+        records: { type: array, items: { $ref: "#/components/schemas/SyncDiaryRecord" } }
+        nextCursor: { type: string }
+    ExportRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [queued, ready] }
+        downloadUrl: { type: string, format: uri, nullable: true }
+    DeletionRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [queued, complete] }
+    RecipeList:
+      type: object
+      required: [recipes, source]
+      properties:
+        source: { type: string }
+        recipes:
+          type: array
+          items: { $ref: "#/components/schemas/Recipe" }
+        warmupPending:
+          type: boolean
+          description: >
+            True while the server's background nutrition warm-up is still
+            running.  Clients should refetch the list shortly so recipe cards
+            can show calorie estimates as soon as they are available.
+        nextOffset:
+          type: [integer, "null"]
+          description: Offset for the next page, or null when this is the terminal page.
+        terminalReason:
+          type: [string, "null"]
+          description: Stable human-readable reason included when no next page exists.
+    RecipePhotoGenerateInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100 }
+        description: { type: string, maxLength: 300 }
+    RecipePhotoUrlInput:
+      type: object
+      required: [imageId]
+      properties:
+        imageId: { type: string, format: uuid }
+    Recipe:
+      type: object
+      required: [id, name, source, sourceUrl]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        image: { type: string, format: uri, nullable: true }
+        category: { type: string, nullable: true }
+        area: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        instructions: { type: string, nullable: true }
+        ingredients:
+          type: array
+          items: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        prepMinutes: { type: integer, nullable: true }
+        calories: { type: number, nullable: true }
+        proteinG: { type: number, nullable: true }
+        carbsG: { type: number, nullable: true }
+        fatG: { type: number, nullable: true }
+        nutritionUnavailable:
+          type: boolean
+          description: >
+            True when the server attempted AI nutrition estimation but it
+            failed (timeout, nonsensical result, or API error). The client
+            should surface a clear "Nutrition unavailable" label and offer a
+            retry rather than silently showing blanks.
+        source: { type: string }
+        sourceUrl: { type: string, format: uri }
+    PremiumRecipeList:
+      type: object
+      required: [status, provider, recipes]
+      properties:
+        status: { type: string, enum: [available, unavailable, restricted, error] }
+        provider: { type: string }
+        message: { type: [string, "null"] }
+        recipes: { type: array, items: { $ref: "#/components/schemas/PremiumRecipe" } }
+        nextOffset: { type: [integer, "null"] }
+        terminalReason: { type: [string, "null"] }
+    PremiumRecipe:
+      allOf:
+        - $ref: "#/components/schemas/Recipe"
+        - type: object
+          required: [sourceType, sourceProvider, sourceId, nutritionConfidence, nutritionSource]
+          properties:
+            sourceType: { type: string, enum: [premium] }
+            sourceProvider: { type: string }
+            sourceId: { type: string }
+            nutritionConfidence: { type: string, enum: [verified, estimated, unavailable] }
+            nutritionSource: { type: string }
+            cookMinutes: { type: integer, nullable: true }
+            totalMinutes: { type: integer, nullable: true }
+            servings: { type: number, nullable: true }
+            cuisine: { type: string, nullable: true }
+            mealType: { type: string, nullable: true }
+            difficulty: { type: string, nullable: true }
+            dietary: { type: array, items: { type: string } }
+            allergens: { type: array, items: { type: string } }
+            equipment: { type: array, items: { type: string } }
+            fiberG: { type: number, nullable: true }
+            sodiumMg: { type: number, nullable: true }
+    RestaurantFoodList:
+      type: object
+      required: [status, provider, foods]
+      properties:
+        status: { type: string, enum: [available, unavailable, restricted, error] }
+        provider: { type: string }
+        message: { type: [string, "null"] }
+        foods:
+          type: array
+          items: { $ref: "#/components/schemas/RestaurantFood" }
+        nextOffset: { type: [integer, "null"] }
+    RestaurantFood:
+      type: object
+      required: [id, sourceId, name, brandName, foodUrl, serving, servingId, calories, proteinG, carbsG, fatG, fiberG, sugarG, sodiumMg, servings, sourceProvider, nutritionConfidence, nutritionSource]
+      properties:
+        id: { type: string }
+        sourceId: { type: string }
+        name: { type: string }
+        brandName: { type: [string, "null"] }
+        foodUrl: { type: [string, "null"], format: uri }
+        serving: { type: [string, "null"] }
+        servingId: { type: [string, "null"] }
+        calories: { type: [number, "null"], minimum: 0 }
+        proteinG: { type: [number, "null"], minimum: 0 }
+        carbsG: { type: [number, "null"], minimum: 0 }
+        fatG: { type: [number, "null"], minimum: 0 }
+        fiberG: { type: [number, "null"], minimum: 0 }
+        sugarG: { type: [number, "null"], minimum: 0 }
+        sodiumMg: { type: [number, "null"], minimum: 0 }
+        servings:
+          type: array
+          items: { $ref: "#/components/schemas/RestaurantFoodServing" }
+        sourceProvider: { type: string }
+        nutritionConfidence: { type: string, enum: [verified, unavailable] }
+        nutritionSource: { type: string }
+    RestaurantFoodServing:
+      type: object
+      required: [servingId, description, calories, proteinG, carbsG, fatG, fiberG, sugarG, sodiumMg]
+      properties:
+        servingId: { type: [string, "null"] }
+        description: { type: string }
+        calories: { type: [number, "null"], minimum: 0 }
+        proteinG: { type: [number, "null"], minimum: 0 }
+        carbsG: { type: [number, "null"], minimum: 0 }
+        fatG: { type: [number, "null"], minimum: 0 }
+        fiberG: { type: [number, "null"], minimum: 0 }
+        sugarG: { type: [number, "null"], minimum: 0 }
+        sodiumMg: { type: [number, "null"], minimum: 0 }
+    CaptureAnalyzeInput:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [auto, barcode, food, text, nutrition_label, voice, receipt]
+        barcode:
+          type: string
+          minLength: 8
+          maxLength: 32
+        imageBase64:
+          type: string
+          description: JPEG or PNG image bytes encoded as base64 without a data URI prefix
+          maxLength: 12000000
+        textInput:
+          type: string
+          description: Natural-language food description (text and voice modes) or any supplementary description
+          maxLength: 2000
+        audioBase64:
+          type: string
+          description: Short voice recording encoded as base64 without a data URI prefix. Used only to produce an immediate transcript and not retained.
+          maxLength: 8000000
+        audioFormat:
+          type: string
+          enum: [mp4, m4a, wav, webm]
+          description: File container for audioBase64
+        clientSessionId:
+          type: string
+          maxLength: 120
+    CaptureCandidate:
+      type: object
+      required: [id, name, serving, calories, proteinG, carbsG, fatG, confidence, provenance, sourceLabel, editable]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        brand: { type: string, nullable: true }
+        serving: { type: string }
+        calories: { type: number, minimum: 0 }
+        proteinG: { type: number, minimum: 0 }
+        carbsG: { type: number, minimum: 0 }
+        fatG: { type: number, minimum: 0 }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        provenance: { type: string }
+        sourceLabel: { type: string }
+        editable: { type: boolean }
+        imageUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          nullable: true
+          description: |
+            Optional http(s) URL of a representative product image for this
+            candidate (e.g. an Open Food Facts product photo). Null when the
+            provider returned no usable image.
+        imageSource:
+          type: string
+          maxLength: 80
+          nullable: true
+          description: Optional short label describing the image's origin.
+    CaptureConfidence:
+      type: object
+      required: [identity, portion, nutritionSource, preparation]
+      properties:
+        identity: { type: integer, minimum: 0, maximum: 100 }
+        portion: { type: integer, minimum: 0, maximum: 100 }
+        nutritionSource: { type: integer, minimum: 0, maximum: 100 }
+        preparation: { type: integer, minimum: 0, maximum: 100 }
+    CaptureNutritionRange:
+      type: object
+      required: [caloriesLow, caloriesHigh]
+      properties:
+        caloriesLow: { type: number, minimum: 0 }
+        caloriesHigh: { type: number, minimum: 0 }
+    CaptureComponent:
+      allOf:
+        - $ref: "#/components/schemas/CaptureCandidate"
+        - type: object
+          required: [componentId, included, eatenFraction, confidenceDimensions]
+          properties:
+            componentId: { type: string }
+            preparation: { type: string, nullable: true }
+            included: { type: boolean }
+            eatenFraction: { type: number, minimum: 0, maximum: 1 }
+            confidenceDimensions: { $ref: "#/components/schemas/CaptureConfidence" }
+            assumptions:
+              type: array
+              items: { type: string }
+            nutritionRange: { $ref: "#/components/schemas/CaptureNutritionRange" }
+            reviewQuestions:
+              type: array
+              items: { type: string }
+    CaptureAnalysis:
+      type: object
+      required: [sessionId, mode, status, title, candidates, reviewMessage, provider]
+      properties:
+        sessionId: { type: string }
+        mode: { type: string, enum: [barcode, food, text, nutrition_label, voice, receipt] }
+        status: { type: string, enum: [review, transcript, unavailable] }
+        title: { type: string }
+        reviewMessage: { type: string }
+        provider: { type: string }
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/CaptureCandidate"
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/CaptureComponent"
+        assumptions:
+          type: array
+          items: { type: string }
+        reviewQuestions:
+          type: array
+          items: { type: string }
+        transcript:
+          type: string
+          description: Editable speech transcript returned before nutrition analysis. Raw audio is discarded after this response.
+        imageRetention:
+          type: string
+          enum: [delete_after_analysis, local_only, retained_with_consent]
+    PlannerProfile:
+      type: object
+      required: [goal, activity, diet, calorieTarget]
+      properties:
+        goal: { type: string, enum: [lose, maintain, gain] }
+        activity: { type: string, enum: [low, moderate, high] }
+        diet: { type: string, enum: [Everything, Vegetarian, Vegan, High protein] }
+        calorieTarget: { type: integer, minimum: 800, maximum: 10000 }
+    PlannerGenerateInput:
+      type: object
+      required: [weekStart, profile]
+      properties:
+        weekStart:
+          type: string
+          format: date
+        profile:
+          $ref: "#/components/schemas/PlannerProfile"
+        planType:
+          type: string
+          description: Optional plan style identifier guiding AI generation
+    PlannerMeal:
+      type: object
+      required: [id, day, meal, name, image, serving, calories, proteinG, carbsG, fatG, ingredients, description]
+      properties:
+        id: { type: string }
+        day: { type: string, format: date }
+        meal: { type: string, enum: [Breakfast, Lunch, Dinner, Snack] }
+        name: { type: string }
+        image: { type: string, format: uri }
+        imageAssetKey:
+          type: string
+          description: Stable client asset identity for curated planner imagery. Optional for generated or custom meals.
+        serving: { type: string }
+        calories: { type: number, minimum: 0 }
+        proteinG: { type: number, minimum: 0 }
+        carbsG: { type: number, minimum: 0 }
+        fatG: { type: number, minimum: 0 }
+        ingredients:
+          type: array
+          items: { type: string }
+        description: { type: string }
+        prepMinutes: { type: integer, minimum: 0 }
+    PlannerGenerateResponse:
+      type: object
+      required: [weekStart, provider, message, meals]
+      properties:
+        weekStart: { type: string, format: date }
+        provider: { type: string }
+        message: { type: string }
+        meals:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlannerMeal"
+    CoachMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role: { type: string, enum: [user, assistant] }
+        content: { type: string, minLength: 1, maxLength: 3000 }
+    CoachFactContextFact:
+      type: object
+      additionalProperties: false
+      required: [key, status, statement, values, unit, timeWindow, confidence, freshness, provenance, limitations]
+      properties:
+        key: { type: string, enum: [daily.calorie_status, daily.protein_status] }
+        status: { type: string, enum: [available, limited, unknown] }
+        statement: { type: string, minLength: 1, maxLength: 280 }
+        values:
+          type: object
+          additionalProperties: false
+          maxProperties: 3
+          properties:
+            consumedKcal: { type: integer, minimum: 0, maximum: 10000 }
+            targetKcal: { type: integer, minimum: 0, maximum: 10000 }
+            remainingKcal: { type: integer, minimum: 0, maximum: 10000 }
+            consumedG: { type: integer, minimum: 0, maximum: 1000 }
+            targetG: { type: integer, minimum: 0, maximum: 1000 }
+            remainingG: { type: integer, minimum: 0, maximum: 1000 }
+        unit: { type: [string, "null"], enum: [kcal, g, null] }
+        timeWindow: { type: string, enum: [today] }
+        confidence: { type: string, enum: [high, medium, limited] }
+        freshness: { type: string, enum: [fresh, limited] }
+        provenance: { type: string, enum: [verified, mixed, estimated, derived] }
+        limitations:
+          type: array
+          maxItems: 3
+          items: { type: string, maxLength: 180 }
+    CoachFactContext:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, purpose, generatedAt, expiresAt, calculationVersion, requestNonce, coverage, missingData, facts, limitations]
+      properties:
+        schemaVersion: { type: string, enum: [coach-fact-context-v1] }
+        purpose: { type: string, enum: [coach_fact_context_v1] }
+        generatedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        calculationVersion: { type: string, minLength: 1, maxLength: 64 }
+        requestNonce: { type: string, pattern: "^[a-f0-9]{24,64}$" }
+        coverage: { type: string, enum: [available, partial, insufficient] }
+        missingData:
+          type: array
+          maxItems: 4
+          items: { type: string, enum: [no_profile, no_logged_food_today, incomplete_logging, unknown_provenance] }
+        facts:
+          type: array
+          minItems: 0
+          maxItems: 4
+          items: { $ref: "#/components/schemas/CoachFactContextFact" }
+        limitations:
+          type: array
+          maxItems: 3
+          items: { type: string, maxLength: 220 }
+    CoachFactObservation:
+      type: object
+      additionalProperties: false
+      required: [text, confidence, factKeys]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 500 }
+        confidence: { type: string, enum: [high, medium, limited] }
+        factKeys:
+          type: array
+          minItems: 1
+          maxItems: 2
+          items: { type: string, enum: [daily.calorie_status, daily.protein_status] }
+    CoachFactContextRequest:
+      type: object
+      additionalProperties: false
+      required: [factContext, messages, currentScreen]
+      properties:
+        factContext: { $ref: "#/components/schemas/CoachFactContext" }
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items: { $ref: "#/components/schemas/CoachMessage" }
+        currentScreen: { type: string, enum: [progress-coach], maxLength: 40 }
+    CoachFactConsentAccept:
+      type: object
+      additionalProperties: false
+      required: [purpose, documentVersion]
+      properties:
+        purpose: { type: string, enum: [coach_fact_context_v1] }
+        documentVersion: { type: string, enum: ["2026-08-21"] }
+    CoachFactConsentStatus:
+      type: object
+      additionalProperties: false
+      required: [purpose, documentVersion, state, decidedAt, revokedAt]
+      properties:
+        purpose: { type: string, enum: [coach_fact_context_v1] }
+        documentVersion: { type: string, enum: ["2026-08-21"] }
+        state: { type: string, enum: [not_consented, consented_current, revoked, stale_version] }
+        decidedAt: { type: [string, "null"], format: date-time }
+        revokedAt: { type: [string, "null"], format: date-time }
+    CoachFactContextResponse:
+      type: object
+      additionalProperties: false
+      required: [message, observations, actions, safetyState, limitations, contextCoverage, requestNonce]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 1200 }
+        observations:
+          type: array
+          maxItems: 3
+          items: { $ref: "#/components/schemas/CoachFactObservation" }
+        actions:
+          type: array
+          maxItems: 3
+          items: { $ref: "#/components/schemas/CoachAction" }
+        safetyState: { type: string, enum: [normal, caution, support_redirect] }
+        limitations:
+          type: array
+          maxItems: 4
+          items: { type: string, maxLength: 220 }
+        contextCoverage:
+          type: object
+          additionalProperties: false
+          required: [usedSections, missingSections]
+          properties:
+            usedSections:
+              type: array
+              maxItems: 4
+              items: { type: string, maxLength: 50 }
+            missingSections:
+              type: array
+              maxItems: 4
+              items: { type: string, maxLength: 50 }
+        requestNonce: { type: string, pattern: "^[a-f0-9]{24,64}$" }
+    CoachDateRange:
+      type: object
+      required: [start, end]
+      properties:
+        start: { type: string, format: date }
+        end: { type: string, format: date }
+    CoachContext:
+      type: object
+      required: [schemaVersion, generatedAt, currentDate, dateRange, profile, dailySummaries, recentEntries, wellness, planning, foodMemory, missingData]
+      properties:
+        schemaVersion: { type: integer, minimum: 1 }
+        generatedAt: { type: string, format: date-time }
+        currentDate: { type: string, format: date }
+        dateRange: { $ref: "#/components/schemas/CoachDateRange" }
+        profile:
+          type: object
+          nullable: true
+          properties:
+            name: { type: string }
+            goal: { type: string, enum: [lose, maintain, gain] }
+            activity: { type: string, enum: [low, moderate, high] }
+            diet: { type: string, enum: [Everything, Vegetarian, Vegan, High protein] }
+            calorieTarget: { type: integer, minimum: 0 }
+            weightKg: { type: number, minimum: 0 }
+            targetWeightKg: { type: number, minimum: 0 }
+            age: { type: integer, minimum: 0 }
+        dailySummaries:
+          type: array
+          maxItems: 31
+          items:
+            type: object
+            required: [date, calories, proteinG, carbsG, fatG, meals, waterOunces, hasData]
+            properties:
+              date: { type: string, format: date }
+              calories: { type: number, minimum: 0 }
+              proteinG: { type: number, minimum: 0 }
+              carbsG: { type: number, minimum: 0 }
+              fatG: { type: number, minimum: 0 }
+              fiberG: { type: number, minimum: 0 }
+              sugarG: { type: number, minimum: 0 }
+              sodiumMg: { type: number, minimum: 0 }
+              meals: { type: integer, minimum: 0 }
+              waterOunces: { type: number, minimum: 0 }
+              mood: { type: string, nullable: true }
+              activity: { type: string, nullable: true }
+              hasData: { type: boolean }
+        recentEntries:
+          type: array
+          maxItems: 80
+          items:
+            type: object
+            required: [date, meal, name, calories, proteinG, carbsG, fatG, source, confidence]
+            properties:
+              date: { type: string, format: date }
+              meal: { type: string }
+              name: { type: string, maxLength: 160 }
+              calories: { type: number, minimum: 0 }
+              proteinG: { type: number, minimum: 0 }
+              carbsG: { type: number, minimum: 0 }
+              fatG: { type: number, minimum: 0 }
+              fiberG: { type: number, minimum: 0 }
+              sugarG: { type: number, minimum: 0 }
+              sodiumMg: { type: number, minimum: 0 }
+              source: { type: string }
+              confidence: { type: integer, minimum: 0, maximum: 100 }
+        wellness:
+          type: object
+          required: [waterAverageOunces, waterLoggedDays, moodLoggedDays, activityLoggedDays, weightEntries, latestWeightKg]
+          properties:
+            waterAverageOunces: { type: number, minimum: 0 }
+            waterLoggedDays: { type: integer, minimum: 0 }
+            moodLoggedDays: { type: integer, minimum: 0 }
+            activityLoggedDays: { type: integer, minimum: 0 }
+            weightEntries: { type: integer, minimum: 0 }
+            latestWeightKg: { type: number, minimum: 0, nullable: true }
+            weightChangeKg: { type: number, nullable: true }
+        planning:
+          type: object
+          required: [plannedMealCount, shoppingItemCount, savedMealNames, savedRecipeCount]
+          properties:
+            plannedMealCount: { type: integer, minimum: 0 }
+            shoppingItemCount: { type: integer, minimum: 0 }
+            savedMealNames:
+              type: array
+              maxItems: 20
+              items: { type: string, maxLength: 120 }
+            savedRecipeCount: { type: integer, minimum: 0 }
+        foodMemory:
+          type: object
+          required: [acceptedCount, repeatPatterns, verifiedShare, estimatedShare]
+          properties:
+            acceptedCount: { type: integer, minimum: 0 }
+            repeatPatterns:
+              type: array
+              maxItems: 20
+              items: { type: string, maxLength: 120 }
+            verifiedShare: { type: integer, minimum: 0, maximum: 100 }
+            estimatedShare: { type: integer, minimum: 0, maximum: 100 }
+        missingData:
+          type: array
+          maxItems: 20
+          items: { type: string }
+    CoachRespondInput:
+      type: object
+      required: [context, messages, currentScreen]
+      properties:
+        context:
+          $ref: "#/components/schemas/CoachContext"
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/CoachMessage"
+        currentScreen: { type: string, minLength: 1, maxLength: 64 }
+    CoachObservation:
+      type: object
+      required: [text, confidence, evidenceKeys]
+      properties:
+        text: { type: string, maxLength: 500 }
+        confidence: { type: string, enum: [high, medium, limited] }
+        evidenceKeys:
+          type: array
+          maxItems: 6
+          items: { type: string }
+    CoachAction:
+      type: object
+      required: [id, label, kind, destination, confirmationRequired]
+      properties:
+        id: { type: string }
+        label: { type: string, maxLength: 80 }
+        kind: { type: string, enum: [navigate, prepare] }
+        destination: { type: string, enum: [home, progress, recipes, planner, scan, profile] }
+        params:
+          type: object
+          additionalProperties: { type: string, maxLength: 120 }
+        confirmationRequired: { type: boolean }
+    CoachResponse:
+      type: object
+      required: [message, observations, actions, safetyState, limitations, contextCoverage]
+      properties:
+        message: { type: string, maxLength: 2000 }
+        observations:
+          type: array
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/CoachObservation"
+        actions:
+          type: array
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/CoachAction"
+        safetyState: { type: string, enum: [normal, caution, support_redirect] }
+        limitations:
+          type: array
+          maxItems: 4
+          items: { type: string, maxLength: 240 }
+        contextCoverage:
+          type: object
+          required: [usedSections, missingSections]
+          properties:
+            usedSections:
+              type: array
+              items: { type: string }
+            missingSections:
+              type: array
+              items: { type: string }
+
+    ReferralSummary:
+      type: object
+      required: [code, inviteUrl, rewardDays, stats, redemption]
+      properties:
+        code: { type: string, minLength: 4, maxLength: 16 }
+        inviteUrl: { type: string, format: uri }
+        rewardDays: { type: integer }
+        stats:
+          type: object
+          required: [pendingCount, rewardedCount]
+          properties:
+            pendingCount: { type: integer }
+            rewardedCount: { type: integer }
+        redemption:
+          type: object
+          description: The caller's own redemption of someone else's code, if any.
+          required: [status]
+          properties:
+            status: { type: string, enum: [none, pending, rewarded] }
+            code: { type: string }
+    ReferralRedeemInput:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, minLength: 4, maxLength: 16 }
+    ReferralRedeemResult:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [pending] }
+        message: { type: string }
+    DiaryFirstLogInput:
+      type: object
+      required: [captureSessionId, entryDate, meal, name, serving, calories, proteinG, carbsG, fatG, provenance, confidence, clientUpdatedAt]
+      properties:
+        captureSessionId:
+          type: string
+          format: uuid
+          description: |
+            Server-issued capture session id returned by /v1/capture/analyze
+            for an authenticated request. The synced entry must correspond to
+            that server-recorded analysis; fabricated payloads are rejected.
+        entryDate: { type: string, format: date }
+        meal: { type: string, minLength: 1, maxLength: 40 }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        serving: { type: string, minLength: 1, maxLength: 120 }
+        calories: { type: number, minimum: 0, maximum: 20000 }
+        proteinG: { type: number, minimum: 0, maximum: 5000 }
+        carbsG: { type: number, minimum: 0, maximum: 5000 }
+        fatG: { type: number, minimum: 0, maximum: 5000 }
+        provenance: { type: string, minLength: 1, maxLength: 80 }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        notes: { type: string, maxLength: 2000 }
+        clientUpdatedAt: { type: string, format: date-time }
+        imageUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          nullable: true
+          description: |
+            Optional http(s) URL of a representative image for this entry.
+            Only absolute http/https URLs are persisted; other values are
+            dropped so a fabricated payload cannot inject arbitrary content.
+        imageSource:
+          type: string
+          maxLength: 80
+          nullable: true
+          description: Optional short label describing the image's origin.
+    DiaryFirstLogResult:
+      type: object
+      required: [synced, alreadyExisted]
+      properties:
+        synced: { type: boolean }
+        alreadyExisted: { type: boolean }
+    ReferralActivateResult:
+      type: object
+      required: [status, referredRewarded, referrerRewarded]
+      properties:
+        status: { type: string, enum: [none, pending, rewarded] }
+        referredRewarded: { type: boolean }
+        referrerRewarded: { type: boolean }
+        message: { type: string }

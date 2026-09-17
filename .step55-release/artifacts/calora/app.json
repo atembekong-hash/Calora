@@ -1,0 +1,119 @@
+{
+  "expo": {
+    "name": "CaloraApp",
+    "slug": "calora",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "caloraapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.etiendem.caloraapp",
+      "buildNumber": "6",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSHealthUpdateUsageDescription": "Calora uses Health data to save your nutrition and activity information to Apple Health when you choose to enable Health integration."
+      },
+      "associatedDomains": [
+        "applinks:calorie-coach-pie35449.replit.app"
+      ]
+    },
+    "android": {
+      "package": "com.etiendem.caloraapp",
+      "versionCode": 24,
+      "permissions": [
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_EXERCISE",
+        "android.permission.health.READ_WEIGHT"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "calorie-coach-pie35449.replit.app",
+              "pathPrefix": "/invite"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "calorie-coach-pie35449.replit.app",
+              "pathPrefix": "/auth/callback"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ],
+      [
+        "expo-router",
+        {
+          "origin": "https://calorie-coach-pie35449.replit.app/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "CaloraApp uses your camera to identify food and scan product barcodes.",
+          "microphonePermission": "CaloraApp uses your microphone only while you record a short meal description."
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "background": false,
+          "NSHealthShareUsageDescription": "Calora reads steps, active energy, workouts, and body weight you choose to share.",
+          "NSHealthUpdateUsageDescription": false
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "owner": "vvault07",
+    "extra": {
+      "eas": {
+        "projectId": "1f202325-5b9a-4260-978f-abbd3252b9ee"
+      }
+    }
+  }
+}

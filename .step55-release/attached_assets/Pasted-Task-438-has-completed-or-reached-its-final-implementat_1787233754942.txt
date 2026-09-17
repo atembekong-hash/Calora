@@ -1,0 +1,402 @@
+Task #438 has completed or reached its final implementation state.
+
+Now create the complete Phase 1 implementation and validation report.
+
+Save the authoritative, unabridged report in the repository as:
+
+"docs/CALORA_INTELLIGENCE_PHASE_1_REPORT.md"
+
+Do not give me only a short chat summary. The Markdown file must contain the complete technical record.
+
+Required report sections
+
+1. Executive Result
+
+State clearly:
+
+- whether Phase 1 succeeded, partially succeeded, or failed;
+- what was actually implemented;
+- what was deliberately not implemented;
+- whether any Phase 1 boundary was violated;
+- whether existing Calora user-visible behavior changed.
+
+2. Architecture Implemented
+
+Document the actual final architecture.
+
+Show the data flow:
+
+"Existing Calora State → Context Adapter → Deterministic Facts → Evidence/Provenance → Confidence → Freshness → Invalidation"
+
+Explain how this integrates with the existing repository.
+
+3. Exact Files Created
+
+For every new file provide:
+
+- exact path;
+- purpose;
+- major exports/modules;
+- relationship to existing Calora systems.
+
+4. Exact Files Modified
+
+For every modified existing file provide:
+
+- exact path;
+- what changed;
+- why it changed;
+- regression risk;
+- whether existing behavior was preserved.
+
+5. Canonical Facts Implemented
+
+List every fact currently supported.
+
+Include:
+
+- calories;
+- macros;
+- targets;
+- remaining values;
+- meal distribution;
+- logging completeness;
+- weight/baseline facts;
+- evidence partitions;
+- missing-data states;
+- any additional facts implemented.
+
+Do not claim a fact exists unless it is actually implemented.
+
+6. Evidence and Provenance Model
+
+Document exactly how Calora now distinguishes:
+
+- verified/provider data;
+- barcode/label data;
+- manual data;
+- user-corrected data;
+- Food Memory data;
+- AI estimates;
+- recipe estimates;
+- derived facts;
+- unknown/legacy provenance.
+
+Explain any edge cases discovered.
+
+7. Confidence Model
+
+Document:
+
+- confidence levels;
+- calculation rules;
+- conditions that lower confidence;
+- treatment of incomplete data;
+- treatment of estimated data;
+- treatment of conflicting data.
+
+Include concrete examples.
+
+8. Freshness and Source Watermarking
+
+Explain:
+
+- how source watermarks are generated;
+- what causes them to change;
+- how freshness is determined;
+- how stale facts are identified;
+- how expensive unnecessary recomputation is avoided.
+
+9. Invalidation System
+
+Document the actual behavior for:
+
+- food added;
+- food edited;
+- food deleted;
+- target changed;
+- goal changed;
+- weight changed;
+- timezone changed;
+- day-boundary change;
+- relevant preference changes;
+- planner changes.
+
+State whether each case was tested.
+
+10. Calculation Versioning
+
+State:
+
+- current calculation version;
+- where the version is defined;
+- how future calculation versions can coexist or be identified.
+
+11. Parity Test Results
+
+This section is critical.
+
+Compare the new Intelligence Facts Engine against existing Calora calculations.
+
+Include actual results for representative scenarios.
+
+Show:
+
+"Existing Calora Result | Intelligence Fact Result | Match/Difference | Explanation"
+
+Cover Today and Progress where applicable.
+
+Do not hide discrepancies.
+
+For every discrepancy classify it as:
+
+- existing logic bug;
+- Intelligence Facts bug;
+- ambiguous product rule;
+- missing data;
+- provenance mismatch;
+- timezone/day-boundary mismatch;
+- unresolved.
+
+12. Regression Test Results
+
+Provide actual test results.
+
+Include:
+
+- test suites executed;
+- tests passed;
+- tests failed;
+- tests skipped;
+- known failures;
+- reason for each failure.
+
+Do not describe a test as passed unless it was actually executed.
+
+13. Offline Resilience
+
+Document what happens when:
+
+- API is unavailable;
+- AI provider is unavailable;
+- network is unavailable;
+- Intelligence computation fails.
+
+Confirm whether normal food logging, Today, navigation, and local persistence continue functioning.
+
+14. Performance Results
+
+Report measured results where available for:
+
+- Intelligence fact generation;
+- Today;
+- meal logging;
+- food editing;
+- food deletion;
+- Progress;
+- application hydration.
+
+Distinguish measured results from estimates.
+
+Identify any regression.
+
+15. Feature Flags
+
+List every Intelligence feature flag implemented.
+
+For each include:
+
+- default state;
+- current purpose;
+- whether it affects UI;
+- rollback behavior.
+
+Confirm that visible Intelligence delivery remains disabled.
+
+16. Schema and Migration Investigation
+
+Report the final findings regarding:
+
+- Drizzle schema;
+- startup DDL;
+- migration authority;
+- schema parity;
+- fresh deployment risk;
+- recommended canonical migration strategy.
+
+Clearly distinguish confirmed facts from assumptions.
+
+17. Supabase RLS Status
+
+State exactly one of:
+
+VERIFIED
+
+or
+
+NOT VERIFIED
+
+If not verified, explain what external access or evidence is required.
+
+Do not infer RLS protection merely from API-level user filtering.
+
+18. Security Review
+
+Document findings concerning:
+
+- tenant isolation;
+- authentication boundaries;
+- provenance integrity;
+- client-supplied data;
+- prompt injection exposure;
+- account deletion;
+- sensitive data logging;
+- AI/provider data exposure;
+- feature flags;
+- new attack surface introduced by Phase 1.
+
+19. AI and API Usage
+
+Confirm whether any LLM is involved in deterministic Intelligence fact generation.
+
+Expected result:
+
+NO
+
+If any AI call was introduced, identify it and explain why.
+
+Also report whether Phase 1 changed existing AI/API costs.
+
+20. Existing Systems Reused
+
+Identify which existing Calora systems were reused rather than duplicated.
+
+Pay particular attention to:
+
+- Food Memory;
+- Today calculations;
+- weeklySignals;
+- livingState;
+- livingMemory;
+- Coach context;
+- Progress;
+- PersistenceManager;
+- existing caching/rate-limit patterns.
+
+21. Technical Debt Discovered
+
+List problems uncovered during implementation that existed before Phase 1.
+
+Do not quietly fix unrelated technical debt unless required for Phase 1 safety.
+
+Separate:
+
+pre-existing issue
+
+from:
+
+Phase 1 issue
+
+22. Remaining Unknowns and Blockers
+
+List every unresolved issue.
+
+Do not replace unknown information with assumptions.
+
+23. Phase 1 Boundary Verification
+
+Explicitly confirm whether Phase 1:
+
+- redesigned UI;
+- added visible Intelligence;
+- rewrote Coach;
+- changed production schema;
+- introduced predictive intelligence;
+- introduced adaptive learning;
+- introduced proactive notifications;
+- made logging server-dependent;
+- triggered a production build.
+
+For each answer:
+
+YES / NO
+
+Explain any YES answer.
+
+24. Repository State
+
+Report:
+
+- files changed;
+- migrations created;
+- dependencies added;
+- environment variables added;
+- database changes made;
+- builds triggered;
+- feature flags introduced.
+
+This should allow another engineer to understand exactly what Task #438 changed.
+
+25. Phase 1 Acceptance Matrix
+
+Evaluate every major Phase 1 requirement as:
+
+PASS / PARTIAL / FAIL / NOT TESTED / BLOCKED
+
+Provide evidence or test references for each result.
+
+26. Final Engineering Assessment
+
+Answer plainly:
+
+Is the Intelligence Foundation technically safe enough to become the trusted facts layer for future Calora Intelligence features?
+
+Choose:
+
+APPROVE
+
+APPROVE WITH CONDITIONS
+
+or
+
+DO NOT APPROVE
+
+Explain why.
+
+27. Phase 2 Recommendation
+
+Describe the safest next step for Phase 2.
+
+Recommendation only.
+
+DO NOT IMPLEMENT PHASE 2.
+
+---
+
+Evidence Standard
+
+This report must describe what actually exists in the repository after Task #438.
+
+Do not report planned work as completed work.
+
+Do not mark tests as passed unless they were executed.
+
+Do not hide discrepancies.
+
+Do not invent performance measurements.
+
+Do not infer external Supabase, provider, deployment, or security configuration that cannot be verified.
+
+Where evidence is unavailable, write:
+
+UNKNOWN / NOT VERIFIED
+
+The purpose of this report is independent technical review, not presentation.
+
+Save the complete report to:
+
+"docs/CALORA_INTELLIGENCE_PHASE_1_REPORT.md"
+
+Then provide me only a short chat summary confirming the report was created.
+
+Do not begin Phase 2.

@@ -1,0 +1,163 @@
+AUTHORIZE FINAL PHASE 2B PRODUCTION-EVIDENCE GATE
+
+The Final GO/NO-GO Report is accepted.
+
+No further general architecture remediation is authorized. The purpose of this task is to close the remaining production evidence gap identified by the report.
+
+Physical-device, responsive-layout, large-text, TalkBack, VoiceOver and accessibility validation remain explicitly deferred to final pre-production QA. Record them as deferred and not passed, but do not allow them to block this evidence task.
+
+1. Production migration verification
+
+Using the actual production managed-PostgreSQL target and established deployment procedure, independently verify whether the committed Phase 2B migration has been applied.
+
+Do not infer this from development.
+
+Verify read-only where possible:
+
+migration history/application record;
+
+consent ledger;
+
+rollout configuration structure;
+
+cohort structure;
+
+nonce/idempotency structure;
+
+required primary/unique keys;
+
+account foreign keys;
+
+ON DELETE CASCADE;
+
+consent state constraints;
+
+expected indexes;
+
+schema compatibility with current server code.
+
+
+If the required migration has not been applied, apply it only through the approved production migration procedure already defined by the project. Do not use ad-hoc DDL or drizzle-kit push as a substitute.
+
+Stop immediately if production schema differs materially from the expected migration.
+
+2. Prove production dark state
+
+Independently inspect the actual target environment and prove:
+
+client Fact Context remains OFF;
+
+server environment gate remains OFF/default deny;
+
+operational global configuration is absent or false;
+
+active Fact Context cohort membership count = 0;
+
+real eligible accounts = 0;
+
+Fact Context allowlist remains unchanged;
+
+legacy Coach remains available.
+
+
+Do not enable anything to perform this verification.
+
+3. Production privacy/configuration inspection
+
+Verify that operational rollout, consent and replay records contain metadata only and that no Fact Context values, Foundation facts, Coach messages, prompts, nutrition content or provider output are persisted.
+
+Verify database/configuration failures remain fail-closed.
+
+4. Authorized non-production synthetic rehearsal
+
+After production dark-state verification succeeds, perform one final non-production synthetic end-to-end rehearsal using the current deployed artifacts.
+
+Use no real customer identity or customer data.
+
+Exercise:
+
+consent → temporary reviewed cohort → temporary test authorization → live Coach architecture selection → approved calorie/protein Fact Context → server authorization → request validation → risk screening → provider/test-provider boundary → deterministic response validation → lifecycle settlement.
+
+During the rehearsal verify:
+
+exactly one architecture;
+
+exact frozen allowlist;
+
+no legacy broad context in Fact Context;
+
+replay rejection;
+
+lifecycle invalidation;
+
+consent revoke;
+
+cohort removal;
+
+global kill;
+
+pending-response suppression;
+
+no fallback to broad legacy context after Fact Context egress.
+
+
+5. Mandatory cleanup
+
+Immediately after rehearsal:
+
+remove synthetic cohort membership;
+
+remove temporary global authorization;
+
+remove synthetic consent/replay records where appropriate;
+
+restore all test gates;
+
+verify zero active cohort members;
+
+verify zero real eligible accounts;
+
+verify operational global config OFF/absent.
+
+
+Query the final state rather than assuming cleanup succeeded.
+
+6. Regression
+
+Run the relevant production-safe/read-only checks and complete development regression suites necessary to ensure the deployed artifacts still correspond to the reviewed implementation.
+
+Do not alter application architecture merely to make this task pass.
+
+Hard boundary
+
+This task does not authorize real-user activation.
+
+Do not enroll any real account.
+
+Do not enable production Fact Context traffic.
+
+Do not expand the allowlist.
+
+Do not retire Legacy Coach.
+
+Do not begin Phase 2C.
+
+Automatic report
+
+Create and save:
+
+docs/CALORA_COACH_FACT_CONTEXT_PRODUCTION_EVIDENCE_REPORT.md
+
+Include exact evidence for production migration state, production schema, production deny-all state, non-production synthetic rehearsal, cleanup verification, regressions, remaining blockers and deferred QA.
+
+End with exactly one:
+
+PRODUCTION EVIDENCE VERDICT: READY FOR CONTROLLED ACTIVATION DECISION
+
+PRODUCTION EVIDENCE VERDICT: BLOCKED
+
+PRODUCTION EVIDENCE VERDICT: DO NOT ACTIVATE
+
+Save the report and STOP.
+
+Do not activate a real user.

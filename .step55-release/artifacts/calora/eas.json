@@ -1,0 +1,82 @@
+{
+  "$schema": "https://raw.githubusercontent.com/expo/eas-cli/main/packages/eas-json/schema/eas.schema.json",
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "base": {
+      "node": "20.19.4",
+      "pnpm": "10.26.1",
+      "android": {
+        "image": "latest",
+        "resourceClass": "medium"
+      },
+      "ios": {
+        "image": "latest",
+        "resourceClass": "m-medium"
+      }
+    },
+    "development": {
+      "extends": "base",
+      "environment": "development",
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "development-device": {
+      "extends": "base",
+      "environment": "development",
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "environment": "preview",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "environment": "production",
+      "autoIncrement": false,
+      "credentialsSource": "remote",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://calorie-coach-pie35449.replit.app",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://pzdulhkpwbrbrgskwwwe.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_-3cvYunhb4ov7hJej3DAzg_WadMe74u",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY": "goog_oKaaAvrzOkZTXaWVRIkYSbvrOQq",
+        "EXPO_PUBLIC_REVENUECAT_IOS_API_KEY": "appl_OfSYcEvCwyDpfNqTMWCTRtGnCkc"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "distribution": "store"
+      }
+    },
+    "production-apk": {
+      "extends": "production",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6800321660",
+        "appleTeamId": "B5344GJRMT",
+        "bundleIdentifier": "com.etiendem.caloraapp"
+      }
+    }
+  }
+}
