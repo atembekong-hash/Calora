@@ -70,3 +70,17 @@ mtime_ms = 1789631219450
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/b523a5bd-8a94-4ee5-b1d8-145186f9798b/63a87f88-ef7e-416e-a25e-9da1e7c3eb28"
 storage_version_token = "1789631256685389"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "FXnQnhze6WuhiYlhqeFdf"
+uri = "file://55A_CALORA_IOS_BUILD_PROVENANCE_ENVIRONMENT_REMEDIATION_REPORT.md"
+type = "text"
+title = "Calora Step 55A remediation report"
+description = "No-build provenance remediation report documenting the durable standalone checkout, root-cause evidence, live build floors, and fail-closed dry-run result."
+logical_id = "ad399dd5-01c2-4f94-94aa-f0e3a67ed0f0"
+content_hash = "sha256:c90eedeaaf9892dca2521c55ce69f1358b90f994279acba9c4fcfcb921c7eef5"
+size = 17083
+mtime_ms = 1789632814564
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/ad399dd5-01c2-4f94-94aa-f0e3a67ed0f0/0c0f1a0b-4a1a-42f0-a6fd-8ee7832291e4"
+storage_version_token = "1789632841996536"
+content_type = "text/markdown"
