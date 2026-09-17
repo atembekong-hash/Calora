@@ -112,3 +112,17 @@ mtime_ms = 1789643732640
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/63c5b9ff-2350-41b0-a822-d37ec12ee698/a3e95843-2e7c-494f-b8ac-2a722ce613c4"
 storage_version_token = "1789643759402937"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "g3DG0kxQD5Xna6dpSxmJy"
+uri = "file://attached_assets/58D_R1_CALORA_EXACT_REPLIT_PUBLISHING_SOURCE_ALIGNMENT_REPORT.md"
+type = "text"
+title = "Calora Step 58D-R1 Publishing Source Alignment Report"
+description = "Download the uncommitted R1 evidence report for owner review."
+logical_id = "a4ca6bbe-3752-47b6-a9f0-2fc66e2b2b26"
+content_hash = "sha256:e342b99cb531da8a047534ca083fcd26c47a471f05d529ec073e8500de22bfdb"
+size = 14944
+mtime_ms = 1789681115938
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/a4ca6bbe-3752-47b6-a9f0-2fc66e2b2b26/3e888c5c-3939-4caa-9726-60e4e626fb22"
+storage_version_token = "1789681119158854"
+content_type = "text/markdown"
