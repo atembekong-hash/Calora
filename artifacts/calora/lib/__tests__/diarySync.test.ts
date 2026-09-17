@@ -117,20 +117,6 @@ function makeServerRecord(overrides: Record<string, unknown> = {}) {
 
 async function freshDiarySync() {
   vi.resetModules();
-  vi.mock('@react-native-async-storage/async-storage', () => ({
-    default: {
-      getItem: vi.fn(async (key: string) => store[key] ?? null),
-      setItem: vi.fn(async (key: string, value: string) => {
-        store[key] = value;
-      }),
-      removeItem: vi.fn(async (key: string) => {
-        delete store[key];
-      }),
-    },
-  }));
-  vi.mock('@workspace/api-client-react', () => ({
-    syncOutbox: (...args: unknown[]) => mockSyncOutbox(...args),
-  }));
   return import('../diarySync');
 }
 
