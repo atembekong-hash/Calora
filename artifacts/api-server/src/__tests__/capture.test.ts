@@ -127,10 +127,10 @@ vi.mock('@workspace/integrations-openai-ai-server', () => ({
 
 // ---------------------------------------------------------------------------
 // Mock verifyBearerToken so the capture route doesn't try to reach Supabase.
-// Default: returns null (anonymous / no valid token).
+// Default: returns a verified user. Individual auth-gate tests override this.
 // ---------------------------------------------------------------------------
 vi.mock('../lib/supabase-auth.js', () => ({
-  verifyBearerToken: vi.fn().mockResolvedValue(null),
+  verifyBearerToken: vi.fn().mockResolvedValue({ id: 'capture-test-user', email: 'capture-test@example.com' }),
 }));
 
 // Keep the capture route focused on session persistence in these tests. The
@@ -281,15 +281,70 @@ describe('POST /v1/capture/analyze', () => {
     // resetCaptureRateLimiter is async — it issues a DELETE against the
     // (mocked) DB table so the in-memory simulation is cleared before each test.
     await resetCaptureRateLimiter();
-    // Default: anonymous (no verified user). Individual tests can override this.
-    vi.mocked(verifyBearerToken).mockResolvedValue(null);
+    // Default: authenticated so provider and validation tests exercise the
+    // normal capture path. Individual auth-gate tests override this.
+    vi.mocked(verifyBearerToken).mockResolvedValue({
+      id: 'capture-test-user',
+      email: 'capture-test@example.com',
+    });
     vi.mocked(openai.audio.transcriptions.create).mockResolvedValue({ text: 'test meal' } as any);
+  });
+
+  describe('authentication gate', () => {
+    it('rejects missing authentication before rate limiting or provider work', async () => {
+      vi.mocked(verifyBearerToken).mockResolvedValue(null);
+      vi.mocked(pool.query).mockClear();
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'text', textInput: 'a banana' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(401);
+      expect(res.body).toEqual({ message: 'Please sign in to analyze a capture.' });
+      expect(pool.query).not.toHaveBeenCalled();
+      expect(openai.chat.completions.create).not.toHaveBeenCalled();
+      expect(openai.audio.transcriptions.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects invalid authentication before rate limiting or provider work', async () => {
+      vi.mocked(verifyBearerToken).mockResolvedValue(null);
+      vi.mocked(pool.query).mockClear();
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .set('Authorization', 'Bearer forged.unsigned.token')
+        .send({ mode: 'food', imageBase64: 'image-data' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(401);
+      expect(pool.query).not.toHaveBeenCalled();
+      expect(openai.chat.completions.create).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when authentication verification is unavailable', async () => {
+      vi.mocked(verifyBearerToken).mockRejectedValueOnce(new Error('identity service unavailable'));
+      vi.mocked(pool.query).mockClear();
+
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'text', textInput: 'a banana' })
+        .set('Content-Type', 'application/json');
+
+      expect(res.status).toBe(503);
+      expect(res.body).toEqual({
+        message: 'Capture authentication is temporarily unavailable. Please try again shortly.',
+      });
+      expect(pool.query).not.toHaveBeenCalled();
+      expect(openai.chat.completions.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('POST /v1/capture/:sessionId/approve compatibility', () => {
     const SESSION_ID = '11111111-1111-4111-8111-111111111111';
 
     it('reaches authentication for an unauthenticated request instead of returning 404', async () => {
+      vi.mocked(verifyBearerToken).mockResolvedValue(null);
       const res = await request(app)
         .post(`/v1/capture/${SESSION_ID}/approve`)
         .set('Content-Type', 'application/json');
@@ -1032,7 +1087,7 @@ describe('POST /v1/capture/analyze', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Rate limiting — per user/IP sliding window
+    // Rate limiting — per-user fixed window
   // -------------------------------------------------------------------------
 
   describe('rate limiting', () => {
@@ -1040,11 +1095,8 @@ describe('POST /v1/capture/analyze', () => {
     // with a clean slate. We use voice mode (no network/AI calls) to exhaust
     // the bucket quickly without mocking every provider.
     //
-    // verifyBearerToken is mocked to return null (anonymous) by default.
-    // Tests that want a verified user identity override it directly.
-
-    it('fails CLOSED (503, no provider call) for anonymous requests when the limiter store is unavailable', async () => {
-      vi.mocked(verifyBearerToken).mockResolvedValue(null);
+    it('fails CLOSED (503, no provider call) for authenticated requests when the limiter store is unavailable', async () => {
+      vi.mocked(verifyBearerToken).mockResolvedValue({ id: 'user-fail-closed-anonymous', email: null });
       vi.mocked(pool.query).mockRejectedValueOnce(new Error('DB connection lost'));
 
       const res = await request(app)
@@ -1072,7 +1124,7 @@ describe('POST /v1/capture/analyze', () => {
       expect(openai.audio.transcriptions.create).not.toHaveBeenCalled();
     });
 
-    it('returns 429 after exceeding the per-IP request limit', async () => {
+    it('returns 429 after exceeding the per-user request limit', async () => {
       // Exhaust the bucket (CAPTURE_RATE_LIMIT = 30).
       for (let i = 0; i < 30; i++) {
         await request(app)
@@ -1166,19 +1218,7 @@ describe('POST /v1/capture/analyze', () => {
       expect(resB.status).toBe(200);
     });
 
-    it('an invalid or unsigned token falls back to the shared IP bucket, not a fresh user bucket', async () => {
-      // Anonymous (no auth) exhausts the IP bucket.
-      vi.mocked(verifyBearerToken).mockResolvedValue(null);
-      for (let i = 0; i < 30; i++) {
-        await request(app)
-          .post('/v1/capture/analyze')
-          .send({ mode: 'voice' })
-          .set('Content-Type', 'application/json');
-      }
-
-      // A request bearing an invalid/unverified token must NOT receive a fresh
-      // bucket — verifyBearerToken returns null for invalid tokens, so the
-      // request lands in the same IP bucket that is already exhausted.
+    it('rejects an invalid or unsigned token instead of creating an anonymous bucket', async () => {
       vi.mocked(verifyBearerToken).mockResolvedValue(null);
       const res = await request(app)
         .post('/v1/capture/analyze')
@@ -1186,12 +1226,12 @@ describe('POST /v1/capture/analyze', () => {
         .send({ mode: 'voice' })
         .set('Content-Type', 'application/json');
 
-      expect(res.status).toBe(429);
+      expect(res.status).toBe(401);
     });
 
-    it('a spoofed X-Forwarded-For header does not bypass the rate limit', async () => {
-      // Exhaust the IP bucket with requests bearing no special headers.
-      vi.mocked(verifyBearerToken).mockResolvedValue(null);
+    it('a spoofed X-Forwarded-For header does not bypass the authenticated user limit', async () => {
+      // Exhaust the authenticated user bucket.
+      vi.mocked(verifyBearerToken).mockResolvedValue({ id: 'forwarded-header-user', email: null });
       for (let i = 0; i < 30; i++) {
         await request(app)
           .post('/v1/capture/analyze')
@@ -1199,10 +1239,8 @@ describe('POST /v1/capture/analyze', () => {
           .set('Content-Type', 'application/json');
       }
 
-      // Sending a spoofed X-Forwarded-For must not produce a fresh bucket.
-      // req.ip is determined by Express from the trusted-proxy chain set in
-      // app.ts, not from the raw header value; the test app uses the same
-      // loopback address regardless of what X-Forwarded-For says.
+      // Sending a spoofed X-Forwarded-For must not produce a fresh bucket
+      // because authenticated capture quotas are bound to verified identity.
       const res = await request(app)
         .post('/v1/capture/analyze')
         .set('X-Forwarded-For', '1.2.3.4')
@@ -1254,7 +1292,7 @@ describe('POST /v1/capture/analyze', () => {
       }
 
       // Force the window to expire by back-dating the bucket's reset_at.
-      const key = 'user:user-window-reset';
+      const key = 'capture:user:user-window-reset';
       const bucket = mockRateBuckets.get(key);
       if (bucket) {
         bucket.reset_at = new Date(Date.now() - 1); // expired 1 ms ago
