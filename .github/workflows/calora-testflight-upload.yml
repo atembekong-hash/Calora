@@ -3,6 +3,9 @@ name: Calora TestFlight Upload
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: calora-testflight-production
   cancel-in-progress: false
@@ -16,6 +19,12 @@ jobs:
         working-directory: artifacts/calora
 
     steps:
+      - name: Require protected main source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF:-}" = "refs/heads/main"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
