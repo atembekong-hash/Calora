@@ -1,5 +1,5 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { db, recipeNutritionTable } from "@workspace/db";
+import { db, pool, recipeNutritionTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { randomUUID } from "node:crypto";
@@ -8,6 +8,7 @@ import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import {
   accountDeletionFenceSignal,
+  assertAccountWritable,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
 
@@ -31,6 +32,17 @@ const RECIPE_PHOTO_RATE_LIMIT = 12;
 const RECIPE_PHOTO_URL_TTL_SECS = 60 * 60 * 24 * 6;
 const RECIPE_PHOTO_TIMEOUT_MS = 30_000;
 const OBJECT_STORAGE_SIDECAR = "http://127.0.0.1:1106/object-storage/signed-object-url";
+
+/**
+ * Node may expose a local IPv4 peer as an IPv4-mapped IPv6 address. Treat only
+ * that exact representation as equivalent; preserve native IPv6 addresses so
+ * distinct routable clients do not collapse into one limiter bucket.
+ */
+export function canonicalizeIpAddress(address: string | undefined): string {
+  const value = address ?? "unknown";
+  const mappedIpv4 = value.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i)?.[1];
+  return mappedIpv4 ?? value;
+}
 
 async function enforceRecipeGenLimit(
   scope: string,
@@ -93,8 +105,37 @@ async function signedRecipePhotoUrl(userId: string, imageId: string, method: "GE
   return payload.signed_url;
 }
 
-async function enforceRecipeIpLimit(req: Request, res: Response): Promise<boolean> {
-  const key = `recipes:ip:${req.ip ?? req.socket?.remoteAddress ?? "unknown"}`;
+async function withRecipePhotoDeletionReadLock<T>(
+  userId: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+  const key = `calora-account-deletion:${userId}`;
+  try {
+    // Deletion takes the matching exclusive lock. Keeping this shared lock
+    // through image upload prevents an already-admitted request from adding a
+    // photo after deletion verifies the prefix is empty.
+    await client.query(
+      "SELECT pg_advisory_lock_shared(hashtextextended($1, 0))",
+      [key],
+    );
+    // A request that waited behind deletion must not proceed after the
+    // exclusive lock is released.
+    await assertAccountWritable(userId);
+    return await operation();
+  } finally {
+    await client.query(
+      "SELECT pg_advisory_unlock_shared(hashtextextended($1, 0))",
+      [key],
+    ).catch(() => undefined);
+    client.release();
+  }
+}
+
+async function enforceRecipeIpLimit(req: Request, res: Response, scope: "list" | "detail"): Promise<boolean> {
+  // Keep list and detail buckets separate so opening saved recipes cannot
+  // consume the quota needed to render Discover.
+  const key = `recipes:${scope}:ip:${canonicalizeIpAddress(req.ip ?? req.socket?.remoteAddress)}`;
   // failClosed: this route is anonymous, so a DB outage must deny rather than
   // let unmetered public traffic trigger paid provider calls.
   const rate = await checkRateLimit(key, RECIPES_RATE_LIMIT, RECIPES_RATE_WINDOW_SECS, { failClosed: true });
@@ -114,7 +155,7 @@ async function enforceRecipeIpLimit(req: Request, res: Response): Promise<boolea
 async function enforceGuestRecipeLimit(req: Request, res: Response): Promise<boolean> {
   // Express derives req.ip from its configured trusted proxy chain. Do not read
   // a forwarded header directly: callers must not choose their own limiter key.
-  const clientKey = req.ip ?? req.socket?.remoteAddress ?? "unknown";
+  const clientKey = canonicalizeIpAddress(req.ip ?? req.socket?.remoteAddress);
   for (const [scope, limit, windowSecs] of [
     ["guest-recipes:burst", GUEST_RECIPE_BURST_LIMIT, GUEST_RECIPE_BURST_WINDOW_SECS],
     ["guest-recipes:daily", GUEST_RECIPE_DAILY_LIMIT, GUEST_RECIPE_DAILY_WINDOW_SECS],
@@ -331,47 +372,59 @@ router.post("/v1/recipes/photo", async (req, res) => {
   const description = conceptText(body.description, 300);
   if (!title) return res.status(400).json({ message: "Finish a recipe before creating its photo." });
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), RECIPE_PHOTO_TIMEOUT_MS);
   try {
-    // Recipe fields have already been normalized by the complete-recipe route.
-    // Do not pass account data, diary context, or unrestricted creator prompts
-    // into an image request.
-    const prompt = `Editorial food photography of "${title}". ${description || "A freshly prepared homemade meal."} Serve the dish on a simple ceramic plate or bowl, natural window light, appetizing realistic texture, overhead three-quarter composition, no people, no hands, no words, no labels, no packaging.`;
-    const generated = await openai.images.generate({
-      model: "gpt-image-1",
-      prompt,
-      size: "1024x1024",
-      quality: "low",
-      output_format: "png",
-      n: 1,
-    }, { signal: controller.signal });
-    const encoded = generated.data?.[0]?.b64_json;
-    if (typeof encoded !== "string" || !encoded) throw new Error("Image provider returned no image");
-    const imageBytes = Buffer.from(encoded, "base64");
-    if (imageBytes.length === 0 || imageBytes.length > 15 * 1024 * 1024) throw new Error("Invalid generated image size");
+    await withRecipePhotoDeletionReadLock(user.id, async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), RECIPE_PHOTO_TIMEOUT_MS);
+      try {
+        // Recipe fields have already been normalized by the complete-recipe route.
+        // Do not pass account data, diary context, or unrestricted creator prompts
+        // into an image request.
+        const prompt = `Editorial food photography of "${title}". ${description || "A freshly prepared homemade meal."} Serve the dish on a simple ceramic plate or bowl, natural window light, appetizing realistic texture, overhead three-quarter composition, no people, no hands, no words, no labels, no packaging.`;
+        const generated = await openai.images.generate({
+          model: "gpt-image-1",
+          prompt,
+          size: "1024x1024",
+          quality: "low",
+          output_format: "png",
+          n: 1,
+        }, { signal: controller.signal });
+        const encoded = generated.data?.[0]?.b64_json;
+        if (typeof encoded !== "string" || !encoded) throw new Error("Image provider returned no image");
+        const imageBytes = Buffer.from(encoded, "base64");
+        if (imageBytes.length === 0 || imageBytes.length > 15 * 1024 * 1024) throw new Error("Invalid generated image size");
 
-    const imageId = randomUUID();
-    const uploadUrl = await signedRecipePhotoUrl(user.id, imageId, "PUT", 15 * 60);
-    const upload = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: { "content-type": "image/png", "content-length": String(imageBytes.length) },
-      body: imageBytes,
-      signal: controller.signal,
-    });
-    if (!upload.ok) throw new Error(`Recipe photo upload failed (${upload.status})`);
+        const imageId = randomUUID();
+        const uploadUrl = await signedRecipePhotoUrl(user.id, imageId, "PUT", 15 * 60);
+        const upload = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "content-type": "image/png", "content-length": String(imageBytes.length) },
+          body: imageBytes,
+          signal: controller.signal,
+        });
+        if (!upload.ok) throw new Error(`Recipe photo upload failed (${upload.status})`);
 
-    const imageUrl = await signedRecipePhotoUrl(user.id, imageId, "GET", RECIPE_PHOTO_URL_TTL_SECS);
-    return res.json({
-      imageId,
-      imageUrl,
-      imageUrlExpiresAt: new Date(Date.now() + RECIPE_PHOTO_URL_TTL_SECS * 1000).toISOString(),
+        const imageUrl = await signedRecipePhotoUrl(user.id, imageId, "GET", RECIPE_PHOTO_URL_TTL_SECS);
+        res.json({
+          imageId,
+          imageUrl,
+          imageUrlExpiresAt: new Date(Date.now() + RECIPE_PHOTO_URL_TTL_SECS * 1000).toISOString(),
+        });
+      } finally {
+        clearTimeout(timer);
+      }
     });
+    return;
   } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/recipes/photo"),
+        "Account deletion fence rejected recipe photo request",
+      );
+      return res.status(503).json({ message: "Recipe photo generation is temporarily unavailable. Please try again shortly." });
+    }
     logger.warn({ err: error }, "Recipe photo generation failed");
     return res.status(502).json({ message: "Calora couldn’t create that recipe photo right now. Your recipe is still saved." });
-  } finally {
-    clearTimeout(timer);
   }
 });
 
@@ -424,6 +477,37 @@ const nutritionRefreshInFlight = new Set<string>();
 // requests for the same uncached meal into ONE OpenAI call, so an anonymous
 // caller cannot amplify cost by fanning out concurrent misses for one id.
 const nutritionMissInFlight = new Map<string, Promise<NutritionEstimate | null>>();
+
+// This is intentionally process-wide rather than per-IP: IP quotas limit
+// callers, while this guard caps aggregate provider pressure on each API
+// worker even when traffic comes from many addresses. A token is consumed
+// when a request starts because provider billing is incurred regardless of
+// whether the request later succeeds.
+const RECIPE_AI_MAX_CONCURRENT = Number(process.env.RECIPE_AI_MAX_CONCURRENT ?? 4);
+const RECIPE_AI_CALLS_PER_WINDOW = Number(process.env.RECIPE_AI_CALLS_PER_WINDOW ?? 60);
+const RECIPE_AI_WINDOW_MS = Number(process.env.RECIPE_AI_WINDOW_MS ?? 60 * 60 * 1000);
+let recipeAiActive = 0;
+let recipeAiWindowStartedAt = 0;
+let recipeAiCallsInWindow = 0;
+
+function acquireRecipeAiBudget(): (() => void) | null {
+  const now = Date.now();
+  if (now - recipeAiWindowStartedAt >= RECIPE_AI_WINDOW_MS) {
+    recipeAiWindowStartedAt = now;
+    recipeAiCallsInWindow = 0;
+  }
+  if (
+    recipeAiActive >= RECIPE_AI_MAX_CONCURRENT
+    || recipeAiCallsInWindow >= RECIPE_AI_CALLS_PER_WINDOW
+  ) {
+    return null;
+  }
+  recipeAiActive += 1;
+  recipeAiCallsInWindow += 1;
+  return () => {
+    recipeAiActive = Math.max(0, recipeAiActive - 1);
+  };
+}
 
 /**
  * Resolve a cache-miss nutrition estimate, coalescing concurrent callers for
@@ -500,6 +584,11 @@ async function saveNutritionToDb(mealId: string, nutrition: NutritionEstimate): 
 }
 
 async function estimateNutrition(name: string, ingredients: string[]): Promise<NutritionEstimate | null> {
+  const releaseBudget = acquireRecipeAiBudget();
+  if (!releaseBudget) {
+    logger.warn("Anonymous recipe nutrition budget exhausted; serving degraded response");
+    return null;
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
   try {
@@ -529,7 +618,26 @@ async function estimateNutrition(name: string, ingredients: string[]): Promise<N
     return null;
   } finally {
     clearTimeout(timer);
+    releaseBudget();
   }
+}
+
+export function resetRecipeAiBudgetForTests(): void {
+  recipeAiActive = 0;
+  recipeAiWindowStartedAt = 0;
+  recipeAiCallsInWindow = 0;
+}
+
+export function resetRecipeNutritionStateForTests(): void {
+  nutritionCache.clear();
+  nutritionRefreshInFlight.clear();
+  nutritionMissInFlight.clear();
+  warmupInProgress = false;
+  warmupDone = false;
+  warmupPendingForPool = false;
+  forYouCache = [];
+  forYouCacheTime = 0;
+  forYouFetchPromise = null;
 }
 
 /**
@@ -614,6 +722,7 @@ let warmupInProgress = false;
 // Flips to true once the first warm-up job finishes; resets when the pool TTL
 // expires so a fresh pool always triggers a new warm cycle.
 let warmupDone = false;
+let warmupPendingForPool = false;
 
 /**
  * Silently pre-populate the nutrition cache for the first page of the "For you"
@@ -825,6 +934,7 @@ async function getForYouMeals(): Promise<Meal[]> {
       forYouFetchPromise = null;
       // Reset warm-up state so the fresh pool always triggers a new cycle.
       warmupDone = false;
+      warmupPendingForPool = true;
       warmupInProgress = false;
       // Fire-and-forget: warm the nutrition cache so first-visit cards show
       // calorie estimates without the user ever opening a detail sheet.
@@ -839,7 +949,7 @@ async function getForYouMeals(): Promise<Meal[]> {
 }
 
 router.get("/v1/recipes", async (req, res) => {
-  if (!(await enforceRecipeIpLimit(req, res))) return;
+  if (!(await enforceRecipeIpLimit(req, res, "list"))) return;
   try {
     const query = typeof req.query.query === "string" ? req.query.query.trim() : "";
     const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
@@ -877,7 +987,8 @@ router.get("/v1/recipes", async (req, res) => {
     });
     // Let clients know they should refetch soon if the background warm-up
     // has not yet populated estimates for the first page of results.
-    const warmupPending = !warmupDone;
+    const warmupPending = !warmupDone || warmupPendingForPool;
+    if (warmupPendingForPool) queueMicrotask(() => { warmupPendingForPool = false; });
     const nextOffset = offset + recipes.length < meals.length ? offset + recipes.length : null;
     res.json({
       source: SOURCE,
@@ -892,7 +1003,7 @@ router.get("/v1/recipes", async (req, res) => {
 });
 
 router.get("/v1/recipes/:recipeId", async (req, res) => {
-  if (!(await enforceRecipeIpLimit(req, res))) return;
+  if (!(await enforceRecipeIpLimit(req, res, "detail"))) return;
   try {
     const data = await fetchJson(`${API_ROOT}/lookup.php?i=${encodeURIComponent(req.params.recipeId)}`);
     const meal = data.meals?.[0];

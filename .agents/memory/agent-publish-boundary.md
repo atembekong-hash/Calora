@@ -13,3 +13,14 @@ source-to-runtime provenance chain.
 **How to apply:** Complete and validate release-control code, record the live
 identity honestly, and leave publishing/post-publish verification to the
 approved operator or UI control plane when no mutation operation is callable.
+
+Publishing can append an empty local marker commit after the deployment has
+already been built. That commit has a new Git SHA but the same source tree as
+the deployed release.
+
+**Why:** Comparing live attestation against the post-publish `HEAD` can falsely
+report an identity mismatch despite the deployed source tree being unchanged.
+
+**How to apply:** Verify the live `/api/version` identity against its attested
+release commit, then separately confirm that its source tree equals the current
+reviewed tree before claiming source-to-production alignment.

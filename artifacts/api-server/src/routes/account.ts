@@ -25,6 +25,7 @@ import {
 } from "../lib/account-deletion-state.js";
 import { deleteRevenueCatSubscriber } from "../lib/revenuecat.js";
 import { logger, noteSuppressedRecoveryWarning } from "../lib/logger.js";
+import { eraseRecipePhotoObjects } from "../lib/recipe-photo-storage.js";
 
 const router: IRouter = Router();
 const RECOVERY_STUCK_AFTER_MS = 15 * 60 * 1000;
@@ -46,7 +47,7 @@ function countStages(records: RecoverySignalRecord[]): Record<AccountDeletionSta
       counts[record.stage] += 1;
       return counts;
     },
-    { application: 0, revenuecat: 0, auth: 0 },
+    { object_storage: 0, application: 0, revenuecat: 0, auth: 0 },
   );
 }
 
@@ -149,10 +150,21 @@ export async function runAccountDeletion(externalUserId: string): Promise<"compl
 
   let operationId: string | null = null;
   try {
-    const claim = await claimAccountDeletion(externalUserId);
+    let claim = await claimAccountDeletion(externalUserId);
     if (claim.kind === "completed") return "completed";
     if (claim.kind === "in_progress") return "in_progress";
     operationId = claim.operationId;
+    // This runs for every non-terminal claim, including legacy operations that
+    // already checkpointed past application cleanup before object erasure was
+    // introduced. It is idempotent and therefore safe on every recovery retry.
+    // The saga cannot reach Auth completion while this fail-closed stage fails.
+    await eraseRecipePhotoObjects(externalUserId);
+    if (claim.stage === "object_storage") {
+      if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "application")) {
+        throw new Error("Account deletion ownership was lost after object-storage erasure.");
+      }
+      claim = { ...claim, stage: "application" };
+    }
     if (claim.stage === "application") {
       await deleteApplicationData(externalUserId);
       if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "revenuecat")) {

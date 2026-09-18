@@ -25,6 +25,8 @@ const plannerImages: Record<PlannerImageKey, ImageSource> = {
   'spaghetti-bolognese': require('../assets/images/meals/spaghetti-bolognese.jpg'),
   'beef-tacos': require('../assets/images/meals/beef-tacos.jpg'),
   'prawn-stirfry': require('../assets/images/meals/prawn-stirfry.jpg'),
+  'keto-chicken-zucchini': require('../assets/images/meals/keto-chicken-zucchini.jpg'),
+  'keto-salmon-olive': require('../assets/images/meals/keto-salmon-olive.jpg'),
   'apple-almond': require('../assets/images/meals/apple-almond.jpg'),
   edamame: require('../assets/images/meals/edamame.jpg'),
   'trail-mix': require('../assets/images/meals/trail-mix.jpg'),

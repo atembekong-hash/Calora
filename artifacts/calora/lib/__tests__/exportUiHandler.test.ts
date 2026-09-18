@@ -399,7 +399,7 @@ describe('shareExportFile: writes the export file and invokes the share sheet', 
 
     expect(writeAsStringAsync).toHaveBeenCalledTimes(1);
     const [path] = writeAsStringAsync.mock.calls[0] as [string, string];
-    expect(path).toContain('caloraapp-export.json');
+    expect(path).toMatch(/caloraapp-export-[a-z0-9-]+\.json$/);
   });
 
   it('calls writeAsStringAsync with the exact unmodified content', async () => {
@@ -449,7 +449,7 @@ describe('shareExportFile: writes the export file and invokes the share sheet', 
       adapter,
     );
     const [uri] = shareAsync.mock.calls[0] as [string, unknown];
-    expect(uri).toContain('caloraapp-export.json');
+    expect(uri).toMatch(/caloraapp-export-[a-z0-9-]+\.json$/);
     expect(uri).toContain('file:///tmp/cache/');
   });
 
@@ -509,6 +509,44 @@ describe('shareExportFile: writes the export file and invokes the share sheet', 
       ),
     ).resolves.toBeUndefined();
   });
+
+  it('deletes the unique temporary file only after share settles', async () => {
+    const callOrder: string[] = [];
+    const adapter: FileShareAdapter = {
+      cacheDirectory: 'file:///cache/',
+      writeAsStringAsync: vi.fn().mockImplementation(async () => { callOrder.push('write'); }),
+      shareAsync: vi.fn().mockImplementation(async () => { callOrder.push('share'); }),
+      deleteAsync: vi.fn().mockImplementation(async () => { callOrder.push('delete'); }),
+    };
+
+    await shareExportFile(
+      { content: makeRawExport(), filename: EXPORT_FILENAME, mimeType: EXPORT_MIME_TYPE },
+      adapter,
+    );
+
+    expect(callOrder).toEqual(['write', 'share', 'delete']);
+    expect(adapter.deleteAsync).toHaveBeenCalledOnce();
+    expect((adapter.deleteAsync as ReturnType<typeof vi.fn>).mock.calls[0][0])
+      .toMatch(/caloraapp-export-[a-z0-9-]+\.json$/);
+  });
+
+  it('deletes the temporary file when the share sheet is cancelled or fails', async () => {
+    const deleteAsync = vi.fn().mockResolvedValue(undefined);
+    const adapter: FileShareAdapter = {
+      cacheDirectory: 'file:///cache/',
+      writeAsStringAsync: vi.fn().mockResolvedValue(undefined),
+      shareAsync: vi.fn().mockRejectedValue(new Error('Share cancelled')),
+      deleteAsync,
+    };
+
+    await expect(
+      shareExportFile(
+        { content: makeRawExport(), filename: EXPORT_FILENAME, mimeType: EXPORT_MIME_TYPE },
+        adapter,
+      ),
+    ).rejects.toThrow('Share cancelled');
+    expect(deleteAsync).toHaveBeenCalledOnce();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -529,13 +567,13 @@ describe('handleExportTap → shareExportFile: filename and mimeType reach the p
     // File written with the correct name and unmodified content
     expect(writeAsStringAsync).toHaveBeenCalledTimes(1);
     const [writePath, writeContent] = writeAsStringAsync.mock.calls[0] as [string, string];
-    expect(writePath).toContain('caloraapp-export.json');
+    expect(writePath).toMatch(/caloraapp-export-[a-z0-9-]+\.json$/);
     expect(writeContent).toBe(raw);
 
     // Share sheet opened with the correct MIME type and dialog title
     expect(shareAsync).toHaveBeenCalledTimes(1);
     const [shareUri, shareOpts] = shareAsync.mock.calls[0] as [string, { mimeType: string; dialogTitle: string }];
-    expect(shareUri).toContain('caloraapp-export.json');
+    expect(shareUri).toMatch(/caloraapp-export-[a-z0-9-]+\.json$/);
     expect(shareOpts.mimeType).toBe('application/json');
     expect(shareOpts.dialogTitle).toBe('caloraapp-export.json');
 

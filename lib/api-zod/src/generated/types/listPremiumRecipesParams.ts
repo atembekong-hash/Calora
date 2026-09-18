@@ -16,6 +16,11 @@ query?: string;
  */
 category?: string;
 /**
+ * UTC browsing-session day used for deterministic default-catalogue freshness
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+freshnessDay?: string;
+/**
  * @minimum 1
  * @maximum 30
  */

@@ -1,19 +1,20 @@
 {
   "$schema": "https://raw.githubusercontent.com/expo/eas-cli/main/packages/eas-json/schema/eas.schema.json",
   "cli": {
-    "version": ">= 16.0.0",
-    "appVersionSource": "local"
+    "version": "16.17.4",
+    "appVersionSource": "local",
+    "requireCommit": true
   },
   "build": {
     "base": {
       "node": "20.19.4",
       "pnpm": "10.26.1",
       "android": {
-        "image": "latest",
+        "image": "ubuntu-22.04-android-ndk-r26b",
         "resourceClass": "medium"
       },
       "ios": {
-        "image": "latest",
+        "image": "macos-14.5-xcode-15.4",
         "resourceClass": "m-medium"
       }
     },
@@ -49,7 +50,7 @@
       "autoIncrement": false,
       "credentialsSource": "remote",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://calorie-coach-pie35449.replit.app",
+        "EXPO_PUBLIC_API_URL": "https://mycaloraapp.com",
         "EXPO_PUBLIC_SUPABASE_URL": "https://pzdulhkpwbrbrgskwwwe.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_-3cvYunhb4ov7hJej3DAzg_WadMe74u",
         "EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY": "goog_oKaaAvrzOkZTXaWVRIkYSbvrOQq",

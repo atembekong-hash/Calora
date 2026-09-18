@@ -17,14 +17,19 @@ import { fileURLToPath } from "node:url";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
   MONITOR_SCHEMA_VERSION,
+  sanitizeHostedDeploymentLogExport,
   summarizeAccountDeletionFenceLogs,
 } from "./monitor-account-deletion-fence.mjs";
 import {
   ACCOUNT_DELETION_FENCE_MAX_COUNT,
   ACCOUNT_DELETION_FENCE_MAX_ROUTE_LENGTH,
+  ACCOUNT_DELETION_FENCE_SIGNAL_SCHEMA_VERSION,
+  ACCOUNT_DELETION_FENCE_SUPPORTED_SIGNAL_SCHEMA_VERSIONS,
   createAccountDeletionFenceSignal,
   parseAccountDeletionFenceSignal,
 } from "../artifacts/api-server/src/lib/account-deletion-fence-schema.mjs";
+import { fetchPublishedReleaseAttestation } from "./lib/public-release-attestation.mjs";
+import { fetchPublishedReleaseAttestation as fetchVerifierPublishedReleaseAttestation } from "../artifacts/api-server/scripts/verify-public-release.mjs";
 
 const execFileAsync = promisify(execFile);
 const workspaceDir = path.resolve(
@@ -36,6 +41,106 @@ const monitorPath = path.join(
   "scripts",
   "monitor-account-deletion-fence.mjs",
 );
+const PUBLISHED_ORIGIN = "https://calora.example";
+
+function publishedAttestation(overrides = {}) {
+  return {
+    schemaVersion: "calora.release-attestation.v1",
+    gitCommit: "a".repeat(40),
+    sourceTree: "b".repeat(40),
+    sourceDigest: "c".repeat(64),
+    buildTimestamp: "2026-09-05T10:14:25.616Z",
+    releaseId: "calora-api-aaaaaaaaaaaa-20260905101425616",
+    ...overrides,
+  };
+}
+
+function mockVersionResponse(
+  body,
+  { status = 200, url = `${PUBLISHED_ORIGIN}/api/version`, headers = {} } = {},
+) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    type: "basic",
+    url,
+    headers: new Headers(headers),
+    async json() {
+      if (body instanceof Error) throw body;
+      return body;
+    },
+  };
+}
+
+async function withMockedFetch(response, callback) {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (...args) => {
+    calls.push(args);
+    return response;
+  };
+  try {
+    return await callback(calls);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+test("shared published-attestation fetcher rejects malformed /api/version payloads", async () => {
+  for (const body of [
+    new Error("invalid JSON"),
+    null,
+    {
+      ...publishedAttestation(),
+      sourceTree: "not-a-sha",
+    },
+  ]) {
+    await withMockedFetch(mockVersionResponse(body), async () => {
+      await assert.rejects(
+        fetchVerifierPublishedReleaseAttestation(PUBLISHED_ORIGIN),
+        /(?:did not return valid JSON|invalid shape)/,
+      );
+    });
+  }
+});
+
+test("shared published-attestation fetcher rejects off-origin redirects", async () => {
+  await withMockedFetch(
+    mockVersionResponse(null, {
+      status: 302,
+      headers: { location: "https://attacker.example/api/version" },
+    }),
+    async (calls) => {
+      await assert.rejects(
+        fetchPublishedReleaseAttestation(PUBLISHED_ORIGIN),
+        /redirected off the canonical origin/,
+      );
+      assert.equal(calls[0][0], `${PUBLISHED_ORIGIN}/api/version`);
+      assert.equal(calls[0][1].redirect, "manual");
+    },
+  );
+});
+
+test("shared published-attestation fetcher keeps only the sanitized allowlist", async () => {
+  const response = await withMockedFetch(
+    mockVersionResponse(
+      publishedAttestation({
+        credential: "must-not-be-retained",
+        deployment: {
+          provider: "must-not-be-retained",
+          secret: "must-not-be-retained",
+        },
+      }),
+    ),
+    async () => fetchVerifierPublishedReleaseAttestation(PUBLISHED_ORIGIN),
+  );
+
+  assert.deepEqual(response, publishedAttestation());
+  assert.strictEqual(
+    fetchPublishedReleaseAttestation,
+    fetchVerifierPublishedReleaseAttestation,
+  );
+});
 
 test("counts sanitized deletion-fence events by route and separates sync 503s", () => {
   const accountId = "disposable-account-must-not-be-retained";
@@ -156,6 +261,91 @@ test("accepts explicit bounded run windows without retaining log records", () =>
     source: "bounded-log-export",
   });
   assert.equal(JSON.stringify(report).includes("raw deployment record"), false);
+});
+
+test("sanitizes the hosted formatted export into monitor-compatible records", () => {
+  const accountId = "hosted-account-must-not-be-retained";
+  const credential = "Bearer hosted-credential-must-not-be-retained";
+  const hostedExport = [
+    `2026-09-07T10:00:01.000Z INFO api {"hostname":"api","pid":42,"errorClass":"${ACCOUNT_DELETION_FENCE_ERROR_CLASS}","route":"/v1/sync","count":2,"accountId":"${accountId}"}`,
+    `2026-09-07T10:00:02.000Z INFO api {"hostname":"api","pid":42,"req":{"method":"POST","url":"/api/v1/sync","headers":{"authorization":"${credential}"}},"res":{"statusCode":503},"err":{"message":"database deletion is in progress for ${accountId}"}}`,
+    `2026-09-07T10:00:03.000Z INFO api {"hostname":"api","pid":42,"req":{"url":"/api/v1/sync"},"res":{"statusCode":200}}`,
+    `2026-09-07T10:00:04.000Z INFO api {"hostname":"api","pid":42,"message":"not a monitored event"}`,
+  ].join("\n");
+
+  const sanitized = sanitizeHostedDeploymentLogExport(hostedExport);
+
+  assert.deepEqual(
+    sanitized.split("\n").map((line) => JSON.parse(line)),
+    [
+      {
+        errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+        route: "/v1/sync",
+        count: 2,
+      },
+      {
+        statusCode: 503,
+        req: { url: "/v1/sync" },
+      },
+    ],
+  );
+  assert.equal(sanitized.includes(accountId), false);
+  assert.equal(sanitized.includes(credential), false);
+  assert.equal(sanitized.includes("hostname"), false);
+  assert.equal(sanitized.includes("pid"), false);
+});
+
+test("accepts the hosted export response envelope without retaining it", () => {
+  const response = JSON.stringify({
+    found: true,
+    logs: `platform prefix {"errorClass":"${ACCOUNT_DELETION_FENCE_ERROR_CLASS}","route":"/v1/diary","count":1}`,
+  });
+
+  assert.equal(
+    sanitizeHostedDeploymentLogExport(response),
+    JSON.stringify({
+      errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+      route: "/v1/diary",
+      count: 1,
+    }),
+  );
+});
+
+test("fails closed on malformed hosted deletion-fence signals", () => {
+  assert.throws(
+    () =>
+      sanitizeHostedDeploymentLogExport(
+        `platform prefix {"errorClass":"${ACCOUNT_DELETION_FENCE_ERROR_CLASS}","route":"/v1/sync","count":0}`,
+      ),
+    /Hosted deletion-fence signal on line 1 has an invalid route or count/,
+  );
+});
+
+test("hosted sanitized records produce the bounded report contract", () => {
+  const sanitized = sanitizeHostedDeploymentLogExport(
+    [
+      `prefix {"errorClass":"${ACCOUNT_DELETION_FENCE_ERROR_CLASS}","route":"/v1/sync","count":1}`,
+      'prefix {"req":{"url":"/api/v1/sync"},"res":{"statusCode":503},"err":{"message":"must not be retained"}}',
+    ].join("\n"),
+  );
+  const report = summarizeAccountDeletionFenceLogs(sanitized, {
+    runWindow: {
+      startedAt: "2026-09-07T10:00:00Z",
+      endedAt: "2026-09-07T10:30:00Z",
+      source: "bounded-hosted-log-export",
+    },
+  });
+
+  assert.deepEqual(report.deletionFence, {
+    eventCount: 1,
+    rejectionCount: 1,
+    routes: { "/v1/sync": 1 },
+  });
+  assert.deepEqual(report.unrelatedSync503, {
+    eventCount: 1,
+    routes: { "/v1/sync": 1 },
+  });
+  assert.equal(JSON.stringify(report).includes("must not be retained"), false);
 });
 
 test("aggregates multiple sanitized routes without persisting record contents", () => {
@@ -755,21 +945,71 @@ globalThis.fetch = async () => ({
     await rm(fixtureRoot, { recursive: true, force: true });
   }
 });
+test("keeps legacy signals readable while rejecting unsafe schema revisions", () => {
+  const rawLogContent = "raw deployment log content must not be retained";
+  const legacySignal = {
+    errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+    route: "/v1/sync",
+    count: 2,
+    rawLogContent,
+  };
+  const report = summarizeAccountDeletionFenceLogs(JSON.stringify(legacySignal));
+
+  assert.deepEqual(ACCOUNT_DELETION_FENCE_SUPPORTED_SIGNAL_SCHEMA_VERSIONS, [
+    undefined,
+    ACCOUNT_DELETION_FENCE_SIGNAL_SCHEMA_VERSION,
+  ]);
+  assert.deepEqual(report.deletionFence, {
+    eventCount: 1,
+    rejectionCount: 2,
+    routes: { "/v1/sync": 2 },
+  });
+  assert.equal(JSON.stringify(report).includes(rawLogContent), false);
+
+  for (const schemaVersion of [
+    "calora.account-deletion-fence-signal.v2",
+    rawLogContent,
+    1,
+    null,
+  ]) {
+    assert.throws(
+      () =>
+        summarizeAccountDeletionFenceLogs(
+          JSON.stringify({
+            ...legacySignal,
+            schemaVersion,
+          }),
+        ),
+      /Deletion-fence signal on line 1 has an invalid route or count/,
+    );
+  }
+
+  assert.throws(
+    () =>
+      sanitizeHostedDeploymentLogExport(
+        `prefix {"errorClass":"${ACCOUNT_DELETION_FENCE_ERROR_CLASS}","schemaVersion":"calora.account-deletion-fence-signal.v2","route":"/v1/sync","count":1,"message":"${rawLogContent}"}`,
+      ),
+    /Hosted deletion-fence signal on line 1 has an invalid route or count/,
+  );
+});
 
 test("uses one shared fence schema for API construction and monitor parsing", () => {
   assert.deepEqual(createAccountDeletionFenceSignal("/v1/sync", 2), {
+    schemaVersion: ACCOUNT_DELETION_FENCE_SIGNAL_SCHEMA_VERSION,
     errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
     route: "/v1/sync",
     count: 2,
   });
   assert.deepEqual(
     parseAccountDeletionFenceSignal({
+      schemaVersion: ACCOUNT_DELETION_FENCE_SIGNAL_SCHEMA_VERSION,
       errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
       route: `/v1/${"a".repeat(ACCOUNT_DELETION_FENCE_MAX_ROUTE_LENGTH - 4)}`,
       count: ACCOUNT_DELETION_FENCE_MAX_COUNT,
       accountId: "must-not-be-retained",
     }),
     {
+      schemaVersion: ACCOUNT_DELETION_FENCE_SIGNAL_SCHEMA_VERSION,
       errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
       route: `/v1/${"a".repeat(ACCOUNT_DELETION_FENCE_MAX_ROUTE_LENGTH - 4)}`,
       count: ACCOUNT_DELETION_FENCE_MAX_COUNT,
@@ -871,6 +1111,12 @@ const ACCOUNT_DELETION_FENCE_CALL_SITES = [
     countSource: "builder default count",
   },
   {
+    file: "recipes.ts",
+    invocation: 'accountDeletionFenceSignal("/v1/recipes/photo")',
+    routes: ["/v1/recipes/photo"],
+    countSource: "builder default count",
+  },
+  {
     file: "referral.ts",
     invocation: 'accountDeletionFenceSignal("/v1/referral")',
     routes: ["/v1/referral"],
@@ -956,6 +1202,17 @@ test("keeps every API deletion-fence call site monitor-compatible", async () => 
     ),
     "utf8",
   );
+  const signalSource = await readFile(
+    path.join(
+      workspaceDir,
+      "artifacts",
+      "api-server",
+      "src",
+      "lib",
+      "account-deletion-fence-signal.ts",
+    ),
+    "utf8",
+  );
   const routeEntries = await readdir(routesDir, { withFileTypes: true });
   const routeFiles = routeEntries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
@@ -967,17 +1224,16 @@ test("keeps every API deletion-fence call site monitor-compatible", async () => 
     })),
   );
 
-  assert.match(stateSource, /createAccountDeletionFenceSignal/);
-  assert.match(
-    stateSource,
-    /account-deletion-fence-schema\.mjs/,
-  );
+  assert.match(stateSource, /accountDeletionFenceSignal/);
+  assert.match(stateSource, /account-deletion-fence-signal/);
+  assert.match(signalSource, /createAccountDeletionFenceSignal/);
+  assert.match(signalSource, /account-deletion-fence-schema\.mjs/);
   assert.doesNotMatch(
     stateSource,
     /ACCOUNT_DELETION_FENCE_ERROR_CLASS\s*=\s*"account_deletion_fence"/,
   );
   assert.match(
-    stateSource,
+    signalSource,
     /accountDeletionFenceSignal\(\s*route:\s*string,\s*count\s*=\s*1/,
   );
 

@@ -13,6 +13,12 @@ import { vi } from 'vitest';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).__DEV__ = true;
 
+// CI and local test runs must use deterministic non-production Supabase
+// configuration. Production builds still fail closed in lib/supabase.ts when
+// the real Expo public configuration is missing.
+process.env.EXPO_PUBLIC_SUPABASE_URL ??= 'https://calora-test.invalid';
+process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??= 'calora-vitest-anon-key';
+
 // Calora's provider uses SecureStore only for the small install encryption
 // key. Keep the native bridge out of node/jsdom tests while preserving the
 // same async key-value contract used by the production adapter.

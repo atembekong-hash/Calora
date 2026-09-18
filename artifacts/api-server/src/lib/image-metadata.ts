@@ -1,3 +1,5 @@
+import { normalizeTrustedFoodImageUrl } from "@workspace/api-zod/image-source-policy";
+
 /**
  * Shared, defensive validation for optional diary/capture image metadata.
  *
@@ -7,7 +9,9 @@
  *     `javascript:`, `data:`, `file:`, malformed strings, over-long values)
  *     is dropped to null so a fabricated payload cannot inject arbitrary
  *     content into a stored/served field.
- *   - `imageSource` is clamped to a short trimmed label.
+ *   - `imageSource` is clamped to a short trimmed label. The local
+ *     `restaurant_representative` marker is retained without a URL because
+ *     its stable identity is carried by diary sync metadata, not a remote URI.
  *
  * The functions return `null` (never throw) on any invalid input so callers
  * can safely persist the result while preserving backward compatibility:
@@ -16,35 +20,12 @@
 
 const MAX_URL_LENGTH = 2048;
 const MAX_SOURCE_LENGTH = 80;
-const TRUSTED_IMAGE_DOMAINS = [
-  "openfoodfacts.org",
-  "unsplash.com",
-  "themealdb.com",
-  "fatsecret.com",
-  "ftscrt.com",
-] as const;
-
 /**
  * Returns a trusted absolute HTTPS URL string, or null when the value is
  * absent, not a string, over-length, untrusted, or not parseable.
  */
 export function safeImageUrl(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (trimmed.length === 0 || trimmed.length > MAX_URL_LENGTH) return null;
-  let parsed: URL;
-  try {
-    parsed = new URL(trimmed);
-  } catch {
-    return null;
-  }
-  if (parsed.protocol !== "https:") return null;
-  const hostname = parsed.hostname.toLowerCase();
-  const trusted = TRUSTED_IMAGE_DOMAINS.some(
-    (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
-  );
-  if (!trusted) return null;
-  return parsed.toString();
+  return normalizeTrustedFoodImageUrl(value) ?? null;
 }
 
 /**
@@ -70,6 +51,9 @@ export function normalizeImageMetadata(
   sourceValue: unknown,
 ): { imageUrl: string | null; imageSource: string | null } {
   const imageUrl = safeImageUrl(urlValue);
-  const imageSource = imageUrl === null ? null : safeImageSource(sourceValue);
+  const source = safeImageSource(sourceValue);
+  const imageSource = imageUrl === null
+    ? source === "restaurant_representative" ? source : null
+    : source;
   return { imageUrl, imageSource };
 }

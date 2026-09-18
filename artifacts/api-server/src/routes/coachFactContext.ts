@@ -13,6 +13,7 @@ import {
 } from "../lib/account-deletion-state.js";
 import { hasCurrentCoachFactConsent } from "../lib/coach-fact-consent.js";
 import { getCoachFactRolloutDecision } from "../lib/coach-fact-rollout.js";
+import { withAiProviderDeadline } from "../lib/ai-provider.js";
 
 declare const __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__: boolean;
 
@@ -78,6 +79,17 @@ const MAX_BODY_DEPTH = 6;
 const ALLOWED_FACT_KEYS = new Set([
   "daily.calorie_status",
   "daily.protein_status",
+  "daily.carbohydrate_status",
+  "daily.fat_status",
+  "daily.fiber_status",
+  "daily.sugar_status",
+  "daily.sodium_status",
+  "daily.water_status",
+  "daily.meal_distribution",
+  "daily.logging_completeness",
+  "weekly.nutrition_coverage",
+  "weekly.macro_coverage",
+  "weight.short_trend",
 ]);
 
 /**
@@ -88,6 +100,17 @@ const ALLOWED_FACT_KEYS = new Set([
 const FACT_VALUE_KEYS: Record<string, ReadonlyArray<string>> = {
   "daily.calorie_status":      ["consumedKcal", "targetKcal", "remainingKcal"],
   "daily.protein_status":      ["consumedG", "targetG", "remainingG"],
+  "daily.carbohydrate_status": ["consumedG", "targetG", "remainingG"],
+  "daily.fat_status":          ["consumedG", "targetG", "remainingG"],
+  "daily.fiber_status":        ["value"],
+  "daily.sugar_status":        ["value"],
+  "daily.sodium_status":       ["value"],
+  "daily.water_status":        ["consumedOz"],
+  "daily.meal_distribution":   ["breakfastPercentage", "lunchPercentage", "dinnerPercentage", "snackPercentage"],
+  "daily.logging_completeness": ["logCount", "mealSlotsLogged", "state"],
+  "weekly.nutrition_coverage": ["loggedDayCount", "windowDays"],
+  "weekly.macro_coverage":      ["qualifiedDayCount", "windowDays"],
+  "weight.short_trend":         ["direction", "deltaKg", "entryCount"],
 };
 
 /**
@@ -98,11 +121,22 @@ const FACT_VALUE_KEYS: Record<string, ReadonlyArray<string>> = {
 const FACT_LIMITATIONS: Record<string, ReadonlyArray<string>> = {
   "daily.calorie_status":      ["This reflects logged records today and is not a recommendation."],
   "daily.protein_status":      ["This reflects logged records today and is not medical nutrition advice."],
+  "daily.carbohydrate_status": ["This reflects logged records today and is not a recommendation."],
+  "daily.fat_status":          ["This reflects logged records today and is not a recommendation."],
+  "daily.fiber_status":        ["This reflects logged records today; fiber may be missing from some entries."],
+  "daily.sugar_status":        ["This reflects logged records today; sugar may be missing from some entries."],
+  "daily.sodium_status":       ["This reflects logged records today; sodium may be missing from some entries."],
+  "daily.water_status":        ["This reflects logged water and is not a medical hydration target."],
+  "daily.meal_distribution":   ["This describes logged meal timing and distribution; it is not a prescription for how to eat."],
+  "daily.logging_completeness": ["A missing log does not prove that a meal was skipped."],
+  "weekly.nutrition_coverage": ["This measures logged coverage, not nutrition quality or adherence."],
+  "weekly.macro_coverage":      ["This measures record completeness, not nutrition quality or adherence."],
+  "weight.short_trend":         ["Weight is one signal and does not determine health, progress, or what you should eat."],
 };
 
 const riskPatterns: RegExp[] = [
-  /\b(self[- ]?harm|suicid)/i,
-  /\b(anorex|bulimi|purge|vomit|laxative|binge)/i,
+  /\b(self[- ]?harm|self[- ]?injur|suicid)/i,
+  /\b(anorex|bulimi|purge|purging|vomit|laxative|binge|eating[- ]?disorder|disordered[- ]?eating)/i,
   /\b(starv|severe(?:ly)? restrict|dangerously low|under ?\d{3}\s*(calories|kcal))/i,
   /\b(compensat(?:e|ory).{0,30}exercise|exercise.{0,30}compensat)/i,
   /\b(pregnan|postpartum)/i,
@@ -111,6 +145,18 @@ const riskPatterns: RegExp[] = [
   /\b(minor|under ?18|child|pediatric)/i,
 ];
 
+/**
+ * Risk detection is a safety gate, not a content sanitizer. Keep the
+ * original message unchanged for the model's untrusted conversation boundary,
+ * but normalize common invisible-formatting tricks before checking whether a
+ * request needs a support redirect.
+ */
+function normalizeRiskText(content: string) {
+  return content
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ");
+}
 function serverGateEnabled() {
   // This production constant is compiled by build.mjs only when the build
   // explicitly names its exact clean reviewed commit. A runtime secret alone
@@ -293,20 +339,10 @@ function safeResponse(requestNonce: string, reason: "risk" | "limited" | "unavai
 export async function createDarkCoachCompletion(
   request: Parameters<typeof openai.chat.completions.create>[0],
 ) {
-  const controller = new AbortController();
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const deadline = new Promise<never>((_, reject) => {
-      timeout = setTimeout(() => {
-        controller.abort();
-        reject(new Error("Coach Fact Context provider deadline exceeded"));
-      }, COACH_FACT_PROVIDER_TIMEOUT_MS);
-    });
-    const provider = openai.chat.completions.create(request, { signal: controller.signal });
-    return await Promise.race([provider, deadline]);
-  } finally {
-    if (timeout) clearTimeout(timeout);
-  }
+  return withAiProviderDeadline(
+    (signal) => openai.chat.completions.create(request, { signal }),
+    COACH_FACT_PROVIDER_TIMEOUT_MS,
+  );
 }
 
 function exactStatementFor(fact: { key: string; values: Record<string, string | number | boolean> }): string | null {
@@ -322,6 +358,38 @@ function exactStatementFor(fact: { key: string; values: Record<string, string | 
     typeof v("consumedG") === "number" && typeof v("targetG") === "number" && typeof v("remainingG") === "number"
   ) {
     return `Today's logged protein is ${v("consumedG")} g against a ${v("targetG")} g app target.`;
+  }
+  if (fact.key === "daily.carbohydrate_status" && typeof v("consumedG") === "number" && typeof v("targetG") === "number") {
+    return `Today's logged carbohydrates are ${v("consumedG")} g against a ${v("targetG")} g app target.`;
+  }
+  if (fact.key === "daily.fat_status" && typeof v("consumedG") === "number" && typeof v("targetG") === "number") {
+    return `Today's logged fat is ${v("consumedG")} g against a ${v("targetG")} g app target.`;
+  }
+  if (fact.key === "daily.fiber_status" && typeof v("value") === "number") return `Today's logged fiber is ${v("value")} g.`;
+  if (fact.key === "daily.sugar_status" && typeof v("value") === "number") return `Today's logged sugar is ${v("value")} g.`;
+  if (fact.key === "daily.sodium_status" && typeof v("value") === "number") return `Today's logged sodium is ${v("value")} mg.`;
+  if (fact.key === "daily.water_status" && typeof v("consumedOz") === "number") return `Today's logged water is ${v("consumedOz")} fl oz.`;
+  if (
+    fact.key === "daily.meal_distribution" &&
+    typeof v("breakfastPercentage") === "number" && typeof v("lunchPercentage") === "number"
+    && typeof v("dinnerPercentage") === "number" && typeof v("snackPercentage") === "number"
+  ) {
+    return `Today's logged meal distribution is Breakfast ${v("breakfastPercentage")}%, Lunch ${v("lunchPercentage")}%, Dinner ${v("dinnerPercentage")}%, and Snack ${v("snackPercentage")}%.`;
+  }
+  if (fact.key === "daily.logging_completeness" && typeof v("logCount") === "number" && typeof v("mealSlotsLogged") === "number") {
+    return `Today's records include ${v("logCount")} logged entries across ${v("mealSlotsLogged")} meal slots.`;
+  }
+  if (fact.key === "weekly.nutrition_coverage" && typeof v("loggedDayCount") === "number" && typeof v("windowDays") === "number") {
+    return `The last ${v("windowDays")}-day window includes ${v("loggedDayCount")} logged nutrition days.`;
+  }
+  if (fact.key === "weekly.macro_coverage" && typeof v("qualifiedDayCount") === "number" && typeof v("windowDays") === "number") {
+    return `The last ${v("windowDays")}-day window has complete macro records for ${v("qualifiedDayCount")} days.`;
+  }
+  if (
+    fact.key === "weight.short_trend" && typeof v("direction") === "string"
+    && typeof v("deltaKg") === "number" && typeof v("entryCount") === "number"
+  ) {
+    return `The recent 28-day weight trend is ${v("direction")} with a ${v("deltaKg")} kg change across ${v("entryCount")} entries.`;
   }
   return null;
 }
@@ -353,6 +421,7 @@ export function validateDarkCoachClaims(
     requestNonce: string;
     facts: Array<{ key: string; values: Record<string, string | number | boolean>; status: string; timeWindow: string }>;
   },
+  messages: Array<{ role: string; content: string }> = [],
 ) {
   const parsed = RespondCoachFactContextResponse.safeParse(response);
   if (!parsed.success) return null;
@@ -361,21 +430,40 @@ export function validateDarkCoachClaims(
     if (!obs.factKeys.length || !obs.factKeys.every((k) => ALLOWED_FACT_KEYS.has(k))) return null;
     for (const key of obs.factKeys) {
       const fact = facts.get(key);
-      if (!fact || fact.status !== "available" || fact.timeWindow !== "today" || obs.text !== exactStatementFor(fact)) return null;
+      if (!fact || fact.status !== "available" || !["today", "recent"].includes(fact.timeWindow) || obs.text !== exactStatementFor(fact)) return null;
     }
   }
   const observations = parsed.data.observations;
+  const userText = messages?.filter((message) => message.role === "user").at(-1)?.content.toLowerCase() ?? "";
+  const selectedKeys = [...new Set(observations.flatMap((observation) => observation.factKeys))];
+  const has = (key: string) => selectedKeys.includes(key as typeof selectedKeys[number]);
+  const actions = userText.match(/\b(recipe|dinner|cook|meal idea|meal plan|planner)\b/)
+    ? [{
+      id: userText.match(/\b(dinner|meal plan|planner)\b/) ? "coach-open-planner" : "coach-open-recipes",
+      label: userText.match(/\b(dinner|meal plan|planner)\b/) ? "Open Planner" : "Browse Recipes",
+      kind: "navigate" as const, destination: userText.match(/\b(dinner|meal plan|planner)\b/) ? "planner" as const : "recipes" as const,
+      confirmationRequired: false,
+    }]
+    : [];
+  const message = has("daily.water_status") && /\b(water|hydration|drink)\b/.test(userText)
+    ? "Here is the approved hydration signal from your log. It is a record of what you entered, not a medical hydration target."
+    : has("daily.meal_distribution") && /\b(meal|breakfast|lunch|dinner|snack|pattern)\b/.test(userText)
+      ? "Here is the approved view of how today’s logged meals are distributed. It describes the record without prescribing how you should eat."
+      : has("weekly.nutrition_coverage") && /\b(week|weekly|trend|pattern|progress)\b/.test(userText)
+        ? "Here is the approved recent-history signal. It describes logging coverage, not nutrition quality or adherence."
+        : actions.length
+          ? "I can point you to flexible recipe and planning tools. I will not turn your records into a prescriptive meal plan."
+          : "Here is a neutral summary based only on the currently approved records.";
+  const selectedFacts = context.facts.filter((fact) => selectedKeys.includes(fact.key as typeof selectedKeys[number]));
   return {
-    message: "Here is a neutral summary based only on the currently approved records.",
+    message,
     observations,
-    actions: [],
+    actions,
     safetyState: "normal" as const,
-    limitations: [],
+    limitations: [...new Set(selectedFacts.flatMap((fact) => FACT_LIMITATIONS[fact.key] ?? []))].slice(0, 4),
     contextCoverage: {
-      usedSections: [...new Set(observations.flatMap((o) => o.factKeys))],
-      missingSections: context.facts
-        .filter((f) => !observations.some((o) => o.factKeys.includes(f.key as typeof o.factKeys[number])))
-        .map((f) => f.key),
+      usedSections: selectedKeys.slice(0, 4),
+      missingSections: context.facts.length > selectedFacts.length ? ["other approved signals"] : [],
     },
     requestNonce: context.requestNonce,
   };
@@ -591,7 +679,10 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
 
   // Risk scan — every turn in the conversation is checked before any fact
   // context leaves the device boundary.
-  if (messages.some((m) => riskPatterns.some((p) => p.test(m.content)))) {
+  if (messages.some((m) => {
+    const riskText = normalizeRiskText(m.content);
+    return riskPatterns.some((pattern) => pattern.test(riskText));
+  })) {
     res.json(RespondCoachFactContextResponse.parse(safeResponse(factContext.requestNonce, "risk")));
     return;
   }
@@ -622,7 +713,7 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
     if (!("choices" in completion)) throw new Error("unexpected streaming provider response");
     const content = completion.choices[0]?.message?.content;
     if (!content) throw new Error("empty provider response");
-    const safe = validateDarkCoachClaims(parseJson(content), factContext);
+    const safe = validateDarkCoachClaims(parseJson(content), factContext, messages);
     if (!(await authorizationStillCurrent(req, user))) {
       res.status(404).json({ message: "Coach Fact Context is unavailable." });
       return;

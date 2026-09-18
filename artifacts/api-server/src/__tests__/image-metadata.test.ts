@@ -92,6 +92,13 @@ describe('normalizeImageMetadata', () => {
     });
   });
 
+  it('preserves the local restaurant representative marker without a URL', () => {
+    expect(normalizeImageMetadata(undefined, 'restaurant_representative')).toEqual({
+      imageUrl: null,
+      imageSource: 'restaurant_representative',
+    });
+  });
+
   it('keeps a valid URL even when the source is missing', () => {
     expect(normalizeImageMetadata('https://images.openfoodfacts.org/a.png', undefined)).toEqual({
       imageUrl: 'https://images.openfoodfacts.org/a.png',

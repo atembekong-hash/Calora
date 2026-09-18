@@ -116,7 +116,7 @@ describe('Intelligence Phase 1.5 hardening', () => {
     setIntelligenceObserver((event) => observed.push(event));
     const result = buildDailyIntelligenceFacts(context([original]));
     setIntelligenceObserver(null);
-    expect(result).toHaveLength(21);
+    expect(result).toHaveLength(23);
     expect(original.notes).toBe('private note');
     expect(JSON.stringify(observed)).not.toContain('private note');
     expect(JSON.stringify(observed)).not.toContain('sensitive://photo');

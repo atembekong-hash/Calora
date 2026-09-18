@@ -1,10 +1,11 @@
 - [Calora launch boundary](calora-launch-boundary.md) — the mobile preview is local-first and must keep native billing, health, and authenticated sync states explicit until integrations are connected.
 - [Recipe provenance](recipe-provenance.md) — open-source recipes, user recipes, and verified nutrition must remain visibly distinct.
+- [Plus recipe freshness](plus-recipe-freshness.md) — default Plus may rotate deterministically within real provider pages; active sessions, filters, cursors, and exhaustion stay stable.
 - [TheMealDB Premium V2 boundary](themealdb-premium-v2-boundary.md) — V2 expands open discovery through a server-only key without changing Calora’s nutrition trust boundary.
 - [Capture provider matching](capture-provider-matching.md) — barcode nutrition requires an exact UPC match, never a broad text-search hit.
 - [Planner generation fallback](planner-generation-fallback.md) — AI meal planning needs a bounded request with an explicit local starter-week fallback.
 - [Food Memory compatibility](food-memory-compatibility.md) — accepted memories coexist with legacy diary logs while snapshots keep historical nutrition stable.
-- [Calora image system](calora-image-system.md) — use editorial, food, and branded fallback imagery by surface, with data and trust always remaining primary.
+- [Calora image system](calora-image-system.md) — use menu-name classification, stable local restaurant asset identities, and visible representative labels; keep imagery separate from nutrition trust.
 - [Daily wellness tracking](daily-wellness-tracking.md) — water and mood are optional per-day local entries; meal count is derived from approved diary logs.
 - [Progress motion](progress-motion.md) — Progress uses restrained entrance, fill, pulse, and bar animations around trustworthy weekly signals.
 - [Local save feedback](local-save-feedback.md) — local wellness actions should acknowledge saves briefly without blocking the logging flow.
@@ -22,6 +23,8 @@
 - [CaloraApp metadata lock-in](caloraapp-metadata-lockin.md) — canonical identity (brand.ts), preserved internal identifiers, and post-rename conventions.
 - [Referral rewards design](referral-rewards.md) — server-authoritative, claim-first idempotent RevenueCat promo grants that always extend end dates; cap counted under a row lock.
 - [EAS release versioning](eas-release-versioning.md) — production auto-increment can override explicit native versions and must be reconciled before queuing release builds.
+- [EAS signing status normalization](eas-signing-status-normalization.md) — provisioning-profile status from EAS may be lowercase; normalize before rejecting a valid signing record.
+- [EAS archive and signing gates](eas-archive-and-signing-gates.md) — archive filtering and remote Apple capabilities are independent gates after Expo prebuild.
 - [Program provenance](program-provenance.md) — record which Program shaped a week only when generation materially changed it; server 200 starter responses are fallbacks, never Program-shaped.
 - [Authenticated request retry](authed-request-retry.md) — a 401 with a token means refresh once and retry; sign-in prompts only when there is truly no session.
 - [Rapid interaction QA](rapid-interaction-qa.md) — short tap guards need a true same-action gesture test, not two delayed automation commands.
@@ -44,6 +47,7 @@
 - [Publishing task isolation](publishing-task-isolation.md) — Publishing snapshots applied main, not an active task copy; historical-tree releases need an explicit owner decision.
 - [Spatial surface contrast](spatial-surface-contrast.md) — shared depth wrappers must preserve semantic background/foreground pairs, not just layout styles.
 - [Detached background tasks](detached-background-tasks.md) — timer, recovery, and startup promises need a logged rejection boundary so transient failures cannot terminate the API.
+- [Independent limiter side effects](independent-limiter-side-effects.md) — await independent persistence operations fully before returning on one failure, or fail-closed responses can race observable limiter writes.
 - [Project-reference typechecks](project-reference-typechecks.md) — rebuild workspace library declarations before diagnosing downstream row-type errors.
 - [Calora release freeze](calora-release-candidate-freeze.md) — signed builds must use the exact candidate named in the final freeze report, not a later workspace state.
 - [Managed artifact merge conflicts](managed-artifact-merge-conflicts.md) — reconcile artifact configuration through validated replacement before merging divergent Git histories.
@@ -58,6 +62,7 @@
 - [Maestro native validation](maestro-native-validation.md) — Maestro 1.40 uses native host tooling for exact booted device IDs; no `maestro devices` command.
 - [Encrypted recovery smoke gate](encrypted-recovery-smoke-gate.md) — native recovery gates should drive the real SecureStore adapter and capture encrypted export in-app, not depend on OS share sheets.
 - [Expo monorepo config](expo-monorepo-config.md) — Expo 54 expects build properties in the plugin and Metro defaults preserved while adding the workspace root.
+- [Expo plist parser compatibility](expo-plist-xmldom-compatibility.md) — keep Expo 54's @expo/plist on xmldom 0.8.x; xmldom 0.9.x rejects its omitted MIME argument.
 - [Notification inbox](notification-inbox.md) — local reminder delivery feeds an account-scoped in-app inbox with deduplication and explicit read/clear states.
 - [Onboarding resumption and review](onboarding-resumption.md) — incomplete setup resumes from bounded local progress; completed users review saved values without a destructive reset.
 - [Native notification account lifecycle](native-notification-account-lifecycle.md) — device-wide schedules must be serialized so only the hydrated active account owns Calora reminders.
@@ -74,3 +79,11 @@
 - [EAS worktree provenance](eas-worktree-provenance.md) — nested temporary worktrees can lose Git metadata to workspace checkpoints, causing EAS to fingerprint the outer repository.
 - [Agent publish boundary](agent-publish-boundary.md) — deployment status readers do not imply the task runtime can publish; never claim source-to-runtime alignment without a callable mutation and live verification.
 - [Dependency audit freshness](dependency-audit-freshness.md) — compare platform findings with the current lockfile and local audit when an audit result names versions no longer present.
+- [Object storage prefix erasure](object-storage-prefix-erasure.md) — Replit object-storage listings require mediated credentials; an omitted Google Storage item list denotes an empty prefix.
+
+- [Replit production state](replit-production-state.md) — a public deployment record can exist with no successful build and serve Replit’s “app isn’t live yet” placeholder.
+- [Branded apex artifact routing](branded-apex-artifact-routing.md) — in a multi-artifact project, the API must explicitly own `/` or the Expo artifact can serve its preview landing page at the custom domain.
+- [GitHub Actions context boundary](github-actions-context-boundary.md) — job-level env cannot use runner context; CI provider imports need deterministic non-egress sentinels.
+- [Recovery promotion boundary](recovery-promotion-boundary.md) — compare recovery against current main and promote only missing functionality; later main implementations must not be regressed by historical commits.
+- [Generated API schema ordering](generated-api-schema-ordering.md) — named OpenAPI components prevent Orval Zod bounds from being emitted after schemas that reference them.
+- [Release CI evidence boundary](release-ci-evidence-boundary.md) — offline CI sentinels enable mocked tests; source-attestation checks remain the supported release evidence when package provenance is optional.

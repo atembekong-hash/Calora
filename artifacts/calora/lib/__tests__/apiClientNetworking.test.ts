@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { customFetch, setBaseUrl } from '../../../../lib/api-client-react/src/custom-fetch';
+import { customFetch, setAuthTokenGetter, setAuthTokenRefresher, setBaseUrl } from '../../../../lib/api-client-react/src/custom-fetch';
 
 describe('API client networking', () => {
   afterEach(() => {
     setBaseUrl(null);
+    setAuthTokenGetter(null);
+    setAuthTokenRefresher(null);
     vi.unstubAllGlobals();
   });
 
@@ -43,7 +45,7 @@ describe('API client networking', () => {
 
     await expect(customFetch('/api/v1/recipes')).rejects.toThrow('Network request failed');
     expect(warnSpy).toHaveBeenCalledWith(
-      '[CaloraApp][network]',
+      '[Calora][network]',
       expect.objectContaining({
         event: 'network_error',
         method: 'GET',
@@ -51,5 +53,87 @@ describe('API client networking', () => {
         errorName: 'TypeError',
       }),
     );
+  });
+
+  it('refreshes an attached bearer token once after a 401 and retries the request', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'expired' }), {
+        status: 401,
+        headers: { 'content-type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+    setBaseUrl('https://api.calora.example');
+    setAuthTokenGetter(() => 'stale-token');
+    setAuthTokenRefresher(() => 'refreshed-token');
+
+    await expect(customFetch('/api/v1/planner/generate', { method: 'POST', responseType: 'json' }))
+      .resolves.toEqual({ ok: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][1].headers.get('authorization')).toBe('Bearer stale-token');
+    expect(fetchMock.mock.calls[1][1].headers.get('authorization')).toBe('Bearer refreshed-token');
+  });
+
+  it('does not send a scoped profile write after the account identity changes during token acquisition', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    setBaseUrl('https://api.calora.example');
+    let accountId = 'user-a';
+    let releaseToken!: () => void;
+    const tokenReady = new Promise<void>((resolve) => { releaseToken = resolve; });
+
+    const request = customFetch('/api/v1/profile', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'User A' }),
+      responseType: 'json',
+      authIdentityGuard: () => {
+        if (accountId !== 'user-a') throw new Error('Profile request identity changed.');
+      },
+      authTokenGetter: async () => {
+        await tokenReady;
+        return 'token-a';
+      },
+    } as Parameters<typeof customFetch>[1]);
+    accountId = 'user-b';
+    releaseToken();
+    await expect(request).rejects.toThrow('Profile request identity changed.');
+    await Promise.resolve();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a scoped profile write after identity changes during token refresh', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ message: 'expired' }), {
+      status: 401,
+      headers: { 'content-type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    setBaseUrl('https://api.calora.example');
+    let accountId = 'user-a';
+    let releaseRefresh!: () => void;
+    const refreshReady = new Promise<void>((resolve) => { releaseRefresh = resolve; });
+    const request = customFetch('/api/v1/profile', {
+      method: 'PUT',
+      body: JSON.stringify({ name: 'User A' }),
+      responseType: 'json',
+      authIdentityGuard: () => {
+        if (accountId !== 'user-a') throw new Error('Profile request identity changed.');
+      },
+      authTokenGetter: () => 'token-a',
+      authTokenRefresher: async () => {
+        await refreshReady;
+        return 'token-b';
+      },
+    } as Parameters<typeof customFetch>[1]);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    accountId = 'user-b';
+    releaseRefresh();
+
+    await expect(request).rejects.toThrow(/401|identity changed/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1].headers.get('authorization')).toBe('Bearer token-a');
   });
 });

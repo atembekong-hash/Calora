@@ -1,5 +1,5 @@
 /**
- * CaloraApp — Authentication context.
+ * Calora — Authentication context.
  *
  * Provides the active Supabase session, the authenticated user, auth actions,
  * and key state flags to the entire component tree.

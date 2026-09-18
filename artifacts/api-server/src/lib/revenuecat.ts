@@ -18,6 +18,15 @@ const REVENUECAT_ERASURE_TIMEOUT_MS = 10_000;
 
 const connectors = new ReplitConnectors();
 
+async function revenueCatProxy(path: string): Promise<Response> {
+  const response = await connectors.proxy("revenuecat", path, { method: "GET" });
+  // A connector token can expire between its cached identity state and the
+  // provider request. Retry one 401 through the SDK's refresh boundary, but
+  // still fail closed if RevenueCat rejects the refreshed request.
+  if (response.status !== 401) return response;
+  return connectors.proxy("revenuecat", path, { method: "GET" });
+}
+
 type SubscriberEntitlement = { expires_date: string | null };
 type SubscriberResponse = {
   subscriber?: { entitlements?: Record<string, SubscriberEntitlement> };
@@ -43,10 +52,8 @@ export async function hasActivePremiumEntitlement(appUserId: string): Promise<bo
   // The connected RevenueCat credential authorizes the v2 REST API. Resolve
   // the opaque entitlement ID from its stable lookup key before checking the
   // customer's currently active entitlement records.
-  const entitlementsResponse = await connectors.proxy(
-    "revenuecat",
+  const entitlementsResponse = await revenueCatProxy(
     `/v2/projects/${encodeURIComponent(projectId)}/entitlements?limit=100`,
-    { method: "GET" },
   );
   if (!entitlementsResponse.ok) {
     throw new Error(`RevenueCat entitlement lookup failed (${entitlementsResponse.status})`);
@@ -60,10 +67,8 @@ export async function hasActivePremiumEntitlement(appUserId: string): Promise<bo
     throw new Error("RevenueCat Premium entitlement is not configured");
   }
 
-  const activeResponse = await connectors.proxy(
-    "revenuecat",
+  const activeResponse = await revenueCatProxy(
     `/v2/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(appUserId)}/active_entitlements`,
-    { method: "GET" },
   );
   // RevenueCat has no customer record until an account first reaches its
   // billing system. That is a normal non-Premium state, not an availability

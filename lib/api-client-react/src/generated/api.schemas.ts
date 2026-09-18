@@ -13,6 +13,139 @@ export interface HealthStatus {
   status: string;
 }
 
+export type ProfileGoal = typeof ProfileGoal[keyof typeof ProfileGoal];
+
+
+export const ProfileGoal = {
+  lose: 'lose',
+  maintain: 'maintain',
+  gain: 'gain',
+} as const;
+
+export type ProfileActivity = typeof ProfileActivity[keyof typeof ProfileActivity];
+
+
+export const ProfileActivity = {
+  low: 'low',
+  moderate: 'moderate',
+  high: 'high',
+} as const;
+
+export type ProfileDiet = typeof ProfileDiet[keyof typeof ProfileDiet];
+
+
+export const ProfileDiet = {
+  Everything: 'Everything',
+  Vegetarian: 'Vegetarian',
+  Vegan: 'Vegan',
+  High_protein: 'High protein',
+} as const;
+
+export interface Profile {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  goal: ProfileGoal;
+  activity: ProfileActivity;
+  diet: ProfileDiet;
+  /**
+     * @minimum 13
+     * @maximum 120
+     */
+  age: number;
+  /**
+     * @minimum 80
+     * @maximum 250
+     */
+  heightCm: number;
+  /**
+     * @minimum 25
+     * @maximum 500
+     */
+  weightKg: number;
+  /**
+     * @minimum 25
+     * @maximum 500
+     */
+  targetWeightKg: number;
+  /**
+     * @minimum 800
+     * @maximum 10000
+     */
+  calorieTarget: number;
+  /** @minLength 1 */
+  consentVersion: string;
+  updatedAt: string;
+}
+
+export type ProfileInputGoal = typeof ProfileInputGoal[keyof typeof ProfileInputGoal];
+
+
+export const ProfileInputGoal = {
+  lose: 'lose',
+  maintain: 'maintain',
+  gain: 'gain',
+} as const;
+
+export type ProfileInputActivity = typeof ProfileInputActivity[keyof typeof ProfileInputActivity];
+
+
+export const ProfileInputActivity = {
+  low: 'low',
+  moderate: 'moderate',
+  high: 'high',
+} as const;
+
+export type ProfileInputDiet = typeof ProfileInputDiet[keyof typeof ProfileInputDiet];
+
+
+export const ProfileInputDiet = {
+  Everything: 'Everything',
+  Vegetarian: 'Vegetarian',
+  Vegan: 'Vegan',
+  High_protein: 'High protein',
+} as const;
+
+export interface ProfileInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  goal: ProfileInputGoal;
+  activity: ProfileInputActivity;
+  diet: ProfileInputDiet;
+  /**
+     * @minimum 13
+     * @maximum 120
+     */
+  age: number;
+  /**
+     * @minimum 80
+     * @maximum 250
+     */
+  heightCm: number;
+  /**
+     * @minimum 25
+     * @maximum 500
+     */
+  weightKg: number;
+  /**
+     * @minimum 25
+     * @maximum 500
+     */
+  targetWeightKg: number;
+  /**
+     * @minimum 800
+     * @maximum 10000
+     */
+  calorieTarget: number;
+  /** @minLength 1 */
+  consentVersion: string;
+}
+
 export interface Provenance {
   source: string;
   verifiedAt: string | null;
@@ -797,24 +930,26 @@ export interface CoachMessage {
   content: string;
 }
 
-export type CoachFactContextFactKey = typeof CoachFactContextFactKey[keyof typeof CoachFactContextFactKey];
+export type CoachFactContextFactValuesState = typeof CoachFactContextFactValuesState[keyof typeof CoachFactContextFactValuesState];
 
 
-export const CoachFactContextFactKey = {
-  dailycalorie_status: 'daily.calorie_status',
-  dailyprotein_status: 'daily.protein_status',
+export const CoachFactContextFactValuesState = {
+  logged: 'logged',
+  partially_logged: 'partially_logged',
+  no_logs: 'no_logs',
 } as const;
 
-export type CoachFactContextFactStatus = typeof CoachFactContextFactStatus[keyof typeof CoachFactContextFactStatus];
+export type CoachFactContextFactValuesDirection = typeof CoachFactContextFactValuesDirection[keyof typeof CoachFactContextFactValuesDirection];
 
 
-export const CoachFactContextFactStatus = {
-  available: 'available',
-  limited: 'limited',
-  unknown: 'unknown',
+export const CoachFactContextFactValuesDirection = {
+  up: 'up',
+  down: 'down',
+  stable: 'stable',
+  insufficient: 'insufficient',
 } as const;
 
-export type CoachFactContextFactValues = {
+export interface CoachFactContextFactValues {
   /**
      * @minimum 0
      * @maximum 10000
@@ -845,7 +980,102 @@ export type CoachFactContextFactValues = {
      * @maximum 1000
      */
   remainingG?: number;
-};
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  consumedMg?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  consumedOz?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  breakfastPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  lunchPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  dinnerPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  snackPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  logCount?: number;
+  /**
+     * @minimum 0
+     * @maximum 10
+     */
+  mealSlotsLogged?: number;
+  state?: CoachFactContextFactValuesState;
+  /**
+     * @minimum 0
+     * @maximum 7
+     */
+  loggedDayCount?: number;
+  /**
+     * @minimum 0
+     * @maximum 7
+     */
+  qualifiedDayCount?: number;
+  /**
+     * @minimum 1
+     * @maximum 28
+     */
+  windowDays?: number;
+  direction?: CoachFactContextFactValuesDirection;
+  /**
+     * @minimum -1000
+     * @maximum 1000
+     */
+  deltaKg?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  entryCount?: number;
+}
+
+export type CoachFactContextFactKey = typeof CoachFactContextFactKey[keyof typeof CoachFactContextFactKey];
+
+
+export const CoachFactContextFactKey = {
+  dailycalorie_status: 'daily.calorie_status',
+  dailyprotein_status: 'daily.protein_status',
+  dailycarbohydrate_status: 'daily.carbohydrate_status',
+  dailyfat_status: 'daily.fat_status',
+  dailyfiber_status: 'daily.fiber_status',
+  dailysugar_status: 'daily.sugar_status',
+  dailysodium_status: 'daily.sodium_status',
+  dailywater_status: 'daily.water_status',
+  dailymeal_distribution: 'daily.meal_distribution',
+  dailylogging_completeness: 'daily.logging_completeness',
+  weeklynutrition_coverage: 'weekly.nutrition_coverage',
+  weeklymacro_coverage: 'weekly.macro_coverage',
+  weightshort_trend: 'weight.short_trend',
+} as const;
+
+export type CoachFactContextFactStatus = typeof CoachFactContextFactStatus[keyof typeof CoachFactContextFactStatus];
+
+
+export const CoachFactContextFactStatus = {
+  available: 'available',
+  limited: 'limited',
+  unknown: 'unknown',
+} as const;
 
 /**
  * @nullable
@@ -856,6 +1086,10 @@ export type CoachFactContextFactUnit = typeof CoachFactContextFactUnit[keyof typ
 export const CoachFactContextFactUnit = {
   kcal: 'kcal',
   g: 'g',
+  mg: 'mg',
+  fl_oz: 'fl oz',
+  '%': '%',
+  kg: 'kg',
 } as const;
 
 export type CoachFactContextFactTimeWindow = typeof CoachFactContextFactTimeWindow[keyof typeof CoachFactContextFactTimeWindow];
@@ -863,6 +1097,7 @@ export type CoachFactContextFactTimeWindow = typeof CoachFactContextFactTimeWind
 
 export const CoachFactContextFactTimeWindow = {
   today: 'today',
+  recent: 'recent',
 } as const;
 
 export type CoachFactContextFactConfidence = typeof CoachFactContextFactConfidence[keyof typeof CoachFactContextFactConfidence];
@@ -945,6 +1180,7 @@ export const CoachFactContextMissingDataItem = {
   no_logged_food_today: 'no_logged_food_today',
   incomplete_logging: 'incomplete_logging',
   unknown_provenance: 'unknown_provenance',
+  insufficient_history: 'insufficient_history',
 } as const;
 
 export interface CoachFactContext {
@@ -960,7 +1196,7 @@ export interface CoachFactContext {
   /** @pattern ^[a-f0-9]{24,64}$ */
   requestNonce: string;
   coverage: CoachFactContextCoverage;
-  /** @maxItems 4 */
+  /** @maxItems 20 */
   missingData: CoachFactContextMissingDataItem[];
   /**
      * @minItems 0
@@ -968,7 +1204,7 @@ export interface CoachFactContext {
      */
   facts: CoachFactContextFact[];
   /**
-     * @maxItems 3
+     * @maxItems 6
      * @items.maxLength 220
      */
   limitations: string[];
@@ -989,6 +1225,17 @@ export type CoachFactObservationFactKeysItem = typeof CoachFactObservationFactKe
 export const CoachFactObservationFactKeysItem = {
   dailycalorie_status: 'daily.calorie_status',
   dailyprotein_status: 'daily.protein_status',
+  dailycarbohydrate_status: 'daily.carbohydrate_status',
+  dailyfat_status: 'daily.fat_status',
+  dailyfiber_status: 'daily.fiber_status',
+  dailysugar_status: 'daily.sugar_status',
+  dailysodium_status: 'daily.sodium_status',
+  dailywater_status: 'daily.water_status',
+  dailymeal_distribution: 'daily.meal_distribution',
+  dailylogging_completeness: 'daily.logging_completeness',
+  weeklynutrition_coverage: 'weekly.nutrition_coverage',
+  weeklymacro_coverage: 'weekly.macro_coverage',
+  weightshort_trend: 'weight.short_trend',
 } as const;
 
 export interface CoachFactObservation {
@@ -1000,7 +1247,7 @@ export interface CoachFactObservation {
   confidence: CoachFactObservationConfidence;
   /**
      * @minItems 1
-     * @maxItems 2
+     * @maxItems 4
      */
   factKeys: CoachFactObservationFactKeysItem[];
 }
@@ -1599,6 +1846,11 @@ query?: string;
  * @maxLength 80
  */
 category?: string;
+/**
+ * UTC browsing-session day used for deterministic default-catalogue freshness
+ * @pattern ^\d{4}-\d{2}-\d{2}$
+ */
+freshnessDay?: string;
 /**
  * @minimum 1
  * @maximum 30

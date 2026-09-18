@@ -9,6 +9,7 @@ import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import { logger } from "../lib/logger.js";
+import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import {
   accountDeletionFenceSignal,
   classifyAccountDeletionError,
@@ -21,6 +22,7 @@ const PLANNER_RATE_WINDOW_SECS = 60 * 60; // 1 hour
 
 const router: IRouter = Router();
 const VISION_MODEL = "gpt-5.6-terra";
+export const PLANNER_PROVIDER_TIMEOUT_MS = 15_000;
 
 type PlannerProfile = {
   goal: "lose" | "maintain" | "gain";
@@ -572,7 +574,7 @@ router.post("/v1/planner/generate", async (req, res) => {
     : "Balance variety, protein, vegetables, and realistic preparation.";
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
       model: VISION_MODEL,
       max_completion_tokens: 2048,
       response_format: { type: "json_object" },
@@ -592,7 +594,7 @@ router.post("/v1/planner/generate", async (req, res) => {
         },
         { role: "user", content: "Generate this week's plan." },
       ],
-    });
+    }, { signal }), PLANNER_PROVIDER_TIMEOUT_MS);
     const content = completion.choices[0]?.message?.content;
     if (!content) throw new Error("Planner provider returned no plan");
     const selection = parseSelection(content);

@@ -3,25 +3,41 @@ name: Calora TestFlight Upload
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: calora-testflight-production
+  cancel-in-progress: false
+
 jobs:
   testflight:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: artifacts/calora
 
     steps:
+      - name: Require protected main source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF:-}" = "refs/heads/main"
+
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+          node-version: 20.19.4
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -29,14 +45,11 @@ jobs:
       - name: Setup Expo and EAS
         uses: expo/expo-github-action@v8
         with:
-          eas-version: latest
+          eas-version: 16.17.4
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Link Calora to existing EAS project
-        run: eas init --id 1f202325-5b9a-4260-978f-abbd3252b9ee --non-interactive --force
-
       - name: Verify EAS project
-        run: eas project:info
+        run: eas project:info --non-interactive
 
       - name: Create App Store Connect API key
         shell: bash
@@ -46,12 +59,38 @@ jobs:
           printf '%s' "$ASC_API_KEY" > "$RUNNER_TEMP/AuthKey_${{ secrets.EXPO_ASC_KEY_ID }}.p8"
           chmod 600 "$RUNNER_TEMP/AuthKey_${{ secrets.EXPO_ASC_KEY_ID }}.p8"
 
-      - name: Build iOS production app
-        run: eas build --platform ios --profile production --non-interactive --wait
+      - name: Verify monotonic iOS production build number
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_ASC_API_KEY_P8: ${{ secrets.EXPO_ASC_API_KEY }}
+          EXPO_ASC_KEY_ID: ${{ secrets.EXPO_ASC_KEY_ID }}
+          EXPO_ASC_ISSUER_ID: ${{ secrets.EXPO_ASC_ISSUER_ID }}
+        run: pnpm run test:release:ios-build-number
 
-      - name: Submit latest iOS build to TestFlight
+      - name: Build iOS production app
+        shell: bash
+        run: |
+          set -euo pipefail
+          eas build --platform ios --profile production --non-interactive --wait --json \
+            | tee "$RUNNER_TEMP/eas-build.json"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const payload = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/eas-build.json`, "utf8"));
+          const build = Array.isArray(payload) ? payload.at(-1) : payload?.build ?? payload;
+          if (!build?.id || typeof build.id !== "string") {
+            throw new Error("EAS did not return an immutable build id.");
+          }
+          await import("node:fs/promises").then(({ appendFile }) =>
+            appendFile(process.env.GITHUB_ENV, `EAS_BUILD_ID=${build.id}\n`),
+          );
+          console.log(`Captured EAS build ${build.id}`);
+          NODE
+
+      - name: Submit the exact iOS build to TestFlight
         env:
           EXPO_ASC_API_KEY_PATH: ${{ runner.temp }}/AuthKey_${{ secrets.EXPO_ASC_KEY_ID }}.p8
           EXPO_ASC_KEY_ID: ${{ secrets.EXPO_ASC_KEY_ID }}
           EXPO_ASC_ISSUER_ID: ${{ secrets.EXPO_ASC_ISSUER_ID }}
-        run: eas submit --platform ios --latest --non-interactive
+        run: |
+          test -n "${EAS_BUILD_ID:-}"
+          eas submit --platform ios --id "$EAS_BUILD_ID" --non-interactive

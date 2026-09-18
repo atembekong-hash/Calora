@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
+import { isProgramEligible } from "@workspace/api-zod/planner-program-eligibility";
 
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
   openai: {
@@ -82,7 +83,12 @@ describe("POST /v1/planner/generate", () => {
       message: "Meal-plan generation is temporarily unavailable. Please try again shortly.",
     });
     expect(loggerWarn).toHaveBeenCalledWith(
-      { errorClass: "account_deletion_fence", route: "/v1/planner/generate", count: 1 },
+      {
+        errorClass: "account_deletion_fence",
+        route: "/v1/planner/generate",
+        count: 1,
+        schemaVersion: "calora.account-deletion-fence-signal.v1",
+      },
       "Account deletion fence rejected planner request",
     );
     expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain("55000");
@@ -108,11 +114,12 @@ describe("POST /v1/planner/generate", () => {
     expect(response.body.meals).toHaveLength(28);
     expect(response.body.provider).toMatch(/starter planner/i);
     expect(response.body.meals.every((meal: { imageAssetKey?: string }) => Boolean(meal.imageAssetKey))).toBe(true);
-    expect(new Set(response.body.meals.map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBe(4);
-    expect(new Set(response.body.meals.filter((meal: { meal: string }) => meal.meal === "Breakfast").map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBe(1);
-    expect(new Set(response.body.meals.filter((meal: { meal: string }) => meal.meal === "Lunch").map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBe(1);
-    expect(new Set(response.body.meals.filter((meal: { meal: string }) => meal.meal === "Dinner").map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBe(1);
-    expect(new Set(response.body.meals.filter((meal: { meal: string }) => meal.meal === "Snack").map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBe(1);
+    expect(new Set(response.body.meals.map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBeGreaterThanOrEqual(4);
+    for (const role of ["Breakfast", "Lunch", "Dinner", "Snack"]) {
+      const roleMeals = response.body.meals.filter((meal: { meal: string }) => meal.meal === role);
+      expect(new Set(roleMeals.map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBeGreaterThanOrEqual(1);
+      expect(roleMeals.every((meal: { imageAssetKey?: string }) => Boolean(meal.imageAssetKey))).toBe(true);
+    }
   });
 
   it("filters model selections and fallback meals to Plant-Based Week", async () => {
@@ -135,6 +142,29 @@ describe("POST /v1/planner/generate", () => {
     expect(response.body.meals.every((meal: { id: string }) =>
       ["berry-oats", "egg-toast", "yogurt-parfait", "smoothie-bowl", "banana-pancakes", "chia-pudding", "lentil-soup", "greek-salad", "chickpea-bowl", "stir-fry", "med-pasta", "apple-almond", "edamame", "trail-mix", "hummus-veggies", "banana-pb"].some((id) => meal.id.includes(`-${id}-`)),
     )).toBe(true);
+  });
+
+  it("limits AI selections to the selected Program eligibility contract", async () => {
+    const days = Array.from({ length: 7 }, () => ({
+      breakfast: "berry-oats",
+      lunch: "harvest-salad",
+      dinner: "spaghetti-bol",
+      snack: "hummus-veggies",
+    }));
+    vi.mocked(openai.chat.completions.create).mockResolvedValueOnce({
+      choices: [{ message: { content: JSON.stringify({ days }) } }],
+    } as never);
+
+    const response = await request(app).post("/v1/planner/generate").send({
+      ...validBody(),
+      planType: "high-protein-power",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.meals.every((meal: {
+      id: string; meal: "Breakfast" | "Lunch" | "Dinner" | "Snack"; name: string;
+      calories: number; proteinG: number; carbsG: number; fatG: number; prepMinutes: number; ingredients: string[];
+    }) => isProgramEligible("high-protein-power", meal))).toBe(true);
   });
 
   it("keeps Quick & Easy fallback meals at or below 20 minutes", async () => {

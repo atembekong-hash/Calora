@@ -21,6 +21,7 @@ import { formatLogTime } from './dates';
 // Re-export the FoodSource type so callers share one definition.
 export type FoodSource =
   | 'USDA verified'
+  | 'Restaurant verified'
   | 'Barcode verified'
   | 'Photo estimate'
   | 'Recipe'
@@ -72,6 +73,7 @@ export function foodSourceForMemory(
   provenance: AcceptedFoodMemory['provenance'],
 ): FoodSource {
   if (provenance === 'verified_barcode') return 'Barcode verified';
+  if (provenance === 'verified_restaurant') return 'Restaurant verified';
   if (provenance === 'verified_provider' || provenance === 'verified_label') return 'USDA verified';
   if (provenance === 'recipe_imported' || provenance === 'recipe_personal') return 'Recipe';
   if (provenance === 'manual') return 'Manual';

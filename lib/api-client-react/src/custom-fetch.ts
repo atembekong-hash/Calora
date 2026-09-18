@@ -1,5 +1,10 @@
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
+  /** Scoped clients may validate identity before token acquisition/send/retry. */
+  authIdentityGuard?: () => Promise<void> | void;
+  /** Scoped clients may override the module-wide auth callbacks. */
+  authTokenGetter?: AuthTokenGetter;
+  authTokenRefresher?: AuthTokenRefresher;
 };
 
 export type ErrorType<T = unknown> = ApiError<T>;
@@ -7,6 +12,7 @@ export type ErrorType<T = unknown> = ApiError<T>;
 export type BodyType<T> = T;
 
 export type AuthTokenGetter = () => Promise<string | null> | string | null;
+export type AuthTokenRefresher = () => Promise<string | null> | string | null;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
@@ -17,6 +23,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _authTokenRefresher: AuthTokenRefresher | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -40,7 +47,7 @@ function logRequestDiagnostic(
 ): void {
   // Deliberately log only the endpoint path/origin and transport metadata.
   // Never include request bodies, headers, access tokens, or response bodies.
-  console.warn("[CaloraApp][network]", {
+  console.warn("[Calora][network]", {
     event,
     method: requestInfo.method,
     url: requestInfo.url.split("?")[0],
@@ -61,6 +68,16 @@ function logRequestDiagnostic(
  */
 export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
+}
+
+/**
+ * Register a single forced-refresh callback for authenticated API requests.
+ * A request that receives a 401 after a bearer token was attached may retry
+ * once with the refreshed token. The callback is intentionally separate from
+ * the normal getter so a stale-but-unexpired session can be recovered too.
+ */
+export function setAuthTokenRefresher(refresher: AuthTokenRefresher | null): void {
+  _authTokenRefresher = refresher;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -347,7 +364,14 @@ export async function customFetch<T = unknown>(
 ): Promise<T> {
   const originalUrl = resolveUrl(input);
   input = applyBaseUrl(input);
-  const { responseType = "auto", headers: headersInit, ...init } = options;
+  const {
+    responseType = "auto",
+    headers: headersInit,
+    authIdentityGuard,
+    authTokenGetter,
+    authTokenRefresher,
+    ...init
+  } = options;
 
   const method = resolveMethod(input, init.method);
 
@@ -356,6 +380,7 @@ export async function customFetch<T = unknown>(
   }
 
   const headers = mergeHeaders(isRequest(input) ? input.headers : undefined, headersInit);
+  let attachedAuthToken: string | null = null;
 
   if (
     typeof init.body === "string" &&
@@ -371,14 +396,20 @@ export async function customFetch<T = unknown>(
 
   // Attach bearer token when an auth getter is configured and no
   // Authorization header has been explicitly provided.
-  if (_authTokenGetter && !headers.has("authorization")) {
-    const token = await _authTokenGetter();
+  const effectiveTokenGetter = authTokenGetter ?? _authTokenGetter;
+  const effectiveTokenRefresher = authTokenRefresher ?? _authTokenRefresher;
+  if (authIdentityGuard) await authIdentityGuard();
+  if (effectiveTokenGetter && !headers.has("authorization")) {
+    const token = await effectiveTokenGetter();
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
+      attachedAuthToken = token;
     }
   }
+  if (authIdentityGuard) await authIdentityGuard();
 
   const requestInfo = { method, url: resolveUrl(input) };
+  const send = () => fetch(input, { ...init, method, headers: new Headers(headers) });
 
   if (isRelativePathUrl(requestInfo.url)) {
     const error = new Error(
@@ -394,13 +425,30 @@ export async function customFetch<T = unknown>(
 
   let response: Response;
   try {
-    response = await fetch(input, { ...init, method, headers });
+    response = await send();
   } catch (error) {
     logRequestDiagnostic("network_error", requestInfo, {
       errorName: error instanceof Error ? error.name : typeof error,
       message: error instanceof Error ? error.message : "Unknown network error",
     });
     throw error;
+  }
+
+  // Supabase access tokens can be stale even while a session still exists
+  // (especially after a backgrounded web preview or a resumed native app).
+  // Retry exactly once with a forced refresh before surfacing an auth error.
+  if (response.status === 401 && attachedAuthToken && effectiveTokenRefresher) {
+    try {
+      if (authIdentityGuard) await authIdentityGuard();
+      const refreshedToken = await effectiveTokenRefresher();
+      if (refreshedToken) {
+        headers.set("authorization", `Bearer ${refreshedToken}`);
+        if (authIdentityGuard) await authIdentityGuard();
+        response = await send();
+      }
+    } catch {
+      // Preserve the original 401; the normal API error path will surface it.
+    }
   }
 
   if (!response.ok) {

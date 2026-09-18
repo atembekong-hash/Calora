@@ -10,6 +10,8 @@
     "verify:release-identity": "node ../../scripts/verify-api-runtime-identity.mjs",
     "verify:public-release": "node ./scripts/verify-public-release.mjs",
     "test:account-deletion-fence": "vitest run src/__tests__/accountDeletionFence.integration.test.ts --testNamePattern='account deletion fence'",
+    "test:offline": "vitest run --exclude 'src/__tests__/**/*.integration.test.ts'",
+    "test:built-deletion-fence-release": "node --test --test-name-pattern='built API deletion-fence validation' ../../scripts/verify-api-release.test.mjs",
     "test:monitoring": "node --test ../../scripts/monitor-account-deletion-fence.test.mjs",
     "test:release-attestation": "node --test ../../scripts/provider-package-attestation.test.mjs ../../scripts/verify-api-release.test.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
@@ -29,7 +31,8 @@
     "drizzle-orm": "catalog:",
     "express": "^5.2.1",
     "pino": "^9.14.0",
-    "pino-http": "^10.5.0"
+    "pino-http": "^10.5.0",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

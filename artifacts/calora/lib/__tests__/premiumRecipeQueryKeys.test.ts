@@ -29,4 +29,10 @@ describe("Premium recipe query keys", () => {
     queryClient.removeQueries({ queryKey: key, exact: true });
     expect(queryClient.getQueryData(key)).toBeUndefined();
   });
+
+  it("isolates different freshness days within the same account", () => {
+    const firstDay = premiumRecipeListQueryKey("premium-member", ["listPremiumRecipes", { freshnessDay: "2026-08-27", limit: 18 }]);
+    const nextDay = premiumRecipeListQueryKey("premium-member", ["listPremiumRecipes", { freshnessDay: "2026-08-28", limit: 18 }]);
+    expect(firstDay).not.toEqual(nextDay);
+  });
 });

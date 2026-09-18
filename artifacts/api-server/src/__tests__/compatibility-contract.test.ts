@@ -72,14 +72,17 @@ describe("released mobile API compatibility contract", () => {
     }
   });
 
-  it("retires obsolete local-only profile and weight operations from the generated contract", () => {
-    expect(apiSpec).not.toContain("/v1/profile:");
-    expect(apiSpec).not.toContain("/v1/weights:");
-    expect(generatedClient).not.toContain("getProfile");
-    expect(generatedClient).not.toContain("updateProfile");
+  it("keeps durable profile synchronization aligned across the contract layers", () => {
+    expect(apiSpec).toContain("/v1/profile:");
+    expect(apiSpec).toContain("operationId: getProfile");
+    expect(apiSpec).toContain("operationId: updateProfile");
+    expect(generatedClient).toContain("getProfile");
+    expect(generatedClient).toContain("updateProfile");
+    expect(generatedClient).toContain("/api/v1/profile");
+    expect(generatedZod).toContain("GetProfileResponse");
+    expect(generatedZod).toContain("UpdateProfileBody");
     expect(generatedClient).not.toContain("listWeights");
     expect(generatedClient).not.toContain("createWeight");
-    expect(generatedZod).not.toContain("GetProfileResponse");
     expect(generatedZod).not.toContain("ListWeightsQueryParams");
     expect(generatedZod).not.toContain("CreateWeightBody");
   });

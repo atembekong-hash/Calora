@@ -93,6 +93,18 @@ describe("hasActivePremiumEntitlement", () => {
       "RevenueCat subscriber lookup failed (503)",
     );
   });
+
+  it("retries one connector 401 before failing closed", async () => {
+    proxyMock
+      .mockResolvedValueOnce(jsonResponse({ message: "expired connector token" }, 401))
+      .mockResolvedValueOnce(jsonResponse({
+        items: [{ id: "entitlement-123", lookup_key: "caloraapp_pro" }],
+      }))
+      .mockResolvedValueOnce(jsonResponse({ items: [] }));
+
+    await expect(hasActivePremiumEntitlement("free-user")).resolves.toBe(false);
+    expect(proxyMock).toHaveBeenCalledTimes(3);
+  });
 });
 
 describe("deleteRevenueCatSubscriber", () => {

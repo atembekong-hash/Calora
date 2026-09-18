@@ -154,3 +154,115 @@ mtime_ms = 1789684459096
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/c120707f-9b39-4f5d-8a93-fd44fe5b9c2f/e12e7a1c-f648-4b0a-8f0b-1bd71902bcc1"
 storage_version_token = "1789684463414197"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "gZcz6zmxEZhsUA5X4htD8"
+uri = "file://10_CALORA_GITHUB_CREDENTIAL_RECONNECTION_REPORT.md"
+type = "text"
+title = "Calora GitHub Credential Reconnection Report"
+description = "Non-mutating GitHub authentication cleanup and verification report; local CLI reauthorization remains the only blocker."
+logical_id = "2cad39bc-5fe8-475e-8899-396e2e4bdf1a"
+content_hash = "sha256:fbf7f7fc8496c0b266e238f855078d39a4e4f4863e1af3b9cde535b683cc1f1e"
+size = 6058
+mtime_ms = 1788865561603
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/2cad39bc-5fe8-475e-8899-396e2e4bdf1a/f9f01c2d-69cb-4f5a-89e1-96f50ee600b1"
+storage_version_token = "1788865613818231"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "jNLgaPkySYLpcCu6Ziwlv"
+uri = "file://11_CALORA_FINAL_PRE_PUSH_AUTH_BRANCH_VERIFICATION_REPORT.md"
+type = "text"
+title = "Calora Final Pre-Push Auth and Branch Verification Report"
+description = "Read-only final verification: GitHub CLI auth, repository access, branch ancestry, credential isolation, and release-candidate integrity all passed."
+logical_id = "95ddb7ce-e49d-429d-9e91-c5a9a8f9a6c4"
+content_hash = "sha256:188194578551a678c24b6f5ba1577284748531ab141e05be94f4bd9ab57383ab"
+size = 8286
+mtime_ms = 1788880960867
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/95ddb7ce-e49d-429d-9e91-c5a9a8f9a6c4/ea326d44-6d08-4e52-9528-b459e7871229"
+storage_version_token = "1788880979061813"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "57cq7XCyaj271L87n6wm4"
+uri = "file://12_CALORA_FINAL_GITHUB_PUSH_VERIFICATION_REPORT.md"
+type = "text"
+title = "Calora Final GitHub Push Verification Report"
+description = "Controlled fast-forward push completed; local and remote HEADs independently verified identical."
+logical_id = "660e2ada-107b-4c1e-9617-ca8c56393fa9"
+content_hash = "sha256:2861fff4511959675ab91990a5db630ec5488a20fcd034e750aec7126422df1f"
+size = 4356
+mtime_ms = 1788898501438
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/660e2ada-107b-4c1e-9617-ca8c56393fa9/3792bf47-8038-4bbd-842a-a8a932dc1ec1"
+storage_version_token = "1788898514549008"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "AKgGO_mBpKRcZ2NQZac3S"
+uri = "file://16_CALORA_POST_INSTALL_DEFECT_REMEDIATION_REPORT.md"
+type = "text"
+title = "Updated Calora Remediation Report"
+description = "Reconciled with the completed Plus freshness implementation and final verification counts."
+logical_id = "717b45de-69de-40dc-ab7c-815dc72ef8a4"
+content_hash = "sha256:237b4f0e36d99bb26f1c287f3a8fd9ac35661c389232f60092d66ef12ae91078"
+size = 41290
+mtime_ms = 1788915459347
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/717b45de-69de-40dc-ab7c-815dc72ef8a4/6e19ed6d-d82a-4add-b63c-b77154c234f4"
+storage_version_token = "1788915486280741"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "2dSC5VuIdSv5VE9TSBNx8"
+uri = "file://17_CALORA_COMPLETE_USER_FLOW_FORENSIC_MAP.md"
+type = "text"
+title = "Updated Calora User-Flow Forensic Map"
+description = "Updated Plus ordering, cache, pagination, privacy, test, and device-validation flows."
+logical_id = "09e84e48-e9d6-447e-8a03-d43d0e07e426"
+content_hash = "sha256:e42306f155742e65612be58ca977ba1e153d53fd1166822f0b9b238d61ebecf7"
+size = 105685
+mtime_ms = 1788915414055
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/09e84e48-e9d6-447e-8a03-d43d0e07e426/dc90c9d3-3769-4fc5-b7eb-59eacf488cbe"
+storage_version_token = "1788915487010408"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "mua-jjLdqJSJe1bCmfvYx"
+uri = "file://18_CALORA_PLUS_RECIPE_FRESHNESS_FINAL_CLOSURE_REPORT.md"
+type = "text"
+title = "Calora Plus Freshness Final Closure Report"
+description = "Final forensic trace, deterministic freshness algorithm, lifecycle, provider limits, tests, and owner-device validation gate."
+logical_id = "8ffe9760-3d1f-41c7-b623-c2d89745c3c2"
+content_hash = "sha256:898021a5332821ce0f89a71eda33c0e5ad2f5a9243aca3bf2be8c0f155ec7318"
+size = 8948
+mtime_ms = 1788915463639
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/8ffe9760-3d1f-41c7-b623-c2d89745c3c2/64dadda1-a67d-4584-a3cb-6b6b577c1ab0"
+storage_version_token = "1788915487672671"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "xYFCtKuOseC4QdGf0dgn7"
+uri = "file://19_CALORA_FINAL_POST_INSTALL_GITHUB_SYNC_REPORT.md"
+type = "text"
+title = "Calora Final Post-Install GitHub Sync Report"
+description = "Controlled commit/push evidence, exact test counts, security checks, GitHub equality proof, and owner EAS next action."
+logical_id = "01020cad-16a1-4412-8202-1003155f6efa"
+content_hash = "sha256:5c728153b51c5a3653036be12950313bccab0f64769d9cc98abddafdf163862c"
+size = 10804
+mtime_ms = 1788916075529
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/01020cad-16a1-4412-8202-1003155f6efa/7b596ecc-bb95-430e-b3d5-6d34b8f29f65"
+storage_version_token = "1788916114785123"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "T3-2baj32BSnGtjnt_A65"
+uri = "file://docs/CALORA_WHOLE_APP_BUG_MINIMIZATION_VERIFICATION_REPORT_2026-09-09.md"
+type = "text"
+title = "Calora Whole-App Bug-Minimization Verification Report"
+description = "Detailed repository-wide audit covering automated tests, API contracts, native-device gaps, CI, rollout controls, observability, risks, and release criteria."
+logical_id = "6b89204b-3daa-4506-88af-103e32cc1a18"
+content_hash = "sha256:d6adc827cfe3bb3728b35a260438e6f566e301caefcde8fde4f610536c280e7b"
+size = 40623
+mtime_ms = 1788962028536
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:ca099224-706d-42a2-b6d4-c23233267a84/6b89204b-3daa-4506-88af-103e32cc1a18/0d8380ae-ff9a-4248-9828-bf08ce3161e2"
+storage_version_token = "1788962041858370"
+content_type = "text/markdown"

@@ -67,7 +67,8 @@ function makeLog(overrides: Partial<{
   confidence: number;
   notes: string;
   imageUrl: string;
-  imageSource: 'provider' | 'recipe' | 'planner';
+  imageSource: 'provider' | 'recipe' | 'planner' | 'restaurant_representative';
+  imageAssetKey: string;
   nutritionSnapshot: { calories: number; proteinG: number; carbsG: number; fatG: number; capturedAt: string } | undefined;
   syncUpdatedAt: string;
 }> = {}) {
@@ -148,6 +149,43 @@ describe('PERMANENT_CONFLICT_REASONS', () => {
   it('does NOT include server_error (transient)', async () => {
     const { PERMANENT_CONFLICT_REASONS } = await freshDiarySync();
     expect(PERMANENT_CONFLICT_REASONS.has('server_error')).toBe(false);
+  });
+});
+
+describe('diary sync encrypted persistence and lifecycle cleanup', () => {
+  beforeEach(() => {
+    for (const k of Object.keys(store)) delete store[k];
+    mockSyncOutbox.mockReset();
+  });
+
+  it('migrates a legacy scoped bookkeeping value to an encrypted envelope', async () => {
+    const scopedKey = '@calora/synced-diary-ids:user-a';
+    const legacy = JSON.stringify(['private-meal-log']);
+    store[scopedKey] = legacy;
+    const { setDiarySyncAccountScope, loadSyncedIds } = await freshDiarySync();
+
+    setDiarySyncAccountScope('user-a');
+    await expect(loadSyncedIds()).resolves.toEqual(new Set(['private-meal-log']));
+
+    expect(store[scopedKey]).not.toBe(legacy);
+    expect(store[scopedKey]).toContain('calora.encrypted.v1:');
+  });
+
+  it('clears all account-scoped sync bookkeeping after account deletion/clear', async () => {
+    const { setDiarySyncAccountScope, syncDiaryLogs, clearDiarySyncState } = await freshDiarySync();
+    setDiarySyncAccountScope('user-delete');
+    mockSyncOutbox.mockImplementation(async (request: { mutations: Array<{ mutationId: string }> }) => ({
+      accepted: request.mutations.map((mutation) => mutation.mutationId),
+      conflicts: [],
+      nextCursor: '',
+    }));
+
+    await syncDiaryLogs([makeLog({ id: 'private-delete-log' })]);
+    expect(Object.keys(store).some((key) => key.endsWith(':user-delete'))).toBe(true);
+
+    await clearDiarySyncState('user-delete');
+
+    expect(Object.keys(store).some((key) => key.endsWith(':user-delete'))).toBe(false);
   });
 });
 
@@ -377,6 +415,25 @@ describe('syncDiaryLogs: image metadata', () => {
     expect(secondPayload.imageUrl).toBe('https://images.openfoodfacts.org/chicken.jpg');
     expect(secondPayload.imageSource).toBe('provider');
     expect(secondPayload.imageAssetKey).toBe('chicken-breast');
+  });
+
+  it('round-trips a stable local image identity with the diary mutation', async () => {
+    const { syncDiaryLogs } = await freshDiarySync();
+    mockSyncOutbox.mockImplementation(async (request: { mutations: Array<{ mutationId: string }> }) => ({
+      accepted: request.mutations.map((mutation) => mutation.mutationId),
+      conflicts: [],
+      nextCursor: '',
+    }));
+
+    await syncDiaryLogs([makeLog({
+      id: 'log-restaurant-image',
+      imageAssetKey: 'restaurant:tacos',
+      imageSource: 'restaurant_representative',
+    })]);
+
+    const payload = mockSyncOutbox.mock.calls[0][0].mutations[0].payload;
+    expect(payload.imageAssetKey).toBe('restaurant:tacos');
+    expect(payload.imageSource).toBe('restaurant_representative');
   });
 
   it('uses a new mutation id for a later edit of the same diary record', async () => {

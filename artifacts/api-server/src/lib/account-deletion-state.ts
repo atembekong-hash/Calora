@@ -3,18 +3,20 @@ import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
-  createAccountDeletionFenceSignal,
 } from "./account-deletion-fence-schema.mjs";
 import type { AccountDeletionFenceSignal } from "./account-deletion-fence-schema.mjs";
+import { accountDeletionFenceSignal } from "./account-deletion-fence-signal";
+import { noteRecoveryWarningCooldownStorageUnavailable } from "./logger.js";
 
 export type AccountDeletionState = "active" | "deleting" | "deleted";
-export type AccountDeletionStage = "application" | "revenuecat" | "auth";
+export type AccountDeletionStage = "object_storage" | "application" | "revenuecat" | "auth";
 export type AccountDeletionClaim =
   | { kind: "completed" }
   | { kind: "in_progress" }
   | { kind: "claimed"; operationId: string; stage: AccountDeletionStage };
 
 export { ACCOUNT_DELETION_FENCE_ERROR_CLASS };
+export { accountDeletionFenceSignal };
 const ACCOUNT_DELETION_FENCE_SQLSTATE = "55000";
 const ACCOUNT_DELETION_FENCE_MESSAGE = "account deletion is in progress";
 
@@ -22,16 +24,6 @@ const LEASE_SECONDS = 5 * 60;
 export const RECOVERY_WARNING_COOLDOWN_MS = 15 * 60 * 1000;
 const RECOVERY_WARNING_MAX_RECORDS = 128;
 const RECOVERY_WARNING_LOCK_KEY = "calora:recovery-warning-suppression";
-
-export type { AccountDeletionFenceSignal };
-
-export function accountDeletionFenceSignal(
-  route: string,
-  count = 1,
-): AccountDeletionFenceSignal {
-  return createAccountDeletionFenceSignal(route, count);
-}
-
 /**
  * Atomically claim a shared recovery-warning cooldown record.
  *
@@ -88,6 +80,7 @@ export async function claimRecoveryWarningSuppression(
   } catch {
     // Cooldown storage is an observability optimization. If its table cannot
     // be read or written, emit rather than hiding a recovery warning.
+    noteRecoveryWarningCooldownStorageUnavailable();
     return true;
   }
 }
@@ -153,7 +146,7 @@ export async function claimAccountDeletion(externalUserId: string): Promise<Acco
       return { kind: "in_progress" };
     }
     const operationId = randomUUID();
-    const stage = row?.stage ?? "application";
+    const stage = row?.stage ?? "object_storage";
     await tx.execute(sql`
       UPDATE calora_account_deletion_states
       SET state = 'deleting',

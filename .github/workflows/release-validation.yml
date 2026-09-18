@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - release/calora-onboarding-and-plus
   pull_request:
   workflow_dispatch:
 
@@ -14,16 +15,13 @@ jobs:
   release-validation:
     name: Run release validation suite
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
 
     steps:
       - name: Check out source
         uses: actions/checkout@v4
-
-      - name: Audit required branch checks
-        env:
-          GITHUB_TOKEN: ${{ secrets.CALORA_RELEASE_GATE_ADMIN_READ_TOKEN }}
-        run: node scripts/audit-required-checks.mjs
+        with:
+          fetch-depth: 0
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -36,11 +34,54 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      - name: Audit required branch checks
+        env:
+          GITHUB_TOKEN: ${{ secrets.CALORA_RELEASE_GATE_ADMIN_READ_TOKEN }}
+        run: node scripts/audit-required-checks.mjs
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Audit workspace dependencies
         run: pnpm run audit:release
 
-      - name: Run release validation suite
-        run: pnpm --filter @workspace/scripts test
+      - name: Verify release-attestation fixtures
+        run: |
+          pnpm --filter @workspace/scripts run test:release:build-clean-checkout
+          pnpm --filter @workspace/api-server run test:release-attestation
+
+      - name: Run repository typecheck
+        run: pnpm run typecheck
+
+      - name: Run complete test suite
+        env:
+          # Deterministic non-production values for Calora's offline Vitest
+          # suite. Production configuration remains required at runtime.
+          # The API's Drizzle module validates DATABASE_URL at import time.
+          # test:offline imports the DB module but excludes integration tests;
+          # the dedicated fresh-schema jobs run those against PostgreSQL.
+          DATABASE_URL: postgresql://calora-test:calora-test@127.0.0.1:1/calora_test
+          EXPO_PUBLIC_SUPABASE_URL: https://calora-test.invalid
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: calora-vitest-anon-key
+          # Offline API tests import the OpenAI client but mock provider calls.
+          # These loopback/invalid sentinels prevent import-time failures and
+          # cannot reach a real provider.
+          AI_INTEGRATIONS_OPENAI_BASE_URL: http://127.0.0.1:1/openai-test
+          AI_INTEGRATIONS_OPENAI_API_KEY: calora-vitest-openai-key
+        run: |
+          pnpm --filter @workspace/calora run test
+          pnpm --filter @workspace/api-server run test:offline
+          pnpm --filter @workspace/scripts run test
+
+      - name: Build API production artifact
+        env:
+          NODE_ENV: production
+          RELEASE_SENSITIVE_ACTIVATION_REQUESTED: "false"
+          RELEASE_SENSITIVE_ACTIVATION_COMMIT: ""
+        run: pnpm --filter @workspace/api-server run build
+
+      - name: Build Calora production static artifact
+        env:
+          EXPO_PUBLIC_DOMAIN: calorie-coach-pie35449.replit.app
+          EXPO_PUBLIC_API_URL: https://calorie-coach-pie35449.replit.app
+        run: pnpm --filter @workspace/calora run build

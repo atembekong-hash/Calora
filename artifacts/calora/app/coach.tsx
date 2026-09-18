@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -33,6 +34,7 @@ import {
 import type { IntelligenceFact } from '@/lib/intelligence';
 import { dateKey } from '@/lib/dates';
 import { enterMotion } from '@/lib/motion';
+import { guestCoachReply } from '@/lib/guestCoach';
 
 type DisplayTurn = {
   id: string;
@@ -43,13 +45,12 @@ type DisplayTurn = {
 };
 
 const starterPrompts = [
-  'What should I focus on today?',
-  'What patterns do you see this week?',
-  'Help me improve protein.',
-  'Find an easy dinner.',
-  'Review my hydration.',
+  'How many calories have I logged today?',
+  'How much protein have I logged today?',
+  'How is my hydration looking today?',
+  'What patterns do my recent records show?',
+  'Can you help me think of a flexible dinner idea?',
 ];
-
 function actionIcon(destination: CoachAction['destination']): keyof typeof Feather.glyphMap {
   if (destination === 'recipes') return 'book-open';
   if (destination === 'planner') return 'calendar';
@@ -119,19 +120,19 @@ function ActionCard({ action, colors }: { action: CoachAction; colors: ReturnTyp
 }
 
 /**
- * Frozen approved daily calorie+protein fact types.
- * Only these fact types are extracted from the full daily intelligence fact
- * set and passed to the Coach send adapter.  No other content is included.
+ * Frozen approved Coach fact types. The full intelligence snapshot never goes
+ * to Coach: only these deterministic, display-ready summaries are projected.
  */
-const CALORIE_PROTEIN_FACT_TYPES = Object.freeze([
-  'daily.calories_consumed',
-  'daily.calorie_target',
-  'daily.calories_remaining',
-  'daily.protein_consumed',
-  'daily.protein_target',
-  'daily.protein_remaining',
+const COACH_FACT_TYPES = Object.freeze([
+  'daily.calories_consumed', 'daily.calorie_target', 'daily.calories_remaining',
+  'daily.protein_consumed', 'daily.protein_target', 'daily.protein_remaining',
+  'daily.carbohydrates_consumed', 'daily.carbohydrates_target', 'daily.carbohydrates_remaining',
+  'daily.fat_consumed', 'daily.fat_target', 'daily.fat_remaining',
+  'daily.fiber_consumed', 'daily.sugar_consumed', 'daily.sodium_consumed',
+  'daily.water_consumed', 'daily.meal_distribution', 'daily.logging_completeness',
+  'nutrition.seven_day_coverage', 'nutrition.seven_day_macro_record_coverage',
+  'weight.short_trend',
 ] as const);
-
 export default function CoachScreen() {
   const {
     colors,
@@ -159,9 +160,11 @@ export default function CoachScreen() {
     hydrated,
     hydrationError,
   } = useCalora();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
   const coachSendAdapter = useCoachSendAdapter();
+  const guestMode = !authLoading && !user?.id;
+  const chatReady = guestMode || coachConsentAccepted;
   // Track hydration generation: bumps whenever hydrated goes false→true or
   // hydrationError changes (covers retries and clear-data resets).
   const hydrationGenerationRef = useRef(0);
@@ -194,6 +197,11 @@ export default function CoachScreen() {
 
   useEffect(() => {
     if (!hydrated) return;
+    if (!user?.id) {
+      loadedHistoryGenerationRef.current = `guest:${hydrationGeneration}`;
+      setTurns([]);
+      return;
+    }
     const generationKey = `${user?.id ?? 'guest'}:${hydrationGeneration}`;
     if (loadedHistoryGenerationRef.current === generationKey) return;
     loadedHistoryGenerationRef.current = generationKey;
@@ -204,7 +212,7 @@ export default function CoachScreen() {
     })));
   }, [coachMessages, hydrated, hydrationGeneration, user?.id]);
 
-  const sendMessage = async (value = composer.trim()) => {
+  const sendMessage = async (value = composer.trim(), consentAcceptedOverride = coachConsentAccepted) => {
     if (!value || isSending) return;
     const userMessage: CoachMessage = { role: 'user', content: value.slice(0, 3000) };
     // Capture current messages synchronously before any await so we use the
@@ -213,6 +221,16 @@ export default function CoachScreen() {
     const userTurn: DisplayTurn = { id: `user-${Date.now()}`, role: 'user', content: userMessage.content };
     setTurns((current) => [...current, userTurn]);
     setComposer('');
+
+    if (guestMode) {
+      setTurns((current) => [...current, {
+        id: `guest-assistant-${Date.now()}`,
+        role: 'assistant',
+        content: guestCoachReply(userMessage.content),
+        announce: true,
+      }]);
+      return;
+    }
 
     // Capture epoch-relevant state synchronously at send-time.
     // Build and freeze only the approved daily calorie+protein facts.
@@ -241,7 +259,7 @@ export default function CoachScreen() {
         const allFacts = buildDailyIntelligenceFacts(intelligenceCtx);
         frozenFacts = Object.freeze(
           allFacts.filter((fact) =>
-            (CALORIE_PROTEIN_FACT_TYPES as readonly string[]).includes(fact.factType),
+            (COACH_FACT_TYPES as readonly string[]).includes(fact.factType),
           ),
         );
       } catch {
@@ -253,7 +271,10 @@ export default function CoachScreen() {
       accountId: user?.id ?? null,
       hydrationGeneration,
       hydrated,
-      consentAccepted: coachConsentAccepted,
+      // The consent CTA starts the first request in the same event as the
+      // consent state update. Use the explicit override so the lifecycle
+      // epoch does not discard that request when React commits the update.
+      consentAccepted: consentAcceptedOverride,
       facts: frozenFacts,
     };
 
@@ -321,7 +342,7 @@ export default function CoachScreen() {
 
   const startCoach = () => {
     setCoachConsentAccepted(true);
-    void sendMessage('Give me a calm, useful read on my nutrition and wellness this week.');
+    void sendMessage('Give me a calm, useful read on my nutrition and wellness this week.', true);
   };
 
   const clearConversation = () => {
@@ -357,13 +378,9 @@ export default function CoachScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerCopy}>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A focused view of your nutrition.</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>A focused view of today’s logged nutrition.</Text>
         </View>
-        {isIntelligenceFeatureEnabled('intelligence.coach.fact_context') && (
-          <CoachFactContextConsentPanel colors={colors} />
-        )}
-
-        {!coachConsentAccepted ? (
+        {!guestMode && !coachConsentAccepted ? (
           <View style={[styles.consentCard, { backgroundColor: colors.hero }]}>
             <View style={[styles.coachMark, { backgroundColor: 'rgba(157,215,189,0.16)' }]}>
               <CaloraFeatureIcon name="coach" size={36} primaryColor={colors.primary} accentColor={colors.accent} foregroundColor={colors.heroMuted} highlightColor={colors.onHero} />
@@ -394,7 +411,7 @@ export default function CoachScreen() {
                     <CaloraFeatureIcon name="coach" size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
                 </View>
                 <Text style={[styles.briefTitle, { color: colors.foreground }]}>What would you like to know?</Text>
-                <Text style={[styles.briefBody, { color: colors.mutedForeground }]}>Ask about meals, hydration, patterns, or what to do next. Coach shows what it uses.</Text>
+                <Text style={[styles.briefBody, { color: colors.mutedForeground }]}>Ask about today’s logged calories or protein. Coach shows what it uses.</Text>
               </View>
             )}
             {turns.map((turn) => (
@@ -430,7 +447,7 @@ export default function CoachScreen() {
         )}
       </KeyboardAwareScrollViewCompat>
 
-      {coachConsentAccepted && (
+      {chatReady && (
         <View style={[styles.composerDock, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
           <TextInput
             value={composer}
@@ -463,6 +480,11 @@ export default function CoachScreen() {
             style={styles.menuBackdrop}
           />
           <View accessibilityViewIsModal style={[styles.menuSheet, { backgroundColor: colors.background, paddingTop: insets.top + 14, paddingBottom: insets.bottom + 14 }]}>
+            <ScrollView
+              style={styles.menuScroll}
+              contentContainerStyle={styles.menuScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
             <View style={styles.menuHeader}>
               <View style={styles.menuTitleGroup}>
                 <View style={[styles.menuTitleIcon, { backgroundColor: colors.accent }]}>
@@ -536,6 +558,29 @@ export default function CoachScreen() {
                 <Text style={[styles.emptyHistoryBody, { color: colors.mutedForeground }]}>Start Coach to save chats on this device.</Text>
               </View>
             )}
+            {guestMode && (
+              <View style={[styles.briefCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={[styles.briefIcon, { backgroundColor: colors.accent }]}>
+                  <CaloraFeatureIcon name="coach" size={29} primaryColor={colors.primary} accentColor={colors.accentForeground} foregroundColor={colors.foreground} highlightColor={colors.card} />
+                </View>
+                <Text style={[styles.briefTitle, { color: colors.foreground }]}>General Coach guidance</Text>
+                <Text style={[styles.briefBody, { color: colors.mutedForeground }]}>
+                  Ask a general nutrition question. Guest Coach never uses or stores your personal records.
+                </Text>
+                <Pressable
+                  accessibilityLabel="Sign in for personalized Coach"
+                  onPress={() => router.push('/auth/sign-in')}
+                  style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Sign in for personalized Coach</Text>
+                  <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
+                </Pressable>
+              </View>
+            )}
+            {!guestMode && isIntelligenceFeatureEnabled('intelligence.coach.fact_context') && (
+              <CoachFactContextConsentPanel colors={colors} />
+            )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -634,6 +679,8 @@ const styles = StyleSheet.create({
   menuOverlay: { flex: 1, flexDirection: 'row' },
   menuBackdrop: { flex: 1, backgroundColor: 'rgba(8,22,15,0.46)' },
   menuSheet: { width: '86%', maxWidth: 390, paddingHorizontal: 18, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: -5, height: 0 }, elevation: 12 },
+  menuScroll: { flex: 1 },
+  menuScrollContent: { paddingBottom: 8 },
   menuHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 },
   menuTitleGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   menuTitleIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

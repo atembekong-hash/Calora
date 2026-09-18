@@ -204,6 +204,37 @@ describe.skipIf(!HAS_DB)('diary sync idempotency (real schema)', () => {
     expect(r2.body.conflicts).toHaveLength(0);
   });
 
+  it('durably approves an owner-scoped capture when its diary outbox mutation commits', async () => {
+    actAsTestUser();
+    // Ensure this test remains independent of ordering with the basic sync cases.
+    const bootstrap = validUpsertMutation();
+    clientIds.push(bootstrap.payload.clientId as string);
+    mutationIds.push(bootstrap.mutationId);
+    await request(app).post('/v1/sync').send(syncBody([bootstrap]));
+    const owner = await pool.query(`SELECT id FROM calora_users WHERE external_id = $1`, [externalUserId]);
+    const sessionId = randomUUID();
+    await pool.query(
+      `INSERT INTO calora_ai_capture_sessions (id, user_id, mode, status) VALUES ($1, $2, 'food', 'review')`,
+      [sessionId, owner.rows[0].id],
+    );
+    const mutation = validUpsertMutation({ captureSessionId: sessionId });
+    clientIds.push(mutation.payload.clientId as string);
+    mutationIds.push(mutation.mutationId);
+
+    const first = await request(app).post('/v1/sync').send(syncBody([mutation]));
+    expect(first.status).toBe(200);
+    expect(first.body.accepted).toContain(mutation.mutationId);
+    expect(await diaryRowCount(mutation.payload.clientId as string)).toBe(1);
+    expect((await pool.query(`SELECT status FROM calora_ai_capture_sessions WHERE id = $1`, [sessionId])).rows[0].status).toBe('approved');
+
+    // A replay after an explicit-approval transport failure/restart does not
+    // duplicate either the diary row or the owner-scoped acknowledgement.
+    const replay = await request(app).post('/v1/sync').send(syncBody([mutation]));
+    expect(replay.body.accepted).toContain(mutation.mutationId);
+    expect(await diaryRowCount(mutation.payload.clientId as string)).toBe(1);
+    expect((await pool.query(`SELECT status FROM calora_ai_capture_sessions WHERE id = $1`, [sessionId])).rows[0].status).toBe('approved');
+  });
+
   it('a batch of multiple upserts sent twice never duplicates any row', async () => {
     const mutations = [
       validUpsertMutation({ meal: 'Breakfast' }),

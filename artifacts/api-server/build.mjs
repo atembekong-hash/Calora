@@ -153,9 +153,6 @@ async function verifyStagedProviderPackage(release, artifact) {
 }
 
 async function writeSignedExternalManifest(release, distDir) {
-  const sensitiveActivationRequested = process.env.RELEASE_SENSITIVE_ACTIVATION_REQUESTED === "true";
-  if (!sensitiveActivationRequested) return;
-
   const manifestDir = process.env.RELEASE_ATTESTATION_MANIFEST_DIR;
   const signingKey = process.env.RELEASE_ATTESTATION_SIGNING_KEY;
   const finalArtifactDir = process.env.RELEASE_ATTESTATION_ARTIFACT_DIR;
@@ -274,8 +271,11 @@ async function buildAll() {
       "Sensitive release activation requires RELEASE_SENSITIVE_ACTIVATION_COMMIT to exactly match the clean reviewed Git commit.",
     );
   }
-  await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+  const buildResult = await esbuild({
+    entryPoints: [
+      path.resolve(artifactDir, "src/index.ts"),
+      path.resolve(artifactDir, "src/release-validation.ts"),
+    ],
     platform: "node",
     bundle: true,
     format: "esm",
@@ -377,6 +377,7 @@ async function buildAll() {
       "electron",
     ],
     sourcemap: "linked",
+    metafile: true,
     plugins: [
       // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
       esbuildPluginPino({ transports: ["pino-pretty"] })
@@ -393,14 +394,15 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
-  // External artifact provenance is required for an explicitly requested
-  // sensitive release, but it must not block an ordinary API release. The
-  // compiled source identity remains the supported production boundary for
-  // ordinary releases, and Coach stays deny-all unless the sensitive build
-  // gate was explicitly authorized.
-  if (sensitiveActivationRequested) {
-    await writeSignedExternalManifest(release, distDir);
-  }
+  await writeFile(
+    path.join(distDir, "module-graph.json"),
+    `${JSON.stringify(buildResult.metafile, null, 2)}\n`,
+    "utf8",
+  );
+  // Provider-signed final-package provenance remains optional defense in depth.
+  // The supported production boundary is the clean reviewed source compiled
+  // into this bundle and independently compared with the canonical live
+  // /api/version identity before any runtime gate may be enabled.
 }
 
 buildAll().catch((err) => {

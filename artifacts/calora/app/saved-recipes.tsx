@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -241,7 +242,7 @@ export default function SavedRecipesScreen() {
     updateRecipe(recipe.id, { imageStatus: 'pending' });
     try {
       const photo = await requestGeneratedRecipePhoto({ title: recipe.name, description: recipe.description ?? '' });
-      updateRecipe(recipe.id, { image: photo.imageUrl, imageId: photo.imageId, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready' });
+      updateRecipe(recipe.id, { image: photo.imageUrl, imageId: photo.imageId, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready', imageProvenance: 'generated' });
     } catch {
       updateRecipe(recipe.id, { imageStatus: 'failed' });
     } finally {
@@ -261,7 +262,17 @@ export default function SavedRecipesScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 104 }]}
       >
-        <LinearGradient colors={[colors.hero, colors.heroMuted]} style={styles.hero}>
+        <View style={[styles.hero, { backgroundColor: colors.hero }]}>
+          <Image
+            source={require('../assets/images/food-fallback-main.jpg')}
+            contentFit="cover"
+            style={StyleSheet.absoluteFillObject}
+          />
+          <LinearGradient
+            colors={['rgba(8,22,15,0.72)', 'rgba(8,22,15,0.96)']}
+            locations={[0, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
           <View style={styles.heroTop}>
             <View style={[styles.heroIcon, { backgroundColor: colors.accent }]}>
               <Feather name="bookmark" size={19} color={colors.primary} />
@@ -274,7 +285,7 @@ export default function SavedRecipesScreen() {
           <Text style={[styles.heroEyebrow, { color: colors.onHero }]}>YOUR RECIPE SHELF</Text>
           <Text style={[styles.heroTitle, { color: colors.onHero }]}>Worth making again.</Text>
           <Text style={[styles.heroBody, { color: colors.onHero }]}>One calm place for recipes you discovered, unlocked, or created yourself.</Text>
-        </LinearGradient>
+        </View>
 
         <View style={styles.filterRow}>
           <SavedFilterChip label="All saved" count={savedRecipeIds.length} active={activeFilter === 'all'} icon="bookmark" colors={colors} onPress={() => setActiveFilter('all')} />

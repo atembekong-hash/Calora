@@ -36,11 +36,13 @@ function makeAdapter(overrides?: {
   cacheDirectory?: string | null;
   writeAsStringAsync?: () => Promise<void>;
   shareAsync?: () => Promise<void>;
+  deleteAsync?: () => Promise<void>;
 }) {
   return {
     cacheDirectory: overrides?.cacheDirectory ?? 'file:///cache/',
     writeAsStringAsync: overrides?.writeAsStringAsync ?? vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     shareAsync: overrides?.shareAsync ?? vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    deleteAsync: overrides?.deleteAsync ?? vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   };
 }
 
@@ -103,10 +105,9 @@ describe('makeExportHandler: happy path — two simultaneous taps', () => {
     const handler = makeExportHandler(lockRef, exportRaw, adapter, callbacks);
     await handler();
 
-    expect(adapter.writeAsStringAsync).toHaveBeenCalledWith(
-      `file:///cache/${EXPORT_FILENAME}`,
-      DATA_JSON,
-    );
+    const [uri, content] = (adapter.writeAsStringAsync as ReturnType<typeof vi.fn>).mock.calls[0] as [string, string];
+    expect(uri).toMatch(/^file:\/\/\/cache\/caloraapp-export-[a-z0-9-]+\.json$/);
+    expect(content).toBe(DATA_JSON);
   });
 
   it('passes correct mimeType and dialogTitle to shareAsync', async () => {
@@ -118,10 +119,12 @@ describe('makeExportHandler: happy path — two simultaneous taps', () => {
     const handler = makeExportHandler(lockRef, exportRaw, adapter, callbacks);
     await handler();
 
-    expect(adapter.shareAsync).toHaveBeenCalledWith(
-      `file:///cache/${EXPORT_FILENAME}`,
-      { mimeType: EXPORT_MIME_TYPE, dialogTitle: EXPORT_FILENAME },
-    );
+    const [uri, options] = (adapter.shareAsync as ReturnType<typeof vi.fn>).mock.calls[0] as [
+      string,
+      { mimeType: string; dialogTitle: string },
+    ];
+    expect(uri).toMatch(/^file:\/\/\/cache\/caloraapp-export-[a-z0-9-]+\.json$/);
+    expect(options).toEqual({ mimeType: EXPORT_MIME_TYPE, dialogTitle: EXPORT_FILENAME });
   });
 
   it('does not call onNoData or onError on a successful export', async () => {
@@ -135,6 +138,7 @@ describe('makeExportHandler: happy path — two simultaneous taps', () => {
 
     expect(callbacks.onNoData).not.toHaveBeenCalled();
     expect(callbacks.onError).not.toHaveBeenCalled();
+    expect(adapter.deleteAsync).toHaveBeenCalledOnce();
   });
 });
 
@@ -304,6 +308,7 @@ describe('makeExportHandler: adapter error path', () => {
 
     expect(callbacks.onError).toHaveBeenCalledTimes(1);
     expect(adapter.shareAsync).toHaveBeenCalledTimes(1);
+    expect(adapter.deleteAsync).toHaveBeenCalledTimes(2);
   });
 });
 

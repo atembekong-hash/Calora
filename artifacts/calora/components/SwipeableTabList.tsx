@@ -1,6 +1,7 @@
 import React, { useMemo, useRef } from 'react';
 import {
   PanResponder,
+  StyleSheet,
   useWindowDimensions,
   View,
   type StyleProp,
@@ -36,7 +37,8 @@ type SwipeableSectionPagerProps<T extends string> = {
   items: readonly T[];
   activeItem: T;
   onChange: (item: T) => void;
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  renderItem?: (item: T) => React.ReactNode;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel: string;
   accessibilityHint?: string;
@@ -134,7 +136,7 @@ export function SwipeableTabList<T extends string>({
       accessibilityRole="tablist"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint="Swipe left or right to switch sections"
-      style={style}
+      style={[style, styles.gestureSurface]}
       testID={testID}
     >
       {children}
@@ -154,6 +156,7 @@ export function SwipeableSectionPager<T extends string>({
   activeItem,
   onChange,
   children,
+  renderItem,
   style,
   accessibilityLabel,
   accessibilityHint = 'Swipe left or right to switch sections',
@@ -163,6 +166,7 @@ export function SwipeableSectionPager<T extends string>({
 }: SwipeableSectionPagerProps<T>) {
   const { width: windowWidth } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
+  const [surfaceWidth, setSurfaceWidth] = React.useState(windowWidth);
   const translateX = useSharedValue(0);
   const opacity = useSharedValue(1);
   const itemsRef = useRef(items);
@@ -173,22 +177,49 @@ export function SwipeableSectionPager<T extends string>({
   const lockGestureRef = useRef(lockGesture);
   const disableAnimationRef = useRef(disableAnimation);
   const excludedGestureRef = useRef(false);
+  const renderItemRef = useRef(renderItem);
+  const surfaceWidthRef = useRef(windowWidth);
 
   itemsRef.current = items;
   activeItemRef.current = activeItem;
   onChangeRef.current = onChange;
-  widthRef.current = windowWidth;
+  surfaceWidthRef.current = surfaceWidth || windowWidth;
+  widthRef.current = surfaceWidthRef.current;
   reduceMotionRef.current = reduceMotion;
   lockGestureRef.current = lockGesture;
   disableAnimationRef.current = disableAnimation;
+  renderItemRef.current = renderItem;
+
+  React.useEffect(() => {
+    if (!renderItemRef.current) return;
+    const currentIndex = itemsRef.current.indexOf(activeItemRef.current);
+    if (currentIndex < 0) return;
+    const targetOffset = -currentIndex * surfaceWidthRef.current;
+    if (reduceMotionRef.current || disableAnimationRef.current) {
+      translateX.value = targetOffset;
+      return;
+    }
+    translateX.value = withTiming(targetOffset, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      reduceMotion: ReduceMotion.System,
+    });
+  }, [activeItem, surfaceWidth, translateX]);
+
+  const restingOffset = () => {
+    if (!renderItemRef.current) return 0;
+    const currentIndex = itemsRef.current.indexOf(activeItemRef.current);
+    return currentIndex >= 0 ? -currentIndex * widthRef.current : 0;
+  };
 
   const settleAtRest = () => {
+    const targetOffset = restingOffset();
     if (disableAnimationRef.current) {
-      translateX.value = 0;
+      translateX.value = targetOffset;
       opacity.value = 1;
       return;
     }
-    translateX.value = withTiming(0, {
+    translateX.value = withTiming(targetOffset, {
       duration: 220,
       easing: Easing.out(Easing.cubic),
       reduceMotion: ReduceMotion.System,
@@ -201,18 +232,34 @@ export function SwipeableSectionPager<T extends string>({
   };
 
   const showTarget = (targetItem: T, direction: number) => {
+    const targetIndex = itemsRef.current.indexOf(targetItem);
+    const targetOffset = renderItemRef.current && targetIndex >= 0
+      ? -targetIndex * widthRef.current
+      : direction * Math.min(widthRef.current * 0.22, 88);
     onChangeRef.current(targetItem);
     if (reduceMotionRef.current || disableAnimationRef.current) {
-      translateX.value = 0;
+      // In children mode the next section replaces the current child at
+      // offset zero. Do not leave it parked at the directional preview offset
+      // when settle animation is disabled.
+      translateX.value = renderItemRef.current ? targetOffset : 0;
       opacity.value = 1;
       return;
     }
 
-    // The new day enters from the direction it came from, then settles with a
-    // short ease-out instead of a spring that can feel like a snap on release.
-    translateX.value = direction * Math.min(widthRef.current * 0.22, 88);
+    // When renderItem is provided, adjacent pages are already beside the active
+    // page, so the release animation only needs to finish the drag to its target.
+    // The legacy children mode keeps its short directional entrance animation.
     opacity.value = 0.92;
-    requestAnimationFrame(settleAtRest);
+    translateX.value = withTiming(targetOffset, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      reduceMotion: ReduceMotion.System,
+    });
+    opacity.value = withTiming(1, {
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      reduceMotion: ReduceMotion.System,
+    });
   };
 
   const commitTarget = (targetItem: T, direction: number) => {
@@ -238,15 +285,20 @@ export function SwipeableSectionPager<T extends string>({
         opacity.value = 1;
       },
       onPanResponderMove: (_event, gesture) => {
-        if (disableAnimationRef.current) return;
         const currentItems = itemsRef.current;
         const currentIndex = currentItems.indexOf(activeItemRef.current);
-        translateX.value = getWorkspaceSwipeOffset(
+        const dragOffset = getWorkspaceSwipeOffset(
           currentIndex,
           currentItems.length,
           gesture.dx,
         );
-        opacity.value = Math.max(0.84, 1 - Math.abs(translateX.value) / Math.max(widthRef.current, 1) * 0.16);
+        const pageOffset = renderItemRef.current && currentIndex >= 0
+          ? -currentIndex * widthRef.current
+          : 0;
+        translateX.value = pageOffset + dragOffset;
+        opacity.value = disableAnimationRef.current
+          ? 1
+          : Math.max(0.84, 1 - Math.abs(dragOffset) / Math.max(widthRef.current, 1) * 0.16);
       },
       onPanResponderRelease: (_event, gesture) => {
         const currentItems = itemsRef.current;
@@ -291,11 +343,53 @@ export function SwipeableSectionPager<T extends string>({
         {...panResponder.panHandlers}
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
-        style={[style, animatedStyle]}
+        onLayout={(event) => {
+          const nextWidth = event.nativeEvent.layout.width;
+          if (nextWidth > 0 && Math.abs(nextWidth - surfaceWidthRef.current) > 0.5) {
+            surfaceWidthRef.current = nextWidth;
+            setSurfaceWidth(nextWidth);
+            const currentIndex = itemsRef.current.indexOf(activeItemRef.current);
+            if (renderItemRef.current && currentIndex >= 0) {
+              translateX.value = -currentIndex * nextWidth;
+            }
+          }
+        }}
+        style={[style, styles.gestureSurface]}
         testID={testID}
       >
-        {children}
+        {renderItem ? (
+          <Animated.View
+            style={[
+              styles.pagerTrack,
+              { width: surfaceWidthRef.current * items.length },
+              animatedStyle,
+            ]}
+          >
+            {items.map((item) => (
+              <View key={item} style={{ width: surfaceWidthRef.current }}>
+                {renderItemRef.current?.(item)}
+              </View>
+            ))}
+          </Animated.View>
+        ) : (
+          <Animated.View style={[styles.pagerContent, animatedStyle]}>{children}</Animated.View>
+        )}
       </Animated.View>
     </SwipeGestureExclusionContext.Provider>
   );
 }
+
+const styles = StyleSheet.create({
+  gestureSurface: {
+    overflow: 'hidden',
+    minHeight: 0,
+    userSelect: 'none',
+  },
+  pagerContent: {
+    flex: 1,
+    minHeight: 0,
+  },
+  pagerTrack: {
+    flexDirection: 'row',
+  },
+});

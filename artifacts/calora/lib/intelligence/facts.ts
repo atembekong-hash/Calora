@@ -311,6 +311,18 @@ export function buildDailyIntelligenceFacts(
   if (totals.hasSugar) facts.push(fact(context, watermark, generatedAt, 'daily.sugar_consumed', totals.sugar, 'g', evidence, missingData));
   if (totals.hasSodium) facts.push(fact(context, watermark, generatedAt, 'daily.sodium_consumed', totals.sodium, 'mg', evidence, missingData));
 
+  const waterOz = Math.max(0, Number(context.waterLogs[context.date] ?? 0));
+  facts.push(fact(
+    context,
+    watermark,
+    generatedAt,
+    'daily.water_consumed',
+    { consumedOz: Math.round(waterOz) },
+    'fl oz',
+    waterOz > 0 ? [{ origin: 'manual', quality: 'moderate', count: 1, logIds: [] }] : [],
+    waterOz > 0 ? [] : ['incomplete_day'],
+  ));
+
   for (const meal of MEALS) {
     const mealLogs = dayLogs.filter((log) => log.meal === meal);
     const mealTotals = totalsFor(mealLogs);
@@ -345,6 +357,20 @@ export function buildDailyIntelligenceFacts(
       state: dayLogs.length ? 'partially_logged' : 'no_logs',
     },
     null,
+    evidence,
+    missingData,
+  ));
+  facts.push(fact(
+    context,
+    watermark,
+    generatedAt,
+    'daily.meal_distribution',
+    Object.fromEntries(MEALS.map((meal) => {
+      const mealLogs = dayLogs.filter((log) => log.meal === meal);
+      const mealTotals = totalsFor(mealLogs);
+      return [`${meal.toLowerCase()}Percentage`, totals.calories > 0 ? Number(((mealTotals.calories / totals.calories) * 100).toFixed(1)) : 0];
+    })),
+    '%',
     evidence,
     missingData,
   ));

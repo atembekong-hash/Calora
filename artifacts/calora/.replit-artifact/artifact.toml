@@ -1,5 +1,5 @@
 kind = "mobile"
-previewPath = "/"
+previewPath = "/mobile"
 title = "Calora"
 description = "A fast, trustworthy calorie and nutrition tracker for iOS and Android, built around verified food data, low-friction logging, adaptive goals, and a calm daily experience."
 version = "1.0.0"
@@ -9,7 +9,7 @@ router = "expo-domain"
 [[services]]
 name = "expo"
 ensurePreviewReachable = "/status"
-paths = [ "/" ]
+paths = [ "/mobile" ]
 localPort = 25115
 
 [services.development]
@@ -21,4 +21,4 @@ run = [ "pnpm", "--filter", "@workspace/calora", "run", "serve" ]
 
 [services.env]
 PORT = "25115"
-BASE_PATH = "/"
+BASE_PATH = "/mobile"
