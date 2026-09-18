@@ -23,6 +23,7 @@ import { reconcileUserNotificationPlan } from '@/lib/notificationLifecycle';
 import type { NotificationReconciliationResult } from '@/lib/notificationReconciliation';
 import * as FileSystem from 'expo-file-system/legacy';
 import { copyProfilePhoto, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
+import { ProfilePhoto } from '@/components/ProfilePhoto';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import Animated from 'react-native-reanimated';
@@ -690,9 +691,12 @@ export default function ProfileScreen() {
         {/* ── Profile card ── */}
         <Animated.View entering={enterMotion('screen', 0)} style={[styles.profileCard, { backgroundColor: colors.hero }]}>
           <View style={[styles.largeAvatar, { backgroundColor: colors.primary, overflow: 'hidden' }]}>
-            {profilePhotoUri
-              ? <Image source={{ uri: profilePhotoUri }} style={{ width: 47, height: 47 }} contentFit="cover" />
-              : <Text style={[styles.largeAvatarText, { color: colors.primaryForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
+            <ProfilePhoto
+              uri={profilePhotoUri}
+              size={47}
+              accessibilityLabel="Profile photo"
+              fallback={<Text style={[styles.largeAvatarText, { color: colors.primaryForeground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
+            />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.profileName, { color: colors.onHero }]}>{profile?.name ?? 'Your profile'}</Text>
@@ -1062,7 +1066,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={profileTab === 'membership' ? undefined : styles.hiddenSection}>
-        {/* ── CaloraApp Pro ── */}
+        {/* ── Calora Pro ── */}
         <View style={styles.planHeader}>
           <View>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{BRAND.premiumName}</Text>
@@ -1270,7 +1274,7 @@ export default function ProfileScreen() {
           </SettingRowPressable>
         ))}
 
-        {/* ── About CaloraApp ── */}
+        {/* ── About Calora ── */}
          <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 30, marginBottom: 14 }]}>About</Text>
         {[
           { icon: 'info' as const, title: BRAND.name, body: `${BRAND.descriptor} · v${Constants.expoConfig?.version ?? '1.0.0'}`, url: null },
@@ -1548,9 +1552,12 @@ export default function ProfileScreen() {
             {/* Photo picker */}
             <Pressable accessibilityLabel="Change profile photo" onPress={handlePhotoTap} style={styles.editAvatarWrap}>
               <View style={[styles.editAvatar, { backgroundColor: colors.muted, overflow: 'hidden' }]}>
-                {editPhotoUri
-                  ? <Image source={{ uri: editPhotoUri }} style={{ width: 72, height: 72 }} contentFit="cover" />
-                  : <Feather name="user" size={30} color={colors.mutedForeground} />}
+                <ProfilePhoto
+                  uri={editPhotoUri}
+                  size={72}
+                  accessibilityLabel="Profile photo preview"
+                  fallback={<Feather name="user" size={30} color={colors.mutedForeground} />}
+                />
               </View>
               <View style={[styles.editAvatarBadge, { backgroundColor: colors.primary }]}>
                 <Feather name="camera" size={11} color={colors.primaryForeground} />
@@ -1643,7 +1650,7 @@ export default function ProfileScreen() {
                     : healthConnection.authorization === 'denied'
                       ? 'Health access was not granted. Calora continues to work normally, and no health data has been read.'
                     : healthConnection.authorization === 'requested'
-                      ? 'Apple does not reveal whether individual read categories were allowed. Calora shows Apple Health values only when HealthKit returns a measured result; empty or denied reads remain unavailable rather than becoming zero. To change access, open Health, tap your profile picture, then Apps and Services, and choose CaloraApp.'
+                      ? 'Apple does not reveal whether individual read categories were allowed. Calora shows Apple Health values only when HealthKit returns a measured result; empty or denied reads remain unavailable rather than becoming zero. To change access, open Health, tap your profile picture, then Apps and Services, and choose Calora.'
                       : healthConnected
                       ? `Your ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} data stays on this device. ${healthConnection.authorization === 'partial' ? 'Some requested categories are not available.' : 'Steps, active energy, workouts, and weight can be read when you sync.'}`
                       : `Connect ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} only when you are ready. Calora reads selected data locally and never writes health records.`}

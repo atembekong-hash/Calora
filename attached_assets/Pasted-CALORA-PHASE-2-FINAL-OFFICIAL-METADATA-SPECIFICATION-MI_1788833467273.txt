@@ -1,0 +1,443 @@
+CALORA PHASE 2 — FINAL OFFICIAL METADATA SPECIFICATION
+
+MISSION
+
+Using the completed audit report:
+
+00_CALORA_METADATA_IDENTITY_INVENTORY_REPORT.md
+
+create the authoritative final metadata specification for Calora.
+
+THIS PHASE IS SPECIFICATION ONLY.
+
+DO NOT modify application code.
+DO NOT modify native configuration.
+DO NOT modify assets.
+DO NOT change DNS.
+DO NOT deploy.
+DO NOT commit.
+DO NOT push to GitHub.
+DO NOT trigger an Expo/EAS build.
+DO NOT change App Store Connect or Google Play Console.
+
+OWNER DECISIONS ARE NOW LOCKED AS FOLLOWS:
+
+OFFICIAL BRAND
+
+Official public/customer-facing product name:
+Calora
+
+Parent company/publisher:
+Etiendem Technologies
+
+Official tagline:
+Eat Smarter. Live Better.
+
+Official descriptor:
+AI Nutrition & Calorie Tracker
+
+Premium tier:
+Calora Pro
+
+CUSTOMER-FACING NAMING POLICY
+
+Use “Calora” for:
+
+- App Store name
+- Google Play app name
+- website
+- marketing
+- SEO
+- social metadata
+- screenshots
+- user-facing public copy
+- legal-facing product references where appropriate
+- promotional material
+
+Do NOT rename working technical identifiers merely to match the public brand.
+
+Preserve unless technically required otherwise:
+
+- Android package: com.etiendem.caloraapp
+- iOS bundle ID: com.etiendem.caloraapp
+- Expo slug: calora
+- custom scheme: caloraapp
+- EAS project identifiers
+- existing persistent/internal IDs
+
+“CaloraApp” should no longer be treated as the preferred public-facing product name.
+
+DOMAIN POLICY
+
+Official intended branded domain:
+
+https://mycaloraapp.com
+
+The currently operational Replit domain:
+
+https://calorie-coach-pie35449.replit.app
+
+is temporary infrastructure and must NOT be treated as the permanent official marketing domain.
+
+Do not migrate anything during this phase.
+
+Document exactly what will need to change when mycaloraapp.com becomes live.
+
+The domain:
+
+calora.app
+
+is NOT approved.
+
+Any production-facing reference to calora.app must be identified for later removal unless ownership is separately verified.
+
+CONTACT POLICY
+
+Primary public support email:
+
+support@mycaloraapp.com
+
+Use this as the canonical public support/contact address for the specification.
+
+Do not invent a phone number.
+
+Do not invent a business address.
+
+Mark business address as:
+
+EXTERNAL BUSINESS CONFIRMATION REQUIRED IF PLATFORM OR LEGAL REQUIREMENTS DEMAND PUBLIC DISCLOSURE
+
+Mark public phone as:
+
+NOT REQUIRED UNLESS PLATFORM OR BUSINESS POLICY REQUIRES IT
+
+Do not expose personal contact details.
+
+STORE IDENTITY
+
+Apple:
+
+Public app name:
+Calora
+
+Primary category:
+Health & Fitness
+
+Secondary category:
+Food & Drink
+
+Current proposed rating:
+4+
+Status:
+PROVISIONAL UNTIL APP STORE CONNECT QUESTIONNAIRE CONFIRMS
+
+Google Play:
+
+Public app name:
+Calora
+
+Category:
+Health & Fitness
+
+Current audience/content-rating direction:
+Use existing draft only as input.
+
+Final rating must come from Google Play Console questionnaire.
+
+DEFAULT LISTING LANGUAGE
+
+English (United States)
+
+Future localization is permitted and expected, but English (United States) is the canonical initial metadata source.
+
+TERRITORIES
+
+Recommend broad availability where legally, operationally, subscriptionally, and platform-policy compliant.
+
+Do not falsely state that every territory is approved.
+
+External store-console confirmation remains required.
+
+VERSIONING
+
+Intended public app version:
+
+1.0.0
+
+Do not change it.
+
+Document that:
+
+- source iOS buildNumber is not authoritative proof of latest uploaded build;
+- source Android versionCode is not authoritative proof of latest uploaded build;
+- EAS production builds auto-increment;
+- final external build identities must be verified before submission.
+
+SELLER / DEVELOPER NAMES
+
+Preferred public developer identity:
+
+Etiendem Technologies
+
+However:
+
+Apple seller/developer identity must be verified in App Store Connect / Apple Developer.
+
+Google Play developer identity must be verified in Google Play Console.
+
+Do not fabricate external account data.
+
+SOCIAL ACCOUNTS
+
+No official social accounts have been established from current evidence.
+
+Do not invent Facebook, Instagram, X, LinkedIn, TikTok, YouTube, or other profiles.
+
+Leave social-profile fields pending until real official accounts exist.
+
+WEBSITE STRATEGY
+
+The final specification must define mycaloraapp.com as the canonical long-term public product website.
+
+Document the metadata required for the finished website, including:
+
+- page title
+- meta description
+- canonical URL
+- Open Graph
+- Twitter/X cards
+- general share image
+- favicon family
+- robots.txt
+- sitemap.xml
+- web manifest if appropriate
+- Organization JSON-LD
+- SoftwareApplication or MobileApplication JSON-LD
+- WebSite JSON-LD
+- publisher relationship
+- app-store links
+- Google Play links
+- support information
+- legal links
+- account deletion link
+- subscription information
+
+The structured metadata must make the relationship explicit:
+
+Calora is a nutrition and calorie-tracking application operated and published by Etiendem Technologies.
+
+Do not claim medical-device status or make unsupported medical claims.
+
+LEGAL / TRUST URL STRATEGY
+
+Define the final intended branded URLs for:
+
+- Privacy Policy
+- Terms of Use
+- Support
+- Contact
+- Account deletion
+- Subscription information
+- Help
+
+Do not implement them yet.
+
+Map each current Replit-hosted URL to its intended future branded equivalent.
+
+DEEP LINK STRATEGY
+
+Document the future coordinated migration from the Replit host to mycaloraapp.com.
+
+The specification must identify every system that will need coordinated updates, including:
+
+- iOS associatedDomains
+- Apple AASA
+- Android intent filters
+- Android assetlinks.json
+- Expo Router origin
+- auth callbacks
+- Supabase redirect allow-list
+- invite links
+- CORS/origin rules
+- server-generated absolute URLs
+- legal URLs
+- store URLs
+- fallback URLs
+- social/Open Graph URLs
+
+DO NOT perform this migration.
+
+ASSET SPECIFICATION
+
+The existing 1024 × 1024 Calora icon remains the master app-icon source unless a later design review rejects it.
+
+Define requirements for:
+
+- primary app icon
+- Android adaptive foreground
+- Android adaptive background
+- Android monochrome/themed icon
+- notification icon
+- iOS-reviewed icon output
+- light splash
+- dark splash
+- favicon family
+- official Calora wordmark
+- Etiendem Technologies identity placement where appropriate
+- general Open Graph/social image
+- Google Play feature graphic
+- App Store screenshot set
+- Google Play screenshot set
+
+Do not create or modify graphics in this phase.
+
+STORE SCREENSHOTS
+
+Specify that final screenshots must come from the final release candidate.
+
+Existing QA/design-reference screenshots must NOT automatically be treated as final store screenshots.
+
+Define:
+
+- required screen sequence
+- narrative/message for each screenshot
+- privacy-safe data requirements
+- visual consistency requirements
+- light/dark-mode strategy
+- device-size requirements
+- Apple set
+- Google Play set
+
+STORE COPY
+
+Review the existing App Store and Google Play drafts and create the final proposed English-US metadata for:
+
+APPLE
+
+- App name
+- subtitle
+- promotional text
+- keywords
+- full description
+- primary category
+- secondary category
+- copyright
+- support URL
+- marketing URL
+- privacy URL
+- release notes
+- screenshot narrative
+
+GOOGLE PLAY
+
+- App name
+- short description
+- full description
+- category
+- tags
+- support email
+- website
+- privacy URL
+- account deletion URL
+- release notes
+- screenshot narrative
+
+Improve wording where needed, but do not invent capabilities that are not present in the application.
+
+SEO / DISCOVERY COPY
+
+Create proposed final:
+
+- homepage title
+- homepage meta description
+- Open Graph title
+- Open Graph description
+- Twitter/X title
+- Twitter/X description
+- Organization schema content
+- MobileApplication/SoftwareApplication schema content
+- WebSite schema content
+
+Only include factual capabilities verified by the repository/audit.
+
+EXTERNAL FACTS
+
+Clearly separate fields that cannot be resolved from repository evidence.
+
+These include at minimum:
+
+- Apple seller identity
+- Apple App Store ID
+- live Apple listing URL
+- Google Play developer identity
+- live Google Play listing status
+- final externally assigned build identities
+- final ratings from store questionnaires
+- final territory approval
+- official social profiles
+- business address if legally required
+
+Use:
+
+EXTERNAL CONFIRMATION REQUIRED
+
+Do not guess.
+
+REQUIRED OUTPUT
+
+Create:
+
+01_CALORA_FINAL_METADATA_SPECIFICATION.md
+
+The report must contain:
+
+1. Executive summary
+2. Official brand identity
+3. Naming rules
+4. Technical identifiers that must remain unchanged
+5. Company/publisher identity
+6. Contact identity
+7. Canonical domain strategy
+8. Current-to-future URL mapping
+9. Apple App Store metadata
+10. Google Play metadata
+11. Website metadata
+12. SEO metadata
+13. Open Graph / social metadata
+14. Structured data / JSON-LD specification
+15. Deep-link and association specification
+16. Legal/trust URL specification
+17. Icon and visual asset specification
+18. Store screenshot specification
+19. Localization policy
+20. Version/build policy
+21. External confirmations still required
+22. Exact implementation checklist for the NEXT phase
+23. Risks and migration dependencies
+24. Final specification verdict
+
+FINAL VERDICT MUST BE:
+
+FINAL METADATA SPECIFICATION COMPLETE
+
+or
+
+FINAL METADATA SPECIFICATION BLOCKED
+
+Only use BLOCKED if a genuinely essential specification decision still cannot be made without owner input.
+
+Do not block merely because an external store ID, seller ID, final build number, or future social account is not currently available. Those may be explicitly marked as external confirmations.
+
+VERIFY THE DOCUMENT BEFORE FINISHING.
+
+Again:
+
+NO CODE CHANGES.
+NO CONFIGURATION CHANGES.
+NO ASSET CHANGES.
+NO DNS CHANGES.
+NO DEPLOYMENT.
+NO GITHUB PUSH.
+NO BUILD.
+
+CREATE THE AUTHORITATIVE SPECIFICATION ONLY.

@@ -21,11 +21,52 @@
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Resvg } from "@resvg/resvg-js";
+import { getReferralRewardCopy } from "../lib/referral-config.js";
 
 const router: IRouter = Router();
 
 const BUNDLE_ID = "com.etiendem.caloraapp";
 const PACKAGE_NAME = "com.etiendem.caloraapp";
+
+// ── /auth/callback — browser fallback for the native associated link ──────────
+// Installed native builds claim this exact HTTPS path through Universal/App
+// Links. Browsers without the app still need a branded, non-error response;
+// the callback query/hash is kept client-side and is never echoed into HTML.
+router.get("/auth/callback", (_req: Request, res: Response) => {
+  res
+    .status(200)
+    .set("Content-Type", "text/html; charset=utf-8")
+    .set("Cache-Control", "no-store")
+    .set("X-Robots-Tag", "noindex")
+    .send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Continue in Calora</title>
+  <style>
+    body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #f8f4f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1a1a1a; }
+    main { max-width: 420px; width: 100%; padding: 36px 28px; border-radius: 20px; background: #fff; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+    h1 { margin: 0 0 12px; font-size: 24px; }
+    p { margin: 0 0 24px; color: #666; line-height: 1.5; }
+    button { border: 0; border-radius: 12px; padding: 14px 20px; background: #ff6b35; color: #fff; font: 600 16px inherit; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Continue in Calora</h1>
+    <p>Tap the button below to return to the Calora app and finish signing in.</p>
+    <button id="openApp" type="button">Open Calora</button>
+  </main>
+  <script>
+    document.getElementById("openApp").addEventListener("click", function () {
+      window.location.href = "caloraapp://auth/callback" + window.location.search + window.location.hash;
+    });
+  </script>
+</body>
+</html>`);
+});
 
 // ── /.well-known/apple-app-site-association ──────────────────────────────────
 router.get(
@@ -54,11 +95,11 @@ router.get(
               components: [
                 {
                   "/": "/invite/*",
-                  comment: "Open invite referral links in the CaloraApp",
+                  comment: "Open invite referral links in Calora",
                 },
                 {
                   "/": "/auth/callback",
-                  comment: "Open Supabase auth callbacks in the CaloraApp",
+                  comment: "Open Supabase auth callbacks in Calora",
                 },
               ],
             },
@@ -109,7 +150,9 @@ router.get(
 // Cached in-process after the first render; the image is static so one copy is fine.
 let cachedOgPng: Buffer | null = null;
 
-function buildOgSvg(): string {
+export function buildOgSvg(): string {
+  const { shortProOffer } = getReferralRewardCopy();
+
   return `<?xml version="1.0" encoding="utf-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
@@ -127,8 +170,8 @@ function buildOgSvg(): string {
   <text x="600" y="300" font-family="Arial,Helvetica,sans-serif" font-size="40" font-weight="700" fill="#1a1a1a" text-anchor="middle">You&#x27;re invited to Calora!</text>
   <text x="600" y="352" font-family="Arial,Helvetica,sans-serif" font-size="22" fill="#666666" text-anchor="middle">Track nutrition effortlessly with AI</text>
   <rect x="436" y="386" width="328" height="56" rx="28" fill="#ff6b35"/>
-  <text x="600" y="414" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">Get 1 week of Pro free</text>
-  <text x="600" y="570" font-family="Arial,Helvetica,sans-serif" font-size="20" fill="#ff6b35" text-anchor="middle" opacity="0.7">calora.app</text>
+   <text x="600" y="414" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${shortProOffer}</text>
+  <text x="600" y="570" font-family="Arial,Helvetica,sans-serif" font-size="20" fill="#ff6b35" text-anchor="middle" opacity="0.7">mycaloraapp.com</text>
 </svg>`;
 }
 
@@ -155,6 +198,7 @@ router.get("/invite/og-image.png", (_req: Request, res: Response) => {
 
 // ── /invite and /invite/:code — fallback landing page for users without the app
 function renderInvitePage(code: string, req: Request, res: Response): void {
+  const referralCopy = getReferralRewardCopy();
   const appStoreId = process.env["APPLE_APP_STORE_ID"] ?? "";
   const appStoreUrl = appStoreId
     ? `https://apps.apple.com/app/id${appStoreId}`
@@ -165,8 +209,11 @@ function renderInvitePage(code: string, req: Request, res: Response): void {
   // Build absolute base URL from the incoming request so OG tags are correct
   // in both dev (replit.dev) and production.
   const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
-  const host = req.get("x-forwarded-host") ?? req.get("host") ?? "calora.app";
-  const baseUrl = `${proto}://${host}`;
+  const configuredOrigin = (process.env["PUBLIC_WEB_ORIGIN"] ?? "https://mycaloraapp.com").replace(/\/+$/, "");
+  const host = req.get("x-forwarded-host") ?? req.get("host");
+  const baseUrl = host === "mycaloraapp.com" || host === "www.mycaloraapp.com"
+    ? "https://mycaloraapp.com"
+    : configuredOrigin || `${proto}://${host ?? "mycaloraapp.com"}`;
   const pageUrl = code ? `${baseUrl}/invite/${code}` : `${baseUrl}/invite`;
   const ogImageUrl = `${baseUrl}/invite/og-image.png`;
 
@@ -187,7 +234,7 @@ function renderInvitePage(code: string, req: Request, res: Response): void {
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Calora" />
   <meta property="og:title" content="You're invited to Calora!" />
-  <meta property="og:description" content="A friend invited you to track nutrition effortlessly with AI. Get a free week of Calora Pro when you sign up using their invite link." />
+  <meta property="og:description" content="${referralCopy.ogDescription}" />
   <meta property="og:image" content="${ogImageUrl}" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
@@ -197,7 +244,7 @@ function renderInvitePage(code: string, req: Request, res: Response): void {
   <!-- Twitter / X Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="You're invited to Calora!" />
-  <meta name="twitter:description" content="Track nutrition effortlessly with AI. Get a free week of Calora Pro." />
+  <meta name="twitter:description" content="${referralCopy.twitterDescription}" />
   <meta name="twitter:image" content="${ogImageUrl}" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -272,7 +319,7 @@ function renderInvitePage(code: string, req: Request, res: Response): void {
     <div class="logo">🥗</div>
     <h1>You're invited to Calora!</h1>
     ${code ? `<div class="code-badge">${code}</div>` : ""}
-    <p>A friend invited you to track nutrition effortlessly with AI. Get a free week of Calora Pro when you sign up using their invite link.</p>
+    <p>${referralCopy.caloraProOffer} when you sign up using their invite link.</p>
 
     <a class="btn btn-primary" href="${deepLink}" id="openApp">Open in Calora</a>
 

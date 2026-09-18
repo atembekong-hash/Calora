@@ -1,6 +1,5 @@
 import { ApiError, useGeneratePlanner, type PlannerMeal } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ScalePressable } from '@/components/ScalePressable';
@@ -11,7 +10,6 @@ import { useCalora } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
 import { formatCalories, formatGrams, formatWhole } from '@/lib/formatters';
 import { consumePlannerAck, consumeUndoSwap } from '@/lib/plannerAck';
-import { applyIdentityReplace, applySlotReplace, buildShoppingItems, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate, plannerMealTypes, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { PLAN_TYPES, clearProgramApplication, findPlanType, isStarterFallbackProvider, planTypeForGeneration, programAppliedToWeek, recordGenerationOutcome, resolveGenerationRecording, selectPrimaryProgram, type PlanType, type PlanTypeId } from '@/lib/planType';
 import { applyProgram, closeProgramModal, CLOSED_PROGRAM_MODAL, openProgramSelector, selectProgram, type ProgramModalState } from '@/lib/programModalState';
@@ -25,6 +23,9 @@ import { SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { parseNutritionInput } from '@/lib/recipeNutrition';
+import { useAuth } from '@/context/AuthContext';
+import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate, plannerMealTypes, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
+import { ProgramAppliedCelebration } from '@/components/ProgramAppliedCelebration';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
@@ -51,7 +52,7 @@ function parseNutritionValue(value: string, label: string): number | null {
 
 function plannerGenerationError(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.status === 401) return 'Please sign in before building a week. Your current plan is unchanged.';
+    if (error.status === 401) return 'Sign in to build a personalized week. Your current plan is unchanged.';
     if (error.status === 429) return 'Plan building is temporarily limited. Please wait a moment and try again. Your current plan is unchanged.';
     if (error.status === 400) return 'The planner could not use the current profile settings. Your current plan is unchanged.';
   }
@@ -61,6 +62,28 @@ function plannerGenerationError(error: unknown): string {
   return 'Could not build your week right now. Check your connection and try again. Your current plan is unchanged.';
 }
 
+function programEncouragement(programId: PlanTypeId): string {
+  switch (programId) {
+    case 'mediterranean-diet':
+      return 'Fresh, balanced choices are ready. One meal at a time.';
+    case 'high-protein-power':
+      return 'Strong choices are ready. Keep building momentum.';
+    case 'low-carb-living':
+      return 'Your next good choice is already planned.';
+    case 'plant-based-week':
+      return 'Plants first, progress forward. You’ve got this.';
+    case 'athletic-performance':
+      return 'Fuel your training and let consistency do the work.';
+    case 'budget-friendly':
+      return 'Smart, satisfying choices are ready for your week.';
+    case 'anti-inflammatory':
+      return 'Nourishing choices are ready. Small steps add up.';
+    case 'quick-and-easy':
+      return 'Simple choices are ready for busy days.';
+    default:
+      return 'A clear plan makes the next good choice easier.';
+  }
+}
 function MealCard({
   meal,
   colors,
@@ -175,7 +198,7 @@ function SummaryBar({ meals, target, colors }: { meals: PlannerMeal[]; target: n
 {/*@ts-ignore*/}
       <View style={styles.summaryTop}>
         <View>
-          <Text style={[styles.summaryEyebrow, { color: colors.heroMuted }]}>WEEKLY NUTRITION</Text>
+          <Text style={[styles.summaryEyebrow, { color: colors.heroMuted }]}>WEEKLY NUTRITION · 7-DAY AVERAGE</Text>
            <Text style={[styles.summaryTitle, { color: colors.onHero }]}>{formatWhole(dailyCalories)} kcal <Text style={[styles.summaryTarget, { color: colors.heroMuted }]}>/ {formatWhole(target)} daily</Text></Text>
         </View>
         <View style={[styles.goalRing, { borderColor: colors.primary }]}><Text style={[styles.goalRingText, { color: colors.onHero }]}>{Math.round(goalProgress * 100)}%</Text></View>
@@ -206,6 +229,7 @@ function SheetHeader({ eyebrow, title, onClose, colors }: { eyebrow?: string; ti
 
 export default function PlannerScreen() {
   const { colors, profile, logs, updateLog, plannerWeekStart, plannerMeals, plannerRevision, plannerPreferences, updatePlannerPreferences, shoppingItems, setPlannerMeals, updatePlannerMeals, movePlannerMeal, toggleShoppingItemByName, createPlannerDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, setPlannerViewedDay, setRecipeSlotTarget, pendingUndoSwap, setPendingUndoSwap, pendingPlannerAck, setPendingPlannerAck, fontScale } = useCalora();
+  const { session } = useAuth();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
   const generatePlanner = useGeneratePlanner();
@@ -247,6 +271,7 @@ export default function PlannerScreen() {
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState(false);
+  const [programCelebration, setProgramCelebration] = useState<{ key: number; programId: PlanTypeId; label: string; message: string } | null>(null);
   const [weekOverviewVisible, setWeekOverviewVisible] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [undoMeal, setUndoMeal] = useState<PlannerMeal | null>(null);
@@ -256,6 +281,7 @@ export default function PlannerScreen() {
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const generationInFlightRef = useRef(false);
   const generationEpochRef = useRef(0);
+  const programCelebrationKeyRef = useRef(0);
   const plannerMealsRef = useRef(plannerMeals);
   const logsRef = useRef(logs);
   const plannerRevisionRef = useRef(plannerRevision);
@@ -374,6 +400,50 @@ export default function PlannerScreen() {
       setSaveMessage(null);
       saveTimerRef.current = null;
     }, duration);
+  };
+
+  const prepareOfflineProgram = (programId: PlanTypeId, weekStart: string, weekDays: string[]) => {
+    const latestMeals = plannerMealsRef.current;
+    const loggedMealIds = new Set(logsRef.current.map((log) => log.plannerMealId).filter((id): id is string => Boolean(id)));
+    const generated = createStarterPlannerMeals(weekStart, programId);
+    const merged = mergeGeneratedWeek(latestMeals, generated, weekDays, {
+      mode: 'rebuild',
+      protectedIds: loggedMealIds,
+    });
+    setPlannerMeals(weekStart, merged.meals);
+    updatePlannerPreferences((prev) => recordGenerationOutcome(prev, {
+      weekStart,
+      programId,
+      appliedAt: new Date().toISOString(),
+      source: 'offline-fallback',
+    }, 'rebuild'));
+    // setPlannerMeals increments the context revision asynchronously. Keep
+    // the request guard aligned immediately so the optimistic Program build
+    // is treated as the baseline rather than as an unrelated user edit.
+    plannerRevisionRef.current += 1;
+    setViewWeekStart(weekStart);
+    setSelectedDay(weekStart);
+    const label = findPlanType(programId)?.label ?? 'Program';
+    setProgramCelebration({
+      key: ++programCelebrationKeyRef.current,
+      programId,
+      label,
+      message: programEncouragement(programId),
+    });
+  };
+
+  const dismissProgramCelebration = useCallback(() => {
+    setProgramCelebration(null);
+  }, []);
+
+  const finishOfflineProgram = (programId: PlanTypeId, personalizedUnavailable = false) => {
+    setGenerationError(false);
+    const label = findPlanType(programId)?.label ?? 'Program';
+    setGenerationMessage(personalizedUnavailable
+      ? `${label} applied locally. Your personalized AI week is unavailable right now.`
+      : `${label} applied locally. Sign in to unlock a personalized AI week.`);
+    setGenerating(false);
+    generationInFlightRef.current = false;
   };
 
   const shiftWeek = (offset: number) => {
@@ -633,7 +703,7 @@ export default function PlannerScreen() {
     generationEpochRef.current = generationEpoch;
     const requestedWeekStart = viewWeekStart;
     const requestedWeekDays = Array.from({ length: 7 }, (_, index) => plannerDate(requestedWeekStart, index));
-    const requestedPlannerRevision = plannerRevisionRef.current;
+    let requestedPlannerRevision = plannerRevisionRef.current;
     setGenerating(true);
     setGenerationMessage(null);
     setGenerationError(false);
@@ -660,6 +730,14 @@ export default function PlannerScreen() {
     // clobbered by a stale snapshot; programId is captured only for the API
     // request and the historical record.
     if (confirmedProgram) updatePlannerPreferences((prev) => selectPrimaryProgram(prev, confirmedProgram));
+    if (confirmedProgram) {
+      prepareOfflineProgram(confirmedProgram, requestedWeekStart, requestedWeekDays);
+      requestedPlannerRevision = plannerRevisionRef.current;
+    }
+    if (confirmedProgram && !session) {
+      finishOfflineProgram(confirmedProgram);
+      return;
+    }
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       const request = generatePlanner.mutateAsync({
@@ -685,6 +763,14 @@ export default function PlannerScreen() {
       if (plannerRevisionRef.current !== requestedPlannerRevision) {
         setGenerationError(true);
         setGenerationMessage('Your plan changed while it was building, so your edits were kept. Build again when you are ready.');
+        return;
+      }
+      // The API intentionally returns a 200 starter response when its AI
+      // provider is unavailable. A confirmed Program already has an
+      // optimistic Program-shaped local week; never replace it with generic
+      // starter meals.
+      if (confirmedProgram && isStarterFallbackProvider(result.provider)) {
+        finishOfflineProgram(confirmedProgram);
         return;
       }
       const latestMeals = plannerMealsRef.current;
@@ -732,6 +818,10 @@ export default function PlannerScreen() {
       if (!confirmedProgram) setWeekOverviewVisible(true);
       acknowledge('Week saved.');
     } catch (error) {
+      if (confirmedProgram) {
+        finishOfflineProgram(confirmedProgram, Boolean(session));
+        return;
+      }
       // HTTP, auth, validation, timeout, and transport failures must not
       // replace the user's current plan with fabricated success data.
       setGenerationError(true);
@@ -899,6 +989,16 @@ export default function PlannerScreen() {
         </>}
 
       </ScrollView>
+       {programCelebration && (
+         <ProgramAppliedCelebration
+           key={programCelebration.key}
+           visible
+           programLabel={programCelebration.label}
+           message={programCelebration.message}
+           colors={colors}
+           onDismiss={dismissProgramCelebration}
+         />
+       )}
        <LocalSaveNotice visible={saveMessage !== null} message={saveMessage ?? ''} colors={colors} actionLabel={undoMeal || undoMoveMeal || undoSwapMeal ? 'Undo' : undefined} onAction={undoMeal ? undoRemove : undoMoveMeal ? undoMove : undoSwapMeal ? undoSwap : undefined} countdownDuration={undoMeal || undoMoveMeal || undoSwapMeal ? 6000 : undefined} />
       <BottomSheet visible={detail !== null} onRequestClose={() => { dismissPlannerReview(); setDetail(null); }} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
@@ -959,14 +1059,18 @@ export default function PlannerScreen() {
             ) : (
               detail && (
                 <>
-                  <Image
-                    source={[
-                      ...(detail.image ? [{ uri: detail.image }] : []),
-                      require('../../assets/images/calora-plan-header.jpg'),
-                    ]}
-                    contentFit="cover"
+                  <PlannerMealImage
+                    meal={detail}
                     style={styles.detailImage}
+                    auditId="planner-detail"
                   />
+                  <Text style={[styles.detailImageProvenance, { color: colors.mutedForeground }]}>
+                    {detail.imageAssetKey
+                      ? 'Canonical meal image · identity checked against meal name'
+                      : detail.image
+                        ? 'Provider meal image'
+                        : 'Fallback image · no meal photo available'}
+                  </Text>
                   <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.detailBody, { paddingBottom: 34 }]}>
                     <View style={styles.detailTitleRow}>
                       <View style={{ flex: 1 }}>
@@ -1410,6 +1514,7 @@ function makeStyles(f: number) {
   formSaveText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   formCancelButton: { alignItems: 'center', paddingVertical: 14 },
   detailImage: { height: 220, width: '100%' },
+  detailImageProvenance: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, marginHorizontal: 18, marginTop: 7 },
   detailBody: { padding: 20 },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#b7c5bc', alignSelf: 'center', marginVertical: 11 },
   detailTitleRow: { flexDirection: 'row', alignItems: 'flex-start' },

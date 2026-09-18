@@ -32,3 +32,15 @@ stale or be forged.
 **How to apply:** Cache only for restrictive offline UI. The server must deny
 unknown, revoked, or outdated consent and must enforce consent independently of
 client flags before Fact Context reaches a provider.
+
+The approved broader Coach surface uses deterministic summaries only: daily
+macro/water totals, meal distribution, logging completeness, seven-day logging
+coverage, and short weight trend. Recipe and planner help remains generic
+navigation; raw food names, recipes, notes, timelines, and plans stay excluded.
+
+**Why:** Broader topics needed useful answers without reopening the retired raw
+diary/planner context or allowing the model to invent personalized guidance.
+
+**How to apply:** Add future categories as exact fact keys with fixed value
+shapes, statements, limitations, and adversarial tests. Keep general guidance
+server-generated and allowlist navigation destinations.

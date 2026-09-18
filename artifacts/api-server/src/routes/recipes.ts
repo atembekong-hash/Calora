@@ -121,8 +121,10 @@ async function withRecipePhotoDeletionReadLock<T>(
   }
 }
 
-async function enforceRecipeIpLimit(req: Request, res: Response): Promise<boolean> {
-  const key = `recipes:ip:${req.ip ?? req.socket?.remoteAddress ?? "unknown"}`;
+async function enforceRecipeIpLimit(req: Request, res: Response, scope: "list" | "detail"): Promise<boolean> {
+  // Keep list and detail buckets separate so opening saved recipes cannot
+  // consume the quota needed to render Discover.
+  const key = `recipes:${scope}:ip:${req.ip ?? req.socket?.remoteAddress ?? "unknown"}`;
   // failClosed: this route is anonymous, so a DB outage must deny rather than
   // let unmetered public traffic trigger paid provider calls.
   const rate = await checkRateLimit(key, RECIPES_RATE_LIMIT, RECIPES_RATE_WINDOW_SECS, { failClosed: true });
@@ -922,7 +924,7 @@ async function getForYouMeals(): Promise<Meal[]> {
 }
 
 router.get("/v1/recipes", async (req, res) => {
-  if (!(await enforceRecipeIpLimit(req, res))) return;
+  if (!(await enforceRecipeIpLimit(req, res, "list"))) return;
   try {
     const query = typeof req.query.query === "string" ? req.query.query.trim() : "";
     const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
@@ -975,7 +977,7 @@ router.get("/v1/recipes", async (req, res) => {
 });
 
 router.get("/v1/recipes/:recipeId", async (req, res) => {
-  if (!(await enforceRecipeIpLimit(req, res))) return;
+  if (!(await enforceRecipeIpLimit(req, res, "detail"))) return;
   try {
     const data = await fetchJson(`${API_ROOT}/lookup.php?i=${encodeURIComponent(req.params.recipeId)}`);
     const meal = data.meals?.[0];

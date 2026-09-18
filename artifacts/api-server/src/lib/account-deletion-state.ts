@@ -3,9 +3,10 @@ import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
-  createAccountDeletionFenceSignal,
 } from "./account-deletion-fence-schema.mjs";
 import type { AccountDeletionFenceSignal } from "./account-deletion-fence-schema.mjs";
+import { accountDeletionFenceSignal } from "./account-deletion-fence-signal";
+import { noteRecoveryWarningCooldownStorageUnavailable } from "./logger.js";
 
 export type AccountDeletionState = "active" | "deleting" | "deleted";
 export type AccountDeletionStage = "object_storage" | "application" | "revenuecat" | "auth";
@@ -22,16 +23,6 @@ const LEASE_SECONDS = 5 * 60;
 export const RECOVERY_WARNING_COOLDOWN_MS = 15 * 60 * 1000;
 const RECOVERY_WARNING_MAX_RECORDS = 128;
 const RECOVERY_WARNING_LOCK_KEY = "calora:recovery-warning-suppression";
-
-export type { AccountDeletionFenceSignal };
-
-export function accountDeletionFenceSignal(
-  route: string,
-  count = 1,
-): AccountDeletionFenceSignal {
-  return createAccountDeletionFenceSignal(route, count);
-}
-
 /**
  * Atomically claim a shared recovery-warning cooldown record.
  *
@@ -88,6 +79,7 @@ export async function claimRecoveryWarningSuppression(
   } catch {
     // Cooldown storage is an observability optimization. If its table cannot
     // be read or written, emit rather than hiding a recovery warning.
+    noteRecoveryWarningCooldownStorageUnavailable();
     return true;
   }
 }

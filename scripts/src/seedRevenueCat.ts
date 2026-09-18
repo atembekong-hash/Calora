@@ -1,5 +1,5 @@
 /**
- * Seed RevenueCat with CaloraApp's subscription catalog.
+ * Seed RevenueCat with Calora's subscription catalog.
  *
  * Creates (idempotently): project, App Store + Play Store apps, monthly and
  * annual Pro subscription products across Test/App/Play stores, the
@@ -36,15 +36,15 @@ import {
   type CreateProductData,
 } from "@replit/revenuecat-sdk";
 
-const PROJECT_NAME = "CaloraApp";
+const PROJECT_NAME = "Calora";
 
-const APP_STORE_APP_NAME = "CaloraApp iOS";
+const APP_STORE_APP_NAME = "Calora iOS";
 const APP_STORE_BUNDLE_ID = "com.etiendem.caloraapp";
-const PLAY_STORE_APP_NAME = "CaloraApp Android";
+const PLAY_STORE_APP_NAME = "Calora Android";
 const PLAY_STORE_PACKAGE_NAME = "com.etiendem.caloraapp";
 
 const ENTITLEMENT_IDENTIFIER = "caloraapp_pro";
-const ENTITLEMENT_DISPLAY_NAME = "CaloraApp Pro";
+const ENTITLEMENT_DISPLAY_NAME = "Calora Pro";
 
 const OFFERING_IDENTIFIER = "default";
 const OFFERING_DISPLAY_NAME = "Default Offering";
@@ -66,8 +66,8 @@ const PRODUCT_SPECS: ProductSpec[] = [
     label: "Pro Monthly",
     identifier: "caloraapp_pro_monthly",
     playStoreIdentifier: "caloraapp_pro_monthly:monthly",
-    displayName: "CaloraApp Pro Monthly",
-    title: "CaloraApp Pro Monthly",
+    displayName: "Calora Pro Monthly",
+    title: "Calora Pro Monthly",
     duration: "P1M",
     packageIdentifier: "$rc_monthly",
     packageDisplayName: "Monthly Subscription",
@@ -77,8 +77,8 @@ const PRODUCT_SPECS: ProductSpec[] = [
     label: "Pro Annual",
     identifier: "caloraapp_pro_annual",
     playStoreIdentifier: "caloraapp_pro_annual:annual",
-    displayName: "CaloraApp Pro Annual",
-    title: "CaloraApp Pro Annual",
+    displayName: "Calora Pro Annual",
+    title: "Calora Pro Annual",
     duration: "P1Y",
     packageIdentifier: "$rc_annual",
     packageDisplayName: "Annual Subscription",

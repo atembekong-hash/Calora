@@ -1,5 +1,5 @@
 /**
- * Read the live CaloraApp RevenueCat catalog without printing credentials.
+ * Read the live Calora RevenueCat catalog without printing credentials.
  *
  * Run:
  *   pnpm --filter @workspace/scripts exec tsx src/inspectRevenueCatCatalog.ts

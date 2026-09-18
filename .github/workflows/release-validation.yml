@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - release/calora-onboarding-and-plus
   pull_request:
   workflow_dispatch:
 

@@ -13,7 +13,7 @@ appId: com.etiendem.caloraapp
 - tapOn: "Continue"
 - tapOn: "Continue"
 - tapOn: "I understand and agree"
-- tapOn: "Enter CaloraApp"
+- tapOn: "Enter Calora"
 - assertVisible: "Macro balance"
 
 # Establish known targets, then verify the rendered Macro balance targets update.

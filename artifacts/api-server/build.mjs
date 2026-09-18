@@ -3,21 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import {
-  mkdir,
-  readdir,
-  readFile,
-  realpath,
-  rm,
-  stat,
-  writeFile,
-} from "node:fs/promises";
-import {
-  createHash,
-  createPrivateKey,
-  createPublicKey,
-  sign,
-} from "node:crypto";
+import { mkdir, readdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import {
@@ -56,18 +43,14 @@ async function getReleaseAttestation() {
       git("status", "--porcelain", "--untracked-files=all"),
     ]);
   } catch (error) {
-    throw new Error("Release attestation requires a readable Git checkout.", {
-      cause: error,
-    });
+    throw new Error("Release attestation requires a readable Git checkout.", { cause: error });
   }
 
   if (!isFullGitSha(gitCommit) || !isFullGitSha(sourceTree)) {
     throw new Error("Release attestation rejected malformed Git provenance.");
   }
   if (process.env.NODE_ENV === "production" && dirty) {
-    throw new Error(
-      "Release attestation requires a clean production Git checkout.",
-    );
+    throw new Error("Release attestation requires a clean production Git checkout.");
   }
 
   const buildTimestamp = new Date().toISOString();
@@ -82,9 +65,7 @@ async function getReleaseAttestation() {
 async function digestDirectory(directory) {
   const files = [];
   async function visit(relativePath = "") {
-    const entries = await readdir(path.join(directory, relativePath), {
-      withFileTypes: true,
-    });
+    const entries = await readdir(path.join(directory, relativePath), { withFileTypes: true });
     for (const entry of entries) {
       const child = path.join(relativePath, entry.name);
       if (entry.isDirectory()) {
@@ -92,9 +73,7 @@ async function digestDirectory(directory) {
       } else if (entry.isFile()) {
         files.push(child);
       } else {
-        throw new Error(
-          `Release artifact contains unsupported entry: ${child}`,
-        );
+        throw new Error(`Release artifact contains unsupported entry: ${child}`);
       }
     }
   }
@@ -105,17 +84,10 @@ async function digestDirectory(directory) {
   const artifactFiles = [];
   for (const relativePath of files) {
     const absolutePath = path.join(directory, relativePath);
-    const [contents, info] = await Promise.all([
-      readFile(absolutePath),
-      stat(absolutePath),
-    ]);
+    const [contents, info] = await Promise.all([readFile(absolutePath), stat(absolutePath)]);
     const normalizedPath = relativePath.split(path.sep).join("/");
     const digest = createHash("sha256").update(contents).digest("hex");
-    artifactFiles.push({
-      path: normalizedPath,
-      sha256: digest,
-      size: info.size,
-    });
+    artifactFiles.push({ path: normalizedPath, sha256: digest, size: info.size });
     hash.update(normalizedPath, "utf8");
     hash.update("\0");
     hash.update(String(info.size), "utf8");
@@ -125,44 +97,11 @@ async function digestDirectory(directory) {
   return { sha256: hash.digest("hex"), files: artifactFiles };
 }
 
-async function writeBuildProvenance(release, distDir) {
-  // Normal releases receive a local, machine-readable provenance record even
-  // when the separately controlled sensitive Coach attestation is disabled.
-  // The record covers the compiled payload (excluding itself) and is checked
-  // by CI before the artifact can be promoted.
-  const artifact = await digestDirectory(distDir);
-  const provenance = {
-    schemaVersion: "calora.build-provenance.v1",
-    releaseId: release.releaseId,
-    issuedAt: release.buildTimestamp,
-    source: {
-      gitCommit: release.gitCommit,
-      sourceTree: release.sourceTree,
-      sourceDigest: release.sourceDigest,
-    },
-    artifact: {
-      format: "calora-api-dist-directory.v1",
-      sha256: artifact.sha256,
-      files: artifact.files,
-    },
-    sensitiveActivationAllowed:
-      process.env.RELEASE_SENSITIVE_ACTIVATION_REQUESTED === "true",
-  };
-  await writeFile(
-    path.join(distDir, "release-provenance.json"),
-    `${canonicalJson(provenance)}\n`,
-    { encoding: "utf8", flag: "wx" },
-  );
-}
-
 async function verifyStagedProviderPackage(release, artifact) {
-  const requested =
-    process.env.RELEASE_SENSITIVE_ACTIVATION_REQUESTED === "true";
+  const requested = process.env.RELEASE_SENSITIVE_ACTIVATION_REQUESTED === "true";
   if (!requested) return null;
   if (process.env.NODE_ENV !== "production") {
-    throw new Error(
-      "Sensitive release activation may only be requested in a production build.",
-    );
+    throw new Error("Sensitive release activation may only be requested in a production build.");
   }
   const fields = [
     "RELEASE_PROVIDER_ATTESTATION_FILE",
@@ -173,35 +112,21 @@ async function verifyStagedProviderPackage(release, artifact) {
     "RELEASE_PROVIDER_TARGET_ORIGIN",
   ];
   for (const field of fields) {
-    if (!process.env[field])
-      throw new Error(`Sensitive release activation requires ${field}.`);
+    if (!process.env[field]) throw new Error(`Sensitive release activation requires ${field}.`);
   }
   const fileFields = fields.slice(0, 3);
   for (const field of fileFields) {
     if (!path.isAbsolute(process.env[field])) {
-      throw new Error(
-        `${field} must be an absolute provider-retained path outside the workspace.`,
-      );
+      throw new Error(`${field} must be an absolute provider-retained path outside the workspace.`);
     }
   }
-  const [attestationPath, signaturePath, publicKeyPath] = fileFields.map(
-    (field) => process.env[field],
-  );
+  const [attestationPath, signaturePath, publicKeyPath] = fileFields.map((field) => process.env[field]);
   const [canonicalWorkspaceDir, ...directories] = await Promise.all([
     realpath(workspaceDir),
-    ...[attestationPath, signaturePath, publicKeyPath].map((file) =>
-      realpath(path.dirname(file)),
-    ),
+    ...[attestationPath, signaturePath, publicKeyPath].map((file) => realpath(path.dirname(file))),
   ]);
-  if (
-    directories.some(
-      (directory) =>
-        !path.relative(canonicalWorkspaceDir, directory).startsWith(".."),
-    )
-  ) {
-    throw new Error(
-      "Provider attestation evidence must resolve outside the deployable workspace.",
-    );
+  if (directories.some((directory) => !path.relative(canonicalWorkspaceDir, directory).startsWith(".."))) {
+    throw new Error("Provider attestation evidence must resolve outside the deployable workspace.");
   }
   const [attestationText, signature, publicKey] = await Promise.all([
     readFile(attestationPath, "utf8"),
@@ -212,8 +137,7 @@ async function verifyStagedProviderPackage(release, artifact) {
     attestationText,
     signature,
     publicKey,
-    trustedPublicKeyFingerprint:
-      process.env.RELEASE_PROVIDER_TRUSTED_PUBLIC_KEY_SHA256,
+    trustedPublicKeyFingerprint: process.env.RELEASE_PROVIDER_TRUSTED_PUBLIC_KEY_SHA256,
     expectedPackageSha256: artifact.sha256,
     expectedDeploymentId: process.env.RELEASE_PROVIDER_DEPLOYMENT_ID,
     expectedTargetOrigin: process.env.RELEASE_PROVIDER_TARGET_ORIGIN,
@@ -229,24 +153,15 @@ async function verifyStagedProviderPackage(release, artifact) {
 }
 
 async function writeSignedExternalManifest(release, distDir) {
-  const sensitiveActivationRequested =
-    process.env.RELEASE_SENSITIVE_ACTIVATION_REQUESTED === "true";
-  if (!sensitiveActivationRequested) return;
-
   const manifestDir = process.env.RELEASE_ATTESTATION_MANIFEST_DIR;
   const signingKey = process.env.RELEASE_ATTESTATION_SIGNING_KEY;
   const finalArtifactDir = process.env.RELEASE_ATTESTATION_ARTIFACT_DIR;
   // This build-time enrollment check detects an accidental signing-key swap.
   // The activation verifier must obtain its trusted fingerprint from the
   // separately controlled approval trust record, not from this environment.
-  const expectedSigningKeyFingerprint =
-    process.env.RELEASE_ATTESTATION_SIGNING_KEY_FINGERPRINT?.toLowerCase();
+  const expectedSigningKeyFingerprint = process.env.RELEASE_ATTESTATION_SIGNING_KEY_FINGERPRINT?.toLowerCase();
   const isProduction = process.env.NODE_ENV === "production";
-  if (
-    !manifestDir ||
-    !signingKey ||
-    (isProduction && (!finalArtifactDir || !expectedSigningKeyFingerprint))
-  ) {
+  if (!manifestDir || !signingKey || (isProduction && (!finalArtifactDir || !expectedSigningKeyFingerprint))) {
     if (isProduction) {
       throw new Error(
         "Production release attestation requires RELEASE_ATTESTATION_MANIFEST_DIR, RELEASE_ATTESTATION_SIGNING_KEY, RELEASE_ATTESTATION_SIGNING_KEY_FINGERPRINT, and RELEASE_ATTESTATION_ARTIFACT_DIR.",
@@ -254,24 +169,15 @@ async function writeSignedExternalManifest(release, distDir) {
     }
     return;
   }
-  if (
-    expectedSigningKeyFingerprint &&
-    !/^[0-9a-f]{64}$/.test(expectedSigningKeyFingerprint)
-  ) {
-    throw new Error(
-      "Release attestation signing key fingerprint must be a SHA-256 value.",
-    );
+  if (expectedSigningKeyFingerprint && !/^[0-9a-f]{64}$/.test(expectedSigningKeyFingerprint)) {
+    throw new Error("Release attestation signing key fingerprint must be a SHA-256 value.");
   }
 
   if (!path.isAbsolute(manifestDir)) {
-    throw new Error(
-      "Release attestation manifest directory must be an absolute path outside the deployable workspace.",
-    );
+    throw new Error("Release attestation manifest directory must be an absolute path outside the deployable workspace.");
   }
   if (isProduction && !path.isAbsolute(finalArtifactDir)) {
-    throw new Error(
-      "Production release attestation artifact directory must be an absolute final deployment staging path.",
-    );
+    throw new Error("Production release attestation artifact directory must be an absolute final deployment staging path.");
   }
   // An immutable retention mount must be provisioned by the deployment control
   // plane. Creating a new production directory here could silently redirect
@@ -283,40 +189,23 @@ async function writeSignedExternalManifest(release, distDir) {
     realpath(finalArtifactDir || distDir),
   ]);
   if (!path.relative(canonicalWorkspaceDir, outputDir).startsWith("..")) {
-    throw new Error(
-      "Release attestation manifest directory must resolve outside the deployable workspace.",
-    );
+    throw new Error("Release attestation manifest directory must resolve outside the deployable workspace.");
   }
-  if (
-    isProduction &&
-    !path.relative(canonicalWorkspaceDir, artifactRoot).startsWith("..")
-  ) {
-    throw new Error(
-      "Release attestation artifact directory must resolve outside the deployable workspace.",
-    );
+  if (isProduction && !path.relative(canonicalWorkspaceDir, artifactRoot).startsWith("..")) {
+    throw new Error("Release attestation artifact directory must resolve outside the deployable workspace.");
   }
   const artifact = await digestDirectory(artifactRoot);
   const providerPackage = await verifyStagedProviderPackage(release, artifact);
   const privateKey = createPrivateKey(signingKey);
   if (privateKey.asymmetricKeyType !== "ed25519") {
-    throw new Error(
-      "Release attestation signing key must be an Ed25519 private key.",
-    );
+    throw new Error("Release attestation signing key must be an Ed25519 private key.");
   }
-  const publicKey = createPublicKey(privateKey).export({
-    type: "spki",
-    format: "pem",
-  });
+  const publicKey = createPublicKey(privateKey).export({ type: "spki", format: "pem" });
   const signingKeyFingerprint = createHash("sha256")
     .update(createPublicKey(privateKey).export({ type: "spki", format: "der" }))
     .digest("hex");
-  if (
-    expectedSigningKeyFingerprint &&
-    signingKeyFingerprint !== expectedSigningKeyFingerprint
-  ) {
-    throw new Error(
-      "Release attestation signing key does not match the independently pinned fingerprint.",
-    );
+  if (expectedSigningKeyFingerprint && signingKeyFingerprint !== expectedSigningKeyFingerprint) {
+    throw new Error("Release attestation signing key does not match the independently pinned fingerprint.");
   }
   const manifest = {
     schemaVersion: MANIFEST_SCHEMA_VERSION,
@@ -328,8 +217,7 @@ async function writeSignedExternalManifest(release, distDir) {
       // external runtime module. A dist-only digest is insufficient when Node
       // resolves native/external packages from the final deployment artifact.
       format: "calora-api-deployment-artifact-directory.v1",
-      path:
-        process.env.RELEASE_ATTESTATION_ARTIFACT_NAME || "deployment-artifact",
+      path: process.env.RELEASE_ATTESTATION_ARTIFACT_NAME || "deployment-artifact",
       sha256: artifact.sha256,
       files: artifact.files,
     },
@@ -339,49 +227,28 @@ async function writeSignedExternalManifest(release, distDir) {
       sourceDigest: release.sourceDigest,
     },
     sensitiveActivationEligible: providerPackage !== null,
-    ...(providerPackage
-      ? {
-          providerPackageAttestation: {
-            attestationId: providerPackage.attestation.attestationId,
-            provider: providerPackage.attestation.provider,
-            deployment: providerPackage.attestation.deployment,
-            immutableRecord: providerPackage.attestation.immutableRecord,
-            issuedAt: providerPackage.attestation.issuedAt,
-            attestationSha256: providerPackage.attestationSha256,
-            signatureSha256: providerPackage.signatureSha256,
-            signerPublicKeySha256: providerPackage.signerPublicKeySha256,
-          },
-        }
-      : {}),
+    ...(providerPackage ? {
+      providerPackageAttestation: {
+        attestationId: providerPackage.attestation.attestationId,
+        provider: providerPackage.attestation.provider,
+        deployment: providerPackage.attestation.deployment,
+        immutableRecord: providerPackage.attestation.immutableRecord,
+        issuedAt: providerPackage.attestation.issuedAt,
+        attestationSha256: providerPackage.attestationSha256,
+        signatureSha256: providerPackage.signatureSha256,
+        signerPublicKeySha256: providerPackage.signerPublicKeySha256,
+      },
+    } : {}),
   };
   const canonicalManifest = canonicalJson(manifest);
-  const signature = sign(
-    null,
-    Buffer.from(canonicalManifest, "utf8"),
-    privateKey,
-  ).toString("base64");
-  const manifestPath = path.join(
-    outputDir,
-    `${release.releaseId}.manifest.json`,
-  );
-  const signaturePath = path.join(
-    outputDir,
-    `${release.releaseId}.manifest.sig`,
-  );
-  const publicKeyPath = path.join(
-    outputDir,
-    `${release.releaseId}.public-key.pem`,
-  );
+  const signature = sign(null, Buffer.from(canonicalManifest, "utf8"), privateKey).toString("base64");
+  const manifestPath = path.join(outputDir, `${release.releaseId}.manifest.json`);
+  const signaturePath = path.join(outputDir, `${release.releaseId}.manifest.sig`);
+  const publicKeyPath = path.join(outputDir, `${release.releaseId}.public-key.pem`);
   // Immutable evidence must never be replaced by a repeated build invocation.
   await Promise.all([
-    writeFile(manifestPath, `${canonicalManifest}\n`, {
-      encoding: "utf8",
-      flag: "wx",
-    }),
-    writeFile(signaturePath, `${signature}\n`, {
-      encoding: "utf8",
-      flag: "wx",
-    }),
+    writeFile(manifestPath, `${canonicalManifest}\n`, { encoding: "utf8", flag: "wx" }),
+    writeFile(signaturePath, `${signature}\n`, { encoding: "utf8", flag: "wx" }),
     writeFile(publicKeyPath, publicKey, { encoding: "utf8", flag: "wx" }),
   ]);
 }
@@ -394,25 +261,21 @@ async function buildAll() {
   );
   await rm(distDir, { recursive: true, force: true });
 
-  const sensitiveActivationRequested =
-    process.env.RELEASE_SENSITIVE_ACTIVATION_REQUESTED === "true";
+  const sensitiveActivationRequested = process.env.RELEASE_SENSITIVE_ACTIVATION_REQUESTED === "true";
   if (sensitiveActivationRequested && process.env.NODE_ENV !== "production") {
-    throw new Error(
-      "Sensitive release activation may only be requested in a production build.",
-    );
+    throw new Error("Sensitive release activation may only be requested in a production build.");
   }
-  const reviewedCommit =
-    process.env.RELEASE_SENSITIVE_ACTIVATION_COMMIT?.toLowerCase();
-  if (
-    sensitiveActivationRequested &&
-    reviewedCommit !== release.gitCommit.toLowerCase()
-  ) {
+  const reviewedCommit = process.env.RELEASE_SENSITIVE_ACTIVATION_COMMIT?.toLowerCase();
+  if (sensitiveActivationRequested && reviewedCommit !== release.gitCommit.toLowerCase()) {
     throw new Error(
       "Sensitive release activation requires RELEASE_SENSITIVE_ACTIVATION_COMMIT to exactly match the clean reviewed Git commit.",
     );
   }
-  await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+  const buildResult = await esbuild({
+    entryPoints: [
+      path.resolve(artifactDir, "src/index.ts"),
+      path.resolve(artifactDir, "src/release-validation.ts"),
+    ],
     platform: "node",
     bundle: true,
     format: "esm",
@@ -425,13 +288,11 @@ async function buildAll() {
       __RELEASE_SOURCE_DIGEST__: JSON.stringify(release.sourceDigest),
       __RELEASE_BUILD_TIMESTAMP__: JSON.stringify(release.buildTimestamp),
       __RELEASE_ID__: JSON.stringify(release.releaseId),
-      // A sensitive release is eligible only when its production build is
-      // explicitly bound to the clean reviewed source commit. Runtime access
-      // remains independently deny-all until every process, rollout, cohort,
-      // account, consent, rate-limit, and nonce predicate succeeds.
-      __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__: JSON.stringify(
-        sensitiveActivationRequested,
-      ),
+        // A sensitive release is eligible only when its production build is
+        // explicitly bound to the clean reviewed source commit. Runtime access
+        // remains independently deny-all until every process, rollout, cohort,
+        // account, consent, rate-limit, and nonce predicate succeeds.
+        __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__: JSON.stringify(sensitiveActivationRequested),
     },
     // Some packages may not be bundleable, so we externalize them, we can add more here as needed.
     // Some of the packages below may not be imported or installed, but we're adding them in case they are in the future.
@@ -516,9 +377,10 @@ async function buildAll() {
       "electron",
     ],
     sourcemap: "linked",
+    metafile: true,
     plugins: [
       // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
-      esbuildPluginPino({ transports: ["pino-pretty"] }),
+      esbuildPluginPino({ transports: ["pino-pretty"] })
     ],
     // Make sure packages that are cjs only (e.g. express) but are bundled continue to work in our esm output file
     banner: {
@@ -532,15 +394,15 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
-  await writeBuildProvenance(release, distDir);
-  // External artifact provenance is required for an explicitly requested
-  // sensitive release, but it must not block an ordinary API release. The
-  // compiled source identity remains the supported production boundary for
-  // ordinary releases, and Coach stays deny-all unless the sensitive build
-  // gate was explicitly authorized.
-  if (sensitiveActivationRequested) {
-    await writeSignedExternalManifest(release, distDir);
-  }
+  await writeFile(
+    path.join(distDir, "module-graph.json"),
+    `${JSON.stringify(buildResult.metafile, null, 2)}\n`,
+    "utf8",
+  );
+  // Provider-signed final-package provenance remains optional defense in depth.
+  // The supported production boundary is the clean reviewed source compiled
+  // into this bundle and independently compared with the canonical live
+  // /api/version identity before any runtime gate may be enabled.
 }
 
 buildAll().catch((err) => {

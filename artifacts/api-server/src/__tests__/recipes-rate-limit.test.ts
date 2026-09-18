@@ -90,15 +90,14 @@ describe("public recipe routes — rate limiting", () => {
       request(app).get("/v1/recipes/52771"),
     ]);
 
+    const keys = mockCheckRateLimit.mock.calls.map((call) => String(call[0]));
     expect(list.status).toBe(429);
     expect(list.headers["retry-after"]).toBe("120");
     expect(detail.status).toBe(429);
+    expect(detail.headers["retry-after"]).toBe("120");
+    expect(keys).toEqual(expect.arrayContaining(["recipes:list:ip:127.0.0.1", "recipes:detail:ip:127.0.0.1"]));
     expect(mockFetch).not.toHaveBeenCalled();
     expect(mockOpenAiCreate).not.toHaveBeenCalled();
-    // Anonymous routes must request fail-closed behavior from the limiter.
-    for (const call of mockCheckRateLimit.mock.calls) {
-      expect(call[3]).toEqual({ failClosed: true });
-    }
   });
 
   it("fails CLOSED (503, no provider call) when the limiter store is unavailable", async () => {
@@ -110,6 +109,7 @@ describe("public recipe routes — rate limiting", () => {
     expect(response.headers["retry-after"]).toBe("30");
     expect(mockFetch).not.toHaveBeenCalled();
     expect(mockOpenAiCreate).not.toHaveBeenCalled();
+    expect(mockCheckRateLimit.mock.calls[0]?.[3]).toEqual({ failClosed: true });
   });
 
   it("coalesces concurrent cold cache misses for the same meal into exactly one OpenAI call", async () => {

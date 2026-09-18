@@ -1,10 +1,37 @@
-import { afterAll, describe, expect, it } from "vitest";
+import express from "express";
+import request from "supertest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
   AccountDeletionInProgressError,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
+
+const {
+  verifyBearerTokenMock,
+  hasActivePremiumEntitlementMock,
+  loggerWarnMock,
+} = vi.hoisted(() => ({
+  verifyBearerTokenMock: vi.fn(),
+  hasActivePremiumEntitlementMock: vi.fn(),
+  loggerWarnMock: vi.fn(),
+}));
+
+vi.mock("../lib/supabase-auth.js", () => ({
+  verifyBearerToken: verifyBearerTokenMock,
+}));
+
+vi.mock("../lib/revenuecat.js", () => ({
+  hasActivePremiumEntitlement: hasActivePremiumEntitlementMock,
+}));
+
+vi.mock("../lib/logger.js", () => ({
+  logger: {
+    warn: loggerWarnMock,
+    error: vi.fn(),
+  },
+}));
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 const DATABASE_REQUIRED =
@@ -41,6 +68,129 @@ describe("account deletion fence classification", () => {
     ).toBeNull();
   });
 });
+
+describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
+  "account deletion fence provider routes (real limiter and trigger)",
+  () => {
+    it("returns generic unavailable responses without provider calls or account details", async () => {
+      const { pool } = await import("@workspace/db");
+      const { default: premiumRecipesRouter } =
+        await import("../routes/premiumRecipes.js");
+      const { default: restaurantFoodsRouter } =
+        await import("../routes/restaurantFoods.js");
+      const run = randomUUID().slice(0, 8);
+      const externalUserId = `premium-fence-${run}`;
+      const premiumAccountKey = `premium-recipes:user:${externalUserId}`;
+      const restaurantAccountKey = `restaurant-foods:user:${externalUserId}`;
+      const premiumIpKey = "premium-recipes:ip:198.51.100.42";
+      const accountKeys = [
+        premiumAccountKey,
+        restaurantAccountKey,
+        premiumIpKey,
+      ];
+
+      verifyBearerTokenMock.mockResolvedValue({
+        id: externalUserId,
+        email: `${externalUserId}@example.com`,
+      });
+      hasActivePremiumEntitlementMock.mockResolvedValue(true);
+      loggerWarnMock.mockReset();
+      const providerFetchMock = vi.fn();
+      vi.stubGlobal("fetch", providerFetchMock);
+      vi.stubEnv("PREMIUM_RECIPE_PROVIDER_URL", "https://provider.example");
+      vi.stubEnv("FATSECRET_GATEWAY_URL", "https://gateway.example");
+      vi.stubEnv("FATSECRET_GATEWAY_SECRET", "test-gateway-secret");
+
+      const app = express();
+      app.set("trust proxy", 1);
+      app.use(express.json());
+      app.use(premiumRecipesRouter);
+      app.use(restaurantFoodsRouter);
+
+      try {
+        await pool.query(
+          `INSERT INTO calora_account_deletion_states (identity_fingerprint, state)
+           VALUES (encode(digest($1, 'sha256'), 'hex'), 'deleting')`,
+          [externalUserId],
+        );
+
+        const premiumResponse = await request(app)
+          .get("/v1/premium-recipes?query=breakfast")
+          .set("X-Forwarded-For", "198.51.100.42");
+        const restaurantResponse = await request(app)
+          .get("/v1/restaurant-foods?query=burger")
+          .set("X-Forwarded-For", "198.51.100.42");
+
+        expect(premiumResponse.status).toBe(503);
+        expect(premiumResponse.body).toEqual({
+          message:
+            "Premium recipes are temporarily unavailable. Please try again shortly.",
+        });
+        expect(restaurantResponse.status).toBe(503);
+        expect(restaurantResponse.body).toEqual({
+          message: "Restaurant search is temporarily unavailable.",
+        });
+        expect(providerFetchMock).not.toHaveBeenCalled();
+        expect(
+          `${JSON.stringify(premiumResponse.body)}${JSON.stringify(
+            restaurantResponse.body,
+          )}`,
+        ).not.toContain(externalUserId);
+
+        const rateLimitRows = await pool.query<{ key: string }>(
+          `SELECT key
+             FROM calora_capture_rate_limits
+            WHERE key = ANY($1::text[])
+            ORDER BY key`,
+          [accountKeys],
+        );
+        expect(rateLimitRows.rows.map(({ key }) => key)).toEqual([
+          premiumIpKey,
+        ]);
+
+        expect(loggerWarnMock.mock.calls).toEqual([
+          [
+            {
+              errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+              route: "/v1/premium-recipes",
+              count: 1,
+              schemaVersion: "calora.account-deletion-fence-signal.v1",
+            },
+            "Account deletion fence rejected premium recipe request",
+          ],
+          [
+            {
+              errorClass: ACCOUNT_DELETION_FENCE_ERROR_CLASS,
+              route: "/v1/restaurant-foods",
+              count: 1,
+              schemaVersion: "calora.account-deletion-fence-signal.v1",
+            },
+            "Account deletion fence rejected restaurant food request",
+          ],
+        ]);
+        expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain(
+          externalUserId,
+        );
+        expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain(
+          "account deletion is in progress",
+        );
+      } finally {
+        await pool.query(
+          `DELETE FROM calora_capture_rate_limits WHERE key = ANY($1::text[])`,
+          [accountKeys],
+        );
+        await pool.query(
+          `DELETE FROM calora_account_deletion_states
+            WHERE identity_fingerprint = encode(digest($1, 'sha256'), 'hex')`,
+          [externalUserId],
+        );
+        vi.unstubAllGlobals();
+        vi.unstubAllEnvs();
+        vi.clearAllMocks();
+      }
+    });
+  },
+);
 
 describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
   "account deletion database fence (real schema)",
@@ -344,6 +494,14 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
             FOR EACH ROW
             EXECUTE FUNCTION calora_account_deletion_write_fence();
         `);
+        await client.query(`
+          CREATE OR REPLACE FUNCTION calora_account_deletion_write_fence()
+          RETURNS TRIGGER AS $$
+          BEGIN
+            RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql
+        `);
 
         await provisionDatabaseSupportObjects(client);
 
@@ -371,6 +529,18 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
          ORDER BY relation.relname`,
           [schemaName],
         );
+        const functionCatalog = await client.query<{
+          definition: string;
+        }>(
+          `SELECT pg_get_functiondef(procedure.oid) AS definition
+           FROM pg_proc AS procedure
+           JOIN pg_namespace AS namespace ON namespace.oid = procedure.pronamespace
+           WHERE namespace.nspname = $1
+             AND procedure.proname = 'calora_account_deletion_write_fence'
+             AND pg_get_function_identity_arguments(procedure.oid) = ''
+          `,
+          [schemaName],
+        );
 
         expect(catalog.rows).toEqual(
           EXPECTED_FENCED_TABLES.map((tableName) => ({
@@ -382,6 +552,26 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
             on_update: true,
           })),
         );
+        expect(functionCatalog.rows).toHaveLength(1);
+        expect(functionCatalog.rows[0]?.definition).toContain(
+          "calora_assert_deletion_writable",
+        );
+
+        const externalUserId = `repaired-fence-${randomUUID()}`;
+        await client.query(
+          `INSERT INTO calora_account_deletion_states
+             (identity_fingerprint, state)
+           VALUES (encode(digest($1, 'sha256'), 'hex'), 'deleting')`,
+          [externalUserId],
+        );
+        await expect(
+          client.query(`INSERT INTO calora_users (external_id) VALUES ($1)`, [
+            externalUserId,
+          ]),
+        ).rejects.toMatchObject({
+          code: "55000",
+          message: "account deletion is in progress",
+        });
       } finally {
         try {
           await client.query("RESET search_path");
@@ -419,7 +609,73 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
           referrer_user_id text,
           referred_user_id text
         );
+        CREATE TABLE calora_referral_qualifications (external_user_id text);
+        CREATE TABLE calora_capture_rate_limits (key text);
       `);
+
+        await provisionDatabaseSupportObjects(client);
+
+        await client.query(`
+          CREATE OR REPLACE FUNCTION calora_assert_deletion_writable(external_user_id TEXT)
+          RETURNS VOID AS $$
+          BEGIN
+            RAISE NOTICE 'rollback sentinel';
+            IF EXISTS (
+              SELECT 1 FROM calora_account_deletion_states
+              WHERE identity_fingerprint = encode(digest(external_user_id, 'sha256'), 'hex')
+                AND state <> 'active'
+            ) THEN
+              RAISE EXCEPTION 'account deletion is in progress' USING ERRCODE = '55000';
+            END IF;
+          END;
+          $$ LANGUAGE plpgsql
+        `);
+
+        const functionsBeforeFailure = await client.query<{
+          routine_name: string;
+          object_id: string;
+          xmin: string;
+          definition: string;
+        }>(
+          `SELECT
+             procedure.proname AS routine_name,
+             procedure.oid::text AS object_id,
+             procedure.xmin::text AS xmin,
+             pg_get_functiondef(procedure.oid) AS definition
+           FROM pg_proc AS procedure
+           JOIN pg_namespace AS namespace
+             ON namespace.oid = procedure.pronamespace
+           WHERE namespace.nspname = $1
+             AND procedure.proname IN (
+               'calora_assert_deletion_writable',
+               'calora_account_deletion_write_fence'
+             )
+           ORDER BY procedure.proname`,
+          [schemaName],
+        );
+
+        const triggersBeforeFailure = await client.query<{
+          table_name: string;
+          object_id: string;
+          xmin: string;
+          definition: string;
+        }>(
+          `SELECT
+             relation.relname AS table_name,
+             trigger.oid::text AS object_id,
+             trigger.xmin::text AS xmin,
+             pg_get_triggerdef(trigger.oid) AS definition
+           FROM pg_trigger AS trigger
+           JOIN pg_class AS relation ON relation.oid = trigger.tgrelid
+           JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+           WHERE namespace.nspname = $1
+             AND trigger.tgname = 'calora_account_deletion_write_fence_trigger'
+             AND NOT trigger.tgisinternal
+           ORDER BY relation.relname`,
+          [schemaName],
+        );
+
+        await client.query(`DROP TABLE calora_capture_rate_limits`);
 
         await expect(
           provisionDatabaseSupportObjects(client),
@@ -427,26 +683,55 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
           code: "42P01",
         });
 
-        const functions = await client.query(
-          `SELECT routine_name
-         FROM information_schema.routines
-         WHERE routine_schema = $1
-           AND routine_name IN (
-             'calora_assert_deletion_writable',
-             'calora_account_deletion_write_fence'
-           )`,
+        const functionsAfterFailure = await client.query<{
+          routine_name: string;
+          object_id: string;
+          xmin: string;
+          definition: string;
+        }>(
+          `SELECT
+             procedure.proname AS routine_name,
+             procedure.oid::text AS object_id,
+             procedure.xmin::text AS xmin,
+             pg_get_functiondef(procedure.oid) AS definition
+           FROM pg_proc AS procedure
+           JOIN pg_namespace AS namespace
+             ON namespace.oid = procedure.pronamespace
+           WHERE namespace.nspname = $1
+             AND procedure.proname IN (
+               'calora_assert_deletion_writable',
+               'calora_account_deletion_write_fence'
+             )
+           ORDER BY procedure.proname`,
           [schemaName],
         );
-        const triggers = await client.query(
-          `SELECT trigger_name
-         FROM information_schema.triggers
-         WHERE trigger_schema = $1
-           AND trigger_name = 'calora_account_deletion_write_fence_trigger'`,
+        const triggersAfterFailure = await client.query<{
+          table_name: string;
+          object_id: string;
+          xmin: string;
+          definition: string;
+        }>(
+          `SELECT
+             relation.relname AS table_name,
+             trigger.oid::text AS object_id,
+             trigger.xmin::text AS xmin,
+             pg_get_triggerdef(trigger.oid) AS definition
+           FROM pg_trigger AS trigger
+           JOIN pg_class AS relation ON relation.oid = trigger.tgrelid
+           JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+           WHERE namespace.nspname = $1
+             AND trigger.tgname = 'calora_account_deletion_write_fence_trigger'
+             AND NOT trigger.tgisinternal
+           ORDER BY relation.relname`,
           [schemaName],
         );
 
-        expect(functions.rows).toEqual([]);
-        expect(triggers.rows).toEqual([]);
+        expect(functionsAfterFailure.rows).toEqual(functionsBeforeFailure.rows);
+        expect(triggersAfterFailure.rows).toEqual(
+          triggersBeforeFailure.rows.filter(
+            ({ table_name }) => table_name !== "calora_capture_rate_limits",
+          ),
+        );
       } finally {
         try {
           await client.query("RESET search_path");

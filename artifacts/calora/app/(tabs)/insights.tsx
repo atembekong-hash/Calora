@@ -1158,8 +1158,25 @@ function ProgressLineGraph({
     }
   }
   if (currentSegment.length) segments.push(currentSegment);
-  const path = segments
-    .map((segment) => segment.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' '))
+  const smoothSegmentPath = (segment: { x: number; y: number }[]) => {
+    if (segment.length === 0) return '';
+    let segmentPath = `M ${segment[0].x.toFixed(2)} ${segment[0].y.toFixed(2)}`;
+    for (let index = 1; index < segment.length; index += 1) {
+      const previous = segment[index - 1];
+      const current = segment[index];
+      // Keep the curve inside the measured interval while easing into and out
+      // of each point. This gives sparse weeks a plotted trend without
+      // inventing values for days that were not logged.
+      const controlX = (previous.x + current.x) / 2;
+      segmentPath += ` C ${controlX.toFixed(2)} ${previous.y.toFixed(2)} ${controlX.toFixed(2)} ${current.y.toFixed(2)} ${current.x.toFixed(2)} ${current.y.toFixed(2)}`;
+    }
+    return segmentPath;
+  };
+  const path = segments.map(smoothSegmentPath).join(' ');
+  const bottomY = (chartHeight - padBottom).toFixed(2);
+  const fillPath = segments
+    .filter((segment) => segment.length > 1)
+    .map((segment) => `${smoothSegmentPath(segment)} L ${segment[segment.length - 1].x.toFixed(2)} ${bottomY} L ${segment[0].x.toFixed(2)} ${bottomY} Z`)
     .join(' ');
   const targetY = showTarget
     ? padTop + (1 - (target.value - min) / range) * (chartHeight - padTop - padBottom)
@@ -1198,16 +1215,19 @@ function ProgressLineGraph({
             <Line x1={padX} y1={targetY} x2={chartWidth - padX} y2={targetY} stroke={colors.warning} strokeWidth={1} strokeDasharray="4 4" opacity={0.75} />
           )}
           {path ? (
-            <AnimatedPath
-              d={path}
-              stroke={color}
-              strokeWidth={2.5}
-              fill="none"
-              strokeDasharray={lineDashLength}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              animatedProps={animatedPathProps}
-            />
+            <>
+              {fillPath ? <Path d={fillPath} fill={color} opacity={0.1} /> : null}
+              <AnimatedPath
+                d={path}
+                stroke={color}
+                strokeWidth={2.5}
+                fill="none"
+                strokeDasharray={lineDashLength}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                animatedProps={animatedPathProps}
+              />
+            </>
           ) : null}
           {chartPoints.map((point, index) => point.y == null ? null : (
             <Circle
@@ -1590,7 +1610,7 @@ export default function InsightsScreen() {
     [shoppingWeekStart],
   );
   const visibleShoppingItems = useMemo(() => {
-    const checkedByName = shoppingChecksByName(shoppingItems);
+    const checkedByName = shoppingChecksByName(shoppingItems, shoppingWeekStart);
     const plannedWeek = plannerMeals.filter((meal) => shoppingWeekDays.includes(meal.day));
     const plannerItems = buildShoppingItems(plannedWeek, checkedByName);
     const plannerKeys = new Set(plannerItems.map((item) => shoppingNameKey(item.name)));
@@ -1614,11 +1634,11 @@ export default function InsightsScreen() {
           <View style={styles.headerActions}>
             <Pressable
               accessibilityLabel={`Open what ${BRAND.name} remembers`}
+              testID="living-memory-header-button"
               onPress={() => router.push('/memory')}
-              hitSlop={8}
               style={[styles.headerIconButton, { backgroundColor: colors.muted }]}
             >
-              <Feather name="compass" size={16} color={colors.foreground} />
+              <Feather name="compass" size={18} color={colors.foreground} />
             </Pressable>
             <Pressable
               accessibilityLabel={`Open shopping list${uncheckedShopping > 0 ? `, ${uncheckedShopping} items left` : ''}`}
@@ -2318,7 +2338,7 @@ export default function InsightsScreen() {
         items={visibleShoppingItems}
         weekDays={shoppingWeekDays}
         onClose={() => setShoppingVisible(false)}
-        onToggleItem={toggleShoppingItemByName}
+          onToggleItem={(name) => toggleShoppingItemByName(name, shoppingWeekStart)}
       />
       {/* Undo-delete snackbar — rendered outside the chart/modal so it survives modal close */}
       {pendingDelete !== null && (
@@ -2351,7 +2371,9 @@ function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  headerIconButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  // The 44 pt control remains accessible without relying on hitSlop. Its
+  // larger footprint also shifts this first header action slightly left.
+  headerIconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   headerShoppingButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   shoppingCount: { position: 'absolute', right: -4, top: -5, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   shoppingCountText: { fontFamily: 'Inter_700Bold', fontSize: 9 * f },

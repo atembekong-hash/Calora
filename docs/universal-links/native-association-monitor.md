@@ -32,7 +32,7 @@ logs the association response bodies. If either secret is missing, the job
 fails with a remediation message rather than running an incomplete check.
 
 The production origin is currently defined in the workflow as
-`https://calorie-coach-pie35449.replit.app`. Update that non-secret value if
+`https://mycaloraapp.com`. Update that non-secret value if
 the canonical production host changes.
 
 The advisory freshness warning threshold can be adjusted for a documented

@@ -26,19 +26,20 @@
 
 | Purpose | URL |
 |---|---|
-| Main website | https://calorie-coach-pie35449.replit.app/api/legal/ |
-| Privacy Policy | https://calorie-coach-pie35449.replit.app/api/legal/privacy |
-| Terms of Use | https://calorie-coach-pie35449.replit.app/api/legal/terms |
-| Help & Support | https://calorie-coach-pie35449.replit.app/api/legal/support |
-| Contact | https://calorie-coach-pie35449.replit.app/api/legal/contact |
-| Account Deletion | https://calorie-coach-pie35449.replit.app/api/legal/delete-account |
-| Subscription Info | https://calorie-coach-pie35449.replit.app/api/legal/subscriptions |
-| Help Center | https://calorie-coach-pie35449.replit.app/api/legal/help |
-| Provisional API hostname | https://api.mycaloraapp.com *(not yet live — see §11)* |
+| Main website | https://mycaloraapp.com/ |
+| Privacy Policy | https://mycaloraapp.com/privacy |
+| Terms of Use | https://mycaloraapp.com/terms |
+| Help & Support | https://mycaloraapp.com/support |
+| Contact | https://mycaloraapp.com/contact |
+| Account Deletion | https://mycaloraapp.com/delete-account |
+| Subscription Info | https://mycaloraapp.com/subscriptions |
+| Help Center | https://mycaloraapp.com/help |
+| API base origin | https://mycaloraapp.com/api |
 
-> **IMPORTANT:** `https://api.mycaloraapp.com` is the preferred production API hostname but is not yet configured.
-> The working development API endpoint must not be replaced until this hostname is live and operational.
-> Product metadata and live network configuration are separate concerns.
+> **Status:** `https://mycaloraapp.com` is the approved branded origin for the public
+> website, legal routes, auth callback, association files, and API base. Keep
+> `/api` as the API mount; do not introduce a separate API hostname without an
+> explicit migration and live verification.
 
 ---
 
@@ -113,10 +114,10 @@ RevenueCat client integration and repository seed configuration exist. Productio
 
 | Document | URL | Status |
 |---|---|---|
-| Privacy Policy | https://calorie-coach-pie35449.replit.app/api/legal/privacy | ✅ Published at the confirmed public origin |
-| Terms of Use | https://calorie-coach-pie35449.replit.app/api/legal/terms | ✅ Published at the confirmed public origin |
-| Subscription Info | https://calorie-coach-pie35449.replit.app/api/legal/subscriptions | ✅ Published at the confirmed public origin |
-| Account Deletion | https://calorie-coach-pie35449.replit.app/api/legal/delete-account | ✅ Published at the confirmed public origin |
+| Privacy Policy | https://mycaloraapp.com/privacy | ✅ Published at the approved branded origin |
+| Terms of Use | https://mycaloraapp.com/terms | ✅ Published at the approved branded origin |
+| Subscription Info | https://mycaloraapp.com/subscriptions | ✅ Published at the approved branded origin |
+| Account Deletion | https://mycaloraapp.com/delete-account | ✅ Published at the approved branded origin |
 
 > Required by Apple App Store, Google Play, and applicable data protection regulations before public distribution.
 
@@ -203,7 +204,9 @@ CaloraApp Coach must not present itself as a doctor, registered dietitian, diagn
 | `SESSION_SECRET` | SERVER SECRET | Replit Secrets | Session signing |
 | `EXPO_PUBLIC_DOMAIN` | PUBLIC CLIENT | Build env | API base URL for Expo app |
 
-> API hostname migration: When `api.mycaloraapp.com` is operational, set `EXPO_PUBLIC_DOMAIN` to that hostname and update server hosting configuration.
+> API routing: The current client uses `https://mycaloraapp.com` with the `/api`
+> mount. Keep this single-origin contract unless a separately verified migration
+> is approved.
 
 ---
 
@@ -238,7 +241,7 @@ iOS build numbers and Android versionCode values must increase monotonically. Do
 
 | Item | Status |
 |---|---|
-| Custom domain DNS (`mycaloraapp.com`) | OPTIONAL — public legal/support URLs use the confirmed Replit production origin |
+| Custom domain DNS (`mycaloraapp.com`) | ✅ CONFIGURED — public legal/support URLs use the branded origin |
 | Monitored support inbox (`support@mycaloraapp.com`) | ✅ CONFIRMED |
 | Privacy Policy page hosted at `/privacy` | ✅ Published on the confirmed public origin |
 | Terms of Use page hosted at `/terms` | ✅ Published on the confirmed public origin |
@@ -250,6 +253,6 @@ iOS build numbers and Android versionCode values must increase monotonically. Do
 | Store recurring pricing ($4.99/mo, $35.99/yr) + 7-day free trial | REQUIRES STORE CONFIGURATION |
 | App Store screenshots | REQUIRES OWNER ACTION |
 | Google Play feature graphic | REQUIRES OWNER ACTION |
-| `api.mycaloraapp.com` DNS and server deployment | REQUIRES OWNER ACTION |
+| Separate API hostname | NOT REQUIRED — current API uses `https://mycaloraapp.com/api` |
 | USDA FoodData Central production API key | REQUIRES CREDENTIAL |
 | EAS project configuration (Apple Team ID, ASC App ID, service account) | REQUIRES CREDENTIAL |

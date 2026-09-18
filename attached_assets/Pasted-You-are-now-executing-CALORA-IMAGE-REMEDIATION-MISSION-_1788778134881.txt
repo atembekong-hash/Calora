@@ -1,0 +1,597 @@
+You are now executing CALORA IMAGE REMEDIATION MISSION 01.
+
+PRIMARY OBJECTIVE
+
+Fix Calora’s image system so that every food or meal image shown to a user is tied as closely as possible to the exact entity it represents.
+
+A photo must not be reused for unrelated meals merely because they share a category.
+
+Do not create artificial “uniqueness” by assigning random different food photos. Accuracy matters more than visual variety.
+
+If an exact image cannot be verified, use a clearly identified representative image or neutral fallback rather than pretending that the image is exact.
+
+SOURCE OF TRUTH
+
+Use the existing project report:
+
+IMAGE_AUDIT_01_COMPLETE_PROJECT_IMAGE_FORENSIC_REPORT.md
+
+Treat that report as the baseline forensic evidence for this remediation.
+
+Do not repeat the audit from scratch unless necessary to verify a change.
+
+IMPORTANT CURRENT FINDINGS
+
+The audit established:
+
+- 57 runtime bundled image files exist.
+- All 57 bundled files have unique SHA-256 hashes.
+- 26 Planner meals have canonical image identities.
+- 20 verified foods have canonical image identities.
+- The major repetition problem is logical image reuse rather than duplicate image files.
+- Restaurant foods currently collapse into only 11 representative image categories.
+- FatSecret restaurant normalization currently does not preserve item-level images.
+- Planner detail can bypass the stronger canonical identity path.
+- FoodLogThumbnail can prioritize local representative imagery over a more specific valid remote image.
+- Scan candidate image identity is not strongly bound to the verified candidate.
+- Component-level capture images can be lost when accepted into the diary.
+- Profile and Scan image surfaces lack sufficiently resilient image failure handling.
+- Recipe imagery is comparatively strong but still needs provenance and cross-page deduplication improvements.
+- Some screens correctly do not need imagery. Do not add decorative images everywhere.
+
+MISSION RULE
+
+For every consumer-facing food image, classify the image as one of:
+
+1. EXACT VERIFIED IMAGE
+   The image is tied to the exact meal, recipe, food, product, restaurant item, barcode product, or user-created entity.
+
+2. REPRESENTATIVE IMAGE
+   The image represents a category or role but is not guaranteed to depict the exact item.
+
+3. FALLBACK
+   Used only when no reliable image exists.
+
+The application must never silently present category-level or fallback imagery as an exact item photograph.
+
+==================================================
+PHASE 1: FIX IMAGE IDENTITY AND FAILURE HANDLING
+==================================================
+
+1. WEEKLY PLANNER DETAIL
+
+Fix the Planner detail screen so it cannot trust a stale persisted imageAssetKey independently of the visible meal identity.
+
+The Planner detail surface must use PlannerMealImage or an equivalent single shared audited image component.
+
+Identity must be derived from the authoritative meal ID/name mapping.
+
+If stored image identity disagrees with the meal identity:
+
+- Reject the stale assignment.
+- Resolve the canonical correct image.
+- Log or expose the mismatch in development/audit mode.
+- Never display the stale curated image.
+
+Preserve:
+
+- fallback handling
+- mismatch detection
+- accessibility labels
+- load/error handling
+- cache/recycling identity
+- existing Planner behavior and layout
+
+Add regression tests proving that changing/restoring a meal cannot leave the previous meal’s photo attached.
+
+2. PROFILE PHOTO
+
+Create or standardize a resilient local-photo component for:
+
+- Home profile avatar
+- Profile avatar
+- Profile edit preview
+
+Handle:
+
+- missing URI
+- deleted file
+- corrupt file
+- undecodable file
+- load failure
+
+Fallback cleanly to the existing initials/avatar state.
+
+Add accessibility labels.
+
+Do not break account-scoped profile photo storage.
+
+3. SCAN PROCESSING IMAGE
+
+Replace the unguarded Scan processing image path with a safe image component.
+
+Add:
+
+- URI validation
+- load state
+- visible error/fallback state
+- accessibility label
+- safe bounds for image dimensions/decode behavior
+- protection against malformed or extremely large images where practical
+
+Do not weaken the existing capture security flow or review-before-acceptance behavior.
+
+==================================================
+PHASE 2: MAKE IMAGE IDENTITY DURABLE
+==================================================
+
+Create one clear image identity model for food entities.
+
+Where appropriate, image identity should support:
+
+- entityType
+- entityId
+- providerId
+- normalized entity name
+- image URL or local asset key
+- source/provider
+- provenance class
+- exact vs representative status
+- verifiedAt
+- optional attribution/rights metadata where available
+
+Do not over-engineer the database if the same result can safely be achieved through deterministic reconstruction.
+
+However, restored food records must not lose enough identity information to show a different image later.
+
+Investigate the existing diary persistence path where image_url and image_source exist but imageAssetKey does not.
+
+Choose the safest architecture between:
+
+A. Persisting a validated stable local image identity.
+
+OR
+
+B. Persisting enough authoritative entity information to deterministically reconstruct the correct local image.
+
+Document the decision.
+
+Do not silently invent image identity during restoration.
+
+==================================================
+PHASE 3: FIX DIARY THUMBNAIL SOURCE PRECEDENCE
+==================================================
+
+Audit FoodLogThumbnail source precedence.
+
+Current behavior may allow a canonical or restaurant representative local asset to override a valid, more item-specific remote image.
+
+Create explicit precedence rules based on provenance.
+
+Preferred principle:
+
+Exact verified image
+>
+exact trusted provider image
+>
+user-supplied image tied to the entity
+>
+canonical curated exact asset
+>
+representative category asset
+>
+generic fallback
+
+Do not apply this hierarchy blindly.
+
+Verify the semantics of each existing source first.
+
+Restaurant category imagery must never outrank a genuinely item-specific trusted image.
+
+Representative restaurant imagery must remain visibly classified as representative after logging, restoring, syncing, or reopening the application.
+
+Add regression tests.
+
+==================================================
+PHASE 4: RESTAURANT IMAGE ARCHITECTURE
+==================================================
+
+This is the largest product-integrity gap.
+
+Current behavior maps many distinct restaurant menu items into approximately 11 representative categories.
+
+Do NOT simply generate or manually assign random restaurant photos.
+
+First investigate whether the currently configured provider or another already-integrated trusted source exposes an item-specific image field that Calora is currently discarding.
+
+Check:
+
+- raw FatSecret restaurant responses
+- provider adapters
+- normalized API schemas
+- restaurant search response contracts
+- client models
+- persistence
+- any existing provider image fields not currently surfaced
+
+If an item-specific provider image exists:
+
+- preserve it through normalization
+- validate its host
+- attach provider/source provenance
+- pass it through API contracts
+- use it as the exact image
+- preserve fallback behavior when unavailable
+
+If FatSecret truly provides no usable item-level photograph for this path, DO NOT fabricate exactness.
+
+Keep the representative system as fallback.
+
+Maintain visible wording equivalent to:
+
+“Representative image · exact menu photography unavailable”
+
+The wording may be adapted to existing UI style, but the meaning must remain clear.
+
+Never infer an exact restaurant photograph from:
+
+- brand name alone
+- category
+- food name keyword search
+- visually similar menu item
+- unrelated public image
+
+If a future trusted item-level image source requires licensing, credentials, or a paid API not currently available, document it as a blocker rather than inventing a workaround.
+
+==================================================
+PHASE 5: CAPTURE AND BARCODE IMAGE BINDING
+==================================================
+
+Strengthen the relationship between:
+
+- analyzed capture candidate
+- verified identity
+- image shown during review
+- approved diary record
+
+The accepted diary image should not be able to silently differ from the verified candidate’s image identity.
+
+Where appropriate, retain:
+
+- image URL
+- image source/provider
+- candidate identity
+- provider identity
+- image fingerprint or stable identity marker
+
+Do not weaken:
+
+- exact UPC/GTIN validation
+- single-use capture session behavior
+- atomic session claim
+- review-before-acceptance
+- trusted-domain validation
+
+Investigate component-level images in multi-component captures.
+
+Determine whether dropping those images when the final diary entry is created is intentional product behavior or accidental data loss.
+
+If accidental, preserve the required imagery.
+
+If intentional, document and test the behavior.
+
+==================================================
+PHASE 6: RECIPE IMAGE UNIQUENESS
+==================================================
+
+Do not disrupt the current RecipeImage system unless necessary.
+
+Preserve:
+
+- provider images
+- generated recipe images
+- signed URL refresh
+- failure disclosure
+- role-based fallback
+- authenticated private storage
+
+Fix premium recipe image deduplication so uniqueness is enforced across the entire accumulated result set, not only within one server page.
+
+Normalize URLs before comparison by removing irrelevant query/hash differences where appropriate.
+
+The same exact provider image should not appear attached to unrelated recipes after pagination.
+
+Do not replace duplicates with random photographs.
+
+When duplicate exact photography cannot be resolved safely, fall back visibly rather than misrepresenting another recipe.
+
+Make generated-image provenance explicit and durable instead of merely inferred from surrounding recipe metadata.
+
+==================================================
+PHASE 7: CENTRALIZE FOOD IMAGE RENDERING
+==================================================
+
+Reduce fragmented food-image logic.
+
+Establish a shared consumer-facing food image contract or component that owns, where practical:
+
+- identity resolution
+- exact vs representative provenance
+- safe remote-source validation
+- local asset resolution
+- precedence
+- load state
+- error state
+- fallback
+- representative disclosure
+- accessibility label
+- caching/recycling key
+- audit/debug identity
+
+Do not force unrelated imagery such as:
+
+- profile avatars
+- decorative hourly headers
+- onboarding illustrations
+- app icon/splash
+
+through the food-image component.
+
+The goal is consistency for FOOD CONTENT, not one universal image component for the whole application.
+
+==================================================
+PHASE 8: PLANNER CATALOG AUTHORITY
+==================================================
+
+The audit found duplicated Planner catalog authorities between client and API.
+
+Reduce the chance that:
+
+- meal name
+- nutrition
+- image identity
+- remote URL
+
+drift independently.
+
+Prefer one authoritative catalog or generated shared contract.
+
+Do not make a broad architectural rewrite if a smaller shared-source solution is safer.
+
+Local canonical meal identity should remain authoritative for curated Planner imagery.
+
+Consider whether legacy remote Planner image URLs can be removed when no longer required.
+
+Do not remove them until you prove they are unnecessary.
+
+==================================================
+PHASE 9: IMAGE SOURCE POLICY
+==================================================
+
+Review the duplicated client/server trusted-domain rules.
+
+Current known image hosts include:
+
+- openfoodfacts.org
+- unsplash.com
+- themealdb.com
+- fatsecret.com
+- ftscrt.com
+
+Preserve HTTPS-only and URL-length protections.
+
+Where practical, share or generate one image source validation policy so client/server behavior cannot silently drift.
+
+Do not weaken the allowlist into arbitrary internet image loading.
+
+If a legitimate provider requires a new domain, add it only after verifying why it is required.
+
+==================================================
+PHASE 10: SCREENS THAT SHOULD NOT RECEIVE IMAGES
+==================================================
+
+Do not respond to this mission by adding photography throughout the application.
+
+Keep image-free or primarily icon/text/data-driven interfaces where imagery adds no functional value.
+
+Do not add generic food photos to:
+
+- authentication
+- password recovery
+- verification
+- security/recovery flows
+- system/bootstrap/error infrastructure
+- settings rows
+- Progress data surfaces
+- shopping completion/action rows
+- Coach conversation surfaces
+- navigation wrappers
+
+Optional illustration areas may remain unchanged unless there is a clear product reason.
+
+The mission is image correctness, not image density.
+
+==================================================
+PHASE 11: REQUIRED TESTS
+==================================================
+
+Add or strengthen tests covering at minimum:
+
+1. Planner detail rejects stale persisted image keys.
+2. Meal identity change cannot retain the previous meal photo.
+3. Every curated Planner key resolves to a real asset.
+4. Every canonical verified-food key resolves to a real asset.
+5. Canonical local image keys remain unique.
+6. Restaurant representative imagery remains labeled after restore.
+7. Restaurant exact imagery, if introduced, outranks representative imagery.
+8. Profile broken local URI falls back correctly.
+9. Scan malformed/broken URI produces a controlled state.
+10. Capture candidate image identity survives or is explicitly validated through approval.
+11. Image source metadata round-trips correctly.
+12. Recipe duplicate suppression works across pagination boundaries.
+13. Exact and representative provenance remain distinguishable.
+14. Food-image component errors do not blank or crash screens.
+15. Existing image host security rules remain enforced.
+
+Run relevant:
+
+- unit tests
+- integration tests
+- TypeScript checks
+- linting where available
+- targeted image identity tests
+
+Do not trigger Expo/EAS builds unless explicitly instructed.
+
+Do not deploy.
+
+Do not modify production database data unless absolutely required and explicitly authorized.
+
+==================================================
+PHASE 12: VISUAL SEMANTIC AUDIT
+==================================================
+
+Code-level uniqueness does not prove that a photograph visually depicts its meal.
+
+After structural remediation, inspect the curated Planner and verified-food image mappings.
+
+For each of the 46 canonical curated entities:
+
+- confirm filename/key
+- confirm entity name
+- confirm assigned asset
+- determine whether the image appears semantically consistent with the food name
+
+Do not claim visual certainty from filenames alone.
+
+If the environment permits actual visual inspection, inspect the assets.
+
+If visual verification cannot be completed, mark the entity:
+
+UNVERIFIED_VISUAL_MATCH
+
+Do not replace questionable images merely to make the audit report look clean.
+
+Create a table of any suspect mappings requiring human review.
+
+==================================================
+NON-NEGOTIABLE RULES
+==================================================
+
+1. Do not randomly change food images.
+
+2. Do not assign one image to several unrelated exact entities.
+
+3. Exact food imagery must remain entity-specific.
+
+4. Representative imagery may be reused only when clearly classified as representative.
+
+5. Never disguise a fallback as an exact meal photograph.
+
+6. Do not weaken provider URL security.
+
+7. Do not break Planner, Recipes, Restaurants, Diary, Scan, Profile, Memory, or Saved Recipes behavior.
+
+8. Preserve light and dark mode behavior.
+
+9. Preserve accessibility.
+
+10. Preserve existing caching where safe.
+
+11. Make the smallest safe architectural changes required.
+
+12. Do not perform unrelated refactoring.
+
+13. Do not trigger a build.
+
+14. Do not deploy.
+
+15. Do not push to GitHub unless explicitly instructed.
+
+16. Continue through all feasible remediation phases without stopping after the first fix.
+
+17. If an exact restaurant image source cannot be obtained safely, leave the representative fallback in place and document the limitation.
+
+18. Never solve image repetition by replacing accurate images with arbitrary unique images.
+
+==================================================
+FINAL FORENSIC VALIDATION
+==================================================
+
+After implementation, perform a fresh project-wide image verification.
+
+Report:
+
+- total runtime images
+- duplicate-byte groups
+- canonical Planner identities
+- canonical verified-food identities
+- restaurant exact-image count
+- restaurant representative-image count
+- duplicate exact-image assignments
+- duplicate representative assignments
+- Planner mismatches
+- recipe cross-page duplicates
+- scan image binding status
+- profile failure behavior
+- food image provenance coverage
+- screens using exact images
+- screens using representative images
+- screens using fallback images
+- screens intentionally using no imagery
+
+Compare the results against IMAGE_AUDIT_01.
+
+The final verdict must be one of:
+
+PASS
+PARTIAL
+BLOCKED
+FAIL
+
+PASS is allowed only if the image identity architecture is internally consistent and all feasible high-severity remediation has been completed.
+
+A provider limitation such as unavailable restaurant item photography may remain as a documented representative-image limitation, but the UI must remain truthful.
+
+==================================================
+MANDATORY REPORT FILE
+==================================================
+
+Create and save a permanent project report:
+
+IMAGE_REMEDIATION_02_FINAL_IMPLEMENTATION_REPORT.md
+
+The report must include:
+
+- executive summary
+- original findings addressed
+- files inspected
+- files modified
+- architecture decisions
+- exact changes made
+- Planner remediation
+- restaurant remediation
+- recipe remediation
+- diary/image precedence remediation
+- scan/capture remediation
+- profile remediation
+- provenance changes
+- persistence changes
+- security implications
+- tests added
+- tests executed
+- full test results
+- remaining limitations
+- provider/API blockers
+- visual semantic audit results
+- suspect images requiring human review
+- before/after quantitative image statistics
+- Git status
+- commit status
+- final verdict
+
+Include exact file paths and relevant code references as evidence.
+
+Do not claim completion without evidence.
+
+When finished, stop and present the saved report filename and final verdict.

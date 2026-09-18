@@ -67,4 +67,33 @@ describe('retired Coach fallback compatibility', () => {
     expect(legacy).not.toHaveBeenCalled();
     adapter.cleanup();
   });
+
+  it('marks a response stale when history clear invalidates its in-flight epoch', async () => {
+    const response: CoachFactContextResponse = {
+      message: 'late answer',
+      observations: [],
+      limitations: [],
+      actions: [],
+      contextCoverage: { usedSections: [], missingSections: [] },
+      safetyState: 'normal',
+      requestNonce: 'c'.repeat(24),
+    };
+    let settle!: (value: { kind: 'response'; response: CoachFactContextResponse }) => void;
+    spies.select.mockResolvedValueOnce({
+      kind: 'fact_context',
+      context: { requestNonce: response.requestNonce },
+      accountId: input.accountId,
+      hydrationGeneration: input.hydrationGeneration,
+    });
+    spies.request.mockReturnValueOnce(new Promise((resolve) => { settle = resolve; }));
+    const adapter = createCoachSendAdapter();
+    const pending = adapter.sendWithArchitecture([{ role: 'user', content: 'clear me' }], legacy, input);
+
+    await Promise.resolve();
+    adapter.invalidateEpoch('clear_data');
+    settle({ kind: 'response', response });
+
+    await expect(pending).resolves.toEqual({ kind: 'stale', reason: 'epoch_advanced' });
+    adapter.cleanup();
+  });
 });

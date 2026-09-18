@@ -54,9 +54,11 @@ export function recipeSourceLabel(recipe: RecipeLike): string {
 }
 
 export function recipeNutritionLabel(recipe: RecipeLike): string {
-  const confidence = recipeProvenance(recipe).nutritionConfidence;
+  const provenance = recipeProvenance(recipe);
+  const confidence = provenance.nutritionConfidence;
   if (confidence === 'verified') return 'Verified nutrition';
   if (confidence === 'estimated') return 'Estimated nutrition';
   if (confidence === 'user_entered') return 'User-entered nutrition';
-  return 'Nutrition review needed';
+  const hasPartialNutrition = [recipe.calories, recipe.proteinG, recipe.carbsG, recipe.fatG].some((value) => value != null);
+  return hasPartialNutrition ? 'Partial nutrition available' : 'Nutrition unavailable';
 }

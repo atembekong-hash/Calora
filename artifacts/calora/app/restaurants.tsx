@@ -23,11 +23,9 @@ import { useAuth } from '@/context/AuthContext';
 import { type MealType, useCalora } from '@/context/CaloraContext';
 import { dateKey } from '@/lib/dates';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
-import { restaurantFoodImageSource } from '@/lib/restaurantFoodImages';
 import { restaurantFoodReviewState } from '@/lib/restaurantFoodReview';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { BottomSheet } from '@/components/BottomSheet';
-import { Image } from 'expo-image';
 
 const popularChains = ["McDonald's", 'Burger King', "Wendy's", 'Chipotle'];
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -69,17 +67,21 @@ export default function RestaurantsScreen() {
     { query: { queryKey: getListRestaurantFoodsQueryKey({ query: searchQuery || 'restaurant', limit: 20, offset: 0 }), enabled: canSearch, staleTime: 60_000, retry: false } },
   );
   const detailResult = useGetRestaurantFood(
-    selectedFood?.sourceId ?? '',
-    { query: { queryKey: getGetRestaurantFoodQueryKey(selectedFood?.sourceId ?? ''), enabled: Boolean(session && selectedFood), staleTime: 5 * 60_000, retry: false } },
+    selectedFood?.id ?? '',
+    { query: { queryKey: getGetRestaurantFoodQueryKey(selectedFood?.id ?? ''), enabled: Boolean(session && selectedFood), staleTime: 5 * 60_000, retry: false } },
   );
-  const detail = detailResult.data ?? selectedFood;
+  const matchingDetail = detailResult.data?.sourceId === selectedFood?.sourceId
+    ? detailResult.data
+    : undefined;
+  const detail = matchingDetail ?? selectedFood;
   const servings = useMemo(
     () => detail ? (detail.servings.length > 0 ? detail.servings : [primaryServing(detail)]) : [],
     [detail],
   );
-  const selectedServing = servings[selectedServingIndex] ?? servings[0] ?? null;
+  const effectiveServingIndex = selectedServingIndex < servings.length ? selectedServingIndex : 0;
+  const selectedServing = servings[effectiveServingIndex] ?? null;
   const reviewState = restaurantFoodReviewState({
-    detail: detailResult.data,
+    detail: matchingDetail,
     serving: selectedServing,
     isFetching: detailResult.isFetching,
     isError: detailResult.isError,
@@ -95,11 +97,18 @@ export default function RestaurantsScreen() {
   };
 
   const beginReview = () => {
-    const providerDetail = detailResult.data;
+    const providerDetail = matchingDetail;
     if (reviewState !== 'ready' || !providerDetail || !selectedServing) return;
-    const confidence = 94;
+    const detailedServingConfidence = selectedServing.servingId ? 92 : 84;
+    const confidenceDimensions = {
+      identity: 96,
+      portion: detailedServingConfidence,
+      nutritionSource: providerDetail.nutritionConfidence === 'verified' ? 96 : 84,
+      preparation: 78,
+    };
+    const confidence = Math.min(...Object.values(confidenceDimensions));
     const component: FoodMemoryComponent = {
-      id: `fatsecret-${providerDetail.sourceId}-${selectedServing.servingId ?? selectedServingIndex}`,
+      id: `fatsecret-${providerDetail.sourceId}-${selectedServing.servingId ?? effectiveServingIndex}`,
       name: providerDetail.name,
       brand: providerDetail.brandName,
       serving: selectedServing.description,
@@ -109,15 +118,10 @@ export default function RestaurantsScreen() {
       fatG: selectedServing.fatG ?? 0,
       included: true,
       eatenFraction: 1,
-      provenance: 'verified_provider',
+      provenance: 'verified_restaurant',
       sourceLabel: providerDetail.nutritionSource,
       confidence,
-      confidenceDimensions: {
-        identity: 96,
-        portion: 86,
-        nutritionSource: 96,
-        preparation: 88,
-      },
+      confidenceDimensions,
       assumptions: [],
       reviewQuestions: ['Confirm this serving matches the item and portion you ate.'],
     };
@@ -128,7 +132,7 @@ export default function RestaurantsScreen() {
       meal,
       components: [component],
       sourceLabel: providerDetail.nutritionSource,
-      provenance: 'verified_provider',
+      provenance: 'verified_restaurant',
       assumptions: ['Restaurant preparation and serving size can vary by location.'],
       reviewQuestions: component.reviewQuestions,
     });
@@ -256,12 +260,6 @@ export default function RestaurantsScreen() {
                 onPress={() => setSelectedFood(food)}
                 style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               >
-                <Image
-                  accessibilityLabel={`${food.name} food photo`}
-                  contentFit="cover"
-                  source={restaurantFoodImageSource(food)}
-                  style={styles.resultImage}
-                />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.resultBrand, { color: colors.primary }]}>{food.brandName ?? 'Branded food'}</Text>
                   <Text style={[styles.resultName, { color: colors.foreground }]}>{food.name}</Text>
@@ -297,12 +295,6 @@ export default function RestaurantsScreen() {
                   </Pressable>
                 </View>
 
-                <Image
-                  accessibilityLabel={`${detail.name} food photo`}
-                  contentFit="cover"
-                  source={restaurantFoodImageSource(detail)}
-                  style={styles.detailImage}
-                />
                 {detailResult.isFetching ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} /> : null}
                 <View style={[styles.nutritionCard, { backgroundColor: colors.hero }]}>
                   <View><Text style={[styles.macroValueLarge, { color: colors.onHero }]}>{selectedServing?.calories !== null ? Math.round(selectedServing?.calories ?? 0) : '—'}</Text><Text style={[styles.macroLabel, { color: colors.heroMuted }]}>kcal</Text></View>
@@ -318,7 +310,7 @@ export default function RestaurantsScreen() {
                       key={serving.servingId ?? `${serving.description}-${index}`}
                       accessibilityLabel={`Use serving ${serving.description}`}
                       onPress={() => setSelectedServingIndex(index)}
-                      style={[styles.servingChip, { backgroundColor: selectedServingIndex === index ? colors.accent : colors.card, borderColor: selectedServingIndex === index ? colors.accent : colors.border }]}
+                      style={[styles.servingChip, { backgroundColor: effectiveServingIndex === index ? colors.accent : colors.card, borderColor: effectiveServingIndex === index ? colors.accent : colors.border }]}
                     >
                       <Text style={[styles.servingText, { color: selectedServingIndex === index ? colors.accentForeground : colors.foreground }]}>{serving.description}</Text>
                     </Pressable>
@@ -407,7 +399,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 },
   resultCount: { fontFamily: 'Inter_500Medium', fontSize: 10 },
   resultCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  resultImage: { width: 52, height: 52, borderRadius: 15, backgroundColor: '#e7ece5' },
   resultBrand: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 0.4, textTransform: 'uppercase' },
   resultName: { fontFamily: 'Inter_600SemiBold', fontSize: 13, marginTop: 2 },
   resultServing: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 3 },
@@ -423,7 +414,6 @@ const styles = StyleSheet.create({
   detailHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   detailBrand: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
   detailTitle: { fontFamily: 'Inter_700Bold', fontSize: 23, letterSpacing: -0.5, marginTop: 5 },
-  detailImage: { width: '100%', height: 178, borderRadius: 20, marginTop: 16, backgroundColor: '#e7ece5' },
   nutritionCard: { borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 17 },
   macroValueLarge: { fontFamily: 'Inter_700Bold', fontSize: 24 },
   macroValue: { fontFamily: 'Inter_700Bold', fontSize: 15, textAlign: 'center' },

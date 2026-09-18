@@ -394,6 +394,28 @@ function recipeImage(value: unknown): string | null {
     return null;
   }
 }
+function recipeImageIdentity(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    url.search = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+export function clearDuplicateRecipeImages(recipes: readonly PremiumRecipe[]): PremiumRecipe[] {
+  const seen = new Set<string>();
+  return recipes.map((recipe) => {
+    const identity = recipeImageIdentity(recipe.image);
+    if (!identity || !seen.has(identity)) {
+      if (identity) seen.add(identity);
+      return recipe;
+    }
+    return { ...recipe, image: null };
+  });
+}
 function number(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
@@ -472,7 +494,7 @@ export async function listPremiumRecipes(input: { query?: string; category?: str
     const payload = await fatSecretFetch("/recipes/search/v3", { search_expression: input.query || input.category || "", max_results: input.limit, page_number: Math.floor(input.offset / input.limit) });
     const search = payload.recipes && typeof payload.recipes === "object" ? payload.recipes as Record<string, unknown> : {};
     const rows = Array.isArray(search.recipe) ? search.recipe : search.recipe ? [search.recipe] : [];
-    const recipes = rows.map(fatSecretRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe));
+    const recipes = clearDuplicateRecipeImages(rows.map(fatSecretRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe)));
     const total = fatSecretNumber(search.total_results);
     const nextOffset = total != null
       ? input.offset + recipes.length < total ? input.offset + recipes.length : null
@@ -485,7 +507,7 @@ export async function listPremiumRecipes(input: { query?: string; category?: str
     };
   }
   const payload = await providerFetch("/recipes", input);
-  const recipes = (payload?.recipes ?? []).map(normalizePremiumRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe));
+  const recipes = clearDuplicateRecipeImages((payload?.recipes ?? []).map(normalizePremiumRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe)));
   const nextOffset = payload?.nextOffset ?? (recipes.length === input.limit ? input.offset + recipes.length : null);
   return {
     ...status,
@@ -534,9 +556,15 @@ export async function listRestaurantFoods(input: { query: string; limit: number;
   return { ...status, foods, nextOffset: nextProviderOffset < total ? nextProviderOffset : null };
 }
 
+export function normalizeRestaurantSourceId(sourceId: string): string | null {
+  const rawId = sourceId.trim().replace(/^fatsecret-food:/, '');
+  return /^\d+$/.test(rawId) ? `fatsecret-food:${rawId}` : null;
+}
 export async function getRestaurantFood(sourceId: string) {
   const status = restaurantProviderStatus();
   if (status.status !== "available") return null;
-  const payload = await fatSecretFetch("/food/v4", { food_id: sourceId.replace(/^fatsecret-food:/, "") });
+  const normalizedSourceId = normalizeRestaurantSourceId(sourceId);
+  if (!normalizedSourceId) return null;
+  const payload = await fatSecretFetch("/food/v4", { food_id: normalizedSourceId.replace(/^fatsecret-food:/, "") });
   return normalizeFatSecretFood(payload.food);
 }

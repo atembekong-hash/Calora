@@ -5,6 +5,8 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CoachFactContextFactValuesDirection } from './coachFactContextFactValuesDirection';
+import type { CoachFactContextFactValuesState } from './coachFactContextFactValuesState';
 
 export type CoachFactContextFactValues = {
   /**
@@ -37,4 +39,71 @@ export type CoachFactContextFactValues = {
      * @maximum 1000
      */
   remainingG?: number;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  consumedMg?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  consumedOz?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  breakfastPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  lunchPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  dinnerPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  snackPercentage?: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  logCount?: number;
+  /**
+     * @minimum 0
+     * @maximum 10
+     */
+  mealSlotsLogged?: number;
+  state?: CoachFactContextFactValuesState;
+  /**
+     * @minimum 0
+     * @maximum 7
+     */
+  loggedDayCount?: number;
+  /**
+     * @minimum 0
+     * @maximum 7
+     */
+  qualifiedDayCount?: number;
+  /**
+     * @minimum 1
+     * @maximum 28
+     */
+  windowDays?: number;
+  direction?: CoachFactContextFactValuesDirection;
+  /**
+     * @minimum -1000
+     * @maximum 1000
+     */
+  deltaKg?: number;
+  /**
+     * @minimum 0
+     * @maximum 1000
+     */
+  entryCount?: number;
 };

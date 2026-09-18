@@ -35,6 +35,10 @@ import { canDisplayPremiumCatalogue, hasCurrentPremiumAccess } from '@/lib/premi
 import { mergeSavedPremiumRecipes, missingSavedPremiumRecipeIds } from '@/lib/premiumSavedRecipes';
 import { getRecipeFreshnessSession, mergeRecipePages } from '@/lib/recipeFreshness';
 import { formatRecipeNutrition, getRecipeNutritionState, hasCompleteNutrition, isFiniteNutritionValue, parseNutritionInput } from '@/lib/recipeNutrition';
+import { clearDuplicatePremiumRecipeImages } from '@/lib/premiumRecipeImages';
+import { recipeImageRole } from '@/lib/recipeImagePresentation';
+import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
+import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -96,11 +100,12 @@ function httpStatus(error: unknown): number | null {
 }
 
 function recipeFallbackImage(recipe: BrowseRecipe) {
-  const searchable = [recipe.name, recipe.category, recipeMealType(recipe), ...(recipe.tags ?? [])].filter(Boolean).join(' ').toLowerCase();
-  if (/\b(drink|smoothie|juice|tea|coffee|cocktail)\b/.test(searchable)) return RECIPE_FALLBACK_IMAGES.drink;
-  if (/\b(snack|appetizer|starter|dip)\b/.test(searchable)) return RECIPE_FALLBACK_IMAGES.snack;
-  if (/\b(breakfast|brunch|oat|egg|pancake|waffle)\b/.test(searchable)) return RECIPE_FALLBACK_IMAGES.breakfast;
-  return RECIPE_FALLBACK_IMAGES.main;
+  return RECIPE_FALLBACK_IMAGES[recipeImageRole({
+    name: recipe.name,
+    category: recipe.category,
+    mealType: recipeMealType(recipe),
+    tags: recipe.tags,
+  })];
 }
 
 function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: number }) {
@@ -155,6 +160,11 @@ export function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight
   const local = isLocalRecipe(recipe);
   const provenance = recipeProvenance(recipe);
   const localLabel = provenance.sourceType === 'calora_ai' ? 'CALORA AI' : 'MY RECIPE';
+  const sourceBadge = provenance.sourceType === 'calora_catalog'
+    ? 'CALORA ORIGINAL'
+    : local
+      ? localLabel
+      : null;
   const fitsGoal = remainingCalories !== undefined && remainingCalories > 0 && recipe.calories != null && recipe.calories > 0 && recipe.calories <= remainingCalories;
   return (
     <Surface tier="flat" radius="lg" style={[styles.recipeCard, fixedHeight ? { height: fixedHeight } : null]}>
@@ -168,7 +178,7 @@ export function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight
           <View style={styles.cardImageFrame}>
             <RecipeImage recipe={recipe} height={imageHeight} />
             {fitsGoal && <View style={[styles.fitsBadge, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={8} color={colors.primaryForeground} /><Text style={[styles.fitsBadgeText, { color: colors.primaryForeground }]}>FITS YOUR GOAL</Text></View>}
-            {local && <View style={[styles.localBadge, { backgroundColor: colors.primary }]}><Text style={[styles.localBadgeText, { color: colors.primaryForeground }]}>{localLabel}</Text></View>}
+            {sourceBadge && <View style={[styles.localBadge, { backgroundColor: colors.primary }]}><Text style={[styles.localBadgeText, { color: colors.primaryForeground }]}>{sourceBadge}</Text></View>}
           </View>
           <View style={[styles.cardContent, compact && styles.compactCardContent]}>
             <Text numberOfLines={2} style={[styles.recipeName, { color: colors.foreground }]}>{recipe.name}</Text>
@@ -429,6 +439,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
   const { session } = useAuth();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [offset, setOffset] = useState(0);
@@ -556,11 +567,28 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const fetchedSavedRecipes = missingSavedQueries
     .filter((savedQuery) => savedQuery.isSuccess && !savedQuery.error && savedQuery.data)
     .map((savedQuery) => savedQuery.data as PremiumRecipe);
+  const premiumScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
+  const loadMorePremiumRecipesIfAtEnd = () => {
+    const { offsetY, viewportHeight, contentHeight } = premiumScrollMetricsRef.current;
+    if (viewportHeight > 0 && offsetY + viewportHeight >= contentHeight - PREMIUM_RECIPE_PREFETCH_DISTANCE) {
+      onLoadMoreRef.current?.();
+    }
+  };
+  const handlePremiumScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    premiumScrollMetricsRef.current = {
+      offsetY: contentOffset.y,
+      viewportHeight: layoutMeasurement.height,
+      contentHeight: contentSize.height,
+    };
+    loadMorePremiumRecipesIfAtEnd();
+  };
   const recipes = useMemo(() => freshnessSession.order(loadedRecipes, freshnessVisit), [freshnessSession, freshnessVisit, loadedRecipes]);
+  const displayRecipes = useMemo(() => clearDuplicatePremiumRecipeImages(recipes), [recipes]);
   useEffect(() => {
     if (!visible || !userId || freshnessVisit === 0 || recipes.length === 0) return;
-    freshnessSession.remember(recipes.slice(0, RECIPE_PAGE_SIZE));
-  }, [freshnessSession, freshnessVisit, recipes, userId, visible]);
+    freshnessSession.remember(displayRecipes.slice(0, RECIPE_PAGE_SIZE));
+  }, [displayRecipes, freshnessSession, freshnessVisit, recipes.length, userId, visible]);
   if (!visible) return null;
   if (!session) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Plus sources require sign-in.</Text><Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text></Pressable></View>;
   if (accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="award" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{accessDeniedStatus === 401 ? 'Sign in for Plus recipes' : 'Plus required'}</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{accessDeniedStatus === 401 ? 'Your session ended. Sign in again.' : 'An active Calora Plus membership is required.'}</Text><Pressable accessibilityLabel={accessDeniedStatus === 401 ? 'Sign in to access Plus recipes' : 'View Plus membership options'} onPress={() => accessDeniedStatus === 401 ? router.push('/auth/sign-in') : router.push({ pathname: '/(tabs)/profile', params: { tab: 'membership' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>{accessDeniedStatus === 401 ? 'Sign in' : 'View membership'}</Text></Pressable></View>;
@@ -574,7 +602,24 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
    if (data?.status === 'unavailable') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="link-2" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus source not connected</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message}</Text></View>;
   const savedRecipes = mergeSavedPremiumRecipes(savedRecipeIds, knownSavedRecipes, fetchedSavedRecipes);
   return (
-    <>
+    <ScrollView
+      testID="plus-recipe-scroll"
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
+      showsVerticalScrollIndicator={false}
+      onLayout={(event) => {
+        premiumScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
+        loadMorePremiumRecipesIfAtEnd();
+      }}
+      onContentSizeChange={(_, contentHeight) => {
+        premiumScrollMetricsRef.current.contentHeight = contentHeight;
+        loadMorePremiumRecipesIfAtEnd();
+      }}
+      onScroll={handlePremiumScroll}
+      onMomentumScrollEnd={handlePremiumScroll}
+      scrollEventThrottle={16}
+      decelerationRate="normal"
+    >
       <View testID="plus-recipe-catalogue">
         <View style={styles.premiumToolbar}>
           <View style={[styles.searchBox, { flex: 1, backgroundColor: colors.card, borderColor: colors.input }]}>
@@ -625,7 +670,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
             </SwipeGestureExclusion>
           </>
         )}
-        {recipes.length === 0 ? (
+        {displayRecipes.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Plus recipes found</Text>
             <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
@@ -638,7 +683,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
             entering={FadeInDown.springify().damping(20)}
             style={styles.recipeGrid}
           >
-            {recipes.map((recipe) => (
+            {displayRecipes.map((recipe) => (
               <View
                 key={recipe.id}
                 testID={`plus-recipe-card-${recipe.sourceId}`}
@@ -707,7 +752,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
           </Pressable>
         </BottomSheet>
       </View>
-    </>
+    </ScrollView>
   );
 }
 
@@ -768,7 +813,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
   const queryClient = useQueryClient();
   const local = recipe ? isLocalRecipe(recipe) : false;
   const premium = recipe ? recipeProvenance(recipe).sourceType === 'premium' : false;
-  const remoteRecipeId = recipe && !local && !premium ? recipe.id : '';
+  const caloraOriginal = recipe ? recipeProvenance(recipe).sourceType === 'calora_catalog' : false;
+  const remoteRecipeId = recipe && !local && !premium && !caloraOriginal ? recipe.id : '';
   const premiumSourceId = recipe && premium ? recipeProvenance(recipe).sourceId : '';
   const detailQuery = useGetRecipe(remoteRecipeId, {
     query: {
@@ -975,10 +1021,14 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
       onPlanned('Nutrition is unavailable for this recipe, so it was not added to your plan.');
       return;
     }
-    const plannedMeal: PlannerMeal = {
+    const recipeSource: PlannerRecipeSource = premium ? 'plus' : caloraOriginal ? 'calora' : local ? 'create' : 'discover';
+    const linkedRecipeId = premium ? recipeProvenance(detail).sourceId : detail.id;
+    const plannedMeal: PlannerMeal & { recipeId: string; recipeSource: PlannerRecipeSource } = {
       id: `recipe-plan-${Date.now()}-${detail.id}`,
       day: planDay,
       meal: planMealType,
+      recipeId: linkedRecipeId,
+      recipeSource,
       name: detail.name,
       image: detail.image ?? '',
       serving: '1 serving',
@@ -1398,7 +1448,7 @@ export default function RecipesScreen() {
   // On cache hits (staleTime 30 min) this is a no-op; on misses it means the
   // TheMealDB fetch resolves before the user finishes reading the recipe header.
   const handleCardPress = (recipe: BrowseRecipe) => {
-    if (!isLocalRecipe(recipe) && recipeProvenance(recipe).sourceType !== 'premium') {
+    if (!isLocalRecipe(recipe) && !['premium', 'calora_catalog'].includes(recipeProvenance(recipe).sourceType)) {
       void queryClient.prefetchQuery({
         queryKey: ['recipe', recipe.id],
         queryFn: () => getRecipe(recipe.id),
@@ -1429,7 +1479,25 @@ export default function RecipesScreen() {
   const recipesScrollRef = useRef<ScrollView | null>(null);
   const discoverScrollYRef = useRef(0);
   const recipeScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
-  const { recipeId } = useLocalSearchParams<{ recipeId?: string }>();
+  const { recipeId: routeRecipeId, recipeSource: routeRecipeSource, recipeName: routeRecipeName } = useLocalSearchParams<{ recipeId?: string; recipeSource?: PlannerRecipeSource; recipeName?: string }>();
+  const recipeId = Array.isArray(routeRecipeId) ? routeRecipeId[0] : routeRecipeId;
+  const recipeSource = Array.isArray(routeRecipeSource) ? routeRecipeSource[0] : routeRecipeSource;
+  const recipeName = Array.isArray(routeRecipeName) ? routeRecipeName[0] : routeRecipeName;
+  const linkedDiscoverRecipeQuery = useGetRecipe(recipeSource === 'discover' ? recipeId ?? '' : '', {
+    query: {
+      queryKey: ['recipe', recipeId ?? ''],
+      enabled: recipeSource === 'discover' && Boolean(recipeId),
+      staleTime: 1000 * 60 * 30,
+    },
+  });
+  const linkedPremiumRecipeQuery = useGetPremiumRecipe(recipeSource === 'plus' ? recipeId ?? '' : '', {
+    query: {
+      queryKey: premiumRecipeDetailQueryKey(user?.id, getGetPremiumRecipeQueryKey(recipeId ?? '')),
+      enabled: recipeSource === 'plus' && Boolean(recipeId),
+      staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
+      retry: false,
+    },
+  });
   useEffect(() => {
     setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current);
   }, [user?.id]);
@@ -1439,6 +1507,20 @@ export default function RecipesScreen() {
     const matchesSearch = haystack.includes(search.toLowerCase());
     return matchesSearch;
   }), [category, localRecipes, search]);
+  const caloraOriginalMatches = useMemo(() => {
+    if (category === 'My recipes') return [];
+    const normalizedSearch = search.trim().toLowerCase();
+    return caloraOriginalRecipes.filter((recipe) => {
+      const categoryMatch = category === 'For you'
+        || (category === 'Quick' && (recipe.prepMinutes ?? Number.MAX_SAFE_INTEGER) <= 30)
+        || (category === 'Supper' && recipe.category === 'Dinner')
+        || recipe.category?.toLowerCase() === category.toLowerCase();
+      if (!categoryMatch) return false;
+      if (!normalizedSearch) return true;
+      const haystack = `${recipe.name} ${recipe.description ?? ''} ${recipe.tags.join(' ')} ${recipe.ingredients.join(' ')}`.toLowerCase();
+      return haystack.includes(normalizedSearch);
+    });
+  }, [category, search]);
   const discoverFreshnessSession = useMemo(() => getRecipeFreshnessSession(`discover:${user?.id ?? 'signed-out'}:${search}:${category}`), [category, search, user?.id]);
   const recipesQuery = useListRecipes({ query: search || undefined, category: category === 'For you' || category === 'My recipes' || category === 'Quick' ? undefined : category, limit: RECIPE_PAGE_SIZE, offset: remoteOffset }, { query: { queryKey: ['recipes', search, category, remoteOffset], staleTime: 1000 * 60 * 10, refetchInterval: (query) => (query.state.data as ({ warmupPending?: boolean } | undefined))?.warmupPending ? 15_000 : false } });
   useEffect(() => {
@@ -1482,11 +1564,58 @@ export default function RecipesScreen() {
   }, [category, queryClient, recipesQuery.data?.nextOffset, recipesQuery.data?.recipes, search]);
   useEffect(() => {
     if (!recipeId) return;
+    if (recipeSource === 'plus') {
+      setActiveSection('premium');
+      if (!linkedPremiumRecipeQuery.data) return;
+      setSelected(linkedPremiumRecipeQuery.data);
+      router.setParams({ recipeId: undefined, recipeSource: undefined });
+      return;
+    }
+    if (recipeSource === 'calora') {
+      setActiveSection('discover');
+      const matchingRecipe = caloraOriginalRecipes.find((recipe) => recipe.id === recipeId);
+      if (!matchingRecipe) return;
+      setSelected(matchingRecipe);
+      router.setParams({ recipeId: undefined, recipeSource: undefined });
+      return;
+    }
+    if (recipeSource === 'create') {
+      setActiveSection('discover');
+      setCategory('My recipes');
+      const matchingLocalRecipe = localRecipes.find((recipe) => recipe.id === recipeId);
+      if (!matchingLocalRecipe) return;
+      setSelected(matchingLocalRecipe);
+      router.setParams({ recipeId: undefined, recipeSource: undefined });
+      return;
+    }
+    if (recipeSource === 'discover') {
+      setActiveSection('discover');
+      const matchingRecipe = remoteRecipes.find((recipe) => recipe.id === recipeId);
+      if (matchingRecipe) {
+        setSelected(matchingRecipe);
+        router.setParams({ recipeId: undefined, recipeSource: undefined });
+        return;
+      }
+      if (!linkedDiscoverRecipeQuery.data) return;
+      setSelected(linkedDiscoverRecipeQuery.data);
+      router.setParams({ recipeId: undefined, recipeSource: undefined });
+      return;
+    }
     const matchingRecipe = [...localRecipes, ...remoteRecipes].find((recipe) => recipe.id === recipeId);
     if (!matchingRecipe) return;
     setSelected(matchingRecipe);
     router.setParams({ recipeId: undefined });
-  }, [localRecipes, recipeId, remoteRecipes]);
+  }, [linkedDiscoverRecipeQuery.data, linkedPremiumRecipeQuery.data, localRecipes, recipeId, recipeSource, remoteRecipes]);
+  useEffect(() => {
+    if (!recipeName || recipeId) return;
+    setActiveSection('discover');
+    setCategory('For you');
+    setSearch(recipeName);
+    const exactRecipe = [...caloraOriginalRecipes, ...remoteRecipes].find((recipe) => recipe.name.trim().toLowerCase() === recipeName.trim().toLowerCase());
+    if (!exactRecipe) return;
+    setSelected(exactRecipe);
+    router.setParams({ recipeName: undefined });
+  }, [recipeId, recipeName, remoteRecipes]);
   const createRecipePhoto = async (recipe: CaloraRecipe) => {
     const sourceType = recipeProvenance(recipe).sourceType;
     if (!['calora_ai', 'user_created'].includes(sourceType) || recipe.imageStatus === 'ready' || photoRequestsRef.current.has(recipe.id)) return;
@@ -1494,7 +1623,7 @@ export default function RecipesScreen() {
     updateRecipe(recipe.id, { imageStatus: 'pending' });
     try {
       const photo = await requestGeneratedRecipePhoto({ title: recipe.name, description: recipe.description ?? '' });
-      updateRecipe(recipe.id, { image: photo.imageUrl, imageId: photo.imageId, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready' });
+      updateRecipe(recipe.id, { image: photo.imageUrl, imageId: photo.imageId, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready', imageProvenance: 'generated' });
     } catch {
       updateRecipe(recipe.id, { imageStatus: 'failed' });
     } finally {
@@ -1512,7 +1641,7 @@ export default function RecipesScreen() {
       if (!recipe.imageId || photoRefreshesRef.current.has(recipe.id)) return;
       photoRefreshesRef.current.add(recipe.id);
       void requestGeneratedRecipePhotoUrl({ imageId: recipe.imageId })
-        .then((photo) => updateRecipe(recipe.id, { image: photo.imageUrl, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready' }))
+        .then((photo) => updateRecipe(recipe.id, { image: photo.imageUrl, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready', imageProvenance: 'generated' }))
         .catch(() => updateRecipe(recipe.id, { imageStatus: 'failed' }))
         .finally(() => photoRefreshesRef.current.delete(recipe.id));
     });
@@ -1524,7 +1653,9 @@ export default function RecipesScreen() {
     if (activeSection !== 'discover' || discoverFreshnessVisit === 0 || freshRemoteRecipes.length === 0) return;
     discoverFreshnessSession.remember(freshRemoteRecipes.slice(0, RECIPE_PAGE_SIZE));
   }, [activeSection, discoverFreshnessSession, discoverFreshnessVisit, freshRemoteRecipes]);
-  const visibleRemote = category === 'My recipes' ? [] : category === 'Quick' ? freshRemoteRecipes.filter((r) => r.prepMinutes != null && r.prepMinutes <= 30) : freshRemoteRecipes;
+  const visibleRemote: BrowseRecipe[] = category === 'My recipes'
+    ? []
+    : [...caloraOriginalMatches, ...(category === 'Quick' ? freshRemoteRecipes.filter((r) => r.prepMinutes != null && r.prepMinutes <= 30) : freshRemoteRecipes)];
   const recipeSuggestions = useMemo(() => {
     const premiumSelected = selectedRecipe ? recipeProvenance(selectedRecipe).sourceType === 'premium' : false;
     const pool: BrowseRecipe[] = premiumSelected
@@ -1532,7 +1663,7 @@ export default function RecipesScreen() {
       : [...visibleLocal, ...visibleRemote];
     return getRecipeSuggestions(pool, selectedRecipe);
   }, [premiumCatalogueRecipes, selectedRecipe, visibleLocal, visibleRemote]);
-  const savedRecipes = [...localRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
+  const savedRecipes = [...localRecipes, ...caloraOriginalRecipes, ...remoteRecipes].filter((recipe, index, list) => savedRecipeIds.includes(recipeKey(recipe)) && list.findIndex((item) => recipeKey(item) === recipeKey(recipe)) === index);
   const savedDiscoverRecipes = savedRecipes.filter((recipe) => !isLocalRecipe(recipe));
   const loadMoreRecipes = () => {
     if (activeSection !== 'discover' || category === 'My recipes' || !hasMoreRemote || remoteNextOffset == null || recipesQuery.isFetching || loadingMoreRef.current) return;
@@ -1612,10 +1743,15 @@ export default function RecipesScreen() {
         onChange={changeSection}
         accessibilityLabel="Recipe section content"
         testID="recipes-section-content"
+        // Recipes should track the finger directly. The previous release and
+        // fade animations competed with the active-section re-render and made
+        // Discover / Plus / Create feel shaky.
+        disableAnimation
         style={{ flex: 1 }}
       >
       <ScrollView
         ref={recipesScrollRef}
+        style={styles.recipeScroll}
         contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
         showsVerticalScrollIndicator={false}
         onLayout={(event) => {
@@ -1709,6 +1845,7 @@ function makeStyles(f: number) {
   return StyleSheet.create({
   page: { flex: 1 },
    sectionTabs: { flexDirection: 'row', borderWidth: 1, borderRadius: 14, marginHorizontal: 20, marginTop: 7, padding: 3, gap: 2 },
+   recipeScroll: { flex: 1, minHeight: 0 },
    sectionTab: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
    sectionTabText: { fontFamily: 'Inter_700Bold', fontSize: 10 * f },
    headerSavedButton: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center', position: 'relative' },

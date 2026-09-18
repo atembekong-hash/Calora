@@ -14,6 +14,10 @@ export default defineConfig({
     alias: {
       // Resolve the @workspace/api-client-react type import to its source
       '@workspace/api-client-react': path.resolve(__dirname, '../../lib/api-client-react/src/index.ts'),
+      '@workspace/api-zod/planner-program-eligibility': path.resolve(
+        __dirname,
+        '../../lib/api-zod/src/planner-program-eligibility.ts',
+      ),
       // Resolve the @ alias used in calora source
       '@': path.resolve(__dirname),
       // Map react-native to react-native-web for jsdom rendering tests.

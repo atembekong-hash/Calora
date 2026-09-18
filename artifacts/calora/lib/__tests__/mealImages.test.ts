@@ -8,13 +8,16 @@ import {
   FOOD_IMAGE_KEYS,
   PLANNER_MEAL_IMAGE_IDENTITIES,
   PLANNER_IMAGE_KEYS,
+  foodImageKeyForName,
   plannerImageKeyForMeal,
   plannerImageKeyForMealId,
 } from '@/lib/mealImageIdentity';
+import { findDuplicateImageAssignments } from '@/lib/mealImageAudit';
+import { IMAGE_SURFACE_AUDIT_ROWS } from '@/lib/mealImageAudit';
 
 describe('curated meal image identity', () => {
   it('assigns a generated asset to every planner catalog meal', () => {
-    expect(plannerCatalog).toHaveLength(26);
+    expect(plannerCatalog).toHaveLength(28);
     expect(plannerCatalog.every((meal) => meal.imageAssetKey)).toBe(true);
     expect(new Set(plannerCatalog.map((meal) => meal.imageAssetKey)).size).toBe(plannerCatalog.length);
   });
@@ -25,13 +28,17 @@ describe('curated meal image identity', () => {
         mealType,
         plannerCatalog.filter((meal) => meal.meal === mealType).length,
       ]),
-    )).toEqual({ Breakfast: 7, Lunch: 7, Dinner: 7, Snack: 5 });
+    )).toEqual({ Breakfast: 7, Lunch: 7, Dinner: 9, Snack: 5 });
   });
 
   it('assigns distinct generated assets to every verified food suggestion', () => {
     expect(verifiedFoods).toHaveLength(20);
     expect(verifiedFoods.every((food) => food.imageAssetKey)).toBe(true);
     expect(new Set(verifiedFoods.map((food) => food.imageAssetKey)).size).toBe(verifiedFoods.length);
+  });
+
+  it('resolves every verified food name to its canonical image key', () => {
+    expect(verifiedFoods.every((food) => food.imageAssetKey === foodImageKeyForName(food.name))).toBe(true);
   });
 
   it('keeps the generated asset inventory aligned with the declared identity lists', () => {
@@ -58,6 +65,46 @@ describe('curated meal image identity', () => {
       return createHash('sha256').update(bytes).digest('hex');
     });
     expect(new Set(hashes).size).toBe(PLANNER_IMAGE_KEYS.length);
+  });
+
+  it('ships distinct image bytes for every verified food photo', () => {
+    const hashes = FOOD_IMAGE_KEYS.map((key) => {
+      const bytes = readFileSync(resolve(process.cwd(), `assets/images/foods/${key}.jpg`));
+      return createHash('sha256').update(bytes).digest('hex');
+    });
+    expect(new Set(hashes).size).toBe(FOOD_IMAGE_KEYS.length);
+  });
+
+  it('detects normalized duplicate assignments while allowing the same identity to repeat', () => {
+    const assignments = [
+      { identity: 'salmon-rice-bowl', imageUrl: 'https://images.example/salmon.jpg?w=320', source: 'food' },
+      { identity: 'tuna-crackers', imageUrl: 'https://images.example/salmon.jpg?w=1000', source: 'food' },
+      { identity: 'salmon-rice-bowl', imageUrl: 'https://images.example/salmon.jpg?q=88', source: 'planner' },
+    ];
+
+    expect(findDuplicateImageAssignments(assignments)).toEqual([
+      expect.objectContaining({
+        normalizedUrl: 'https://images.example/salmon.jpg',
+        assignments: expect.arrayContaining([
+          expect.objectContaining({ identity: 'salmon-rice-bowl' }),
+          expect.objectContaining({ identity: 'tuna-crackers' }),
+        ]),
+      }),
+    ]);
+  });
+
+  it('covers every user-visible image surface with an explicit provenance rule', () => {
+    expect(IMAGE_SURFACE_AUDIT_ROWS.map((row) => row.surface)).toEqual([
+      'Planner',
+      'Foods',
+      'Diary',
+      'Memory',
+      'Discover recipes',
+      'Plus recipes',
+      'Saved recipes',
+      'Restaurants',
+    ]);
+    expect(IMAGE_SURFACE_AUDIT_ROWS.every((row) => row.rule.length > 20)).toBe(true);
   });
 
   it('keeps every planner catalog identity in the shared contract', () => {

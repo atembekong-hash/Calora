@@ -61,7 +61,7 @@ export function ReferralCard({ fontScale }: Props) {
     if (!data) return;
     try {
       await Share.share({
-        message: `Join me on CaloraApp. Use ${data.code} and we both get ${data.rewardDays} Pro days: ${data.inviteUrl}`,
+        message: `Join me on Calora. Use ${data.code} and we both get ${data.rewardDays} Pro days: ${data.inviteUrl}`,
       });
     } catch {
       // User dismissed the share sheet — nothing to do.

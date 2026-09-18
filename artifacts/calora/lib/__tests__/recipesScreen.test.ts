@@ -2,7 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+const source = readFileSync(
+  resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+  'utf8',
+);
+
 describe('Recipes Discover layout contracts', () => {
+  it('keeps section swipes direct instead of layering release animations', () => {
+    expect(source).toContain('testID="recipes-section-content"');
+    expect(source).toContain('disableAnimation');
+  });
+
   it('gives every recipe-creation starting point a visible option tray', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
@@ -87,7 +97,7 @@ describe('Recipes Discover layout contracts', () => {
     );
 
     expect(source).toContain('savedRecipes.map((recipe) => (');
-    expect(source).toContain('recipes.map((recipe) => (');
+    expect(source).toContain('displayRecipes.map((recipe) => (');
     expect(source).not.toContain('{recipeSourceLabel(recipe)}</Text>');
   });
 
@@ -114,7 +124,9 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('const recipes = useMemo(() => freshnessSession.order(loadedRecipes, freshnessVisit)');
     expect(source).toContain('mergeRecipePages([], data.recipes)');
     expect(source).toContain('mergeRecipePages(current, data.recipes)');
+    expect(source).toContain('clearDuplicatePremiumRecipeImages(recipes)');
     expect(source).toContain('testID="plus-recipe-grid"');
+    expect(source).toContain('testID="plus-recipe-scroll"');
     expect(source).toContain('testID="plus-recipe-pagination-loading"');
     expect(source).toContain('testID="plus-recipe-pagination-error"');
     expect(source).toContain('testID="plus-recipe-pagination-retry"');
@@ -124,6 +136,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('const loadMorePremiumRecipesIfAtEnd = () => {');
     expect(source).toContain('onContentSizeChange={(_, contentHeight) => {');
     expect(source).toContain('loadMorePremiumRecipesIfAtEnd();');
+    expect(source).toContain("activeSection === 'premium'");
     expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
     expect(source).toContain('recipesScrollRef.current?.scrollTo({ y: section === \'discover\' ? discoverScrollYRef.current : 0, animated: false })');
   });
@@ -140,5 +153,21 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('const nutritionIncomplete = nutritionState === \'available\' && !hasCompleteNutrition(detail)');
     expect(source).toContain('Some nutrition values are unavailable from this recipe source.');
     expect(source).toContain('formatRecipeNutrition(scaledProtein');
+  });
+
+  it('keeps Discover loading after a provider page cycle instead of deduplicating into exhaustion', () => {
+    expect(source).toContain('return [...current, ...page];');
+    expect(source).toContain('visibleRemote.map((recipe, index)');
+    expect(source).toContain('key={`${recipe.id}-${index}`}');
+  });
+
+  it('keeps every recipe submenu inside a bounded vertical scroll viewport', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('style={styles.recipeScroll}');
+    expect(source).toContain('recipeScroll: { flex: 1, minHeight: 0 }');
   });
 });

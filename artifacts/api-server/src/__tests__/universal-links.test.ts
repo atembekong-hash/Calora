@@ -14,13 +14,45 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
-import universalLinksRouter from '../routes/universal-links';
+import universalLinksRouter, { buildOgSvg } from '../routes/universal-links';
+import {
+  getReferralRewardCopy,
+  REFERRAL_REWARD_DAYS,
+} from '../lib/referral-config';
 
 function makeApp() {
   const app = express();
   app.use(universalLinksRouter);
   return app;
 }
+
+describe('GET /auth/callback — branded browser fallback', () => {
+  const app = makeApp();
+
+  it('returns a no-store branded handoff page', async () => {
+    const res = await request(app)
+      .get('/auth/callback?error=access_denied&error_description=cancelled');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['x-robots-tag']).toBe('noindex');
+    expect(res.text).toContain('<title>Continue in Calora</title>');
+    expect(res.text).toContain('caloraapp://auth/callback');
+  });
+
+  it('does not echo callback query values into the response body', async () => {
+    const res = await request(app).get(
+      '/auth/callback?code=one-time-code&access_token=secret-token',
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.text).not.toContain('one-time-code');
+    expect(res.text).not.toContain('secret-token');
+    expect(res.text).toContain('window.location.search');
+    expect(res.text).toContain('window.location.hash');
+  });
+});
 
 describe('GET /invite/:code — landing page with a code', () => {
   const app = makeApp();
@@ -164,8 +196,10 @@ describe('GET /invite/:code — Open Graph and Twitter Card meta tags', () => {
 
   it('includes og:description', async () => {
     const res = await request(app).get('/invite/TESTCODE');
+    const referralCopy = getReferralRewardCopy();
+
     expect(res.text).toContain('property="og:description"');
-    expect(res.text).toContain('free week of Calora Pro');
+    expect(res.text).toContain(referralCopy.ogDescription);
   });
 
   it('includes og:image pointing to an absolute PNG URL', async () => {
@@ -199,10 +233,30 @@ describe('GET /invite/:code — Open Graph and Twitter Card meta tags', () => {
     const res = await request(app).get('/invite/TESTCODE');
     expect(res.text).toMatch(/name="twitter:image"\s+content="https?:\/\/[^"]+\/invite\/og-image\.png"/);
   });
+
+  it('keeps HTML, OG, and Twitter reward copy synchronized', async () => {
+    const res = await request(app).get('/invite/TESTCODE');
+    const referralCopy = getReferralRewardCopy();
+
+    expect(res.text).toContain(`${REFERRAL_REWARD_DAYS} days`);
+    expect(res.text).toContain(referralCopy.caloraProOffer);
+    expect(res.text).toContain(referralCopy.ogDescription);
+    expect(res.text).toContain(referralCopy.twitterDescription);
+    expect(res.text).not.toMatch(/\b(?:free week|one week|1 week)\b/i);
+  });
 });
 
 describe('GET /invite/og-image.png — preview image', () => {
   const app = makeApp();
+
+  it('keeps the invite preview offer synchronized with the server reward duration', () => {
+    const svg = buildOgSvg();
+    const referralCopy = getReferralRewardCopy();
+
+    expect(svg).toContain(referralCopy.shortProOffer);
+    expect(svg).toContain(`${REFERRAL_REWARD_DAYS} days`);
+    expect(svg).not.toMatch(/\b(?:free week|one week|1 week)\b/i);
+  });
 
   it('returns HTTP 200', async () => {
     const res = await request(app).get('/invite/og-image.png');

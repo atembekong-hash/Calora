@@ -1,6 +1,6 @@
 /**
  * Invite deep-link landing — caloraapp://invite/<code> and
- * https://calorie-coach-pie35449.replit.app/invite/<code>.
+ * https://mycaloraapp.com/invite/<code>.
  *
  * Stores the code locally, then routes signed-in users to Profile (where the
  * referral card prefills it) and signed-out users to account creation. The

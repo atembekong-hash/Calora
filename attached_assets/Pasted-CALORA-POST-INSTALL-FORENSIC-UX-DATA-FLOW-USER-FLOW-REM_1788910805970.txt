@@ -1,0 +1,1112 @@
+CALORA — POST-INSTALL FORENSIC UX, DATA-FLOW & USER-FLOW REMEDIATION MISSION
+
+CONTEXT
+
+A fresh Android release-candidate installation has now been physically tested by the owner.
+
+The production P1 release blockers are already closed.
+
+DO NOT disturb the currently verified production release unnecessarily.
+
+The owner has discovered the following new physical-device issues and questions.
+
+THIS MISSION HAS TWO PHASES:
+
+PHASE A — FORENSICALLY TRACE AND ROOT-CAUSE EVERY ISSUE.
+PHASE B — FIX VERIFIED DEFECTS, ADD REGRESSION COVERAGE, THEN MAP THE ENTIRE APPLICATION USER-FLOW SYSTEM.
+
+Do not guess.
+Do not cosmetically patch symptoms without tracing the underlying state/data/navigation behavior.
+
+==================================================
+STRICT SAFETY RULES
+==================================================
+
+- Do not trigger Expo/EAS.
+- Do not trigger a native build.
+- Do not publish or republish production.
+- Do not change DNS.
+- Do not change Cloudflare.
+- Do not change Supabase project configuration.
+- Do not change RevenueCat dashboard configuration.
+- Do not push to GitHub.
+- Do not force-push.
+- Do not rewrite Git history.
+- Do not delete production data.
+- Do not modify unrelated features.
+- Do not claim physical-device success unless the owner later confirms it.
+- Source/test verification is not a substitute for owner physical-device verification.
+
+You MAY make source-code/test changes required to fix the verified defects below.
+
+At the end, leave the working tree ready for owner review.
+Do not build or push.
+
+==================================================
+ISSUE 1 — ONBOARDING INPUTS ARE OBSCURED BY KEYBOARD
+==================================================
+
+OWNER OBSERVATION:
+
+On onboarding screens containing text inputs, when the keyboard opens the user may not be able to see the active input fields.
+
+REQUIREMENTS:
+
+Audit every onboarding screen containing:
+
+- TextInput
+- numeric fields
+- selectors that invoke keyboard/input
+- height/weight/age/name/goal/etc.
+- multiline input if any
+
+Implement a robust keyboard-safe layout.
+
+Expected behavior:
+
+- active input remains visible while typing;
+- user can scroll to every field while keyboard is open;
+- keyboard must not cover the active field;
+- Continue/Next controls must remain reachable;
+- Android and iOS behavior must both be handled;
+- small screens must work;
+- large font/Dynamic Type must not make inputs unreachable;
+- keyboard dismissal must behave naturally.
+
+Use the correct combination where appropriate of:
+
+- KeyboardAvoidingView
+- ScrollView
+- keyboardShouldPersistTaps
+- keyboardDismissMode
+- safe-area handling
+- contentContainerStyle
+- flexGrow
+- scroll-to-focused-input behavior
+
+Do not introduce nested-scroll conflicts.
+
+Add deterministic/component coverage where reasonably possible.
+
+==================================================
+ISSUE 2 — ONBOARDING APPEARS AGAIN AFTER COMPLETION
+==================================================
+
+OWNER OBSERVATION:
+
+Fresh install:
+1. user opens app;
+2. completes onboarding;
+3. closes app;
+4. reopens app;
+5. onboarding starts again.
+
+THIS IS A RELEASE-IMPORTANT DEFECT.
+
+Trace the complete onboarding completion state.
+
+Audit:
+
+- onboarding-complete flag
+- AsyncStorage/local persistence
+- account-scoped storage
+- guest storage
+- authenticated storage
+- hydration order
+- AuthContext
+- CaloraContext
+- onboarding routing
+- initial route selection
+- app bootstrap
+- logout/login behavior
+- account switching
+- guest-to-auth migration
+- first install
+- upgrade install
+- process kill
+- cold launch
+- storage write timing
+- race conditions
+
+Determine whether onboarding completion is:
+
+- never persisted;
+- persisted under wrong key;
+- written too late;
+- cleared on shutdown;
+- overwritten during hydration;
+- account namespace mismatch;
+- auth transition mismatch;
+- routing before hydration completes;
+- or another root cause.
+
+Fix the ROOT CAUSE.
+
+Required behavior:
+
+Fresh install:
+onboarding appears once.
+
+After successful completion:
+onboarding completion persists.
+
+Process kill/relaunch:
+user lands in the correct application destination without repeating onboarding.
+
+Signing out:
+must follow intended product behavior.
+
+Signing into another account:
+must use the appropriate onboarding state for that account.
+
+Do not create a global flag that incorrectly leaks onboarding completion between different users.
+
+Add regression tests for:
+
+- first launch
+- completed onboarding
+- process restart
+- hydration
+- signed-in account
+- guest state
+- account switching where applicable
+
+==================================================
+ISSUE 3 — FINAL ONBOARDING AGREEMENT SCREEN IS UNCLEAR
+==================================================
+
+OWNER OBSERVATION:
+
+The final onboarding agreement/consent screen does not make it sufficiently clear where the user must click to agree.
+
+Redesign that interaction for clarity while preserving all legal/consent requirements.
+
+The agreement action must be:
+
+- visually prominent;
+- clearly labeled;
+- easy to understand;
+- large enough to tap;
+- accessible;
+- unambiguous;
+- impossible to confuse with passive text.
+
+Audit the current:
+
+- checkbox/radio control
+- consent text
+- Continue button
+- enabled/disabled state
+- legal links
+- privacy links
+- terms links
+- accessibility label
+- screen-reader role/state
+- touch target
+- contrast
+- spacing
+- typography
+
+Ensure the user understands:
+
+1. what they are agreeing to;
+2. what must be tapped;
+3. whether agreement is required;
+4. what happens after agreement.
+
+Do not pre-check consent.
+Do not weaken consent logging or legal requirements.
+
+==================================================
+ISSUE 4 — CALORA COACH CHAT COMPLETE FORENSIC SANITIZATION
+==================================================
+
+The owner wants Calora Coach fully sanitized and verified for completeness.
+
+Perform an END-TO-END Coach implementation audit.
+
+Trace:
+
+UI
+→ local state
+→ authentication
+→ consent/fact-context gate
+→ request payload
+→ API
+→ provider
+→ response validation
+→ persistence/history
+→ rendering
+→ retry/error states
+
+Verify:
+
+- guest behavior
+- authenticated behavior
+- empty state
+- first message
+- multi-turn conversations
+- message ordering
+- timestamps if used
+- duplicate sends
+- rapid sends
+- send button locking
+- loading indicator
+- cancellation
+- timeout
+- retry
+- offline
+- provider unavailable
+- malformed response
+- server 4xx
+- server 5xx
+- rate limiting
+- long response
+- markdown rendering
+- links
+- unsafe HTML
+- code blocks if supported
+- Unicode/emoji
+- keyboard behavior
+- input resizing
+- scrolling to newest message
+- returning to previous conversation
+- privacy boundaries
+- fact-context consent
+- cross-account leakage
+- stale conversation state
+- error logging
+- analytics/log redaction
+- accessibility
+
+SECURITY/SANITIZATION:
+
+Make sure Coach cannot render unsafe/raw HTML or unsupported executable content.
+
+Verify user-generated and provider-generated text is safely rendered.
+
+Verify no:
+
+- secret leakage
+- token leakage
+- prompt/config leakage
+- other-user context leakage
+- unbounded raw error rendering
+- unsafe URL execution
+- HTML injection
+
+Do not invent Coach features that do not exist.
+
+If functionality is incomplete, identify the missing implementation and complete only what is necessary for the currently intended Coach experience.
+
+Add regression tests.
+
+==================================================
+ISSUE 5 — PLUS RECIPES RELOAD EVERY TIME TAB OPENS
+==================================================
+
+OWNER OBSERVATION:
+
+The Recipes → Plus submenu appears to reload recipes every time it is opened.
+
+Trace:
+
+- query key
+- cache
+- state lifecycle
+- screen mount/unmount
+- tab switching
+- entitlement state
+- pagination state
+- React Query/cache behavior if used
+- refetchOnMount
+- staleTime
+- refetchOnFocus
+- account key
+- component remounting
+- request deduplication
+
+Desired behavior:
+
+When a user moves away from Plus and returns shortly afterward:
+
+- previously loaded recipes remain visible immediately;
+- scroll position should be preserved where reasonable;
+- unnecessary network refetch must not blank the page;
+- background refresh may occur without destroying current content;
+- stale/error data must be handled correctly.
+
+Do not create stale cross-account cache contamination.
+
+==================================================
+ISSUE 6 — PLUS RECIPES PAGINATION IS FINITE / STOPS TOO EARLY
+==================================================
+
+OWNER OBSERVATION:
+
+Plus scrolling starts and ends almost immediately instead of continuing naturally.
+
+Audit the entire pagination chain:
+
+UI
+→ pagination trigger
+→ cursor/page
+→ request
+→ backend/provider
+→ result normalization
+→ deduplication
+→ append
+→ hasNextPage
+→ next cursor/page
+→ end-of-list handling
+
+Determine whether the cause is:
+
+- wrong page size
+- hasNextPage calculated incorrectly
+- cursor discarded
+- offset reset
+- provider response misread
+- duplicate filtering eliminating everything
+- load-more trigger not firing
+- scroll container sizing
+- list/ScrollView architecture
+- query-key reset
+- entitlement boundary
+- state overwrite rather than append
+- API/provider finite result
+- another root cause
+
+Implement proper continuous/infinite pagination where the provider/API supports it.
+
+Expected UX:
+
+- first content loads;
+- user scrolls;
+- next page begins loading near bottom;
+- existing recipes remain visible;
+- new unique recipes append;
+- no jump to top;
+- no duplicate page;
+- no premature end;
+- loading footer shown;
+- error footer/retry available;
+- true provider exhaustion is handled gracefully.
+
+Do not manufacture fake recipes to simulate infinity.
+
+If the upstream provider has a genuine finite ceiling, document it precisely and maximize safe pagination within that constraint.
+
+==================================================
+ISSUE 7 — DISCOVER AND PLUS ALWAYS SHOW SAME RECIPES AT TOP
+==================================================
+
+OWNER OBSERVATION:
+
+Every time Discover or Plus is opened, the same recipes repeatedly appear at the top.
+
+Desired product experience:
+
+Users should experience variety and freshness instead of always seeing an identical static top set.
+
+FIRST identify how ranking currently works.
+
+Audit:
+
+- default API/provider ordering
+- sorting
+- deterministic query parameters
+- caching
+- pagination
+- recommendation logic
+- user preferences
+- dietary filters
+- saved state
+- seed/randomization
+- personalized ranking
+- freshness timestamps
+
+Design a safe strategy for content rotation.
+
+Requirements:
+
+- do not randomize so aggressively that scroll/caching breaks;
+- do not create duplicates;
+- preserve filters/search semantics;
+- do not lose deterministic pagination;
+- avoid re-showing the exact same first cards every visit when sufficient recipe inventory exists;
+- prioritize new/unseen content where possible;
+- maintain relevance;
+- maintain entitlement boundaries.
+
+Preferred approach:
+
+Create a stable session/day/account-aware rotation or unseen-content ranking strategy rather than naïve Math.random() sorting on every render.
+
+Document the algorithm.
+
+Add tests proving:
+
+- no duplicates;
+- pagination remains valid;
+- filters remain respected;
+- rotation/freshness works;
+- account isolation remains intact.
+
+==================================================
+ISSUE 8 — DISCOVER CARDS MISSING CALORIE/NUTRITION INFORMATION
+==================================================
+
+OWNER OBSERVATION:
+
+While scrolling Discover, some recipe cards show calorie/nutrition information and others do not.
+
+Audit every Discover data source.
+
+Trace:
+
+provider result
+→ normalization
+→ nutrition availability
+→ estimated nutrition
+→ fallback
+→ card model
+→ card rendering
+
+Classify recipes into:
+
+- authoritative nutrition
+- calculated nutrition
+- estimated nutrition
+- genuinely unavailable nutrition
+
+Every recipe card should use a CONSISTENT nutrition presentation policy.
+
+If calories/nutrition exist:
+show them.
+
+If nutrition can be safely calculated/estimated:
+show it with the correct provenance label.
+
+If unavailable:
+show a consistent explicit state rather than a visually broken/missing field.
+
+Do not fabricate nutrition values.
+
+Verify scrolling/pagination does not lose nutrition during normalization.
+
+Add regression tests for mixed-result pages.
+
+==================================================
+ISSUE 9 — PROGRESS HEADER HISTORY/MEMORY ICON
+==================================================
+
+OWNER OBSERVATION:
+
+On Progress screen header:
+
+- history/memory icon should move slightly left;
+- icon should be slightly larger.
+
+Make a small, controlled UI adjustment only.
+
+Verify:
+
+- safe-area alignment
+- header title balance
+- touch target
+- Android
+- iOS
+- small screens
+- large screens
+
+Do not redesign the entire Progress header.
+
+==================================================
+ISSUE 10 — CAMERA LOGGING DOES NOT REFLECT ON HOME/TODAY
+==================================================
+
+OWNER OBSERVATION:
+
+When food/information is entered from Camera, especially by taking a picture, the accepted result does not appear on Home → Today.
+
+THIS IS A DATA-FLOW DEFECT.
+
+Trace complete flow:
+
+camera capture
+→ recognition
+→ review
+→ user confirmation
+→ food model
+→ diary entry creation
+→ meal/date assignment
+→ local persistence
+→ account storage
+→ sync/outbox
+→ context/state update
+→ Home Today selector
+→ calorie/nutrition totals
+→ dashboard rendering
+
+Check:
+
+- current date/timezone
+- meal assignment
+- item accepted vs analyzed-only state
+- mutation completion
+- cache invalidation
+- CaloraContext
+- diary state
+- hydration
+- optimistic updates
+- server reconciliation
+- navigation after save
+
+Expected behavior:
+
+Once the user reviews and accepts the camera result as a logged food:
+
+- it immediately appears under today's appropriate meal;
+- dashboard calories/macros update;
+- item remains after navigating away/back;
+- item remains after process restart;
+- sync does not duplicate or remove it.
+
+Do not treat a camera analysis preview as a logged meal until explicit user confirmation occurs.
+
+Add end-to-end deterministic data-flow tests where possible.
+
+==================================================
+ISSUE 11 — HEALTH DATA: TRACE EXACT USER EXPERIENCE
+==================================================
+
+OWNER QUESTION:
+
+When a user selects "Connect Health Data", what exactly happens afterward?
+
+Where does the health information appear in Calora?
+
+The owner wants the existing implementation VERIFIED, not guessed.
+
+Perform a complete Health Connect / HealthKit forensic trace.
+
+Map:
+
+Connect Health Data button
+→ platform capability check
+→ permissions
+→ requested data types
+→ provider connection
+→ data read
+→ normalization
+→ persistence/state
+→ derived signals
+→ screens/components consuming those signals
+→ visible user presentation
+
+Report EXACTLY:
+
+1. Which health provider is used on Android.
+2. Which health provider is used on iOS.
+3. Which permissions/data types are requested.
+4. Which metrics are actually read.
+5. Which metrics are currently implemented but unused.
+6. Where each metric is stored.
+7. Which screens currently display health data.
+8. Which widgets/cards/charts/insights use it.
+9. Whether Dashboard uses it.
+10. Whether Progress uses it.
+11. Whether Insights uses it.
+12. Whether Coach uses it.
+13. Whether Planner uses it.
+14. Whether calorie/activity calculations use it.
+15. What the user sees immediately after connecting.
+16. What the user sees when no health data exists.
+17. What happens if permissions are denied.
+18. What happens if permissions are later revoked.
+19. What happens if provider is unavailable.
+20. Whether any connected data is currently fetched but never shown.
+
+Create an explicit flow diagram in the report.
+
+If health data currently enters the app but has no clear user-facing destination, identify that as a UX/data-flow gap.
+
+DO NOT invent or add major health features in this mission unless needed to repair an obvious broken existing flow.
+
+==================================================
+ISSUE 12 — SIGNIFICANTLY MINIMIZE FUTURE BUGS
+==================================================
+
+Evaluate the current engineering system and identify the highest-value changes that would significantly reduce future regressions.
+
+Audit:
+
+- unit tests
+- integration tests
+- end-to-end tests
+- device tests
+- navigation tests
+- state persistence tests
+- account isolation tests
+- API contract tests
+- schema validation
+- provider mocks
+- offline tests
+- race-condition tests
+- visual regression testing
+- accessibility testing
+- dependency auditing
+- static analysis
+- TypeScript strictness
+- linting
+- CI gates
+- release attestation
+- deployment verification
+- crash/error monitoring
+- logging
+- feature flags
+- rollback strategy
+
+Produce a prioritized anti-bug architecture plan.
+
+Classify recommendations:
+
+P0 — required before release
+P1 — strongly recommended before release
+P2 — next hardening cycle
+P3 — future improvement
+
+Do not install large new systems automatically.
+Recommendations that expand tooling substantially should be documented for owner approval.
+
+==================================================
+ISSUE 13 — FULL APPLICATION FORENSIC USER-FLOW MAPPING
+==================================================
+
+After fixing the verified issues above, perform a COMPLETE FORENSIC MAP of the entire Calora application.
+
+Do not map only happy paths.
+
+Start from app launch and enumerate EVERY reachable user journey.
+
+At minimum map:
+
+A. APP BOOT
+- first install
+- returning user
+- guest
+- authenticated
+- offline
+- expired session
+- corrupted/stale local state
+
+B. ONBOARDING
+- every screen
+- every input
+- every decision
+- skip/back/continue
+- consent
+- completion
+- persistence
+- re-entry rules
+
+C. AUTHENTICATION
+- email
+- Google
+- callback
+- verification
+- resend
+- recovery
+- sign-out
+- account switch
+- deleted account state
+
+D. HOME / TODAY
+- all widgets
+- all buttons
+- all data sources
+- empty/loading/error states
+- diary interactions
+
+E. FOOD LOGGING
+- search
+- recent
+- favorites if present
+- manual
+- barcode
+- camera
+- label
+- receipt
+- voice
+- restaurant
+- edit
+- delete
+- duplicate
+- date/meal selection
+
+F. RECIPES
+- Discover
+- Plus
+- Create
+- filters
+- search
+- pagination
+- recipe detail
+- saved recipes
+- unsave
+- nutrition
+- images
+- add to planner
+
+G. PLANNER
+- generation
+- diet selection
+- weekly navigation
+- replace
+- move
+- copy
+- delete
+- undo
+- recipe insertion
+- shopping list
+
+H. SHOPPING LIST
+- generation
+- add
+- remove
+- check
+- uncheck
+- persistence
+- week switching
+
+I. COACH
+- consent
+- first conversation
+- multi-turn
+- errors
+- retry
+- history/state
+
+J. INSIGHTS / CONTEXTUAL INTELLIGENCE
+- every signal
+- source
+- rule
+- user presentation
+- navigation
+
+K. PROGRESS
+- all metrics
+- charts
+- history
+- weight
+- goals
+- edit/delete
+- empty states
+
+L. HEALTH DATA
+- connect
+- permission
+- sync
+- display
+- disconnect
+- revoke
+- provider unavailable
+
+M. PROFILE
+- account
+- preferences
+- units
+- theme
+- font size
+- reminders
+- health
+- export
+- deletion
+
+N. CALORA PRO
+- paywall
+- offering
+- entitlement
+- purchase
+- restore
+- promotional referral
+- expired subscription
+- offline state
+
+O. REFERRALS / INVITES
+- share
+- deep link
+- landing page
+- redemption
+- reward
+- duplicate/invalid invite
+
+P. NOTIFICATIONS
+- permission
+- scheduling
+- receive
+- tap
+- routing
+- disabled state
+
+Q. LEGAL / SUPPORT
+- privacy
+- terms
+- subscriptions
+- contact
+- help
+- deletion information
+
+R. UNIVERSAL LINKS / APP LINKS
+- auth callback
+- invite
+- installed app
+- app not installed
+- browser fallback
+
+S. OFFLINE / NETWORK
+- airplane mode
+- Wi-Fi loss
+- cellular transition
+- pending mutations
+- retry
+- sync conflicts
+
+T. ACCOUNT DELETION
+- request
+- confirmation
+- staged deletion
+- failure
+- retry
+- local cleanup
+- sign-out
+- returning deleted user
+
+U. ACCESSIBILITY
+- screen reader
+- font scaling
+- reduced motion
+- contrast
+- focus
+- touch targets
+
+V. ERROR STATES
+Map every meaningful:
+- 400
+- 401
+- 403
+- 404
+- 409
+- 429
+- 500
+- timeout
+- provider failure
+- malformed payload
+- offline error
+- permission denial
+
+==================================================
+USER-FLOW MAP FORMAT
+==================================================
+
+For every flow record:
+
+FLOW ID
+FLOW NAME
+ENTRY POINT
+PRECONDITIONS
+USER ACTION
+UI COMPONENT
+STATE/CONTEXT USED
+LOCAL STORAGE USED
+API ENDPOINT USED
+EXTERNAL PROVIDER USED
+DATABASE EFFECT
+NAVIGATION DESTINATION
+SUCCESS RESULT
+EMPTY STATE
+LOADING STATE
+ERROR STATE
+RETRY PATH
+OFFLINE BEHAVIOR
+ACCOUNT-ISOLATION REQUIREMENT
+SECURITY/PRIVACY REQUIREMENT
+TEST COVERAGE
+DEVICE TEST REQUIRED
+KNOWN GAP
+SEVERITY
+
+Also identify:
+
+- dead screens
+- unreachable routes
+- duplicate flows
+- conflicting flows
+- stale code
+- abandoned feature paths
+- hidden navigation
+- broken links
+- orphan state
+- state written but never read
+- state read but never written
+- API endpoints without active consumers
+- UI actions without working backend path
+- backend capabilities with no UI
+- race conditions
+- hydration risks
+- account leakage risks
+- duplicated business logic
+
+==================================================
+TESTING AFTER REMEDIATION
+==================================================
+
+Run all appropriate existing deterministic suites.
+
+At minimum:
+
+- Calora app tests
+- API tests
+- TypeScript typechecks
+- onboarding tests
+- persistence/hydration tests
+- account-storage tests
+- Recipes tests
+- pagination tests
+- referral tests
+- Coach tests
+- camera/diary-flow tests
+- Planner tests
+- health-data tests if present
+- auth tests
+- CORS/security tests
+- Universal/App Link tests
+
+Run:
+
+git diff --check
+
+Run available secret/security scans that do not mutate the project.
+
+Report exact:
+- files passed
+- tests passed
+- skipped tests
+- warnings
+- failures
+
+Do not hide skipped tests.
+
+==================================================
+SEVERITY CLASSIFICATION
+==================================================
+
+For every issue discovered classify:
+
+P0 — catastrophic/security/data loss/release stop
+P1 — major core-flow defect/release blocker
+P2 — important UX/reliability problem
+P3 — polish/low risk
+OBS — observation
+OWNER DEVICE TEST — requires physical validation
+
+==================================================
+REQUIRED DELIVERABLES
+==================================================
+
+Create and save TWO persistent reports:
+
+16_CALORA_POST_INSTALL_DEFECT_REMEDIATION_REPORT.md
+
+and
+
+17_CALORA_COMPLETE_USER_FLOW_FORENSIC_MAP.md
+
+REPORT 16 must contain:
+
+1. Executive summary
+2. Owner-observed defects
+3. Root cause of every issue
+4. Exact files changed
+5. Onboarding keyboard fix
+6. Onboarding persistence fix
+7. Agreement screen fix
+8. Coach sanitization/completeness audit
+9. Plus caching fix
+10. Plus pagination fix
+11. Discover/Plus freshness strategy
+12. Discover nutrition consistency fix
+13. Progress icon adjustment
+14. Camera → Today data-flow fix
+15. Health-data implementation trace
+16. Test results
+17. Security/regression results
+18. Remaining device-only tests
+19. Remaining blockers
+20. Final verdict
+
+REPORT 17 must contain:
+
+1. Application architecture overview
+2. Complete screen inventory
+3. Complete route inventory
+4. Complete user-flow inventory
+5. Flow table using the required format
+6. Data-flow map
+7. Local-storage map
+8. API endpoint → consumer map
+9. External-provider map
+10. Auth/state/hydration map
+11. Health-data flow diagram
+12. Coach flow diagram
+13. Recipe data-flow diagram
+14. Camera logging flow diagram
+15. Subscription/referral flow diagram
+16. Dead/orphan/unreachable code findings
+17. Cross-account/privacy findings
+18. Offline/sync findings
+19. Missing test coverage
+20. Anti-bug engineering roadmap
+21. P0/P1/P2/P3 defect register
+22. Owner physical-device validation checklist
+23. Recommended next action
+
+==================================================
+FINAL VERDICT
+==================================================
+
+REPORT 16 must end with exactly one:
+
+POST-INSTALL REMEDIATION COMPLETE — OWNER DEVICE REVALIDATION REQUIRED
+
+POST-INSTALL REMEDIATION HAS P0/P1 BLOCKERS — DO NOT BUILD
+
+POST-INSTALL REMEDIATION INCOMPLETE — DO NOT BUILD
+
+REPORT 17 must end with exactly one:
+
+FULL USER-FLOW FORENSIC MAP COMPLETE
+
+FULL USER-FLOW FORENSIC MAP INCOMPLETE
+
+==================================================
+STOP CONDITIONS
+==================================================
+
+Do not stop after merely finding the issues.
+
+Continue until:
+
+- each owner-reported issue has been traced;
+- verified defects have been fixed;
+- regression tests have been added where appropriate;
+- deterministic suites have been run;
+- the entire application user-flow map has been completed;
+- both reports have been saved.
+
+DO NOT BUILD.
+DO NOT PUSH.
+DO NOT REPUBLISH.
+
+When finished, report back only after both persistent report files exist and provide the exact final verdicts from each.

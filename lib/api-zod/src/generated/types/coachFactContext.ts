@@ -24,7 +24,7 @@ export interface CoachFactContext {
   /** @pattern ^[a-f0-9]{24,64}$ */
   requestNonce: string;
   coverage: CoachFactContextCoverage;
-  /** @maxItems 4 */
+  /** @maxItems 20 */
   missingData: CoachFactContextMissingDataItem[];
   /**
      * @minItems 0
@@ -32,7 +32,7 @@ export interface CoachFactContext {
      */
   facts: CoachFactContextFact[];
   /**
-     * @maxItems 3
+     * @maxItems 6
      * @items.maxLength 220
      */
   limitations: string[];

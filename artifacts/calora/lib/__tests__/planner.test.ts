@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildShoppingItems, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate } from '@/data/planner';
+import { buildShoppingItems, createStarterPlannerMeals, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalogForProgram, plannerDate, shoppingChecksByName } from '@/data/planner';
+import { plannerImageKeyForMeal } from '@/lib/mealImageIdentity';
+import { PROGRAM_HERO_MEAL_IDS } from '@workspace/api-zod/planner-program-pools';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
 const meal = (id: string, ingredients: string[], day = '2026-08-06'): PlannerMeal => ({
@@ -167,8 +169,75 @@ describe('planner identity', () => {
     expect(plannerCatalogForProgram('quick-and-easy').every((item) => (item.prepMinutes ?? 0) <= 20)).toBe(true);
   });
 
+  it('makes local starter weeks reflect the selected Program', () => {
+    const balanced = createStarterPlannerMeals('2026-08-03', 'balanced-nutrition');
+    const highProtein = createStarterPlannerMeals('2026-08-03', 'high-protein-power');
+    const mediterranean = createStarterPlannerMeals('2026-08-03', 'mediterranean-diet');
+
+    expect(highProtein.map((item) => item.name)).not.toEqual(balanced.map((item) => item.name));
+    expect(mediterranean.map((item) => item.name)).not.toEqual(balanced.map((item) => item.name));
+    expect(highProtein.map((item) => item.imageAssetKey)).not.toEqual(balanced.map((item) => item.imageAssetKey));
+    expect(mediterranean.map((item) => item.imageAssetKey)).not.toEqual(balanced.map((item) => item.imageAssetKey));
+    expect(highProtein.slice(0, 4).every((item) => item.day === '2026-08-03')).toBe(true);
+  });
+
+  it('gives each Program a distinct first-day meal and image signature', () => {
+    const programs = [
+      'balanced-nutrition',
+      'high-protein-power',
+      'low-carb-living',
+      'mediterranean-diet',
+      'plant-based-week',
+      'keto-kickstart',
+      'intermittent-fasting',
+      'budget-friendly',
+      'quick-and-easy',
+      'athletic-performance',
+      'anti-inflammatory',
+      'healthy-habits-week',
+    ] as const;
+    const signatures = programs.map((programId) =>
+      createStarterPlannerMeals('2026-08-03', programId)
+        .slice(0, 4)
+        .map((item) => item.imageAssetKey)
+        .join('|'),
+    );
+    expect(new Set(signatures).size).toBe(programs.length);
+  });
+
+  it('gives every Program chooser hero a different canonical image', () => {
+    const programs = [
+      'balanced-nutrition',
+      'high-protein-power',
+      'low-carb-living',
+      'mediterranean-diet',
+      'plant-based-week',
+      'keto-kickstart',
+      'intermittent-fasting',
+      'budget-friendly',
+      'quick-and-easy',
+      'athletic-performance',
+      'anti-inflammatory',
+      'healthy-habits-week',
+    ] as const;
+    const heroImages = programs.map((programId) => {
+      const heroMeal = plannerCatalogForProgram(programId).find((meal) => meal.id === PROGRAM_HERO_MEAL_IDS[programId]);
+      expect(heroMeal, `${programId} hero must satisfy its eligibility contract`).toBeDefined();
+      return heroMeal ? plannerImageKeyForMeal(heroMeal.id, heroMeal.name) : null;
+    });
+
+    expect(heroImages.every(Boolean)).toBe(true);
+    expect(new Set(heroImages).size).toBe(programs.length);
+  });
+
   it('preserves local calendar week dates', () => {
     expect(plannerDate('2026-08-03', 6)).toBe('2026-08-09');
+  });
+
+  it('normalizes persisted dates to a valid Monday week start', () => {
+    expect(normalizePlannerWeekStart('2026-08-09', '2026-08-03')).toBe('2026-08-03');
+    expect(normalizePlannerWeekStart('not-a-date', '2026-08-03')).toBe('2026-08-03');
+    expect(normalizePlannerWeekStart('2026-02-30', '2026-08-03')).toBe('2026-08-03');
   });
 });
 
@@ -262,5 +331,18 @@ describe('buildShoppingItems — day attribution', () => {
     const garlic = items.find((i) => i.name === 'garlic');
     expect(garlic?.quantity).toBe(3);
     expect(garlic?.days).toHaveLength(3);
+  });
+});
+
+describe('shopping checks — viewed-week scope', () => {
+  it('keeps the same ingredient independent across planner weeks', () => {
+    const items = buildShoppingItems(
+      [meal('m1', ['oats'], '2026-08-03'), meal('m2', ['oats'], '2026-08-10')],
+      new Map([['oats', false]]),
+      new Map([['oats', { '2026-08-03': true }]]),
+    );
+
+    expect(shoppingChecksByName(items, '2026-08-03').get('oats')).toBe(true);
+    expect(shoppingChecksByName(items, '2026-08-10').get('oats')).toBe(false);
   });
 });

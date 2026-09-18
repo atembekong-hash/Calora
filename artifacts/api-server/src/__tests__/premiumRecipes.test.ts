@@ -44,6 +44,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  vi.clearAllMocks();
   delete process.env.PREMIUM_RECIPE_PROVIDER_URL;
   delete process.env.PREMIUM_RECIPE_PROVIDER_NAME;
   delete process.env.PREMIUM_RECIPE_PROVIDER_API_KEY;
@@ -68,6 +69,63 @@ async function appWithProvider(url?: string) {
 }
 
 describe("Premium recipe routes", () => {
+  it("orders each default provider page deterministically by account and UTC day", async () => {
+    const { orderPremiumRecipePage } = await import("../lib/premiumRecipes.js");
+    const rows = Array.from({ length: 8 }, (_, index) => ({ id: `recipe-${index}` }));
+    const first = orderPremiumRecipePage(rows, "account-a", "2026-08-27");
+    const repeated = orderPremiumRecipePage(rows, "account-a", "2026-08-27");
+    const nextDay = orderPremiumRecipePage(rows, "account-a", "2026-08-28");
+    const otherAccount = orderPremiumRecipePage(rows, "account-b", "2026-08-27");
+
+    expect(repeated).toEqual(first);
+    expect(nextDay[0]?.id).not.toBe(first[0]?.id);
+    expect(otherAccount).not.toEqual(first);
+    expect(new Set(first.map((recipe) => recipe.id))).toEqual(new Set(rows.map((recipe) => recipe.id)));
+  });
+
+  it("leaves provider relevance order unchanged for search and category requests", async () => {
+    const providerRows = [
+      { id: "relevant-1", name: "Most relevant", sourceUrl: "https://provider.example/1" },
+      { id: "relevant-2", name: "Second relevant", sourceUrl: "https://provider.example/2" },
+      { id: "relevant-3", name: "Third relevant", sourceUrl: "https://provider.example/3" },
+    ];
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: providerRows, nextOffset: null }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const searchResult = await request(app).get("/v1/premium-recipes?query=bowl&freshnessDay=2026-08-27");
+    const categoryResult = await request(app).get("/v1/premium-recipes?category=Dinner&freshnessDay=2026-08-28");
+
+    expect(searchResult.body.recipes.map((recipe: { sourceId: string }) => recipe.sourceId)).toEqual(["relevant-1", "relevant-2", "relevant-3"]);
+    expect(categoryResult.body.recipes.map((recipe: { sourceId: string }) => recipe.sourceId)).toEqual(["relevant-1", "relevant-2", "relevant-3"]);
+  });
+
+  it("rejects an invalid freshness day before provider work", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const result = await request(app).get("/v1/premium-recipes?freshnessDay=2026-02-30");
+
+    expect(result.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("clears reused provider photos from later recipes", async () => {
+    const { clearDuplicateRecipeImages } = await import("../lib/premiumRecipes.js");
+    const recipes = [
+      { id: "one", image: "https://images.example/meal.jpg?w=320", name: "First", sourceUrl: "https://provider.example/one" },
+      { id: "two", image: "https://images.example/meal.jpg?q=80", name: "Second", sourceUrl: "https://provider.example/two" },
+      { id: "three", image: "https://images.example/other.jpg", name: "Third", sourceUrl: "https://provider.example/three" },
+    ] as any;
+
+    expect(clearDuplicateRecipeImages(recipes).map((recipe) => recipe.image)).toEqual([
+      "https://images.example/meal.jpg?w=320",
+      null,
+      "https://images.example/other.jpg",
+    ]);
+  });
+
   it("rejects anonymous requests before entitlement, quota, or provider work", async () => {
     verifyBearerTokenMock.mockResolvedValue(null);
     const fetchMock = vi.fn();
@@ -119,7 +177,7 @@ describe("Premium recipe routes", () => {
   });
 
   it("normalizes a configured provider list and forwards filters/pagination", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: [{ id: "42", name: "Miso bowl", sourceUrl: "https://provider.example/42", image: "http://images.provider.example/42.jpg", calories: 410, nutritionConfidence: "verified", nutritionSource: "Provider data", servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8 }], nextOffset: 18 }) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ recipes: [{ id: "42", name: "Miso bowl", sourceUrl: "https://provider.example/42", image: "http://images.provider.example/42.jpg", calories: 410, proteinG: 18, carbsG: 52, fatG: 14, nutritionConfidence: "verified", nutritionSource: "Provider data", servings: 2, cookMinutes: 18, dietary: ["Vegan"], allergens: ["Soy"], equipment: ["Saucepan"], fiberG: 8 }], nextOffset: 18 }) });
     vi.stubGlobal("fetch", fetchMock);
     const app = await appWithProvider("https://provider.example");
     const res = await request(app).get("/v1/premium-recipes?query=miso&category=Dinner&limit=18&offset=0");
@@ -129,6 +187,107 @@ describe("Premium recipe routes", () => {
     expect(res.body.recipes[0].image).toBeNull();
     expect(String(fetchMock.mock.calls[0][0])).toContain("query=miso");
     expect(String(fetchMock.mock.calls[0][0])).toContain("offset=0");
+  });
+
+  it("uses only a provider-supported advancing cursor and reports its terminal reason", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        recipes: Array.from({ length: 18 }, (_, index) => ({
+          id: String(index), name: `Recipe ${index}`, sourceUrl: `https://provider.example/${index}`,
+        })),
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider("https://provider.example");
+
+    const res = await request(app).get("/v1/premium-recipes?limit=18&offset=0");
+
+    expect(res.status).toBe(200);
+    expect(res.body.nextOffset).toBeNull();
+    expect(res.body.terminalReason).toBe("The provider did not supply another page.");
+  });
+
+  it("stops rather than looping when a provider repeats its pagination cursor", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        recipes: [{ id: "42", name: "Miso bowl", sourceUrl: "https://provider.example/42" }],
+        nextOffset: 18,
+      }),
+    }));
+    const app = await appWithProvider("https://provider.example");
+
+    const res = await request(app).get("/v1/premium-recipes?limit=18&offset=18");
+
+    expect(res.status).toBe(200);
+    expect(res.body.nextOffset).toBeNull();
+    expect(res.body.terminalReason).toBe("The provider returned an invalid next-page cursor.");
+  });
+
+  it("preserves mixed provider nutrition without fabricating missing macros", async () => {
+    const { normalizePremiumRecipe } = await import("../lib/premiumRecipes.js");
+    const recipe = normalizePremiumRecipe({
+      id: "partial", name: "Partial nutrition", sourceUrl: "https://provider.example/partial",
+      calories: 420, proteinG: 31, nutritionConfidence: "verified", nutritionSource: "Provider label",
+    });
+
+    expect(recipe).toMatchObject({
+      calories: 420, proteinG: 31, carbsG: null, fatG: null,
+      nutritionConfidence: "unavailable", nutritionSource: "Provider label (partial)",
+    });
+  });
+
+  it("marks provider recipes with no nutrition as unavailable even when upstream labels them verified", async () => {
+    const { normalizePremiumRecipe } = await import("../lib/premiumRecipes.js");
+    const recipe = normalizePremiumRecipe({
+      id: "empty", name: "No nutrition", sourceUrl: "https://provider.example/empty",
+      nutritionConfidence: "verified", nutritionSource: "Upstream label",
+    });
+
+    expect(recipe).toMatchObject({
+      calories: null, proteinG: null, carbsG: null, fatG: null,
+      nutritionConfidence: "unavailable", nutritionSource: "Nutrition not supplied by provider",
+    });
+  });
+
+  it("rejects malformed negative generic-provider nutrients before verified completeness", async () => {
+    const { normalizePremiumRecipe } = await import("../lib/premiumRecipes.js");
+    const recipe = normalizePremiumRecipe({
+      id: "negative", name: "Malformed nutrition", sourceUrl: "https://provider.example/negative",
+      calories: -10, proteinG: 0, carbsG: 12, fatG: 4, nutritionConfidence: "verified",
+    });
+
+    expect(recipe).toMatchObject({
+      calories: null, proteinG: 0, carbsG: 12, fatG: 4,
+      nutritionConfidence: "unavailable", nutritionSource: "Provider nutrition data (partial)",
+    });
+
+    const nonFinite = normalizePremiumRecipe({
+      id: "non-finite", name: "Non-finite nutrition", sourceUrl: "https://provider.example/non-finite",
+      calories: Number.POSITIVE_INFINITY, proteinG: 10, carbsG: 12, fatG: 4, nutritionConfidence: "verified",
+    });
+    expect(nonFinite).toMatchObject({ calories: null, nutritionConfidence: "unavailable" });
+  });
+
+  it("deduplicates provider rows by stable recipe identity", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        recipes: [
+          { id: "42", name: "Miso bowl", sourceUrl: "https://provider.example/42" },
+          { id: "42", name: "Miso bowl duplicate", sourceUrl: "https://provider.example/42" },
+        ],
+        nextOffset: 18,
+      }),
+    }));
+    const app = await appWithProvider("https://provider.example");
+
+    const res = await request(app).get("/v1/premium-recipes?limit=18&offset=0");
+
+    expect(res.status).toBe(200);
+    expect(res.body.recipes).toHaveLength(1);
+    expect(res.body.recipes[0].id).toBe("premium:Premium provider:42");
   });
 
   it("reports a policy-restricted catalogue without contacting the provider", async () => {
@@ -213,7 +372,7 @@ describe("Premium recipe routes", () => {
       { failClosed: true, rethrowAccountDeletionFence: true },
     );
     expect(loggerWarnMock).toHaveBeenCalledWith(
-      { errorClass: "account_deletion_fence", route: "/v1/premium-recipes", count: 1 },
+      { errorClass: "account_deletion_fence", route: "/v1/premium-recipes", count: 1, schemaVersion: "calora.account-deletion-fence-signal.v1" },
       "Account deletion fence rejected premium recipe request",
     );
     expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toContain("55000");
@@ -248,8 +407,37 @@ describe("Premium recipe routes", () => {
     const res = await request(app).get("/v1/premium-recipes?query=bowl");
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ provider: "FatSecret", status: "available" });
-    expect(res.body.recipes[0]).toMatchObject({ id: "premium:FatSecret:99", sourceProvider: "FatSecret", sourceUrl: "https://foods.fatsecret.com/recipes/99-fatsecret-bowl/Default.aspx", nutritionConfidence: "verified" });
+    expect(res.body.recipes[0]).toMatchObject({ id: "premium:FatSecret:99", sourceProvider: "FatSecret", sourceUrl: "https://foods.fatsecret.com/recipes/99-fatsecret-bowl/Default.aspx", nutritionConfidence: "unavailable", nutritionSource: "Nutrition not supplied by FatSecret" });
     expect(String(fetchMock.mock.calls[1][0])).toContain("/recipes/search/v3");
+  });
+
+  it("rejects malformed negative FatSecret nutrients before verified completeness", async () => {
+    process.env.FATSECRET_CLIENT_ID = "test-id";
+    process.env.FATSECRET_CLIENT_SECRET = "test-secret";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "token", expires_in: 3600 }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          recipes: {
+            total_results: "1",
+            recipe: [{
+              recipe_id: "101", recipe_name: "Bad panel", recipe_url: "https://foods.fatsecret.com/recipes/101",
+              recipe_nutrition: { calories: "-1", protein: "0", carbohydrate: "10", fat: "5" },
+            }],
+          },
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider();
+
+    const res = await request(app).get("/v1/premium-recipes?query=panel");
+
+    expect(res.status).toBe(200);
+    expect(res.body.recipes[0]).toMatchObject({
+      calories: null, proteinG: 0, carbsG: 10, fatG: 5,
+      nutritionConfidence: "unavailable", nutritionSource: "FatSecret nutrition data (partial)",
+    });
   });
 
   it("continues FatSecret pagination when the provider omits total_results", async () => {
@@ -278,6 +466,35 @@ describe("Premium recipe routes", () => {
     expect(res.body.recipes).toHaveLength(18);
     expect(res.body.nextOffset).toBe(18);
     expect(res.body.terminalReason).toBe(null);
+  });
+
+  it("advances FatSecret by its provider page boundary when invalid rows are dropped", async () => {
+    process.env.FATSECRET_CLIENT_ID = "test-id";
+    process.env.FATSECRET_CLIENT_SECRET = "test-secret";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "token", expires_in: 3600 }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          recipes: {
+            total_results: "40",
+            recipe: [
+              { recipe_id: "1", recipe_name: "Valid", recipe_url: "https://foods.fatsecret.com/recipes/1" },
+              { recipe_id: "1", recipe_name: "Duplicate", recipe_url: "https://foods.fatsecret.com/recipes/1" },
+              { recipe_id: "", recipe_name: "Dropped", recipe_url: "https://foods.fatsecret.com/recipes/2" },
+            ],
+          },
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const app = await appWithProvider();
+
+    const res = await request(app).get("/v1/premium-recipes?limit=18&offset=0");
+
+    expect(res.status).toBe(200);
+    expect(res.body.recipes).toHaveLength(1);
+    expect(res.body.nextOffset).toBe(18);
+    expect(String(fetchMock.mock.calls[1][0])).toContain("page_number=0");
   });
 
   it("uses the configured FatSecret gateway before direct credentials", async () => {
