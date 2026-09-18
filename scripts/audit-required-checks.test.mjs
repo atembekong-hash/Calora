@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  auditBranchRulesets,
   auditBranchProtection,
   auditRequiredChecks,
   collectWorkflowCheckNames,
@@ -156,4 +157,106 @@ test("requires strict checks, reviews, administrator enforcement, and signatures
   assert.equal(complete.ok, true);
   assert.deepEqual(complete.policyIssues, []);
   assert.match(formatAuditReport(complete), /controls are present/);
+});
+
+test("audits active branch rulesets against workflow checks and app binding", () => {
+  const report = auditBranchRulesets({
+    activeCheckNames: collectWorkflowCheckNames([
+      { path: "release-validation.yml", source: releaseValidationWorkflow },
+    ]),
+    rulesets: [
+      {
+        id: 17,
+        name: "Calora Release Protection",
+        target: "branch",
+        enforcement: "active",
+        conditions: {
+          ref_name: {
+            include: ["refs/heads/release/calora-onboarding-and-plus"],
+          },
+        },
+        rules: [
+          {
+            type: "required_status_checks",
+            parameters: {
+              strict_required_status_checks_policy: true,
+              required_status_checks: [
+                { context: "Run release validation suite", integration_id: 15368 },
+              ],
+            },
+          },
+        ],
+      },
+      {
+        id: 18,
+        name: "Inactive historical ruleset",
+        target: "branch",
+        enforcement: "disabled",
+        conditions: {
+          ref_name: { include: ["refs/heads/old-release"] },
+        },
+        rules: [],
+      },
+      {
+        id: 19,
+        name: "Tag ruleset",
+        target: "tag",
+        enforcement: "active",
+        conditions: {
+          ref_name: { include: ["refs/tags/v*"] },
+        },
+        rules: [],
+      },
+    ],
+  });
+
+  assert.equal(report.ok, true);
+  assert.equal(report.activeRulesetCount, 1);
+  assert.deepEqual(report.reports[0].targets, [
+    "refs/heads/release/calora-onboarding-and-plus",
+  ]);
+});
+
+test("fails active branch rulesets with stale checks, weak strictness, or wildcard app binding", () => {
+  const report = auditBranchRulesets({
+    activeCheckNames: ["Run release validation suite"],
+    rulesets: [
+      {
+        id: 22,
+        name: "Stale release protection",
+        target: "branch",
+        enforcement: "active",
+        conditions: {
+          ref_name: { include: ["refs/heads/release/legacy"] },
+        },
+        rules: [
+          {
+            type: "required_status_checks",
+            parameters: {
+              strict_required_status_checks_policy: false,
+              required_status_checks: [
+                { context: "Verify workspace release foundation", integration_id: -1 },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(report.ok, false);
+  assert.deepEqual(report.reports[0].missingContexts, [
+    "Verify workspace release foundation",
+  ]);
+  assert.equal(report.reports[0].policyIssues.length, 2);
+  const combined = formatAuditReport({
+    defaultBranch: "main",
+    requiredContexts: [],
+    activeCheckNames: ["Run release validation suite"],
+    policyIssues: [],
+    branchRulesetAudit: report,
+  });
+  assert.match(combined, /Branch-ruleset issues/);
+  assert.match(combined, /bound to GitHub Actions integration/);
+  assert.match(combined, /current branch head/);
 });

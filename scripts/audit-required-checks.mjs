@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Compare the required status contexts on the repository's default branch
- * with the check names exposed by the workflow files in this checkout.
+ * Compare protected-branch required status contexts and active branch
+ * rulesets with the check names exposed by the workflow files in this
+ * checkout.
  *
  * This is intentionally read-only. It never updates branch protection or
  * merges code. The workflow invokes it on pull requests so a workflow rename
@@ -12,6 +13,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
 export const AUDIT_SCHEMA_VERSION = "calora.required-check-audit.v2";
+export const REQUIRED_STATUS_CHECK_INTEGRATION_ID = 15368;
 
 function stripYamlComment(value) {
   let quote = null;
@@ -233,6 +235,116 @@ export function auditBranchProtection(input) {
   };
 }
 
+/**
+ * Return active branch-targeting rulesets. Inactive rulesets and rulesets for
+ * other targets are not release gates and must not create false failures.
+ *
+ * @param {object[]} rulesets
+ * @returns {object[]}
+ */
+export function activeBranchRulesets(rulesets) {
+  if (!Array.isArray(rulesets)) {
+    throw new TypeError("Rulesets must be an array.");
+  }
+
+  return rulesets.filter((ruleset) => {
+    const refs = ruleset?.conditions?.ref_name?.include;
+    return (
+      ruleset?.enforcement === "active" &&
+      ruleset?.target === "branch" &&
+      Array.isArray(refs) &&
+      refs.some((ref) => typeof ref === "string" && ref.trim())
+    );
+  });
+}
+
+/**
+ * Audit every active branch ruleset against the workflow check names in this
+ * checkout. A ruleset that accepts any app, omits strict head enforcement, or
+ * names a check no workflow can emit is a release-blocking configuration
+ * error.
+ *
+ * @param {{
+ *   rulesets: object[],
+ *   activeCheckNames: string[],
+ *   expectedIntegrationId?: number,
+ * }} input
+ */
+export function auditBranchRulesets(input) {
+  const activeCheckNames = [...new Set(input.activeCheckNames)].sort();
+  const activeNames = new Set(activeCheckNames);
+  const expectedIntegrationId =
+    input.expectedIntegrationId ?? REQUIRED_STATUS_CHECK_INTEGRATION_ID;
+  const reports = activeBranchRulesets(input.rulesets).map((ruleset) => {
+    const targets = ruleset.conditions.ref_name.include
+      .map((ref) => (typeof ref === "string" ? ref.trim() : ""))
+      .filter(Boolean);
+    const statusRules = Array.isArray(ruleset.rules)
+      ? ruleset.rules.filter((rule) => rule?.type === "required_status_checks")
+      : [];
+    const requiredContexts = [];
+    const missingContexts = [];
+    const policyIssues = [];
+
+    if (statusRules.length === 0) {
+      policyIssues.push("No required status-check rule is configured.");
+    }
+
+    for (const statusRule of statusRules) {
+      const parameters = statusRule.parameters || {};
+      if (parameters.strict_required_status_checks_policy !== true) {
+        policyIssues.push(
+          "Required status checks must require the current branch head.",
+        );
+      }
+
+      const checks = parameters.required_status_checks;
+      if (!Array.isArray(checks) || checks.length === 0) {
+        policyIssues.push("Required status-check rule has no configured checks.");
+        continue;
+      }
+
+      for (const check of checks) {
+        const context = requiredContextName(check);
+        if (!context) {
+          policyIssues.push("A required status check is missing its context name.");
+          continue;
+        }
+        requiredContexts.push(context);
+        if (!activeNames.has(context)) missingContexts.push(context);
+
+        if (
+          !Number.isInteger(check.integration_id) ||
+          check.integration_id !== expectedIntegrationId
+        ) {
+          policyIssues.push(
+            `Status check "${context}" must be bound to GitHub Actions integration ${expectedIntegrationId}.`,
+          );
+        }
+      }
+    }
+
+    const uniqueRequiredContexts = [...new Set(requiredContexts)].sort();
+    const uniqueMissingContexts = [...new Set(missingContexts)].sort();
+    const uniquePolicyIssues = [...new Set(policyIssues)];
+    return {
+      id: ruleset.id ?? null,
+      name: ruleset.name || "Unnamed ruleset",
+      targets,
+      requiredContexts: uniqueRequiredContexts,
+      missingContexts: uniqueMissingContexts,
+      policyIssues: uniquePolicyIssues,
+      ok: uniqueMissingContexts.length === 0 && uniquePolicyIssues.length === 0,
+    };
+  });
+
+  return {
+    activeRulesetCount: reports.length,
+    reports,
+    ok: reports.every((report) => report.ok),
+  };
+}
+
 export function formatAuditReport(report) {
   const lines = [
     `Required-check audit for default branch "${report.defaultBranch}"`,
@@ -263,6 +375,30 @@ export function formatAuditReport(report) {
     for (const issue of report.policyIssues) lines.push(`- ${issue}`);
   } else if (report.policyIssues) {
     lines.push("Branch-protection policy controls are present.");
+  }
+
+  if (report.branchRulesetAudit) {
+    lines.push(
+      `Active branch rulesets audited: ${report.branchRulesetAudit.activeRulesetCount}`,
+    );
+    if (report.branchRulesetAudit.ok) {
+      lines.push(
+        "All active branch rulesets use current workflow checks, strict head enforcement, and the expected app binding.",
+      );
+    } else {
+      lines.push("Branch-ruleset issues:");
+      for (const ruleset of report.branchRulesetAudit.reports) {
+        if (ruleset.ok) continue;
+        lines.push(`- ${ruleset.name} (${ruleset.targets.join(", ")}):`);
+        for (const context of ruleset.missingContexts) {
+          lines.push(`  missing workflow check: ${context}`);
+        }
+        for (const issue of ruleset.policyIssues) lines.push(`  ${issue}`);
+      }
+      lines.push(
+        "Review the targeted branch workflow and ruleset; this audit does not change either setting.",
+      );
+    }
   }
 
   return lines.join("\n");
@@ -363,15 +499,38 @@ async function run() {
     }),
   ]);
   const workflows = await readWorkflowSources(workflowsDirectory);
+  const activeCheckNames = collectWorkflowCheckNames(workflows);
+  const rulesetSummaries = await fetchGitHubJson(
+    `${apiUrl}/repos/${repository}/rulesets?per_page=100`,
+    token,
+  );
+  if (!Array.isArray(rulesetSummaries)) {
+    throw new Error("GitHub did not return a ruleset list.");
+  }
+  const activeRulesetSummaries = activeBranchRulesets(rulesetSummaries);
+  const rulesets = await Promise.all(
+    activeRulesetSummaries.map((ruleset) =>
+      fetchGitHubJson(
+        `${apiUrl}/repos/${repository}/rulesets/${encodeURIComponent(ruleset.id)}`,
+        token,
+      ),
+    ),
+  );
+  const branchRulesetAudit = auditBranchRulesets({
+    rulesets,
+    activeCheckNames,
+  });
   const report = auditBranchProtection({
     defaultBranch,
     requiredContexts: requiredContextNames(
       protectionResponse?.required_status_checks || {},
     ),
-    activeCheckNames: collectWorkflowCheckNames(workflows),
+    activeCheckNames,
     protection: protectionResponse,
     requiredSignatures: requiredSignaturesResponse,
   });
+  report.branchRulesetAudit = branchRulesetAudit;
+  report.ok = report.ok && branchRulesetAudit.ok;
 
   console.log(formatAuditReport(report));
   if (!report.ok) {
