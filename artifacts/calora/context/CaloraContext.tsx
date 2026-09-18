@@ -76,7 +76,7 @@ import {
   normalizeFoodImageUrl,
   type FoodImageSource,
 } from '@/lib/foodImageMetadata';
-import { recordDiaryDelete } from '@/lib/diarySync';
+import { clearDiarySyncState, recordDiaryDelete } from '@/lib/diarySync';
 import {
   DEFAULT_LOCAL_NOTIFICATION_PREFERENCES,
   legacyReminderMirrors,
@@ -1881,11 +1881,12 @@ export function CaloraProvider({
           cancelNotificationPlanForClear(),
           clearNotificationInbox(accountId ?? null),
           coachFactConsentCache.clear(accountId ?? null),
+          clearDiarySyncState(accountId ?? undefined),
           deleteProfilePhoto(FileSystem, accountId).then((result) => {
             if (!result.ok) throw new Error('profile-photo');
           }),
         ]);
-        const cleanupNames = ['native schedules', 'notification inbox', 'coach cache', 'profile photo'];
+        const cleanupNames = ['native schedules', 'notification inbox', 'coach cache', 'diary sync', 'profile photo'];
         const cleanupFailures = cleanup.flatMap((result, index) =>
           result.status === 'rejected' ? [cleanupNames[index]] : []);
 

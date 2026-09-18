@@ -62,6 +62,11 @@ export interface FileShareAdapter {
    */
   writeAsStringAsync: (fileUri: string, contents: string) => Promise<void>;
   /**
+   * Removes a temporary export after the share attempt. Optional for legacy
+   * test adapters; production wiring always supplies FileSystem.deleteAsync.
+   */
+  deleteAsync?: (fileUri: string, options?: { idempotent?: boolean }) => Promise<void>;
+  /**
    * Open the platform share sheet for a local file URI.
    * Maps to Sharing.shareAsync from expo-sharing.
    *
@@ -110,13 +115,36 @@ export async function shareExportFile(
   payload: ExportPayload,
   adapter: FileShareAdapter,
 ): Promise<void> {
-  const dir = adapter.cacheDirectory ?? '';
-  const fileUri = dir + payload.filename;
-  await adapter.writeAsStringAsync(fileUri, payload.content);
-  await adapter.shareAsync(fileUri, {
-    mimeType: payload.mimeType,
-    dialogTitle: payload.filename,
-  });
+  const dir = adapter.cacheDirectory;
+  if (!dir) throw new Error('A temporary cache directory is unavailable.');
+  const uniqueSuffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const fileUri = `${dir}caloraapp-export-${uniqueSuffix}.json`;
+  let operationError: unknown;
+  try {
+    // Mark the path before writing: a native write can fail after creating a
+    // partial file, which must still be removed in the finally block.
+    await adapter.writeAsStringAsync(fileUri, payload.content);
+    await adapter.shareAsync(fileUri, {
+      mimeType: payload.mimeType,
+      dialogTitle: payload.filename,
+    });
+  } catch (error) {
+    operationError = error;
+    throw error;
+  } finally {
+    if (adapter.deleteAsync) {
+      try {
+        // Delete only after shareAsync settles. Native share implementations
+        // retain/open the URI before resolving, including cancellation paths.
+        await adapter.deleteAsync(fileUri, { idempotent: true });
+      } catch (cleanupError) {
+        // Preserve the useful write/share error; surface cleanup failures on
+        // an otherwise successful export so no silent sensitive-file leak
+        // occurs.
+        if (operationError === undefined) throw cleanupError;
+      }
+    }
+  }
 }
 
 /**

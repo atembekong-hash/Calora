@@ -13,6 +13,7 @@ import {
 } from "../lib/account-deletion-state.js";
 import { hasCurrentCoachFactConsent } from "../lib/coach-fact-consent.js";
 import { getCoachFactRolloutDecision } from "../lib/coach-fact-rollout.js";
+import { withAiProviderDeadline } from "../lib/ai-provider.js";
 
 declare const __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__: boolean;
 
@@ -293,20 +294,10 @@ function safeResponse(requestNonce: string, reason: "risk" | "limited" | "unavai
 export async function createDarkCoachCompletion(
   request: Parameters<typeof openai.chat.completions.create>[0],
 ) {
-  const controller = new AbortController();
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const deadline = new Promise<never>((_, reject) => {
-      timeout = setTimeout(() => {
-        controller.abort();
-        reject(new Error("Coach Fact Context provider deadline exceeded"));
-      }, COACH_FACT_PROVIDER_TIMEOUT_MS);
-    });
-    const provider = openai.chat.completions.create(request, { signal: controller.signal });
-    return await Promise.race([provider, deadline]);
-  } finally {
-    if (timeout) clearTimeout(timeout);
-  }
+  return withAiProviderDeadline(
+    (signal) => openai.chat.completions.create(request, { signal }),
+    COACH_FACT_PROVIDER_TIMEOUT_MS,
+  );
 }
 
 function exactStatementFor(fact: { key: string; values: Record<string, string | number | boolean> }): string | null {

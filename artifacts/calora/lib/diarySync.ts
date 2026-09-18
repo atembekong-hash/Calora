@@ -27,9 +27,11 @@
  * will never be sent again.  Transient server errors are retried up to
  * MAX_TRANSIENT_RETRIES times per session before they are also retired.
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { syncOutbox } from '@workspace/api-client-react';
 import type { FoodLog } from '@/context/CaloraContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EncryptedStorageAdapter } from './encryptedStorage';
+import { secureStoreKeyAdapter } from './secureStoreKeyAdapter';
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 
@@ -53,20 +55,50 @@ const SYNCED_SIGS_KEY = '@calora/synced-diary-sigs';
  */
 const PERMANENTLY_REJECTED_KEY = '@calora/permanently-rejected-keys';
 const PENDING_DELETES_KEY = '@calora/pending-diary-deletes';
+const diarySyncStorage = new EncryptedStorageAdapter(AsyncStorage, secureStoreKeyAdapter);
+const DIARY_SYNC_KEYS = [
+  SYNCED_IDS_KEY,
+  SYNCED_SIGS_KEY,
+  PERMANENTLY_REJECTED_KEY,
+  PENDING_DELETES_KEY,
+] as const;
 let activeAccountScope = 'guest';
 let accountScopeGeneration = 0;
 
-function scopedKey(key: string): string {
+function scopedKey(key: string, scope = activeAccountScope): string {
   // Preserve the existing anonymous/local-only bookkeeping keys. Signed-in
   // accounts never use these keys.
-  if (activeAccountScope === 'guest') return key;
-  return `${key}:${encodeURIComponent(activeAccountScope)}`;
+  if (scope === 'guest') return key;
+  return `${key}:${encodeURIComponent(scope)}`;
+}
+
+async function migrateLegacyDiarySyncState(scope: string): Promise<void> {
+  await Promise.allSettled(
+    DIARY_SYNC_KEYS.map((key) => diarySyncStorage.getItem(scopedKey(key, scope))),
+  );
+}
+
+/** Remove all encrypted/legacy sync bookkeeping for a scope. */
+export async function clearDiarySyncState(scope = activeAccountScope): Promise<void> {
+  await Promise.all(DIARY_SYNC_KEYS.map((key) => diarySyncStorage.removeItem(scopedKey(key, scope))));
+  if (scope === activeAccountScope) {
+    _syncedIdSet = null;
+    _sigsLoaded = false;
+    _permanentlyRejectedKeys = null;
+    syncedSignatures.clear();
+    transientFailureCounts.clear();
+    sessionQuarantinedKeys.clear();
+    logMutationIds.clear();
+    pendingDeletes.clear();
+    pendingDeletesLoaded = false;
+  }
 }
 
 /** Switch all persisted and in-memory sync bookkeeping to an account namespace. */
 export function setDiarySyncAccountScope(accountId?: string | null): void {
   const nextScope = accountId?.trim() || 'guest';
   if (nextScope === activeAccountScope) return;
+  const previousScope = activeAccountScope;
   activeAccountScope = nextScope;
   accountScopeGeneration++;
   _syncedIdSet = null;
@@ -80,6 +112,10 @@ export function setDiarySyncAccountScope(accountId?: string | null): void {
   pendingDeletesLoaded = false;
   upsertInFlight = false;
   deleteInFlight = false;
+  // Sync metadata is disposable. Clear the previous namespace asynchronously;
+  // the synchronous in-memory reset above prevents cross-account reads.
+  void clearDiarySyncState(previousScope).catch(() => undefined);
+  void migrateLegacyDiarySyncState(nextScope);
 }
 
 /**
@@ -110,7 +146,7 @@ export async function loadSyncedIds(): Promise<Set<string>> {
   const generation = accountScopeGeneration;
   const key = scopedKey(SYNCED_IDS_KEY);
   try {
-    const raw = await AsyncStorage.getItem(key);
+    const raw = await diarySyncStorage.getItem(key);
     if (generation !== accountScopeGeneration) return new Set();
     _syncedIdSet = raw ? new Set<string>(JSON.parse(raw) as string[]) : new Set();
   } catch {
@@ -122,8 +158,12 @@ export async function loadSyncedIds(): Promise<Set<string>> {
 
 async function persistSyncedIds(): Promise<void> {
   if (!_syncedIdSet) return;
+  const generation = accountScopeGeneration;
+  const key = scopedKey(SYNCED_IDS_KEY);
+  if (generation !== accountScopeGeneration) return;
   try {
-    await AsyncStorage.setItem(scopedKey(SYNCED_IDS_KEY), JSON.stringify([..._syncedIdSet]));
+    if (generation !== accountScopeGeneration) return;
+    await diarySyncStorage.setItem(key, JSON.stringify([..._syncedIdSet]));
   } catch {
     // Persist failure is non-fatal; next restart re-syncs from the current
     // local logs, which is always correct.
@@ -135,7 +175,7 @@ async function loadSyncedSignatures(): Promise<void> {
   const generation = accountScopeGeneration;
   const key = scopedKey(SYNCED_SIGS_KEY);
   try {
-    const raw = await AsyncStorage.getItem(key);
+    const raw = await diarySyncStorage.getItem(key);
     if (generation !== accountScopeGeneration) return;
     if (raw) {
       const entries = JSON.parse(raw) as [string, string][];
@@ -150,9 +190,12 @@ async function loadSyncedSignatures(): Promise<void> {
 }
 
 async function persistSyncedSignatures(): Promise<void> {
+  const generation = accountScopeGeneration;
+  const key = scopedKey(SYNCED_SIGS_KEY);
   try {
-    await AsyncStorage.setItem(
-      scopedKey(SYNCED_SIGS_KEY),
+    if (generation !== accountScopeGeneration) return;
+    await diarySyncStorage.setItem(
+      key,
       JSON.stringify([...syncedSignatures]),
     );
   } catch {
@@ -200,7 +243,7 @@ export async function loadPermanentlyRejectedKeys(): Promise<Set<string>> {
   const generation = accountScopeGeneration;
   const key = scopedKey(PERMANENTLY_REJECTED_KEY);
   try {
-    const raw = await AsyncStorage.getItem(key);
+    const raw = await diarySyncStorage.getItem(key);
     if (generation !== accountScopeGeneration) return new Set();
     _permanentlyRejectedKeys = raw
       ? new Set<string>(JSON.parse(raw) as string[])
@@ -214,9 +257,12 @@ export async function loadPermanentlyRejectedKeys(): Promise<Set<string>> {
 
 async function persistPermanentlyRejectedKeys(): Promise<void> {
   if (!_permanentlyRejectedKeys) return;
+  const generation = accountScopeGeneration;
+  const key = scopedKey(PERMANENTLY_REJECTED_KEY);
   try {
-    await AsyncStorage.setItem(
-      scopedKey(PERMANENTLY_REJECTED_KEY),
+    if (generation !== accountScopeGeneration) return;
+    await diarySyncStorage.setItem(
+      key,
       JSON.stringify([..._permanentlyRejectedKeys]),
     );
   } catch {
@@ -448,7 +494,7 @@ async function ensurePendingDeletesLoaded(): Promise<void> {
   const generation = accountScopeGeneration;
   const key = scopedKey(PENDING_DELETES_KEY);
   try {
-    const raw = await AsyncStorage.getItem(key);
+    const raw = await diarySyncStorage.getItem(key);
     if (generation !== accountScopeGeneration) return;
     if (raw) {
       for (const [id, value] of JSON.parse(raw) as Array<[string, { mutationId: string; clientUpdatedAt: string }]>) {
@@ -463,8 +509,11 @@ async function ensurePendingDeletesLoaded(): Promise<void> {
 }
 
 async function persistPendingDeletes(): Promise<void> {
+  const generation = accountScopeGeneration;
+  const key = scopedKey(PENDING_DELETES_KEY);
   try {
-    await AsyncStorage.setItem(scopedKey(PENDING_DELETES_KEY), JSON.stringify([...pendingDeletes]));
+    if (generation !== accountScopeGeneration) return;
+    await diarySyncStorage.setItem(key, JSON.stringify([...pendingDeletes]));
   } catch {
     // In-memory tombstones still protect the current session.
   }
@@ -742,6 +791,7 @@ export async function reconcileDiaryState(
   logs: FoodLog[],
   accessToken = '',
 ): Promise<FoodLog[]> {
+  const scopeAtStart = accountScopeGeneration;
   await ensureSigsLoaded();
   await ensurePendingDeletesLoaded();
   const previouslySynced = new Set(await loadSyncedIds());
@@ -757,6 +807,7 @@ export async function reconcileDiaryState(
     { deviceId: 'calora-mobile', mutations: [] },
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
+  if (scopeAtStart !== accountScopeGeneration) return logs;
   const remoteLogs = ((response.records ?? []) as ServerDiaryRecord[]).map(fromServerRecord);
   const remoteById = new Map(remoteLogs.map((log) => [log.id, log]));
   const merged = new Map<string, FoodLog>();

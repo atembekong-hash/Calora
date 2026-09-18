@@ -151,6 +151,43 @@ describe('PERMANENT_CONFLICT_REASONS', () => {
   });
 });
 
+describe('diary sync encrypted persistence and lifecycle cleanup', () => {
+  beforeEach(() => {
+    for (const k of Object.keys(store)) delete store[k];
+    mockSyncOutbox.mockReset();
+  });
+
+  it('migrates a legacy scoped bookkeeping value to an encrypted envelope', async () => {
+    const scopedKey = '@calora/synced-diary-ids:user-a';
+    const legacy = JSON.stringify(['private-meal-log']);
+    store[scopedKey] = legacy;
+    const { setDiarySyncAccountScope, loadSyncedIds } = await freshDiarySync();
+
+    setDiarySyncAccountScope('user-a');
+    await expect(loadSyncedIds()).resolves.toEqual(new Set(['private-meal-log']));
+
+    expect(store[scopedKey]).not.toBe(legacy);
+    expect(store[scopedKey]).toContain('calora.encrypted.v1:');
+  });
+
+  it('clears all account-scoped sync bookkeeping after account deletion/clear', async () => {
+    const { setDiarySyncAccountScope, syncDiaryLogs, clearDiarySyncState } = await freshDiarySync();
+    setDiarySyncAccountScope('user-delete');
+    mockSyncOutbox.mockImplementation(async (request: { mutations: Array<{ mutationId: string }> }) => ({
+      accepted: request.mutations.map((mutation) => mutation.mutationId),
+      conflicts: [],
+      nextCursor: '',
+    }));
+
+    await syncDiaryLogs([makeLog({ id: 'private-delete-log' })]);
+    expect(Object.keys(store).some((key) => key.endsWith(':user-delete'))).toBe(true);
+
+    await clearDiarySyncState('user-delete');
+
+    expect(Object.keys(store).some((key) => key.endsWith(':user-delete'))).toBe(false);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // recordTransientFailure — per-session counter
 // ---------------------------------------------------------------------------

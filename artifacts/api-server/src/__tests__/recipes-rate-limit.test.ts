@@ -37,7 +37,7 @@ vi.mock("../lib/rate-limit.js", () => ({
 }));
 
 import express from "express";
-import recipesRouter from "../routes/recipes.js";
+import recipesRouter, { resetRecipeAiBudgetForTests } from "../routes/recipes.js";
 
 function buildApp() {
   const app = express();
@@ -79,6 +79,7 @@ describe("public recipe routes — rate limiting", () => {
     vi.stubGlobal("fetch", mockFetch);
     mockCheckRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
     mockLimit.mockResolvedValue([]); // L2 miss by default
+    resetRecipeAiBudgetForTests();
   });
 
   it("returns 429 with Retry-After before any upstream or provider work when the IP quota is exceeded", async () => {

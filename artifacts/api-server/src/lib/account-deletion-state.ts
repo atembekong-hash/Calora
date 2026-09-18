@@ -8,7 +8,7 @@ import {
 import type { AccountDeletionFenceSignal } from "./account-deletion-fence-schema.mjs";
 
 export type AccountDeletionState = "active" | "deleting" | "deleted";
-export type AccountDeletionStage = "application" | "revenuecat" | "auth";
+export type AccountDeletionStage = "object_storage" | "application" | "revenuecat" | "auth";
 export type AccountDeletionClaim =
   | { kind: "completed" }
   | { kind: "in_progress" }
@@ -153,7 +153,7 @@ export async function claimAccountDeletion(externalUserId: string): Promise<Acco
       return { kind: "in_progress" };
     }
     const operationId = randomUUID();
-    const stage = row?.stage ?? "application";
+    const stage = row?.stage ?? "object_storage";
     await tx.execute(sql`
       UPDATE calora_account_deletion_states
       SET state = 'deleting',

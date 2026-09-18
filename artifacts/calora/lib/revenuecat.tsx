@@ -12,12 +12,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import { SUBSCRIPTION } from '@/lib/brand';
 import { useAuth } from '@/context/AuthContext';
+import { synchronizeRevenueCatIdentity } from '@/lib/revenuecatIdentity';
 
 const REVENUECAT_TEST_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_TEST_API_KEY;
 const REVENUECAT_IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY;
 const REVENUECAT_ANDROID_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY;
 
 export const REVENUECAT_ENTITLEMENT_IDENTIFIER = SUBSCRIPTION.entitlementId;
+let revenueCatConfigured = false;
 
 function getRevenueCatApiKey(): string {
   // Only the key for the current runtime context is required — a missing
@@ -37,17 +39,23 @@ function getRevenueCatApiKey(): string {
 }
 
 export function initializeRevenueCat() {
+  if (revenueCatConfigured) return;
   const apiKey = getRevenueCatApiKey();
   if (!apiKey) throw new Error('RevenueCat Public API Key not found');
 
   Purchases.setLogLevel(Purchases.LOG_LEVEL.INFO);
   Purchases.configure({ apiKey });
+  // configure is synchronous in the native SDK. Guarding it as a single
+  // transition ensures identity effects cannot trigger a second configure
+  // during a provider remount or Expo hot reload.
+  revenueCatConfigured = true;
 }
 
 function useSubscriptionContext() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const lastIdentityRef = useRef<string | null>(null);
+  const identityGenerationRef = useRef(0);
   // Identity the SDK is currently synced to ('anon' or a user id); undefined
   // until the first sync settles. Customer-info queries wait for it so state
   // is never read for the wrong (e.g. still-anonymous) subscriber.
@@ -59,20 +67,17 @@ function useSubscriptionContext() {
     const targetId = user?.id ?? null;
     if (targetId === lastIdentityRef.current) return;
     lastIdentityRef.current = targetId;
+    const generation = ++identityGenerationRef.current;
+    setSyncedIdentity(undefined);
 
     (async () => {
       try {
-        if (targetId) {
-          await Purchases.logIn(targetId);
-        } else {
-          const isAnonymous = await Purchases.isAnonymous();
-          if (!isAnonymous) await Purchases.logOut();
-        }
-      } catch (err) {
-        console.warn('[revenuecat] identity sync failed', err);
-      } finally {
+        const applied = await synchronizeRevenueCatIdentity(targetId, Purchases);
+        if (!applied || generation !== identityGenerationRef.current) return;
         setSyncedIdentity(targetId ?? 'anon');
         queryClient.invalidateQueries({ queryKey: ['revenuecat'] });
+      } catch (err) {
+        console.warn('[revenuecat] identity sync failed', err);
       }
     })();
   }, [user?.id, queryClient]);

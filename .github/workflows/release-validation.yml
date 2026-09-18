@@ -14,16 +14,13 @@ jobs:
   release-validation:
     name: Run release validation suite
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
 
     steps:
       - name: Check out source
         uses: actions/checkout@v4
-
-      - name: Audit required branch checks
-        env:
-          GITHUB_TOKEN: ${{ secrets.CALORA_RELEASE_GATE_ADMIN_READ_TOKEN }}
-        run: node scripts/audit-required-checks.mjs
+        with:
+          fetch-depth: 0
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -33,8 +30,13 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20.19.4
           cache: pnpm
+
+      - name: Audit required branch checks
+        env:
+          GITHUB_TOKEN: ${{ secrets.CALORA_RELEASE_GATE_ADMIN_READ_TOKEN }}
+        run: node scripts/audit-required-checks.mjs
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -42,5 +44,36 @@ jobs:
       - name: Audit workspace dependencies
         run: pnpm run audit:release
 
-      - name: Run release validation suite
-        run: pnpm --filter @workspace/scripts test
+      - name: Verify release-attestation fixtures
+        run: |
+          pnpm --filter @workspace/scripts run test:release:build-clean-checkout
+          pnpm --filter @workspace/api-server run test:release-attestation
+
+      - name: Run repository typecheck
+        run: pnpm run typecheck
+
+      - name: Run complete test suite
+        run: pnpm test
+
+      - name: Build API production artifact
+        env:
+          NODE_ENV: production
+          RELEASE_SENSITIVE_ACTIVATION_REQUESTED: "false"
+          RELEASE_SENSITIVE_ACTIVATION_COMMIT: ""
+        run: |
+          pnpm --filter @workspace/api-server run build
+          pnpm --filter @workspace/api-server run verify:build
+
+      - name: Build Calora production static artifact
+        env:
+          EXPO_PUBLIC_DOMAIN: calorie-coach-pie35449.replit.app
+          EXPO_PUBLIC_API_URL: https://calorie-coach-pie35449.replit.app
+        run: pnpm --filter @workspace/calora run build
+
+      - name: Upload validated API provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-release-provenance-${{ github.sha }}
+          path: artifacts/api-server/dist/release-provenance.json
+          if-no-files-found: error
+          retention-days: 7

@@ -488,6 +488,7 @@ export default function ProfileScreen() {
     {
       cacheDirectory: FileSystem.cacheDirectory,
       writeAsStringAsync: FileSystem.writeAsStringAsync,
+      deleteAsync: FileSystem.deleteAsync,
       shareAsync: Sharing.shareAsync,
     },
     {

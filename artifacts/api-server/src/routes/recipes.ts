@@ -425,6 +425,37 @@ const nutritionRefreshInFlight = new Set<string>();
 // caller cannot amplify cost by fanning out concurrent misses for one id.
 const nutritionMissInFlight = new Map<string, Promise<NutritionEstimate | null>>();
 
+// This is intentionally process-wide rather than per-IP: IP quotas limit
+// callers, while this guard caps aggregate provider pressure on each API
+// worker even when traffic comes from many addresses. A token is consumed
+// when a request starts because provider billing is incurred regardless of
+// whether the request later succeeds.
+const RECIPE_AI_MAX_CONCURRENT = Number(process.env.RECIPE_AI_MAX_CONCURRENT ?? 4);
+const RECIPE_AI_CALLS_PER_WINDOW = Number(process.env.RECIPE_AI_CALLS_PER_WINDOW ?? 60);
+const RECIPE_AI_WINDOW_MS = Number(process.env.RECIPE_AI_WINDOW_MS ?? 60 * 60 * 1000);
+let recipeAiActive = 0;
+let recipeAiWindowStartedAt = 0;
+let recipeAiCallsInWindow = 0;
+
+function acquireRecipeAiBudget(): (() => void) | null {
+  const now = Date.now();
+  if (now - recipeAiWindowStartedAt >= RECIPE_AI_WINDOW_MS) {
+    recipeAiWindowStartedAt = now;
+    recipeAiCallsInWindow = 0;
+  }
+  if (
+    recipeAiActive >= RECIPE_AI_MAX_CONCURRENT
+    || recipeAiCallsInWindow >= RECIPE_AI_CALLS_PER_WINDOW
+  ) {
+    return null;
+  }
+  recipeAiActive += 1;
+  recipeAiCallsInWindow += 1;
+  return () => {
+    recipeAiActive = Math.max(0, recipeAiActive - 1);
+  };
+}
+
 /**
  * Resolve a cache-miss nutrition estimate, coalescing concurrent callers for
  * the same meal id. The winning call performs the OpenAI request and writes
@@ -500,6 +531,11 @@ async function saveNutritionToDb(mealId: string, nutrition: NutritionEstimate): 
 }
 
 async function estimateNutrition(name: string, ingredients: string[]): Promise<NutritionEstimate | null> {
+  const releaseBudget = acquireRecipeAiBudget();
+  if (!releaseBudget) {
+    logger.warn("Anonymous recipe nutrition budget exhausted; serving degraded response");
+    return null;
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
   try {
@@ -529,7 +565,14 @@ async function estimateNutrition(name: string, ingredients: string[]): Promise<N
     return null;
   } finally {
     clearTimeout(timer);
+    releaseBudget();
   }
+}
+
+export function resetRecipeAiBudgetForTests(): void {
+  recipeAiActive = 0;
+  recipeAiWindowStartedAt = 0;
+  recipeAiCallsInWindow = 0;
 }
 
 /**

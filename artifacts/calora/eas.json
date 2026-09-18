@@ -1,19 +1,20 @@
 {
   "$schema": "https://raw.githubusercontent.com/expo/eas-cli/main/packages/eas-json/schema/eas.schema.json",
   "cli": {
-    "version": ">= 16.0.0",
-    "appVersionSource": "local"
+    "version": "16.17.4",
+    "appVersionSource": "local",
+    "requireCommit": true
   },
   "build": {
     "base": {
       "node": "20.19.4",
       "pnpm": "10.26.1",
       "android": {
-        "image": "latest",
+        "image": "ubuntu-22.04-android-ndk-r26b",
         "resourceClass": "medium"
       },
       "ios": {
-        "image": "latest",
+        "image": "macos-14.5-xcode-15.4",
         "resourceClass": "m-medium"
       }
     },

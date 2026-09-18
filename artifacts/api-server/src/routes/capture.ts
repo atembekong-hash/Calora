@@ -10,6 +10,7 @@ import { ensureUserRow } from "../lib/user-rows.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import { safeImageUrl, safeImageSource } from "../lib/image-metadata.js";
 import { logger } from "../lib/logger.js";
+import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import {
   accountDeletionFenceSignal,
   classifyAccountDeletionError,
@@ -108,6 +109,7 @@ const USDA_KEY = process.env.USDA_FOODDATA_API_KEY ?? "DEMO_KEY";
 const VISION_MODEL = "gpt-5.6-terra";
 const TEXT_MODEL = "gpt-5.4-mini";
 const TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
+export const CAPTURE_PROVIDER_TIMEOUT_MS = 15_000;
 const MAX_AUDIO_BYTES = 6 * 1024 * 1024;
 const CAPTURE_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -306,7 +308,7 @@ function parseVisionResponse(content: string) {
 }
 
 async function analyzeTextInput(textInput: string) {
-  const completion = await openai.chat.completions.create({
+  const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
     model: TEXT_MODEL,
     max_completion_tokens: 2048,
     response_format: { type: "json_object" },
@@ -328,14 +330,14 @@ async function analyzeTextInput(textInput: string) {
         content: `Parse this food description and estimate nutrition per item: "${textInput}"`,
       },
     ],
-  });
+  }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error("Text provider returned no analysis");
   return parseVisionResponse(content);
 }
 
 async function analyzeNutritionLabel(imageBase64: string) {
-  const completion = await openai.chat.completions.create({
+  const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
     model: VISION_MODEL,
     max_completion_tokens: 2048,
     response_format: { type: "json_object" },
@@ -366,14 +368,14 @@ async function analyzeNutritionLabel(imageBase64: string) {
         ],
       },
     ],
-  });
+  }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error("Label reader returned no analysis");
   return parseVisionResponse(content);
 }
 
 async function analyzeFoodPhoto(imageBase64: string) {
-  const completion = await openai.chat.completions.create({
+  const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
     model: VISION_MODEL,
     max_completion_tokens: 4096,
     response_format: { type: "json_object" },
@@ -404,14 +406,14 @@ async function analyzeFoodPhoto(imageBase64: string) {
         ],
       },
     ],
-  });
+  }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error("Vision provider returned no analysis");
   return parseVisionResponse(content);
 }
 
 async function analyzeReceipt(imageBase64: string) {
-  const completion = await openai.chat.completions.create({
+  const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
     model: VISION_MODEL,
     max_completion_tokens: 4096,
     response_format: { type: "json_object" },
@@ -435,7 +437,7 @@ async function analyzeReceipt(imageBase64: string) {
         ],
       },
     ],
-  });
+  }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error("Receipt reader returned no analysis");
   return parseVisionResponse(content);
@@ -447,11 +449,11 @@ async function transcribeVoice(audioBase64: string, audioFormat: "mp4" | "m4a" |
     throw new Error("That recording is too large. Please keep your meal description under 15 seconds.");
   }
   const file = new File([audio], `calora-voice.${audioFormat}`, { type: `audio/${audioFormat}` });
-  const result = await openai.audio.transcriptions.create({
+  const result = await withAiProviderDeadline((signal) => openai.audio.transcriptions.create({
     file,
     model: TRANSCRIPTION_MODEL,
     prompt: "This is a short meal description. Preserve food names, portions, brands, and preparation details.",
-  });
+  }, { signal }), CAPTURE_PROVIDER_TIMEOUT_MS);
   return result.text.trim();
 }
 

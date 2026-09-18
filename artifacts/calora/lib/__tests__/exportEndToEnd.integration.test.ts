@@ -186,7 +186,7 @@ describe('complete export chain: storage → makeExportHandler → FileShareAdap
 
     expect(writeAsStringAsync).toHaveBeenCalledTimes(1);
     const [path] = writeAsStringAsync.mock.calls[0] as [string, string];
-    expect(path).toContain('caloraapp-export.json');
+    expect(path).toMatch(/caloraapp-export-[a-z0-9-]+\.json$/);
   });
 
   it('shareAsync receives dialogTitle "caloraapp-export.json"', async () => {
@@ -246,7 +246,7 @@ describe('complete export chain: storage → makeExportHandler → FileShareAdap
 
     const [uri] = shareAsync.mock.calls[0] as [string, unknown];
     expect(uri).toContain('file:///var/mobile/cache/');
-    expect(uri).toContain('caloraapp-export.json');
+    expect(uri).toMatch(/caloraapp-export-[a-z0-9-]+\.json$/);
   });
 
   it('writeAsStringAsync receives the exact unmodified bytes from storage', async () => {

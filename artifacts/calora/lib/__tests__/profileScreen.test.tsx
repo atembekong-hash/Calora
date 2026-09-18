@@ -81,7 +81,13 @@ vi.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'success' },
 }));
 vi.mock('expo-image-picker', () => ({ requestMediaLibraryPermissionsAsync: vi.fn(), launchImageLibraryAsync: vi.fn() }));
-vi.mock('expo-file-system/legacy', () => ({ cacheDirectory: '/tmp/', getInfoAsync: vi.fn(), readAsStringAsync: vi.fn(), writeAsStringAsync: vi.fn() }));
+vi.mock('expo-file-system/legacy', () => ({
+  cacheDirectory: '/tmp/',
+  getInfoAsync: vi.fn(),
+  readAsStringAsync: vi.fn(),
+  writeAsStringAsync: vi.fn(),
+  deleteAsync: vi.fn(async () => undefined),
+}));
 vi.mock('expo-sharing', () => ({ isAvailableAsync: vi.fn(async () => false), shareAsync: vi.fn() }));
 vi.mock('expo-constants', () => ({ default: { expoConfig: { version: '1.0.0' } } }));
 vi.mock('@expo/vector-icons', () => ({ Feather: () => null }));

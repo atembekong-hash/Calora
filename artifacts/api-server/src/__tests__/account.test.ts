@@ -6,6 +6,7 @@ const {
   transaction, execute, deleteWhere, deleteUser, getUser, advisoryQuery,
   claimDeletion, checkpointDeletion, completeDeletion, failedDeletion, deleteRevenueCatSubscriber,
   listRecoverableDeletions, claimRecoveryWarningSuppression, noteSuppressedRecoveryWarning, warn,
+  eraseRecipePhotoObjects,
 } = vi.hoisted(() => {
   const execute = vi.fn();
   const deleteWhere = vi.fn();
@@ -31,6 +32,7 @@ const {
     claimRecoveryWarningSuppression: vi.fn(),
     noteSuppressedRecoveryWarning: vi.fn(),
     warn,
+    eraseRecipePhotoObjects: vi.fn(),
   };
 });
 
@@ -62,6 +64,10 @@ vi.mock("../lib/revenuecat.js", () => ({
   deleteRevenueCatSubscriber: (...args: unknown[]) => deleteRevenueCatSubscriber(...args),
 }));
 
+vi.mock("../lib/recipe-photo-storage.js", () => ({
+  eraseRecipePhotoObjects: (...args: unknown[]) => eraseRecipePhotoObjects(...args),
+}));
+
 vi.mock("../lib/logger.js", () => ({
   logger: { warn },
   noteSuppressedRecoveryWarning: (...args: unknown[]) => noteSuppressedRecoveryWarning(...args),
@@ -89,6 +95,7 @@ describe("DELETE /v1/account", () => {
     completeDeletion.mockResolvedValue(true);
     failedDeletion.mockResolvedValue(undefined);
     deleteRevenueCatSubscriber.mockResolvedValue(undefined);
+    eraseRecipePhotoObjects.mockResolvedValue(undefined);
     listRecoverableDeletions.mockResolvedValue([]);
     claimRecoveryWarningSuppression.mockResolvedValue(true);
   });
@@ -105,6 +112,7 @@ describe("DELETE /v1/account", () => {
     expect(deleteWhere).toHaveBeenCalledOnce();
     expect(deleteUser).toHaveBeenCalledWith("auth-user-1");
     expect(deleteRevenueCatSubscriber).toHaveBeenCalledWith("auth-user-1");
+    expect(eraseRecipePhotoObjects).toHaveBeenCalledWith("auth-user-1");
     expect(checkpointDeletion).toHaveBeenNthCalledWith(1, "auth-user-1", "11111111-1111-4111-8111-111111111111", "revenuecat");
     expect(checkpointDeletion).toHaveBeenNthCalledWith(2, "auth-user-1", "11111111-1111-4111-8111-111111111111", "auth");
     expect(completeDeletion).toHaveBeenCalledWith("auth-user-1", "11111111-1111-4111-8111-111111111111");
@@ -121,6 +129,20 @@ describe("DELETE /v1/account", () => {
     expect(res.status).toBe(502);
     expect(res.body.message).toContain("Account deletion failed");
     expect(deleteUser).not.toHaveBeenCalled();
+  });
+
+  it("does not delete application or Auth data when recipe-photo erasure fails", async () => {
+    eraseRecipePhotoObjects.mockRejectedValueOnce(new Error("object storage unavailable"));
+
+    const res = await request(buildApp())
+      .delete("/v1/account")
+      .set("Authorization", "Bearer valid-token");
+
+    expect(res.status).toBe(502);
+    expect(transaction).not.toHaveBeenCalled();
+    expect(deleteRevenueCatSubscriber).not.toHaveBeenCalled();
+    expect(deleteUser).not.toHaveBeenCalled();
+    expect(failedDeletion).toHaveBeenCalledWith("auth-user-1", "11111111-1111-4111-8111-111111111111");
   });
 
   it("does not touch application data for an invalid token", async () => {
