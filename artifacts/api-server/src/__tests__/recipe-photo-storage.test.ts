@@ -21,8 +21,16 @@ describe("recipe photo object erasure", () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
+        json: async () => ({ access_token: "test-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: "google-storage-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
         json: async () => ({
-          objects: [
+          items: [
             { name: "private/recipe-photos/user-1/one.png" },
             { object_name: "private/recipe-photos/user-1/two.png" },
             { name: "private/other-user/not-owned.png" },
@@ -38,25 +46,74 @@ describe("recipe photo object erasure", () => {
         json: async () => ({ signed_url: "https://storage.test/two" }),
       })
       .mockResolvedValueOnce({ ok: true, status: 204 })
-      .mockResolvedValueOnce({ ok: false, status: 404 });
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "test-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "google-storage-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ kind: "storage#objects" }) });
 
     await eraseRecipePhotoObjects("user-1");
 
-    expect(fetchMock).toHaveBeenCalledTimes(5);
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({
-      method: "POST",
-      body: expect.stringContaining('"prefix":"private/recipe-photos/user-1/"'),
-    });
-    expect(fetchMock.mock.calls[3][0]).toBe("https://storage.test/one");
-    expect(fetchMock.mock.calls[3][1]).toMatchObject({ method: "DELETE" });
-    expect(fetchMock.mock.calls[4][1]).toMatchObject({ method: "DELETE" });
-    expect(info).toHaveBeenCalledWith({ objectCount: 2 }, "Recipe photo object erasure completed");
+    expect(fetchMock).toHaveBeenCalledTimes(10);
+    expect(fetchMock.mock.calls[2][0]).toContain("storage.googleapis.com/storage/v1/b/test-bucket/o?");
+    expect(fetchMock.mock.calls[2][0]).toContain("prefix=private%2Frecipe-photos%2Fuser-1%2F");
+    expect(fetchMock.mock.calls[5][0]).toBe("https://storage.test/one");
+    expect(fetchMock.mock.calls[5][1]).toMatchObject({ method: "DELETE" });
+    expect(fetchMock.mock.calls[6][1]).toMatchObject({ method: "DELETE" });
+    expect(fetchMock.mock.calls[9][0]).toContain("storage.googleapis.com/storage/v1/b/test-bucket/o?");
+    expect(info).toHaveBeenCalledWith(
+      { objectCount: 2, remainingObjectCount: 0 },
+      "Recipe photo object erasure completed",
+    );
+  });
+
+  it("fails closed when recipe photo objects remain after deletion", async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: "test-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: "google-storage-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ items: [{ name: "private/recipe-photos/user-1/one.png" }] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ signed_url: "https://storage.test/one" }),
+      })
+      .mockResolvedValueOnce({ ok: true, status: 204 })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: "test-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: "google-storage-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ items: [{ name: "private/recipe-photos/user-1/one.png" }] }),
+      });
+
+    await expect(eraseRecipePhotoObjects("user-1")).rejects.toThrow(/remain after account erasure/i);
   });
 
   it("fails closed when the sidecar listing is unavailable", async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({}) });
 
-    await expect(eraseRecipePhotoObjects("user-1")).rejects.toThrow(/list recipe photo objects/i);
+    await expect(eraseRecipePhotoObjects("user-1")).rejects.toThrow(/authorize recipe photo object listing/i);
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects malformed Google Storage listing responses", async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "test-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "google-storage-token" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ items: null }) });
+
+    await expect(eraseRecipePhotoObjects("user-1")).rejects.toThrow(/invalid listing/i);
   });
 });

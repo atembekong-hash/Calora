@@ -1,5 +1,5 @@
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { db, recipeNutritionTable } from "@workspace/db";
+import { db, pool, recipeNutritionTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { randomUUID } from "node:crypto";
@@ -8,6 +8,7 @@ import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
 import {
   accountDeletionFenceSignal,
+  assertAccountWritable,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
 
@@ -91,6 +92,33 @@ async function signedRecipePhotoUrl(userId: string, imageId: string, method: "GE
   const payload = await response.json().catch(() => ({})) as { signed_url?: unknown };
   if (!response.ok || typeof payload.signed_url !== "string") throw new Error("Unable to sign recipe photo storage request");
   return payload.signed_url;
+}
+
+async function withRecipePhotoDeletionReadLock<T>(
+  userId: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+  const key = `calora-account-deletion:${userId}`;
+  try {
+    // Deletion takes the matching exclusive lock. Keeping this shared lock
+    // through image upload prevents an already-admitted request from adding a
+    // photo after deletion verifies the prefix is empty.
+    await client.query(
+      "SELECT pg_advisory_lock_shared(hashtextextended($1, 0))",
+      [key],
+    );
+    // A request that waited behind deletion must not proceed after the
+    // exclusive lock is released.
+    await assertAccountWritable(userId);
+    return await operation();
+  } finally {
+    await client.query(
+      "SELECT pg_advisory_unlock_shared(hashtextextended($1, 0))",
+      [key],
+    ).catch(() => undefined);
+    client.release();
+  }
 }
 
 async function enforceRecipeIpLimit(req: Request, res: Response): Promise<boolean> {
@@ -331,47 +359,59 @@ router.post("/v1/recipes/photo", async (req, res) => {
   const description = conceptText(body.description, 300);
   if (!title) return res.status(400).json({ message: "Finish a recipe before creating its photo." });
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), RECIPE_PHOTO_TIMEOUT_MS);
   try {
-    // Recipe fields have already been normalized by the complete-recipe route.
-    // Do not pass account data, diary context, or unrestricted creator prompts
-    // into an image request.
-    const prompt = `Editorial food photography of "${title}". ${description || "A freshly prepared homemade meal."} Serve the dish on a simple ceramic plate or bowl, natural window light, appetizing realistic texture, overhead three-quarter composition, no people, no hands, no words, no labels, no packaging.`;
-    const generated = await openai.images.generate({
-      model: "gpt-image-1",
-      prompt,
-      size: "1024x1024",
-      quality: "low",
-      output_format: "png",
-      n: 1,
-    }, { signal: controller.signal });
-    const encoded = generated.data?.[0]?.b64_json;
-    if (typeof encoded !== "string" || !encoded) throw new Error("Image provider returned no image");
-    const imageBytes = Buffer.from(encoded, "base64");
-    if (imageBytes.length === 0 || imageBytes.length > 15 * 1024 * 1024) throw new Error("Invalid generated image size");
+    await withRecipePhotoDeletionReadLock(user.id, async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), RECIPE_PHOTO_TIMEOUT_MS);
+      try {
+        // Recipe fields have already been normalized by the complete-recipe route.
+        // Do not pass account data, diary context, or unrestricted creator prompts
+        // into an image request.
+        const prompt = `Editorial food photography of "${title}". ${description || "A freshly prepared homemade meal."} Serve the dish on a simple ceramic plate or bowl, natural window light, appetizing realistic texture, overhead three-quarter composition, no people, no hands, no words, no labels, no packaging.`;
+        const generated = await openai.images.generate({
+          model: "gpt-image-1",
+          prompt,
+          size: "1024x1024",
+          quality: "low",
+          output_format: "png",
+          n: 1,
+        }, { signal: controller.signal });
+        const encoded = generated.data?.[0]?.b64_json;
+        if (typeof encoded !== "string" || !encoded) throw new Error("Image provider returned no image");
+        const imageBytes = Buffer.from(encoded, "base64");
+        if (imageBytes.length === 0 || imageBytes.length > 15 * 1024 * 1024) throw new Error("Invalid generated image size");
 
-    const imageId = randomUUID();
-    const uploadUrl = await signedRecipePhotoUrl(user.id, imageId, "PUT", 15 * 60);
-    const upload = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: { "content-type": "image/png", "content-length": String(imageBytes.length) },
-      body: imageBytes,
-      signal: controller.signal,
-    });
-    if (!upload.ok) throw new Error(`Recipe photo upload failed (${upload.status})`);
+        const imageId = randomUUID();
+        const uploadUrl = await signedRecipePhotoUrl(user.id, imageId, "PUT", 15 * 60);
+        const upload = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "content-type": "image/png", "content-length": String(imageBytes.length) },
+          body: imageBytes,
+          signal: controller.signal,
+        });
+        if (!upload.ok) throw new Error(`Recipe photo upload failed (${upload.status})`);
 
-    const imageUrl = await signedRecipePhotoUrl(user.id, imageId, "GET", RECIPE_PHOTO_URL_TTL_SECS);
-    return res.json({
-      imageId,
-      imageUrl,
-      imageUrlExpiresAt: new Date(Date.now() + RECIPE_PHOTO_URL_TTL_SECS * 1000).toISOString(),
+        const imageUrl = await signedRecipePhotoUrl(user.id, imageId, "GET", RECIPE_PHOTO_URL_TTL_SECS);
+        res.json({
+          imageId,
+          imageUrl,
+          imageUrlExpiresAt: new Date(Date.now() + RECIPE_PHOTO_URL_TTL_SECS * 1000).toISOString(),
+        });
+      } finally {
+        clearTimeout(timer);
+      }
     });
+    return;
   } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/recipes/photo"),
+        "Account deletion fence rejected recipe photo request",
+      );
+      return res.status(503).json({ message: "Recipe photo generation is temporarily unavailable. Please try again shortly." });
+    }
     logger.warn({ err: error }, "Recipe photo generation failed");
     return res.status(502).json({ message: "Calora couldn’t create that recipe photo right now. Your recipe is still saved." });
-  } finally {
-    clearTimeout(timer);
   }
 });
 

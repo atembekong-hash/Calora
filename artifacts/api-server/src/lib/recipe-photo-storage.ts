@@ -1,8 +1,10 @@
 import { logger } from "./logger.js";
 
 const OBJECT_STORAGE_SIDECAR = "http://127.0.0.1:1106/object-storage";
-const LIST_OBJECTS_URL = `${OBJECT_STORAGE_SIDECAR}/list-objects`;
 const SIGNED_OBJECT_URL = `${OBJECT_STORAGE_SIDECAR}/signed-object-url`;
+const SIDECAR_TOKEN_URL = "http://127.0.0.1:1106/credential";
+const GOOGLE_TOKEN_EXCHANGE_URL = "http://127.0.0.1:1106/token";
+const GOOGLE_STORAGE_API = "https://storage.googleapis.com/storage/v1";
 const STORAGE_TIMEOUT_MS = 10_000;
 const DELETE_CONCURRENCY = 4;
 const MAX_RECIPE_PHOTO_OBJECTS = 1_000;
@@ -14,13 +16,14 @@ function recipePhotoPrefix(userId: string): string {
 }
 
 function objectNames(payload: unknown, prefix: string): string[] {
-  const candidates =
-    Array.isArray(payload)
-      ? payload
-      : payload && typeof payload === "object"
-        ? (payload as { objects?: unknown; items?: unknown }).objects
-          ?? (payload as { objects?: unknown; items?: unknown }).items
-        : [];
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Object storage returned an invalid listing");
+  }
+  const value = payload as { items?: unknown };
+  // Google Storage omits `items` when a prefix is empty. Any explicit value,
+  // including null, must be a list so an ambiguous response cannot erase
+  // application data without proving the prefix is empty.
+  const candidates = value.items === undefined ? [] : value.items;
   if (!Array.isArray(candidates)) throw new Error("Object storage returned an invalid listing");
   const names: string[] = [];
   for (const candidate of candidates) {
@@ -40,16 +43,41 @@ function objectNames(payload: unknown, prefix: string): string[] {
 }
 
 async function listRecipePhotoObjects(bucket: string, prefix: string): Promise<string[]> {
-  const response = await fetch(LIST_OBJECTS_URL, {
+  const tokenResponse = await fetch(SIDECAR_TOKEN_URL, {
+    signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
+  });
+  const tokenPayload = await tokenResponse.json().catch(() => null) as { access_token?: unknown } | null;
+  if (!tokenResponse.ok || typeof tokenPayload?.access_token !== "string") {
+    throw new Error("Unable to authorize recipe photo object listing");
+  }
+  const exchangeResponse = await fetch(GOOGLE_TOKEN_EXCHANGE_URL, {
     method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      bucket_name: bucket,
-      prefix,
-      max_results: MAX_RECIPE_PHOTO_OBJECTS + 1,
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      audience: "replit",
+      grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+      requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
+      scope: "https://www.googleapis.com/auth/cloud-platform",
+      subject_token: tokenPayload.access_token,
+      subject_token_type: "access_token",
     }),
     signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
   });
+  const exchangePayload = await exchangeResponse.json().catch(() => null) as { access_token?: unknown } | null;
+  if (!exchangeResponse.ok || typeof exchangePayload?.access_token !== "string") {
+    throw new Error("Unable to authorize recipe photo object listing");
+  }
+  const params = new URLSearchParams({
+    prefix,
+    maxResults: String(MAX_RECIPE_PHOTO_OBJECTS + 1),
+  });
+  const response = await fetch(
+    `${GOOGLE_STORAGE_API}/b/${encodeURIComponent(bucket)}/o?${params}`,
+    {
+      headers: { authorization: `Bearer ${exchangePayload.access_token}` },
+      signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
+    },
+  );
   const payload = await response.json().catch(() => null);
   if (!response.ok) throw new Error(`Unable to list recipe photo objects (${response.status})`);
   if (
@@ -58,7 +86,6 @@ async function listRecipePhotoObjects(bucket: string, prefix: string): Promise<s
     && (
       Boolean((payload as { has_more?: unknown }).has_more)
       || Boolean((payload as { hasMore?: unknown }).hasMore)
-      || typeof (payload as { next_page_token?: unknown }).next_page_token === "string"
       || typeof (payload as { nextPageToken?: unknown }).nextPageToken === "string"
     )
   ) {
@@ -114,7 +141,14 @@ export async function eraseRecipePhotoObjects(externalUserId: string): Promise<v
     const batch = names.slice(index, index + DELETE_CONCURRENCY);
     await Promise.all(batch.map((name) => deleteRecipePhotoObject(bucket, name)));
   }
-  logger.info({ objectCount: names.length }, "Recipe photo object erasure completed");
+  const remainingNames = await listRecipePhotoObjects(bucket, prefix);
+  if (remainingNames.length > 0) {
+    throw new Error("Recipe photo objects remain after account erasure");
+  }
+  logger.info(
+    { objectCount: names.length, remainingObjectCount: remainingNames.length },
+    "Recipe photo object erasure completed",
+  );
 }
 
 export const recipePhotoStorageForTests = {

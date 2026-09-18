@@ -74,3 +74,4 @@
 - [EAS worktree provenance](eas-worktree-provenance.md) — nested temporary worktrees can lose Git metadata to workspace checkpoints, causing EAS to fingerprint the outer repository.
 - [Agent publish boundary](agent-publish-boundary.md) — deployment status readers do not imply the task runtime can publish; never claim source-to-runtime alignment without a callable mutation and live verification.
 - [Dependency audit freshness](dependency-audit-freshness.md) — compare platform findings with the current lockfile and local audit when an audit result names versions no longer present.
+- [Object storage prefix erasure](object-storage-prefix-erasure.md) — Replit object-storage listings require mediated credentials; an omitted Google Storage item list denotes an empty prefix.

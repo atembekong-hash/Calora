@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 
-const { mockOpenAiCreate, mockOpenAiImageGenerate, verifyBearerToken, checkRateLimit } = vi.hoisted(() => ({
+const {
+  mockOpenAiCreate, mockOpenAiImageGenerate, verifyBearerToken, checkRateLimit,
+  photoLockQuery, assertAccountWritable,
+} = vi.hoisted(() => ({
   mockOpenAiCreate: vi.fn(),
   mockOpenAiImageGenerate: vi.fn(),
   verifyBearerToken: vi.fn(),
   checkRateLimit: vi.fn(),
+  photoLockQuery: vi.fn().mockResolvedValue({ rows: [] }),
+  assertAccountWritable: vi.fn().mockResolvedValue(undefined),
 }));
 const loggerWarn = vi.hoisted(() => vi.fn());
 
@@ -15,6 +20,7 @@ vi.mock("@workspace/integrations-openai-ai-server", () => ({
 
 vi.mock("@workspace/db", () => ({
   db: { select: vi.fn(), insert: vi.fn() },
+  pool: { connect: vi.fn(async () => ({ query: photoLockQuery, release: vi.fn() })) },
   recipeNutritionTable: { mealId: "meal_id" },
 }));
 
@@ -26,6 +32,17 @@ vi.mock("../lib/supabase-auth.js", () => ({
 
 vi.mock("../lib/rate-limit.js", () => ({
   checkRateLimit: (...args: unknown[]) => checkRateLimit(...args),
+}));
+vi.mock("../lib/account-deletion-state.js", () => ({
+  assertAccountWritable: (...args: unknown[]) => assertAccountWritable(...args),
+  accountDeletionFenceSignal: (route: string, count = 1) => ({ errorClass: "account_deletion_fence", route, count }),
+  classifyAccountDeletionError: (error: unknown) => (
+    error && typeof error === "object"
+      && (error as { code?: unknown; message?: unknown }).code === "55000"
+      && (error as { code?: unknown; message?: unknown }).message === "account deletion is in progress"
+      ? "account_deletion_fence"
+      : null
+  ),
 }));
 vi.mock("../lib/logger.js", () => ({
   logger: { warn: loggerWarn, error: vi.fn() },
@@ -54,6 +71,8 @@ describe("AI recipe creation endpoints", () => {
     vi.clearAllMocks();
     verifyBearerToken.mockResolvedValue(USER);
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+    photoLockQuery.mockResolvedValue({ rows: [] });
+    assertAccountWritable.mockResolvedValue(undefined);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ signed_url: "https://storage.example/signed" }),
@@ -263,6 +282,36 @@ describe("AI recipe creation endpoints", () => {
       12,
       3600,
       { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+  });
+
+  it("holds the deletion read lock through an in-flight photo upload", async () => {
+    let resolveImage: ((value: unknown) => void) | undefined;
+    mockOpenAiImageGenerate.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveImage = resolve;
+    }));
+
+    const pending = request(app).post("/v1/recipes/photo").send({
+      title: "Lemony lentil bowl",
+      description: "A bright, hearty dinner.",
+    }).then((response) => response);
+    await vi.waitFor(() => {
+      expect(photoLockQuery).toHaveBeenCalledWith(
+        "SELECT pg_advisory_lock_shared(hashtextextended($1, 0))",
+        [`calora-account-deletion:${USER.id}`],
+      );
+    });
+
+    expect(assertAccountWritable).toHaveBeenCalledWith(USER.id);
+    expect(photoLockQuery.mock.calls.some(([query]) => String(query).includes("unlock_shared"))).toBe(false);
+
+    resolveImage?.({ data: [{ b64_json: Buffer.from("recipe-photo").toString("base64") }] });
+    const response = await pending;
+
+    expect(response.status).toBe(200);
+    expect(photoLockQuery).toHaveBeenLastCalledWith(
+      "SELECT pg_advisory_unlock_shared(hashtextextended($1, 0))",
+      [`calora-account-deletion:${USER.id}`],
     );
   });
 
