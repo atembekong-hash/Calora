@@ -53,6 +53,7 @@ CaloraApp gives users a daily calorie and macro view, verified food shortcuts, p
 _Populate as you build — explicit user instructions worth remembering across sessions._
 
 - GitHub `main` is the authoritative Calora source. Before every requested change, fetch `origin/main` and stop on divergence; after validated work, commit intended changes, push safely, fetch again, and confirm local/remote SHA parity before reporting completion. Never force-push, rewrite published history, or commit secrets.
+- **GitHub protection rule:** Never disable, weaken, bypass, delete, or modify `main` branch protection, required checks, or GitHub native auto-merge merely to resolve a failed PR or merge. Normal delivery is `branch → PR → required validation → GitHub native auto-merge → post-merge main validation`. If automatic merging fails, diagnose and fix the code, tests, validation, branch state, permissions, or configuration first; never push directly to `main`, force-push, or use a protection bypass. Stop and ask the repository owner for explicit approval before any GitHub protection or governance change that is genuinely required. Expo/EAS builds remain manual and must never be triggered without explicit user request.
 
 ## QA: Recipe-generation end-to-end verification
 
