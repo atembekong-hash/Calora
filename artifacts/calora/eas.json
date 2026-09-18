@@ -10,7 +10,7 @@
       "node": "20.19.4",
       "pnpm": "10.26.1",
       "android": {
-        "image": "ubuntu-22.04-android-ndk-r26b",
+        "image": "ubuntu-22.04-jdk-17-ndk-r27b",
         "resourceClass": "medium"
       },
       "ios": {
