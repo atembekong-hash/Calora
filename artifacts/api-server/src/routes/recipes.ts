@@ -33,6 +33,17 @@ const RECIPE_PHOTO_URL_TTL_SECS = 60 * 60 * 24 * 6;
 const RECIPE_PHOTO_TIMEOUT_MS = 30_000;
 const OBJECT_STORAGE_SIDECAR = "http://127.0.0.1:1106/object-storage/signed-object-url";
 
+/**
+ * Node may expose a local IPv4 peer as an IPv4-mapped IPv6 address. Treat only
+ * that exact representation as equivalent; preserve native IPv6 addresses so
+ * distinct routable clients do not collapse into one limiter bucket.
+ */
+export function canonicalizeIpAddress(address: string | undefined): string {
+  const value = address ?? "unknown";
+  const mappedIpv4 = value.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i)?.[1];
+  return mappedIpv4 ?? value;
+}
+
 async function enforceRecipeGenLimit(
   scope: string,
   route: string,
@@ -124,7 +135,7 @@ async function withRecipePhotoDeletionReadLock<T>(
 async function enforceRecipeIpLimit(req: Request, res: Response, scope: "list" | "detail"): Promise<boolean> {
   // Keep list and detail buckets separate so opening saved recipes cannot
   // consume the quota needed to render Discover.
-  const key = `recipes:${scope}:ip:${req.ip ?? req.socket?.remoteAddress ?? "unknown"}`;
+  const key = `recipes:${scope}:ip:${canonicalizeIpAddress(req.ip ?? req.socket?.remoteAddress)}`;
   // failClosed: this route is anonymous, so a DB outage must deny rather than
   // let unmetered public traffic trigger paid provider calls.
   const rate = await checkRateLimit(key, RECIPES_RATE_LIMIT, RECIPES_RATE_WINDOW_SECS, { failClosed: true });
@@ -144,7 +155,7 @@ async function enforceRecipeIpLimit(req: Request, res: Response, scope: "list" |
 async function enforceGuestRecipeLimit(req: Request, res: Response): Promise<boolean> {
   // Express derives req.ip from its configured trusted proxy chain. Do not read
   // a forwarded header directly: callers must not choose their own limiter key.
-  const clientKey = req.ip ?? req.socket?.remoteAddress ?? "unknown";
+  const clientKey = canonicalizeIpAddress(req.ip ?? req.socket?.remoteAddress);
   for (const [scope, limit, windowSecs] of [
     ["guest-recipes:burst", GUEST_RECIPE_BURST_LIMIT, GUEST_RECIPE_BURST_WINDOW_SECS],
     ["guest-recipes:daily", GUEST_RECIPE_DAILY_LIMIT, GUEST_RECIPE_DAILY_WINDOW_SECS],

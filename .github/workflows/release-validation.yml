@@ -63,6 +63,11 @@ jobs:
           DATABASE_URL: postgresql://calora-test:calora-test@127.0.0.1:1/calora_test
           EXPO_PUBLIC_SUPABASE_URL: https://calora-test.invalid
           EXPO_PUBLIC_SUPABASE_ANON_KEY: calora-vitest-anon-key
+          # Offline API tests import the OpenAI client but mock provider calls.
+          # These loopback/invalid sentinels prevent import-time failures and
+          # cannot reach a real provider.
+          AI_INTEGRATIONS_OPENAI_BASE_URL: http://127.0.0.1:1/openai-test
+          AI_INTEGRATIONS_OPENAI_API_KEY: calora-vitest-openai-key
         run: |
           pnpm --filter @workspace/calora run test
           pnpm --filter @workspace/api-server run test:offline

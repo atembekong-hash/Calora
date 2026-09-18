@@ -37,7 +37,7 @@ vi.mock("../lib/rate-limit.js", () => ({
 }));
 
 import express from "express";
-import recipesRouter, { resetRecipeAiBudgetForTests } from "../routes/recipes.js";
+import recipesRouter, { canonicalizeIpAddress, resetRecipeAiBudgetForTests } from "../routes/recipes.js";
 
 function buildApp() {
   const app = express();
@@ -80,6 +80,13 @@ describe("public recipe routes — rate limiting", () => {
     mockCheckRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
     mockLimit.mockResolvedValue([]); // L2 miss by default
     resetRecipeAiBudgetForTests();
+  });
+
+  it("canonicalizes only IPv4-mapped loopback identities", () => {
+    expect(canonicalizeIpAddress("::ffff:127.0.0.1")).toBe("127.0.0.1");
+    expect(canonicalizeIpAddress("::FFFF:192.0.2.10")).toBe("192.0.2.10");
+    expect(canonicalizeIpAddress("2001:db8::1")).toBe("2001:db8::1");
+    expect(canonicalizeIpAddress("::ffff:2001:db8::1")).toBe("::ffff:2001:db8::1");
   });
 
   it("returns 429 with Retry-After before any upstream or provider work when the IP quota is exceeded", async () => {
