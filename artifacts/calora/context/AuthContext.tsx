@@ -92,9 +92,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // -------------------------------------------------------------------------
   useEffect(() => {
     let active = true;
+    // Auth events are authoritative once observed.  getSession() can resolve
+    // after an event (for example, while an OAuth callback is being finalized),
+    // so keep a local generation to prevent that stale bootstrap result from
+    // overwriting the newer session.
+    let authStateChangeGeneration = 0;
 
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
+      if (authStateChangeGeneration > 0) {
+        setIsLoading(false);
+        return;
+      }
       setSession(data.session);
       setUser(data.session?.user ?? null);
       setIsLoading(false);
@@ -104,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, newSession: Session | null) => {
+        authStateChangeGeneration += 1;
         const nextUserId = newSession?.user?.id ?? null;
         if (
           event === 'SIGNED_OUT'
