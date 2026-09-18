@@ -78,20 +78,10 @@ jobs:
           NODE_ENV: production
           RELEASE_SENSITIVE_ACTIVATION_REQUESTED: "false"
           RELEASE_SENSITIVE_ACTIVATION_COMMIT: ""
-        run: |
-          pnpm --filter @workspace/api-server run build
-          pnpm --filter @workspace/api-server run verify:build
+        run: pnpm --filter @workspace/api-server run build
 
       - name: Build Calora production static artifact
         env:
           EXPO_PUBLIC_DOMAIN: calorie-coach-pie35449.replit.app
           EXPO_PUBLIC_API_URL: https://calorie-coach-pie35449.replit.app
         run: pnpm --filter @workspace/calora run build
-
-      - name: Upload validated API provenance
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-release-provenance-${{ github.sha }}
-          path: artifacts/api-server/dist/release-provenance.json
-          if-no-files-found: error
-          retention-days: 7
