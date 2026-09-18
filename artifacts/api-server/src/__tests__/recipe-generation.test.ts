@@ -73,6 +73,10 @@ describe("AI recipe creation endpoints", () => {
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
     photoLockQuery.mockResolvedValue({ rows: [] });
     assertAccountWritable.mockResolvedValue(undefined);
+    // The production route must keep requiring object storage configuration.
+    // Provide only a deterministic test bucket so the mocked sidecar signing
+    // path can exercise the complete private-photo success flow offline.
+    vi.stubEnv("DEFAULT_OBJECT_STORAGE_BUCKET_ID", "test-bucket");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ signed_url: "https://storage.example/signed" }),
@@ -277,6 +281,17 @@ describe("AI recipe creation endpoints", () => {
     }), expect.any(Object));
     expect(mockOpenAiImageGenerate.mock.calls[0][0].prompt).toContain("Lemony lentil bowl");
     expect(mockOpenAiImageGenerate.mock.calls[0][0].prompt).not.toContain("must-not-forward@example.com");
+    expect(fetch).toHaveBeenCalledWith(
+      "http://127.0.0.1:1106/object-storage/signed-object-url",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining(`"bucket_name":"test-bucket"`),
+      }),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "https://storage.example/signed",
+      expect.objectContaining({ method: "PUT", body: expect.any(Buffer) }),
+    );
     expect(checkRateLimit).toHaveBeenCalledWith(
       `recipes-photo:user:${USER.id}`,
       12,
