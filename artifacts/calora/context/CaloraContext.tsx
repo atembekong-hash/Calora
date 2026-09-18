@@ -88,6 +88,7 @@ import {
   reconcileHydratedNotificationPlan,
 } from '@/lib/notificationLifecycle';
 import { coordinateCaptureAcceptance, createCaptureAcceptanceCoordinator } from '@/lib/captureAcceptanceCoordinator';
+import { reconcileRemoteProfile, saveRemoteProfile, type LocalProfile } from '@/lib/profileSync';
 
 export type HealthSyncOutcome =
   | { status: 'synced'; syncedAt: string }
@@ -657,6 +658,18 @@ export function CaloraProvider({
     (current: LocalNotificationPreferences) => LocalNotificationPreferences
   >>([]);
   const [notificationScopeReady, setNotificationScopeReady] = useState(false);
+  const [profileSyncReady, setProfileSyncReady] = useState(false);
+  const [profileSyncError, setProfileSyncError] = useState<string | null>(null);
+  const [profileSyncAttempt, setProfileSyncAttempt] = useState(0);
+  const profileSyncEpochRef = useRef(0);
+  const profileSyncAbortRef = useRef<AbortController | null>(null);
+  const pendingProfileSyncRef = useRef<{ accountId: string; profile: LocalProfile; epoch: number } | null>(null);
+  const invalidateProfileSync = useCallback(() => {
+    profileSyncEpochRef.current += 1;
+    profileSyncAbortRef.current?.abort();
+    profileSyncAbortRef.current = null;
+    pendingProfileSyncRef.current = null;
+  }, []);
   const [coachConsentAccepted, setCoachConsentAccepted] = useState(false);
   const [coachMessages, setCoachMessages] = useState<CoachMessage[]>([]);
   const [goalCelebrationSeenTargetKg, setGoalCelebrationSeenTargetKg] = useState<number | null>(null);
@@ -918,9 +931,99 @@ export function CaloraProvider({
        };
      }
   });
-  const profileSyncReady = hydrated && !hydrationError;
-  const profileSyncError = hydrationError;
-  const retryProfileSync = retryHydration;
+  const persistCompletedProfile = useCallback(async (nextProfile: LocalProfile, scope: string, epoch: number, signal: AbortSignal) => {
+    if (!scope || epoch !== profileSyncEpochRef.current) return;
+    setProfileSyncReady(false);
+    setProfileSyncError(null);
+    try {
+      await saveRemoteProfile(nextProfile, { accountId: scope, signal });
+      if (epoch !== profileSyncEpochRef.current) return;
+      pendingProfileSyncRef.current = null;
+      setProfileSyncError(null);
+      setProfileSyncReady(true);
+    } catch (error) {
+      if (epoch !== profileSyncEpochRef.current) return;
+      pendingProfileSyncRef.current = { accountId: scope, profile: nextProfile, epoch };
+      setProfileSyncError(error instanceof Error ? error.message : 'Account setup could not be synchronized.');
+      setProfileSyncReady(false);
+    }
+  }, []);
+
+  const retryProfileSync = useCallback(() => {
+    if (hydrationError) {
+      retryHydration();
+      return;
+    }
+    const pending = pendingProfileSyncRef.current;
+    if (pending && pending.accountId === accountId) {
+      invalidateProfileSync();
+      const epoch = profileSyncEpochRef.current;
+      const controller = new AbortController();
+      profileSyncAbortRef.current = controller;
+      pendingProfileSyncRef.current = { ...pending, epoch };
+      void persistCompletedProfile(pending.profile, pending.accountId, epoch, controller.signal);
+      return;
+    }
+    setProfileSyncAttempt((attempt) => attempt + 1);
+  }, [accountId, hydrationError, invalidateProfileSync, persistCompletedProfile, retryHydration]);
+
+  useEffect(() => {
+    invalidateProfileSync();
+    const epoch = profileSyncEpochRef.current;
+    let active = true;
+    const controller = new AbortController();
+    profileSyncAbortRef.current = controller;
+    if (!hydrated || hydrationError) {
+      setProfileSyncReady(false);
+      setProfileSyncError(hydrationError);
+      return () => {
+        active = false;
+        invalidateProfileSync();
+      };
+    }
+    if (!accountId) {
+      setProfileSyncReady(true);
+      setProfileSyncError(null);
+      return () => {
+        active = false;
+        invalidateProfileSync();
+      };
+    }
+
+    setProfileSyncReady(false);
+    setProfileSyncError(null);
+     void reconcileRemoteProfile(profile, onboardingComplete, { accountId, signal: controller.signal })
+      .then((result) => {
+        if (!active || epoch !== profileSyncEpochRef.current) return;
+        if (result.kind === 'restored') {
+          profileRef.current = result.profile;
+          setProfile(result.profile);
+          setOnboardingComplete(true);
+          setOnboardingDraftState(null);
+          patchExportSnapshot({
+            profile: result.profile,
+            onboardingComplete: true,
+          });
+        }
+        setProfileSyncReady(true);
+      })
+      .catch((error) => {
+        if (!active || epoch !== profileSyncEpochRef.current) return;
+        // A session transition can invalidate the scoped request before the
+        // next account's hydration has installed its session. It is not a
+        // synchronization failure for the newly active provider.
+        if (error instanceof Error && error.name === 'ProfileIdentityChangedError') return;
+        setProfileSyncError(error instanceof Error ? error.message : 'Account setup could not be synchronized.');
+        setProfileSyncReady(false);
+      });
+    return () => {
+      active = false;
+      invalidateProfileSync();
+    };
+  // Reconciliation is scoped to hydration/account attempts. A restored profile
+  // updates provider state and must not recursively trigger another request.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, hydrated, hydrationError, invalidateProfileSync, profileSyncAttempt]);
 
   // A provider is keyed by the active account/guest scope. Reconcile precisely
   // once after each successful hydration so schedules from the previous scope
@@ -1715,7 +1818,17 @@ export function CaloraProvider({
       setOnboardingComplete(true);
       setOnboardingStepState(0);
        setOnboardingDraftState(null);
-      queueMutation('profile', 'upsert');
+       if (accountId) {
+          invalidateProfileSync();
+          const epoch = profileSyncEpochRef.current;
+          const controller = new AbortController();
+          profileSyncAbortRef.current = controller;
+         pendingProfileSyncRef.current = { accountId, profile: nextProfile, epoch };
+          void persistCompletedProfile(nextProfile, accountId, epoch, controller.signal);
+       } else {
+         setProfileSyncReady(true);
+         setProfileSyncError(null);
+       }
     },
     updateProfile: (patch) => {
       profileRef.current = profileRef.current ? { ...profileRef.current, ...patch } : null;
@@ -2081,7 +2194,7 @@ export function CaloraProvider({
        patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
        setGoalCelebrationSeenTargetKg(null);
      },
-       }), [activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights]);
+       }), [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

@@ -1,5 +1,10 @@
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
+  /** Scoped clients may validate identity before token acquisition/send/retry. */
+  authIdentityGuard?: () => Promise<void> | void;
+  /** Scoped clients may override the module-wide auth callbacks. */
+  authTokenGetter?: AuthTokenGetter;
+  authTokenRefresher?: AuthTokenRefresher;
 };
 
 export type ErrorType<T = unknown> = ApiError<T>;
@@ -359,7 +364,14 @@ export async function customFetch<T = unknown>(
 ): Promise<T> {
   const originalUrl = resolveUrl(input);
   input = applyBaseUrl(input);
-  const { responseType = "auto", headers: headersInit, ...init } = options;
+  const {
+    responseType = "auto",
+    headers: headersInit,
+    authIdentityGuard,
+    authTokenGetter,
+    authTokenRefresher,
+    ...init
+  } = options;
 
   const method = resolveMethod(input, init.method);
 
@@ -384,13 +396,17 @@ export async function customFetch<T = unknown>(
 
   // Attach bearer token when an auth getter is configured and no
   // Authorization header has been explicitly provided.
-  if (_authTokenGetter && !headers.has("authorization")) {
-    const token = await _authTokenGetter();
+  const effectiveTokenGetter = authTokenGetter ?? _authTokenGetter;
+  const effectiveTokenRefresher = authTokenRefresher ?? _authTokenRefresher;
+  if (authIdentityGuard) await authIdentityGuard();
+  if (effectiveTokenGetter && !headers.has("authorization")) {
+    const token = await effectiveTokenGetter();
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
       attachedAuthToken = token;
     }
   }
+  if (authIdentityGuard) await authIdentityGuard();
 
   const requestInfo = { method, url: resolveUrl(input) };
   const send = () => fetch(input, { ...init, method, headers: new Headers(headers) });
@@ -421,11 +437,13 @@ export async function customFetch<T = unknown>(
   // Supabase access tokens can be stale even while a session still exists
   // (especially after a backgrounded web preview or a resumed native app).
   // Retry exactly once with a forced refresh before surfacing an auth error.
-  if (response.status === 401 && attachedAuthToken && _authTokenRefresher) {
+  if (response.status === 401 && attachedAuthToken && effectiveTokenRefresher) {
     try {
-      const refreshedToken = await _authTokenRefresher();
+      if (authIdentityGuard) await authIdentityGuard();
+      const refreshedToken = await effectiveTokenRefresher();
       if (refreshedToken) {
         headers.set("authorization", `Bearer ${refreshedToken}`);
+        if (authIdentityGuard) await authIdentityGuard();
         response = await send();
       }
     } catch {

@@ -135,11 +135,12 @@ vi.mock('@/lib/health/healthService', () => ({
 }));
 
 // ── Production imports ───────────────────────────────────────────────────────
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { CaloraProvider, useCalora } from '@/context/CaloraContext';
 import { STORAGE_SCHEMA_VERSION } from '../storageSchema';
 import { storageKeyForAccount } from '../accountStorage';
+import * as profileSync from '../profileSync';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -200,6 +201,7 @@ beforeEach(() => {
   _healthGetConnection.mockResolvedValue(unavailable);
   _healthRequestConnection.mockResolvedValue(unavailable);
   _healthSync.mockRejectedValue(new Error('Health data is unavailable on this platform.'));
+  vi.restoreAllMocks();
 });
 
 // ---------------------------------------------------------------------------
@@ -1127,5 +1129,130 @@ describe('real CaloraProvider — account switch during hydration', () => {
     const userBState = await readPersistedSnapshot(storageKeyForAccount('user-b'));
     expect(userAState?.profile?.name).toBe('User A');
     expect(userBState?.profile?.name).not.toBe('User A');
+  });
+
+  it('persists a newly completed authenticated profile after the local commit', async () => {
+    const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile').mockResolvedValue({
+      ...ACCOUNT_PROFILE,
+      consentVersion: 'calora-onboarding-v1',
+      updatedAt: new Date().toISOString(),
+    });
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: 'user-a', key: 'user-a', children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+
+    await act(async () => { await handle.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+
+    expect(saveRemoteProfile).toHaveBeenCalledWith(
+      ACCOUNT_PROFILE,
+      expect.objectContaining({ accountId: 'user-a', signal: expect.any(AbortSignal) }),
+    );
+    expect(handle.result.current.profileSyncError).toBeNull();
+    expect(handle.result.current.profileSyncReady).toBe(true);
+  });
+
+  it('does not persist a guest onboarding profile remotely', async () => {
+    const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile').mockResolvedValue({
+      ...ACCOUNT_PROFILE,
+      consentVersion: 'calora-onboarding-v1',
+      updatedAt: new Date().toISOString(),
+    });
+    const handle = renderHook(() => useCalora(), { wrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+
+    await act(async () => { await handle.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+
+    expect(saveRemoteProfile).not.toHaveBeenCalled();
+    expect(handle.result.current.profileSyncReady).toBe(true);
+  });
+
+  it('surfaces profile persistence failure and retries the pending profile', async () => {
+    const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile')
+      .mockRejectedValueOnce(new Error('profile sync unavailable'))
+      .mockResolvedValue({
+        ...ACCOUNT_PROFILE,
+        consentVersion: 'calora-onboarding-v1',
+        updatedAt: new Date().toISOString(),
+      });
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: 'user-a', key: 'user-a', children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+
+    await act(async () => { await handle.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+    expect(handle.result.current.profileSyncError).toBe('profile sync unavailable');
+    expect(handle.result.current.profileSyncReady).toBe(false);
+    expect(saveRemoteProfile).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      handle.result.current.retryProfileSync();
+    });
+    await waitFor(() => expect(saveRemoteProfile).toHaveBeenCalledTimes(2));
+  });
+
+  it('ignores a stale profile persistence completion after switching accounts', async () => {
+    let resolveSave!: (profile: any) => void;
+    const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile').mockImplementation(
+      () => new Promise<any>((resolve) => { resolveSave = resolve; }),
+    );
+    let activeAccountId: string | null = 'user-a';
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: activeAccountId, key: activeAccountId ?? 'guest', children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+    await act(async () => { void handle.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+
+    activeAccountId = 'user-b';
+    handle.rerender();
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+    await act(async () => {
+      resolveSave({ ...ACCOUNT_PROFILE, consentVersion: 'calora-onboarding-v1', updatedAt: new Date().toISOString() });
+      await new Promise<void>((res) => setTimeout(res, 0));
+    });
+
+    expect(handle.result.current.profile?.name).not.toBe('User A');
+    expect(handle.result.current.profileSyncError).toBeNull();
+  });
+
+  it('aborts completion profile persistence when switching accounts', async () => {
+    let requestSignal: AbortSignal | undefined;
+    const saveRemoteProfile = vi.spyOn(profileSync, 'saveRemoteProfile').mockImplementation(
+      (_profile, options) => {
+        requestSignal = options?.signal;
+        return new Promise<any>(() => {});
+      },
+    );
+    let activeAccountId: string | null = 'user-a';
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: activeAccountId, key: activeAccountId ?? 'guest', children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+    await act(async () => { void handle.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+    await waitFor(() => expect(requestSignal).toBeInstanceOf(AbortSignal));
+
+    activeAccountId = 'user-b';
+    handle.rerender();
+    await waitFor(() => expect(requestSignal?.aborted).toBe(true));
+    expect(saveRemoteProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('aborts completion profile persistence when the provider unmounts', async () => {
+    let requestSignal: AbortSignal | undefined;
+    vi.spyOn(profileSync, 'saveRemoteProfile').mockImplementation(
+      (_profile, options) => {
+        requestSignal = options?.signal;
+        return new Promise<any>(() => {});
+      },
+    );
+    const scopedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CaloraProvider, { accountId: 'user-a', children });
+    const handle = renderHook(() => useCalora(), { wrapper: scopedWrapper });
+    await act(async () => { await new Promise<void>((res) => setTimeout(res, 0)); });
+    await act(async () => { void handle.result.current.completeOnboarding(ACCOUNT_PROFILE, true); });
+    await waitFor(() => expect(requestSignal).toBeInstanceOf(AbortSignal));
+
+    handle.unmount();
+    expect(requestSignal?.aborted).toBe(true);
   });
 });

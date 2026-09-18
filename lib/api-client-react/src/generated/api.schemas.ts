@@ -13,6 +13,139 @@ export interface HealthStatus {
   status: string;
 }
 
+export type ProfileGoal = typeof ProfileGoal[keyof typeof ProfileGoal];
+
+
+export const ProfileGoal = {
+  lose: 'lose',
+  maintain: 'maintain',
+  gain: 'gain',
+} as const;
+
+export type ProfileActivity = typeof ProfileActivity[keyof typeof ProfileActivity];
+
+
+export const ProfileActivity = {
+  low: 'low',
+  moderate: 'moderate',
+  high: 'high',
+} as const;
+
+export type ProfileDiet = typeof ProfileDiet[keyof typeof ProfileDiet];
+
+
+export const ProfileDiet = {
+  Everything: 'Everything',
+  Vegetarian: 'Vegetarian',
+  Vegan: 'Vegan',
+  High_protein: 'High protein',
+} as const;
+
+export interface Profile {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  goal: ProfileGoal;
+  activity: ProfileActivity;
+  diet: ProfileDiet;
+  /**
+     * @minimum 13
+     * @maximum 120
+     */
+  age: number;
+  /**
+     * @minimum 80
+     * @maximum 250
+     */
+  heightCm: number;
+  /**
+     * @minimum 25
+     * @maximum 500
+     */
+  weightKg: number;
+  /**
+     * @minimum 25
+     * @maximum 500
+     */
+  targetWeightKg: number;
+  /**
+     * @minimum 800
+     * @maximum 10000
+     */
+  calorieTarget: number;
+  /** @minLength 1 */
+  consentVersion: string;
+  updatedAt: string;
+}
+
+export type ProfileInputGoal = typeof ProfileInputGoal[keyof typeof ProfileInputGoal];
+
+
+export const ProfileInputGoal = {
+  lose: 'lose',
+  maintain: 'maintain',
+  gain: 'gain',
+} as const;
+
+export type ProfileInputActivity = typeof ProfileInputActivity[keyof typeof ProfileInputActivity];
+
+
+export const ProfileInputActivity = {
+  low: 'low',
+  moderate: 'moderate',
+  high: 'high',
+} as const;
+
+export type ProfileInputDiet = typeof ProfileInputDiet[keyof typeof ProfileInputDiet];
+
+
+export const ProfileInputDiet = {
+  Everything: 'Everything',
+  Vegetarian: 'Vegetarian',
+  Vegan: 'Vegan',
+  High_protein: 'High protein',
+} as const;
+
+export interface ProfileInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  goal: ProfileInputGoal;
+  activity: ProfileInputActivity;
+  diet: ProfileInputDiet;
+  /**
+     * @minimum 13
+     * @maximum 120
+     */
+  age: number;
+  /**
+     * @minimum 80
+     * @maximum 250
+     */
+  heightCm: number;
+  /**
+     * @minimum 25
+     * @maximum 500
+     */
+  weightKg: number;
+  /**
+     * @minimum 25
+     * @maximum 500
+     */
+  targetWeightKg: number;
+  /**
+     * @minimum 800
+     * @maximum 10000
+     */
+  calorieTarget: number;
+  /** @minLength 1 */
+  consentVersion: string;
+}
+
 export interface Provenance {
   source: string;
   verifiedAt: string | null;

@@ -28,6 +28,8 @@ tags:
     description: Context-aware nutrition coaching
   - name: referral
     description: Invite-a-friend referral rewards
+  - name: profile
+    description: Durable onboarding profile
 paths:
   /healthz:
     get:
@@ -42,6 +44,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /v1/profile:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      summary: Get the current profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          description: Missing or invalid token
+        "404":
+          description: No profile saved for this account
+    put:
+      operationId: updateProfile
+      tags: [profile]
+      summary: Create or update the current profile
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "400":
+          description: Invalid profile
+        "401":
+          description: Missing or invalid token
+    delete:
+      operationId: deleteProfile
+      tags: [profile]
+      summary: Clear the current profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204":
+          description: Profile deleted
+        "401":
+          description: Missing or invalid token
   /v1/diary:
     get:
       operationId: listDiaryEntries
@@ -691,6 +742,35 @@ components:
           type: string
       required:
         - status
+    Profile:
+      type: object
+      required: [name, goal, activity, diet, age, heightCm, weightKg, targetWeightKg, calorieTarget, consentVersion, updatedAt]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        goal: { type: string, enum: [lose, maintain, gain] }
+        activity: { type: string, enum: [low, moderate, high] }
+        diet: { type: string, enum: [Everything, Vegetarian, Vegan, High protein] }
+        age: { type: integer, minimum: 13, maximum: 120 }
+        heightCm: { type: number, minimum: 80, maximum: 250 }
+        weightKg: { type: number, minimum: 25, maximum: 500 }
+        targetWeightKg: { type: number, minimum: 25, maximum: 500 }
+        calorieTarget: { type: integer, minimum: 800, maximum: 10000 }
+        consentVersion: { type: string, minLength: 1 }
+        updatedAt: { type: string, format: date-time }
+    ProfileInput:
+      type: object
+      required: [name, goal, activity, diet, age, heightCm, weightKg, targetWeightKg, calorieTarget, consentVersion]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        goal: { type: string, enum: [lose, maintain, gain] }
+        activity: { type: string, enum: [low, moderate, high] }
+        diet: { type: string, enum: [Everything, Vegetarian, Vegan, High protein] }
+        age: { type: integer, minimum: 13, maximum: 120 }
+        heightCm: { type: number, minimum: 80, maximum: 250 }
+        weightKg: { type: number, minimum: 25, maximum: 500 }
+        targetWeightKg: { type: number, minimum: 25, maximum: 500 }
+        calorieTarget: { type: integer, minimum: 800, maximum: 10000 }
+        consentVersion: { type: string, minLength: 1 }
     Provenance:
       type: object
       required: [source, verifiedAt, correctionVersion]

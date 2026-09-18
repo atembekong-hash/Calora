@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { ApiErrorMock, customFetchMock } = vi.hoisted(() => {
+const { ApiErrorMock, deleteProfileMock, getProfileMock, updateProfileMock } = vi.hoisted(() => {
   class ApiErrorMock extends Error {
     status: number;
 
@@ -12,13 +12,17 @@ const { ApiErrorMock, customFetchMock } = vi.hoisted(() => {
 
   return {
     ApiErrorMock,
-    customFetchMock: vi.fn(),
+    deleteProfileMock: vi.fn(),
+    getProfileMock: vi.fn(),
+    updateProfileMock: vi.fn(),
   };
 });
 
 vi.mock('@workspace/api-client-react', () => ({
   ApiError: ApiErrorMock,
-  customFetch: customFetchMock,
+  deleteProfile: deleteProfileMock,
+  getProfile: getProfileMock,
+  updateProfile: updateProfileMock,
 }));
 
 import {
@@ -63,7 +67,7 @@ describe('profile sync launch boundary', () => {
   });
 
   it('restores a completed account profile when local storage is empty after reinstall', async () => {
-    customFetchMock.mockResolvedValue(remoteProfile);
+    getProfileMock.mockResolvedValue(remoteProfile);
 
     const result = await reconcileRemoteProfile(null, false);
 
@@ -81,38 +85,37 @@ describe('profile sync launch boundary', () => {
         calorieTarget: 2200,
       },
     });
-    expect(customFetchMock).toHaveBeenCalledOnce();
-    expect(customFetchMock).toHaveBeenCalledWith('/v1/profile', { method: 'GET' });
+    expect(getProfileMock).toHaveBeenCalledOnce();
+    expect(updateProfileMock).not.toHaveBeenCalled();
   });
 
   it('does not mistake a missing remote profile for a completed account', async () => {
-    customFetchMock.mockRejectedValue(new ApiErrorMock(404));
+    getProfileMock.mockRejectedValue(new ApiErrorMock(404));
 
     await expect(reconcileRemoteProfile(null, false)).resolves.toEqual({
       kind: 'ready',
       profile: null,
     });
-    expect(customFetchMock).toHaveBeenCalledOnce();
+    expect(getProfileMock).toHaveBeenCalledOnce();
+    expect(updateProfileMock).not.toHaveBeenCalled();
   });
 
   it('bootstraps the server once when an older completed local snapshot exists', async () => {
-    customFetchMock
-      .mockRejectedValueOnce(new ApiErrorMock(404))
-      .mockResolvedValueOnce(remoteProfile);
+    getProfileMock.mockRejectedValue(new ApiErrorMock(404));
+    updateProfileMock.mockResolvedValue(remoteProfile);
 
     await expect(reconcileRemoteProfile(localProfile, true)).resolves.toEqual({
       kind: 'ready',
       profile: localProfile,
     });
-    expect(customFetchMock).toHaveBeenNthCalledWith(2, '/v1/profile', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(toProfileInput(localProfile)),
-    });
+    expect(updateProfileMock).toHaveBeenCalledWith(
+      toProfileInput(localProfile),
+      expect.objectContaining({ signal: undefined }),
+    );
   });
 
   it('does not turn a transport failure into first-run onboarding', async () => {
-    customFetchMock.mockRejectedValue(new ApiErrorMock(503));
+    getProfileMock.mockRejectedValue(new ApiErrorMock(503));
 
     await expect(reconcileRemoteProfile(null, false)).rejects.toMatchObject({ status: 503 });
   });
@@ -146,9 +149,9 @@ describe('profile sync launch boundary', () => {
       calorieTarget: 1800,
       consentVersion: 'calora-onboarding-v1',
     });
-    customFetchMock.mockResolvedValue(undefined);
+    deleteProfileMock.mockResolvedValue(undefined);
     await removeRemoteProfile();
-    expect(customFetchMock).toHaveBeenCalledWith('/v1/profile', { method: 'DELETE' });
+    expect(deleteProfileMock).toHaveBeenCalledOnce();
   });
 
   it('recognizes only an API 404 as an absent profile', () => {

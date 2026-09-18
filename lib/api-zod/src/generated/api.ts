@@ -18,6 +18,121 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Get the current profile
+ */
+export const getProfileResponseNameMax = 120;
+
+export const getProfileResponseAgeMin = 13;
+export const getProfileResponseAgeMax = 120;
+
+export const getProfileResponseHeightCmMin = 80;
+export const getProfileResponseHeightCmMax = 250;
+
+export const getProfileResponseWeightKgMin = 25;
+export const getProfileResponseWeightKgMax = 500;
+
+export const getProfileResponseTargetWeightKgMin = 25;
+export const getProfileResponseTargetWeightKgMax = 500;
+
+export const getProfileResponseCalorieTargetMin = 800;
+export const getProfileResponseCalorieTargetMax = 10000;
+
+
+
+
+export const GetProfileResponse = zod.object({
+  "name": zod.string().min(1).max(getProfileResponseNameMax),
+  "goal": zod.enum(['lose', 'maintain', 'gain']),
+  "activity": zod.enum(['low', 'moderate', 'high']),
+  "diet": zod.enum(['Everything', 'Vegetarian', 'Vegan', 'High protein']),
+  "age": zod.number().int().min(getProfileResponseAgeMin).max(getProfileResponseAgeMax),
+  "heightCm": zod.number().min(getProfileResponseHeightCmMin).max(getProfileResponseHeightCmMax),
+  "weightKg": zod.number().min(getProfileResponseWeightKgMin).max(getProfileResponseWeightKgMax),
+  "targetWeightKg": zod.number().min(getProfileResponseTargetWeightKgMin).max(getProfileResponseTargetWeightKgMax),
+  "calorieTarget": zod.number().int().min(getProfileResponseCalorieTargetMin).max(getProfileResponseCalorieTargetMax),
+  "consentVersion": zod.string().min(1),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Create or update the current profile
+ */
+export const updateProfileBodyNameMax = 120;
+
+export const updateProfileBodyAgeMin = 13;
+export const updateProfileBodyAgeMax = 120;
+
+export const updateProfileBodyHeightCmMin = 80;
+export const updateProfileBodyHeightCmMax = 250;
+
+export const updateProfileBodyWeightKgMin = 25;
+export const updateProfileBodyWeightKgMax = 500;
+
+export const updateProfileBodyTargetWeightKgMin = 25;
+export const updateProfileBodyTargetWeightKgMax = 500;
+
+export const updateProfileBodyCalorieTargetMin = 800;
+export const updateProfileBodyCalorieTargetMax = 10000;
+
+
+
+
+export const UpdateProfileBody = zod.object({
+  "name": zod.string().min(1).max(updateProfileBodyNameMax),
+  "goal": zod.enum(['lose', 'maintain', 'gain']),
+  "activity": zod.enum(['low', 'moderate', 'high']),
+  "diet": zod.enum(['Everything', 'Vegetarian', 'Vegan', 'High protein']),
+  "age": zod.number().int().min(updateProfileBodyAgeMin).max(updateProfileBodyAgeMax),
+  "heightCm": zod.number().min(updateProfileBodyHeightCmMin).max(updateProfileBodyHeightCmMax),
+  "weightKg": zod.number().min(updateProfileBodyWeightKgMin).max(updateProfileBodyWeightKgMax),
+  "targetWeightKg": zod.number().min(updateProfileBodyTargetWeightKgMin).max(updateProfileBodyTargetWeightKgMax),
+  "calorieTarget": zod.number().int().min(updateProfileBodyCalorieTargetMin).max(updateProfileBodyCalorieTargetMax),
+  "consentVersion": zod.string().min(1)
+})
+
+export const updateProfileResponseNameMax = 120;
+
+export const updateProfileResponseAgeMin = 13;
+export const updateProfileResponseAgeMax = 120;
+
+export const updateProfileResponseHeightCmMin = 80;
+export const updateProfileResponseHeightCmMax = 250;
+
+export const updateProfileResponseWeightKgMin = 25;
+export const updateProfileResponseWeightKgMax = 500;
+
+export const updateProfileResponseTargetWeightKgMin = 25;
+export const updateProfileResponseTargetWeightKgMax = 500;
+
+export const updateProfileResponseCalorieTargetMin = 800;
+export const updateProfileResponseCalorieTargetMax = 10000;
+
+
+
+
+export const UpdateProfileResponse = zod.object({
+  "name": zod.string().min(1).max(updateProfileResponseNameMax),
+  "goal": zod.enum(['lose', 'maintain', 'gain']),
+  "activity": zod.enum(['low', 'moderate', 'high']),
+  "diet": zod.enum(['Everything', 'Vegetarian', 'Vegan', 'High protein']),
+  "age": zod.number().int().min(updateProfileResponseAgeMin).max(updateProfileResponseAgeMax),
+  "heightCm": zod.number().min(updateProfileResponseHeightCmMin).max(updateProfileResponseHeightCmMax),
+  "weightKg": zod.number().min(updateProfileResponseWeightKgMin).max(updateProfileResponseWeightKgMax),
+  "targetWeightKg": zod.number().min(updateProfileResponseTargetWeightKgMin).max(updateProfileResponseTargetWeightKgMax),
+  "calorieTarget": zod.number().int().min(updateProfileResponseCalorieTargetMin).max(updateProfileResponseCalorieTargetMax),
+  "consentVersion": zod.string().min(1),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Clear the current profile
+ */
+export const DeleteProfileResponse = zod.void()
+
+
+/**
  * @summary List diary entries for a date
  */
 export const ListDiaryEntriesQueryParams = zod.object({

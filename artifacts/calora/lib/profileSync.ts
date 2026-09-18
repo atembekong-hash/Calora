@@ -1,9 +1,53 @@
 import {
   ApiError,
-  customFetch,
+  deleteProfile,
+  getProfile,
+  updateProfile,
+  type Profile as RemoteProfile,
+  type ProfileInput,
 } from '@workspace/api-client-react';
+import { supabase } from '@/lib/supabase';
 
 export const ONBOARDING_CONSENT_VERSION = 'calora-onboarding-v1';
+
+export type ProfileRequestOptions = {
+  accountId?: string;
+  signal?: AbortSignal;
+};
+
+class ProfileIdentityChangedError extends Error {
+  readonly name = 'ProfileIdentityChangedError';
+}
+
+function scopedRequestOptions(options: ProfileRequestOptions = {}) {
+  const { accountId, signal } = options;
+  if (!accountId) return { signal };
+  const assertIdentity = async () => {
+    if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError');
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user.id !== accountId) {
+      throw new ProfileIdentityChangedError('Profile request identity changed.');
+    }
+  };
+  const getToken = async () => {
+    await assertIdentity();
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user.id !== accountId) throw new ProfileIdentityChangedError('Profile request identity changed.');
+    return data.session.access_token;
+  };
+  const refreshToken = async () => {
+    await assertIdentity();
+    const { data } = await supabase.auth.refreshSession();
+    if (data.session?.user.id !== accountId) throw new ProfileIdentityChangedError('Profile request identity changed.');
+    return data.session.access_token;
+  };
+  return {
+    signal,
+    authIdentityGuard: assertIdentity,
+    authTokenGetter: getToken,
+    authTokenRefresher: refreshToken,
+  };
+}
 
 export type LocalProfile = {
   name: string;
@@ -20,17 +64,6 @@ export type LocalProfile = {
   fatTargetGrams?: number;
   targetMode?: 'automatic' | 'custom';
   units?: 'metric' | 'imperial';
-};
-
-export type ProfileInput = Pick<
-  LocalProfile,
-  'name' | 'goal' | 'activity' | 'diet' | 'age' | 'heightCm' | 'weightKg' | 'targetWeightKg' | 'calorieTarget'
-> & {
-  consentVersion: string;
-};
-
-export type RemoteProfile = ProfileInput & {
-  updatedAt: string | Date;
 };
 
 export function toProfileInput(profile: LocalProfile): ProfileInput {
@@ -72,24 +105,20 @@ export function mergeRemoteProfile(
   };
 }
 
-export async function saveRemoteProfile(profile: LocalProfile): Promise<RemoteProfile> {
-  return customFetch<RemoteProfile>('/v1/profile', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(toProfileInput(profile)),
-  });
+export async function saveRemoteProfile(profile: LocalProfile, options?: ProfileRequestOptions): Promise<RemoteProfile> {
+  return updateProfile(toProfileInput(profile), scopedRequestOptions(options));
 }
 
-export async function removeRemoteProfile(): Promise<void> {
-  await customFetch<void>('/v1/profile', { method: 'DELETE' });
+export async function removeRemoteProfile(options?: ProfileRequestOptions): Promise<void> {
+  await deleteProfile(scopedRequestOptions(options));
 }
 
 export function isMissingRemoteProfile(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
 }
 
-export async function loadRemoteProfile(): Promise<RemoteProfile> {
-  return customFetch<RemoteProfile>('/v1/profile', { method: 'GET' });
+export async function loadRemoteProfile(options?: ProfileRequestOptions): Promise<RemoteProfile> {
+  return getProfile(scopedRequestOptions(options));
 }
 
 export type ProfileReconciliation =
@@ -106,9 +135,10 @@ export type ProfileReconciliation =
 export async function reconcileRemoteProfile(
   localProfile: LocalProfile | null,
   localOnboardingComplete: boolean,
+  options?: ProfileRequestOptions,
 ): Promise<ProfileReconciliation> {
   try {
-    const remote = await loadRemoteProfile();
+    const remote = await loadRemoteProfile(options);
     return {
       kind: 'restored',
       profile: mergeRemoteProfile(localProfile, remote),
@@ -116,7 +146,7 @@ export async function reconcileRemoteProfile(
   } catch (error) {
     if (!isMissingRemoteProfile(error)) throw error;
     if (localProfile && localOnboardingComplete) {
-      await saveRemoteProfile(localProfile);
+      await saveRemoteProfile(localProfile, options);
     }
     return { kind: 'ready', profile: localProfile };
   }
