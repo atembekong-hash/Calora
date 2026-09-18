@@ -84,3 +84,5 @@
 - [Replit production state](replit-production-state.md) — a public deployment record can exist with no successful build and serve Replit’s “app isn’t live yet” placeholder.
 - [Branded apex artifact routing](branded-apex-artifact-routing.md) — in a multi-artifact project, the API must explicitly own `/` or the Expo artifact can serve its preview landing page at the custom domain.
 - [GitHub Actions context boundary](github-actions-context-boundary.md) — job-level env cannot use runner context; CI provider imports need deterministic non-egress sentinels.
+- [Recovery promotion boundary](recovery-promotion-boundary.md) — compare recovery against current main and promote only missing functionality; later main implementations must not be regressed by historical commits.
+- [Generated API schema ordering](generated-api-schema-ordering.md) — named OpenAPI components prevent Orval Zod bounds from being emitted after schemas that reference them.
