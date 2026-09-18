@@ -125,7 +125,7 @@ test("passes clearly when the protected branch has no required contexts", () => 
   assert.match(formatAuditReport(report), /no orphaned required checks/);
 });
 
-test("requires strict checks, reviews, administrator enforcement, and signatures", () => {
+test("requires the sole-maintainer automated merge protections", () => {
   const incomplete = auditBranchProtection({
     defaultBranch: "main",
     requiredContexts: ["Run release validation suite"],
@@ -133,14 +133,19 @@ test("requires strict checks, reviews, administrator enforcement, and signatures
     protection: {
       required_status_checks: { strict: false },
       enforce_admins: { enabled: false },
-      required_pull_request_reviews: { required_approving_review_count: 0 },
+      required_pull_request_reviews: { required_approving_review_count: 1 },
+      allow_force_pushes: { enabled: true },
+      allow_deletions: { enabled: true },
     },
-    requiredSignatures: { enabled: false },
+    requiredSignatures: { enabled: true },
   });
 
   assert.equal(incomplete.ok, false);
-  assert.equal(incomplete.policyIssues.length, 4);
-  assert.match(formatAuditReport(incomplete), /verified commit signatures/);
+  assert.equal(incomplete.policyIssues.length, 6);
+  assert.match(formatAuditReport(incomplete), /zero required approvals/);
+  assert.match(formatAuditReport(incomplete), /must not require verified commit signatures/);
+  assert.match(formatAuditReport(incomplete), /must not allow force pushes/);
+  assert.match(formatAuditReport(incomplete), /must not allow branch deletion/);
 
   const complete = auditBranchProtection({
     defaultBranch: "main",
@@ -149,9 +154,11 @@ test("requires strict checks, reviews, administrator enforcement, and signatures
     protection: {
       required_status_checks: { strict: true },
       enforce_admins: { enabled: true },
-      required_pull_request_reviews: { required_approving_review_count: 1 },
+      required_pull_request_reviews: { required_approving_review_count: 0 },
+      allow_force_pushes: { enabled: false },
+      allow_deletions: { enabled: false },
     },
-    requiredSignatures: { enabled: true },
+    requiredSignatures: { enabled: false },
   });
 
   assert.equal(complete.ok, true);

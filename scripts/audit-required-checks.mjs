@@ -210,6 +210,8 @@ export function auditBranchProtection(input) {
   const reviews = protection.required_pull_request_reviews;
   const admins = protection.enforce_admins;
   const signatures = input.requiredSignatures;
+  const forcePushes = protection.allow_force_pushes;
+  const deletions = protection.allow_deletions;
 
   if (statusChecks?.strict !== true) {
     policyIssues.push("Required status checks must require the current branch head.");
@@ -220,12 +222,22 @@ export function auditBranchProtection(input) {
   if (
     !reviews ||
     !Number.isInteger(reviews.required_approving_review_count) ||
-    reviews.required_approving_review_count < 1
+    reviews.required_approving_review_count !== 0
   ) {
-    policyIssues.push("Main must require at least one approving pull-request review.");
+    policyIssues.push(
+      "Main must require pull requests with zero required approvals for the sole-maintainer auto-merge flow.",
+    );
   }
-  if (!signatures || signatures.enabled !== true) {
-    policyIssues.push("Main must require verified commit signatures.");
+  if (!signatures || signatures.enabled !== false) {
+    policyIssues.push(
+      "Main must not require verified commit signatures for the automated PR flow.",
+    );
+  }
+  if (forcePushes?.enabled !== false) {
+    policyIssues.push("Main must not allow force pushes.");
+  }
+  if (deletions?.enabled !== false) {
+    policyIssues.push("Main must not allow branch deletion.");
   }
 
   return {
