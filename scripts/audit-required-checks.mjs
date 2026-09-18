@@ -260,14 +260,17 @@ export function activeBranchRulesets(rulesets) {
 
 /**
  * Audit every active branch ruleset against the workflow check names in this
- * checkout. A ruleset that accepts any app, omits strict head enforcement, or
- * names a check no workflow can emit is a release-blocking configuration
- * error.
+ * checkout. A ruleset that accepts any app, omits strict head enforcement,
+ * review/signature parity, or names a check no workflow can emit is a
+ * release-blocking configuration error.
  *
  * @param {{
  *   rulesets: object[],
  *   activeCheckNames: string[],
  *   expectedIntegrationId?: number,
+ *   requiredApprovingReviewCount?: number,
+ *   requireStaleReviewDismissal?: boolean,
+ *   requireVerifiedSignatures?: boolean,
  * }} input
  */
 export function auditBranchRulesets(input) {
@@ -275,6 +278,11 @@ export function auditBranchRulesets(input) {
   const activeNames = new Set(activeCheckNames);
   const expectedIntegrationId =
     input.expectedIntegrationId ?? REQUIRED_STATUS_CHECK_INTEGRATION_ID;
+  const requiredApprovingReviewCount =
+    input.requiredApprovingReviewCount ?? 1;
+  const requireStaleReviewDismissal =
+    input.requireStaleReviewDismissal ?? true;
+  const requireVerifiedSignatures = input.requireVerifiedSignatures ?? true;
   const reports = activeBranchRulesets(input.rulesets).map((ruleset) => {
     const targets = ruleset.conditions.ref_name.include
       .map((ref) => (typeof ref === "string" ? ref.trim() : ""))
@@ -282,12 +290,45 @@ export function auditBranchRulesets(input) {
     const statusRules = Array.isArray(ruleset.rules)
       ? ruleset.rules.filter((rule) => rule?.type === "required_status_checks")
       : [];
+    const pullRequestRules = Array.isArray(ruleset.rules)
+      ? ruleset.rules.filter((rule) => rule?.type === "pull_request")
+      : [];
+    const hasRequiredSignatures = Array.isArray(ruleset.rules)
+      ? ruleset.rules.some((rule) => rule?.type === "required_signatures")
+      : false;
     const requiredContexts = [];
     const missingContexts = [];
     const policyIssues = [];
 
     if (statusRules.length === 0) {
       policyIssues.push("No required status-check rule is configured.");
+    }
+    if (requireVerifiedSignatures && !hasRequiredSignatures) {
+      policyIssues.push("Verified commit signatures are required.");
+    }
+    if (pullRequestRules.length === 0) {
+      policyIssues.push("No pull-request review rule is configured.");
+    }
+
+    for (const pullRequestRule of pullRequestRules) {
+      const parameters = pullRequestRule.parameters || {};
+      if (
+        requireStaleReviewDismissal &&
+        parameters.dismiss_stale_reviews_on_push !== true
+      ) {
+        policyIssues.push(
+          "Pull-request approvals must be dismissed after new reviewable commits.",
+        );
+      }
+      if (
+        !Number.isInteger(parameters.required_approving_review_count) ||
+        parameters.required_approving_review_count <
+          requiredApprovingReviewCount
+      ) {
+        policyIssues.push(
+          `At least ${requiredApprovingReviewCount} approving pull-request review is required.`,
+        );
+      }
     }
 
     for (const statusRule of statusRules) {
@@ -519,6 +560,13 @@ async function run() {
   const branchRulesetAudit = auditBranchRulesets({
     rulesets,
     activeCheckNames,
+    requiredApprovingReviewCount:
+      protectionResponse?.required_pull_request_reviews
+        ?.required_approving_review_count ?? 1,
+    requireStaleReviewDismissal:
+      protectionResponse?.required_pull_request_reviews
+        ?.dismiss_stale_reviews === true,
+    requireVerifiedSignatures: requiredSignaturesResponse?.enabled === true,
   });
   const report = auditBranchProtection({
     defaultBranch,

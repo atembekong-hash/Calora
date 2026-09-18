@@ -176,6 +176,14 @@ test("audits active branch rulesets against workflow checks and app binding", ()
           },
         },
         rules: [
+          { type: "required_signatures" },
+          {
+            type: "pull_request",
+            parameters: {
+              dismiss_stale_reviews_on_push: true,
+              required_approving_review_count: 1,
+            },
+          },
           {
             type: "required_status_checks",
             parameters: {
@@ -248,7 +256,7 @@ test("fails active branch rulesets with stale checks, weak strictness, or wildca
   assert.deepEqual(report.reports[0].missingContexts, [
     "Verify workspace release foundation",
   ]);
-  assert.equal(report.reports[0].policyIssues.length, 2);
+  assert.equal(report.reports[0].policyIssues.length, 4);
   const combined = formatAuditReport({
     defaultBranch: "main",
     requiredContexts: [],
@@ -259,4 +267,51 @@ test("fails active branch rulesets with stale checks, weak strictness, or wildca
   assert.match(combined, /Branch-ruleset issues/);
   assert.match(combined, /bound to GitHub Actions integration/);
   assert.match(combined, /current branch head/);
+});
+
+test("requires active release branch rulesets to retain main review and signature protections", () => {
+  const report = auditBranchRulesets({
+    activeCheckNames: ["Run release validation suite"],
+    rulesets: [
+      {
+        id: 24,
+        name: "Weak release rule",
+        target: "branch",
+        enforcement: "active",
+        conditions: { ref_name: { include: ["refs/heads/release/weak"] } },
+        rules: [
+          {
+            type: "required_status_checks",
+            parameters: {
+              strict_required_status_checks_policy: true,
+              required_status_checks: [
+                { context: "Run release validation suite", integration_id: 15368 },
+              ],
+            },
+          },
+          {
+            type: "pull_request",
+            parameters: {
+              dismiss_stale_reviews_on_push: false,
+              required_approving_review_count: 0,
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(report.ok, false);
+  assert.match(
+    report.reports[0].policyIssues.join("\n"),
+    /Verified commit signatures are required/,
+  );
+  assert.match(
+    report.reports[0].policyIssues.join("\n"),
+    /approvals must be dismissed/,
+  );
+  assert.match(
+    report.reports[0].policyIssues.join("\n"),
+    /At least 1 approving pull-request review/,
+  );
 });
