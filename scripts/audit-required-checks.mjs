@@ -11,7 +11,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 
-export const AUDIT_SCHEMA_VERSION = "calora.required-check-audit.v1";
+export const AUDIT_SCHEMA_VERSION = "calora.required-check-audit.v2";
 
 function stripYamlComment(value) {
   let quote = null;
@@ -187,6 +187,52 @@ export function auditRequiredChecks(input) {
   };
 }
 
+/**
+ * Audit the release-protection controls that must accompany the required
+ * workflow context. This stays read-only so a misconfigured repository fails
+ * before a release rather than being silently repaired by CI.
+ *
+ * @param {{
+ *   defaultBranch: string,
+ *   requiredContexts: string[],
+ *   activeCheckNames: string[],
+ *   protection: object|null,
+ *   requiredSignatures: object|null,
+ * }} input
+ */
+export function auditBranchProtection(input) {
+  const report = auditRequiredChecks(input);
+  const policyIssues = [];
+  const protection = input.protection || {};
+  const statusChecks = protection.required_status_checks;
+  const reviews = protection.required_pull_request_reviews;
+  const admins = protection.enforce_admins;
+  const signatures = input.requiredSignatures;
+
+  if (statusChecks?.strict !== true) {
+    policyIssues.push("Required status checks must require the current branch head.");
+  }
+  if (admins?.enabled !== true) {
+    policyIssues.push("Required branch protection must apply to administrators.");
+  }
+  if (
+    !reviews ||
+    !Number.isInteger(reviews.required_approving_review_count) ||
+    reviews.required_approving_review_count < 1
+  ) {
+    policyIssues.push("Main must require at least one approving pull-request review.");
+  }
+  if (!signatures || signatures.enabled !== true) {
+    policyIssues.push("Main must require verified commit signatures.");
+  }
+
+  return {
+    ...report,
+    policyIssues,
+    ok: report.ok && policyIssues.length === 0,
+  };
+}
+
 export function formatAuditReport(report) {
   const lines = [
     `Required-check audit for default branch "${report.defaultBranch}"`,
@@ -210,6 +256,13 @@ export function formatAuditReport(report) {
     lines.push(
       "Review the workflow job/check name or branch protection; this audit does not change either setting.",
     );
+  }
+
+  if (report.policyIssues?.length) {
+    lines.push("Branch-protection policy issues:");
+    for (const issue of report.policyIssues) lines.push(`- ${issue}`);
+  } else if (report.policyIssues) {
+    lines.push("Branch-protection policy controls are present.");
   }
 
   return lines.join("\n");
@@ -302,16 +355,22 @@ async function run() {
   if (!defaultBranch)
     throw new Error("GitHub did not return a default branch.");
 
-  const protectionResponse = await fetchGitHubJson(
-    `${apiUrl}/repos/${repository}/branches/${encodeURIComponent(defaultBranch)}/protection/required_status_checks`,
-    token,
-    { allowNotFound: true },
-  );
+  const protectionUrl = `${apiUrl}/repos/${repository}/branches/${encodeURIComponent(defaultBranch)}/protection`;
+  const [protectionResponse, requiredSignaturesResponse] = await Promise.all([
+    fetchGitHubJson(protectionUrl, token, { allowNotFound: true }),
+    fetchGitHubJson(`${protectionUrl}/required_signatures`, token, {
+      allowNotFound: true,
+    }),
+  ]);
   const workflows = await readWorkflowSources(workflowsDirectory);
-  const report = auditRequiredChecks({
+  const report = auditBranchProtection({
     defaultBranch,
-    requiredContexts: requiredContextNames(protectionResponse || {}),
+    requiredContexts: requiredContextNames(
+      protectionResponse?.required_status_checks || {},
+    ),
     activeCheckNames: collectWorkflowCheckNames(workflows),
+    protection: protectionResponse,
+    requiredSignatures: requiredSignaturesResponse,
   });
 
   console.log(formatAuditReport(report));

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  auditBranchProtection,
   auditRequiredChecks,
   collectWorkflowCheckNames,
   extractWorkflowCheckNames,
@@ -121,4 +122,38 @@ test("passes clearly when the protected branch has no required contexts", () => 
 
   assert.equal(report.ok, true);
   assert.match(formatAuditReport(report), /no orphaned required checks/);
+});
+
+test("requires strict checks, reviews, administrator enforcement, and signatures", () => {
+  const incomplete = auditBranchProtection({
+    defaultBranch: "main",
+    requiredContexts: ["Run release validation suite"],
+    activeCheckNames: ["Run release validation suite"],
+    protection: {
+      required_status_checks: { strict: false },
+      enforce_admins: { enabled: false },
+      required_pull_request_reviews: { required_approving_review_count: 0 },
+    },
+    requiredSignatures: { enabled: false },
+  });
+
+  assert.equal(incomplete.ok, false);
+  assert.equal(incomplete.policyIssues.length, 4);
+  assert.match(formatAuditReport(incomplete), /verified commit signatures/);
+
+  const complete = auditBranchProtection({
+    defaultBranch: "main",
+    requiredContexts: ["Run release validation suite"],
+    activeCheckNames: ["Run release validation suite"],
+    protection: {
+      required_status_checks: { strict: true },
+      enforce_admins: { enabled: true },
+      required_pull_request_reviews: { required_approving_review_count: 1 },
+    },
+    requiredSignatures: { enabled: true },
+  });
+
+  assert.equal(complete.ok, true);
+  assert.deepEqual(complete.policyIssues, []);
+  assert.match(formatAuditReport(complete), /controls are present/);
 });
