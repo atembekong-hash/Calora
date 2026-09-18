@@ -57,9 +57,16 @@ jobs:
         env:
           # Deterministic non-production values for Calora's offline Vitest
           # suite. Production configuration remains required at runtime.
+          # The API's Drizzle module validates DATABASE_URL at import time.
+          # test:offline imports the DB module but excludes integration tests;
+          # the dedicated fresh-schema jobs run those against PostgreSQL.
+          DATABASE_URL: postgresql://calora-test:calora-test@127.0.0.1:1/calora_test
           EXPO_PUBLIC_SUPABASE_URL: https://calora-test.invalid
           EXPO_PUBLIC_SUPABASE_ANON_KEY: calora-vitest-anon-key
-        run: pnpm test
+        run: |
+          pnpm --filter @workspace/calora run test
+          pnpm --filter @workspace/api-server run test:offline
+          pnpm --filter @workspace/scripts run test
 
       - name: Build API production artifact
         env:

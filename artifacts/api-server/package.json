@@ -11,6 +11,7 @@
     "verify:build": "node ../../scripts/verify-built-api-provenance.mjs --artifact-dir ./dist",
     "verify:public-release": "node ./scripts/verify-public-release.mjs",
     "test:account-deletion-fence": "vitest run src/__tests__/accountDeletionFence.integration.test.ts --testNamePattern='account deletion fence'",
+    "test:offline": "vitest run --exclude 'src/__tests__/**/*.integration.test.ts'",
     "test:built-deletion-fence-release": "node --test --test-name-pattern='built API deletion-fence validation' ../../scripts/verify-api-release.test.mjs",
     "test:monitoring": "node --test ../../scripts/monitor-account-deletion-fence.test.mjs",
     "test:release-attestation": "node --test ../../scripts/provider-package-attestation.test.mjs ../../scripts/verify-api-release.test.mjs",
