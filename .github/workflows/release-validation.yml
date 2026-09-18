@@ -31,7 +31,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20.19.4
+          node-version: 24
           cache: pnpm
 
       - name: Audit required branch checks
@@ -54,6 +54,11 @@ jobs:
         run: pnpm run typecheck
 
       - name: Run complete test suite
+        env:
+          # Deterministic non-production values for Calora's offline Vitest
+          # suite. Production configuration remains required at runtime.
+          EXPO_PUBLIC_SUPABASE_URL: https://calora-test.invalid
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: calora-vitest-anon-key
         run: pnpm test
 
       - name: Build API production artifact
