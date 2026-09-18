@@ -1,3 +1,5 @@
+import { normalizeTrustedFoodImageUrl } from '@workspace/api-zod/image-source-policy';
+
 export type FoodImageSource = 'provider' | 'recipe' | 'planner' | 'restaurant_representative';
 
 export type FoodImageCategory = 'breakfast' | 'main' | 'snack' | 'drink';

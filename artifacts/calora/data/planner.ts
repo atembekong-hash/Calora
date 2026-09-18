@@ -1,4 +1,5 @@
 import type { PlannerMeal } from '@workspace/api-client-react';
+import { PLANNER_CATALOG } from '@workspace/api-zod/planner-catalog';
 import type { ShoppingItem } from '@/context/CaloraContext';
 import { addDays, dateFromKey, dateKey } from '@/lib/dates';
 import type { PlanTypeId } from '@/lib/planType';
@@ -410,8 +411,10 @@ const plannerCatalogDefinitions: PlannerMeal[] = [
   },
 ];
 
-export const plannerCatalog: PlannerMeal[] = plannerCatalogDefinitions.map((meal) => ({
+export const plannerCatalog: PlannerMeal[] = PLANNER_CATALOG.map((meal) => ({
   ...meal,
+  day: '',
+  image: meal.image ?? '',
   imageAssetKey: plannerImageKeyForMealId(meal.id),
 }));
 

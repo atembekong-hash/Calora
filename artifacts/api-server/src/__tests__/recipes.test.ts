@@ -82,7 +82,7 @@ vi.mock("../lib/rate-limit.js", () => ({
 // Imports that depend on the mocked modules (must come after vi.mock calls).
 // ---------------------------------------------------------------------------
 import express from "express";
-import recipesRouter, { parseNutritionEstimate } from "../routes/recipes.js";
+import recipesRouter, { parseNutritionEstimate, resetRecipeNutritionStateForTests } from "../routes/recipes.js";
 
 // ---------------------------------------------------------------------------
 // Minimal Express app that mounts the recipes router
@@ -180,6 +180,7 @@ describe("GET /v1/recipes/:recipeId — nutrition persistence", () => {
   let mockFetch: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    resetRecipeNutritionStateForTests();
     app = buildApp();
     mockFetch = vi.fn();
     vi.stubGlobal("fetch", mockFetch);
@@ -464,51 +465,6 @@ describe("GET /v1/recipes/:recipeId — nutrition persistence", () => {
     expect(res.body).toHaveProperty("warmupPending");
   });
 
-  it("estimates populated by the warm-up appear on a subsequent list response", async () => {
-    // Use fake timers so we can (a) expire the existing For You pool TTL to
-    // force a fresh fetch, and (b) fast-forward past the 500 ms rate-limit
-    // delay inside the warm-up without making the test slow.
-    vi.useFakeTimers();
-    // Advance the fake clock far enough to expire the TTL of any pool cached
-    // by the earlier warm-up tests (1 hour + 1 minute).
-    vi.advanceTimersByTime(1000 * 60 * 61);
-
-    const MEAL_ID = "wp-int-meal";
-
-    const SECOND_MEAL_ID = "wp-int-meal-2";
-
-    // DB miss — force the cold-cache path so estimateNutrition is called.
-    mockLimit.mockResolvedValueOnce([]);
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mealLookupResponse(MEAL_ID),
-    } as any);
-
-    // OpenAI hangs indefinitely — resolves only when the AbortController fires.
-    // The route's 300 ms AbortController deadline aborts this call, causing the
-    // catch block to return null → the route falls through to nutritionPending:true.
-    mockOpenAiCreate.mockImplementation(
-      (_params: unknown, options?: { signal?: AbortSignal }) =>
-        new Promise<never>((_resolve, reject) => {
-          options?.signal?.addEventListener("abort", () => {
-            reject(new DOMException("The operation was aborted.", "AbortError"));
-          });
-        }),
-    );
-
-    const res = await request(app).get("/v1/recipes");
-
-    // The route must return 200 with nutritionPending rather than hanging or 5xx.
-    expect(res.status).toBe(200);
-    expect(res.body.nutritionPending).toBe(true);
-    // toRecipe() initialises calories to null; a successful OpenAI estimate would
-    // overwrite it with a positive integer.  Verify no estimate was applied.
-    expect(res.body.calories).toBeNull();
-
-    // OpenAI was attempted exactly once before the deadline fired.
-    expect(mockOpenAiCreate).toHaveBeenCalledTimes(1);
-  }, 5_000);
 });
 
 // ---------------------------------------------------------------------------
@@ -531,8 +487,13 @@ function filterResponse(meals: Array<{ idMeal: string; strMeal: string }>) {
 describe("GET /v1/recipes — nutrition warm-up", () => {
   let app: ReturnType<typeof buildApp>;
   let mockFetch: ReturnType<typeof vi.fn>;
+  let firstWarmupTest = true;
 
   beforeEach(() => {
+    if (firstWarmupTest) {
+      resetRecipeNutritionStateForTests();
+      firstWarmupTest = false;
+    }
     app = buildApp();
     mockFetch = vi.fn();
     vi.stubGlobal("fetch", mockFetch);
@@ -614,7 +575,22 @@ describe("GET /v1/recipes — nutrition warm-up", () => {
     const MEAL_ID = "wp-int-meal";
 
     const SECOND_MEAL_ID = "wp-int-meal-2";
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => filterResponse([
+        { idMeal: MEAL_ID, strMeal: "Warm Meal One" },
+        { idMeal: SECOND_MEAL_ID, strMeal: "Warm Meal Two" },
+      ]),
+    } as any);
+    mockFetch.mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () => mealLookupResponse(url.includes(SECOND_MEAL_ID) ? SECOND_MEAL_ID : MEAL_ID),
+    }) as any);
+    mockOpenAiCreate
+      .mockResolvedValueOnce(openAiNutritionResponse(350, 30, 40, 12))
+      .mockResolvedValueOnce(openAiNutritionResponse(420, 28, 50, 14));
     const first = await request(app).get("/v1/recipes");
+    await vi.runAllTimersAsync();
 
     const firstById = new Map(first.body.recipes.map((recipe: { id: string }) => [recipe.id, recipe]));
     const second = await request(app).get("/v1/recipes");

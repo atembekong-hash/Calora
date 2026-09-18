@@ -16,6 +16,7 @@ export type AccountDeletionClaim =
   | { kind: "claimed"; operationId: string; stage: AccountDeletionStage };
 
 export { ACCOUNT_DELETION_FENCE_ERROR_CLASS };
+export { accountDeletionFenceSignal };
 const ACCOUNT_DELETION_FENCE_SQLSTATE = "55000";
 const ACCOUNT_DELETION_FENCE_MESSAGE = "account deletion is in progress";
 

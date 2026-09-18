@@ -17,7 +17,6 @@ import { CoachFactActivationCoordinator } from './coachFactActivationCoordinator
 import { CoachLifecycleEpoch, registerCoachLifecycleEpoch, type EpochInvalidationReason } from './coachLifecycleEpoch';
 import type { CoachFactRequestError } from './coachFactContextClient';
 import type { IntelligenceFact } from './types';
-import type { CoachFactRequestError } from './coachFactContextClient';
 
 export type CoachSendAdapterInput = {
   /** Current Calora account id (null = guest). */

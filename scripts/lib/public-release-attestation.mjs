@@ -63,7 +63,10 @@ export async function fetchPublishedReleaseAttestation(origin) {
   } catch {
     throw new Error("Published release attestation could not be fetched.");
   }
-  const location = response.headers.get("location");
+  // Some test and platform fetch implementations omit headers for a basic
+  // response. Treat that as an absent redirect location; origin and response
+  // type checks below remain mandatory.
+  const location = response.headers?.get?.("location") ?? null;
   let responseOrigin;
   let locationOrigin;
   try {

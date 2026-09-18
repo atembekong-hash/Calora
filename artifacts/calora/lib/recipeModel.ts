@@ -1,7 +1,7 @@
 import type { Recipe } from '@workspace/api-client-react';
 import type { CaloraRecipe } from '@/context/CaloraContext';
 
-export type RecipeSourceType = 'open' | 'premium' | 'calora_ai' | 'user_created' | 'imported';
+export type RecipeSourceType = 'open' | 'premium' | 'calora_catalog' | 'calora_ai' | 'user_created' | 'imported';
 export type NutritionConfidence = 'verified' | 'estimated' | 'user_entered' | 'unavailable';
 
 type RecipeLike = Recipe | CaloraRecipe;

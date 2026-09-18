@@ -8,7 +8,7 @@
 import type { CoachFactContextFactValuesDirection } from './coachFactContextFactValuesDirection';
 import type { CoachFactContextFactValuesState } from './coachFactContextFactValuesState';
 
-export type CoachFactContextFactValues = {
+export interface CoachFactContextFactValues {
   /**
      * @minimum 0
      * @maximum 10000
@@ -106,4 +106,4 @@ export type CoachFactContextFactValues = {
      * @maximum 1000
      */
   entryCount?: number;
-};
+}

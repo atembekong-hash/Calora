@@ -1162,6 +1162,32 @@ components:
       properties:
         role: { type: string, enum: [user, assistant] }
         content: { type: string, minLength: 1, maxLength: 3000 }
+    CoachFactContextFactValues:
+      type: object
+      additionalProperties: false
+      maxProperties: 8
+      properties:
+        consumedKcal: { type: integer, minimum: 0, maximum: 10000 }
+        targetKcal: { type: integer, minimum: 0, maximum: 10000 }
+        remainingKcal: { type: integer, minimum: 0, maximum: 10000 }
+        consumedG: { type: integer, minimum: 0, maximum: 1000 }
+        targetG: { type: integer, minimum: 0, maximum: 1000 }
+        remainingG: { type: integer, minimum: 0, maximum: 1000 }
+        consumedMg: { type: integer, minimum: 0, maximum: 100000 }
+        consumedOz: { type: integer, minimum: 0, maximum: 1000 }
+        breakfastPercentage: { type: number, minimum: 0, maximum: 100 }
+        lunchPercentage: { type: number, minimum: 0, maximum: 100 }
+        dinnerPercentage: { type: number, minimum: 0, maximum: 100 }
+        snackPercentage: { type: number, minimum: 0, maximum: 100 }
+        logCount: { type: integer, minimum: 0, maximum: 100 }
+        mealSlotsLogged: { type: integer, minimum: 0, maximum: 10 }
+        state: { type: string, enum: [logged, partially_logged, no_logs] }
+        loggedDayCount: { type: integer, minimum: 0, maximum: 7 }
+        qualifiedDayCount: { type: integer, minimum: 0, maximum: 7 }
+        windowDays: { type: integer, minimum: 1, maximum: 28 }
+        direction: { type: string, enum: [up, down, stable, insufficient] }
+        deltaKg: { type: number, minimum: -1000, maximum: 1000 }
+        entryCount: { type: integer, minimum: 0, maximum: 1000 }
     CoachFactContextFact:
       type: object
       additionalProperties: false
@@ -1173,31 +1199,7 @@ components:
         status: { type: string, enum: [available, limited, unknown] }
         statement: { type: string, minLength: 1, maxLength: 280 }
         values:
-          type: object
-          additionalProperties: false
-          maxProperties: 8
-          properties:
-            consumedKcal: { type: integer, minimum: 0, maximum: 10000 }
-            targetKcal: { type: integer, minimum: 0, maximum: 10000 }
-            remainingKcal: { type: integer, minimum: 0, maximum: 10000 }
-            consumedG: { type: integer, minimum: 0, maximum: 1000 }
-            targetG: { type: integer, minimum: 0, maximum: 1000 }
-            remainingG: { type: integer, minimum: 0, maximum: 1000 }
-            consumedMg: { type: integer, minimum: 0, maximum: 100000 }
-            consumedOz: { type: integer, minimum: 0, maximum: 1000 }
-            breakfastPercentage: { type: number, minimum: 0, maximum: 100 }
-            lunchPercentage: { type: number, minimum: 0, maximum: 100 }
-            dinnerPercentage: { type: number, minimum: 0, maximum: 100 }
-            snackPercentage: { type: number, minimum: 0, maximum: 100 }
-            logCount: { type: integer, minimum: 0, maximum: 100 }
-            mealSlotsLogged: { type: integer, minimum: 0, maximum: 10 }
-            state: { type: string, enum: [logged, partially_logged, no_logs] }
-            loggedDayCount: { type: integer, minimum: 0, maximum: 7 }
-            qualifiedDayCount: { type: integer, minimum: 0, maximum: 7 }
-            windowDays: { type: integer, minimum: 1, maximum: 28 }
-            direction: { type: string, enum: [up, down, stable, insufficient] }
-            deltaKg: { type: number, minimum: -1000, maximum: 1000 }
-            entryCount: { type: integer, minimum: 0, maximum: 1000 }
+          $ref: "#/components/schemas/CoachFactContextFactValues"
         unit: { type: [string, "null"], enum: [kcal, g, mg, "fl oz", "%", kg, null] }
         timeWindow: { type: string, enum: [today, recent] }
         confidence: { type: string, enum: [high, medium, limited] }

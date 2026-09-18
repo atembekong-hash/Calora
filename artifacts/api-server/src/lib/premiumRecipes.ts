@@ -176,15 +176,26 @@ function fatSecretRecipe(input: unknown): PremiumRecipe | null {
   const ingredientList = Array.isArray(ingredientRows) ? ingredientRows : ingredientRows ? [ingredientRows] : [];
   const directionList = Array.isArray(instructionRows) ? instructionRows : instructionRows ? [instructionRows] : [];
   const nutrients = nutrition as Record<string, unknown>;
+  const normalizedNutrition = [nutrients.calories, nutrients.protein, nutrients.carbohydrate, nutrients.fat]
+    .map((value) => {
+      const parsed = fatSecretNumber(value);
+      return parsed !== null && parsed >= 0 ? parsed : null;
+    });
+  const nutritionComplete = normalizedNutrition.every((value) => value !== null);
   return {
     id: `premium:FatSecret:${recipeId}`, name, image: recipeImage(raw.recipe_image) ?? recipeImage(raw.image), category: null, area: null,
     description: string(raw.recipe_description), instructions: directionList.map((row) => row && typeof row === "object" ? string((row as Record<string, unknown>).direction_description) : null).filter((v): v is string => Boolean(v)).join("\n") || null,
     ingredients: ingredientList.map(fatSecretIngredient).filter((v): v is string => Boolean(v)),
     tags: [], prepMinutes: fatSecretNumber(raw.preparation_time_min), cookMinutes: fatSecretNumber(raw.cooking_time_min), totalMinutes: null, servings: fatSecretNumber(raw.number_of_servings),
     cuisine: null, mealType: null, difficulty: null, dietary: [], allergens: [], equipment: [], fiberG: fatSecretNumber(nutrients.fiber), sodiumMg: fatSecretNumber(nutrients.sodium),
-    calories: fatSecretNumber(nutrients.calories), proteinG: fatSecretNumber(nutrients.protein), carbsG: fatSecretNumber(nutrients.carbohydrate), fatG: fatSecretNumber(nutrients.fat),
+    calories: normalizedNutrition[0], proteinG: normalizedNutrition[1], carbsG: normalizedNutrition[2], fatG: normalizedNutrition[3],
     source: "FatSecret", sourceUrl: string(raw.recipe_url) ?? `https://www.fatsecret.com/recipes/${recipeId}`, sourceType: "premium", sourceProvider: "FatSecret", sourceId: recipeId,
-    nutritionConfidence: "verified", nutritionSource: "FatSecret nutrition data",
+    nutritionConfidence: nutritionComplete ? "verified" : "unavailable",
+    nutritionSource: nutritionComplete
+      ? "FatSecret nutrition data"
+      : [nutrients.calories, nutrients.protein, nutrients.carbohydrate, nutrients.fat].some((value) => fatSecretNumber(value) !== null)
+        ? "FatSecret nutrition data (partial)"
+        : "Nutrition not supplied by FatSecret",
   };
 }
 
@@ -416,6 +427,38 @@ export function clearDuplicateRecipeImages(recipes: readonly PremiumRecipe[]): P
     return { ...recipe, image: null };
   });
 }
+function uniquePremiumRecipes(recipes: readonly PremiumRecipe[]): PremiumRecipe[] {
+  const seen = new Set<string>();
+  return recipes.filter((recipe) => {
+    if (seen.has(recipe.id)) return false;
+    seen.add(recipe.id);
+    return true;
+  });
+}
+
+function stableFreshnessHash(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+export function orderPremiumRecipePage<T extends { id: string }>(
+  recipes: T[],
+  accountId?: string,
+  freshnessDay?: string,
+): T[] {
+  if (!accountId || !freshnessDay || recipes.length < 2) return recipes;
+  const ranked = recipes
+    .map((recipe, index) => ({ recipe, index, rank: stableFreshnessHash(`${accountId}\u0000${recipe.id}`) }))
+    .sort((left, right) => left.rank - right.rank || left.index - right.index)
+    .map(({ recipe }) => recipe);
+  const dayNumber = Math.floor(Date.parse(`${freshnessDay}T00:00:00.000Z`) / 86_400_000);
+  const rotation = ((dayNumber % ranked.length) + ranked.length) % ranked.length;
+  return [...ranked.slice(rotation), ...ranked.slice(0, rotation)];
+}
 function number(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
@@ -431,7 +474,13 @@ export function normalizePremiumRecipe(input: unknown): PremiumRecipe | null {
   const name = string(raw.name);
   const sourceUrl = string(raw.sourceUrl);
   if (!providerId || !name || !sourceUrl) return null;
-  const confidence = raw.nutritionConfidence === "verified" || raw.nutritionConfidence === "estimated"
+  const rawNutritionValues = [raw.calories, raw.proteinG, raw.carbsG, raw.fatG];
+  const nutritionValues = rawNutritionValues.map((value) => {
+    const parsed = number(value);
+    return parsed !== null && parsed >= 0 ? parsed : null;
+  });
+  const nutritionComplete = nutritionValues.every((value) => value !== null && value >= 0);
+  const confidence = nutritionComplete && (raw.nutritionConfidence === "verified" || raw.nutritionConfidence === "estimated")
     ? raw.nutritionConfidence
     : "unavailable";
   return {
@@ -456,17 +505,21 @@ export function normalizePremiumRecipe(input: unknown): PremiumRecipe | null {
     equipment: strings(raw.equipment),
     fiberG: number(raw.fiberG),
     sodiumMg: number(raw.sodiumMg),
-    calories: number(raw.calories),
-    proteinG: number(raw.proteinG),
-    carbsG: number(raw.carbsG),
-    fatG: number(raw.fatG),
+    calories: nutritionValues[0],
+    proteinG: nutritionValues[1],
+    carbsG: nutritionValues[2],
+    fatG: nutritionValues[3],
     source: providerName,
     sourceUrl,
     sourceType: "premium",
     sourceProvider: providerName,
     sourceId: providerId,
     nutritionConfidence: confidence,
-    nutritionSource: string(raw.nutritionSource) ?? "Not supplied by provider",
+    nutritionSource: nutritionComplete
+      ? string(raw.nutritionSource) ?? "Provider nutrition data"
+      : rawNutritionValues.some((value) => number(value) !== null)
+        ? `${string(raw.nutritionSource) ?? "Provider nutrition data"} (partial)`
+        : "Nutrition not supplied by provider",
   };
 }
 
@@ -485,7 +538,7 @@ async function providerFetch(path: string, params: Record<string, string | numbe
   }
 }
 
-export async function listPremiumRecipes(input: { query?: string; category?: string; limit: number; offset: number }) {
+export async function listPremiumRecipes(input: { query?: string; category?: string; freshnessDay?: string; accountId?: string; limit: number; offset: number }) {
   const status = premiumProviderStatus();
   if (status.status !== "available") {
     return { ...status, recipes: [], nextOffset: null, terminalReason: status.message };
@@ -494,26 +547,38 @@ export async function listPremiumRecipes(input: { query?: string; category?: str
     const payload = await fatSecretFetch("/recipes/search/v3", { search_expression: input.query || input.category || "", max_results: input.limit, page_number: Math.floor(input.offset / input.limit) });
     const search = payload.recipes && typeof payload.recipes === "object" ? payload.recipes as Record<string, unknown> : {};
     const rows = Array.isArray(search.recipe) ? search.recipe : search.recipe ? [search.recipe] : [];
-    const recipes = clearDuplicateRecipeImages(rows.map(fatSecretRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe)));
+    const recipes = clearDuplicateRecipeImages(uniquePremiumRecipes(rows.map(fatSecretRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe))));
+    const orderedRecipes = !input.query && !input.category
+      ? orderPremiumRecipePage(recipes, input.accountId, input.freshnessDay)
+      : recipes;
     const total = fatSecretNumber(search.total_results);
+    const providerPageBoundary = (Math.floor(input.offset / input.limit) + 1) * input.limit;
     const nextOffset = total != null
-      ? input.offset + recipes.length < total ? input.offset + recipes.length : null
-      : recipes.length === input.limit ? input.offset + recipes.length : null;
+      ? providerPageBoundary < total ? providerPageBoundary : null
+      : rows.length === input.limit ? providerPageBoundary : null;
     return {
       ...status,
-      recipes,
+      recipes: orderedRecipes,
       nextOffset,
-      terminalReason: nextOffset === null ? "No more Premium recipes are available from the provider." : null,
+      terminalReason: nextOffset === null
+        ? total != null ? "No more recipes are available from the provider." : "The provider did not supply another page."
+        : null,
     };
   }
   const payload = await providerFetch("/recipes", input);
-  const recipes = clearDuplicateRecipeImages((payload?.recipes ?? []).map(normalizePremiumRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe)));
-  const nextOffset = payload?.nextOffset ?? (recipes.length === input.limit ? input.offset + recipes.length : null);
+  const recipes = clearDuplicateRecipeImages(uniquePremiumRecipes((payload?.recipes ?? []).map(normalizePremiumRecipe).filter((recipe): recipe is PremiumRecipe => Boolean(recipe))));
+  const orderedRecipes = !input.query && !input.category
+    ? orderPremiumRecipePage(recipes, input.accountId, input.freshnessDay)
+    : recipes;
+  const providerOffset = number(payload?.nextOffset);
+  const nextOffset = providerOffset != null && providerOffset > input.offset ? providerOffset : null;
   return {
     ...status,
-    recipes,
+    recipes: orderedRecipes,
     nextOffset,
-    terminalReason: nextOffset === null ? "No more Premium recipes are available from the provider." : null,
+    terminalReason: nextOffset === null
+      ? payload?.nextOffset != null ? "The provider returned an invalid next-page cursor." : "The provider did not supply another page."
+      : null,
   };
 }
 

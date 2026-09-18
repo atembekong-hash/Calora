@@ -156,9 +156,9 @@ describe('Recipes Discover layout contracts', () => {
   });
 
   it('keeps Discover loading after a provider page cycle instead of deduplicating into exhaustion', () => {
-    expect(source).toContain('return [...current, ...page];');
-    expect(source).toContain('visibleRemote.map((recipe, index)');
-    expect(source).toContain('key={`${recipe.id}-${index}`}');
+    expect(source).toContain('return mergeRecipePages(current, page);');
+    expect(source).toContain('visibleRemote.map((recipe)');
+    expect(source).toContain('key={recipe.id}');
   });
 
   it('keeps every recipe submenu inside a bounded vertical scroll viewport', () => {

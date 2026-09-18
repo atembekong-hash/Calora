@@ -25,6 +25,7 @@ export const ListDiaryEntriesQueryParams = zod.object({
 })
 
 
+
 export const listDiaryEntriesResponseEntriesItemOneCaloriesMin = 0;
 
 export const listDiaryEntriesResponseEntriesItemOneProteinGMin = 0;
@@ -39,6 +40,7 @@ export const listDiaryEntriesResponseEntriesItemOneConfidenceMax = 100;
 export const listDiaryEntriesResponseEntriesItemOneImageUrlMax = 2048;
 
 export const listDiaryEntriesResponseEntriesItemOneImageSourceMax = 80;
+
 
 
 export const ListDiaryEntriesResponse = zod.object({
@@ -86,6 +88,7 @@ export const createDiaryEntryBodyImageUrlMax = 2048;
 export const createDiaryEntryBodyImageSourceMax = 80;
 
 
+
 export const CreateDiaryEntryBody = zod.object({
   "entryDate": zod.coerce.date(),
   "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']),
@@ -104,6 +107,7 @@ export const CreateDiaryEntryBody = zod.object({
 })
 
 
+
 export const createDiaryEntryResponseOneCaloriesMin = 0;
 
 export const createDiaryEntryResponseOneProteinGMin = 0;
@@ -118,6 +122,7 @@ export const createDiaryEntryResponseOneConfidenceMax = 100;
 export const createDiaryEntryResponseOneImageUrlMax = 2048;
 
 export const createDiaryEntryResponseOneImageSourceMax = 80;
+
 
 
 export const CreateDiaryEntryResponse = zod.object({
@@ -157,6 +162,7 @@ export const updateDiaryEntryBodyCarbsGMin = 0;
 export const updateDiaryEntryBodyFatGMin = 0;
 
 
+
 export const UpdateDiaryEntryBody = zod.object({
   "meal": zod.enum(['Breakfast', 'Lunch', 'Dinner', 'Snack']).optional(),
   "serving": zod.string().optional(),
@@ -167,6 +173,7 @@ export const UpdateDiaryEntryBody = zod.object({
   "notes": zod.string().nullish(),
   "clientUpdatedAt": zod.coerce.date().optional()
 })
+
 
 
 export const updateDiaryEntryResponseOneCaloriesMin = 0;
@@ -183,6 +190,7 @@ export const updateDiaryEntryResponseOneConfidenceMax = 100;
 export const updateDiaryEntryResponseOneImageUrlMax = 2048;
 
 export const updateDiaryEntryResponseOneImageSourceMax = 80;
+
 
 
 export const UpdateDiaryEntryResponse = zod.object({
@@ -225,11 +233,15 @@ export const searchFoodsQueryLimitDefault = 20;
 export const searchFoodsQueryLimitMax = 50;
 
 
+
 export const SearchFoodsQueryParams = zod.object({
   "q": zod.coerce.string().min(searchFoodsQueryQMin),
   "barcode": zod.coerce.string().optional(),
   "limit": zod.coerce.number().int().min(1).max(searchFoodsQueryLimitMax).default(searchFoodsQueryLimitDefault)
 })
+
+
+
 
 
 export const SearchFoodsResponse = zod.object({
@@ -263,6 +275,7 @@ export const SearchFoodsResponse = zod.object({
  */
 
 export const syncOutboxBodyMutationsMax = 100;
+
 
 
 export const SyncOutboxBody = zod.object({
@@ -305,6 +318,7 @@ export const syncOutboxResponseRecordsItemMemoryIdMax = 128;
 export const syncOutboxResponseRecordsItemPlannerMealIdMax = 128;
 
 export const syncOutboxResponseRecordsItemSourceRecipeIdMax = 128;
+
 
 
 export const SyncOutboxResponse = zod.object({
@@ -358,6 +372,7 @@ export const listRecipesQueryOffsetDefault = 0;
 export const listRecipesQueryOffsetMin = 0;
 
 
+
 export const ListRecipesQueryParams = zod.object({
   "query": zod.coerce.string().max(listRecipesQueryQueryMax).optional().describe('Search meal names. For TheMealDB Premium V2 ingredient matching, provide two to four comma-separated ingredients.'),
   "category": zod.coerce.string().max(listRecipesQueryCategoryMax).optional(),
@@ -400,6 +415,7 @@ export const generateRecipePhotoBodyTitleMax = 100;
 export const generateRecipePhotoBodyDescriptionMax = 300;
 
 
+
 export const GenerateRecipePhotoBody = zod.object({
   "title": zod.string().min(1).max(generateRecipePhotoBodyTitleMax),
   "description": zod.string().max(generateRecipePhotoBodyDescriptionMax).optional()
@@ -428,6 +444,7 @@ export const RefreshRecipePhotoUrlResponse = zod.object({
 /**
  * @summary Get an open-source recipe detail
  */
+
 
 
 export const GetRecipeParams = zod.object({
@@ -462,6 +479,7 @@ export const listPremiumRecipesQueryQueryMax = 120;
 
 export const listPremiumRecipesQueryCategoryMax = 80;
 
+export const listPremiumRecipesQueryFreshnessDayRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
 export const listPremiumRecipesQueryLimitDefault = 18;
 export const listPremiumRecipesQueryLimitMax = 30;
 
@@ -469,9 +487,11 @@ export const listPremiumRecipesQueryOffsetDefault = 0;
 export const listPremiumRecipesQueryOffsetMin = 0;
 
 
+
 export const ListPremiumRecipesQueryParams = zod.object({
   "query": zod.coerce.string().max(listPremiumRecipesQueryQueryMax).optional(),
   "category": zod.coerce.string().max(listPremiumRecipesQueryCategoryMax).optional(),
+  "freshnessDay": zod.coerce.string().regex(listPremiumRecipesQueryFreshnessDayRegExp).optional().describe('UTC browsing-session day used for deterministic default-catalogue freshness'),
   "limit": zod.coerce.number().int().min(1).max(listPremiumRecipesQueryLimitMax).default(listPremiumRecipesQueryLimitDefault),
   "offset": zod.coerce.number().int().min(listPremiumRecipesQueryOffsetMin).default(listPremiumRecipesQueryOffsetDefault)
 })
@@ -524,6 +544,7 @@ export const ListPremiumRecipesResponse = zod.object({
 /**
  * @summary Get a Premium recipe detail
  */
+
 
 
 export const GetPremiumRecipeParams = zod.object({
@@ -581,6 +602,7 @@ export const listRestaurantFoodsQueryOffsetDefault = 0;
 export const listRestaurantFoodsQueryOffsetMin = 0;
 
 
+
 export const ListRestaurantFoodsQueryParams = zod.object({
   "query": zod.coerce.string().min(listRestaurantFoodsQueryQueryMin).max(listRestaurantFoodsQueryQueryMax),
   "limit": zod.coerce.number().int().min(1).max(listRestaurantFoodsQueryLimitMax).default(listRestaurantFoodsQueryLimitDefault),
@@ -614,6 +636,7 @@ export const listRestaurantFoodsResponseFoodsItemServingsItemFiberGMin = 0;
 export const listRestaurantFoodsResponseFoodsItemServingsItemSugarGMin = 0;
 
 export const listRestaurantFoodsResponseFoodsItemServingsItemSodiumMgMin = 0;
+
 
 
 export const ListRestaurantFoodsResponse = zod.object({
@@ -659,6 +682,7 @@ export const ListRestaurantFoodsResponse = zod.object({
  */
 
 
+
 export const GetRestaurantFoodParams = zod.object({
   "sourceId": zod.coerce.string().min(1)
 })
@@ -690,6 +714,7 @@ export const getRestaurantFoodResponseServingsItemFiberGMin = 0;
 export const getRestaurantFoodResponseServingsItemSugarGMin = 0;
 
 export const getRestaurantFoodResponseServingsItemSodiumMgMin = 0;
+
 
 
 export const GetRestaurantFoodResponse = zod.object({
@@ -741,6 +766,7 @@ export const analyzeCaptureBodyTextInputMax = 2000;
 export const analyzeCaptureBodyAudioBase64Max = 8000000;
 
 export const analyzeCaptureBodyClientSessionIdMax = 120;
+
 
 
 export const AnalyzeCaptureBody = zod.object({
@@ -801,6 +827,7 @@ export const analyzeCaptureResponseComponentsItemTwoConfidenceDimensionsPreparat
 export const analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesLowMin = 0;
 
 export const analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesHighMin = 0;
+
 
 
 export const AnalyzeCaptureResponse = zod.object({
@@ -889,6 +916,7 @@ export const generatePlannerBodyProfileCalorieTargetMin = 800;
 export const generatePlannerBodyProfileCalorieTargetMax = 10000;
 
 
+
 export const GeneratePlannerBody = zod.object({
   "weekStart": zod.coerce.date(),
   "profile": zod.object({
@@ -909,6 +937,7 @@ export const generatePlannerResponseMealsItemCarbsGMin = 0;
 export const generatePlannerResponseMealsItemFatGMin = 0;
 
 export const generatePlannerResponseMealsItemPrepMinutesMin = 0;
+
 
 
 export const GeneratePlannerResponse = zod.object({
@@ -966,6 +995,43 @@ export const respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMin 
 export const respondCoachFactContextBodyFactContextFactsItemValuesRemainingGMax = 1000;
 
 export const respondCoachFactContextBodyFactContextFactsItemValuesConsumedMgMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesConsumedMgMax = 100000;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesConsumedOzMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesConsumedOzMax = 1000;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesBreakfastPercentageMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesBreakfastPercentageMax = 100;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesLunchPercentageMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesLunchPercentageMax = 100;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesDinnerPercentageMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesDinnerPercentageMax = 100;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesSnackPercentageMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesSnackPercentageMax = 100;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesLogCountMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesLogCountMax = 100;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMax = 10;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesLoggedDayCountMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesLoggedDayCountMax = 7;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesQualifiedDayCountMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesQualifiedDayCountMax = 7;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesWindowDaysMax = 28;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesDeltaKgMin = -1000;
+export const respondCoachFactContextBodyFactContextFactsItemValuesDeltaKgMax = 1000;
+
+export const respondCoachFactContextBodyFactContextFactsItemValuesEntryCountMin = 0;
+export const respondCoachFactContextBodyFactContextFactsItemValuesEntryCountMax = 1000;
+
 export const respondCoachFactContextBodyFactContextFactsItemLimitationsItemMax = 180;
 
 export const respondCoachFactContextBodyFactContextFactsItemLimitationsMax = 3;
@@ -980,6 +1046,7 @@ export const respondCoachFactContextBodyFactContextLimitationsMax = 6;
 export const respondCoachFactContextBodyMessagesItemContentMax = 3000;
 
 export const respondCoachFactContextBodyMessagesMax = 12;
+
 
 
 export const RespondCoachFactContextBody = zod.object({
@@ -1154,6 +1221,7 @@ export const getReferralResponseCodeMin = 4;
 export const getReferralResponseCodeMax = 16;
 
 
+
 export const GetReferralResponse = zod.object({
   "code": zod.string().min(getReferralResponseCodeMin).max(getReferralResponseCodeMax),
   "inviteUrl": zod.string().url(),
@@ -1178,6 +1246,7 @@ export const GetReferralResponse = zod.object({
  */
 export const redeemReferralBodyCodeMin = 4;
 export const redeemReferralBodyCodeMax = 16;
+
 
 
 export const RedeemReferralBody = zod.object({
@@ -1229,6 +1298,7 @@ export const syncFirstDiaryEntryBodyImageUrlMax = 2048;
 export const syncFirstDiaryEntryBodyImageSourceMax = 80;
 
 
+
 export const SyncFirstDiaryEntryBody = zod.object({
   "captureSessionId": zod.string().uuid().describe('Server-issued capture session id returned by \/v1\/capture\/analyze\nfor an authenticated request. The synced entry must correspond to\nthat server-recorded analysis; fabricated payloads are rejected.\n'),
   "entryDate": zod.coerce.date(),
@@ -1268,56 +1338,3 @@ export const ActivateReferralResponse = zod.object({
 })
 
 
-/**
- * Removes the account profile so a subsequent launch starts onboarding again.
- * @summary Clear the current profile
- */
-export const DeleteProfileResponse = zod.void()
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesBreakfastPercentageMax = 100;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesDinnerPercentageMax = 100;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesLunchPercentageMax = 100;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesLogCountMax = 100;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesBreakfastPercentageMin = 0;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesConsumedMgMax = 100000;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesConsumedOzMin = 0;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesQualifiedDayCountMin = 0;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesDinnerPercentageMin = 0;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMin = 0;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesLoggedDayCountMin = 0;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesMealSlotsLoggedMax = 10;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesWindowDaysMax = 28;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesSnackPercentageMin = 0;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesQualifiedDayCountMax = 7;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesSnackPercentageMax = 100;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesLoggedDayCountMax = 7;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesEntryCountMax = 1000;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesConsumedOzMax = 1000;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesDeltaKgMax = 1000;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesEntryCountMin = 0;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesLunchPercentageMin = 0;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesDeltaKgMin = -1000;
-
-export const respondCoachFactContextBodyFactContextFactsItemValuesLogCountMin = 0;

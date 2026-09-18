@@ -648,8 +648,46 @@ router.post("/v1/coach/fact-context/respond", async (req, res): Promise<void> =>
   }
 
   let rate: unknown;
+  try {
+    // Fact Context is a controlled paid-provider path, so a limiter outage must
+    // deny execution rather than fall back to an unmetered authenticated call.
+    rate = await checkRateLimit(
+      `coach-fact-context:user:${user.id}`,
+      40,
+      60 * 60,
+      { failClosed: true, rethrowAccountDeletionFence: true },
+    );
+  } catch (error) {
+    if (classifyAccountDeletionError(error)) {
+      logger.warn(
+        accountDeletionFenceSignal("/v1/coach/fact-context/respond"),
+        "Account deletion fence rejected Coach Fact Context request",
+      );
+    }
+    res.status(503).json({ message: "Coach Fact Context request protection could not be verified." });
+    return;
+  }
+  if (!isVerifiedRateLimitDecision(rate) || rate.degraded) {
+    res.status(503).json({ message: "Coach Fact Context request protection could not be verified." });
+    return;
+  }
+  if (!rate.allowed) {
+    res.setHeader("Retry-After", String(rate.retryAfterSecs));
+    res.status(429).json({ message: "Too many Coach requests. Please wait before trying again.", retryAfterSecs: rate.retryAfterSecs });
+    return;
+  }
 
+  // Risk scan — every turn in the conversation is checked before any fact
+  // context leaves the device boundary.
+  if (messages.some((m) => {
     const riskText = normalizeRiskText(m.content);
+    return riskPatterns.some((pattern) => pattern.test(riskText));
+  })) {
+    res.json(RespondCoachFactContextResponse.parse(safeResponse(factContext.requestNonce, "risk")));
+    return;
+  }
+
+  try {
     const completion = await createDarkCoachCompletion({
       model: COACH_MODEL,
       max_completion_tokens: 900,

@@ -341,6 +341,9 @@ type CaloraContextValue = {
   hydrated: boolean;
   hydrationError: string | null;
   hydrationErrorKind: HydrationErrorKind | null;
+  profileSyncReady: boolean;
+  profileSyncError: string | null;
+  retryProfileSync: () => void;
   themePreference: ThemePreference;
   mode: 'light' | 'dark';
   colors: typeof colors.light;
@@ -915,6 +918,9 @@ export function CaloraProvider({
        };
      }
   });
+  const profileSyncReady = hydrated && !hydrationError;
+  const profileSyncError = hydrationError;
+  const retryProfileSync = retryHydration;
 
   // A provider is keyed by the active account/guest scope. Reconcile precisely
   // once after each successful hydration so schedules from the previous scope
@@ -1276,6 +1282,9 @@ export function CaloraProvider({
     hydrated,
     hydrationError,
     hydrationErrorKind,
+    profileSyncReady,
+    profileSyncError,
+    retryProfileSync,
     themePreference,
     mode,
     colors: mode === 'dark' ? colors.dark : colors.light,
@@ -1536,8 +1545,7 @@ export function CaloraProvider({
         );
         const nextOutbox = [...outboxRef.current, {
           id: makeId('mutation'),
-          entity: 'diaryEntry' as const,
-          operation: 'upsert' as const,
+          entity: 'diaryEntry' as const, operation: 'upsert' as const,
           createdAt: acceptedAt,
         }];
         const persistedSnapshot = {

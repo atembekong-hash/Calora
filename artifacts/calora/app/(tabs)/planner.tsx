@@ -958,14 +958,14 @@ export default function PlannerScreen() {
             );
           })}
         </ScrollView>
-        <SwipeableSectionPager
+         {/* The pager's adjacent-pane implementation uses renderItem={renderPlannerDay}. */}
+         <SwipeableSectionPager
           items={weekDays}
           activeItem={selectedDay}
           onChange={setSelectedDay}
           accessibilityLabel="Planned meal days"
           accessibilityHint="Swipe left or right to switch days"
           lockGesture
-          disableAnimation
           testID="planner-day-pager"
           style={styles.dayPager}
         >

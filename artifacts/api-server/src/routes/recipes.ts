@@ -617,6 +617,18 @@ export function resetRecipeAiBudgetForTests(): void {
   recipeAiCallsInWindow = 0;
 }
 
+export function resetRecipeNutritionStateForTests(): void {
+  nutritionCache.clear();
+  nutritionRefreshInFlight.clear();
+  nutritionMissInFlight.clear();
+  warmupInProgress = false;
+  warmupDone = false;
+  warmupPendingForPool = false;
+  forYouCache = [];
+  forYouCacheTime = 0;
+  forYouFetchPromise = null;
+}
+
 /**
  * Re-estimate nutrition for a meal in the background and update both caches.
  * Clears the in-flight guard when done (success or failure).
@@ -699,6 +711,7 @@ let warmupInProgress = false;
 // Flips to true once the first warm-up job finishes; resets when the pool TTL
 // expires so a fresh pool always triggers a new warm cycle.
 let warmupDone = false;
+let warmupPendingForPool = false;
 
 /**
  * Silently pre-populate the nutrition cache for the first page of the "For you"
@@ -910,6 +923,7 @@ async function getForYouMeals(): Promise<Meal[]> {
       forYouFetchPromise = null;
       // Reset warm-up state so the fresh pool always triggers a new cycle.
       warmupDone = false;
+      warmupPendingForPool = true;
       warmupInProgress = false;
       // Fire-and-forget: warm the nutrition cache so first-visit cards show
       // calorie estimates without the user ever opening a detail sheet.
@@ -962,7 +976,8 @@ router.get("/v1/recipes", async (req, res) => {
     });
     // Let clients know they should refetch soon if the background warm-up
     // has not yet populated estimates for the first page of results.
-    const warmupPending = !warmupDone;
+    const warmupPending = !warmupDone || warmupPendingForPool;
+    if (warmupPendingForPool) queueMicrotask(() => { warmupPendingForPool = false; });
     const nextOffset = offset + recipes.length < meals.length ? offset + recipes.length : null;
     res.json({
       source: SOURCE,

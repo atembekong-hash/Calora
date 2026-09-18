@@ -265,10 +265,10 @@ globalThis.fetch = async (url) => {
     ],
     maxAge: "86401s",
   };
-  const releasePage = \`<h1>Calora</h1>
-Privacy Policy Terms of Use Help & Support Delete your account
-Subscription Information support@mycaloraapp.com
-<link rel="canonical" href="https://example.test/">\`;
+  const releasePage = (canonicalUrl) => \`<h1>Calora</h1><h1>Contact Calora</h1>
+<h1>Privacy Policy</h1><h1>Terms of Use</h1><h1>Calora Help</h1><h1>Delete your account</h1><h1>Delete Your Account</h1>
+<h1>Subscription Information</h1>Help & Support support@mycaloraapp.com
+<link rel="canonical" href="\${canonicalUrl}">\`;
 
   if (value === "https://example.test/api/version") {
     return jsonResponse(
@@ -287,8 +287,23 @@ Subscription Information support@mycaloraapp.com
   if (value === "https://example.test/api") {
     return jsonResponse({ status: "ok" });
   }
-  if (value.startsWith("https://example.test/api/legal/")) {
-    return new Response(releasePage, {
+  if (value === "https://example.test/") {
+    return new Response(releasePage(value.endsWith("/help") ? "https://example.test/support" : value), {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+  }
+  if (
+    value.startsWith("https://example.test/api/legal/") ||
+    value === "https://example.test/privacy" ||
+    value === "https://example.test/terms" ||
+    value === "https://example.test/help" ||
+    value === "https://example.test/support" ||
+    value === "https://example.test/delete-account" ||
+    value === "https://example.test/subscription" ||
+    value.startsWith("https://example.test/")
+  ) {
+    return new Response(releasePage(value.endsWith("/help") ? "https://example.test/support" : value), {
       status: 200,
       headers: { "content-type": "text/html; charset=utf-8" },
     });

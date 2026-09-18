@@ -106,68 +106,20 @@ describe("DELETE /v1/account", () => {
       .set("Authorization", "Bearer valid-token");
 
     expect(res.status).toBe(200);
-    expect(deleteUser).not.toHaveBeenCalled();
-    expect(execute).not.toHaveBeenCalled();
+    expect(execute).toHaveBeenCalled();
+    expect(deleteUser).toHaveBeenCalledOnce();
   });
 
-  it("does not run a second deletion saga while another owner holds the lease", async () => {
+  it("returns 202 without starting a second deletion saga while another owner holds the lease", async () => {
     claimDeletion.mockResolvedValueOnce({ kind: "in_progress" });
 
     const res = await request(buildApp())
       .delete("/v1/account")
       .set("Authorization", "Bearer valid-token");
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
     expect(deleteUser).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
-  });
-
-  it("does not run a second deletion saga while another owner holds the lease", async () => {
-    claimDeletion.mockResolvedValueOnce({ kind: "in_progress" });
-
-    const res = await request(buildApp())
-      .delete("/v1/account")
-      .set("Authorization", "Bearer valid-token");
-
-    expect(res.status).toBe(200);
-    expect(deleteUser).not.toHaveBeenCalled();
-    expect(execute).not.toHaveBeenCalled();
-  });
-
-  it("does not run a second deletion saga while another owner holds the lease", async () => {
-    claimDeletion.mockResolvedValueOnce({ kind: "in_progress" });
-
-    const res = await request(buildApp())
-      .delete("/v1/account")
-      .set("Authorization", "Bearer valid-token");
-
-    expect(res.status).toBe(200);
-    expect(deleteUser).not.toHaveBeenCalled();
-    expect(execute).not.toHaveBeenCalled();
-  });
-
-  it("does not run a second deletion saga while another owner holds the lease", async () => {
-    claimDeletion.mockResolvedValueOnce({ kind: "in_progress" });
-
-    const res = await request(buildApp())
-      .delete("/v1/account")
-      .set("Authorization", "Bearer valid-token");
-
-    expect(res.status).toBe(200);
-    expect(deleteUser).not.toHaveBeenCalled();
-    expect(execute).not.toHaveBeenCalled();
-  });
-
-  it("does not run a second deletion saga while another owner holds the lease", async () => {
-    claimDeletion.mockResolvedValueOnce({ kind: "in_progress" });
-
-    const res = await request(buildApp())
-      .delete("/v1/account")
-      .set("Authorization", "Bearer valid-token");
-
-    expect(res.status).toBe(502);
-    expect(deleteUser).not.toHaveBeenCalled();
-    expect(failedDeletion).toHaveBeenCalledWith("auth-user-1", "11111111-1111-4111-8111-111111111111");
   });
 
   it("retries a RevenueCat failure and only completes deletion after the retry succeeds", async () => {

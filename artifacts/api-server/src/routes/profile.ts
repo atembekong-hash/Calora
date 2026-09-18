@@ -7,12 +7,24 @@
  */
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { UpdateProfileBody } from "@workspace/api-zod";
+import { z } from "zod";
 import { db, profilesTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 
 const router: IRouter = Router();
+const UpdateProfileBody = z.object({
+  name: z.string().min(1).max(120),
+  goal: z.enum(["lose", "maintain", "gain"]),
+  activity: z.enum(["low", "moderate", "high"]),
+  diet: z.enum(["Everything", "Vegetarian", "Vegan", "High protein"]),
+  age: z.number().int().min(13).max(120),
+  heightCm: z.number().min(80).max(250),
+  weightKg: z.number().min(25).max(500),
+  targetWeightKg: z.number().min(25).max(500),
+  calorieTarget: z.number().int().min(800).max(10000),
+  consentVersion: z.string().min(1),
+});
 
 function serializeProfile(
   row: typeof profilesTable.$inferSelect,

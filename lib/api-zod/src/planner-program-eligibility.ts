@@ -13,7 +13,7 @@ export type ProgramEligibleMeal = {
   ingredients: string[];
 };
 
-const animalIngredients = /\b(chicken|turkey|beef|pork|lamb|salmon|tuna|prawn|shrimp|fish|anchov|oyster|egg|dairy milk|cow'?s milk|greek yogurt|cheese|feta|parmesan|butter|cream|honey)\b/i;
+const animalIngredients = /\b(chicken|turkey|beef|pork|lamb|salmon|tuna|prawn|shrimp|fish|anchov|oyster|eggs?|dairy milk|cow'?s milk|yogurt|cheese|feta|parmesan|butter|cream|honey)\b/i;
 const mediterraneanIngredients = /\b(salmon|tuna|prawn|lentil|chickpea|bean|quinoa|olive|tomato|spinach|kale|cucumber|avocado|berry|chia|nut|seed|lemon|vegetable)\b/i;
 const antiInflammatoryIngredients = /\b(salmon|tuna|prawn|berry|chia|walnut|almond|spinach|kale|olive|avocado|ginger|turmeric|tomato|broccoli|edamame|lentil|chickpea)\b/i;
 const budgetStaples = /\b(oat|egg|lentil|bean|chickpea|rice|banana|hummus|tofu|vegetable|pasta|peanut)\b/i;

@@ -505,7 +505,7 @@ router.post("/v1/sync", async (req, res) => {
           // together. In particular, a ledger failure must not leave an entry
           // that a retry would treat as already processed (or vice versa).
           await db.transaction(async (tx) => {
-            const claim = await claimDiaryMutation(tx, userId, mutation, clientId);
+            const claim = await claimDiaryMutation(tx, userId, mutation, v.clientId);
             if (claim === "stale") return "stale";
             if (claim === "accepted") return "accepted";
 

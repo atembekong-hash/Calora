@@ -1,10 +1,6 @@
 import {
   ApiError,
-  deleteProfile,
-  getProfile,
-  updateProfile,
-  type Profile as RemoteProfile,
-  type ProfileInput,
+  customFetch,
 } from '@workspace/api-client-react';
 
 export const ONBOARDING_CONSENT_VERSION = 'calora-onboarding-v1';
@@ -24,6 +20,17 @@ export type LocalProfile = {
   fatTargetGrams?: number;
   targetMode?: 'automatic' | 'custom';
   units?: 'metric' | 'imperial';
+};
+
+export type ProfileInput = Pick<
+  LocalProfile,
+  'name' | 'goal' | 'activity' | 'diet' | 'age' | 'heightCm' | 'weightKg' | 'targetWeightKg' | 'calorieTarget'
+> & {
+  consentVersion: string;
+};
+
+export type RemoteProfile = ProfileInput & {
+  updatedAt: string | Date;
 };
 
 export function toProfileInput(profile: LocalProfile): ProfileInput {
@@ -66,11 +73,15 @@ export function mergeRemoteProfile(
 }
 
 export async function saveRemoteProfile(profile: LocalProfile): Promise<RemoteProfile> {
-  return updateProfile(toProfileInput(profile));
+  return customFetch<RemoteProfile>('/v1/profile', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(toProfileInput(profile)),
+  });
 }
 
 export async function removeRemoteProfile(): Promise<void> {
-  await deleteProfile();
+  await customFetch<void>('/v1/profile', { method: 'DELETE' });
 }
 
 export function isMissingRemoteProfile(error: unknown): boolean {
@@ -78,7 +89,7 @@ export function isMissingRemoteProfile(error: unknown): boolean {
 }
 
 export async function loadRemoteProfile(): Promise<RemoteProfile> {
-  return getProfile();
+  return customFetch<RemoteProfile>('/v1/profile', { method: 'GET' });
 }
 
 export type ProfileReconciliation =

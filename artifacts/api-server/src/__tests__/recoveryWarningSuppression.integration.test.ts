@@ -5,8 +5,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { PoolClient } from "pg";
 
-const { deleteUser, warn } = vi.hoisted(() => ({
+const { deleteUser, info, warn } = vi.hoisted(() => ({
   deleteUser: vi.fn(),
+  info: vi.fn(),
   warn: vi.fn(),
 }));
 
@@ -21,7 +22,7 @@ vi.mock("../lib/revenuecat.js", () => ({
 }));
 
 vi.mock("../lib/logger.js", () => ({
-  logger: { warn },
+  logger: { info, warn },
   noteSuppressedRecoveryWarning: vi.fn(),
 }));
 

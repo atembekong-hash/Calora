@@ -552,7 +552,6 @@ type ServerDiaryRecord = {
   memoryId?: string;
   plannerMealId?: string;
   sourceRecipeId?: string;
-  imageAssetKey?: string;
   clientUpdatedAt: string;
 };
 
@@ -590,7 +589,6 @@ function fromServerRecord(record: ServerDiaryRecord): FoodLog {
     memoryId: record.memoryId,
     plannerMealId: record.plannerMealId,
     sourceRecipeId: record.sourceRecipeId,
-    imageAssetKey: record.imageAssetKey,
     nutritionSnapshot: {
       calories: record.calories,
       proteinG: record.proteinG,
