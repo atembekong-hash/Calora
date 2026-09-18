@@ -35,6 +35,11 @@ import { spacing, radius, typography } from '@/constants/tokens';
 
 type Provider = 'google' | 'email' | 'unknown';
 
+// Do not leave a destructive account action showing a spinner indefinitely
+// when the API is unreachable. This is long enough for a normal mobile
+// connection while still giving the user a clear recovery path.
+export const ACCOUNT_DELETION_TIMEOUT_MS = 15_000;
+
 function resolveProvider(session: NonNullable<ReturnType<typeof useAuth>['session']>): Provider {
   const identities = session.user.identities ?? [];
   if (identities.some((id) => id.provider === 'google')) return 'google';
@@ -121,6 +126,8 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
 
     setDeleteLoading(true);
     setDeleteError('');
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), ACCOUNT_DELETION_TIMEOUT_MS);
     try {
       // Call the server-side endpoint which uses the service-role key to
       // permanently remove the Supabase Auth user record. The user's JWT is
@@ -129,6 +136,7 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
       const response = await fetch(`${baseUrl}/api/v1/account`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${session.access_token}` },
+        signal: abortController.signal,
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({})) as { error?: string; message?: string };
@@ -162,10 +170,12 @@ export function AccountSection({ fontScale = 1, clearAllData }: AccountSectionPr
         );
       }, 300);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      const message = abortController.signal.aborted
+        ? 'Account deletion is taking too long. Check your connection and try again.'
+        : err instanceof Error ? err.message : 'Something went wrong. Please try again.';
       setDeleteError(message);
     } finally {
+      clearTimeout(timeoutId);
       setDeleteLoading(false);
     }
   }, [deleteConfirmText, deleteLoading, session, clearAllData, clearProfilePhoto, signOut]);

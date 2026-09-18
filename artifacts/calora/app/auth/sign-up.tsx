@@ -41,6 +41,15 @@ export default function SignUpScreen() {
   const [error, setError] = useState<string | null>(null);
   const [pendingCode, setPendingCode] = useState<string | null>(null);
 
+  const handleLegalLink = useCallback(async (url: string, label: string) => {
+    setError(null);
+    try {
+      await Linking.openURL(url);
+    } catch {
+      setError(`Unable to open ${label}. Please try again later.`);
+    }
+  }, []);
+
   // Surface any pending invite code so the user knows it survived a relaunch.
   React.useEffect(() => {
     getPendingInviteCode().then(setPendingCode);
@@ -214,7 +223,7 @@ export default function SignUpScreen() {
           <Text
             accessibilityRole="link"
             accessibilityLabel="Open Terms of Use"
-            onPress={() => { void Linking.openURL(URLS.terms); }}
+            onPress={() => { void handleLegalLink(URLS.terms, 'Terms of Use'); }}
             style={[styles.termsLink, { color: colors.primary }]}
           >
             Terms of Use
@@ -223,7 +232,7 @@ export default function SignUpScreen() {
           <Text
             accessibilityRole="link"
             accessibilityLabel="Open Privacy Policy"
-            onPress={() => { void Linking.openURL(URLS.privacy); }}
+            onPress={() => { void handleLegalLink(URLS.privacy, 'Privacy Policy'); }}
             style={[styles.termsLink, { color: colors.primary }]}
           >
             Privacy Policy
