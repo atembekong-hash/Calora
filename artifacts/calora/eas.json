@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/expo/eas-cli/main/packages/eas-json/schema/eas.schema.json",
   "cli": {
-    "version": "16.17.4",
+    "version": ">= 16.17.4",
     "appVersionSource": "local",
     "requireCommit": true
   },
