@@ -54,6 +54,33 @@ function getToken() {
   return process.env.EXPO_TOKEN?.trim() || process.env.EAS_TOKEN?.trim() || null;
 }
 
+/**
+ * Provides safe runtime configuration diagnostics without returning a token,
+ * warning-window value, or any credential material.
+ */
+function diagnoseSigningMonitorInputs({
+  expoToken = process.env.EXPO_TOKEN,
+  easToken = process.env.EAS_TOKEN,
+  warningDays = process.env.IOS_SIGNING_WARNING_DAYS,
+} = {}) {
+  let warningWindow = 'valid';
+  try {
+    if (String(warningDays ?? '').trim()) parseWarningWindowDays(warningDays);
+  } catch {
+    warningWindow = 'invalid';
+  }
+  return Object.freeze({
+    easToken: String(expoToken ?? '').trim() || String(easToken ?? '').trim()
+      ? 'present'
+      : 'missing',
+    warningWindow,
+  });
+}
+
+function formatSigningMonitorInputDiagnostics(diagnostics) {
+  return `[ios-signing] Monitor input diagnostics: EAS token ${diagnostics.easToken}; warning window ${diagnostics.warningWindow}.`;
+}
+
 function redactSensitiveText(value) {
   return String(value)
     .replace(/Bearer\s+\S+/gi, 'Bearer [redacted]')
@@ -429,6 +456,7 @@ async function main() {
       return 1;
     }
   }
+  console.info(formatSigningMonitorInputDiagnostics(diagnoseSigningMonitorInputs()));
   let identity;
   try {
     identity = loadBuildIdentity();
@@ -536,9 +564,11 @@ if (require.main === module) {
 
 module.exports = {
   classifyBuildFailure,
+  diagnoseSigningMonitorInputs,
   evaluateCredentialReadiness,
   evaluateCredentialExpiryRisk,
   formatDate,
+  formatSigningMonitorInputDiagnostics,
   getWarningWindowDaysFromArgs,
   loadBuildIdentity,
   parseWarningWindowDays,

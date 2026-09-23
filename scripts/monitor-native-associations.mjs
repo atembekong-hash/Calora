@@ -122,6 +122,66 @@ function expectedFingerprints(value) {
   return values;
 }
 
+function diagnosticStatus(value, validator) {
+  if (!String(value ?? "").trim()) return "missing";
+  try {
+    validator(value);
+    return "valid";
+  } catch {
+    return "invalid";
+  }
+}
+
+/**
+ * Returns only presence/format classifications. It deliberately never returns
+ * team identifiers, fingerprints, origins, or normalized credential material.
+ */
+export function diagnoseNativeAssociationInputs({
+  origin = process.env.NATIVE_ASSOCIATION_ORIGIN ?? DEFAULT_ORIGIN,
+  appleTeamId = process.env.APPLE_TEAM_ID,
+  androidFingerprint = process.env.ANDROID_SHA256_FINGERPRINT,
+  freshnessValue = process.env[ASSOCIATION_FRESHNESS_MAX_AGE_ENV],
+} = {}) {
+  const freshnessPolicy = resolveAssociationFreshnessPolicy(freshnessValue);
+  return Object.freeze({
+    origin: diagnosticStatus(origin, normalizeOrigin),
+    appleTeamId: diagnosticStatus(appleTeamId, (value) =>
+      requiredValue(value, "APPLE_TEAM_ID"),
+    ),
+    androidFingerprint: diagnosticStatus(androidFingerprint, expectedFingerprints),
+    freshnessPolicy:
+      freshnessPolicy.source === "default-invalid-configuration"
+        ? "fallback"
+        : "valid",
+  });
+}
+
+export function formatNativeAssociationInputDiagnostics(diagnostics) {
+  return [
+    "Native association monitor input diagnostics:",
+    `origin ${diagnostics.origin}`,
+    `APPLE_TEAM_ID ${diagnostics.appleTeamId}`,
+    `ANDROID_SHA256_FINGERPRINT ${diagnostics.androidFingerprint}`,
+    `freshness policy ${diagnostics.freshnessPolicy}`,
+  ].join("; ");
+}
+
+function assertValidNativeAssociationInputs(inputs) {
+  const diagnostics = diagnoseNativeAssociationInputs(inputs);
+  const failures = [
+    ["NATIVE_ASSOCIATION_ORIGIN", diagnostics.origin],
+    ["APPLE_TEAM_ID", diagnostics.appleTeamId],
+    ["ANDROID_SHA256_FINGERPRINT", diagnostics.androidFingerprint],
+  ].filter(([, status]) => status !== "valid");
+  if (failures.length > 0) {
+    throw new Error(
+      `Native association monitor prerequisites unavailable: ${failures
+        .map(([name, status]) => `${name} ${status}`)
+        .join("; ")}.`,
+    );
+  }
+}
+
 async function fetchJson(path, origin, fetchImpl) {
   return fetchJsonUrl(`${origin}${path}`, path, fetchImpl);
 }
@@ -389,6 +449,12 @@ export async function checkAppleAndGoogleAssociationEvidence({
   fetchImpl = fetch,
   freshnessPolicy = resolveAssociationFreshnessPolicy(),
 } = {}) {
+  assertValidNativeAssociationInputs({
+    origin,
+    appleTeamId,
+    androidFingerprint,
+    freshnessValue: process.env[ASSOCIATION_FRESHNESS_MAX_AGE_ENV],
+  });
   const normalizedOrigin = normalizeOrigin(origin);
   const expectedAppId = `${requiredValue(appleTeamId, "APPLE_TEAM_ID")}.${BUNDLE_ID}`;
   const fingerprints = expectedFingerprints(androidFingerprint);
@@ -430,6 +496,12 @@ export async function checkNativeAssociations({
   androidFingerprint = process.env.ANDROID_SHA256_FINGERPRINT,
   fetchImpl = fetch,
 } = {}) {
+  assertValidNativeAssociationInputs({
+    origin,
+    appleTeamId,
+    androidFingerprint,
+    freshnessValue: process.env[ASSOCIATION_FRESHNESS_MAX_AGE_ENV],
+  });
   const normalizedOrigin = normalizeOrigin(origin);
   const expectedAppId = `${requiredValue(appleTeamId, "APPLE_TEAM_ID")}.${BUNDLE_ID}`;
   const fingerprints = expectedFingerprints(androidFingerprint);
@@ -477,6 +549,11 @@ export async function runNativeAssociationMonitor({ fetchImpl = fetch } = {}) {
 }
 
 async function main() {
+  console.info(
+    formatNativeAssociationInputDiagnostics(
+      diagnoseNativeAssociationInputs(),
+    ),
+  );
   await runNativeAssociationMonitor();
 }
 

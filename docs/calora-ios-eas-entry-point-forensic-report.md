@@ -142,7 +142,7 @@ The Calora package also owns the Expo, Expo Router, React Native, Metro, and app
 
 `artifacts/calora/app.json` contains the Calora-specific Expo identity and Router configuration, including:
 
-- Expo name: `CaloraApp`
+- Expo name: `Calora`
 - Slug: `calora`
 - Owner: `vvault07`
 - EAS project ID: `1f202325-5b9a-4260-978f-abbd3252b9ee`
@@ -152,7 +152,12 @@ The Calora package also owns the Expo, Expo Router, React Native, Metro, and app
 - Typed routes
 - React Compiler
 
-The repository-root `app.json` is not the Calora application configuration.
+`artifacts/calora/app.json` and `artifacts/calora/eas.json` are the only
+authoritative Expo/EAS configuration files for Calora. The repository root
+intentionally has no `app.json`: a direct Expo or EAS command must run from
+`artifacts/calora`, while monorepo commands must use `pnpm --filter
+@workspace/calora …`. This fails closed rather than silently selecting an
+incomplete duplicate configuration.
 
 ---
 
@@ -394,6 +399,12 @@ Production bundle written successfully
 
 ### 7.4 Post-commit repository verification
 
+> **Historical evidence boundary.** This subsection records the state of the
+> earlier entry-point remediation at commit
+> `23d5719c7ee9e712b6f30b09e55c3e0ac6edfd14`. It is not evidence of the
+> current candidate branch, current `main`, provider configuration, or a
+> release authorization.
+
 The final local commit SHA and remote `main` SHA match:
 
 ```text
@@ -419,13 +430,15 @@ The preview was not restarted because the requested investigation explicitly exc
 
 ---
 
-## 9. Final conclusion
+## 9. Historical conclusion and current release boundary
 
 The iOS EAS failure was caused by an incorrect working directory in the GitHub Actions workflow.
 
 The repository root is not the Calora Expo project root. Running EAS from that location caused Expo to select the conventional `App.*` entry path instead of Calora’s declared Expo Router entry.
 
-The workflow now runs from `artifacts/calora`, while preserving the repository-root archive and vendored runtime requirements.
+At the time of the historical remediation, the workflow ran from
+`artifacts/calora`, while preserving the repository-root archive and vendored
+runtime requirements.
 
 The remediation is:
 
@@ -434,11 +447,14 @@ The remediation is:
 - Reproduced before fixing
 - Locally validated after fixing
 - Archive-audited
-- Committed to Git
-- Pushed to `main`
-- Verified against the remote SHA
+- Committed to Git at the historical SHA above
+- Pushed to `main` at that historical time
+- Verified against the historical remote SHA
 
-The project is ready for a separately authorized EAS build. No build or TestFlight submission was triggered as part of this investigation.
+No current build or TestFlight readiness claim follows from this historical
+report. Candidate-specific eligibility is determined only by the current
+same-SHA release-validation gate and its attested release evidence. No build or
+TestFlight submission was triggered as part of this historical investigation.
 
 ---
 

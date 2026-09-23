@@ -35,6 +35,7 @@ import { AppHeader } from '@/components/AppChrome';
 import { useAuth } from '@/context/AuthContext';
 import { BRAND } from '@/lib/brand';
 import { isValidEmail } from '@/lib/auth';
+import { getSafeAuthErrorMessage } from '@/lib/auth-callback-routing';
 
 export default function SignInScreen() {
   const { colors } = useCalora();
@@ -46,7 +47,9 @@ export default function SignInScreen() {
   // undefined and the screen renders clean.
   const { authError: authErrorParam } = useLocalSearchParams<{ authError?: string }>();
   const initialError =
-    authErrorParam && authErrorParam !== 'cancelled' ? authErrorParam : null;
+    authErrorParam && authErrorParam !== 'cancelled'
+      ? getSafeAuthErrorMessage(authErrorParam)
+      : null;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

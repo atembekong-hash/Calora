@@ -7,6 +7,10 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useURL } from 'expo-linking';
 import { handleOAuthCallbackUrl, OAUTH_REDIRECT_URI } from '@/lib/auth';
+import {
+  getSafeAuthErrorMessage,
+  routeForOAuthCallbackError,
+} from '@/lib/auth-callback-routing';
 import { useAuth } from '@/context/AuthContext';
 
 const REDIRECT_DELAY_MS = 3000; // Increased to let users read the error message
@@ -63,18 +67,16 @@ export default function AuthCallbackScreen() {
         } else if (result.error.code === 'cancelled') {
           router.replace('/auth/sign-in' as any);
         } else {
-          // Show the specific error message to the user
-          setStatusMessage(result.error.message);
+          // Never render provider/deep-link error content. Both the temporary
+          // screen state and navigation use only fixed local categories.
+          setStatusMessage(getSafeAuthErrorMessage(result.error.code));
           setTimeout(() => {
-            router.replace({
-              pathname: '/',
-              params: { authError: result.error.code },
-            });
+            router.replace(routeForOAuthCallbackError(result.error.code) as any);
           }, REDIRECT_DELAY_MS);
         }
       } catch (err) {
-         setStatusMessage('Sign-in failed. Please try again.');
-        setTimeout(() => router.replace('/'), REDIRECT_DELAY_MS);
+        setStatusMessage('Sign-in failed. Please try again.');
+        setTimeout(() => router.replace('/auth/sign-in' as any), REDIRECT_DELAY_MS);
       }
     }
 
@@ -85,8 +87,8 @@ export default function AuthCallbackScreen() {
     const timer = setTimeout(() => {
       if (!processed.current) {
         processed.current = true;
-         setStatusMessage('No sign-in information was found.');
-        setTimeout(() => router.replace('/'), REDIRECT_DELAY_MS);
+        setStatusMessage('No sign-in information was found.');
+        setTimeout(() => router.replace('/auth/sign-in' as any), REDIRECT_DELAY_MS);
       }
     }, URL_TIMEOUT_MS);
     return () => clearTimeout(timer);
