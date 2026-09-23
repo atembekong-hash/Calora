@@ -15,7 +15,7 @@ import { hasCurrentCoachFactConsent } from "../lib/coach-fact-consent.js";
 import { getCoachFactRolloutDecision } from "../lib/coach-fact-rollout.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
 
-declare const __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__: boolean;
+declare const __RELEASE_GIT_COMMIT__: string;
 
 const router: IRouter = Router();
 const COACH_MODEL = "gpt-5.6-terra";
@@ -158,16 +158,18 @@ function normalizeRiskText(content: string) {
     .replace(/\s+/g, " ");
 }
 function serverGateEnabled() {
-  // This production constant is compiled by build.mjs only when the build
-  // explicitly names its exact clean reviewed commit. A runtime secret alone
-  // cannot make an already-built release eligible.
-  const productionReleaseAuthorized =
-    typeof __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__ === "boolean" &&
-    __SENSITIVE_RELEASE_ACTIVATION_ALLOWED__ === true;
-  return (
-    process.env.COACH_FACT_CONTEXT_ENABLED === "true" &&
-    (process.env.NODE_ENV !== "production" || productionReleaseAuthorized)
-  );
+  if (process.env.COACH_FACT_CONTEXT_ENABLED !== "true") return false;
+  if (process.env.NODE_ENV !== "production") return true;
+
+  // Railway supplies this immutable deployment variable. The build command
+  // checks out this exact revision before bundling; requiring the runtime value
+  // to match the compiled revision prevents a configuration-only restart from
+  // activating Coach on a different source revision.
+  const compiledCommit = typeof __RELEASE_GIT_COMMIT__ === "string"
+    ? __RELEASE_GIT_COMMIT__.toLowerCase()
+    : "";
+  const runtimeCommit = String(process.env.RAILWAY_GIT_COMMIT_SHA ?? "").toLowerCase();
+  return /^[a-f0-9]{40}$/.test(compiledCommit) && runtimeCommit === compiledCommit;
 }
 
 /**
