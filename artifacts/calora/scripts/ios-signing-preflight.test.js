@@ -3,8 +3,10 @@ const assert = require('node:assert/strict');
 
 const {
   classifyBuildFailure,
+  diagnoseSigningMonitorInputs,
   evaluateCredentialExpiryRisk,
   evaluateCredentialReadiness,
+  formatSigningMonitorInputDiagnostics,
   getWarningWindowDaysFromArgs,
   redactSensitiveText,
 } = require('./ios-signing-preflight');
@@ -105,6 +107,25 @@ test('rejects an invalid warning window', () => {
     () => getWarningWindowDaysFromArgs(['--warn-days', '0']),
     /whole number of days from 1 to 365/i,
   );
+});
+
+test('reports only presence and format state for signing-monitor inputs', () => {
+  const missing = diagnoseSigningMonitorInputs({
+    expoToken: '',
+    easToken: '',
+    warningDays: '0',
+  });
+  assert.deepEqual(missing, { easToken: 'missing', warningWindow: 'invalid' });
+
+  const present = diagnoseSigningMonitorInputs({
+    expoToken: 'fixture-token-value',
+    easToken: '',
+    warningDays: '30',
+  });
+  assert.deepEqual(present, { easToken: 'present', warningWindow: 'valid' });
+  const output = formatSigningMonitorInputDiagnostics(present);
+  assert.match(output, /EAS token present/);
+  assert.equal(output.includes('fixture-token-value'), false);
 });
 
 test('fails when the distribution certificate is missing', () => {

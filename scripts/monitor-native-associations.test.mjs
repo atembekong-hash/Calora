@@ -16,6 +16,8 @@ import {
   PACKAGE_NAME,
   checkAppleAndGoogleAssociationEvidence,
   checkNativeAssociations,
+  diagnoseNativeAssociationInputs,
+  formatNativeAssociationInputDiagnostics,
   formatAssociationFreshnessPolicy,
   resolveAssociationFreshnessPolicy,
 } from "./monitor-native-associations.mjs";
@@ -361,6 +363,43 @@ test("formats only the effective freshness policy", () => {
     "Association freshness policy: warn when provider metadata exceeds 172800s (source: configured).",
   );
   assert.ok(!output.includes("AA:BB"));
+});
+
+test("classifies all monitor inputs without exposing their values", () => {
+  const diagnostics = diagnoseNativeAssociationInputs({
+    origin: "not-an-origin",
+    appleTeamId: "",
+    androidFingerprint: "not-a-fingerprint",
+    freshnessValue: "1",
+  });
+  assert.deepEqual(diagnostics, {
+    origin: "invalid",
+    appleTeamId: "missing",
+    androidFingerprint: "invalid",
+    freshnessPolicy: "fallback",
+  });
+  const output = formatNativeAssociationInputDiagnostics(diagnostics);
+  assert.match(output, /APPLE_TEAM_ID missing/);
+  assert.match(output, /ANDROID_SHA256_FINGERPRINT invalid/);
+  assert.equal(output.includes("not-an-origin"), false);
+  assert.equal(output.includes("not-a-fingerprint"), false);
+});
+
+test("fails before network access when multiple monitor prerequisites are unavailable", async () => {
+  let fetchCalls = 0;
+  await assert.rejects(
+    checkNativeAssociations({
+      origin: "https://example.com",
+      appleTeamId: "",
+      androidFingerprint: "invalid",
+      fetchImpl: async () => {
+        fetchCalls += 1;
+        return response({});
+      },
+    }),
+    /APPLE_TEAM_ID missing; ANDROID_SHA256_FINGERPRINT invalid/,
+  );
+  assert.equal(fetchCalls, 0);
 });
 
 test("scheduled monitor CLI uses the freshness threshold from its process environment", async () => {
