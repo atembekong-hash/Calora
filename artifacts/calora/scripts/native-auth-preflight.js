@@ -266,13 +266,15 @@ function parseIosInfo(output) {
 }
 
 function parseAndroidVerifiedHost(output, host) {
+  const escapedHost = host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const hostLine = output
     .split(/\r?\n/)
-    .find((line) => line.includes(host));
+    .find((line) => new RegExp(`^\\s*${escapedHost}\\s*:`).test(line));
+  const status = hostLine?.match(new RegExp(`^\\s*${escapedHost}\\s*:\\s*([^\\s]+)\\s*$`, 'i'))?.[1] || null;
   return {
     host,
     observed: hostLine?.trim() || null,
-    verified: Boolean(hostLine && /\bverified\b/i.test(hostLine)),
+    verified: status?.toLowerCase() === 'verified',
   };
 }
 

@@ -27,6 +27,20 @@ test('Calora has one authoritative Expo project root', () => {
   assert.equal(appJson.expo?.android?.package, 'com.etiendem.caloraapp');
 });
 
+test('Expo configuration requests only implemented health capabilities', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'package.json'), 'utf8'));
+  const appJson = JSON.parse(fs.readFileSync(path.join(appRoot, 'app.json'), 'utf8'));
+  const infoPlist = appJson.expo?.ios?.infoPlist || {};
+  const healthKitPlugin = appJson.expo?.plugins?.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === '@kingstinct/react-native-healthkit',
+  );
+
+  assert.equal(packageJson.devDependencies?.['expo-location'], undefined);
+  assert.equal(infoPlist.NSHealthUpdateUsageDescription, undefined);
+  assert.ok(Array.isArray(healthKitPlugin));
+  assert.equal(healthKitPlugin[1]?.NSHealthUpdateUsageDescription, false);
+});
+
 test('mobile environment template cannot document server-only credentials', () => {
   const mobileTemplate = fs.readFileSync(path.join(appRoot, 'env.example'), 'utf8');
   const serverTemplate = fs.readFileSync(
