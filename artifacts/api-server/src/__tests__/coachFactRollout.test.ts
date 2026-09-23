@@ -1,12 +1,11 @@
 /**
- * Unit tests for the server-owned, DB-backed global Coach gate.
+ * Unit tests for the server-owned, reviewed-cohort Coach gate.
  *
- * The async DB paths are tested here by mocking @workspace/db so we can
- * exercise all branches without a real database connection.
+ * Every provider-capable request must pass a global operator switch plus a
+ * reviewed, time-valid membership lookup for its own authenticated account.
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// ── DB mock — must be declared before importing the module under test ─────────
 const dbSelectMock = vi.fn();
 vi.mock("@workspace/db", () => ({
   db: {
@@ -29,84 +28,72 @@ vi.mock("@workspace/db", () => ({
 }));
 
 import {
-  getCoachFactRolloutDecision,
-  isCohortEnabled,
-  getActiveCohort,
-  getActiveCohortName,
   COACH_FACT_CONTEXT_COHORT,
   COACH_FACT_CONTEXT_CONFIG_KEY,
+  getActiveCohort,
+  getActiveCohortName,
+  getCoachFactRolloutDecision,
+  isCohortEnabled,
 } from "../lib/coach-fact-rollout.js";
 
-function mockConfigEnabled() {
+function enabledConfig() {
   return { value: true };
 }
 
-describe("server-owned global Coach rollout mechanism", () => {
+function reviewedMembership() {
+  return { id: "reviewed-membership" };
+}
+
+describe("server-owned reviewed Coach rollout mechanism", () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it("the active cohort is always empty — DB is authoritative, not an in-memory set", () => {
+  it("keeps process memory empty because the database is authoritative", () => {
     expect(getActiveCohort().size).toBe(0);
-  });
-
-  it("isCohortEnabled() always returns false (static gate removed)", () => {
     expect(isCohortEnabled()).toBe(false);
-  });
-
-  it("the cohort name constant is the expected typed value", () => {
     expect(COACH_FACT_CONTEXT_COHORT).toBe("coach_fact_context_v1");
     expect(getActiveCohortName()).toBe("coach_fact_context_v1");
-  });
-
-  it("the server config key constant is stable", () => {
     expect(COACH_FACT_CONTEXT_CONFIG_KEY).toBe("coach_fact_context_rollout_enabled");
   });
 
-  it("deny — server_config row absent (global gate off)", async () => {
-    // First call: config query returns nothing (absent row)
+  it("denies when the global server config row is absent", async () => {
     dbSelectMock.mockResolvedValueOnce([]);
-    const d = await getCoachFactRolloutDecision("user-a");
-    expect(d.cohortEligible).toBe(false);
-    expect(d.reason).toBe("dark_default_deny");
-    // Only one DB query should have been made (config, no membership query)
+    const decision = await getCoachFactRolloutDecision("ordinary-user");
+    expect(decision).toEqual({ cohortEligible: false, legacyFallbackEnabled: false, reason: "dark_default_deny" });
     expect(dbSelectMock).toHaveBeenCalledTimes(1);
   });
 
-  it("deny — server_config row present but value is not true", async () => {
-    dbSelectMock.mockResolvedValueOnce([{ value: false }]);
-    const d = await getCoachFactRolloutDecision("user-b");
-    expect(d.cohortEligible).toBe(false);
-    expect(d.reason).toBe("dark_default_deny");
+  it("denies when the global server config row is not JSON boolean true", async () => {
+    dbSelectMock.mockResolvedValueOnce([{ value: "true" }]);
+    const decision = await getCoachFactRolloutDecision("ordinary-user");
+    expect(decision.cohortEligible).toBe(false);
     expect(dbSelectMock).toHaveBeenCalledTimes(1);
   });
 
-  it("allow — config enabled without any per-user cohort lookup", async () => {
-    dbSelectMock.mockResolvedValueOnce([mockConfigEnabled()]);
-    const d = await getCoachFactRolloutDecision("ordinary-user");
-    expect(d.cohortEligible).toBe(true);
-    expect(d.legacyFallbackEnabled).toBe(false);
-    expect(d.reason).toBe("cohort_eligible");
-    expect(dbSelectMock).toHaveBeenCalledTimes(1);
+  it("denies an ordinary account even while the global gate is enabled", async () => {
+    dbSelectMock
+      .mockResolvedValueOnce([enabledConfig()])
+      .mockResolvedValueOnce([]);
+    const decision = await getCoachFactRolloutDecision("ordinary-user");
+    expect(decision).toEqual({ cohortEligible: false, legacyFallbackEnabled: false, reason: "dark_default_deny" });
+    expect(dbSelectMock).toHaveBeenCalledTimes(2);
   });
 
-  it("fail-closed — DB throws on config query ⟹ deny without error propagation", async () => {
+  it("allows only the requested account after a reviewed membership lookup", async () => {
+    dbSelectMock
+      .mockResolvedValueOnce([enabledConfig()])
+      .mockResolvedValueOnce([reviewedMembership()]);
+    const decision = await getCoachFactRolloutDecision("reviewed-pilot");
+    expect(decision).toEqual({ cohortEligible: true, legacyFallbackEnabled: false, reason: "cohort_eligible" });
+    expect(dbSelectMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails closed when either rollout query errors", async () => {
     dbSelectMock.mockRejectedValueOnce(new Error("connection reset"));
-    const d = await getCoachFactRolloutDecision("user-i");
-    expect(d.cohortEligible).toBe(false);
-    expect(d.reason).toBe("dark_default_deny");
-  });
+    await expect(getCoachFactRolloutDecision("reviewed-pilot")).resolves.toMatchObject({ cohortEligible: false });
 
-  it("getActiveCohort() is read-only and always empty (DB is authoritative)", () => {
-    const cohort = getActiveCohort();
-    expect(cohort.has("any-user")).toBe(false);
-    expect(cohort.size).toBe(0);
-  });
-
-  it("deny-all: every arbitrary user id is rejected when config row is absent", async () => {
-    const ids = ["user-abc", "00000000-0000-0000-0000-000000000001", "admin", "root", "true", "1", ""];
-    for (const id of ids) {
-      dbSelectMock.mockResolvedValueOnce([]); // config absent
-      const d = await getCoachFactRolloutDecision(id);
-      expect(d.cohortEligible).toBe(false);
-    }
+    dbSelectMock
+      .mockResolvedValueOnce([enabledConfig()])
+      .mockRejectedValueOnce(new Error("membership unavailable"));
+    await expect(getCoachFactRolloutDecision("reviewed-pilot")).resolves.toMatchObject({ cohortEligible: false });
   });
 });
