@@ -57,6 +57,17 @@ describe('Auth Logic Verification', () => {
     expect(mockExchange).toHaveBeenCalledWith('test-code');
   });
 
+  it('accepts the exact production web callback after the apex handoff', async () => {
+    mockExchange.mockResolvedValue({ data: { session: { user: {} } }, error: null });
+
+    const result = await handleOAuthCallbackUrl(
+      'https://app.mycaloraapp.com/auth/callback?code=web-code',
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockExchange).toHaveBeenCalledWith('web-code');
+  });
+
   it('shares one PKCE exchange across concurrent WebBrowser and Router callbacks', async () => {
     let resolveExchange!: (value: unknown) => void;
     mockExchange.mockReturnValue(new Promise((resolve) => {
@@ -204,6 +215,18 @@ describe('Auth Logic Verification', () => {
     if (!result.success) expect(result.error.code).toBe('token');
     expect(mockExchange).not.toHaveBeenCalled();
     expect(mockSetSession).not.toHaveBeenCalled();
+  });
+
+  it('rejects production-host lookalikes and wrong callback paths', async () => {
+    for (const url of [
+      'https://app.mycaloraapp.com.attacker.example/auth/callback?code=lookalike',
+      'https://app.mycaloraapp.com/auth/callback/extra?code=wrong-path',
+      'http://app.mycaloraapp.com/auth/callback?code=insecure',
+    ]) {
+      const result = await handleOAuthCallbackUrl(url);
+      expect(result.success).toBe(false);
+    }
+    expect(mockExchange).not.toHaveBeenCalled();
   });
 
   it('rejects the legacy custom-scheme callback before consuming credentials', async () => {
