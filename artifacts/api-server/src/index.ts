@@ -27,11 +27,11 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 // Schema ownership is intentionally outside API startup:
-// - task merge applies Drizzle's development schema through the managed setup;
-// - Publish diffs the development and production schemas through Replit.
+// - approved migration operations apply Drizzle's schema changes;
+// - each hosting environment receives an explicitly reviewed deployment.
 // The API must never mutate database structure during boot.
 logger.info(
-  "Database schema is managed by the Drizzle source and Replit lifecycle",
+  "Database schema is managed by reviewed Drizzle migrations",
 );
 
 // node-postgres emits idle-client failures on the Pool. Without a listener,

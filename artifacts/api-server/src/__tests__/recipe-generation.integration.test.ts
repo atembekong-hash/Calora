@@ -16,7 +16,7 @@
  *   SUPABASE_SERVICE_ROLE_KEY     — admin key (create/delete ephemeral user)
  *   CALORA_SIGNUP_TEST_PASSWORD   — password for the ephemeral user
  *
- * Add SUPABASE_SERVICE_ROLE_KEY as a Replit secret then run:
+ * Configure SUPABASE_SERVICE_ROLE_KEY in the approved secret manager, then run:
  *   pnpm --filter @workspace/api-server test recipe-generation.integration
  *
  * ── How to provision a permanent QA account ────────────────────────────────

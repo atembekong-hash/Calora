@@ -11,6 +11,7 @@ import {
   assertAccountWritable,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
+import { createRecipePhotoSignedUrl } from "../lib/recipe-photo-storage.js";
 
 const router: IRouter = Router();
 
@@ -31,7 +32,6 @@ const GUEST_RECIPE_DAILY_WINDOW_SECS = 60 * 60 * 24;
 const RECIPE_PHOTO_RATE_LIMIT = 12;
 const RECIPE_PHOTO_URL_TTL_SECS = 60 * 60 * 24 * 6;
 const RECIPE_PHOTO_TIMEOUT_MS = 30_000;
-const OBJECT_STORAGE_SIDECAR = "http://127.0.0.1:1106/object-storage/signed-object-url";
 
 /**
  * Node may expose a local IPv4 peer as an IPv4-mapped IPv6 address. Treat only
@@ -82,27 +82,8 @@ async function enforceRecipeGenLimit(
   return true;
 }
 
-function recipePhotoObjectName(userId: string, imageId: string) {
-  return `private/recipe-photos/${userId}/${imageId}.png`;
-}
-
 async function signedRecipePhotoUrl(userId: string, imageId: string, method: "GET" | "PUT", ttlSecs: number) {
-  const bucket = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-  if (!bucket) throw new Error("Object storage is not configured");
-  const response = await fetch(OBJECT_STORAGE_SIDECAR, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      bucket_name: bucket,
-      object_name: recipePhotoObjectName(userId, imageId),
-      method,
-      expires_at: new Date(Date.now() + ttlSecs * 1000).toISOString(),
-    }),
-    signal: AbortSignal.timeout(10_000),
-  });
-  const payload = await response.json().catch(() => ({})) as { signed_url?: unknown };
-  if (!response.ok || typeof payload.signed_url !== "string") throw new Error("Unable to sign recipe photo storage request");
-  return payload.signed_url;
+  return createRecipePhotoSignedUrl(userId, imageId, method, ttlSecs);
 }
 
 async function withRecipePhotoDeletionReadLock<T>(

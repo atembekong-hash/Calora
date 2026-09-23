@@ -74,13 +74,13 @@ describe("AI recipe creation endpoints", () => {
     photoLockQuery.mockResolvedValue({ rows: [] });
     assertAccountWritable.mockResolvedValue(undefined);
     // The production route must keep requiring object storage configuration.
-    // Provide only a deterministic test bucket so the mocked sidecar signing
-    // path can exercise the complete private-photo success flow offline.
-    vi.stubEnv("DEFAULT_OBJECT_STORAGE_BUCKET_ID", "test-bucket");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ signed_url: "https://storage.example/signed" }),
-    }));
+    // Provide deterministic S3 settings so the private-photo flow stays local.
+    vi.stubEnv("RECIPE_PHOTO_BUCKET", "test-bucket");
+    vi.stubEnv("RECIPE_PHOTO_STORAGE_ENDPOINT", "https://storage.example");
+    vi.stubEnv("RECIPE_PHOTO_ACCESS_KEY_ID", "test-access-key");
+    vi.stubEnv("RECIPE_PHOTO_SECRET_ACCESS_KEY", "test-secret-key");
+    vi.stubEnv("RECIPE_PHOTO_STORAGE_REGION", "auto");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
   });
 
   it("returns 429 and never calls the model when the per-account quota is exceeded", async () => {
@@ -282,14 +282,7 @@ describe("AI recipe creation endpoints", () => {
     expect(mockOpenAiImageGenerate.mock.calls[0][0].prompt).toContain("Lemony lentil bowl");
     expect(mockOpenAiImageGenerate.mock.calls[0][0].prompt).not.toContain("must-not-forward@example.com");
     expect(fetch).toHaveBeenCalledWith(
-      "http://127.0.0.1:1106/object-storage/signed-object-url",
-      expect.objectContaining({
-        method: "POST",
-        body: expect.stringContaining(`"bucket_name":"test-bucket"`),
-      }),
-    );
-    expect(fetch).toHaveBeenCalledWith(
-      "https://storage.example/signed",
+      expect.stringContaining("test-bucket.storage.example/private/recipe-photos/"),
       expect.objectContaining({ method: "PUT", body: expect.any(Buffer) }),
     );
     expect(checkRateLimit).toHaveBeenCalledWith(

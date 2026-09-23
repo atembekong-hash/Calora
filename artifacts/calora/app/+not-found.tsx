@@ -6,7 +6,7 @@ import { useColors } from '@/hooks/useColors';
 /**
  * Not-Found screen.
  *
- * On web, Expo Router sees the Replit proxy prefix (/calora/) as a route
+ * On web, Expo Router can see a reverse-proxy prefix (/calora/) as a route
  * and lands here instead of the real root. We auto-redirect to "/" after a
  * short delay so the user never has to click anything.
  */

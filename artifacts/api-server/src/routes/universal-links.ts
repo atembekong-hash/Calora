@@ -206,8 +206,8 @@ function renderInvitePage(code: string, req: Request, res: Response): void {
   const playStoreUrl = `https://play.google.com/store/apps/details?id=${PACKAGE_NAME}`;
   const deepLink = `caloraapp://invite/${code}`;
 
-  // Build absolute base URL from the incoming request so OG tags are correct
-  // in both dev (replit.dev) and production.
+  // Build the absolute base URL from the incoming request so OG tags are
+  // correct in both preview and production environments.
   const proto = req.get("x-forwarded-proto") ?? req.protocol ?? "https";
   const configuredOrigin = (process.env["PUBLIC_WEB_ORIGIN"] ?? "https://mycaloraapp.com").replace(/\/+$/, "");
   const host = req.get("x-forwarded-host") ?? req.get("host");
