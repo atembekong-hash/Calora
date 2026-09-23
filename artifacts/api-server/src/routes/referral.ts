@@ -4,9 +4,9 @@
  * Flow:
  *   1. Every authenticated user gets a stable invite code (GET /v1/referral).
  *   2. A new user redeems a code once (POST /v1/referral/redeem) → pending.
- *   3. After the new user's first successfully saved meal, the client calls
- *      POST /v1/referral/activate → both parties receive 30 days of Pro via
- *      RevenueCat promotional entitlements.
+ *   3. After the new user confirms a capture-backed meal, the client calls
+ *      POST /v1/referral/activate. The server verifies the capture anchor
+ *      before both parties receive 30 days of Pro via RevenueCat.
  *
  * Anti-abuse rules:
  *   • One redemption per referred account (unique index on referred_user_id).
@@ -195,7 +195,7 @@ router.post("/v1/referral/redeem", async (req, res) => {
 
     res.json({
       status: "pending",
-      message: `Invite accepted! Log your first meal to unlock ${REFERRAL_REWARD_DAYS} days of Pro for you both.`,
+      message: `Invite accepted! Capture and confirm a meal to unlock ${REFERRAL_REWARD_DAYS} days of Pro for you both.`,
     });
   } catch (err) {
     if (classifyAccountDeletionError(err)) {

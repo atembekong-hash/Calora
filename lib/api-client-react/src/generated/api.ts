@@ -27,13 +27,11 @@ import type {
   CoachFactConsentStatus,
   CoachFactContextRequest,
   CoachFactContextResponse,
-  DeletionRequest,
   DiaryEntry,
   DiaryEntryInput,
   DiaryEntryPatch,
   DiaryFirstLogInput,
   DiaryFirstLogResult,
-  ExportRequest,
   GenerateRecipePhoto200,
   HealthStatus,
   ListDiaryEntries200,
@@ -100,8 +98,8 @@ export const getHealthCheckUrl = () => {
 }
 
 /**
- * Returns server health status
- * @summary Health check
+ * Returns ok only after the API can query its PostgreSQL data plane
+ * @summary Database readiness check
  */
 export const healthCheck = async ( options?: Parameters<typeof customFetch>[1]): Promise<HealthStatus> => {
 
@@ -125,7 +123,7 @@ export const getHealthCheckQueryKey = () => {
     }
 
 
-export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getHealthCheckQueryOptions = <TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<HealthStatus>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -144,14 +142,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type HealthCheckQueryResult = NonNullable<Awaited<ReturnType<typeof healthCheck>>>
-export type HealthCheckQueryError = ErrorType<unknown>
+export type HealthCheckQueryError = ErrorType<HealthStatus>
 
 
 /**
- * @summary Health check
+ * @summary Database readiness check
  */
 
-export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<unknown>>(
+export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, TError = ErrorType<HealthStatus>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof healthCheck>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
@@ -1982,23 +1980,28 @@ export const useRevokeCoachFactContextConsent = <TError = ErrorType<void>,
       return useMutation(getRevokeCoachFactContextConsentMutationOptions(options));
     }
 
-export const getRequestDataExportUrl = () => {
+export const getDeleteAccountUrl = () => {
 
 
 
 
-  return `/api/v1/privacy/export`
+  return `/api/v1/account`
 }
 
 /**
- * @summary Request a portable data export
+ * Starts or resumes the server-owned deletion saga for the account
+ * resolved from the bearer token. The server fences new writes before
+ * erasing object storage, application data, the RevenueCat customer, and
+ * the Supabase Auth identity. A 202 response means another worker already
+ * owns the same deletion and secure recovery will continue it.
+ * @summary Permanently delete the authenticated account and its data
  */
-export const requestDataExport = async ( options?: Parameters<typeof customFetch>[1]): Promise<ExportRequest> => {
+export const deleteAccount = async ( options?: Parameters<typeof customFetch>[1]): Promise<ApiMessage> => {
 
-  return customFetch<ExportRequest>(getRequestDataExportUrl(),
+  return customFetch<ApiMessage>(getDeleteAccountUrl(),
   {
     ...options,
-    method: 'POST'
+    method: 'DELETE'
 
 
   }
@@ -2008,11 +2011,11 @@ export const requestDataExport = async ( options?: Parameters<typeof customFetch
 
 
 
-export const getRequestDataExportMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestDataExport>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof requestDataExport>>, TError,void, TContext> => {
+export const getDeleteAccountMutationOptions = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAccount>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAccount>>, TError,void, TContext> => {
 
-const mutationKey = ['requestDataExport'];
+const mutationKey = ['deleteAccount'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -2022,10 +2025,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestDataExport>>, void> = () => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAccount>>, void> = () => {
 
 
-          return  requestDataExport(requestOptions)
+          return  deleteAccount(requestOptions)
         }
 
 
@@ -2035,93 +2038,22 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type RequestDataExportMutationResult = NonNullable<Awaited<ReturnType<typeof requestDataExport>>>
+    export type DeleteAccountMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAccount>>>
 
-    export type RequestDataExportMutationError = ErrorType<unknown>
+    export type DeleteAccountMutationError = ErrorType<ApiMessage>
 
     /**
- * @summary Request a portable data export
+ * @summary Permanently delete the authenticated account and its data
  */
-export const useRequestDataExport = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestDataExport>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useDeleteAccount = <TError = ErrorType<ApiMessage>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAccount>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof requestDataExport>>,
+        Awaited<ReturnType<typeof deleteAccount>>,
         TError,
         void,
         TContext
       > => {
-      return useMutation(getRequestDataExportMutationOptions(options));
-    }
-
-export const getRequestDataDeletionUrl = () => {
-
-
-
-
-  return `/api/v1/privacy/delete`
-}
-
-/**
- * @summary Request deletion of the account and its data
- */
-export const requestDataDeletion = async ( options?: Parameters<typeof customFetch>[1]): Promise<DeletionRequest> => {
-
-  return customFetch<DeletionRequest>(getRequestDataDeletionUrl(),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-
-
-
-export const getRequestDataDeletionMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestDataDeletion>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof requestDataDeletion>>, TError,void, TContext> => {
-
-const mutationKey = ['requestDataDeletion'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestDataDeletion>>, void> = () => {
-
-
-          return  requestDataDeletion(requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RequestDataDeletionMutationResult = NonNullable<Awaited<ReturnType<typeof requestDataDeletion>>>
-
-    export type RequestDataDeletionMutationError = ErrorType<unknown>
-
-    /**
- * @summary Request deletion of the account and its data
- */
-export const useRequestDataDeletion = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestDataDeletion>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof requestDataDeletion>>,
-        TError,
-        void,
-        TContext
-      > => {
-      return useMutation(getRequestDataDeletionMutationOptions(options));
+      return useMutation(getDeleteAccountMutationOptions(options));
     }
 
 export const getGetReferralUrl = () => {
@@ -2211,9 +2143,9 @@ export const getRedeemReferralUrl = () => {
 
 /**
  * Records a pending referral redemption for the authenticated user.
- * Rewards unlock for both parties once the new user saves their first
- * meal. One redemption per account; self-referrals are
- * rejected.
+ * Rewards unlock for both parties only after the new user confirms a
+ * capture-backed meal whose server-issued capture session is verified by
+ * the API. One redemption per account; self-referrals are rejected.
  * @summary Redeem an invite code on a new account
  */
 export const redeemReferral = async (referralRedeemInput: ReferralRedeemInput, options?: Parameters<typeof customFetch>[1]): Promise<ReferralRedeemResult> => {
@@ -2286,11 +2218,11 @@ export const getSyncFirstDiaryEntryUrl = () => {
 
 /**
  * The diary is local-first; this endpoint durably records the user's
- * capture-backed food log server-side. It is retained for capture
- * persistence compatibility; referral qualification instead accepts any
- * valid authenticated meal save.
- * Idempotent — once any diary entry exists for the user, repeat calls
- * return the existing state without writing again.
+ * capture-backed food log server-side. Referral qualification requires
+ * this route to verify the authenticated user's server-issued capture
+ * session and persist the corresponding meal. Idempotent — once that
+ * capture-backed diary entry exists, repeat calls return the existing
+ * state without granting a reward again.
  * @summary Persist the user's first capture-backed food log on the server
  */
 export const syncFirstDiaryEntry = async (diaryFirstLogInput: DiaryFirstLogInput, options?: Parameters<typeof customFetch>[1]): Promise<DiaryFirstLogResult> => {
@@ -2362,11 +2294,12 @@ export const getActivateReferralUrl = () => {
 }
 
 /**
- * Called once the referred user records their first saved meal through an
- * authenticated Calora diary persistence route. Grants 30 days of Pro to
- * both parties with no referral cap. Idempotent — repeat calls return the
+ * Called once the referred user confirms a capture-backed meal. The API
+ * independently verifies a server-issued capture session and persisted
+ * diary entry before granting 30 days of Pro to both parties. The request
+ * cannot supply or override proof. Idempotent repeat calls return the
  * current state without granting again.
- * @summary Unlock referral rewards after the first saved meal
+ * @summary Unlock referral rewards after a verified capture-backed meal
  */
 export const activateReferral = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReferralActivateResult> => {
 
@@ -2415,7 +2348,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ActivateReferralMutationError = ErrorType<void>
 
     /**
- * @summary Unlock referral rewards after the first saved meal
+ * @summary Unlock referral rewards after a verified capture-backed meal
  */
 export const useActivateReferral = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof activateReferral>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}

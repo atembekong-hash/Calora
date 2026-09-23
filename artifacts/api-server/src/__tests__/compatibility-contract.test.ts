@@ -8,6 +8,10 @@ const generatedClient = readFileSync(resolve(root, "lib/api-client-react/src/gen
 const generatedZod = readFileSync(resolve(root, "lib/api-zod/src/generated/api.ts"), "utf8");
 const mobileScan = readFileSync(resolve(root, "artifacts/calora/app/(tabs)/scan.tsx"), "utf8");
 const mobileRecipes = readFileSync(resolve(root, "artifacts/calora/app/(tabs)/recipes.tsx"), "utf8");
+const referralActivator = readFileSync(
+  resolve(root, "artifacts/calora/components/ReferralActivator.tsx"),
+  "utf8",
+);
 const mobileSources = [
   resolve(root, "artifacts/calora/app/(tabs)/index.tsx"),
   resolve(root, "artifacts/calora/app/(tabs)/planner.tsx"),
@@ -85,5 +89,38 @@ describe("released mobile API compatibility contract", () => {
     expect(generatedClient).not.toContain("createWeight");
     expect(generatedZod).not.toContain("ListWeightsQueryParams");
     expect(generatedZod).not.toContain("CreateWeightBody");
+  });
+
+  it("publishes only the implemented account-deletion privacy operation", () => {
+    expect(apiSpec).toContain("/v1/account:");
+    expect(apiSpec).toContain("operationId: deleteAccount");
+    expect(generatedClient).toContain("getDeleteAccountUrl");
+    expect(generatedClient).toContain("`/api/v1/account`");
+    expect(generatedClient).not.toContain("requestDataExport");
+    expect(generatedClient).not.toContain("requestDataDeletion");
+    expect(apiSpec).not.toContain("/v1/privacy/export:");
+    expect(apiSpec).not.toContain("/v1/privacy/delete:");
+  });
+
+  it("aligns referral docs and client attempts with server-verified capture proof", () => {
+    expect(apiSpec).toContain("capture-backed meal whose server-issued capture session is verified");
+    expect(apiSpec).toContain("cannot supply or override proof.");
+    expect(generatedClient).toContain("verified capture-backed meal");
+    expect(referralActivator).toContain("log.captureSessionId");
+    expect(referralActivator).toContain("SERVER_CAPTURE_SESSION_ID.test");
+  });
+
+  it("keeps Coach consent wording aligned with its bounded fact allowlist", () => {
+    expect(mobileSources).toContain(
+      "logged nutrition, hydration, meal distribution, recent logging coverage, weight trend",
+    );
+    expect(mobileSources).toContain(
+      "It does not include food names, notes, photos, recipes, raw timelines, account IDs, or your full history.",
+    );
+    expect(mobileSources).toContain("'daily.water_consumed'");
+    expect(mobileSources).toContain("'weight.short_trend'");
+    expect(mobileSources).not.toContain(
+      "It does not use mood, hydration, weight, plans, or Food Memory.",
+    );
   });
 });

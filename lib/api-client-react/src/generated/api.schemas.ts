@@ -9,8 +9,16 @@ export interface ApiMessage {
   message: string;
 }
 
+export type HealthStatusStatus = typeof HealthStatusStatus[keyof typeof HealthStatusStatus];
+
+
+export const HealthStatusStatus = {
+  ok: 'ok',
+  unavailable: 'unavailable',
+} as const;
+
 export interface HealthStatus {
-  status: string;
+  status: HealthStatusStatus;
 }
 
 export type ProfileGoal = typeof ProfileGoal[keyof typeof ProfileGoal];
@@ -389,31 +397,6 @@ export interface SyncResponse {
   conflicts: SyncConflict[];
   records: SyncDiaryRecord[];
   nextCursor: string;
-}
-
-export type ExportRequestStatus = typeof ExportRequestStatus[keyof typeof ExportRequestStatus];
-
-
-export const ExportRequestStatus = {
-  queued: 'queued',
-  ready: 'ready',
-} as const;
-
-export interface ExportRequest {
-  status: ExportRequestStatus;
-  downloadUrl?: string | null;
-}
-
-export type DeletionRequestStatus = typeof DeletionRequestStatus[keyof typeof DeletionRequestStatus];
-
-
-export const DeletionRequestStatus = {
-  queued: 'queued',
-  complete: 'complete',
-} as const;
-
-export interface DeletionRequest {
-  status: DeletionRequestStatus;
 }
 
 export interface Recipe {

@@ -3,9 +3,10 @@
  *
  *  1. Auto-redeems a pending invite code captured from a deep link
  *     (only when the account hasn't redeemed one already).
- *  2. Once the user has at least one saved meal, calls the activate
- *     endpoint so both parties receive their Pro reward. Retries on the next
- *     app session until the server reports a settled state.
+ *  2. Once the user has a capture-backed saved meal, calls the activate
+ *     endpoint so the server can independently verify qualification and grant
+ *     both rewards. Retries on the next app session until the server reports a
+ *     settled state.
  *
  * Mounted inside SubscriptionProvider so a successful reward refreshes the
  * local entitlement state immediately.
@@ -22,6 +23,9 @@ import {
   isReferralActivationSettled,
   markReferralActivationSettled,
 } from '@/lib/referral';
+
+const SERVER_CAPTURE_SESSION_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function ReferralActivator() {
   const { user } = useAuth();
@@ -53,12 +57,16 @@ export function ReferralActivator() {
     })();
   }, [user]);
 
-  // Ask the server to activate after a saved local meal. The endpoint
-  // independently verifies that an authenticated diary persistence route
-  // stored a meal for this JWT user; `logs` only avoids needless attempts
-  // before the user has logged anything.
+  // Ask the server to activate only after local state contains the same
+  // server-issued capture anchor that the diary persistence route accepts.
+  // This is only an attempt gate: the endpoint independently verifies the
+  // capture session and persisted meal for this JWT user.
   useEffect(() => {
-    if (!user || logs.length === 0 || activateInFlightRef.current) return;
+    const hasCaptureBackedLog = logs.some(
+      (log) => typeof log.captureSessionId === 'string'
+        && SERVER_CAPTURE_SESSION_ID.test(log.captureSessionId),
+    );
+    if (!user || !hasCaptureBackedLog || activateInFlightRef.current) return;
 
     (async () => {
       if (await isReferralActivationSettled(user.id)) return;
