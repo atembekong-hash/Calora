@@ -402,10 +402,11 @@ export default function PlannerScreen() {
     }, duration);
   };
 
-  const prepareOfflineProgram = (programId: PlanTypeId, weekStart: string, weekDays: string[]) => {
+  const prepareOfflineProgram = (programId: PlanTypeId, weekStart: string, weekDays: string[], diet: NonNullable<typeof profile>['diet']) => {
     const latestMeals = plannerMealsRef.current;
     const loggedMealIds = new Set(logsRef.current.map((log) => log.plannerMealId).filter((id): id is string => Boolean(id)));
-    const generated = createStarterPlannerMeals(weekStart, programId);
+    const generated = createStarterPlannerMeals(weekStart, programId, diet);
+    if (generated.length !== weekDays.length * plannerMealTypes.length) return false;
     const merged = mergeGeneratedWeek(latestMeals, generated, weekDays, {
       mode: 'rebuild',
       protectedIds: loggedMealIds,
@@ -430,6 +431,7 @@ export default function PlannerScreen() {
       label,
       message: programEncouragement(programId),
     });
+    return true;
   };
 
   const dismissProgramCelebration = useCallback(() => {
@@ -731,7 +733,15 @@ export default function PlannerScreen() {
     // request and the historical record.
     if (confirmedProgram) updatePlannerPreferences((prev) => selectPrimaryProgram(prev, confirmedProgram));
     if (confirmedProgram) {
-      prepareOfflineProgram(confirmedProgram, requestedWeekStart, requestedWeekDays);
+      const prepared = prepareOfflineProgram(confirmedProgram, requestedWeekStart, requestedWeekDays, plannerProfile.diet);
+      if (!prepared) {
+        const label = findPlanType(confirmedProgram)?.label ?? 'Program';
+        setGenerationError(true);
+        setGenerationMessage(`No complete local ${label} starter week matches your ${plannerProfile.diet} preference. Your current plan is unchanged.`);
+        setGenerating(false);
+        generationInFlightRef.current = false;
+        return;
+      }
       requestedPlannerRevision = plannerRevisionRef.current;
     }
     if (confirmedProgram && !session) {

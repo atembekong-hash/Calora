@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildShoppingItems, createStarterPlannerMeals, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalogForProgram, plannerDate, shoppingChecksByName } from '@/data/planner';
+import { buildShoppingItems, createStarterPlannerMeals, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalog, plannerCatalogForProgram, plannerDate, plannerMealTypes, shoppingChecksByName } from '@/data/planner';
 import { plannerImageKeyForMeal } from '@/lib/mealImageIdentity';
+import { PLANNER_CATALOG, type PlannerDiet } from '@workspace/api-zod/planner-catalog';
 import { PROGRAM_HERO_MEAL_IDS } from '@workspace/api-zod/planner-program-pools';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
@@ -149,6 +150,12 @@ describe('mergeGeneratedWeek — rebuild mode (explicit Program refresh)', () =>
 });
 
 describe('planner identity', () => {
+  it('derives the live local catalog exactly from the 28-meal shared authority', () => {
+    expect(plannerCatalog).toHaveLength(28);
+    expect(plannerCatalog.map(({ day, imageAssetKey, ...meal }) => meal)).toEqual(PLANNER_CATALOG);
+    expect(plannerCatalog.every((meal) => meal.day === '' && Boolean(meal.imageAssetKey))).toBe(true);
+  });
+
   it('keeps shopping IDs stable across meal reorder and ingredient casing', () => {
     const first = buildShoppingItems([meal('meal-a', ['Tomato', 'olive oil']), meal('meal-b', [' tomato '])]);
     const second = buildShoppingItems([meal('meal-b', ['TOMATO']), meal('meal-a', ['olive oil', 'tomato'])]);
@@ -179,6 +186,31 @@ describe('planner identity', () => {
     expect(highProtein.map((item) => item.imageAssetKey)).not.toEqual(balanced.map((item) => item.imageAssetKey));
     expect(mediterranean.map((item) => item.imageAssetKey)).not.toEqual(balanced.map((item) => item.imageAssetKey));
     expect(highProtein.slice(0, 4).every((item) => item.day === '2026-08-03')).toBe(true);
+  });
+
+  it.each(['Everything', 'Vegetarian', 'Vegan', 'High protein'] as PlannerDiet[])(
+    'keeps complete %s local starter weeks diet-compatible',
+    (diet) => {
+      for (const program of ['balanced-nutrition', 'high-protein-power', 'mediterranean-diet', 'plant-based-week', 'athletic-performance'] as const) {
+        const eligible = plannerCatalogForProgram(program, diet);
+        const hasEveryRole = plannerMealTypes.every((role) => eligible.some((meal) => meal.meal === role));
+        const generated = createStarterPlannerMeals('2026-08-03', program, diet);
+
+        if (!hasEveryRole) {
+          expect(generated, `${diet}/${program}`).toEqual([]);
+          continue;
+        }
+        expect(generated, `${diet}/${program}`).toHaveLength(28);
+        expect(generated.every((meal) => (
+          plannerCatalog.find((candidate) => candidate.name === meal.name)?.diets.includes(diet)
+          || diet === 'Everything'
+        ))).toBe(true);
+      }
+    },
+  );
+
+  it('returns no partial starter week when the Program and diet lack a required role', () => {
+    expect(createStarterPlannerMeals('2026-08-03', 'quick-and-easy', 'Vegan')).toEqual([]);
   });
 
   it('gives each Program a distinct first-day meal and image signature', () => {
