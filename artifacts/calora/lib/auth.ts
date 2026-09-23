@@ -14,7 +14,11 @@ import { supabase } from './supabase';
  * the association responses, and Supabase's redirect allow-list.
  */
 export const OAUTH_REDIRECT_URI = 'https://mycaloraapp.com/auth/callback' as const;
-const OAUTH_REDIRECT_URL = new URL(OAUTH_REDIRECT_URI);
+export const WEB_OAUTH_CALLBACK_URI = 'https://app.mycaloraapp.com/auth/callback' as const;
+const TRUSTED_OAUTH_CALLBACK_URLS = [
+  new URL(OAUTH_REDIRECT_URI),
+  new URL(WEB_OAUTH_CALLBACK_URI),
+];
 
 export type AuthErrorCode =
   | 'cancelled'
@@ -38,13 +42,14 @@ export type AuthResult =
 export type AuthStatusCallback = (message: string) => void;
 
 function isTrustedOAuthCallbackUrl(url: URL): boolean {
-  return (
-    url.protocol === OAUTH_REDIRECT_URL.protocol &&
-    url.hostname === OAUTH_REDIRECT_URL.hostname &&
-    url.port === OAUTH_REDIRECT_URL.port &&
-    url.pathname === OAUTH_REDIRECT_URL.pathname &&
-    !url.username &&
-    !url.password
+  return TRUSTED_OAUTH_CALLBACK_URLS.some(
+    (trustedUrl) =>
+      url.protocol === trustedUrl.protocol &&
+      url.hostname === trustedUrl.hostname &&
+      url.port === trustedUrl.port &&
+      url.pathname === trustedUrl.pathname &&
+      !url.username &&
+      !url.password,
   );
 }
 

@@ -100,6 +100,15 @@ jobs:
           EXPO_PUBLIC_API_URL: https://mycaloraapp.com
         run: pnpm --filter @workspace/calora run build
 
+      - name: Build Calora production web artifact
+        env:
+          EXPO_PUBLIC_DOMAIN: app.mycaloraapp.com
+          EXPO_PUBLIC_API_URL: https://app.mycaloraapp.com
+          EXPO_PUBLIC_SUPABASE_URL: https://calora-web-release.invalid
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: calora-web-release-public-key
+          EXPO_PUBLIC_REVENUECAT_TEST_API_KEY: test_calora_web_release_public_key
+        run: pnpm --filter @workspace/calora run build:web
+
   release-validation-gate:
     name: Attest release validation gate
     needs: release-validation
