@@ -156,6 +156,46 @@ export const listDiaryEntriesResponseEntriesItemOneImageUrlMax = 2048;
 
 export const listDiaryEntriesResponseEntriesItemOneImageSourceMax = 80;
 
+export const listDiaryEntriesResponseEntriesItemOneImageAssetKeyMax = 160;
+
+export const listDiaryEntriesResponseEntriesItemOneImageEvidenceContentIdMax = 160;
+
+export const listDiaryEntriesResponseEntriesItemOneImageEvidenceSourceMax = 80;
+
+export const listDiaryEntriesResponseEntriesItemOneImageEvidenceProviderMax = 80;
+
+export const listDiaryEntriesResponseEntriesItemOneImageEvidenceProviderItemIdMax = 160;
+
+export const listDiaryEntriesResponseEntriesItemOneImageEvidenceImageIdMax = 160;
+
+export const listDiaryEntriesResponseEntriesItemOneImageEvidenceImageVersionMax = 160;
+
+export const listDiaryEntriesResponseEntriesItemOneImageEvidenceAssetKeyMax = 160;
+
+export const listDiaryEntriesResponseEntriesItemOneImageEvidenceLocatorMax = 2048;
+
+export const listDiaryEntriesResponseEntriesItemOneImageEvidenceAttributionMax = 500;
+
+export const listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneContentIdMax = 160;
+
+export const listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneSourceMax = 80;
+
+export const listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneProviderMax = 80;
+
+export const listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneProviderItemIdMax = 160;
+
+export const listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneImageIdMax = 160;
+
+export const listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneImageVersionMax = 160;
+
+export const listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneAssetKeyMax = 160;
+
+export const listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneLocatorMax = 2048;
+
+export const listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneAttributionMax = 500;
+
+export const listDiaryEntriesResponseEntriesItemTwoImageEvidenceTwoAccountScopeMax = 200;
+
 
 
 export const ListDiaryEntriesResponse = zod.object({
@@ -174,10 +214,47 @@ export const ListDiaryEntriesResponse = zod.object({
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
   "imageUrl": zod.string().url().max(listDiaryEntriesResponseEntriesItemOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
-  "imageSource": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n')
+  "imageSource": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n'),
+  "imageAssetKey": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageAssetKeyMax).optional().describe('Stable local asset identity; never a remote URL.'),
+  "imageEvidence": zod.object({
+  "version": zod.literal(1),
+  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
+  "contentId": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceContentIdMax).optional(),
+  "source": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceSourceMax).optional(),
+  "provider": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceProviderMax).optional(),
+  "providerItemId": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceProviderItemIdMax).optional(),
+  "imageId": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceImageIdMax).optional(),
+  "imageVersion": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceImageVersionMax).optional(),
+  "assetKey": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceAssetKeyMax).optional(),
+  "locator": zod.string().url().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceLocatorMax).optional(),
+  "verifiedAt": zod.coerce.date().optional(),
+  "retrievedAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "attribution": zod.string().max(listDiaryEntriesResponseEntriesItemOneImageEvidenceAttributionMax).optional(),
+  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
+}).optional().describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n')
 }).and(zod.object({
   "id": zod.string().uuid(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "imageEvidence": zod.object({
+  "version": zod.literal(1),
+  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
+  "contentId": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneContentIdMax).optional(),
+  "source": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneSourceMax).optional(),
+  "provider": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneProviderMax).optional(),
+  "providerItemId": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneProviderItemIdMax).optional(),
+  "imageId": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneImageIdMax).optional(),
+  "imageVersion": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneImageVersionMax).optional(),
+  "assetKey": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneAssetKeyMax).optional(),
+  "locator": zod.string().url().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneLocatorMax).optional(),
+  "verifiedAt": zod.coerce.date().optional(),
+  "retrievedAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "attribution": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceOneAttributionMax).optional(),
+  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
+}).describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n').and(zod.object({
+  "accountScope": zod.string().max(listDiaryEntriesResponseEntriesItemTwoImageEvidenceTwoAccountScopeMax).describe('Server-derived authenticated account scope; clients must not choose it.')
+})).optional()
 })))
 })
 
@@ -202,6 +279,26 @@ export const createDiaryEntryBodyImageUrlMax = 2048;
 
 export const createDiaryEntryBodyImageSourceMax = 80;
 
+export const createDiaryEntryBodyImageAssetKeyMax = 160;
+
+export const createDiaryEntryBodyImageEvidenceContentIdMax = 160;
+
+export const createDiaryEntryBodyImageEvidenceSourceMax = 80;
+
+export const createDiaryEntryBodyImageEvidenceProviderMax = 80;
+
+export const createDiaryEntryBodyImageEvidenceProviderItemIdMax = 160;
+
+export const createDiaryEntryBodyImageEvidenceImageIdMax = 160;
+
+export const createDiaryEntryBodyImageEvidenceImageVersionMax = 160;
+
+export const createDiaryEntryBodyImageEvidenceAssetKeyMax = 160;
+
+export const createDiaryEntryBodyImageEvidenceLocatorMax = 2048;
+
+export const createDiaryEntryBodyImageEvidenceAttributionMax = 500;
+
 
 
 export const CreateDiaryEntryBody = zod.object({
@@ -218,7 +315,25 @@ export const CreateDiaryEntryBody = zod.object({
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
   "imageUrl": zod.string().url().max(createDiaryEntryBodyImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
-  "imageSource": zod.string().max(createDiaryEntryBodyImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n')
+  "imageSource": zod.string().max(createDiaryEntryBodyImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n'),
+  "imageAssetKey": zod.string().max(createDiaryEntryBodyImageAssetKeyMax).optional().describe('Stable local asset identity; never a remote URL.'),
+  "imageEvidence": zod.object({
+  "version": zod.literal(1),
+  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
+  "contentId": zod.string().max(createDiaryEntryBodyImageEvidenceContentIdMax).optional(),
+  "source": zod.string().max(createDiaryEntryBodyImageEvidenceSourceMax).optional(),
+  "provider": zod.string().max(createDiaryEntryBodyImageEvidenceProviderMax).optional(),
+  "providerItemId": zod.string().max(createDiaryEntryBodyImageEvidenceProviderItemIdMax).optional(),
+  "imageId": zod.string().max(createDiaryEntryBodyImageEvidenceImageIdMax).optional(),
+  "imageVersion": zod.string().max(createDiaryEntryBodyImageEvidenceImageVersionMax).optional(),
+  "assetKey": zod.string().max(createDiaryEntryBodyImageEvidenceAssetKeyMax).optional(),
+  "locator": zod.string().url().max(createDiaryEntryBodyImageEvidenceLocatorMax).optional(),
+  "verifiedAt": zod.coerce.date().optional(),
+  "retrievedAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "attribution": zod.string().max(createDiaryEntryBodyImageEvidenceAttributionMax).optional(),
+  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
+}).optional().describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n')
 })
 
 
@@ -238,6 +353,46 @@ export const createDiaryEntryResponseOneImageUrlMax = 2048;
 
 export const createDiaryEntryResponseOneImageSourceMax = 80;
 
+export const createDiaryEntryResponseOneImageAssetKeyMax = 160;
+
+export const createDiaryEntryResponseOneImageEvidenceContentIdMax = 160;
+
+export const createDiaryEntryResponseOneImageEvidenceSourceMax = 80;
+
+export const createDiaryEntryResponseOneImageEvidenceProviderMax = 80;
+
+export const createDiaryEntryResponseOneImageEvidenceProviderItemIdMax = 160;
+
+export const createDiaryEntryResponseOneImageEvidenceImageIdMax = 160;
+
+export const createDiaryEntryResponseOneImageEvidenceImageVersionMax = 160;
+
+export const createDiaryEntryResponseOneImageEvidenceAssetKeyMax = 160;
+
+export const createDiaryEntryResponseOneImageEvidenceLocatorMax = 2048;
+
+export const createDiaryEntryResponseOneImageEvidenceAttributionMax = 500;
+
+export const createDiaryEntryResponseTwoImageEvidenceOneContentIdMax = 160;
+
+export const createDiaryEntryResponseTwoImageEvidenceOneSourceMax = 80;
+
+export const createDiaryEntryResponseTwoImageEvidenceOneProviderMax = 80;
+
+export const createDiaryEntryResponseTwoImageEvidenceOneProviderItemIdMax = 160;
+
+export const createDiaryEntryResponseTwoImageEvidenceOneImageIdMax = 160;
+
+export const createDiaryEntryResponseTwoImageEvidenceOneImageVersionMax = 160;
+
+export const createDiaryEntryResponseTwoImageEvidenceOneAssetKeyMax = 160;
+
+export const createDiaryEntryResponseTwoImageEvidenceOneLocatorMax = 2048;
+
+export const createDiaryEntryResponseTwoImageEvidenceOneAttributionMax = 500;
+
+export const createDiaryEntryResponseTwoImageEvidenceTwoAccountScopeMax = 200;
+
 
 
 export const CreateDiaryEntryResponse = zod.object({
@@ -254,10 +409,47 @@ export const CreateDiaryEntryResponse = zod.object({
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
   "imageUrl": zod.string().url().max(createDiaryEntryResponseOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
-  "imageSource": zod.string().max(createDiaryEntryResponseOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n')
+  "imageSource": zod.string().max(createDiaryEntryResponseOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n'),
+  "imageAssetKey": zod.string().max(createDiaryEntryResponseOneImageAssetKeyMax).optional().describe('Stable local asset identity; never a remote URL.'),
+  "imageEvidence": zod.object({
+  "version": zod.literal(1),
+  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
+  "contentId": zod.string().max(createDiaryEntryResponseOneImageEvidenceContentIdMax).optional(),
+  "source": zod.string().max(createDiaryEntryResponseOneImageEvidenceSourceMax).optional(),
+  "provider": zod.string().max(createDiaryEntryResponseOneImageEvidenceProviderMax).optional(),
+  "providerItemId": zod.string().max(createDiaryEntryResponseOneImageEvidenceProviderItemIdMax).optional(),
+  "imageId": zod.string().max(createDiaryEntryResponseOneImageEvidenceImageIdMax).optional(),
+  "imageVersion": zod.string().max(createDiaryEntryResponseOneImageEvidenceImageVersionMax).optional(),
+  "assetKey": zod.string().max(createDiaryEntryResponseOneImageEvidenceAssetKeyMax).optional(),
+  "locator": zod.string().url().max(createDiaryEntryResponseOneImageEvidenceLocatorMax).optional(),
+  "verifiedAt": zod.coerce.date().optional(),
+  "retrievedAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "attribution": zod.string().max(createDiaryEntryResponseOneImageEvidenceAttributionMax).optional(),
+  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
+}).optional().describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n')
 }).and(zod.object({
   "id": zod.string().uuid(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "imageEvidence": zod.object({
+  "version": zod.literal(1),
+  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
+  "contentId": zod.string().max(createDiaryEntryResponseTwoImageEvidenceOneContentIdMax).optional(),
+  "source": zod.string().max(createDiaryEntryResponseTwoImageEvidenceOneSourceMax).optional(),
+  "provider": zod.string().max(createDiaryEntryResponseTwoImageEvidenceOneProviderMax).optional(),
+  "providerItemId": zod.string().max(createDiaryEntryResponseTwoImageEvidenceOneProviderItemIdMax).optional(),
+  "imageId": zod.string().max(createDiaryEntryResponseTwoImageEvidenceOneImageIdMax).optional(),
+  "imageVersion": zod.string().max(createDiaryEntryResponseTwoImageEvidenceOneImageVersionMax).optional(),
+  "assetKey": zod.string().max(createDiaryEntryResponseTwoImageEvidenceOneAssetKeyMax).optional(),
+  "locator": zod.string().url().max(createDiaryEntryResponseTwoImageEvidenceOneLocatorMax).optional(),
+  "verifiedAt": zod.coerce.date().optional(),
+  "retrievedAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "attribution": zod.string().max(createDiaryEntryResponseTwoImageEvidenceOneAttributionMax).optional(),
+  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
+}).describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n').and(zod.object({
+  "accountScope": zod.string().max(createDiaryEntryResponseTwoImageEvidenceTwoAccountScopeMax).describe('Server-derived authenticated account scope; clients must not choose it.')
+})).optional()
 }))
 
 
@@ -306,6 +498,46 @@ export const updateDiaryEntryResponseOneImageUrlMax = 2048;
 
 export const updateDiaryEntryResponseOneImageSourceMax = 80;
 
+export const updateDiaryEntryResponseOneImageAssetKeyMax = 160;
+
+export const updateDiaryEntryResponseOneImageEvidenceContentIdMax = 160;
+
+export const updateDiaryEntryResponseOneImageEvidenceSourceMax = 80;
+
+export const updateDiaryEntryResponseOneImageEvidenceProviderMax = 80;
+
+export const updateDiaryEntryResponseOneImageEvidenceProviderItemIdMax = 160;
+
+export const updateDiaryEntryResponseOneImageEvidenceImageIdMax = 160;
+
+export const updateDiaryEntryResponseOneImageEvidenceImageVersionMax = 160;
+
+export const updateDiaryEntryResponseOneImageEvidenceAssetKeyMax = 160;
+
+export const updateDiaryEntryResponseOneImageEvidenceLocatorMax = 2048;
+
+export const updateDiaryEntryResponseOneImageEvidenceAttributionMax = 500;
+
+export const updateDiaryEntryResponseTwoImageEvidenceOneContentIdMax = 160;
+
+export const updateDiaryEntryResponseTwoImageEvidenceOneSourceMax = 80;
+
+export const updateDiaryEntryResponseTwoImageEvidenceOneProviderMax = 80;
+
+export const updateDiaryEntryResponseTwoImageEvidenceOneProviderItemIdMax = 160;
+
+export const updateDiaryEntryResponseTwoImageEvidenceOneImageIdMax = 160;
+
+export const updateDiaryEntryResponseTwoImageEvidenceOneImageVersionMax = 160;
+
+export const updateDiaryEntryResponseTwoImageEvidenceOneAssetKeyMax = 160;
+
+export const updateDiaryEntryResponseTwoImageEvidenceOneLocatorMax = 2048;
+
+export const updateDiaryEntryResponseTwoImageEvidenceOneAttributionMax = 500;
+
+export const updateDiaryEntryResponseTwoImageEvidenceTwoAccountScopeMax = 200;
+
 
 
 export const UpdateDiaryEntryResponse = zod.object({
@@ -322,10 +554,47 @@ export const UpdateDiaryEntryResponse = zod.object({
   "clientUpdatedAt": zod.coerce.date(),
   "notes": zod.string().nullish(),
   "imageUrl": zod.string().url().max(updateDiaryEntryResponseOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry\n(e.g. an Open Food Facts product photo). Omitted or null when no\nimage is associated. The server only stores absolute http\/https\nURLs; other values are rejected or dropped.\n'),
-  "imageSource": zod.string().max(updateDiaryEntryResponseOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n')
+  "imageSource": zod.string().max(updateDiaryEntryResponseOneImageSourceMax).nullish().describe('Optional short label describing where the image came from\n(e.g. \"Open Food Facts\", \"user_photo\"). Null when no image is set.\n'),
+  "imageAssetKey": zod.string().max(updateDiaryEntryResponseOneImageAssetKeyMax).optional().describe('Stable local asset identity; never a remote URL.'),
+  "imageEvidence": zod.object({
+  "version": zod.literal(1),
+  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
+  "contentId": zod.string().max(updateDiaryEntryResponseOneImageEvidenceContentIdMax).optional(),
+  "source": zod.string().max(updateDiaryEntryResponseOneImageEvidenceSourceMax).optional(),
+  "provider": zod.string().max(updateDiaryEntryResponseOneImageEvidenceProviderMax).optional(),
+  "providerItemId": zod.string().max(updateDiaryEntryResponseOneImageEvidenceProviderItemIdMax).optional(),
+  "imageId": zod.string().max(updateDiaryEntryResponseOneImageEvidenceImageIdMax).optional(),
+  "imageVersion": zod.string().max(updateDiaryEntryResponseOneImageEvidenceImageVersionMax).optional(),
+  "assetKey": zod.string().max(updateDiaryEntryResponseOneImageEvidenceAssetKeyMax).optional(),
+  "locator": zod.string().url().max(updateDiaryEntryResponseOneImageEvidenceLocatorMax).optional(),
+  "verifiedAt": zod.coerce.date().optional(),
+  "retrievedAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "attribution": zod.string().max(updateDiaryEntryResponseOneImageEvidenceAttributionMax).optional(),
+  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
+}).optional().describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n')
 }).and(zod.object({
   "id": zod.string().uuid(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "imageEvidence": zod.object({
+  "version": zod.literal(1),
+  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
+  "contentId": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneContentIdMax).optional(),
+  "source": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneSourceMax).optional(),
+  "provider": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneProviderMax).optional(),
+  "providerItemId": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneProviderItemIdMax).optional(),
+  "imageId": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneImageIdMax).optional(),
+  "imageVersion": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneImageVersionMax).optional(),
+  "assetKey": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneAssetKeyMax).optional(),
+  "locator": zod.string().url().max(updateDiaryEntryResponseTwoImageEvidenceOneLocatorMax).optional(),
+  "verifiedAt": zod.coerce.date().optional(),
+  "retrievedAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "attribution": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceOneAttributionMax).optional(),
+  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
+}).describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n').and(zod.object({
+  "accountScope": zod.string().max(updateDiaryEntryResponseTwoImageEvidenceTwoAccountScopeMax).describe('Server-derived authenticated account scope; clients must not choose it.')
+})).optional()
 }))
 
 
@@ -418,6 +687,28 @@ export const syncOutboxResponseRecordsItemFatGMin = 0;
 export const syncOutboxResponseRecordsItemConfidenceMin = 0;
 export const syncOutboxResponseRecordsItemConfidenceMax = 100;
 
+export const syncOutboxResponseRecordsItemImageAssetKeyMax = 160;
+
+export const syncOutboxResponseRecordsItemImageEvidenceOneContentIdMax = 160;
+
+export const syncOutboxResponseRecordsItemImageEvidenceOneSourceMax = 80;
+
+export const syncOutboxResponseRecordsItemImageEvidenceOneProviderMax = 80;
+
+export const syncOutboxResponseRecordsItemImageEvidenceOneProviderItemIdMax = 160;
+
+export const syncOutboxResponseRecordsItemImageEvidenceOneImageIdMax = 160;
+
+export const syncOutboxResponseRecordsItemImageEvidenceOneImageVersionMax = 160;
+
+export const syncOutboxResponseRecordsItemImageEvidenceOneAssetKeyMax = 160;
+
+export const syncOutboxResponseRecordsItemImageEvidenceOneLocatorMax = 2048;
+
+export const syncOutboxResponseRecordsItemImageEvidenceOneAttributionMax = 500;
+
+export const syncOutboxResponseRecordsItemImageEvidenceTwoAccountScopeMax = 200;
+
 export const syncOutboxResponseRecordsItemTimeMax = 40;
 
 export const syncOutboxResponseRecordsItemFiberMin = 0;
@@ -459,6 +750,26 @@ export const SyncOutboxResponse = zod.object({
   "notes": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
   "imageSource": zod.string().nullish(),
+  "imageAssetKey": zod.string().max(syncOutboxResponseRecordsItemImageAssetKeyMax).optional(),
+  "imageEvidence": zod.object({
+  "version": zod.literal(1),
+  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
+  "contentId": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceOneContentIdMax).optional(),
+  "source": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceOneSourceMax).optional(),
+  "provider": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceOneProviderMax).optional(),
+  "providerItemId": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceOneProviderItemIdMax).optional(),
+  "imageId": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceOneImageIdMax).optional(),
+  "imageVersion": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceOneImageVersionMax).optional(),
+  "assetKey": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceOneAssetKeyMax).optional(),
+  "locator": zod.string().url().max(syncOutboxResponseRecordsItemImageEvidenceOneLocatorMax).optional(),
+  "verifiedAt": zod.coerce.date().optional(),
+  "retrievedAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "attribution": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceOneAttributionMax).optional(),
+  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
+}).describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n').and(zod.object({
+  "accountScope": zod.string().max(syncOutboxResponseRecordsItemImageEvidenceTwoAccountScopeMax).describe('Server-derived authenticated account scope; clients must not choose it.')
+})).optional(),
   "time": zod.string().max(syncOutboxResponseRecordsItemTimeMax).optional(),
   "fiber": zod.number().min(syncOutboxResponseRecordsItemFiberMin).optional(),
   "sugar": zod.number().min(syncOutboxResponseRecordsItemSugarMin).optional(),
@@ -909,6 +1220,26 @@ export const analyzeCaptureResponseCandidatesItemImageUrlMax = 2048;
 
 export const analyzeCaptureResponseCandidatesItemImageSourceMax = 80;
 
+export const analyzeCaptureResponseCandidatesItemImageEvidenceOneContentIdMax = 160;
+
+export const analyzeCaptureResponseCandidatesItemImageEvidenceOneSourceMax = 80;
+
+export const analyzeCaptureResponseCandidatesItemImageEvidenceOneProviderMax = 80;
+
+export const analyzeCaptureResponseCandidatesItemImageEvidenceOneProviderItemIdMax = 160;
+
+export const analyzeCaptureResponseCandidatesItemImageEvidenceOneImageIdMax = 160;
+
+export const analyzeCaptureResponseCandidatesItemImageEvidenceOneImageVersionMax = 160;
+
+export const analyzeCaptureResponseCandidatesItemImageEvidenceOneAssetKeyMax = 160;
+
+export const analyzeCaptureResponseCandidatesItemImageEvidenceOneLocatorMax = 2048;
+
+export const analyzeCaptureResponseCandidatesItemImageEvidenceOneAttributionMax = 500;
+
+export const analyzeCaptureResponseCandidatesItemImageEvidenceTwoAccountScopeMax = 200;
+
 export const analyzeCaptureResponseComponentsItemOneCaloriesMin = 0;
 
 export const analyzeCaptureResponseComponentsItemOneProteinGMin = 0;
@@ -923,6 +1254,26 @@ export const analyzeCaptureResponseComponentsItemOneConfidenceMax = 100;
 export const analyzeCaptureResponseComponentsItemOneImageUrlMax = 2048;
 
 export const analyzeCaptureResponseComponentsItemOneImageSourceMax = 80;
+
+export const analyzeCaptureResponseComponentsItemOneImageEvidenceOneContentIdMax = 160;
+
+export const analyzeCaptureResponseComponentsItemOneImageEvidenceOneSourceMax = 80;
+
+export const analyzeCaptureResponseComponentsItemOneImageEvidenceOneProviderMax = 80;
+
+export const analyzeCaptureResponseComponentsItemOneImageEvidenceOneProviderItemIdMax = 160;
+
+export const analyzeCaptureResponseComponentsItemOneImageEvidenceOneImageIdMax = 160;
+
+export const analyzeCaptureResponseComponentsItemOneImageEvidenceOneImageVersionMax = 160;
+
+export const analyzeCaptureResponseComponentsItemOneImageEvidenceOneAssetKeyMax = 160;
+
+export const analyzeCaptureResponseComponentsItemOneImageEvidenceOneLocatorMax = 2048;
+
+export const analyzeCaptureResponseComponentsItemOneImageEvidenceOneAttributionMax = 500;
+
+export const analyzeCaptureResponseComponentsItemOneImageEvidenceTwoAccountScopeMax = 200;
 
 export const analyzeCaptureResponseComponentsItemTwoEatenFractionMin = 0;
 export const analyzeCaptureResponseComponentsItemTwoEatenFractionMax = 1;
@@ -966,7 +1317,26 @@ export const AnalyzeCaptureResponse = zod.object({
   "sourceLabel": zod.string(),
   "editable": zod.boolean(),
   "imageUrl": zod.string().url().max(analyzeCaptureResponseCandidatesItemImageUrlMax).nullish().describe('Optional http(s) URL of a representative product image for this\ncandidate (e.g. an Open Food Facts product photo). Null when the\nprovider returned no usable image.\n'),
-  "imageSource": zod.string().max(analyzeCaptureResponseCandidatesItemImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.')
+  "imageSource": zod.string().max(analyzeCaptureResponseCandidatesItemImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.'),
+  "imageEvidence": zod.object({
+  "version": zod.literal(1),
+  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
+  "contentId": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneContentIdMax).optional(),
+  "source": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneSourceMax).optional(),
+  "provider": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneProviderMax).optional(),
+  "providerItemId": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneProviderItemIdMax).optional(),
+  "imageId": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneImageIdMax).optional(),
+  "imageVersion": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneImageVersionMax).optional(),
+  "assetKey": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneAssetKeyMax).optional(),
+  "locator": zod.string().url().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneLocatorMax).optional(),
+  "verifiedAt": zod.coerce.date().optional(),
+  "retrievedAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "attribution": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceOneAttributionMax).optional(),
+  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
+}).describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n').and(zod.object({
+  "accountScope": zod.string().max(analyzeCaptureResponseCandidatesItemImageEvidenceTwoAccountScopeMax).describe('Server-derived authenticated account scope; clients must not choose it.')
+})).optional()
 })),
   "components": zod.array(zod.object({
   "id": zod.string(),
@@ -982,7 +1352,26 @@ export const AnalyzeCaptureResponse = zod.object({
   "sourceLabel": zod.string(),
   "editable": zod.boolean(),
   "imageUrl": zod.string().url().max(analyzeCaptureResponseComponentsItemOneImageUrlMax).nullish().describe('Optional http(s) URL of a representative product image for this\ncandidate (e.g. an Open Food Facts product photo). Null when the\nprovider returned no usable image.\n'),
-  "imageSource": zod.string().max(analyzeCaptureResponseComponentsItemOneImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.')
+  "imageSource": zod.string().max(analyzeCaptureResponseComponentsItemOneImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.'),
+  "imageEvidence": zod.object({
+  "version": zod.literal(1),
+  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
+  "contentId": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneContentIdMax).optional(),
+  "source": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneSourceMax).optional(),
+  "provider": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneProviderMax).optional(),
+  "providerItemId": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneProviderItemIdMax).optional(),
+  "imageId": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneImageIdMax).optional(),
+  "imageVersion": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneImageVersionMax).optional(),
+  "assetKey": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneAssetKeyMax).optional(),
+  "locator": zod.string().url().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneLocatorMax).optional(),
+  "verifiedAt": zod.coerce.date().optional(),
+  "retrievedAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "attribution": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceOneAttributionMax).optional(),
+  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
+}).describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n').and(zod.object({
+  "accountScope": zod.string().max(analyzeCaptureResponseComponentsItemOneImageEvidenceTwoAccountScopeMax).describe('Server-derived authenticated account scope; clients must not choose it.')
+})).optional()
 }).and(zod.object({
   "componentId": zod.string(),
   "preparation": zod.string().nullish(),
@@ -1408,6 +1797,26 @@ export const syncFirstDiaryEntryBodyImageUrlMax = 2048;
 
 export const syncFirstDiaryEntryBodyImageSourceMax = 80;
 
+export const syncFirstDiaryEntryBodyImageAssetKeyMax = 160;
+
+export const syncFirstDiaryEntryBodyImageEvidenceContentIdMax = 160;
+
+export const syncFirstDiaryEntryBodyImageEvidenceSourceMax = 80;
+
+export const syncFirstDiaryEntryBodyImageEvidenceProviderMax = 80;
+
+export const syncFirstDiaryEntryBodyImageEvidenceProviderItemIdMax = 160;
+
+export const syncFirstDiaryEntryBodyImageEvidenceImageIdMax = 160;
+
+export const syncFirstDiaryEntryBodyImageEvidenceImageVersionMax = 160;
+
+export const syncFirstDiaryEntryBodyImageEvidenceAssetKeyMax = 160;
+
+export const syncFirstDiaryEntryBodyImageEvidenceLocatorMax = 2048;
+
+export const syncFirstDiaryEntryBodyImageEvidenceAttributionMax = 500;
+
 
 
 export const SyncFirstDiaryEntryBody = zod.object({
@@ -1425,7 +1834,25 @@ export const SyncFirstDiaryEntryBody = zod.object({
   "notes": zod.string().max(syncFirstDiaryEntryBodyNotesMax).optional(),
   "clientUpdatedAt": zod.coerce.date(),
   "imageUrl": zod.string().url().max(syncFirstDiaryEntryBodyImageUrlMax).nullish().describe('Optional http(s) URL of a representative image for this entry.\nOnly absolute http\/https URLs are persisted; other values are\ndropped so a fabricated payload cannot inject arbitrary content.\n'),
-  "imageSource": zod.string().max(syncFirstDiaryEntryBodyImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.')
+  "imageSource": zod.string().max(syncFirstDiaryEntryBodyImageSourceMax).nullish().describe('Optional short label describing the image\'s origin.'),
+  "imageAssetKey": zod.string().max(syncFirstDiaryEntryBodyImageAssetKeyMax).optional().describe('Stable local asset identity; never a remote URL.'),
+  "imageEvidence": zod.object({
+  "version": zod.literal(1),
+  "semanticRole": zod.enum(['exact', 'canonical', 'generated', 'user_local', 'representative', 'no_image', 'fallback', 'unverified']),
+  "contentId": zod.string().max(syncFirstDiaryEntryBodyImageEvidenceContentIdMax).optional(),
+  "source": zod.string().max(syncFirstDiaryEntryBodyImageEvidenceSourceMax).optional(),
+  "provider": zod.string().max(syncFirstDiaryEntryBodyImageEvidenceProviderMax).optional(),
+  "providerItemId": zod.string().max(syncFirstDiaryEntryBodyImageEvidenceProviderItemIdMax).optional(),
+  "imageId": zod.string().max(syncFirstDiaryEntryBodyImageEvidenceImageIdMax).optional(),
+  "imageVersion": zod.string().max(syncFirstDiaryEntryBodyImageEvidenceImageVersionMax).optional(),
+  "assetKey": zod.string().max(syncFirstDiaryEntryBodyImageEvidenceAssetKeyMax).optional(),
+  "locator": zod.string().url().max(syncFirstDiaryEntryBodyImageEvidenceLocatorMax).optional(),
+  "verifiedAt": zod.coerce.date().optional(),
+  "retrievedAt": zod.coerce.date().optional(),
+  "expiresAt": zod.coerce.date().optional(),
+  "attribution": zod.string().max(syncFirstDiaryEntryBodyImageEvidenceAttributionMax).optional(),
+  "rightsReviewState": zod.enum(['unreviewed', 'reviewed', 'approved', 'restricted']).optional()
+}).optional().describe('Additive versioned image evidence. The server derives account scope\nfrom the authenticated caller; a locator is not proof of exactness.\n')
 })
 
 export const SyncFirstDiaryEntryResponse = zod.object({

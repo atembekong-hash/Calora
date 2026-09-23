@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DiaryEntryInput } from './diaryEntryInput';
+import type { ImageEvidence } from './imageEvidence';
 
 export type DiaryEntry = DiaryEntryInput & {
   id: string;
   updatedAt: Date;
+  imageEvidence?: ImageEvidence;
 };

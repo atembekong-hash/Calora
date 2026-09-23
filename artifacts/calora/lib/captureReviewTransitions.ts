@@ -14,6 +14,7 @@ import type {
 } from './foodMemory';
 import {
   normalizeFoodImageMetadata,
+  type FoodImageEvidence,
   type FoodImageSource,
 } from './foodImageMetadata';
 import { formatLogTime } from './dates';
@@ -52,6 +53,7 @@ export type FoodLog = {
   imageAssetKey?: string;
   imageUrl?: string;
   imageSource?: FoodImageSource;
+  imageEvidence?: FoodImageEvidence;
   nutritionSnapshot?: {
     calories: number;
     proteinG: number;
@@ -96,7 +98,7 @@ export function buildAcceptResult(
   acceptedAt: string,
 ): { log: FoodLog; memory: AcceptedFoodMemory } {
   const snapshot = { ...draft.nutrition, capturedAt: acceptedAt };
-  const image = normalizeFoodImageMetadata(draft.imageUrl, draft.imageSource);
+  const image = normalizeFoodImageMetadata(draft.imageUrl, draft.imageSource, draft.imageEvidence);
   const serving =
     draft.components
       .filter((c) => c.included)
@@ -124,6 +126,7 @@ export function buildAcceptResult(
     imageAssetKey: draft.imageAssetKey,
     imageUrl: image.imageUrl,
     imageSource: image.imageSource,
+    imageEvidence: image.imageEvidence,
     nutritionSnapshot: snapshot,
   };
 
@@ -131,6 +134,7 @@ export function buildAcceptResult(
     ...draft,
     imageUrl: image.imageUrl,
     imageSource: image.imageSource,
+    imageEvidence: image.imageEvidence,
     status: 'accepted',
     nutrition: snapshot,
     updatedAt: acceptedAt,

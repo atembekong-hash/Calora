@@ -14,6 +14,8 @@ import {
 } from '@/lib/mealImageIdentity';
 import { findDuplicateImageAssignments } from '@/lib/mealImageAudit';
 import { IMAGE_SURFACE_AUDIT_ROWS } from '@/lib/mealImageAudit';
+import { plannerImageSource } from '@/lib/mealImages';
+import { plannerImageRenderDecision, plannerStoredImageKeyMismatch } from '@/lib/plannerImageRendering';
 
 describe('curated meal image identity', () => {
   it('assigns a generated asset to every planner catalog meal', () => {
@@ -138,5 +140,47 @@ describe('curated meal image identity', () => {
   it('does not promote custom or generated meal ids into curated image keys', () => {
     expect(plannerImageKeyForMealId('custom-summer-bowl')).toBeUndefined();
     expect(plannerImageKeyForMealId('planner-2026-08-31-custom-summer-bowl')).toBeUndefined();
+  });
+
+  it('clears stale inherited catalog URLs after a canonical meal is renamed or customized', () => {
+    const renamed = normalizePlannerMealImageIdentity({
+      ...plannerCatalog.find((meal) => meal.id === 'yogurt-parfait')!,
+      id: 'edited-123-planner-yogurt-parfait',
+      name: 'Sunday breakfast',
+      imageAssetKey: 'yogurt-parfait',
+    });
+
+    expect(renamed.imageAssetKey).toBeUndefined();
+    expect(renamed.image).toBe('');
+    expect(plannerImageRenderDecision(renamed).remoteImageUrl).toBeUndefined();
+  });
+
+  it('retains a trusted remote image only for an explicitly recipe-linked Planner meal', () => {
+    const recipeMeal = {
+      ...plannerCatalog.find((meal) => meal.id === 'yogurt-parfait')!,
+      id: 'recipe-plan-123-open-recipe',
+      name: 'Recipe-owned brunch',
+      image: 'https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea',
+      imageAssetKey: undefined,
+      recipeId: 'open-recipe',
+      recipeSource: 'discover' as const,
+    };
+
+    expect(plannerImageRenderDecision(recipeMeal).remoteImageUrl).toBe(recipeMeal.image);
+    expect(plannerImageRenderDecision({ ...recipeMeal, recipeId: undefined }).remoteImageUrl).toBeUndefined();
+  });
+
+  it('rejects untrusted Planner remote URLs at the final source resolver', () => {
+    expect(plannerImageSource(undefined, 'http://images.unsplash.com/photo.jpg')).toBeNull();
+    expect(plannerImageSource(undefined, 'https://untrusted.example/photo.jpg')).toBeNull();
+    expect(plannerImageSource(undefined, 'https://images.unsplash.com/photo.jpg')).toEqual({ uri: 'https://images.unsplash.com/photo.jpg' });
+  });
+
+  it('diagnoses a stale stored key without using it as render authority', () => {
+    const canonical = plannerCatalog.find((meal) => meal.id === 'harvest-salad')!;
+    const staleKey = { ...canonical, imageAssetKey: 'berry-oats' };
+
+    expect(plannerStoredImageKeyMismatch(staleKey)).toBe(true);
+    expect(plannerImageRenderDecision(staleKey).canonicalImageKey).toBe('harvest-salad');
   });
 });

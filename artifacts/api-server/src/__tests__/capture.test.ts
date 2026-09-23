@@ -191,6 +191,8 @@ function offProductResponse(barcode: string, overrides: Record<string, unknown> 
       product_name: 'Test Granola Bar',
       brands: 'Nature Valley',
       serving_size: '42 g',
+      image_front_url: `https://images.openfoodfacts.org/products/${barcode}/front.jpg`,
+      last_modified_t: 1_796_428_800,
       nutriments: {
         'energy-kcal_serving': 190,
         'proteins_serving': 4,
@@ -625,6 +627,26 @@ describe('POST /v1/capture/analyze', () => {
       expect(res.body.candidates).toHaveLength(1);
       expect(res.body.candidates[0].provenance).toBe('Barcode verified');
       expect(res.body.candidates[0].sourceLabel).toBe('Open Food Facts');
+    });
+
+    it('returns server-scoped exact image evidence bound to the provider product', async () => {
+      const res = await request(app)
+        .post('/v1/capture/analyze')
+        .send({ mode: 'barcode', barcode: BARCODE })
+        .set('Content-Type', 'application/json');
+
+      expect(res.body.candidates[0].imageEvidence).toMatchObject({
+        version: 1,
+        semanticRole: 'exact',
+        accountScope: 'capture-test-user',
+        contentId: `food-product:open-food-facts:${BARCODE}`,
+        provider: 'Open Food Facts',
+        providerItemId: BARCODE,
+        imageId: 'front',
+        imageVersion: '1796428800',
+        locator: `https://images.openfoodfacts.org/products/${BARCODE}/front.jpg`,
+      });
+      expect(res.body.components[0].imageEvidence).toEqual(res.body.candidates[0].imageEvidence);
     });
 
     it('returns correct nutrition values from the product', async () => {

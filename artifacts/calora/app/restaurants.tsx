@@ -28,6 +28,11 @@ import { restaurantFoodReviewState } from '@/lib/restaurantFoodReview';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { RestaurantCategoryIllustration } from '@/components/RestaurantCategoryIllustration';
+import {
+  restaurantFoodImageAssetKey,
+  RESTAURANT_REPRESENTATIVE_ILLUSTRATION_LABEL,
+} from '@/lib/restaurantFoodImageSelection';
 
 const popularChains = ["McDonald's", 'Burger King', "Wendy's", 'Chipotle'];
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -127,6 +132,7 @@ export default function RestaurantsScreen() {
       assumptions: [],
       reviewQuestions: ['Confirm this serving matches the item and portion you ate.'],
     };
+    const imageAssetKey = restaurantFoodImageAssetKey(providerDetail);
     const draft = createFoodMemorySourceDraft({
       inputType: 'text',
       title: providerDetail.brandName ? `${providerDetail.brandName} ${providerDetail.name}` : providerDetail.name,
@@ -135,8 +141,23 @@ export default function RestaurantsScreen() {
       components: [component],
       sourceLabel: providerDetail.nutritionSource,
       provenance: 'verified_restaurant',
-      assumptions: ['Restaurant preparation and serving size can vary by location.'],
+      assumptions: [
+        'Restaurant preparation and serving size can vary by location.',
+        RESTAURANT_REPRESENTATIVE_ILLUSTRATION_LABEL,
+      ],
       reviewQuestions: component.reviewQuestions,
+      imageAssetKey,
+      imageSource: 'restaurant_representative',
+      imageEvidence: {
+        version: 1,
+        semanticRole: 'representative',
+        contentId: `restaurant-food:${providerDetail.sourceId}`,
+        source: providerDetail.nutritionSource,
+        provider: 'FatSecret',
+        providerItemId: providerDetail.sourceId,
+        assetKey: imageAssetKey,
+        rightsReviewState: 'approved',
+      },
     });
     setSelectedFood(null);
     router.replace({
@@ -265,6 +286,7 @@ export default function RestaurantsScreen() {
                 onPress={() => setSelectedFood(food)}
                 style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               >
+                <RestaurantCategoryIllustration compact food={food} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.resultBrand, { color: colors.primary }]}>{food.brandName ?? 'Branded food'}</Text>
                   <Text style={[styles.resultName, { color: colors.foreground }]}>{food.name}</Text>
@@ -305,6 +327,10 @@ export default function RestaurantsScreen() {
                   <Pressable accessibilityLabel="Close restaurant food details" onPress={() => setSelectedFood(null)} style={[styles.backButton, { backgroundColor: colors.muted }]}>
                     <Feather name="x" size={18} color={colors.foreground} />
                   </Pressable>
+                </View>
+
+                <View style={styles.detailIllustration}>
+                  <RestaurantCategoryIllustration food={detail} />
                 </View>
 
                 {detailResult.isFetching ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} /> : null}
@@ -410,7 +436,7 @@ const styles = StyleSheet.create({
   resultsHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
   sectionTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 },
   resultCount: { fontFamily: 'Inter_500Medium', fontSize: 10 },
-  resultCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  resultCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 11, flexDirection: 'row', alignItems: 'center', gap: 11 },
   resultBrand: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 0.4, textTransform: 'uppercase' },
   resultName: { fontFamily: 'Inter_600SemiBold', fontSize: 13, marginTop: 2 },
   resultServing: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 3 },
@@ -426,6 +452,7 @@ const styles = StyleSheet.create({
   detailHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   detailBrand: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' },
   detailTitle: { fontFamily: 'Inter_700Bold', fontSize: 23, letterSpacing: -0.5, marginTop: 5 },
+  detailIllustration: { marginTop: 16 },
   nutritionCard: { borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 17 },
   macroValueLarge: { fontFamily: 'Inter_700Bold', fontSize: 24 },
   macroValue: { fontFamily: 'Inter_700Bold', fontSize: 15, textAlign: 'center' },

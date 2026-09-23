@@ -4,6 +4,7 @@ import type { ShoppingItem } from '@/context/CaloraContext';
 import { addDays, dateFromKey, dateKey } from '@/lib/dates';
 import type { PlanTypeId } from '@/lib/planType';
 import { plannerImageKeyForMeal, plannerImageKeyForMealId } from '@/lib/mealImageIdentity';
+import { getPlannerMealRecipeLink } from '@/lib/plannerRecipeLink';
 import { orderProgramMeals } from '@workspace/api-zod/planner-program-eligibility';
 import type { PlannerProgramId } from '@workspace/api-zod/planner-program-pools';
 
@@ -20,7 +21,20 @@ export const plannerCatalog: PlannerCatalogMeal[] = PLANNER_CATALOG.map((meal) =
 
 export function normalizePlannerMealImageIdentity(meal: PlannerMeal): PlannerMeal {
   const imageAssetKey = plannerImageKeyForMeal(meal.id, meal.name);
-  return imageAssetKey === meal.imageAssetKey ? meal : { ...meal, imageAssetKey };
+  if (imageAssetKey) {
+    return imageAssetKey === meal.imageAssetKey ? meal : { ...meal, imageAssetKey };
+  }
+
+  // A renamed/customized canonical meal must not fall through to the catalog
+  // URL it inherited before its visible identity changed. Recipe-linked meals
+  // retain their own image source because their source evidence still names the
+  // owning recipe entity.
+  if (!getPlannerMealRecipeLink(meal)) {
+    if (!meal.image && meal.imageAssetKey === undefined) return meal;
+    return { ...meal, image: '', imageAssetKey: undefined };
+  }
+
+  return meal.imageAssetKey === undefined ? meal : { ...meal, imageAssetKey: undefined };
 }
 
 export function normalizePlannerMealImageIdentities(meals: PlannerMeal[]): PlannerMeal[] {

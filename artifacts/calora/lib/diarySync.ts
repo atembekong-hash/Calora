@@ -31,6 +31,7 @@ import { syncOutbox } from '@workspace/api-client-react';
 import type { FoodLog } from '@/context/CaloraContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EncryptedStorageAdapter } from './encryptedStorage';
+import { foodImageEvidenceForApi, normalizeFoodImageMetadata, type FoodImageEvidence } from './foodImageMetadata';
 import { secureStoreKeyAdapter } from './secureStoreKeyAdapter';
 
 // ── Persistence ───────────────────────────────────────────────────────────────
@@ -435,6 +436,7 @@ export function diaryLogSignature(log: FoodLog): string {
     imageUrl: log.imageUrl ?? null,
     imageSource: log.imageSource ?? null,
     imageAssetKey: log.imageAssetKey ?? null,
+    imageEvidence: log.imageEvidence ?? null,
     preparation: log.preparation ?? null,
     memoryId: log.memoryId ?? null,
     plannerMealId: log.plannerMealId ?? null,
@@ -444,6 +446,7 @@ export function diaryLogSignature(log: FoodLog): string {
 }
 
 function toUpsertMutation(log: FoodLog) {
+  const image = normalizeFoodImageMetadata(log.imageUrl, log.imageSource, log.imageEvidence);
   return {
     mutationId: getMutationId(`${log.id}:${diaryLogSignature(log)}`),
     entity: 'diaryEntry' as const,
@@ -464,9 +467,10 @@ function toUpsertMutation(log: FoodLog) {
       provenance: log.source,
       confidence: Math.max(0, Math.min(100, Math.round(log.confidence))),
       notes: log.notes ?? null,
-      imageUrl: log.imageUrl ?? null,
-      imageSource: log.imageSource ?? null,
+      imageUrl: image.imageUrl ?? null,
+      imageSource: image.imageSource ?? null,
       imageAssetKey: log.imageAssetKey,
+      imageEvidence: foodImageEvidenceForApi(image.imageEvidence),
       time: log.time,
       fiber: log.fiber,
       sugar: log.sugar,
@@ -544,6 +548,7 @@ type ServerDiaryRecord = {
   imageUrl?: string | null;
   imageSource?: string | null;
   imageAssetKey?: string;
+  imageEvidence?: FoodImageEvidence;
   time?: string;
   fiber?: number;
   sugar?: number;
@@ -560,9 +565,11 @@ function fromServerRecord(record: ServerDiaryRecord): FoodLog {
     record.imageSource === 'provider'
       || record.imageSource === 'recipe'
       || record.imageSource === 'planner'
+      || record.imageSource === 'generated'
       || record.imageSource === 'restaurant_representative'
       ? record.imageSource
       : undefined;
+  const image = normalizeFoodImageMetadata(record.imageUrl, imageSource, record.imageEvidence);
   return {
     id: record.clientId,
     captureSessionId: record.captureSessionId ?? undefined,
@@ -579,9 +586,10 @@ function fromServerRecord(record: ServerDiaryRecord): FoodLog {
     source: record.provenance,
     confidence: record.confidence,
     notes: record.notes ?? undefined,
-    imageUrl: record.imageUrl ?? undefined,
-    imageSource,
+    imageUrl: image.imageUrl,
+    imageSource: image.imageSource,
     imageAssetKey: record.imageAssetKey,
+    imageEvidence: image.imageEvidence,
     fiber: record.fiber,
     sugar: record.sugar,
     sodium: record.sodium,

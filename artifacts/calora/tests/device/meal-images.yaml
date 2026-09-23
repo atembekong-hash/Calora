@@ -66,11 +66,11 @@ appId: com.etiendem.caloraapp
 - openLink: "caloraapp:///meal-image-preview?scenario=fallback"
 - assertVisible: "Meal image rendering"
 - extendedWaitUntil:
-    visible: "Breakfast: Overnight oats with berries · Fallback image active"
+    visible: "Breakfast: QA breakfast without photo · Fallback image active"
     timeout: 10000
 - assertVisible: "Fallback image"
 - assertVisible:
-    text: "Overnight oats with berries meal image is using the fallback image. Fallback image active"
+    text: "QA breakfast without photo meal image is using the fallback image. Fallback image active"
 - assertVisible:
     id: "meal-image-audit-breakfast-image"
 - extendedWaitUntil:

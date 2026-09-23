@@ -1,4 +1,5 @@
 import { type ImageSource } from 'expo-image';
+import { normalizeTrustedFoodImageUrl } from '@workspace/api-zod/image-source-policy';
 export { FOOD_IMAGE_KEYS, PLANNER_IMAGE_KEYS } from './mealImageIdentity';
 export type { FoodImageKey, PlannerImageKey } from './mealImageIdentity';
 import type { FoodImageKey, PlannerImageKey } from './mealImageIdentity';
@@ -70,7 +71,8 @@ export function plannerImageSource(
   remoteImage: string | null | undefined,
 ): ImageSource | null {
   if (isPlannerImageKey(imageAssetKey)) return plannerImages[imageAssetKey];
-  return remoteImage ? { uri: remoteImage } : null;
+  const trustedRemoteImage = normalizeTrustedFoodImageUrl(remoteImage);
+  return trustedRemoteImage ? { uri: trustedRemoteImage } : null;
 }
 
 export function foodImageSource(imageAssetKey: string | null | undefined): ImageSource | null {

@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ImageEvidence } from './imageEvidence';
 import type { SyncDiaryRecordMeal } from './syncDiaryRecordMeal';
 import type { SyncDiaryRecordProvenance } from './syncDiaryRecordProvenance';
 
@@ -36,6 +37,9 @@ export interface SyncDiaryRecord {
   notes?: string | null;
   imageUrl?: string | null;
   imageSource?: string | null;
+  /** @maxLength 160 */
+  imageAssetKey?: string;
+  imageEvidence?: ImageEvidence;
   /** @maxLength 40 */
   time?: string;
   /** @minimum 0 */

@@ -3,11 +3,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { FoodLog } from '@/context/CaloraContext';
-import { foodImageCategory, normalizeFoodImageUrl } from '@/lib/foodImageMetadata';
-import { foodImageKeyForName } from '@/lib/mealImageIdentity';
+import { resolveFoodImage, type FoodImageResolution } from '@/lib/foodImageMetadata';
 import { foodImageSource } from '@/lib/mealImages';
 
-const FALLBACK_IMAGES: Record<ReturnType<typeof foodImageCategory>, ImageSource> = {
+const FALLBACK_IMAGES: Record<FoodImageResolution['category'], ImageSource> = {
   breakfast: require('../assets/images/food-fallback-breakfast.jpg'),
   main: require('../assets/images/food-fallback-main.jpg'),
   snack: require('../assets/images/food-fallback-snack.jpg'),
@@ -19,44 +18,62 @@ export function FoodLogThumbnail({
   size = 48,
   borderRadius = 14,
 }: {
-  log: Pick<FoodLog, 'id' | 'name' | 'meal' | 'source' | 'imageUrl' | 'imageSource' | 'imageAssetKey'>;
+  log: Pick<FoodLog, 'id' | 'name' | 'meal' | 'source' | 'imageUrl' | 'imageSource' | 'imageAssetKey' | 'imageEvidence'>;
   size?: number;
   borderRadius?: number;
 }) {
-  const isRestaurantItem = log.source === 'Restaurant verified'
-    || log.imageSource === 'restaurant_representative'
-    || log.imageAssetKey?.startsWith('restaurant:');
-  const remoteUrl = normalizeFoodImageUrl(log.imageUrl);
-  const canonicalImageKey = foodImageKeyForName(log.name);
-  const resolvedImageKey = canonicalImageKey ?? log.imageAssetKey;
-  const localImage = foodImageSource(resolvedImageKey);
-  // A valid item-specific remote image outranks any bundled canonical or
-  // restaurant-category asset. Planner-curated local identity is the one
-  // intentional exception because its local mapping is authoritative.
-  const preferRemote = Boolean(remoteUrl && log.imageSource !== 'planner');
-  const fallback = FALLBACK_IMAGES[foodImageCategory(log)];
+  const resolution = useMemo(() => resolveFoodImage(log), [
+    log.id,
+    log.name,
+    log.meal,
+    log.source,
+    log.imageUrl,
+    log.imageSource,
+    log.imageAssetKey,
+    log.imageEvidence,
+  ]);
+  const fallback = FALLBACK_IMAGES[resolution.category];
   const [remoteFailed, setRemoteFailed] = useState(false);
 
   useEffect(() => {
     setRemoteFailed(false);
-  }, [resolvedImageKey, remoteUrl]);
+  }, [resolution.recyclingKey]);
 
-  const source = useMemo<ImageSource>(
-    () => (preferRemote && remoteUrl && !remoteFailed)
-      ? { uri: remoteUrl }
-      : localImage ?? (remoteUrl && !remoteFailed ? { uri: remoteUrl } : fallback),
-    [fallback, localImage, preferRemote, remoteFailed, remoteUrl],
-  );
+  const source = useMemo<ImageSource | undefined>(() => {
+    if (remoteFailed) return undefined;
+    if (resolution.state === 'exact' || resolution.state === 'generated' || resolution.state === 'unverified') {
+      return { uri: resolution.imageUrl };
+    }
+    if (resolution.state === 'canonical') return foodImageSource(resolution.imageAssetKey) ?? fallback;
+    return fallback;
+  }, [fallback, remoteFailed, resolution]);
 
-  // Hooks must run in the same order if a synced entry changes provenance
-  // between restaurant and image-backed forms while retaining its React key.
-  if (isRestaurantItem) {
+  const visibleDisclosure = remoteFailed
+    ? 'Image unavailable'
+    : resolution.state === 'representative' || resolution.state === 'fallback' || resolution.state === 'unverified'
+      ? resolution.visibleDisclosure
+      : undefined;
+  const accessibilityLabel = remoteFailed
+    ? `${log.name} image unavailable; ${resolution.category} fallback image`
+    : resolution.accessibilityLabel;
+
+  // Hooks run before this branch so a recycled row can safely change between a
+  // no-photo restaurant entry and any image-backed state without retaining a
+  // stale error. A verified remote image has already won in resolveFoodImage.
+  if (resolution.state === 'no-image' || resolution.state === 'representative') {
+    const representative = resolution.state === 'representative';
     return (
-      <View
-        accessibilityLabel={`${log.name} restaurant item`}
-        style={[styles.restaurantMarker, { width: size, height: size, borderRadius }]}
-      >
-        <Feather name="map-pin" size={Math.max(14, Math.round(size * 0.38))} color="#426052" />
+      <View style={[styles.frame, { width: size, height: size, borderRadius }]}>
+        <View
+          accessible
+          accessibilityLabel={resolution.accessibilityLabel}
+          style={styles.restaurantMarker}
+        >
+          <Feather name={representative ? 'image' : 'map-pin'} size={Math.max(14, Math.round(size * 0.38))} color="#426052" />
+          <Text style={representative ? styles.representativeText : styles.noPhotoText}>
+            {representative ? 'Representative' : 'No photo'}
+          </Text>
+        </View>
       </View>
     );
   }
@@ -64,16 +81,22 @@ export function FoodLogThumbnail({
   return (
     <View style={[styles.frame, { width: size, height: size, borderRadius }]}>
       <Image
-        accessibilityLabel={`${log.name} food image`}
+        accessibilityLabel={accessibilityLabel}
         cachePolicy="memory-disk"
         contentFit="cover"
         onError={() => setRemoteFailed(true)}
         placeholder={fallback}
-        recyclingKey={`${log.id}:${resolvedImageKey ?? remoteUrl ?? 'fallback'}`}
-        source={source}
+        recyclingKey={`${resolution.recyclingKey}:${remoteFailed ? 'failed' : 'active'}`}
+        source={source ?? fallback}
         style={StyleSheet.absoluteFill}
         transition={120}
       />
+      {visibleDisclosure && (
+        <View accessible accessibilityLabel={`${log.name}: ${visibleDisclosure.toLowerCase()}`} style={styles.disclosure}>
+          <Feather name={visibleDisclosure === 'Representative image' ? 'info' : 'image'} size={10} color="#ffffff" />
+          <Text style={styles.disclosureText}>{visibleDisclosure}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -86,6 +109,42 @@ const styles = StyleSheet.create({
   restaurantMarker: {
     alignItems: 'center',
     backgroundColor: '#e7ece5',
+    bottom: 0,
     justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  noPhotoText: {
+    color: '#426052',
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 9,
+    marginTop: 2,
+  },
+  representativeText: {
+    color: '#426052',
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 6.5,
+    marginTop: 2,
+  },
+  disclosure: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(24, 45, 34, 0.82)',
+    borderRadius: 5,
+    bottom: 3,
+    flexDirection: 'row',
+    gap: 3,
+    left: 3,
+    maxWidth: '92%',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    position: 'absolute',
+  },
+  disclosureText: {
+    color: '#ffffff',
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 8,
+    lineHeight: 10,
   },
 });

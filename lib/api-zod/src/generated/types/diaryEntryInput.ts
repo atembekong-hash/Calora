@@ -7,6 +7,7 @@
  */
 import type { DiaryEntryInputMeal } from './diaryEntryInputMeal';
 import type { DiaryEntryInputProvenance } from './diaryEntryInputProvenance';
+import type { ImageEvidenceInput } from './imageEvidenceInput';
 
 export interface DiaryEntryInput {
   entryDate: Date;
@@ -45,4 +46,10 @@ export interface DiaryEntryInput {
      * @maxLength 80
      */
   imageSource?: string | null;
+  /**
+     * Stable local asset identity; never a remote URL.
+     * @maxLength 160
+     */
+  imageAssetKey?: string;
+  imageEvidence?: ImageEvidenceInput;
 }

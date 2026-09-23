@@ -812,6 +812,38 @@ components:
         carbsG: { type: number }
         fatG: { type: number }
         provenance: { $ref: "#/components/schemas/Provenance" }
+    ImageEvidenceInput:
+      type: object
+      description: |
+        Additive versioned image evidence. The server derives account scope
+        from the authenticated caller; a locator is not proof of exactness.
+      required: [version, semanticRole]
+      properties:
+        version: { type: integer, enum: [1] }
+        semanticRole: { type: string, enum: [exact, canonical, generated, user_local, representative, no_image, fallback, unverified] }
+        contentId: { type: string, maxLength: 160 }
+        source: { type: string, maxLength: 80 }
+        provider: { type: string, maxLength: 80 }
+        providerItemId: { type: string, maxLength: 160 }
+        imageId: { type: string, maxLength: 160 }
+        imageVersion: { type: string, maxLength: 160 }
+        assetKey: { type: string, maxLength: 160 }
+        locator: { type: string, format: uri, maxLength: 2048 }
+        verifiedAt: { type: string, format: date-time }
+        retrievedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        attribution: { type: string, maxLength: 500 }
+        rightsReviewState: { type: string, enum: [unreviewed, reviewed, approved, restricted] }
+    ImageEvidence:
+      allOf:
+        - $ref: "#/components/schemas/ImageEvidenceInput"
+        - type: object
+          required: [accountScope]
+          properties:
+            accountScope:
+              type: string
+              maxLength: 200
+              description: Server-derived authenticated account scope; clients must not choose it.
     DiaryEntryInput:
       type: object
       required: [entryDate, meal, name, serving, calories, proteinG, carbsG, fatG, provenance, confidence, clientUpdatedAt]
@@ -845,6 +877,12 @@ components:
           description: |
             Optional short label describing where the image came from
             (e.g. "Open Food Facts", "user_photo"). Null when no image is set.
+        imageAssetKey:
+          type: string
+          maxLength: 160
+          description: Stable local asset identity; never a remote URL.
+        imageEvidence:
+          $ref: "#/components/schemas/ImageEvidenceInput"
     DiaryEntry:
       allOf:
         - $ref: "#/components/schemas/DiaryEntryInput"
@@ -853,6 +891,8 @@ components:
           properties:
             id: { type: string, format: uuid }
             updatedAt: { type: string, format: date-time }
+            imageEvidence:
+              $ref: "#/components/schemas/ImageEvidence"
     DiaryEntryPatch:
       type: object
       minProperties: 1
@@ -910,6 +950,8 @@ components:
         notes: { type: string, nullable: true }
         imageUrl: { type: string, nullable: true }
         imageSource: { type: string, nullable: true }
+        imageAssetKey: { type: string, maxLength: 160 }
+        imageEvidence: { $ref: "#/components/schemas/ImageEvidence" }
         time: { type: string, maxLength: 40 }
         fiber: { type: number, minimum: 0 }
         sugar: { type: number, minimum: 0 }
@@ -1129,6 +1171,8 @@ components:
           maxLength: 80
           nullable: true
           description: Optional short label describing the image's origin.
+        imageEvidence:
+          $ref: "#/components/schemas/ImageEvidence"
     CaptureConfidence:
       type: object
       required: [identity, portion, nutritionSource, preparation]
@@ -1634,6 +1678,12 @@ components:
           maxLength: 80
           nullable: true
           description: Optional short label describing the image's origin.
+        imageAssetKey:
+          type: string
+          maxLength: 160
+          description: Stable local asset identity; never a remote URL.
+        imageEvidence:
+          $ref: "#/components/schemas/ImageEvidenceInput"
     DiaryFirstLogResult:
       type: object
       required: [synced, alreadyExisted]

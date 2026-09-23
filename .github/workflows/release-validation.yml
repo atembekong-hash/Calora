@@ -50,6 +50,11 @@ jobs:
       - name: Validate authoritative Expo configuration
         run: node scripts/ci/validate-expo-config.mjs artifacts/calora/app.json
 
+      - name: Validate image governance
+        run: |
+          node scripts/ci/validate-image-governance.mjs artifacts/calora/assets/image-surface-manifest.json
+          node --test scripts/ci/validate-image-governance.test.mjs
+
       - name: Audit workspace dependencies
         run: pnpm run audit:release
 

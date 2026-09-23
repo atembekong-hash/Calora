@@ -17,6 +17,7 @@ export type RestaurantFoodImageKey =
   | 'pasta';
 
 export const RESTAURANT_IMAGE_ASSET_PREFIX = 'restaurant:';
+export const RESTAURANT_REPRESENTATIVE_ILLUSTRATION_LABEL = 'Representative category illustration — no verified menu photo.';
 
 export function restaurantFoodImageKey(food: RestaurantFoodImageInput): RestaurantFoodImageKey {
   // Brand names describe the source, not the food. A chain such as a coffee
@@ -40,7 +41,7 @@ export function restaurantFoodImageKey(food: RestaurantFoodImageInput): Restaura
 
 export function restaurantFoodImageLabel(food: RestaurantFoodImageInput): string {
   const category = restaurantFoodImageKey(food);
-  return `Representative ${category} image for ${food.name}`;
+  return `${RESTAURANT_REPRESENTATIVE_ILLUSTRATION_LABEL} ${category} category for ${food.name}.`;
 }
 
 export function restaurantFoodImageAssetKey(food: RestaurantFoodImageInput): string {

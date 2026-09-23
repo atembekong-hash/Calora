@@ -1,9 +1,13 @@
 import type { CaptureAnalysis, CaptureComponent } from '@workspace/api-client-react';
 import {
+  normalizeFoodImageEvidence,
   normalizeFoodImageMetadata,
   normalizeFoodImageUrl,
+  normalizeGeneratedRecipeImageUrl,
+  type FoodImageEvidence,
   type FoodImageSource,
 } from '@/lib/foodImageMetadata';
+import { plannerImageRenderDecision } from '@/lib/plannerImageRendering';
 
 export const FOOD_MEMORY_SCHEMA_VERSION = 1;
 
@@ -47,6 +51,7 @@ export type FoodMemoryComponent = {
   reviewQuestions: string[];
   nutritionRange?: { caloriesLow: number; caloriesHigh: number };
   imageUrl?: string;
+  imageEvidence?: FoodImageEvidence;
 };
 
 export type FoodMemoryDraft = {
@@ -82,6 +87,7 @@ export type FoodMemoryDraft = {
   imageAssetKey?: string;
   imageUrl?: string;
   imageSource?: FoodImageSource;
+  imageEvidence?: FoodImageEvidence;
 };
 
 export type AcceptedFoodMemory = FoodMemoryDraft & {
@@ -180,6 +186,7 @@ function componentFromCapture(component: CaptureComponent, inputType: FoodMemory
     reviewQuestions: component.reviewQuestions ?? [],
     nutritionRange: component.nutritionRange,
     imageUrl: normalizeFoodImageUrl(component.imageUrl),
+    imageEvidence: normalizeFoodImageEvidence(component.imageEvidence),
   };
 }
 
@@ -218,6 +225,9 @@ export function captureAnalysisToDraft(
   }));
   const components = rawComponents.map((component) => componentFromCapture(component, inputType));
   const imageUrl = components.map((component) => component.imageUrl).find(Boolean);
+  const imageEvidence = components
+    .map((component) => component.imageEvidence)
+    .find((evidence) => evidence?.locator === imageUrl);
   const nutrition = nutritionForComponents(components, now);
   const confidence = confidenceForComponents(components);
   const provenance = components[0]?.provenance ?? 'photo_estimate';
@@ -252,6 +262,7 @@ export function captureAnalysisToDraft(
     correctionIds: [],
     imageUrl,
     imageSource: imageUrl ? 'provider' : undefined,
+    imageEvidence,
   };
 }
 
@@ -268,6 +279,7 @@ export function sourceComponentsToDraft(input: {
   imageUrl?: string | null;
   imageSource?: FoodImageSource;
   imageAssetKey?: string;
+  imageEvidence?: FoodImageEvidence;
   now?: string;
 }): FoodMemoryDraft {
   const now = input.now ?? new Date().toISOString();
@@ -277,7 +289,7 @@ export function sourceComponentsToDraft(input: {
   }));
   const nutrition = nutritionForComponents(components, now);
   const confidence = confidenceForComponents(components);
-  const directImage = normalizeFoodImageMetadata(input.imageUrl, input.imageSource);
+  const directImage = normalizeFoodImageMetadata(input.imageUrl, input.imageSource, input.imageEvidence);
   const imageUrl = directImage.imageUrl
     ?? components.map((component) => component.imageUrl).find(Boolean);
   return {
@@ -304,6 +316,7 @@ export function sourceComponentsToDraft(input: {
     imageAssetKey: input.imageAssetKey,
     imageUrl,
     imageSource: directImage.imageSource ?? (imageUrl ? 'provider' : undefined),
+    imageEvidence: directImage.imageEvidence,
   };
 }
 
@@ -313,7 +326,7 @@ export function updateDraftComponents(draft: FoodMemoryDraft, components: FoodMe
     imageUrl: normalizeFoodImageUrl(component.imageUrl),
   }));
   const confidence = confidenceForComponents(normalizedComponents);
-  const currentImage = normalizeFoodImageMetadata(draft.imageUrl, draft.imageSource);
+  const currentImage = normalizeFoodImageMetadata(draft.imageUrl, draft.imageSource, draft.imageEvidence);
   const imageUrl = currentImage.imageUrl
     ?? normalizedComponents.map((component) => component.imageUrl).find(Boolean);
   return {
@@ -325,6 +338,7 @@ export function updateDraftComponents(draft: FoodMemoryDraft, components: FoodMe
     reviewQuestions: normalizedComponents.flatMap((component) => component.reviewQuestions).slice(0, 8),
     imageUrl,
     imageSource: imageUrl ? (currentImage.imageSource ?? 'provider') : undefined,
+    imageEvidence: currentImage.imageEvidence,
     updatedAt: now,
   };
 }
@@ -335,15 +349,31 @@ export function memorySignature(memory: Pick<FoodMemoryDraft, 'title' | 'compone
 }
 
 export function recipeToDraft(
-  recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null },
+  recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null; imageId?: string | null; imageUrlExpiresAt?: string | null; imageProvenance?: 'generated' | 'provider' | 'fallback' },
   date: string,
   meal: FoodMemoryDraft['meal'],
   now = new Date().toISOString(),
+  accountScope?: string | null,
 ): FoodMemoryDraft {
   const inputType: FoodMemoryInputType = 'recipe';
   const provenance: FoodMemoryProvenance = recipe.isLocal ? 'recipe_personal' : 'recipe_imported';
   const confidence = recipe.isLocal ? 92 : 68;
-  const imageUrl = normalizeFoodImageUrl(recipe.image);
+  const imageUrl = recipe.imageProvenance === 'generated' && recipe.imageId
+    ? normalizeGeneratedRecipeImageUrl(recipe.image, recipe.imageId, accountScope)
+    : normalizeFoodImageUrl(recipe.image);
+  const imageEvidence = recipe.imageProvenance === 'generated' && recipe.imageId && imageUrl
+    ? normalizeFoodImageEvidence({
+        version: 1,
+        semanticRole: 'generated',
+        contentId: `recipe:${recipe.id}`,
+        source: 'calora-recipe-generation',
+        imageId: recipe.imageId,
+        accountScope,
+        locator: imageUrl,
+        expiresAt: recipe.imageUrlExpiresAt ?? undefined,
+        rightsReviewState: 'approved',
+      })
+    : undefined;
   const component: FoodMemoryComponent = {
     id: `${recipe.id}-component`,
     name: recipe.name,
@@ -385,7 +415,8 @@ export function recipeToDraft(
     correctionIds: [],
     sourceRecipeId: recipe.id,
     imageUrl,
-    imageSource: imageUrl ? 'recipe' : undefined,
+    imageSource: imageUrl ? (recipe.imageProvenance === 'generated' ? 'generated' : 'recipe') : undefined,
+    imageEvidence,
   };
 }
 export function migrateFoodMemories(saved: Partial<{
@@ -456,13 +487,31 @@ export function migrateFoodMemories(saved: Partial<{
 }
 
 export function plannerMealToDraft(
-  meal: { id: string; name: string; calories: number; proteinG: number; carbsG: number; fatG: number; meal: FoodMemoryDraft['meal']; day: string; image?: string | null; imageAssetKey?: string | null },
+  meal: { id: string; name: string; calories: number; proteinG: number; carbsG: number; fatG: number; meal: FoodMemoryDraft['meal']; day: string; image?: string | null; imageAssetKey?: string | null; recipeId?: string; recipeSource?: string },
   now = new Date().toISOString(),
 ): FoodMemoryDraft {
   const inputType: FoodMemoryInputType = 'planner';
   const provenance: FoodMemoryProvenance = 'planner_estimate';
   const confidence = 72;
-  const imageUrl = normalizeFoodImageUrl(meal.image);
+  const imageDecision = plannerImageRenderDecision({
+    id: meal.id,
+    name: meal.name,
+    image: meal.image ?? '',
+    imageAssetKey: meal.imageAssetKey ?? undefined,
+    recipeId: meal.recipeId,
+    recipeSource: meal.recipeSource,
+  });
+  const imageUrl = imageDecision.remoteImageUrl;
+  const imageEvidence = imageDecision.canonicalImageKey
+    ? normalizeFoodImageEvidence({
+        version: 1,
+        semanticRole: 'canonical',
+        contentId: `planner-meal:${meal.id}`,
+        source: 'calora-planner-catalog',
+        assetKey: imageDecision.canonicalImageKey,
+        rightsReviewState: 'approved',
+      })
+    : undefined;
   const component: FoodMemoryComponent = {
     id: `${meal.id}-component`,
     name: meal.name,
@@ -503,8 +552,9 @@ export function plannerMealToDraft(
     updatedAt: now,
     correctionIds: [],
     plannerMealId: meal.id,
-    imageAssetKey: meal.imageAssetKey ?? undefined,
+    imageAssetKey: imageDecision.canonicalImageKey,
     imageUrl,
     imageSource: imageUrl ? 'planner' : undefined,
+    imageEvidence,
   };
 }

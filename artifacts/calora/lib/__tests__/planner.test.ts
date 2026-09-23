@@ -262,6 +262,16 @@ describe('planner identity', () => {
     expect(new Set(heroImages).size).toBe(programs.length);
   });
 
+  it('renders every declared Program hero as a disclosed representative pre-activation preview', () => {
+    const source = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../app/(tabs)/planner.tsx'), 'utf8');
+    expect(source).toContain('PROGRAM_HERO_MEAL_IDS');
+    expect(source).toContain('function programHeroMeal');
+    expect(source).toContain('REPRESENTATIVE PROGRAM PREVIEW');
+    expect(source).toContain('Eligible example · not guaranteed');
+    expect(source).toContain('not a guaranteed generated meal');
+    expect(source.match(/<PlannerMealImage meal={heroMeal}/g)).toHaveLength(1);
+  });
+
   it('preserves local calendar week dates', () => {
     expect(plannerDate('2026-08-03', 6)).toBe('2026-08-09');
   });

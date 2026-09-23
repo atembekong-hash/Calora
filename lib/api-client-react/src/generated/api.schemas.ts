@@ -175,6 +175,76 @@ export interface FoodItem {
   provenance: Provenance;
 }
 
+export type ImageEvidenceInputVersion = typeof ImageEvidenceInputVersion[keyof typeof ImageEvidenceInputVersion];
+
+
+export const ImageEvidenceInputVersion = {
+  NUMBER_1: 1,
+} as const;
+
+export type ImageEvidenceInputSemanticRole = typeof ImageEvidenceInputSemanticRole[keyof typeof ImageEvidenceInputSemanticRole];
+
+
+export const ImageEvidenceInputSemanticRole = {
+  exact: 'exact',
+  canonical: 'canonical',
+  generated: 'generated',
+  user_local: 'user_local',
+  representative: 'representative',
+  no_image: 'no_image',
+  fallback: 'fallback',
+  unverified: 'unverified',
+} as const;
+
+export type ImageEvidenceInputRightsReviewState = typeof ImageEvidenceInputRightsReviewState[keyof typeof ImageEvidenceInputRightsReviewState];
+
+
+export const ImageEvidenceInputRightsReviewState = {
+  unreviewed: 'unreviewed',
+  reviewed: 'reviewed',
+  approved: 'approved',
+  restricted: 'restricted',
+} as const;
+
+/**
+ * Additive versioned image evidence. The server derives account scope
+ * from the authenticated caller; a locator is not proof of exactness.
+ */
+export interface ImageEvidenceInput {
+  version: ImageEvidenceInputVersion;
+  semanticRole: ImageEvidenceInputSemanticRole;
+  /** @maxLength 160 */
+  contentId?: string;
+  /** @maxLength 80 */
+  source?: string;
+  /** @maxLength 80 */
+  provider?: string;
+  /** @maxLength 160 */
+  providerItemId?: string;
+  /** @maxLength 160 */
+  imageId?: string;
+  /** @maxLength 160 */
+  imageVersion?: string;
+  /** @maxLength 160 */
+  assetKey?: string;
+  /** @maxLength 2048 */
+  locator?: string;
+  verifiedAt?: string;
+  retrievedAt?: string;
+  expiresAt?: string;
+  /** @maxLength 500 */
+  attribution?: string;
+  rightsReviewState?: ImageEvidenceInputRightsReviewState;
+}
+
+export type ImageEvidence = ImageEvidenceInput & {
+  /**
+     * Server-derived authenticated account scope; clients must not choose it.
+     * @maxLength 200
+     */
+  accountScope: string;
+};
+
 export type DiaryEntryInputMeal = typeof DiaryEntryInputMeal[keyof typeof DiaryEntryInputMeal];
 
 
@@ -234,11 +304,18 @@ export interface DiaryEntryInput {
      * @maxLength 80
      */
   imageSource?: string | null;
+  /**
+     * Stable local asset identity; never a remote URL.
+     * @maxLength 160
+     */
+  imageAssetKey?: string;
+  imageEvidence?: ImageEvidenceInput;
 }
 
 export type DiaryEntry = DiaryEntryInput & {
   id: string;
   updatedAt: string;
+  imageEvidence?: ImageEvidence;
 };
 
 export type DiaryEntryPatchMeal = typeof DiaryEntryPatchMeal[keyof typeof DiaryEntryPatchMeal];
@@ -373,6 +450,9 @@ export interface SyncDiaryRecord {
   notes?: string | null;
   imageUrl?: string | null;
   imageSource?: string | null;
+  /** @maxLength 160 */
+  imageAssetKey?: string;
+  imageEvidence?: ImageEvidence;
   /** @maxLength 40 */
   time?: string;
   /** @minimum 0 */
@@ -717,6 +797,7 @@ export interface CaptureCandidate {
      * @maxLength 80
      */
   imageSource?: string | null;
+  imageEvidence?: ImageEvidence;
 }
 
 export interface CaptureConfidence {
@@ -1736,6 +1817,12 @@ export interface DiaryFirstLogInput {
      * @maxLength 80
      */
   imageSource?: string | null;
+  /**
+     * Stable local asset identity; never a remote URL.
+     * @maxLength 160
+     */
+  imageAssetKey?: string;
+  imageEvidence?: ImageEvidenceInput;
 }
 
 export interface DiaryFirstLogResult {

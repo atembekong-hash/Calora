@@ -147,11 +147,7 @@ async function checkMetroHealth() {
   }
 }
 
-function getExpoPublicReplId() {
-  return process.env.REPL_ID || process.env.EXPO_PUBLIC_REPL_ID;
-}
-
-async function startMetro(expoPublicDomain, expoPublicReplId) {
+async function startMetro(expoPublicDomain) {
   metroPort = await findAvailableMetroPort();
   console.log('Starting Metro...');
   console.log(`Using isolated Metro port ${metroPort}`);
@@ -160,12 +156,7 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
     ...process.env,
     CI: '1',
     EXPO_PUBLIC_DOMAIN: expoPublicDomain,
-    EXPO_PUBLIC_REPL_ID: expoPublicReplId,
   };
-
-  if (expoPublicReplId) {
-    console.log(`Setting EXPO_PUBLIC_REPL_ID=${expoPublicReplId}`);
-  }
 
   metroProcess = spawn(
     'pnpm',
@@ -507,7 +498,60 @@ function updateBundleUrls(timestamp, baseUrl) {
   console.log('Updated bundle URLs');
 }
 
+function copyConfigImage(relativeValue, timestamp, baseUrl) {
+  if (typeof relativeValue !== 'string' || relativeValue.trim().length === 0) {
+    return null;
+  }
+
+  const normalized = relativeValue.trim().replace(/^\.\/+/, '');
+  if (
+    normalized.length === 0 ||
+    path.isAbsolute(normalized) ||
+    normalized.split(/[\\/]+/).includes('..')
+  ) {
+    exitWithError(`Unsafe Expo configuration image path: ${relativeValue}`);
+  }
+
+  const source = path.resolve(projectRoot, normalized);
+  if (!source.startsWith(`${projectRoot}${path.sep}`) || !fs.existsSync(source)) {
+    exitWithError(`Expo configuration image is missing: ${relativeValue}`);
+  }
+
+  const destination = path.join(
+    projectRoot,
+    'static-build',
+    timestamp,
+    '_expo',
+    'static',
+    'js',
+    normalized,
+  );
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.copyFileSync(source, destination);
+
+  const publicPath = normalized.split(path.sep).join('/');
+  return `${baseUrl}${basePath}/${timestamp}/_expo/static/js/${publicPath}`;
+}
+
 function updateManifests(manifests, timestamp, baseUrl, assetsByHash) {
+  const configImageUrls = new Map();
+  for (const manifest of Object.values(manifests)) {
+    const expoClient = manifest?.extra?.expoClient;
+    for (const imagePath of [
+      expoClient?.icon,
+      expoClient?.splash?.image,
+      expoClient?.web?.favicon,
+    ]) {
+      if (typeof imagePath !== 'string' || configImageUrls.has(imagePath)) {
+        continue;
+      }
+      configImageUrls.set(
+        imagePath,
+        copyConfigImage(imagePath, timestamp, baseUrl),
+      );
+    }
+  }
+
   const updateForPlatform = (platform, manifest) => {
     if (!manifest.launchAsset || !manifest.extra) {
       exitWithError(`Malformed manifest for ${platform}`);
@@ -523,6 +567,22 @@ function updateManifests(manifests, timestamp, baseUrl, assetsByHash) {
     manifest.extra.expoGo.debuggerHost =
       baseUrl.replace('https://', '') + '/' + platform;
     manifest.extra.expoGo.packagerOpts.dev = false;
+
+    const expoClient = manifest.extra.expoClient;
+    const iconUrl = configImageUrls.get(expoClient.icon);
+    const splashUrl = configImageUrls.get(expoClient.splash?.image);
+    const faviconUrl = configImageUrls.get(expoClient.web?.favicon);
+    if (iconUrl) {
+      expoClient.icon = iconUrl;
+      expoClient.iconUrl = iconUrl;
+    }
+    if (splashUrl) {
+      expoClient.splash.image = splashUrl;
+      expoClient.splash.imageUrl = splashUrl;
+    }
+    if (faviconUrl) {
+      expoClient.web.favicon = faviconUrl;
+    }
 
     if (manifest.assets && manifest.assets.length > 0) {
       manifest.assets.forEach((asset) => {
@@ -555,14 +615,13 @@ async function main() {
   setupSignalHandlers();
 
   const domain = getDeploymentDomain();
-  const expoPublicReplId = getExpoPublicReplId();
   const baseUrl = `https://${domain}`;
   const timestamp = `${Date.now()}-${process.pid}`;
 
   prepareDirectories(timestamp);
   clearMetroCache();
 
-  await startMetro(domain, expoPublicReplId);
+  await startMetro(domain);
 
   const downloadTimeout = 600000;
   const downloadPromise = downloadBundlesAndManifests(timestamp);

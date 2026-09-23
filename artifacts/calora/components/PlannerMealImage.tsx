@@ -6,6 +6,7 @@ import type { PlannerMeal } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { hasPlannerImageKey, plannerImageSource } from '@/lib/mealImages';
 import { plannerImageKeyForMeal, type PlannerImageKey } from '@/lib/mealImageIdentity';
+import { plannerImageRenderDecision, plannerStoredImageKeyMismatch } from '@/lib/plannerImageRendering';
 
 export type PlannerMealImageState = 'loading' | 'loaded' | 'fallback' | 'swapped';
 
@@ -44,10 +45,15 @@ export function PlannerMealImage({
 }) {
   const colors = useColors();
   const resolvedImageKey = plannerImageKeyForMeal(meal.id, meal.name);
-  const source = plannerImageSource(resolvedImageKey, meal.image);
+  const renderDecision = plannerImageRenderDecision(meal);
+  const source = plannerImageSource(renderDecision.canonicalImageKey, renderDecision.remoteImageUrl);
   const isCuratedImage = hasPlannerImageKey(resolvedImageKey);
   const fallbackSource = PLANNER_MEAL_FALLBACKS[meal.meal] ?? PLANNER_IMAGE_FALLBACK;
-  const identitySwapped = Boolean(expectedImageKey && resolvedImageKey !== expectedImageKey);
+  // A persisted key is diagnostic evidence only. The image source remains the
+  // current visible-name canonical key (or source-evidenced recipe image).
+  const receivedImageKey = meal.imageAssetKey ?? resolvedImageKey;
+  const identitySwapped = plannerStoredImageKeyMismatch(meal)
+    || Boolean(expectedImageKey && resolvedImageKey !== expectedImageKey);
   const failedRef = useRef(!source);
   const [loadState, setLoadState] = useState<'loading' | 'loaded' | 'fallback'>(source ? 'loading' : 'fallback');
   const state: PlannerMealImageState = identitySwapped ? 'swapped' : loadState;
@@ -55,7 +61,7 @@ export function PlannerMealImage({
     () => (state === 'swapped' || state === 'fallback' || !source ? fallbackSource : source),
     [fallbackSource, source, state],
   );
-  const status = stateLabel(state, isCuratedImage, expectedImageKey, resolvedImageKey);
+  const status = stateLabel(state, isCuratedImage, expectedImageKey ?? resolvedImageKey, receivedImageKey);
   const imageLabel = `${meal.name} meal image · ${status}`;
   const isFallback = state === 'fallback' || state === 'swapped';
   const fallbackNotice = state === 'swapped' ? 'Image mismatch · fallback' : 'Fallback image';
@@ -63,7 +69,7 @@ export function PlannerMealImage({
   useEffect(() => {
     failedRef.current = !source;
     setLoadState(source ? 'loading' : 'fallback');
-  }, [meal.id, meal.image, resolvedImageKey]);
+  }, [meal.id, meal.image, meal.imageAssetKey, resolvedImageKey]);
 
   const image = (
     <View style={[styles.imageSurface, style as StyleProp<ViewStyle>]}>

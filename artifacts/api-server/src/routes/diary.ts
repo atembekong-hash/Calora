@@ -25,7 +25,12 @@ import { CreateDiaryEntryBody, SyncFirstDiaryEntryBody } from "@workspace/api-zo
 import { db, aiCaptureCandidatesTable, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
-import { normalizeImageMetadata } from "../lib/image-metadata.js";
+import {
+  matchesCaptureImageEvidence,
+  normalizeImageEvidence,
+  normalizeImageMetadata,
+  type ImageEvidence,
+} from "../lib/image-metadata.js";
 import { logger } from "../lib/logger.js";
 import {
   accountDeletionFenceSignal,
@@ -155,6 +160,8 @@ function serialize(row: typeof diaryEntriesTable.$inferSelect) {
     notes: row.notes,
     imageUrl: row.imageUrl,
     imageSource: row.imageSource,
+    imageAssetKey: row.syncMetadata.imageAssetKey,
+    imageEvidence: row.syncMetadata.imageEvidence,
     clientUpdatedAt: row.clientUpdatedAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -182,6 +189,11 @@ router.post("/v1/diary", async (req, res) => {
     // here (never trust the Zod url() alone) so only trusted absolute HTTPS URLs
     // are persisted and a source label without a URL is dropped.
     const image = normalizeImageMetadata(entry.imageUrl, entry.imageSource);
+    const imageEvidence = normalizeImageEvidence(entry.imageEvidence, auth.id, {
+      imageUrl: image.imageUrl,
+      imageSource: image.imageSource,
+      imageAssetKey: entry.imageAssetKey,
+    });
     const values: typeof diaryEntriesTable.$inferInsert = {
       userId,
       entryDate: entry.entryDate.toISOString().slice(0, 10),
@@ -197,6 +209,10 @@ router.post("/v1/diary", async (req, res) => {
       notes: entry.notes ?? null,
       imageUrl: image.imageUrl,
       imageSource: image.imageSource,
+      syncMetadata: {
+        ...(typeof entry.imageAssetKey === "string" ? { imageAssetKey: entry.imageAssetKey } : {}),
+        ...(imageEvidence ? { imageEvidence } : {}),
+      },
       clientUpdatedAt: entry.clientUpdatedAt,
     };
     const [created] = await db.insert(diaryEntriesTable).values(values).returning();
@@ -288,7 +304,10 @@ router.post("/v1/diary/first-log", async (req, res) => {
     // The submitted nutrition must be consistent with what the server
     // analyzed (portion edits allowed within a generous band).
     const candidates = await db
-      .select({ calories: aiCaptureCandidatesTable.calories })
+      .select({
+        calories: aiCaptureCandidatesTable.calories,
+        evidence: aiCaptureCandidatesTable.evidence,
+      })
       .from(aiCaptureCandidatesTable)
       .innerJoin(
         aiCaptureSessionsTable,
@@ -326,7 +345,24 @@ router.post("/v1/diary/first-log", async (req, res) => {
         .returning({ id: aiCaptureSessionsTable.id });
       if (rows.length === 0) return false;
 
-      const image = normalizeImageMetadata(entry.imageUrl, entry.imageSource);
+      let image = normalizeImageMetadata(entry.imageUrl, entry.imageSource);
+      let imageEvidence: ImageEvidence | null = null;
+      if (entry.imageEvidence?.semanticRole === "exact") {
+        for (const candidate of candidates) {
+          const candidateEvidence = candidate.evidence?.imageEvidence;
+          if (!matchesCaptureImageEvidence(candidateEvidence, entry.imageEvidence, user.id)) continue;
+          imageEvidence = normalizeImageEvidence(candidateEvidence, user.id, undefined, { allowExact: true });
+          break;
+        }
+      }
+      imageEvidence ??= normalizeImageEvidence(entry.imageEvidence, user.id, {
+        imageUrl: image.imageUrl,
+        imageSource: image.imageSource,
+        imageAssetKey: entry.imageAssetKey,
+      });
+      if (imageEvidence?.semanticRole === "exact" && imageEvidence.locator) {
+        image = normalizeImageMetadata(imageEvidence.locator, imageEvidence.provider ?? image.imageSource);
+      }
       const values: typeof diaryEntriesTable.$inferInsert = {
         userId,
         entryDate: entry.entryDate.toISOString().slice(0, 10),
@@ -342,6 +378,10 @@ router.post("/v1/diary/first-log", async (req, res) => {
         notes: entry.notes,
         imageUrl: image.imageUrl,
         imageSource: image.imageSource,
+        syncMetadata: {
+          ...(typeof entry.imageAssetKey === "string" ? { imageAssetKey: entry.imageAssetKey } : {}),
+          ...(imageEvidence ? { imageEvidence } : {}),
+        },
         clientUpdatedAt: entry.clientUpdatedAt,
       };
       await tx.insert(diaryEntriesTable).values(values);

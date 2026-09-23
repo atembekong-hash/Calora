@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { createRequire } from 'node:module';
 
 /**
  * Vitest global setup — runs before every test file.
@@ -18,6 +19,16 @@ import { vi } from 'vitest';
 // the real Expo public configuration is missing.
 process.env.EXPO_PUBLIC_SUPABASE_URL ??= 'https://calora-test.invalid';
 process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??= 'calora-vitest-anon-key';
+
+// Metro resolves static require('asset.jpg') calls to numeric image modules at
+// runtime. Node has no equivalent loader, so identity/governance tests map
+// bundled image files to their absolute filename without decoding the binary.
+const testRequire = createRequire(import.meta.url);
+for (const extension of ['.jpg', '.jpeg', '.png', '.webp']) {
+  testRequire.extensions[extension] = (module, filename) => {
+    module.exports = filename;
+  };
+}
 
 // Calora's provider uses SecureStore only for the small install encryption
 // key. Keep the native bridge out of node/jsdom tests while preserving the

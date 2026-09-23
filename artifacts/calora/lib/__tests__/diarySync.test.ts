@@ -19,6 +19,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { MealType, FoodSource } from '@/context/CaloraContext';
+import type { FoodImageEvidence } from '../foodImageMetadata';
 
 // ---------------------------------------------------------------------------
 // Inline AsyncStorage mock — simple in-memory key-value store
@@ -67,8 +68,9 @@ function makeLog(overrides: Partial<{
   confidence: number;
   notes: string;
   imageUrl: string;
-  imageSource: 'provider' | 'recipe' | 'planner' | 'restaurant_representative';
+  imageSource: 'provider' | 'recipe' | 'planner' | 'generated' | 'restaurant_representative';
   imageAssetKey: string;
+  imageEvidence: FoodImageEvidence;
   nutritionSnapshot: { calories: number; proteinG: number; carbsG: number; fatG: number; capturedAt: string } | undefined;
   syncUpdatedAt: string;
 }> = {}) {
@@ -408,6 +410,18 @@ describe('syncDiaryLogs: image metadata', () => {
       imageUrl: 'https://images.openfoodfacts.org/chicken.jpg',
       imageSource: 'provider',
       imageAssetKey: 'chicken-breast',
+      imageEvidence: {
+        version: 1,
+        semanticRole: 'exact',
+        accountScope: 'server-owned-account',
+        contentId: 'food-product:open-food-facts:123',
+        provider: 'Open Food Facts',
+        providerItemId: '123',
+        imageId: 'front',
+        locator: 'https://images.openfoodfacts.org/chicken.jpg',
+        retrievedAt: '2026-09-23T12:00:00.000Z',
+        rightsReviewState: 'approved',
+      },
     }]);
 
     expect(mockSyncOutbox).toHaveBeenCalledTimes(2);
@@ -415,6 +429,15 @@ describe('syncDiaryLogs: image metadata', () => {
     expect(secondPayload.imageUrl).toBe('https://images.openfoodfacts.org/chicken.jpg');
     expect(secondPayload.imageSource).toBe('provider');
     expect(secondPayload.imageAssetKey).toBe('chicken-breast');
+    expect(secondPayload.imageEvidence).toMatchObject({
+      version: 1,
+      semanticRole: 'exact',
+      contentId: 'food-product:open-food-facts:123',
+      providerItemId: '123',
+      imageId: 'front',
+      retrievedAt: new Date('2026-09-23T12:00:00.000Z'),
+    });
+    expect(secondPayload.imageEvidence).not.toHaveProperty('accountScope');
   });
 
   it('round-trips a stable local image identity with the diary mutation', async () => {

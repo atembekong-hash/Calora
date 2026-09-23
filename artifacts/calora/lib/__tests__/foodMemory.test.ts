@@ -615,6 +615,8 @@ describe('migrateFoodMemories', () => {
 
 describe('recipeToDraft', () => {
   const NOW = '2026-08-06T09:00:00.000Z';
+  const IMAGE_ID = '123e4567-e89b-42d3-a456-426614174000';
+  const signedImageUrl = `https://storage.example/private/recipe-photos/account-a/${IMAGE_ID}.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=test%2F20260923%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260923T120000Z&X-Amz-Expires=518400&X-Amz-SignedHeaders=host&X-Amz-Signature=${'a'.repeat(64)}`;
 
   it('sets inputType to recipe and provenance to recipe_imported for non-local recipe', () => {
     const draft = recipeToDraft(
@@ -704,6 +706,41 @@ describe('recipeToDraft', () => {
     );
     expect(draft.imageUrl).toBe('https://www.themealdb.com/images/media/meals/recipe.jpg');
     expect(draft.imageSource).toBe('recipe');
+  });
+
+  it('retains a server-signed generated image and its durable evidence for diary review', () => {
+    const draft = recipeToDraft(
+      {
+        id: 'r-generated',
+        name: 'Generated vegetable bowl',
+        calories: 410,
+        proteinG: 16,
+        carbsG: 55,
+        fatG: 14,
+        source: 'Calora AI',
+        isLocal: true,
+        image: signedImageUrl,
+        imageId: IMAGE_ID,
+        imageUrlExpiresAt: '2026-09-29T12:00:00.000Z',
+        imageProvenance: 'generated',
+      },
+      '2026-08-06',
+      'Dinner',
+      NOW,
+      'account-a',
+    );
+
+    expect(draft).toMatchObject({
+      imageUrl: signedImageUrl,
+      imageSource: 'generated',
+      imageEvidence: {
+        semanticRole: 'generated',
+        contentId: 'recipe:r-generated',
+        imageId: IMAGE_ID,
+        accountScope: 'account-a',
+        locator: signedImageUrl,
+      },
+    });
   });
 });
 
@@ -804,5 +841,38 @@ describe('plannerMealToDraft', () => {
     );
     expect(draft.nutrition.calories).toBeCloseTo(800);
     expect(draft.nutrition.proteinG).toBeCloseTo(30);
+  });
+
+  it('derives canonical evidence from the visible meal identity instead of a stale stored key', () => {
+    const draft = plannerMealToDraft(
+      { id: 'custom-oats', name: 'Overnight oats with berries', calories: 300, proteinG: 10, carbsG: 55, fatG: 5, meal: 'Breakfast', day: '2026-08-07', imageAssetKey: 'harvest-salad' },
+      NOW,
+    );
+
+    expect(draft.imageAssetKey).toBe('berry-oats');
+    expect(draft.imageEvidence).toMatchObject({ semanticRole: 'canonical', assetKey: 'berry-oats' });
+  });
+
+  it('drops stale catalog keys and unowned remote images for renamed planner meals', () => {
+    const draft = plannerMealToDraft(
+      { id: 'custom-meal', name: 'My renamed meal', calories: 300, proteinG: 10, carbsG: 55, fatG: 5, meal: 'Dinner', day: '2026-08-07', imageAssetKey: 'harvest-salad', image: 'https://images.openfoodfacts.org/legacy.jpg' },
+      NOW,
+    );
+
+    expect(draft.imageAssetKey).toBeUndefined();
+    expect(draft.imageUrl).toBeUndefined();
+    expect(draft.imageEvidence).toBeUndefined();
+  });
+
+  it('retains a trusted remote image only for a recipe-linked custom planner meal', () => {
+    const image = 'https://www.themealdb.com/images/media/meals/recipe.jpg';
+    const draft = plannerMealToDraft(
+      { id: 'recipe-meal', name: 'My recipe meal', calories: 300, proteinG: 10, carbsG: 55, fatG: 5, meal: 'Dinner', day: '2026-08-07', imageAssetKey: 'harvest-salad', image, recipeId: 'recipe-1', recipeSource: 'discover' },
+      NOW,
+    );
+
+    expect(draft.imageAssetKey).toBeUndefined();
+    expect(draft.imageUrl).toBe(image);
+    expect(draft.imageEvidence).toBeUndefined();
   });
 });
