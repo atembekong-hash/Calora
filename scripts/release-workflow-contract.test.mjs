@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,10 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const release = readFileSync(path.join(root, ".github/workflows/release-validation.yml"), "utf8");
 const testflight = readFileSync(path.join(root, ".github/workflows/calora-testflight-upload.yml"), "utf8");
+const nativeAuth = readFileSync(path.join(root, ".github/workflows/native-auth-preflight.yml"), "utf8");
+const encryptedRecovery = readFileSync(path.join(root, ".github/workflows/native-encrypted-recovery.yml"), "utf8");
+const deletionFence = readFileSync(path.join(root, ".github/workflows/account-deletion-fence.yml"), "utf8");
+const workflowsDirectory = path.join(root, ".github/workflows");
 const testflightBuildJob = testflight.slice(0, testflight.indexOf("  attest-testflight-evidence:"));
 const attestationJob = testflight.slice(testflight.indexOf("  attest-testflight-evidence:"));
 const sha = "[0-9a-f]{40}";
@@ -66,4 +70,52 @@ test("all TestFlight workflow actions are immutable full-SHA pins", () => {
   for (const match of testflight.matchAll(/^\s*uses:\s+([^\s#]+)/gm)) {
     assert.match(match[1], /@[0-9a-f]{40}$/i, `mutable action reference: ${match[1]}`);
   }
+});
+
+test("native evidence paths resolve at step scope and retain producer-consumer consistency", () => {
+  const authJobEnvironment = nativeAuth.slice(
+    nativeAuth.indexOf("    env:"),
+    nativeAuth.indexOf("    steps:"),
+  );
+  const recoveryJobEnvironment = encryptedRecovery.slice(
+    encryptedRecovery.indexOf("    env:"),
+    encryptedRecovery.indexOf("    steps:"),
+  );
+
+  assert.doesNotMatch(authJobEnvironment, /CALORA_NATIVE_AUTH_EVIDENCE_PATH/);
+  assert.doesNotMatch(recoveryJobEnvironment, /CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH/);
+  assert.match(
+    nativeAuth,
+    /Run native auth-link preflight[\s\S]*?env:\n\s+CALORA_NATIVE_AUTH_EVIDENCE_PATH: \$\{\{ runner\.temp \}\}\/calora-native-auth-preflight\.json/,
+  );
+  assert.match(
+    nativeAuth,
+    /path: \$\{\{ runner\.temp \}\}\/calora-native-auth-preflight\.json/,
+  );
+  assert.match(
+    encryptedRecovery,
+    /Preflight native runner and run encrypted-recovery release gate[\s\S]*?env:\n\s+CALORA_ENCRYPTED_RECOVERY_EVIDENCE_PATH: \$\{\{ runner\.temp \}\}\/calora-encrypted-recovery-evidence\.json/,
+  );
+  assert.match(
+    encryptedRecovery,
+    /path: \$\{\{ runner\.temp \}\}\/calora-encrypted-recovery-evidence\.json/,
+  );
+});
+
+test("all active workflow actions and service images are immutable", () => {
+  for (const filename of readdirSync(workflowsDirectory).filter((name) => name.endsWith(".yml"))) {
+    const workflow = readFileSync(path.join(workflowsDirectory, filename), "utf8");
+    for (const match of workflow.matchAll(/^\s*uses:\s+([^\s#]+)/gm)) {
+      assert.match(match[1], /@[0-9a-f]{40}$/i, `${filename} has mutable action reference: ${match[1]}`);
+    }
+  }
+  assert.match(
+    deletionFence,
+    /image: postgres:16@sha256:[0-9a-f]{64}/,
+    "the PostgreSQL release service must use an immutable digest",
+  );
+});
+
+test("release validation runs deterministic native preflight unit coverage", () => {
+  assert.match(release, /pnpm --filter @workspace\/calora run test:release:native-preflight-unit/);
 });

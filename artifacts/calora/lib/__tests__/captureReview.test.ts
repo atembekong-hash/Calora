@@ -649,11 +649,12 @@ describe('accessibility labels — static invariants', () => {
     expect(scanSource).toContain('barcodeLaunchRequested');
     expect(scanSource).toContain('requestPermission()');
     expect(scanSource).toContain('onBarcodeScanned={');
-    expect(scanSource).toContain('analyze({ mode, barcode })');
+    expect(scanSource).toContain('barcodeLockRef.current = { barcode, sequence };');
+    expect(scanSource).toContain('void analyze({ mode, barcode }, sequence);');
   });
 
   it('pauses barcode scanning while the camera is recording video', () => {
-    expect(scanSource).toContain("cameraMode === 'video' || mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned");
+    expect(scanSource).toContain("cameraMode === 'video' || mode === 'food' || mode === 'label' || hasScanned || barcodeLockRef.current ? undefined : onBarcodeScanned");
   });
 
   it('recovers cleanly when native photo capture throws', () => {

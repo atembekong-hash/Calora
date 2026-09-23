@@ -9,11 +9,11 @@ import * as zod from 'zod';
 
 
 /**
- * Returns server health status
- * @summary Health check
+ * Returns ok only after the API can query its PostgreSQL data plane
+ * @summary Database readiness check
  */
 export const HealthCheckResponse = zod.object({
-  "status": zod.string()
+  "status": zod.enum(['ok', 'unavailable'])
 })
 
 
@@ -1313,19 +1313,15 @@ export const RevokeCoachFactContextConsentResponse = zod.object({
 
 
 /**
- * @summary Request a portable data export
+ * Starts or resumes the server-owned deletion saga for the account
+ * resolved from the bearer token. The server fences new writes before
+ * erasing object storage, application data, the RevenueCat customer, and
+ * the Supabase Auth identity. A 202 response means another worker already
+ * owns the same deletion and secure recovery will continue it.
+ * @summary Permanently delete the authenticated account and its data
  */
-export const RequestDataExportResponse = zod.object({
-  "status": zod.enum(['queued', 'ready']),
-  "downloadUrl": zod.string().url().nullish()
-})
-
-
-/**
- * @summary Request deletion of the account and its data
- */
-export const RequestDataDeletionResponse = zod.object({
-  "status": zod.enum(['queued', 'complete'])
+export const DeleteAccountResponse = zod.object({
+  "message": zod.string()
 })
 
 
@@ -1354,9 +1350,9 @@ export const GetReferralResponse = zod.object({
 
 /**
  * Records a pending referral redemption for the authenticated user.
- * Rewards unlock for both parties once the new user saves their first
- * meal. One redemption per account; self-referrals are
- * rejected.
+ * Rewards unlock for both parties only after the new user confirms a
+ * capture-backed meal whose server-issued capture session is verified by
+ * the API. One redemption per account; self-referrals are rejected.
  * @summary Redeem an invite code on a new account
  */
 export const redeemReferralBodyCodeMin = 4;
@@ -1376,11 +1372,11 @@ export const RedeemReferralResponse = zod.object({
 
 /**
  * The diary is local-first; this endpoint durably records the user's
- * capture-backed food log server-side. It is retained for capture
- * persistence compatibility; referral qualification instead accepts any
- * valid authenticated meal save.
- * Idempotent — once any diary entry exists for the user, repeat calls
- * return the existing state without writing again.
+ * capture-backed food log server-side. Referral qualification requires
+ * this route to verify the authenticated user's server-issued capture
+ * session and persist the corresponding meal. Idempotent — once that
+ * capture-backed diary entry exists, repeat calls return the existing
+ * state without granting a reward again.
  * @summary Persist the user's first capture-backed food log on the server
  */
 export const syncFirstDiaryEntryBodyMealMax = 40;
@@ -1439,11 +1435,12 @@ export const SyncFirstDiaryEntryResponse = zod.object({
 
 
 /**
- * Called once the referred user records their first saved meal through an
- * authenticated Calora diary persistence route. Grants 30 days of Pro to
- * both parties with no referral cap. Idempotent — repeat calls return the
+ * Called once the referred user confirms a capture-backed meal. The API
+ * independently verifies a server-issued capture session and persisted
+ * diary entry before granting 30 days of Pro to both parties. The request
+ * cannot supply or override proof. Idempotent repeat calls return the
  * current state without granting again.
- * @summary Unlock referral rewards after the first saved meal
+ * @summary Unlock referral rewards after a verified capture-backed meal
  */
 export const ActivateReferralResponse = zod.object({
   "status": zod.enum(['none', 'pending', 'rewarded']),

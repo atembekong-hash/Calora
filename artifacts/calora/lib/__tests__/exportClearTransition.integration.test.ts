@@ -23,7 +23,7 @@
  * Mocking rationale:
  *   AsyncStorage     — replaced with an in-memory adapter so no real I/O occurs.
  *                      Empty storage on first read means hydration completes
- *                      without overwriting the provider's default starter state.
+ *                      with the production first-run empty state.
  *   expo-notifications — CaloraContext never schedules reminders in tests
  *                        (the user hasn't toggled them on), but the import
  *                        must resolve.  No-op mocks suffice.
@@ -33,7 +33,7 @@
  *
  * Production wiring mirrored here:
  *   CaloraContext.tsx  : const [profile, setProfile] = useState<Profile | null>(null)
- *   CaloraContext.tsx  : const [logs, setLogs] = useState<FoodLog[]>(starterLogs)
+ *   CaloraContext.tsx  : const [logs, setLogs] = useState<FoodLog[]>([])
  *   CaloraContext.tsx  : clearAllData() → performClearAllData({ …, setProfile, setLogs, … })
  *   profile.tsx L27   : const hasExportData = deriveExportHasData(profile, logs)
  *   profile.tsx row   : onPress / accessibilityState / opacity driven by hasExportData
@@ -109,6 +109,26 @@ async function renderAndAwaitHydration() {
   return handle;
 }
 
+async function renderWithUserLog() {
+  const handle = await renderAndAwaitHydration();
+  await act(async () => {
+    handle.result.current.addLog({
+      name: 'User meal',
+      date: '2026-09-23',
+      meal: 'Lunch',
+      calories: 420,
+      protein: 30,
+      carbs: 45,
+      fat: 12,
+      source: 'Manual',
+      confidence: 100,
+      time: '12:00 PM',
+      serving: '1 serving',
+    });
+  });
+  return handle;
+}
+
 // ---------------------------------------------------------------------------
 // Between-test cleanup — clear the AsyncStorage mock backing store so tests
 // are isolated from each other.
@@ -144,10 +164,8 @@ function exportRowProps(ctx: ReturnType<typeof useCalora>) {
 // ---------------------------------------------------------------------------
 // Pre-clear baseline
 //
-// CaloraProvider initialises logs with starterLogs (three sample entries) and
-// profile as null.  deriveExportHasData(null, starterLogs) = true because
-// logs.length > 0 — the export row is interactive from the first render, even
-// before the user has completed onboarding.
+// CaloraProvider initialises a first-run scope with no diary rows and no
+// profile. The export row stays disabled until the user has real data.
 // ---------------------------------------------------------------------------
 
 describe('export row via real CaloraProvider: pre-clear baseline', () => {
@@ -157,35 +175,33 @@ describe('export row via real CaloraProvider: pre-clear baseline', () => {
     expect(result.current.hydrationError).toBeNull();
   });
 
-  it('logs are non-empty after hydration — the starter diary entries are present', async () => {
+  it('logs are empty after hydration — no starter diary entries are present', async () => {
     const { result } = await renderAndAwaitHydration();
-    // CaloraProvider seeds useState<FoodLog[]>(starterLogs) with three entries.
-    // Empty storage means hydration does not overwrite them.
-    expect(result.current.logs.length).toBeGreaterThan(0);
+    expect(result.current.logs).toEqual([]);
   });
 
-  it('hasExportData is true before the clear — starter logs make the row interactive', async () => {
+  it('hasExportData is false on a true first run', async () => {
     const { result } = await renderAndAwaitHydration();
     const { hasExportData } = exportRowProps(result.current);
-    expect(hasExportData).toBe(true);
+    expect(hasExportData).toBe(false);
   });
 
-  it('export row onPress is defined before the clear', async () => {
+  it('export row onPress is undefined on a true first run', async () => {
     const { result } = await renderAndAwaitHydration();
     const { onPress } = exportRowProps(result.current);
-    expect(typeof onPress).toBe('function');
+    expect(onPress).toBeUndefined();
   });
 
-  it('export row accessibilityState is undefined (not disabled) before the clear', async () => {
+  it('export row accessibilityState is disabled on a true first run', async () => {
     const { result } = await renderAndAwaitHydration();
     const { accessibilityState } = exportRowProps(result.current);
-    expect(accessibilityState).toBeUndefined();
+    expect(accessibilityState).toEqual({ disabled: true });
   });
 
-  it('export row opacity is 1 before the clear', async () => {
+  it('export row opacity is dimmed on a true first run', async () => {
     const { result } = await renderAndAwaitHydration();
     const { opacity } = exportRowProps(result.current);
-    expect(opacity).toBe(1);
+    expect(opacity).toBe(0.4);
   });
 });
 
@@ -201,9 +217,9 @@ describe('export row via real CaloraProvider: pre-clear baseline', () => {
 
 describe('export row via real CaloraProvider: clearAllData() state transition — enabled → disabled without a reload', () => {
   it('hasExportData flips from true → false the moment the real clearAllData() resolves', async () => {
-    const { result } = await renderAndAwaitHydration();
+    const { result } = await renderWithUserLog();
 
-    // Pre-clear: starter logs make the row interactive
+    // Pre-clear: a real user log makes the row interactive.
     expect(exportRowProps(result.current).hasExportData).toBe(true);
 
     // Invoke the REAL clearAllData() from the REAL useCalora() context
@@ -214,7 +230,7 @@ describe('export row via real CaloraProvider: clearAllData() state transition �
   });
 
   it('export row onPress is undefined after the real clearAllData() — row is non-interactive', async () => {
-    const { result } = await renderAndAwaitHydration();
+    const { result } = await renderWithUserLog();
     expect(typeof exportRowProps(result.current).onPress).toBe('function');
 
     await act(async () => { await result.current.clearAllData(); });
@@ -223,7 +239,7 @@ describe('export row via real CaloraProvider: clearAllData() state transition �
   });
 
   it('export row accessibilityState becomes { disabled: true } after clearAllData()', async () => {
-    const { result } = await renderAndAwaitHydration();
+    const { result } = await renderWithUserLog();
     expect(exportRowProps(result.current).accessibilityState).toBeUndefined();
 
     await act(async () => { await result.current.clearAllData(); });
@@ -232,7 +248,7 @@ describe('export row via real CaloraProvider: clearAllData() state transition �
   });
 
   it('export row opacity drops to 0.4 after clearAllData() — row is visually dimmed', async () => {
-    const { result } = await renderAndAwaitHydration();
+    const { result } = await renderWithUserLog();
     expect(exportRowProps(result.current).opacity).toBe(1);
 
     await act(async () => { await result.current.clearAllData(); });
@@ -251,13 +267,13 @@ describe('export row via real CaloraProvider: clearAllData() state transition �
   });
 
   it('context logs is [] after clearAllData() — the real setLogs([]) dispatcher fired', async () => {
-    const { result } = await renderAndAwaitHydration();
-    expect(result.current.logs.length).toBeGreaterThan(0); // starter logs present
+    const { result } = await renderWithUserLog();
+    expect(result.current.logs).toHaveLength(1);
 
     await act(async () => { await result.current.clearAllData(); });
 
     // Confirms the REAL CaloraContext.clearAllData passed setLogs to
-    // performClearAllData — if it had not, logs would still contain starter data.
+    // performClearAllData — if it had not, the user log would remain.
     expect(result.current.logs).toHaveLength(0);
   });
 
@@ -266,7 +282,7 @@ describe('export row via real CaloraProvider: clearAllData() state transition �
     // from the same `result.current` reference.  If a reload were required,
     // this would require a separate renderHook call and the test would not
     // prove the reactive wiring.
-    const { result } = await renderAndAwaitHydration();
+    const { result } = await renderWithUserLog();
 
     const preClearHasData = exportRowProps(result.current).hasExportData;
 

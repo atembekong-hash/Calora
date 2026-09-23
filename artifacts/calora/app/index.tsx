@@ -16,7 +16,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Redirect, router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useCalora, ActivityLevel, DietPreference, Goal, OnboardingDraft, Profile } from '@/context/CaloraContext';
 import { BRAND } from '@/lib/brand';
@@ -393,8 +393,6 @@ export default function OnboardingScreen() {
       </View>
     );
   }
-
-  if (onboardingComplete && !isReviewMode) return <Redirect href="/(tabs)" />;
 
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>

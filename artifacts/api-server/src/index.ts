@@ -10,6 +10,7 @@ import {
 import { pool } from "@workspace/db";
 import { recoverPendingAccountDeletions } from "./routes/account";
 import { runSafeBackgroundTask } from "./lib/safe-background-task";
+import { assertStartupReady } from "./lib/startup-readiness";
 
 const rawPort = process.env["PORT"];
 
@@ -93,45 +94,64 @@ async function startAccountDeletionRecovery(): Promise<void> {
   await runAccountDeletionRecovery();
 }
 
-void startAccountDeletionRecovery();
-const accountRecoveryTimer = setInterval(
-  () => void runAccountDeletionRecovery(),
-  ACCOUNT_DELETION_RECOVERY_INTERVAL_MS,
-);
-accountRecoveryTimer.unref();
-const recoveryWarningSummaryTimer = setInterval(
-  flushSuppressedRecoveryWarningSummary,
-  RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
-);
-recoveryWarningSummaryTimer.unref();
-
 let rateLimitCleanupTimer: NodeJS.Timeout | undefined;
-const server = app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
-  logger.info({ port }, "Server listening");
-  const cleanupStartTimer = setTimeout(() => {
-    void cleanupExpiredRateLimitRows();
-    rateLimitCleanupTimer = setInterval(
-      () => void cleanupExpiredRateLimitRows(),
-      RATE_LIMIT_CLEANUP_INTERVAL_MS,
-    );
-    rateLimitCleanupTimer.unref();
-  }, 60_000);
-  cleanupStartTimer.unref();
-});
-
+let accountRecoveryTimer: NodeJS.Timeout | undefined;
+let recoveryWarningSummaryTimer: NodeJS.Timeout | undefined;
+let server: ReturnType<typeof app.listen> | undefined;
 let shutdownStarted = false;
+
+async function startServer(): Promise<void> {
+  // Refuse traffic until the same dependency used by /api/healthz has passed a
+  // real query. This does not mutate schema and keeps failed deployments out of
+  // readiness rotation instead of briefly advertising an unusable listener.
+  await assertStartupReady(pool);
+  if (shutdownStarted) return;
+
+  void startAccountDeletionRecovery().catch((err) =>
+    logger.error({ err }, "Account deletion recovery startup failed"),
+  );
+  accountRecoveryTimer = setInterval(
+    () => void runAccountDeletionRecovery(),
+    ACCOUNT_DELETION_RECOVERY_INTERVAL_MS,
+  );
+  accountRecoveryTimer.unref();
+  recoveryWarningSummaryTimer = setInterval(
+    flushSuppressedRecoveryWarningSummary,
+    RECOVERY_WARNING_SUMMARY_INTERVAL_MS,
+  );
+  recoveryWarningSummaryTimer.unref();
+
+  server = app.listen(port, (err) => {
+    if (err) {
+      logger.fatal({ err }, "API listener failed during startup");
+      shutdown("listen_error", 1);
+      return;
+    }
+    logger.info({ port }, "Server listening");
+    const cleanupStartTimer = setTimeout(() => {
+      void cleanupExpiredRateLimitRows();
+      rateLimitCleanupTimer = setInterval(
+        () => void cleanupExpiredRateLimitRows(),
+        RATE_LIMIT_CLEANUP_INTERVAL_MS,
+      );
+      rateLimitCleanupTimer.unref();
+    }, 60_000);
+    cleanupStartTimer.unref();
+  });
+}
+
+void startServer().catch((err) => {
+  logger.fatal({ err }, "API startup readiness check failed");
+  shutdown("startup_readiness", 1);
+});
 
 function shutdown(reason: string, exitCode: number): void {
   if (shutdownStarted) return;
   shutdownStarted = true;
 
   logger.info({ reason, exitCode }, "API shutdown started");
-  clearInterval(accountRecoveryTimer);
-  clearInterval(recoveryWarningSummaryTimer);
+  if (accountRecoveryTimer) clearInterval(accountRecoveryTimer);
+  if (recoveryWarningSummaryTimer) clearInterval(recoveryWarningSummaryTimer);
   if (rateLimitCleanupTimer) clearInterval(rateLimitCleanupTimer);
 
   const hardShutdownTimer = setTimeout(() => {
@@ -140,7 +160,7 @@ function shutdown(reason: string, exitCode: number): void {
   }, GRACEFUL_SHUTDOWN_TIMEOUT_MS);
   hardShutdownTimer.unref();
 
-  server.close((serverError) => {
+  const finishShutdown = (serverError?: Error) => {
     void (async () => {
       let finalExitCode = exitCode;
       if (serverError) {
@@ -163,7 +183,13 @@ function shutdown(reason: string, exitCode: number): void {
         process.exit(finalExitCode);
       }
     })();
-  });
+  };
+
+  if (server) {
+    server.close(finishShutdown);
+  } else {
+    finishShutdown();
+  }
 }
 
 process.once("SIGTERM", () => shutdown("SIGTERM", 0));

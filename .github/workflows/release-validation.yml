@@ -78,6 +78,7 @@ jobs:
           AI_INTEGRATIONS_OPENAI_API_KEY: calora-vitest-openai-key
         run: |
           pnpm --filter @workspace/calora run test
+          pnpm --filter @workspace/calora run test:release:native-preflight-unit
           pnpm --filter @workspace/api-server run test:offline
           pnpm --filter @workspace/scripts run test
 

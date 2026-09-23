@@ -161,6 +161,23 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('key={recipe.id}');
   });
 
+  it('keeps Quick curated to recipes with known preparation times without remote pagination', () => {
+    expect(source).toContain("const discoverRemoteEnabled = category !== 'My recipes' && category !== 'Quick'");
+    expect(source).toContain("category === 'Quick' ? [] : freshRemoteRecipes");
+    expect(source).toContain('curated quick recipes with known preparation times');
+    expect(source).not.toContain('freshRemoteRecipes.filter((r) => r.prepMinutes != null');
+  });
+
+  it('sends the UTC freshness day through unfiltered Plus params, keys, and prefetches only', () => {
+    expect(source).toContain("const unfilteredFreshnessDay = !search && !category ? freshnessDay : undefined");
+    expect(source).toContain('...(unfilteredFreshnessDay ? { freshnessDay: unfilteredFreshnessDay } : {})');
+    expect(source).toContain('getListPremiumRecipesQueryKey(premiumParams)');
+    expect(source).toContain('getListPremiumRecipesQueryKey(nextParams)');
+    expect(source).toContain('const today = utcFreshnessDay()');
+    expect(source).toContain('setFreshnessDay(today)');
+    expect(source).toContain('const nextUtcDay = Date.UTC(');
+  });
+
   it('keeps every recipe submenu inside a bounded vertical scroll viewport', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),

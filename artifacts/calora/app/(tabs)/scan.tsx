@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
@@ -144,11 +144,21 @@ export default function ScanScreen() {
   const [mode, setMode] = useState<ScanMode>(params.capture === 'barcode' ? 'barcode' : 'auto');
   const [hasScanned, setHasScanned] = useState(false);
   const barcodeLaunchRequested = useRef(false);
+  const barcodeSequenceRef = useRef(0);
+  const barcodeLockRef = useRef<{ barcode: string; sequence: number } | null>(null);
+
+  const resetBarcodeCapture = () => {
+    barcodeSequenceRef.current += 1;
+    barcodeLockRef.current = null;
+    setHasScanned(false);
+  };
 
   useEffect(() => {
     if (params.capture !== 'barcode') return;
     setMode('barcode');
-    setHasScanned(false);
+    resetBarcodeCapture();
+    // The route capture value is the deliberate start/retry boundary.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.capture]);
 
   useEffect(() => {
@@ -214,14 +224,33 @@ export default function ScanScreen() {
     Haptics.notificationAsync(next.status === 'review' ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
   };
 
-  const analyze = async (input: Omit<CaptureAnalyzeInput, 'clientSessionId'>): Promise<CaptureAnalysis | null> => {
+  const analyze = async (
+    input: Omit<CaptureAnalyzeInput, 'clientSessionId'>,
+    barcodeSequence?: number,
+  ): Promise<CaptureAnalysis | null> => {
     try {
       const next = await analyzeCapture.mutateAsync({ data: input });
+      if (
+        barcodeSequence !== undefined
+        && barcodeLockRef.current?.sequence !== barcodeSequence
+      ) {
+        return null;
+      }
       if (next.status !== 'transcript') showAnalysis(next);
       return next;
     } catch (error) {
+      if (
+        barcodeSequence !== undefined
+        && barcodeLockRef.current?.sequence !== barcodeSequence
+      ) {
+        return null;
+      }
       Alert.alert('Scan unavailable', error instanceof Error ? error.message : 'Try again or use search.');
-      setHasScanned(false);
+      if (barcodeSequence !== undefined) {
+        resetBarcodeCapture();
+      } else {
+        setHasScanned(false);
+      }
       setCapturedPhotoUri(null);
       return null;
     }
@@ -363,9 +392,15 @@ export default function ScanScreen() {
   };
 
   const onBarcodeScanned = (result: BarcodeScanningResult) => {
-    if (hasScanned || analyzeCapture.isPending || mode === 'food' || mode === 'label') return;
+    if (barcodeLockRef.current || hasScanned || analyzeCapture.isPending || mode === 'food' || mode === 'label') return;
     const barcode = result.data?.trim();
-    if (barcode) void analyze({ mode, barcode });
+    if (!barcode) return;
+    const sequence = ++barcodeSequenceRef.current;
+    // Camera callbacks can repeat synchronously before React commits state.
+    // Claim the sequence in a ref first, then update visible state.
+    barcodeLockRef.current = { barcode, sequence };
+    setHasScanned(true);
+    void analyze({ mode, barcode }, sequence);
   };
 
   const takePhoto = async () => {
@@ -441,7 +476,7 @@ export default function ScanScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setAnalysis(null);
     setReviewDraftId(null);
-    setHasScanned(false);
+    resetBarcodeCapture();
     setCapturedPhotoUri(null);
     router.replace({ pathname: '/(tabs)/scan', params: { date: entryDate } });
   };
@@ -450,7 +485,7 @@ export default function ScanScreen() {
     if (reviewDraft) rejectFoodMemory(reviewDraft.id);
     setAnalysis(null);
     setReviewDraftId(null);
-    setHasScanned(false);
+    resetBarcodeCapture();
     setCapturedPhotoUri(null);
     setShowTextEntry(false);
     setAltCaptureBanner(null);
@@ -487,7 +522,14 @@ export default function ScanScreen() {
           </Pressable>
         }
       />
-      <ScrollView contentContainerStyle={{ paddingTop: 18, paddingBottom: insets.bottom + 104 }} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollViewCompat
+        testID="scan-keyboard-safe-scroll"
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        bottomOffset={insets.bottom + 80}
+        contentContainerStyle={{ paddingTop: 18, paddingBottom: insets.bottom + 104 }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <View style={{ flex: 1, marginRight: 12 }}><Text style={[styles.title, { color: colors.foreground }]}>Scan food</Text><Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Barcodes and photos, reviewed before logging.</Text></View>
           <View style={styles.scanHeaderRight}>
@@ -513,7 +555,7 @@ export default function ScanScreen() {
             <View style={[styles.cameraFrame, { borderColor: colors.border }]}>
               {photoAnalysisPending ? <ProcessingPhoto colors={colors} uri={capturedPhotoUri!} /> : (
                 <>
-                  <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" mode={cameraMode} onBarcodeScanned={cameraMode === 'video' || mode === 'food' || mode === 'label' ? undefined : onBarcodeScanned} barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] }} />
+                  <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" mode={cameraMode} onBarcodeScanned={cameraMode === 'video' || mode === 'food' || mode === 'label' || hasScanned || barcodeLockRef.current ? undefined : onBarcodeScanned} barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'qr'] }} />
                   <View style={styles.cameraOverlay}>
                     <Animated.View style={[StyleSheet.absoluteFillObject, cornerPulseStyle]} pointerEvents="none">
                       <View style={[styles.corner, styles.cornerTL, { borderColor: colors.onHero }]} />
@@ -527,7 +569,7 @@ export default function ScanScreen() {
               )}
             </View>
             <View style={[styles.modePicker, { backgroundColor: colors.muted }]}>
-              {(['auto', 'barcode', 'food', 'label'] as ScanMode[]).map((item) => <Pressable key={item} accessibilityLabel={`Scan mode ${item}`} onPress={() => { setMode(item); setHasScanned(false); }} style={[styles.modeButton, mode === item && { backgroundColor: colors.card }]}>{item === 'barcode' ? <CaloraFeatureIcon name="barcode" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : item === 'food' ? <CaloraFeatureIcon name="food" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : <Feather name={item === 'auto' ? 'zap' : 'file-text'} size={14} color={mode === item ? colors.primary : colors.mutedForeground} />}<Text style={[styles.modeText, { color: mode === item ? colors.foreground : colors.mutedForeground }]}>{item === 'auto' ? 'Auto' : item === 'barcode' ? 'Barcode' : item === 'food' ? 'Food' : 'Label'}</Text></Pressable>)}
+              {(['auto', 'barcode', 'food', 'label'] as ScanMode[]).map((item) => <Pressable key={item} accessibilityLabel={`Scan mode ${item}`} onPress={() => { setMode(item); resetBarcodeCapture(); }} style={[styles.modeButton, mode === item && { backgroundColor: colors.card }]}>{item === 'barcode' ? <CaloraFeatureIcon name="barcode" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : item === 'food' ? <CaloraFeatureIcon name="food" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : <Feather name={item === 'auto' ? 'zap' : 'file-text'} size={14} color={mode === item ? colors.primary : colors.mutedForeground} />}<Text style={[styles.modeText, { color: mode === item ? colors.foreground : colors.mutedForeground }]}>{item === 'auto' ? 'Auto' : item === 'barcode' ? 'Barcode' : item === 'food' ? 'Food' : 'Label'}</Text></Pressable>)}
             </View>
             <View style={styles.captureActions}>
               <Pressable accessibilityLabel="Choose food photo from library" onPress={() => void choosePhoto()} style={[styles.secondaryButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="image" size={17} color={colors.foreground} /><Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Library</Text></Pressable>
@@ -553,7 +595,7 @@ export default function ScanScreen() {
             </View>
           </>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
         <Modal visible={analysis !== null} transparent animationType="slide" onRequestClose={dismissDraft}>
          <BottomSheetFrame overlayColor="rgba(0,0,0,0.45)" sheetStyle={{ backgroundColor: colors.background }}>
           <Animated.View entering={enterMotion('modal')} style={styles.resultSheet}>

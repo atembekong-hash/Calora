@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
+import { PLANNER_CATALOG } from "../../../../lib/api-zod/src/planner-catalog.js";
 import { isProgramEligible } from "@workspace/api-zod/planner-program-eligibility";
 
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
@@ -28,7 +29,7 @@ vi.mock("../lib/logger.js", () => ({
 }));
 
 import { openai } from "@workspace/integrations-openai-ai-server";
-import plannerRouter from "../routes/planner.js";
+import plannerRouter, { PLANNER_API_CATALOG } from "../routes/planner.js";
 
 function buildApp() {
   const app = express();
@@ -51,6 +52,12 @@ describe("POST /v1/planner/generate", () => {
     vi.clearAllMocks();
     verifyBearerToken.mockResolvedValue({ id: "user-a", email: "a@example.com" });
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+  });
+
+  it("uses the exact canonical 28-meal planner catalog", () => {
+    expect(PLANNER_API_CATALOG).toBe(PLANNER_CATALOG);
+    expect(PLANNER_API_CATALOG).toHaveLength(28);
+    expect(PLANNER_API_CATALOG.map((meal) => meal.id)).toEqual(PLANNER_CATALOG.map((meal) => meal.id));
   });
 
   it("rejects unauthenticated callers without touching the model", async () => {
@@ -117,9 +124,40 @@ describe("POST /v1/planner/generate", () => {
     expect(new Set(response.body.meals.map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBeGreaterThanOrEqual(4);
     for (const role of ["Breakfast", "Lunch", "Dinner", "Snack"]) {
       const roleMeals = response.body.meals.filter((meal: { meal: string }) => meal.meal === role);
-      expect(new Set(roleMeals.map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBeGreaterThanOrEqual(1);
+      const eligibleRoleCount = PLANNER_API_CATALOG.filter((meal) => meal.meal === role).length;
+      expect(new Set(roleMeals.map((meal: { imageAssetKey: string }) => meal.imageAssetKey)).size).toBe(Math.min(eligibleRoleCount, 7));
+      if (eligibleRoleCount > 1) {
+        expect(roleMeals.every((meal: { name: string }, index: number) => index === 0 || meal.name !== roleMeals[index - 1]?.name)).toBe(true);
+      }
       expect(roleMeals.every((meal: { imageAssetKey?: string }) => Boolean(meal.imageAssetKey))).toBe(true);
     }
+  });
+
+  it("keeps canonical Keto dinners available and varied in the provider fallback", async () => {
+    vi.mocked(openai.chat.completions.create).mockRejectedValueOnce(new Error("provider down"));
+
+    const response = await request(app).post("/v1/planner/generate").send({
+      ...validBody(),
+      planType: "keto-kickstart",
+    });
+
+    expect(response.status).toBe(200);
+    const dinners = response.body.meals.filter((meal: { meal: string }) => meal.meal === "Dinner");
+    expect(dinners.some((meal: { id: string }) => meal.id.includes("-keto-chicken-zucchini-"))).toBe(true);
+    expect(dinners.some((meal: { id: string }) => meal.id.includes("-keto-salmon-olive-"))).toBe(true);
+    expect(new Set(dinners.map((meal: { name: string }) => meal.name)).size).toBeGreaterThan(1);
+  });
+
+  it("rejects a Program and diet combination that cannot populate every role", async () => {
+    const response = await request(app).post("/v1/planner/generate").send({
+      ...validBody(),
+      profile: { ...validBody().profile, diet: "Vegan" },
+      planType: "quick-and-easy",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toMatch(/no complete planner week/i);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 
   it("filters model selections and fallback meals to Plant-Based Week", async () => {

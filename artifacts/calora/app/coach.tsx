@@ -233,9 +233,9 @@ export default function CoachScreen() {
     }
 
     // Capture epoch-relevant state synchronously at send-time.
-    // Build and freeze only the approved daily calorie+protein facts.
-    // These are the only facts fed to the Fact Context path; no other content
-    // (mood, hydration, weight, planner, etc.) is included.
+    // Build and freeze only the approved, display-ready Fact Context allowlist.
+    // Food names, notes, photos, recipes, raw timelines, account identifiers,
+    // and the full intelligence snapshot are never included.
     let frozenFacts: readonly IntelligenceFact[] = Object.freeze([]);
     if (hydrated && user?.id) {
       try {
@@ -387,17 +387,17 @@ export default function CoachScreen() {
             </View>
             <Text style={[styles.consentTitle, { color: colors.onHero }]}>Nutrition, in context</Text>
             <Text style={[styles.consentBody, { color: colors.heroMuted }]}>
-              Coach uses your logged calories, protein, and question. It does not use mood, hydration, weight, plans, or Food Memory.
+              Coach may use a bounded summary of your logged nutrition, hydration, meal distribution, recent logging coverage, weight trend, and your question.
             </Text>
             <View style={styles.scopeRow}>
-              {['Calories logged', 'Protein logged', 'Your question'].map((item) => (
+              {['Logged nutrition', 'Recent patterns', 'Your question'].map((item) => (
                 <View key={item} style={[styles.scopePill, { backgroundColor: 'rgba(157,215,189,0.14)' }]}>
                   <Feather name="check" size={11} color={colors.heroMuted} />
                   <Text style={[styles.scopeText, { color: colors.heroMuted }]}>{item}</Text>
                 </View>
               ))}
             </View>
-            <Text style={[styles.consentNote, { color: colors.heroMuted }]}>Your request goes to {BRAND.name}'s AI service. Coach is not medical care and never changes data without your confirmation.</Text>
+            <Text style={[styles.consentNote, { color: colors.heroMuted }]}>Your request goes to {BRAND.name}'s AI service. It does not include food names, notes, photos, recipes, raw timelines, account IDs, or your full history. Coach is not medical care and never changes data without your confirmation.</Text>
             <Pressable accessibilityLabel={`Continue to ${BRAND.name} Coach`} testID="coach-consent-continue" onPress={startCoach} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
               <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>See my weekly read</Text>
               <Feather name="arrow-right" size={16} color={colors.primaryForeground} />

@@ -17,7 +17,7 @@ tags:
   - name: sync
     description: Offline outbox synchronization
   - name: privacy
-    description: Data export and deletion
+    description: Authenticated account deletion
   - name: recipes
     description: Open-source recipe discovery
   - name: capture
@@ -35,11 +35,17 @@ paths:
     get:
       operationId: healthCheck
       tags: [health]
-      summary: Health check
-      description: Returns server health status
+      summary: Database readiness check
+      description: Returns ok only after the API can query its PostgreSQL data plane
       responses:
         "200":
-          description: Healthy
+          description: Ready to serve database-backed requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "503":
+          description: Database readiness check failed
           content:
             application/json:
               schema:
@@ -584,32 +590,44 @@ paths:
               schema: { $ref: "#/components/schemas/CoachFactConsentStatus" }
         "401":
           description: Not signed in
-  /v1/privacy/export:
-    post:
-      operationId: requestDataExport
+  /v1/account:
+    delete:
+      operationId: deleteAccount
       tags: [privacy]
-      summary: Request a portable data export
+      summary: Permanently delete the authenticated account and its data
+      description: |
+        Starts or resumes the server-owned deletion saga for the account
+        resolved from the bearer token. The server fences new writes before
+        erasing object storage, application data, the RevenueCat customer, and
+        the Supabase Auth identity. A 202 response means another worker already
+        owns the same deletion and secure recovery will continue it.
       security: [{ bearerAuth: [] }]
       responses:
-        "202":
-          description: Export request accepted
+        "200":
+          description: Account deletion completed or was already complete
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/ExportRequest"
-  /v1/privacy/delete:
-    post:
-      operationId: requestDataDeletion
-      tags: [privacy]
-      summary: Request deletion of the account and its data
-      security: [{ bearerAuth: [] }]
-      responses:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
         "202":
-          description: Deletion request accepted
+          description: Account deletion is already in progress
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/DeletionRequest"
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "401":
+          description: Missing, invalid, or expired bearer token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "502":
+          description: A required deletion stage failed and remains recoverable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
+        "503":
+          description: Account deletion credentials are unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiMessage" }
   /v1/referral:
     get:
       operationId: getReferral
@@ -632,9 +650,9 @@ paths:
       summary: Redeem an invite code on a new account
       description: |
         Records a pending referral redemption for the authenticated user.
-        Rewards unlock for both parties once the new user saves their first
-        meal. One redemption per account; self-referrals are
-        rejected.
+        Rewards unlock for both parties only after the new user confirms a
+        capture-backed meal whose server-issued capture session is verified by
+        the API. One redemption per account; self-referrals are rejected.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -664,11 +682,11 @@ paths:
       summary: Persist the user's first capture-backed food log on the server
       description: |
         The diary is local-first; this endpoint durably records the user's
-        capture-backed food log server-side. It is retained for capture
-        persistence compatibility; referral qualification instead accepts any
-        valid authenticated meal save.
-        Idempotent — once any diary entry exists for the user, repeat calls
-        return the existing state without writing again.
+        capture-backed food log server-side. Referral qualification requires
+        this route to verify the authenticated user's server-issued capture
+        session and persist the corresponding meal. Idempotent — once that
+        capture-backed diary entry exists, repeat calls return the existing
+        state without granting a reward again.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -691,11 +709,12 @@ paths:
     post:
       operationId: activateReferral
       tags: [referral]
-      summary: Unlock referral rewards after the first saved meal
+      summary: Unlock referral rewards after a verified capture-backed meal
       description: |
-        Called once the referred user records their first saved meal through an
-        authenticated Calora diary persistence route. Grants 30 days of Pro to
-        both parties with no referral cap. Idempotent — repeat calls return the
+        Called once the referred user confirms a capture-backed meal. The API
+        independently verifies a server-issued capture session and persisted
+        diary entry before granting 30 days of Pro to both parties. The request
+        cannot supply or override proof. Idempotent repeat calls return the
         current state without granting again.
       security: [{ bearerAuth: [] }]
       responses:
@@ -737,11 +756,11 @@ components:
           type: string
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
+          enum: [ok, unavailable]
     Profile:
       type: object
       required: [name, goal, activity, diet, age, heightCm, weightKg, targetWeightKg, calorieTarget, consentVersion, updatedAt]
@@ -908,17 +927,6 @@ components:
         conflicts: { type: array, items: { $ref: "#/components/schemas/SyncConflict" } }
         records: { type: array, items: { $ref: "#/components/schemas/SyncDiaryRecord" } }
         nextCursor: { type: string }
-    ExportRequest:
-      type: object
-      required: [status]
-      properties:
-        status: { type: string, enum: [queued, ready] }
-        downloadUrl: { type: string, format: uri, nullable: true }
-    DeletionRequest:
-      type: object
-      required: [status]
-      properties:
-        status: { type: string, enum: [queued, complete] }
     RecipeList:
       type: object
       required: [recipes, source]

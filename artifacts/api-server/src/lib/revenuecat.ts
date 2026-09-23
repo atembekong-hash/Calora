@@ -116,8 +116,9 @@ export async function grantPromoDays(appUserId: string, days: number): Promise<D
     { method: "POST", body: { end_time_ms: endTimeMs } },
   );
   if (!grantRes.ok) {
-    const text = await grantRes.text().catch(() => "");
-    throw new Error(`RevenueCat promo grant failed (${grantRes.status}): ${text.slice(0, 300)}`);
+    // Provider bodies can contain customer identifiers or other diagnostics
+    // that must not be promoted into application errors and request logs.
+    throw new Error(`RevenueCat promo grant failed (${grantRes.status})`);
   }
 
   return new Date(endTimeMs);

@@ -53,20 +53,22 @@ test('parses Android package identity and only accepts a verified callback host'
       versionName: '1.0.0',
     },
   );
-  assert.equal(
-    parseAndroidVerifiedHost(
-      '  mycaloraapp.com: verified',
-      'mycaloraapp.com',
-    ).verified,
-    true,
-  );
-  assert.equal(
-    parseAndroidVerifiedHost(
-      '  mycaloraapp.com: 1024',
-      'mycaloraapp.com',
-    ).verified,
-    false,
-  );
+  for (const [line, expected] of [
+    ['  mycaloraapp.com: verified', true],
+    ['  mycaloraapp.com: VERIFIED', true],
+    ['  mycaloraapp.com: not verified', false],
+    ['  mycaloraapp.com: unverified', false],
+    ['  mycaloraapp.com: legacy_failure', false],
+    ['  mycaloraapp.com: 1024', false],
+    ['  not-mycaloraapp.com: verified', false],
+    ['  mycaloraapp.com.evil.example: verified', false],
+  ]) {
+    assert.equal(
+      parseAndroidVerifiedHost(line, 'mycaloraapp.com').verified,
+      expected,
+      line,
+    );
+  }
 });
 
 test('loads the exact branded native auth identity from app.json', () => {

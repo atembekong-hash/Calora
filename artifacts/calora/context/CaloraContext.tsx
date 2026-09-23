@@ -89,6 +89,7 @@ import {
 } from '@/lib/notificationLifecycle';
 import { coordinateCaptureAcceptance, createCaptureAcceptanceCoordinator } from '@/lib/captureAcceptanceCoordinator';
 import { reconcileRemoteProfile, saveRemoteProfile, type LocalProfile } from '@/lib/profileSync';
+import { removeExactLegacyStarterFixtures } from '@/lib/legacyStarterFixtures';
 
 export type HealthSyncOutcome =
   | { status: 'synced'; syncedAt: string }
@@ -235,7 +236,7 @@ export type OutboxMutation = {
 };
 
 
-type CaloraState = {
+export type CaloraState = {
   schemaVersion?: number;
   onboardingComplete: boolean;
   onboardingStep?: number;
@@ -490,63 +491,6 @@ const today = dateKey();
 
 // foodSourceForMemory moved to lib/captureReviewTransitions.ts
 
-const starterLogs: FoodLog[] = [
-  {
-    id: 'starter-oats',
-    name: 'Overnight oats with berries',
-    date: today,
-    meal: 'Breakfast',
-    calories: 420,
-    protein: 18,
-    carbs: 58,
-    fat: 14,
-    fiber: 8,
-    sugar: 19,
-    sodium: 180,
-    source: 'USDA verified',
-    confidence: 98,
-    time: '8:10 AM',
-    serving: '1 bowl',
-    preparation: 'Ready to eat',
-  },
-  {
-    id: 'starter-salad',
-    name: 'Chicken harvest salad',
-    date: today,
-    meal: 'Lunch',
-    calories: 510,
-    protein: 38,
-    carbs: 34,
-    fat: 25,
-    fiber: 7,
-    sugar: 8,
-    sodium: 620,
-    source: 'Brand verified',
-    confidence: 95,
-    time: '12:45 PM',
-    serving: '1 bowl',
-    preparation: 'Fresh',
-  },
-  {
-    id: 'starter-apple',
-    name: 'Honeycrisp apple',
-    date: today,
-    meal: 'Snack',
-    calories: 95,
-    protein: 0,
-    carbs: 25,
-    fat: 0,
-    fiber: 4,
-    sugar: 19,
-    sodium: 2,
-    source: 'USDA verified',
-    confidence: 99,
-    time: '3:20 PM',
-    serving: '1 medium',
-    preparation: 'Raw',
-  },
-];
-
 const starterProfile: Profile = {
   name: 'Alex Morgan',
   goal: 'lose',
@@ -595,10 +539,8 @@ export function CaloraProvider({
   const [onboardingDraft, setOnboardingDraftState] = useState<OnboardingDraft | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const profileRef = useRef<Profile | null>(null);
-  const [logs, setLogs] = useState<FoodLog[]>(starterLogs);
-  const [weights, setWeights] = useState<WeightEntry[]>([
-    { id: 'weight-1', date: today, kg: 76, source: 'manual' },
-  ]);
+  const [logs, setLogs] = useState<FoodLog[]>([]);
+  const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [waterLogs, setWaterLogs] = useState<WaterLog>({});
   const [moodLogs, setMoodLogs] = useState<MoodLog>({});
   const [activityLogs, setActivityLogs] = useState<ActivityLog>({});
@@ -627,16 +569,15 @@ export function CaloraProvider({
   useEffect(() => {
     shoppingItemsRef.current = shoppingItems;
   }, [shoppingItems]);
-  const starterMemoryState = useMemo(() => migrateFoodMemories(undefined, starterLogs), []);
-  const [foodDrafts, setFoodDrafts] = useState<FoodMemoryDraft[]>(starterMemoryState.foodDrafts);
+  const [foodDrafts, setFoodDrafts] = useState<FoodMemoryDraft[]>([]);
   // Keep the authoritative draft collection outside React's render schedule so
   // acceptance never depends on a stale screen closure.
-  const foodDraftsRef = useRef<FoodMemoryDraft[]>(starterMemoryState.foodDrafts);
+  const foodDraftsRef = useRef<FoodMemoryDraft[]>([]);
   const acceptedFoodDraftIdsRef = useRef<Set<string>>(new Set());
   const acceptingFoodDraftsRef = useRef(createCaptureAcceptanceCoordinator<FoodLog | null>());
-  const [foodMemories, setFoodMemories] = useState<AcceptedFoodMemory[]>(starterMemoryState.foodMemories);
-  const [repeatPatterns, setRepeatPatterns] = useState<RepeatPattern[]>(starterMemoryState.repeatPatterns);
-  const [memoryCorrections, setMemoryCorrections] = useState<FoodMemoryCorrection[]>(starterMemoryState.memoryCorrections);
+  const [foodMemories, setFoodMemories] = useState<AcceptedFoodMemory[]>([]);
+  const [repeatPatterns, setRepeatPatterns] = useState<RepeatPattern[]>([]);
+  const [memoryCorrections, setMemoryCorrections] = useState<FoodMemoryCorrection[]>([]);
   const [hydrationReminders, setHydrationRemindersState] = useState<HydrationReminderPrefs>(DEFAULT_HYDRATION_PREFS);
   const [mealReminders, setMealRemindersState] = useState<MealReminderPrefs>(DEFAULT_MEAL_REMINDER_PREFS);
   const [goalReminder, setGoalReminderState] = useState<GoalReminderPrefs>(DEFAULT_GOAL_REMINDER_PREFS);
@@ -680,7 +621,7 @@ export function CaloraProvider({
   const fontScale = ({ small: 0.82, default: 1.0, large: 1.2, xlarge: 1.2 } as const)[fontSizeScale];
   const [profilePhotoUri, setProfilePhotoUriState] = useState<string | null>(null);
   const [livingMemory, setLivingMemory] = useState<LivingMemory>(() => buildLivingMemory({
-    logs: starterLogs,
+    logs: [],
     waterLogs: {},
     moodLogs: {},
     activityLogs: {},
@@ -779,14 +720,15 @@ export function CaloraProvider({
     return committed;
   }, [patchExportSnapshot]);
 
-  const { hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying } = useHydrationEffect<Partial<CaloraState>>(pm, (saved) => {
-    if (!saved) {
+  const { hydrated, hydrationError, hydrationErrorKind, retryHydration, isRetrying } = useHydrationEffect<Partial<CaloraState>>(pm, (rawSaved) => {
+    if (!rawSaved) {
       const initial = notificationPreferencesRef.current;
       setNotificationPreferencesState(initial);
       notificationHydrationAppliedRef.current = true;
       pendingNotificationUpdatesRef.current = [];
       return;
     }
+    const saved = removeExactLegacyStarterFixtures(rawSaved);
     const base = exportSnapshotRef.current;
     const effectivePlannerMeals: PlannerMeal[] = saved.plannerMeals
       ? normalizePlannerMealImageIdentities(saved.plannerMeals as PlannerMeal[]) as PlannerMeal[]
@@ -811,7 +753,7 @@ export function CaloraProvider({
        ...log,
        date: log.date ?? today,
        serving: log.serving ?? '1 serving',
-     })) ?? starterLogs;
+     })) ?? [];
      if (saved.logs) {
        logsRef.current = normalizedLogs;
        setLogs(normalizedLogs);
@@ -1795,6 +1737,9 @@ export function CaloraProvider({
     },
     setOnboardingDraft: setOnboardingDraftState,
     completeOnboarding: async (nextProfile, consent) => {
+       if (!consent) {
+         throw new Error('Required agreement must be accepted before completing onboarding.');
+       }
        const currentSnapshot = exportSnapshotRef.current;
        if (!currentSnapshot) {
          throw new Error('Your onboarding data is still loading. Please try again.');

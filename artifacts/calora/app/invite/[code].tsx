@@ -12,12 +12,26 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { useCalora } from '@/context/CaloraContext';
 import { setPendingInviteCode } from '@/lib/referral';
+import { getInviteDestination, getRootAccessGateState } from '@/lib/rootAccessGate';
 
 export default function InviteScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const router = useRouter();
   const { user, isLoading } = useAuth();
-  const { colors } = useCalora();
+  const {
+    colors,
+    hydrated,
+    hydrationError,
+    profileSyncReady,
+    onboardingComplete,
+  } = useCalora();
+  const { applicationReady } = getRootAccessGateState({
+    hydrated,
+    hydrationError,
+    profileSyncReady,
+    onboardingComplete,
+    reviewRequested: false,
+  });
 
   useEffect(() => {
     if (isLoading) return;
@@ -29,13 +43,9 @@ export default function InviteScreen() {
           // Keep this transient route navigable if device storage is unavailable.
         }
       }
-      if (user) {
-        router.replace('/(tabs)/profile');
-      } else {
-        router.replace('/auth/sign-up');
-      }
+      router.replace(getInviteDestination(Boolean(user), applicationReady));
     })();
-  }, [code, user, isLoading, router]);
+  }, [applicationReady, code, user, isLoading, router]);
 
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>

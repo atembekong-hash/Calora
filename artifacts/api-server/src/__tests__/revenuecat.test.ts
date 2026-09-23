@@ -9,7 +9,11 @@ vi.mock("@replit/connectors-sdk", () => ({
   },
 }));
 
-import { deleteRevenueCatSubscriber, hasActivePremiumEntitlement } from "../lib/revenuecat";
+import {
+  deleteRevenueCatSubscriber,
+  grantPromoDays,
+  hasActivePremiumEntitlement,
+} from "../lib/revenuecat";
 
 const originalProjectId = process.env.REVENUECAT_PROJECT_ID;
 const originalSecretApiKey = process.env.REVENUECAT_SECRET_API_KEY;
@@ -104,6 +108,29 @@ describe("hasActivePremiumEntitlement", () => {
 
     await expect(hasActivePremiumEntitlement("free-user")).resolves.toBe(false);
     expect(proxyMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("grantPromoDays", () => {
+  it("reports only provider status and never reads raw response text", async () => {
+    const providerBody = "customer=raw-user-id secret=provider-diagnostic";
+    const text = vi.fn().mockResolvedValue(providerBody);
+    proxyMock
+      .mockResolvedValueOnce(jsonResponse({ subscriber: { entitlements: {} } }))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        text,
+      } as unknown as Response);
+
+    const error = await grantPromoDays("raw-user-id", 30).catch(
+      (reason: unknown) => reason,
+    );
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("RevenueCat promo grant failed (502)");
+    expect(String(error)).not.toContain(providerBody);
+    expect(text).not.toHaveBeenCalled();
   });
 });
 
