@@ -5,9 +5,8 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { RecipeMedia } from './recipeMedia';
 
-export type GenerateRecipePhoto200 = {
-  imageId: string;
-  imageUrl: string;
-  imageUrlExpiresAt: Date;
+export type ListRecipeMedia200 = {
+  media: RecipeMedia[];
 };

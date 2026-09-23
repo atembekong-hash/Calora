@@ -104,3 +104,22 @@ export function getWorkspaceSwipeOffset(
     ? dx * WORKSPACE_SWIPE_EDGE_RESISTANCE
     : dx;
 }
+
+/**
+ * Returns the only valid resting translation for a section pager.
+ *
+ * Adjacent-page mode anchors a horizontal track to the active page. Legacy
+ * single-child mode replaces its child after selection and must always return
+ * to zero so the new content is never left translated or clipped.
+ */
+export function getWorkspacePagerRestingOffset(
+  currentIndex: number,
+  pageWidth: number,
+  hasAdjacentPages: boolean,
+): number {
+  if (!hasAdjacentPages) return 0;
+  if (!Number.isInteger(currentIndex) || currentIndex < 0) return 0;
+  if (!Number.isFinite(pageWidth) || pageWidth <= 0) return 0;
+  if (currentIndex === 0) return 0;
+  return -currentIndex * pageWidth;
+}

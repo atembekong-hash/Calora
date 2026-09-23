@@ -128,6 +128,10 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
       WHERE key = ${`user:${externalUserId}`}
          OR key LIKE ${`%:user:${externalUserId}`}
     `);
+    await tx.execute(sql`
+      DELETE FROM calora_recipe_media
+      WHERE owner_external_id = ${externalUserId}
+    `);
 
     // All user-owned records reference calora_users with ON DELETE CASCADE.
     await tx.delete(usersTable).where(eq(usersTable.externalId, externalUserId));

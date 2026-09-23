@@ -79,6 +79,18 @@ export const PROGRAM_MEAL_POOLS = {
 
 export type PlannerProgramId = keyof typeof PROGRAM_MEAL_POOLS;
 
+/** Canonical Program identifiers shared by the mobile planner and API boundary. */
+export const PLANNER_PROGRAM_IDS = Object.freeze(Object.keys(PROGRAM_MEAL_POOLS) as PlannerProgramId[]);
+
+/** Runtime guard for untyped network input and persisted legacy values. */
+export function isPlannerProgramId(value: string): value is PlannerProgramId {
+  return PLANNER_PROGRAM_IDS.includes(value as PlannerProgramId);
+}
+
+/**
+ * Preferred representative meals. These are a preference rank only: callers
+ * must apply dietary and Program eligibility before displaying a hero.
+ */
 export const PROGRAM_HERO_MEAL_IDS: Record<PlannerProgramId, string> = {
   'balanced-nutrition': 'berry-oats',
   'high-protein-power': 'chicken-rice',

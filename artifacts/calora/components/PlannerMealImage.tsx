@@ -7,6 +7,7 @@ import { useColors } from '@/hooks/useColors';
 import { hasPlannerImageKey, plannerImageSource } from '@/lib/mealImages';
 import { plannerImageKeyForMeal, type PlannerImageKey } from '@/lib/mealImageIdentity';
 import { plannerImageRenderDecision, plannerStoredImageKeyMismatch } from '@/lib/plannerImageRendering';
+import { useAuth } from '@/context/AuthContext';
 
 export type PlannerMealImageState = 'loading' | 'loaded' | 'fallback' | 'swapped';
 
@@ -36,16 +37,23 @@ export function PlannerMealImage({
   meal,
   style,
   auditId,
+  testID,
+  accessibilityContext,
   expectedImageKey,
 }: {
-  meal: Pick<PlannerMeal, 'id' | 'name' | 'meal' | 'image' | 'imageAssetKey'>;
+  meal: Pick<PlannerMeal, 'id' | 'name' | 'meal' | 'image' | 'imageAssetKey' | 'recipeId' | 'recipeSource' | 'generatedMediaId' | 'generatedImageId' | 'generatedImageUrlExpiresAt' | 'generatedImageReviewState'>;
   style: StyleProp<ImageStyle>;
   auditId?: string;
+  /** Stable production-safe target for real planner surfaces. */
+  testID?: string;
+  /** Identifies the Program/diet/canonical identity without changing imagery. */
+  accessibilityContext?: string;
   expectedImageKey?: PlannerImageKey;
 }) {
   const colors = useColors();
+  const { user } = useAuth();
   const resolvedImageKey = plannerImageKeyForMeal(meal.id, meal.name);
-  const renderDecision = plannerImageRenderDecision(meal);
+  const renderDecision = plannerImageRenderDecision(meal, user?.id);
   const source = plannerImageSource(renderDecision.canonicalImageKey, renderDecision.remoteImageUrl);
   const isCuratedImage = hasPlannerImageKey(resolvedImageKey);
   const fallbackSource = PLANNER_MEAL_FALLBACKS[meal.meal] ?? PLANNER_IMAGE_FALLBACK;
@@ -62,7 +70,7 @@ export function PlannerMealImage({
     [fallbackSource, source, state],
   );
   const status = stateLabel(state, isCuratedImage, expectedImageKey ?? resolvedImageKey, receivedImageKey);
-  const imageLabel = `${meal.name} meal image · ${status}`;
+  const imageLabel = `${accessibilityContext ? `${accessibilityContext} · ` : ''}${meal.name} meal image · canonical image ${resolvedImageKey ?? 'none'} · ${status}`;
   const isFallback = state === 'fallback' || state === 'swapped';
   const fallbackNotice = state === 'swapped' ? 'Image mismatch · fallback' : 'Fallback image';
 
@@ -72,7 +80,12 @@ export function PlannerMealImage({
   }, [meal.id, meal.image, meal.imageAssetKey, resolvedImageKey]);
 
   const image = (
-    <View style={[styles.imageSurface, style as StyleProp<ViewStyle>]}>
+    <View
+      accessible={Boolean(testID)}
+      accessibilityLabel={testID ? imageLabel : undefined}
+      style={[styles.imageSurface, style as StyleProp<ViewStyle>]}
+      testID={testID ? `${testID}-state-${state}` : undefined}
+    >
       <Image
         accessibilityLabel={imageLabel}
         cachePolicy="memory-disk"
@@ -88,7 +101,7 @@ export function PlannerMealImage({
         recyclingKey={`${meal.id}:${resolvedImageKey ?? meal.image ?? `fallback-${meal.meal.toLowerCase()}`}`}
         source={resolvedSource}
         style={StyleSheet.absoluteFill}
-        testID={auditId ? `${auditId}-image` : undefined}
+        testID={auditId ? `${auditId}-image` : testID ? `${testID}-image` : undefined}
         transition={160}
       />
       {isFallback && (

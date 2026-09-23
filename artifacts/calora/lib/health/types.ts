@@ -30,4 +30,6 @@ export interface HealthService {
   getConnection(): Promise<HealthConnection>;
   requestConnection(): Promise<HealthConnection>;
   sync(): Promise<HealthSnapshot>;
+  /** Android exposes a native Health Connect settings screen; other providers may not. */
+  openSettings?(): Promise<void>;
 }

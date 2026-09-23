@@ -834,37 +834,224 @@ export const ListRecipesResponse = zod.object({
 
 
 /**
- * @summary Generate a private photo for a completed Calora AI recipe
+ * @summary Idempotently create or recover generated media for one recipe-content version
  */
-export const generateRecipePhotoBodyTitleMax = 100;
+export const generateRecipePhotoBodyClientRecipeIdMax = 128;
 
-export const generateRecipePhotoBodyDescriptionMax = 300;
+export const generateRecipePhotoBodyTitleMax = 120;
+
+export const generateRecipePhotoBodyDescriptionMax = 600;
+
+export const generateRecipePhotoBodyIngredientsItemMax = 160;
+
+export const generateRecipePhotoBodyIngredientsMax = 30;
+
+export const generateRecipePhotoBodyInstructionsItemMax = 500;
+
+export const generateRecipePhotoBodyInstructionsMax = 20;
+
+export const generateRecipePhotoBodyCuisineMax = 80;
+
+export const generateRecipePhotoBodyCategoryMax = 80;
+
+export const generateRecipePhotoBodyMealTypeMax = 40;
+
+export const generateRecipePhotoBodyDietaryContextItemMax = 80;
+
+export const generateRecipePhotoBodyDietaryContextMax = 16;
 
 
 
 export const GenerateRecipePhotoBody = zod.object({
+  "clientRecipeId": zod.string().min(1).max(generateRecipePhotoBodyClientRecipeIdMax).optional(),
   "title": zod.string().min(1).max(generateRecipePhotoBodyTitleMax),
-  "description": zod.string().max(generateRecipePhotoBodyDescriptionMax).optional()
-})
+  "description": zod.string().max(generateRecipePhotoBodyDescriptionMax).optional(),
+  "ingredients": zod.array(zod.string().min(1).max(generateRecipePhotoBodyIngredientsItemMax)).min(1).max(generateRecipePhotoBodyIngredientsMax).optional(),
+  "instructions": zod.array(zod.string().min(1).max(generateRecipePhotoBodyInstructionsItemMax)).min(1).max(generateRecipePhotoBodyInstructionsMax).optional(),
+  "cuisine": zod.string().max(generateRecipePhotoBodyCuisineMax).optional(),
+  "category": zod.string().max(generateRecipePhotoBodyCategoryMax).optional(),
+  "mealType": zod.string().max(generateRecipePhotoBodyMealTypeMax).optional(),
+  "dietaryContext": zod.array(zod.string().min(1).max(generateRecipePhotoBodyDietaryContextItemMax)).max(generateRecipePhotoBodyDietaryContextMax).optional()
+}).describe('Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.\n')
+
+export const generateRecipePhotoResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+
+
 
 export const GenerateRecipePhotoResponse = zod.object({
-  "imageId": zod.string().uuid(),
-  "imageUrl": zod.string().url(),
-  "imageUrlExpiresAt": zod.coerce.date()
+  "mediaId": zod.string().uuid(),
+  "clientRecipeId": zod.string(),
+  "contentHash": zod.string().regex(generateRecipePhotoResponseContentHashRegExp),
+  "imageId": zod.string().uuid().nullable(),
+  "imageUrl": zod.string().url().optional(),
+  "imageUrlExpiresAt": zod.coerce.date().optional(),
+  "modelVersion": zod.string(),
+  "promptVersion": zod.string(),
+  "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
+  "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
+  "attempts": zod.number().int().min(1),
+  "lastErrorCode": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
 })
 
 
 /**
- * @summary Refresh a signed display URL for a private recipe photo
+ * @summary Refresh a signed locator after owner and persisted-media validation
  */
 export const RefreshRecipePhotoUrlBody = zod.object({
-  "imageId": zod.string().uuid()
+  "mediaId": zod.string().uuid().optional(),
+  "imageId": zod.string().uuid().optional()
 })
 
+export const refreshRecipePhotoUrlResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+
+
+
 export const RefreshRecipePhotoUrlResponse = zod.object({
-  "imageUrl": zod.string().url(),
-  "imageUrlExpiresAt": zod.coerce.date()
+  "mediaId": zod.string().uuid(),
+  "clientRecipeId": zod.string(),
+  "contentHash": zod.string().regex(refreshRecipePhotoUrlResponseContentHashRegExp),
+  "imageId": zod.string().uuid().nullable(),
+  "imageUrl": zod.string().url().optional(),
+  "imageUrlExpiresAt": zod.coerce.date().optional(),
+  "modelVersion": zod.string(),
+  "promptVersion": zod.string(),
+  "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
+  "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
+  "attempts": zod.number().int().min(1),
+  "lastErrorCode": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary Recover the current account's active generated recipe media
+ */
+export const listRecipeMediaResponseMediaItemContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+
+
+
+export const ListRecipeMediaResponse = zod.object({
+  "media": zod.array(zod.object({
+  "mediaId": zod.string().uuid(),
+  "clientRecipeId": zod.string(),
+  "contentHash": zod.string().regex(listRecipeMediaResponseMediaItemContentHashRegExp),
+  "imageId": zod.string().uuid().nullable(),
+  "imageUrl": zod.string().url().optional(),
+  "imageUrlExpiresAt": zod.coerce.date().optional(),
+  "modelVersion": zod.string(),
+  "promptVersion": zod.string(),
+  "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
+  "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
+  "attempts": zod.number().int().min(1),
+  "lastErrorCode": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Get owner-scoped generated recipe media status and a fresh locator when available
+ */
+export const GetRecipeMediaParams = zod.object({
+  "mediaId": zod.coerce.string().uuid()
+})
+
+export const getRecipeMediaResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+
+
+
+export const GetRecipeMediaResponse = zod.object({
+  "mediaId": zod.string().uuid(),
+  "clientRecipeId": zod.string(),
+  "contentHash": zod.string().regex(getRecipeMediaResponseContentHashRegExp),
+  "imageId": zod.string().uuid().nullable(),
+  "imageUrl": zod.string().url().optional(),
+  "imageUrlExpiresAt": zod.coerce.date().optional(),
+  "modelVersion": zod.string(),
+  "promptVersion": zod.string(),
+  "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
+  "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
+  "attempts": zod.number().int().min(1),
+  "lastErrorCode": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Retry generation for an owner-scoped retryable media record
+ */
+export const RetryRecipeMediaParams = zod.object({
+  "mediaId": zod.coerce.string().uuid()
+})
+
+export const retryRecipeMediaResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+
+
+
+export const RetryRecipeMediaResponse = zod.object({
+  "mediaId": zod.string().uuid(),
+  "clientRecipeId": zod.string(),
+  "contentHash": zod.string().regex(retryRecipeMediaResponseContentHashRegExp),
+  "imageId": zod.string().uuid().nullable(),
+  "imageUrl": zod.string().url().optional(),
+  "imageUrlExpiresAt": zod.coerce.date().optional(),
+  "modelVersion": zod.string(),
+  "promptVersion": zod.string(),
+  "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
+  "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
+  "attempts": zod.number().int().min(1),
+  "lastErrorCode": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Record whether generated pixels appear to match the recipe
+ */
+export const ReviewRecipeMediaParams = zod.object({
+  "mediaId": zod.coerce.string().uuid()
+})
+
+export const ReviewRecipeMediaBody = zod.object({
+  "reviewState": zod.enum(['needs_review', 'accepted', 'rejected'])
+})
+
+export const reviewRecipeMediaResponseContentHashRegExp = new RegExp('^[0-9a-f]{64}$');
+
+
+
+export const ReviewRecipeMediaResponse = zod.object({
+  "mediaId": zod.string().uuid(),
+  "clientRecipeId": zod.string(),
+  "contentHash": zod.string().regex(reviewRecipeMediaResponseContentHashRegExp),
+  "imageId": zod.string().uuid().nullable(),
+  "imageUrl": zod.string().url().optional(),
+  "imageUrlExpiresAt": zod.coerce.date().optional(),
+  "modelVersion": zod.string(),
+  "promptVersion": zod.string(),
+  "status": zod.enum(['generating', 'stored', 'url_ready', 'retryable_error', 'superseded']),
+  "semanticReviewState": zod.enum(['needs_review', 'accepted', 'rejected']),
+  "attempts": zod.number().int().min(1),
+  "lastErrorCode": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Acknowledge successful native image rendering for diagnostics
+ */
+export const AcknowledgeRecipeMediaRenderedParams = zod.object({
+  "mediaId": zod.coerce.string().uuid()
+})
+
+export const AcknowledgeRecipeMediaRenderedResponse = zod.void()
 
 
 /**
@@ -1193,16 +1380,20 @@ export const analyzeCaptureBodyAudioBase64Max = 8000000;
 
 export const analyzeCaptureBodyClientSessionIdMax = 120;
 
+export const analyzeCaptureBodyClientCorrelationIdMax = 120;
+
 
 
 export const AnalyzeCaptureBody = zod.object({
   "mode": zod.enum(['auto', 'barcode', 'food', 'text', 'nutrition_label', 'voice', 'receipt']),
   "barcode": zod.string().min(analyzeCaptureBodyBarcodeMin).max(analyzeCaptureBodyBarcodeMax).optional(),
   "imageBase64": zod.string().max(analyzeCaptureBodyImageBase64Max).optional().describe('JPEG or PNG image bytes encoded as base64 without a data URI prefix'),
+  "imageMimeType": zod.enum(['image/jpeg', 'image/png']).optional().describe('Declared MIME type for imageBase64. The server verifies this against decoded image bytes before provider submission.'),
   "textInput": zod.string().max(analyzeCaptureBodyTextInputMax).optional().describe('Natural-language food description (text and voice modes) or any supplementary description'),
   "audioBase64": zod.string().max(analyzeCaptureBodyAudioBase64Max).optional().describe('Short voice recording encoded as base64 without a data URI prefix. Used only to produce an immediate transcript and not retained.'),
   "audioFormat": zod.enum(['mp4', 'm4a', 'wav', 'webm']).optional().describe('File container for audioBase64'),
-  "clientSessionId": zod.string().max(analyzeCaptureBodyClientSessionIdMax).optional()
+  "clientSessionId": zod.string().max(analyzeCaptureBodyClientSessionIdMax).optional().describe('Legacy client correlation field. New clients use clientCorrelationId.'),
+  "clientCorrelationId": zod.string().max(analyzeCaptureBodyClientCorrelationIdMax).optional().describe('Opaque client-only correlation id. It is never treated as server capture provenance.')
 })
 
 export const analyzeCaptureResponseCandidatesItemCaloriesMin = 0;
@@ -1297,7 +1488,9 @@ export const analyzeCaptureResponseComponentsItemTwoNutritionRangeCaloriesHighMi
 
 
 export const AnalyzeCaptureResponse = zod.object({
-  "sessionId": zod.string(),
+  "sessionId": zod.string().describe('Legacy alias of clientCorrelationId. It is never server-issued capture provenance.'),
+  "clientCorrelationId": zod.string().describe('Opaque client correlation id echoed for stale-response handling and local draft identity.'),
+  "captureSessionId": zod.string().uuid().nullable().describe('Server-issued session id only when candidate persistence succeeded. Null means no server capture proof exists.'),
   "mode": zod.enum(['barcode', 'food', 'text', 'nutrition_label', 'voice', 'receipt']),
   "status": zod.enum(['review', 'transcript', 'unavailable']),
   "title": zod.string(),
@@ -1429,8 +1622,10 @@ export const GeneratePlannerBody = zod.object({
   "diet": zod.enum(['Everything', 'Vegetarian', 'Vegan', 'High protein']),
   "calorieTarget": zod.number().int().min(generatePlannerBodyProfileCalorieTargetMin).max(generatePlannerBodyProfileCalorieTargetMax)
 }),
-  "planType": zod.string().optional().describe('Optional plan style identifier guiding AI generation')
+  "planType": zod.enum(['balanced-nutrition', 'high-protein-power', 'low-carb-living', 'mediterranean-diet', 'plant-based-week', 'keto-kickstart', 'intermittent-fasting', 'budget-friendly', 'quick-and-easy', 'athletic-performance', 'anti-inflammatory', 'healthy-habits-week']).optional().describe('Optional plan style identifier guiding AI generation')
 })
+
+export const generatePlannerResponseMealsItemRecipeIdMax = 128;
 
 export const generatePlannerResponseMealsItemCaloriesMin = 0;
 
@@ -1455,6 +1650,12 @@ export const GeneratePlannerResponse = zod.object({
   "name": zod.string(),
   "image": zod.string().url(),
   "imageAssetKey": zod.string().optional().describe('Stable client asset identity for curated planner imagery. Optional for generated or custom meals.'),
+  "recipeId": zod.string().max(generatePlannerResponseMealsItemRecipeIdMax).optional(),
+  "recipeSource": zod.enum(['discover', 'plus', 'create', 'calora']).optional(),
+  "generatedMediaId": zod.string().uuid().optional(),
+  "generatedImageId": zod.string().uuid().optional(),
+  "generatedImageUrlExpiresAt": zod.coerce.date().optional(),
+  "generatedImageReviewState": zod.enum(['needs_review', 'accepted', 'rejected']).optional(),
   "serving": zod.string(),
   "calories": zod.number().min(generatePlannerResponseMealsItemCaloriesMin),
   "proteinG": zod.number().min(generatePlannerResponseMealsItemProteinGMin),
@@ -1468,10 +1669,11 @@ export const GeneratePlannerResponse = zod.object({
 
 
 /**
- * An intentionally disabled replacement path for future Coach rollout.
- * It accepts only a short-lived, allowlisted Fact Context and never
- * accepts the legacy broad CoachContext.
- * @summary Dark, sanitized Coach Fact Context response path
+ * Available to every authenticated account that has current explicit
+ * consent. It accepts only a short-lived, bounded Fact Context and never
+ * accepts a legacy broad CoachContext, membership, rollout, or approval
+ * credential.
+ * @summary Consented, bounded Coach Fact Context response path
  */
 export const respondCoachFactContextBodyFactContextCalculationVersionMax = 64;
 

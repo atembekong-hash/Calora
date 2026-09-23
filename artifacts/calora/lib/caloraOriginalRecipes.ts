@@ -10,7 +10,7 @@ export const caloraOriginalRecipes: CaloraRecipe[] = plannerCatalog.map((meal) =
   description: meal.description,
   instructions: null,
   ingredients: meal.ingredients,
-  tags: ['Calora original', meal.meal],
+  tags: [meal.meal],
   prepMinutes: meal.prepMinutes,
   servings: 1,
   calories: meal.calories,

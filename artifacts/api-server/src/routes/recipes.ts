@@ -2,7 +2,6 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { db, pool, recipeNutritionTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
-import { randomUUID } from "node:crypto";
 import { logger } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
@@ -11,7 +10,19 @@ import {
   assertAccountWritable,
   classifyAccountDeletionError,
 } from "../lib/account-deletion-state.js";
-import { createRecipePhotoSignedUrl } from "../lib/recipe-photo-storage.js";
+import {
+  acknowledgeOwnerRecipeMediaRendered,
+  claimRecipeMedia,
+  findOwnerRecipeMedia,
+  isRecipeMediaUuid,
+  listOwnerRecipeMedia,
+  parseRecipePhotoInput,
+  retryOwnerRecipeMedia,
+  setOwnerRecipeMediaReview,
+  toRecipeMediaResource,
+  type RecipeMediaReviewState,
+} from "../lib/recipe-media.js";
+import { generateClaimedRecipeMedia, locatorForRecipeMedia } from "../lib/recipe-media-generation.js";
 
 const router: IRouter = Router();
 
@@ -30,8 +41,6 @@ const GUEST_RECIPE_BURST_WINDOW_SECS = 60 * 10;
 const GUEST_RECIPE_DAILY_LIMIT = 5;
 const GUEST_RECIPE_DAILY_WINDOW_SECS = 60 * 60 * 24;
 const RECIPE_PHOTO_RATE_LIMIT = 12;
-const RECIPE_PHOTO_URL_TTL_SECS = 60 * 60 * 24 * 6;
-const RECIPE_PHOTO_TIMEOUT_MS = 30_000;
 
 /**
  * Node may expose a local IPv4 peer as an IPv4-mapped IPv6 address. Treat only
@@ -80,10 +89,6 @@ async function enforceRecipeGenLimit(
     return false;
   }
   return true;
-}
-
-async function signedRecipePhotoUrl(userId: string, imageId: string, method: "GET" | "PUT", ttlSecs: number) {
-  return createRecipePhotoSignedUrl(userId, imageId, method, ttlSecs);
 }
 
 async function withRecipePhotoDeletionReadLock<T>(
@@ -320,6 +325,12 @@ router.post("/v1/recipes/generated", async (req, res) => {
 router.post("/v1/recipes/photo", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to create a recipe photo." });
+  const input = parseRecipePhotoInput(req.body);
+  if (!input) return res.status(400).json({
+    code: "invalid_recipe_photo_input",
+    message: "A stable recipe ID, title, ingredients, and instructions are required before creating its photo.",
+  });
+
   let rate;
   try {
     rate = await checkRateLimit(
@@ -334,13 +345,15 @@ router.post("/v1/recipes/photo", async (req, res) => {
         accountDeletionFenceSignal("/v1/recipes/photo"),
         "Account deletion fence rejected recipe photo request",
       );
-      return res.status(503).json({ message: "Recipe photo generation is temporarily unavailable. Please try again shortly." });
+      return res.status(503).json({ code: "account_unavailable", retryable: true, message: "Recipe photo generation is temporarily unavailable. Please try again shortly." });
     }
     throw error;
   }
   if (!rate.allowed) {
     res.setHeader("Retry-After", String(rate.retryAfterSecs));
     return res.status(rate.degraded ? 503 : 429).json({
+      code: rate.degraded ? "recipe_photo_temporarily_unavailable" : "recipe_photo_rate_limited",
+      retryable: true,
       message: rate.degraded
         ? "Recipe photo generation is temporarily unavailable. Please try again shortly."
         : "You’ve reached the recipe photo limit. Please try again later.",
@@ -348,52 +361,18 @@ router.post("/v1/recipes/photo", async (req, res) => {
     });
   }
 
-  const body = requestBody(req.body);
-  const title = conceptText(body.title, 100);
-  const description = conceptText(body.description, 300);
-  if (!title) return res.status(400).json({ message: "Finish a recipe before creating its photo." });
-
   try {
     await withRecipePhotoDeletionReadLock(user.id, async () => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), RECIPE_PHOTO_TIMEOUT_MS);
-      try {
-        // Recipe fields have already been normalized by the complete-recipe route.
-        // Do not pass account data, diary context, or unrestricted creator prompts
-        // into an image request.
-        const prompt = `Editorial food photography of "${title}". ${description || "A freshly prepared homemade meal."} Serve the dish on a simple ceramic plate or bowl, natural window light, appetizing realistic texture, overhead three-quarter composition, no people, no hands, no words, no labels, no packaging.`;
-        const generated = await openai.images.generate({
-          model: "gpt-image-1",
-          prompt,
-          size: "1024x1024",
-          quality: "low",
-          output_format: "png",
-          n: 1,
-        }, { signal: controller.signal });
-        const encoded = generated.data?.[0]?.b64_json;
-        if (typeof encoded !== "string" || !encoded) throw new Error("Image provider returned no image");
-        const imageBytes = Buffer.from(encoded, "base64");
-        if (imageBytes.length === 0 || imageBytes.length > 15 * 1024 * 1024) throw new Error("Invalid generated image size");
-
-        const imageId = randomUUID();
-        const uploadUrl = await signedRecipePhotoUrl(user.id, imageId, "PUT", 15 * 60);
-        const upload = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: { "content-type": "image/png", "content-length": String(imageBytes.length) },
-          body: imageBytes,
-          signal: controller.signal,
-        });
-        if (!upload.ok) throw new Error(`Recipe photo upload failed (${upload.status})`);
-
-        const imageUrl = await signedRecipePhotoUrl(user.id, imageId, "GET", RECIPE_PHOTO_URL_TTL_SECS);
-        res.json({
-          imageId,
-          imageUrl,
-          imageUrlExpiresAt: new Date(Date.now() + RECIPE_PHOTO_URL_TTL_SECS * 1000).toISOString(),
-        });
-      } finally {
-        clearTimeout(timer);
+      const claim = await claimRecipeMedia(user.id, input);
+      if (!claim.claimed) {
+        if (["stored", "url_ready"].includes(claim.row.status)) {
+          res.json(await locatorForRecipeMedia(user.id, claim.row));
+          return;
+        }
+        res.status(202).json(toRecipeMediaResource(claim.row));
+        return;
       }
+      res.status(200).json(await generateClaimedRecipeMedia(user.id, claim.row));
     });
     return;
   } catch (error) {
@@ -402,30 +381,82 @@ router.post("/v1/recipes/photo", async (req, res) => {
         accountDeletionFenceSignal("/v1/recipes/photo"),
         "Account deletion fence rejected recipe photo request",
       );
-      return res.status(503).json({ message: "Recipe photo generation is temporarily unavailable. Please try again shortly." });
+      return res.status(503).json({ code: "account_unavailable", retryable: true, message: "Recipe photo generation is temporarily unavailable. Please try again shortly." });
     }
     logger.warn({ err: error }, "Recipe photo generation failed");
-    return res.status(502).json({ message: "Calora couldn’t create that recipe photo right now. Your recipe is still saved." });
+    return res.status(502).json({ code: "recipe_photo_retryable", retryable: true, message: "Calora couldn’t create that recipe photo right now. Your recipe is still saved." });
   }
 });
 
 router.post("/v1/recipes/photo-url", async (req, res) => {
   const user = await verifyBearerToken(req);
   if (!user) return res.status(401).json({ message: "Please sign in to view your recipe photo." });
-  const imageId = conceptText(requestBody(req.body).imageId, 64);
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(imageId)) {
+  const body = requestBody(req.body);
+  const imageId = conceptText(body.imageId, 64);
+  const mediaId = conceptText(body.mediaId, 64);
+  if ((!imageId || !isRecipeMediaUuid(imageId)) && (!mediaId || !isRecipeMediaUuid(mediaId))) {
     return res.status(400).json({ message: "That recipe photo reference is invalid." });
   }
   try {
-    const imageUrl = await signedRecipePhotoUrl(user.id, imageId, "GET", RECIPE_PHOTO_URL_TTL_SECS);
-    return res.json({
-      imageUrl,
-      imageUrlExpiresAt: new Date(Date.now() + RECIPE_PHOTO_URL_TTL_SECS * 1000).toISOString(),
-    });
+    const row = await findOwnerRecipeMedia(user.id, { mediaId: mediaId || undefined, imageId: imageId || undefined });
+    if (!row) return res.status(404).json({ code: "recipe_media_not_found", message: "Recipe photo is unavailable." });
+    return res.json(await locatorForRecipeMedia(user.id, row));
   } catch (error) {
     logger.warn({ err: error }, "Recipe photo URL refresh failed");
-    return res.status(404).json({ message: "Recipe photo is unavailable." });
+    return res.status(404).json({ code: "recipe_media_not_found", message: "Recipe photo is unavailable." });
   }
+});
+
+router.get("/v1/recipes/media", async (req, res) => {
+  const user = await verifyBearerToken(req);
+  if (!user) return res.status(401).json({ message: "Please sign in to restore recipe photos." });
+  const rows = await listOwnerRecipeMedia(user.id);
+  const media = await Promise.all(rows.map((row) => locatorForRecipeMedia(user.id, row).catch(() => toRecipeMediaResource(row))));
+  return res.json({ media });
+});
+
+router.get("/v1/recipes/media/:mediaId", async (req, res) => {
+  const user = await verifyBearerToken(req);
+  if (!user) return res.status(401).json({ message: "Please sign in to view recipe photo status." });
+  if (!isRecipeMediaUuid(req.params.mediaId)) return res.status(400).json({ message: "That recipe photo reference is invalid." });
+  const row = await findOwnerRecipeMedia(user.id, { mediaId: req.params.mediaId });
+  if (!row) return res.status(404).json({ code: "recipe_media_not_found", message: "Recipe photo is unavailable." });
+  return res.json(await locatorForRecipeMedia(user.id, row).catch(() => toRecipeMediaResource(row)));
+});
+
+router.post("/v1/recipes/media/:mediaId/retry", async (req, res) => {
+  const user = await verifyBearerToken(req);
+  if (!user) return res.status(401).json({ message: "Please sign in to retry a recipe photo." });
+  if (!isRecipeMediaUuid(req.params.mediaId)) return res.status(400).json({ message: "That recipe photo reference is invalid." });
+  const row = await retryOwnerRecipeMedia(user.id, req.params.mediaId);
+  if (!row) return res.status(409).json({ code: "recipe_media_not_retryable", message: "That recipe photo is not currently retryable." });
+  try {
+    return res.json(await withRecipePhotoDeletionReadLock(user.id, () => generateClaimedRecipeMedia(user.id, row)));
+  } catch {
+    return res.status(502).json({ code: "recipe_photo_retryable", retryable: true, message: "Recipe photo generation is temporarily unavailable." });
+  }
+});
+
+router.post("/v1/recipes/media/:mediaId/review", async (req, res) => {
+  const user = await verifyBearerToken(req);
+  if (!user) return res.status(401).json({ message: "Please sign in to review a recipe photo." });
+  const reviewState = requestBody(req.body).reviewState;
+  if (!isRecipeMediaUuid(req.params.mediaId) || !["needs_review", "accepted", "rejected"].includes(String(reviewState))) {
+    return res.status(400).json({ message: "Choose a valid recipe photo review state." });
+  }
+  const row = await setOwnerRecipeMediaReview(user.id, req.params.mediaId, reviewState as RecipeMediaReviewState);
+  if (!row) return res.status(404).json({ code: "recipe_media_not_found", message: "Recipe photo is unavailable." });
+  return res.json(toRecipeMediaResource(row));
+});
+
+router.post("/v1/recipes/media/:mediaId/rendered", async (req, res) => {
+  const user = await verifyBearerToken(req);
+  if (!user) return res.status(401).json({ message: "Please sign in to acknowledge a recipe photo." });
+  if (!isRecipeMediaUuid(req.params.mediaId)) return res.status(400).json({ message: "That recipe photo reference is invalid." });
+  if (!(await acknowledgeOwnerRecipeMediaRendered(user.id, req.params.mediaId))) {
+    return res.status(404).json({ code: "recipe_media_not_found", message: "Recipe photo is unavailable." });
+  }
+  return res.status(204).end();
 });
 
 // Maximum time to wait for an OpenAI response before giving up.  8 s is

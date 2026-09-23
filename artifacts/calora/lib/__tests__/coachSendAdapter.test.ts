@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../intelligence/featureFlags', () => ({
-  isIntelligenceFeatureEnabled: vi.fn(() => false),
-}));
+const getCoachFactContextConsent = vi.hoisted(() => vi.fn());
+const respondCoachFactContext = vi.hoisted(() => vi.fn());
+vi.mock('@workspace/api-client-react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@workspace/api-client-react')>();
+  return {
+    ...actual,
+    getCoachFactContextConsent: (...args: unknown[]) => getCoachFactContextConsent(...args),
+    respondCoachFactContext: (...args: unknown[]) => respondCoachFactContext(...args),
+  };
+});
 
-import { isIntelligenceFeatureEnabled } from '../intelligence/featureFlags';
 import { createCoachSendAdapter } from '../intelligence/useCoachSendAdapter';
-import type { CoachResponse } from '@workspace/api-client-react';
 
 const messages = [{ role: 'user' as const, content: 'hello' }];
 const input = (overrides = {}) => ({
@@ -17,35 +22,43 @@ const input = (overrides = {}) => ({
   facts: [] as const,
   ...overrides,
 });
-const legacyResponse = (): CoachResponse => ({
-  message: 'legacy',
-  observations: [],
-  limitations: [],
-  actions: [],
-  contextCoverage: { usedSections: [], missingSections: [] },
-  safetyState: 'normal',
-});
 
 describe('Coach provider routing', () => {
   beforeEach(() => {
-    vi.mocked(isIntelligenceFeatureEnabled).mockReset();
-    vi.mocked(isIntelligenceFeatureEnabled).mockReturnValue(false);
+    vi.clearAllMocks();
+    getCoachFactContextConsent.mockResolvedValue({
+      purpose: 'coach_fact_context_v1',
+      documentVersion: '2026-08-21',
+      state: 'not_consented',
+      decidedAt: null,
+      revokedAt: null,
+    });
   });
 
-  it('does not invoke Legacy Coach when a disabled feature flag selects legacy', async () => {
+  it('requires current server consent and never invokes the retired Legacy Coach fallback', async () => {
     const adapter = createCoachSendAdapter();
-    const legacySend = vi.fn().mockResolvedValue(legacyResponse());
+    const legacySend = vi.fn();
+
     const result = await adapter.sendWithArchitecture(messages, legacySend, input());
-    expect(result).toEqual({ kind: 'unavailable', reason: 'legacy_coach_retired' });
+
+    expect(result).toEqual({ kind: 'unavailable', reason: 'consent_not_current' });
     expect(legacySend).not.toHaveBeenCalled();
+    expect(respondCoachFactContext).not.toHaveBeenCalled();
     adapter.cleanup();
   });
 
-  it('also blocks a legacy selection for a missing account or malformed client state', async () => {
+  it('fails closed on missing account or hydration and never invokes Legacy Coach', async () => {
     const adapter = createCoachSendAdapter();
-    const legacySend = vi.fn().mockResolvedValue(legacyResponse());
-    const result = await adapter.sendWithArchitecture(messages, legacySend, input({ accountId: null, hydrated: false }));
-    expect(result).toEqual({ kind: 'unavailable', reason: 'legacy_coach_retired' });
+    const legacySend = vi.fn();
+
+    const result = await adapter.sendWithArchitecture(
+      messages,
+      legacySend,
+      input({ accountId: null, hydrated: false }),
+    );
+
+    expect(result).toEqual({ kind: 'unavailable', reason: 'missing_account_or_hydration' });
+    expect(getCoachFactContextConsent).not.toHaveBeenCalled();
     expect(legacySend).not.toHaveBeenCalled();
     adapter.cleanup();
   });

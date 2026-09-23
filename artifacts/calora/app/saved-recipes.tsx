@@ -12,8 +12,7 @@ import { RecipeCard, RecipeDetailModal } from '@/app/(tabs)/recipes';
 import { ScalePressable } from '@/components/ScalePressable';
 import { useCalora, type CaloraRecipe } from '@/context/CaloraContext';
 import { useAuth } from '@/context/AuthContext';
-import { requestGeneratedRecipePhoto } from '@/lib/recipeGeneration';
-import { refreshGeneratedRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
+import { retryOrRegenerateRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
 import { premiumRecipeDetailQueryKey } from '@/lib/premiumRecipeQueryKeys';
 import { isPremiumRecipeId } from '@/lib/premiumSavedRecipes';
 import { recipeProvenance } from '@/lib/recipeModel';
@@ -161,7 +160,6 @@ export default function SavedRecipesScreen() {
   const [selected, setSelected] = useState<SavedRecipe | null>(null);
   const [planNotice, setPlanNotice] = useState<string | null>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const photoRequestsRef = useRef(new Set<string>());
   const activeAccountIdRef = useRef<string | null>(user?.id ?? null);
   activeAccountIdRef.current = user?.id ?? null;
   const isAccountActive = (accountId: string) => activeAccountIdRef.current === accountId;
@@ -239,30 +237,6 @@ export default function SavedRecipesScreen() {
     }, 3800);
   };
 
-  const retryPhoto = async (recipe: CaloraRecipe) => {
-    const accountId = user?.id;
-    const sourceType = recipeProvenance(recipe).sourceType;
-    if (!accountId || !['calora_ai', 'user_created'].includes(sourceType) || recipe.imageStatus === 'ready' || !isAccountActive(accountId)) return;
-    const requestKey = `${accountId}:${recipe.id}`;
-    if (photoRequestsRef.current.has(requestKey)) return;
-    photoRequestsRef.current.add(requestKey);
-    updateRecipe(recipe.id, { imageStatus: 'pending' });
-    try {
-      const photo = await requestGeneratedRecipePhoto({ title: recipe.name, description: recipe.description ?? '' });
-      if (!isAccountActive(accountId)) return;
-      updateRecipe(recipe.id, { image: photo.imageUrl, imageId: photo.imageId, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready', imageProvenance: 'generated' });
-    } catch {
-      if (!isAccountActive(accountId)) return;
-      updateRecipe(recipe.id, { imageStatus: 'failed' });
-    } finally {
-      photoRequestsRef.current.delete(requestKey);
-    }
-  };
-  useEffect(() => {
-    localRecipes
-      .filter((recipe) => ['calora_ai', 'user_created'].includes(recipeProvenance(recipe).sourceType) && !recipe.image && recipe.imageStatus !== 'failed')
-      .forEach((recipe) => { void retryPhoto(recipe); });
-  }, [localRecipes, user?.id]);
   useGeneratedRecipeImageRefresh({ accountId: user?.id, recipes: localRecipes, updateRecipe });
 
   return (
@@ -365,11 +339,7 @@ export default function SavedRecipesScreen() {
         recipe={isLocalRecipe(selected) ? localRecipes.find((recipe) => recipe.id === selected.id) ?? selected : selected}
         onClose={() => setSelected(null)}
         onRetryPhoto={async (recipe) => {
-          if (recipe.imageId) {
-            await refreshGeneratedRecipeImage({ accountId: user?.id, recipe, updateRecipe, isAccountActive, force: true });
-            return;
-          }
-          await retryPhoto(recipe);
+          await retryOrRegenerateRecipeImage({ accountId: user?.id, recipe, updateRecipe, isAccountActive });
         }}
         onPlanned={acknowledgePlan}
       />

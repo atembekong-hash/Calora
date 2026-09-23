@@ -261,6 +261,8 @@ const voiceCapturePayload = {
   audioFormat: 'mp4',
 };
 
+const validJpegBase64 = Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64');
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -274,6 +276,8 @@ describe('POST /v1/capture/analyze', () => {
     mockFetch = vi.fn();
     vi.stubGlobal('fetch', mockFetch);
     vi.clearAllMocks();
+    vi.mocked(openai.chat.completions.create).mockReset();
+    vi.mocked(openai.audio.transcriptions.create).mockReset();
     mockInsert.mockReturnValue({
       values: vi.fn().mockResolvedValue(undefined),
     });
@@ -555,7 +559,7 @@ describe('POST /v1/capture/analyze', () => {
       } as any);
       const res = await request(app)
         .post('/v1/capture/analyze')
-        .send({ mode: 'receipt', imageBase64: 'receipt-image' })
+        .send({ mode: 'receipt', imageBase64: validJpegBase64, imageMimeType: 'image/jpeg' })
         .set('Content-Type', 'application/json');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('review');
@@ -582,7 +586,7 @@ describe('POST /v1/capture/analyze', () => {
 
       const res = await request(app)
         .post('/v1/capture/analyze')
-        .send({ mode: 'nutrition_label', imageBase64: 'label-image' })
+        .send({ mode: 'nutrition_label', imageBase64: validJpegBase64, imageMimeType: 'image/jpeg' })
         .set('Content-Type', 'application/json');
 
       expect(res.status).toBe(200);
@@ -715,8 +719,9 @@ describe('POST /v1/capture/analyze', () => {
 
       const sessionValues = sessionInsert.values.mock.calls[0][0] as { id: string };
       expect(sessionValues.id).toEqual(expect.any(String));
-      expect(res.body.sessionId).toBe(sessionValues.id);
-      expect(res.body.sessionId).not.toBe(clientSessionId);
+      expect(res.body.sessionId).toBe(clientSessionId);
+      expect(res.body.clientCorrelationId).toBe(clientSessionId);
+      expect(res.body.captureSessionId).toBe(sessionValues.id);
       expect(candidateInsert.values).toHaveBeenCalledWith([
         expect.objectContaining({ sessionId: sessionValues.id }),
       ]);
@@ -920,8 +925,9 @@ describe('POST /v1/capture/analyze', () => {
 
       const sessionValues = sessionInsert.values.mock.calls[0][0] as { id: string };
       expect(sessionValues.id).toEqual(expect.any(String));
-      expect(res.body.sessionId).toBe(sessionValues.id);
-      expect(res.body.sessionId).not.toBe(clientSessionId);
+      expect(res.body.sessionId).toBe(clientSessionId);
+      expect(res.body.clientCorrelationId).toBe(clientSessionId);
+      expect(res.body.captureSessionId).toBe(sessionValues.id);
       expect(candidateInsert.values).toHaveBeenCalledWith([
         expect.objectContaining({ sessionId: sessionValues.id }),
       ]);
@@ -1135,7 +1141,8 @@ describe('POST /v1/capture/analyze', () => {
         .send({
           mode: 'auto',
           barcode: BARCODE,
-          imageBase64: 'ZmFrZWltYWdl', // "fakeimage" in base64
+          imageBase64: validJpegBase64,
+          imageMimeType: 'image/jpeg',
         })
         .set('Content-Type', 'application/json');
 

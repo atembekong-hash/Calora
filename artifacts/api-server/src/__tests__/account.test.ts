@@ -107,6 +107,11 @@ describe("DELETE /v1/account", () => {
 
     expect(res.status).toBe(200);
     expect(execute).toHaveBeenCalled();
+    expect(
+      execute.mock.calls.some(([query]) =>
+        JSON.stringify(query).includes("calora_recipe_media"),
+      ),
+    ).toBe(true);
     expect(deleteUser).toHaveBeenCalledOnce();
   });
 

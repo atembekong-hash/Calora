@@ -6,6 +6,7 @@ export type BurnedStatus =
   | { kind: 'past-date'; actionLabel: string }
   | { kind: 'connect'; actionLabel: string }
   | { kind: 'permission'; actionLabel: string }
+  | { kind: 'no-data'; actionLabel: string }
   | { kind: 'syncing'; actionLabel: string }
   | { kind: 'failed'; actionLabel: string }
   | { kind: 'unavailable'; actionLabel: string };
@@ -35,7 +36,9 @@ export function burnedStatusForDay(input: {
     return { kind: 'syncing', actionLabel: 'Syncing health…' };
   }
   if (connection.snapshot.activeEnergyKcal === null) {
-    return { kind: 'permission', actionLabel: 'Review Apple Health access' };
+    return connection.provider === 'healthkit'
+      ? { kind: 'permission', actionLabel: 'Review Apple Health access' }
+      : { kind: 'no-data', actionLabel: 'No active calories recorded today' };
   }
   return { kind: 'ready', calories: connection.snapshot.activeEnergyKcal };
 }

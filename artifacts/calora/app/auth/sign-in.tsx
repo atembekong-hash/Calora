@@ -9,7 +9,7 @@
  *   • Icons: Feather
  *
  * Navigation:
- *   Sign in success → back to previous screen (or /(tabs))
+ *   Sign in success → root post-auth coordinator replaces auth with Home
  *   Create account  → /auth/sign-up
  *   Forgot password → /auth/forgot-password
  */
@@ -69,13 +69,8 @@ export default function SignInScreen() {
         }
         return;
       }
-      // Session established — AuthProvider updates state; navigate back.
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.replace('/(tabs)' as any);
-      }
+      // AuthProvider records a successful transition. RootLayoutNav is the
+      // sole owner of the deterministic Home replacement and stack pruning.
     } finally {
       setLoading(null);
     }
@@ -100,12 +95,8 @@ export default function SignInScreen() {
         setError(result.error.message);
         return;
       }
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.replace('/(tabs)' as any);
-      }
+      // Successful auth is routed by RootLayoutNav, never history-dependent
+      // `router.back()` from this screen.
     } finally {
       setLoading(null);
     }

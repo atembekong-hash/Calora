@@ -190,7 +190,6 @@ describe('Intelligence Foundation', () => {
     expect(intelligenceFeatureFlags['intelligence.insights.post_log']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.insights.progress']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.insights.progress_weight_trend']).toBe(false);
-    expect(intelligenceFeatureFlags['intelligence.coach.fact_context']).toBe(true);
     expect(intelligenceFeatureFlags['intelligence.evidence.display']).toBe(false);
     expect(intelligenceFeatureFlags['intelligence.feedback']).toBe(false);
     expect(intelligenceFeatureFlags['intelligence.proactive']).toBe(false);

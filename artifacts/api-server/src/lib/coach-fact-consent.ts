@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { coachFactContextConsentsTable, db } from "@workspace/db";
-import { ensureUserRow } from "./user-rows.js";
+import { ensureUserRow, findUserRow } from "./user-rows.js";
 
 export const COACH_FACT_CONTEXT_CONSENT_PURPOSE = "coach_fact_context_v1" as const;
 export const COACH_FACT_CONTEXT_CONSENT_DOCUMENT_VERSION = "2026-08-21" as const;
@@ -45,7 +45,9 @@ function serialize(row: {
 }
 
 export async function getCoachFactConsent(externalUserId: string, email: string | null): Promise<CoachFactConsentStatus> {
-  const userId = await ensureUserRow(externalUserId, email);
+  void email;
+  const userId = await findUserRow(externalUserId);
+  if (!userId) return noConsent();
   const [row] = await db.select({
     documentVersion: coachFactContextConsentsTable.documentVersion,
     state: coachFactContextConsentsTable.state,

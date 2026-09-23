@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getWorkspacePagerRestingOffset,
   getWorkspaceSwipeTargetIndex,
   getWorkspaceSwipeOffset,
   isWorkspaceSwipeIntent,
@@ -102,6 +103,24 @@ describe('workspace swipe offset', () => {
     expect(getWorkspaceSwipeOffset(-1, 3, 40)).toBe(0);
     expect(getWorkspaceSwipeOffset(3, 3, 40)).toBe(0);
     expect(getWorkspaceSwipeOffset(0, 3, Number.NaN)).toBe(0);
+  });
+});
+
+describe('workspace pager resting offset', () => {
+  it('always recenters replacement-child mode after a committed page change', () => {
+    expect(getWorkspacePagerRestingOffset(0, 390, false)).toBe(0);
+    expect(getWorkspacePagerRestingOffset(2, 390, false)).toBe(0);
+  });
+
+  it('anchors adjacent-page tracks to the selected page', () => {
+    expect(getWorkspacePagerRestingOffset(0, 390, true)).toBe(0);
+    expect(getWorkspacePagerRestingOffset(2, 390, true)).toBe(-780);
+  });
+
+  it('fails safely for invalid indexes and widths', () => {
+    expect(getWorkspacePagerRestingOffset(-1, 390, true)).toBe(0);
+    expect(getWorkspacePagerRestingOffset(1, 0, true)).toBe(0);
+    expect(getWorkspacePagerRestingOffset(1, Number.NaN, true)).toBe(0);
   });
 });
 

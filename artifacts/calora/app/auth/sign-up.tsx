@@ -3,7 +3,7 @@
  *
  * After successful sign-up:
  *   • If Supabase requires email confirmation → /auth/verify-email
- *   • If confirmation is disabled (session returned) → back to previous screen
+ *   • If confirmation is disabled (session returned) → root coordinator enters Home
  */
 
 import { Feather } from '@expo/vector-icons';
@@ -82,13 +82,8 @@ export default function SignUpScreen() {
         return;
       }
 
-      // Session returned immediately — email confirmations disabled
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.replace('/(tabs)' as any);
-      }
+      // Session returned immediately — AuthProvider records the success and
+      // RootLayoutNav performs the deterministic Home replacement/pruning.
     } finally {
       setLoading(false);
     }

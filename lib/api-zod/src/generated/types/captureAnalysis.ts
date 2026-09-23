@@ -12,7 +12,15 @@ import type { CaptureCandidate } from './captureCandidate';
 import type { CaptureComponent } from './captureComponent';
 
 export interface CaptureAnalysis {
+  /**
+     * Legacy alias of clientCorrelationId. It is never server-issued capture provenance.
+     * @deprecated
+     */
   sessionId: string;
+  /** Opaque client correlation id echoed for stale-response handling and local draft identity. */
+  clientCorrelationId: string;
+  /** Server-issued session id only when candidate persistence succeeded. Null means no server capture proof exists. */
+  captureSessionId: string | null;
   mode: CaptureAnalysisMode;
   status: CaptureAnalysisStatus;
   title: string;

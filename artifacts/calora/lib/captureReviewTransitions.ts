@@ -6,7 +6,7 @@
  * without injection) makes them unit-testable and keeps CaloraContext thin.
  */
 
-import { memorySignature } from './foodMemory';
+import { includedComponentCount, memorySignature } from './foodMemory';
 import type {
   AcceptedFoodMemory,
   FoodMemoryDraft,
@@ -97,6 +97,9 @@ export function buildAcceptResult(
   logId: string,
   acceptedAt: string,
 ): { log: FoodLog; memory: AcceptedFoodMemory } {
+  if (includedComponentCount(draft.components) === 0) {
+    throw new Error('Include at least one food before adding this meal to your diary.');
+  }
   const snapshot = { ...draft.nutrition, capturedAt: acceptedAt };
   const image = normalizeFoodImageMetadata(draft.imageUrl, draft.imageSource, draft.imageEvidence);
   const serving =

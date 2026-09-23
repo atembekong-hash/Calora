@@ -28,7 +28,6 @@ import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { CoachFactContextConsentPanel } from '@/components/CoachFactContextConsentPanel';
 import {
   coachFactConsentCache,
-  isIntelligenceFeatureEnabled,
   useCoachSendAdapter,
   buildDailyIntelligenceFacts,
   createIntelligenceContext,
@@ -166,6 +165,7 @@ export default function CoachScreen() {
   const insets = useSafeAreaInsets();
   const coachSendAdapter = useCoachSendAdapter();
   const acceptCoachFactContextConsent = useAcceptCoachFactContextConsent();
+  const transcriptRef = useRef<ScrollView>(null);
   const guestMode = !authLoading && !user?.id;
   const chatReady = guestMode || coachConsentAccepted;
   // Track hydration generation: bumps whenever hydrated goes false→true or
@@ -198,6 +198,14 @@ export default function CoachScreen() {
     content: message.content,
   })));
   const loadedHistoryGenerationRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!chatReady) return;
+    const frame = requestAnimationFrame(() => {
+      transcriptRef.current?.scrollToEnd({ animated: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [chatReady, isSending, turns.length]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -388,6 +396,7 @@ export default function CoachScreen() {
         }
       />
       <KeyboardAwareScrollViewCompat
+        ref={transcriptRef}
         contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: insets.bottom + 118 }}
         showsVerticalScrollIndicator={false}
       >
@@ -449,14 +458,18 @@ export default function CoachScreen() {
                 <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Preparing your answer…</Text>
               </View>
             )}
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Suggestions</Text>
-            <View style={styles.promptWrap}>
-              {starterPrompts.map((prompt) => (
-                <Pressable key={prompt} accessibilityLabel={`Ask Coach: ${prompt}`} onPress={() => void sendMessage(prompt)} style={[styles.promptChip, { backgroundColor: colors.muted }]}>
-                  <Text style={[styles.promptText, { color: colors.foreground }]}>{prompt}</Text>
-                </Pressable>
-              ))}
-            </View>
+            {turns.length === 0 && (
+              <>
+                <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Suggestions</Text>
+                <View style={styles.promptWrap}>
+                  {starterPrompts.map((prompt) => (
+                    <Pressable key={prompt} accessibilityLabel={`Ask Coach: ${prompt}`} onPress={() => void sendMessage(prompt)} style={[styles.promptChip, { backgroundColor: colors.muted }]}>
+                      <Text style={[styles.promptText, { color: colors.foreground }]}>{prompt}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
           </>
         )}
       </KeyboardAwareScrollViewCompat>
@@ -591,7 +604,7 @@ export default function CoachScreen() {
                 </Pressable>
               </View>
             )}
-            {!guestMode && isIntelligenceFeatureEnabled('intelligence.coach.fact_context') && (
+            {!guestMode && (
               <CoachFactContextConsentPanel colors={colors} />
             )}
             </ScrollView>

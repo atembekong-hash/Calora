@@ -7,6 +7,7 @@ import Constants from 'expo-constants';
 import { BRAND, EMAILS, URLS } from '@/lib/brand';
 import { formatQuantity } from '@/lib/formatters';
 import { formatGrams, formatWhole } from '@/lib/formatters';
+import { needsActiveEnergyAuthorization } from '@/lib/healthConnection';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SavedMeal, ThemePreference, useCalora } from '@/context/CaloraContext';
@@ -93,7 +94,7 @@ export default function ProfileScreen() {
   const {
     colors, themePreference, setThemePreference,
     profile, onboardingComplete, onboardingStep, updateProfile,
-    healthConnected, healthConnection, connectHealth, syncHealth, disconnectHealth,
+    healthConnected, healthConnection, connectHealth, openHealthSettings, syncHealth, disconnectHealth,
     exportData, clearAllData, isClearing, syncState,
     savedMeals, saveMeal, deleteSavedMeal,
     notificationPreferences, updateNotificationPreferences,
@@ -545,6 +546,15 @@ export default function ProfileScreen() {
     }
     finally { setHealthBusy(false); }
   };
+  const handleOpenHealthSettings = async () => {
+    if (healthBusy) return;
+    setHealthBusy(true);
+    try {
+      await openHealthSettings();
+    } catch (err) {
+      Alert.alert('Open Health Connect settings', err instanceof Error ? err.message : 'Open Health Connect settings and allow Active calories for Calora.');
+    } finally { setHealthBusy(false); }
+  };
   const handleHealthSync = async () => {
     if (healthBusy) return;
     setHealthBusy(true);
@@ -589,7 +599,29 @@ export default function ProfileScreen() {
         }
         return;
       }
-      setEditPhotoUri(copyResult.dest + '?t=' + Date.now());
+      const previousStagedUri = editPhotoUri && editPhotoUri !== profilePhotoUri
+        ? editPhotoUri
+        : null;
+      setEditPhotoUri(copyResult.dest);
+      if (previousStagedUri) {
+        void deleteProfilePhoto(FileSystem, user?.id, previousStagedUri).then((cleanup) => {
+          if (!cleanup.ok) console.warn('[pickPhoto] Could not remove superseded staged photo.');
+        });
+      }
+    }
+  };
+
+  const discardProfileEdit = () => {
+    const stagedUri = editPhotoUri && editPhotoUri !== profilePhotoUri
+      ? editPhotoUri
+      : null;
+    setProfileEditModal(false);
+    setEditPhotoUri(profilePhotoUri);
+    setProfileEditError('');
+    if (stagedUri) {
+      void deleteProfilePhoto(FileSystem, user?.id, stagedUri).then((cleanup) => {
+        if (!cleanup.ok) console.warn('[profileEdit] Could not remove discarded staged photo.');
+      });
     }
   };
 
@@ -597,7 +629,11 @@ export default function ProfileScreen() {
     Alert.alert('Profile photo', 'Choose a source', [
       { text: 'Camera', onPress: () => pickPhoto('camera') },
       { text: 'Photo Library', onPress: () => pickPhoto('library') },
-      ...(editPhotoUri ? [{ text: 'Remove photo', style: 'destructive' as const, onPress: () => setEditPhotoUri(null) }] : []),
+      ...(editPhotoUri ? [{ text: 'Remove photo', style: 'destructive' as const, onPress: () => {
+        const stagedUri = editPhotoUri !== profilePhotoUri ? editPhotoUri : null;
+        setEditPhotoUri(null);
+        if (stagedUri) void deleteProfilePhoto(FileSystem, user?.id, stagedUri);
+      } }] : []),
       { text: 'Cancel', style: 'cancel' as const },
     ]);
   };
@@ -613,12 +649,11 @@ export default function ProfileScreen() {
       setProfileEditError('Enter your name.');
       return;
     }
-    // Strip the cache-bust query param before persisting
-    const cleanUri = editPhotoUri ? editPhotoUri.split('?')[0] : null;
+    const cleanUri = editPhotoUri ?? null;
     // If the user removed their photo (had one before, now cleared), delete the file from disk.
     // This runs only on save so a remove-then-cancel leaves the file intact.
     if (profilePhotoUri && !cleanUri) {
-      const deleteResult = await deleteProfilePhoto(FileSystem, user?.id);
+      const deleteResult = await deleteProfilePhoto(FileSystem, user?.id, profilePhotoUri);
       if (!deleteResult.ok) {
         console.error('[saveProfileEdit] deleteAsync failed', deleteResult.error);
         Alert.alert('Photo error', 'Could not remove the photo file. Please try again.');
@@ -627,6 +662,11 @@ export default function ProfileScreen() {
     }
     updateProfile({ name: editName.trim() });
     setProfilePhotoUri(cleanUri);
+    if (profilePhotoUri && cleanUri && profilePhotoUri !== cleanUri) {
+      void deleteProfilePhoto(FileSystem, user?.id, profilePhotoUri).then((cleanup) => {
+        if (!cleanup.ok) console.warn('[saveProfileEdit] New photo saved, but the previous revision could not be removed.');
+      });
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setProfileEditError('');
     setProfileEditModal(false);
@@ -658,6 +698,7 @@ export default function ProfileScreen() {
       ? `${Math.round(profile.weightKg * 2.20462)} lbs`
       : `${formatQuantity(profile.weightKg)} kg`
     : null;
+  const needsActiveEnergyAccess = needsActiveEnergyAuthorization(healthConnection);
 
   // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
@@ -1541,11 +1582,11 @@ export default function ProfileScreen() {
       </BottomSheet>
 
       {/* ── Profile edit modal ── */}
-      <BottomSheet visible={profileEditModal} onRequestClose={() => setProfileEditModal(false)} overlayColor="rgba(0,0,0,0.5)" sheetStyle={{ backgroundColor: colors.background }}>
+      <BottomSheet visible={profileEditModal} onRequestClose={discardProfileEdit} overlayColor="rgba(0,0,0,0.5)" sheetStyle={{ backgroundColor: colors.background }}>
           <KeyboardAwareScrollViewCompat style={styles.sheetScroll} contentContainerStyle={styles.sheetContent} bottomOffset={72}>
             <View style={styles.editModalHeader}>
               <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Edit profile</Text>
-              <Pressable accessibilityLabel="Close profile edit" onPress={() => setProfileEditModal(false)} hitSlop={10}>
+              <Pressable accessibilityLabel="Close profile edit" onPress={discardProfileEdit} hitSlop={10}>
                 <Feather name="x" size={20} color={colors.mutedForeground} />
               </Pressable>
             </View>
@@ -1569,7 +1610,7 @@ export default function ProfileScreen() {
             <Pressable
               accessibilityLabel="Open Your plan settings"
               onPress={() => {
-                setProfileEditModal(false);
+                discardProfileEdit();
                 setProfileTab('you');
               }}
               style={[styles.profileEditPlanLink, { backgroundColor: colors.muted }]}
@@ -1652,7 +1693,7 @@ export default function ProfileScreen() {
                     : healthConnection.authorization === 'requested'
                       ? 'Apple does not reveal whether individual read categories were allowed. Calora shows Apple Health values only when HealthKit returns a measured result; empty or denied reads remain unavailable rather than becoming zero. To change access, open Health, tap your profile picture, then Apps and Services, and choose Calora.'
                       : healthConnected
-                      ? `Your ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} data stays on this device. ${healthConnection.authorization === 'partial' ? 'Some requested categories are not available.' : 'Steps, active energy, workouts, and weight can be read when you sync.'}`
+                      ? `Your ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} data stays on this device. ${needsActiveEnergyAccess ? 'Active calories are not allowed yet. Update access below, then use Sync now to refresh the categories already allowed.' : healthConnection.authorization === 'partial' ? 'Some requested categories are not available.' : 'Steps, active energy, workouts, and weight can be read when you sync.'}`
                       : `Connect ${healthConnection.provider === 'healthkit' ? 'Apple Health' : 'Health Connect'} only when you are ready. Calora reads selected data locally and never writes health records.`}
                 </Text>
                 <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
@@ -1663,11 +1704,22 @@ export default function ProfileScreen() {
                 </View>
                 {healthConnection.authorization !== 'unavailable' && !healthConnected && (
                   <Pressable accessibilityRole="button" accessibilityLabel="Connect health data" onPress={handleHealthConnect} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
-                    {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>{healthConnected ? 'Update access' : 'Connect'}</Text>}
+                    {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Connect</Text>}
                   </Pressable>
                 )}
                 {healthConnected && (
                   <>
+                    {needsActiveEnergyAccess && (
+                      <>
+                        <Pressable accessibilityRole="button" accessibilityLabel="Update Health Connect access" testID="update-health-access" onPress={handleHealthConnect} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
+                          {healthBusy ? <ActivityIndicator color={colors.primaryForeground} /> : <Text style={[styles.dialogButtonText, { color: colors.primaryForeground }]}>Update Health access</Text>}
+                        </Pressable>
+                        <Pressable accessibilityRole="button" accessibilityLabel="Open Health Connect settings" testID="open-health-connect-settings" onPress={handleOpenHealthSettings} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.muted, marginTop: 10, opacity: healthBusy ? 0.6 : 1 }]}>
+                          <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Open Health Connect settings</Text>
+                        </Pressable>
+                        <Text style={[styles.settingBody, { color: colors.mutedForeground, marginTop: 10 }]}>If Android does not show another permission prompt, open Health Connect settings, choose App permissions, select Calora, and allow Active calories.</Text>
+                      </>
+                    )}
                     <Pressable accessibilityRole="button" accessibilityLabel="Sync health data now" onPress={handleHealthSync} disabled={healthBusy} style={[styles.dialogButton, { backgroundColor: colors.primary, marginTop: 16, opacity: healthBusy ? 0.6 : 1 }]}>
                       {healthBusy ? (
                         <View style={styles.healthSyncButtonContent}>
@@ -1702,6 +1754,7 @@ export default function ProfileScreen() {
                     <Pressable accessibilityRole="button" accessibilityLabel="Disconnect health data" onPress={disconnectHealth} style={[styles.dialogButton, { backgroundColor: colors.muted, marginTop: 10 }]}>
                       <Text style={[styles.dialogButtonText, { color: colors.foreground }]}>Disconnect</Text>
                     </Pressable>
+                    <Text style={[styles.settingBody, { color: colors.mutedForeground, marginTop: 10 }]}>Disconnect stops Calora from reading local health data. To revoke the operating-system permission, also remove Calora in your Health settings. Health refreshes only when Calora opens, returns to the foreground, or you tap Sync now.</Text>
                   </>
                 )}
               </>

@@ -177,7 +177,8 @@ describe('resolveFoodImage', () => {
       visibleDisclosure: 'Representative image',
     });
     expect(noImage).toMatchObject({ state: 'no-image', visibleDisclosure: 'No photo' });
-    expect(fallback).toMatchObject({ state: 'fallback', visibleDisclosure: 'Image unavailable' });
+    expect(fallback).toMatchObject({ state: 'fallback' });
+    expect('visibleDisclosure' in fallback).toBe(false);
   });
 
   it('gives a server-bound exact restaurant image precedence over no-photo provenance', () => {
@@ -234,7 +235,8 @@ describe('resolveFoodImage', () => {
       imageSource: 'provider',
     });
 
-    expect(resolution).toMatchObject({ state: 'fallback', visibleDisclosure: 'Image unavailable' });
+    expect(resolution).toMatchObject({ state: 'fallback' });
+    expect('visibleDisclosure' in resolution).toBe(false);
   });
 
   it('does not promote a legacy URL without typed provenance to an exact image', () => {
@@ -244,7 +246,8 @@ describe('resolveFoodImage', () => {
       imageUrl: 'https://images.openfoodfacts.org/legacy-entree.jpg',
     });
 
-    expect(resolution).toMatchObject({ state: 'fallback', visibleDisclosure: 'Image unavailable' });
+    expect(resolution).toMatchObject({ state: 'fallback' });
+    expect('visibleDisclosure' in resolution).toBe(false);
   });
 
   it('renders a typed provider locator without exact evidence as explicitly unverified', () => {

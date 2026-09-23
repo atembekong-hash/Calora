@@ -2,7 +2,6 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { FatSecretProviderError, getPremiumRecipe, listPremiumRecipes, premiumProviderStatus } from "../lib/premiumRecipes";
 import { logger } from "../lib/logger";
 import { verifyBearerToken } from "../lib/supabase-auth";
-import { hasActivePremiumEntitlement } from "../lib/revenuecat";
 import { checkRateLimit } from "../lib/rate-limit";
 import {
   accountDeletionFenceSignal,
@@ -16,7 +15,7 @@ const IP_RATE_LIMIT = 120;
 
 type PremiumAccess =
   | { allowed: true; userId: string }
-  | { allowed: false; status: 401 | 403 | 429 | 503; message: string; retryAfterSecs?: number };
+  | { allowed: false; status: 401 | 429 | 503; message: string; retryAfterSecs?: number };
 
 function requestIp(req: Request): string {
   return req.ip ?? req.socket?.remoteAddress ?? "unknown";
@@ -30,16 +29,7 @@ async function authorizePremiumAccess(req: Request, route: string): Promise<Prem
     user = null;
   }
   if (!user) {
-    return { allowed: false, status: 401, message: "Sign in to access Premium recipes." };
-  }
-
-  try {
-    if (!await hasActivePremiumEntitlement(user.id)) {
-      return { allowed: false, status: 403, message: "Premium access is not available for this account." };
-    }
-  } catch (error) {
-    (req.log ?? logger).warn({ err: error }, "premium entitlement verification unavailable");
-    return { allowed: false, status: 503, message: "Premium recipes are temporarily unavailable. Please try again shortly." };
+    return { allowed: false, status: 401, message: "Sign in to access Plus recipes." };
   }
 
   const [accountRateResult, ipRateResult] = await Promise.allSettled([
@@ -162,7 +152,7 @@ router.get("/v1/premium-recipes/:sourceId", async (req, res): Promise<void> => {
     const recipe = await getPremiumRecipe(sourceId);
     if (!recipe) {
       const status = premiumProviderStatus();
-      res.status(status.status === "restricted" ? 403 : 404).json({ message: status.message ?? "Premium recipe is unavailable", status: status.status });
+      res.status(404).json({ message: status.message ?? "Premium recipe is unavailable", status: status.status });
       return;
     }
     res.json(recipe);

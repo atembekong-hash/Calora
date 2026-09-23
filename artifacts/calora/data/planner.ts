@@ -6,7 +6,7 @@ import type { PlanTypeId } from '@/lib/planType';
 import { plannerImageKeyForMeal, plannerImageKeyForMealId } from '@/lib/mealImageIdentity';
 import { getPlannerMealRecipeLink } from '@/lib/plannerRecipeLink';
 import { orderProgramMeals } from '@workspace/api-zod/planner-program-eligibility';
-import type { PlannerProgramId } from '@workspace/api-zod/planner-program-pools';
+import { PROGRAM_HERO_MEAL_IDS, type PlannerProgramId } from '@workspace/api-zod/planner-program-pools';
 
 export const plannerMealTypes: PlannerMeal['meal'][] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -70,6 +70,59 @@ export function plannerDate(weekStart: string, offset: number) {
 export function plannerCatalogForProgram(programId?: PlanTypeId, diet: PlannerDiet = 'Everything'): PlannerMeal[] {
   const compatible = plannerCatalog.filter((meal) => diet === 'Everything' || meal.diets.includes(diet));
   return orderProgramMeals(programId as PlannerProgramId | undefined, compatible);
+}
+
+/**
+ * A truthful, deterministic Program preview for one dietary preference.
+ *
+ * A result is available only when the exact Program/diet intersection can fill
+ * Breakfast, Lunch, Dinner, and Snack. The preferred hero is conditional: it
+ * is used only when it remains compatible; otherwise the ordered eligible
+ * catalog provides a stable replacement. Detail previews contain four distinct
+ * canonical meals, one per role, with the hero first.
+ */
+export type PlannerProgramPreview =
+  | {
+    status: 'available';
+    diet: PlannerDiet;
+    programId: PlanTypeId;
+    hero: PlannerMeal;
+    meals: [PlannerMeal, PlannerMeal, PlannerMeal, PlannerMeal];
+  }
+  | {
+    status: 'unavailable';
+    diet: PlannerDiet;
+    programId: PlanTypeId;
+    reason: 'missing-meal-role';
+    missingRoles: PlannerMeal['meal'][];
+  };
+
+export function plannerProgramPreview(programId: PlanTypeId, diet: PlannerDiet = 'Everything'): PlannerProgramPreview {
+  const eligible = plannerCatalogForProgram(programId, diet);
+  const mealsByRole = new Map<PlannerMeal['meal'], PlannerMeal>();
+  plannerMealTypes.forEach((role) => {
+    const candidate = eligible.find((meal) => meal.meal === role);
+    if (candidate) mealsByRole.set(role, candidate);
+  });
+  const missingRoles = plannerMealTypes.filter((role) => !mealsByRole.has(role));
+  if (missingRoles.length > 0) {
+    return { status: 'unavailable', programId, diet, reason: 'missing-meal-role', missingRoles };
+  }
+
+  // The fixed table is a preference only after diet filtering and Program
+  // eligibility have occurred. Never render an incompatible legacy hero.
+  const hero = eligible.find((meal) => meal.id === PROGRAM_HERO_MEAL_IDS[programId as PlannerProgramId]) ?? eligible[0]!;
+  const roleMeals = plannerMealTypes
+    .filter((role) => role !== hero.meal)
+    .map((role) => mealsByRole.get(role)!);
+
+  return {
+    status: 'available',
+    programId,
+    diet,
+    hero,
+    meals: [hero, ...roleMeals] as [PlannerMeal, PlannerMeal, PlannerMeal, PlannerMeal],
+  };
 }
 
 export function createStarterPlannerMeals(

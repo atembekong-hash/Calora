@@ -4,7 +4,7 @@ import { GeneratePlannerBody } from "@workspace/api-zod";
 import { plannerImageKeyForMeal } from "@workspace/api-zod/planner-image-identity";
 import { PLANNER_CATALOG, type PlannerCatalogMeal, type PlannerDiet } from "../../../../lib/api-zod/src/planner-catalog.js";
 import { orderProgramMeals, selectDiverseProgramMeal } from "@workspace/api-zod/planner-program-eligibility";
-import type { PlannerProgramId } from "@workspace/api-zod/planner-program-pools";
+import { isPlannerProgramId, type PlannerProgramId } from "@workspace/api-zod/planner-program-pools";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
@@ -52,8 +52,8 @@ function makeMeal(meal: CatalogMeal, day: string, index: number) {
   };
 }
 
-function catalogForPlanType(meals: CatalogMeal[], planType: string | null): CatalogMeal[] {
-  return orderProgramMeals(planType as PlannerProgramId | undefined, meals);
+function catalogForPlanType(meals: CatalogMeal[], planType: PlannerProgramId | null): CatalogMeal[] {
+  return orderProgramMeals(planType ?? undefined, meals);
 }
 
 function buildStarterWeek(catalog: CatalogMeal[], weekStart: string) {
@@ -127,7 +127,14 @@ router.post("/v1/planner/generate", async (req, res) => {
 
   const weekStart = parsed.data.weekStart.toISOString().slice(0, 10);
   const profile = parsed.data.profile;
-  const planType = parsed.data.planType ?? null;
+  const requestedPlanType = parsed.data.planType ?? null;
+  // The generated schema protects current clients, but stale generated code and
+  // direct callers still need a safe boundary before meal-pool lookup.
+  if (requestedPlanType !== null && !isPlannerProgramId(requestedPlanType)) {
+    res.status(400).json({ message: "Unknown planner Program." });
+    return;
+  }
+  const planType: PlannerProgramId | null = requestedPlanType;
   const available = catalog.filter((meal) => meal.diets.includes(profile.diet) || profile.diet === "Everything");
   const programCatalog = catalogForPlanType(available, planType);
   const hasEveryRole = (["Breakfast", "Lunch", "Dinner", "Snack"] as const)
@@ -140,7 +147,7 @@ router.post("/v1/planner/generate", async (req, res) => {
 
   // Plan-type-specific AI guidance — each entry maps a plan type id to
   // a targeted instruction that steers meal selection from the catalog.
-  const PLAN_TYPE_PROMPTS: Record<string, string> = {
+  const PLAN_TYPE_PROMPTS: Record<PlannerProgramId, string> = {
     "balanced-nutrition": "Prioritise balanced macronutrients across all meals. Vary protein sources, include plenty of vegetables, and distribute carbohydrates evenly. Maximise variety across the week.",
     "high-protein-power": "Maximise protein in every meal and snack. Strongly prefer the highest-protein options in the catalog. Target at least 35–40% of calories from protein across the week.",
     "low-carb-living": "Minimise carbohydrate-heavy meals. Avoid meals where pasta, oats, or rice is the primary ingredient wherever alternatives exist. Favour protein and fat-forward meals with non-starchy vegetables.",

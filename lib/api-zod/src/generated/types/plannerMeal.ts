@@ -5,7 +5,9 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PlannerMealGeneratedImageReviewState } from './plannerMealGeneratedImageReviewState';
 import type { PlannerMealMeal } from './plannerMealMeal';
+import type { PlannerMealRecipeSource } from './plannerMealRecipeSource';
 
 export interface PlannerMeal {
   id: string;
@@ -15,6 +17,13 @@ export interface PlannerMeal {
   image: string;
   /** Stable client asset identity for curated planner imagery. Optional for generated or custom meals. */
   imageAssetKey?: string;
+  /** @maxLength 128 */
+  recipeId?: string;
+  recipeSource?: PlannerMealRecipeSource;
+  generatedMediaId?: string;
+  generatedImageId?: string;
+  generatedImageUrlExpiresAt?: Date;
+  generatedImageReviewState?: PlannerMealGeneratedImageReviewState;
   serving: string;
   /** @minimum 0 */
   calories: number;

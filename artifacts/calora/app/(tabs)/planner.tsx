@@ -25,9 +25,8 @@ import { dateKey } from '@/lib/dates';
 import { parseNutritionInput } from '@/lib/recipeNutrition';
 import { plannerImageProvenanceForMeal } from '@/lib/plannerImageRendering';
 import { useAuth } from '@/context/AuthContext';
-import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate, plannerMealTypes, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
+import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate, plannerMealTypes, plannerProgramPreview, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import { ProgramAppliedCelebration } from '@/components/ProgramAppliedCelebration';
-import { PROGRAM_HERO_MEAL_IDS, type PlannerProgramId } from '@workspace/api-zod/planner-program-pools';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
@@ -85,12 +84,6 @@ function programEncouragement(programId: PlanTypeId): string {
     default:
       return 'A clear plan makes the next good choice easier.';
   }
-}
-
-/** A fixed eligible meal preview, not a promise about the generated week. */
-function programHeroMeal(programId: PlanTypeId): PlannerMeal | undefined {
-  const heroId = PROGRAM_HERO_MEAL_IDS[programId as PlannerProgramId];
-  return plannerCatalogForProgram(programId).find((meal) => meal.id === heroId);
 }
 
 function MealCard({
@@ -277,6 +270,8 @@ export default function PlannerScreen() {
   const [programModal, setProgramModal] = useState<ProgramModalState>(CLOSED_PROGRAM_MODAL);
   const planTypeVisible = programModal.selectorVisible;
   const programDetail = programModal.detail;
+  const plannerDiet = profile?.diet ?? 'Everything';
+  const detailPreview = programDetail ? plannerProgramPreview(programDetail.id, plannerDiet) : null;
   const [generating, setGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState(false);
@@ -1267,27 +1262,50 @@ export default function PlannerScreen() {
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planDetailContent}>
                 <SheetHeader eyebrow="PROGRAM DETAILS" title={programDetail.label} onClose={() => setProgramModal(closeProgramModal(programModal))} colors={colors} />
                 <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>{programDetail.description}</Text>
-                {programHeroMeal(programDetail.id) && (
+                {detailPreview?.status === 'available' ? (
                   <View
                     accessible
-                    accessibilityLabel={`Representative ${programDetail.label} Program preview: ${programHeroMeal(programDetail.id)!.name}. This is an eligible example meal, not a guaranteed generated meal.`}
+                    accessibilityLabel={`Four representative ${programDetail.label} Program previews for ${plannerDiet}: ${detailPreview.meals.map((meal) => meal.name).join(', ')}. These compatible examples are not guaranteed generated meals.`}
                     style={[styles.programPreviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                   >
-                    <PlannerMealImage meal={programHeroMeal(programDetail.id)!} style={styles.programPreviewImage} />
+                    <View style={styles.programPreviewGrid}>
+                      {detailPreview.meals.map((meal) => (
+                        <PlannerMealImage
+                          key={meal.id}
+                          accessibilityContext={`Program ${programDetail.id}; dietary preference ${plannerDiet}; canonical meal ${meal.id}`}
+                          meal={meal}
+                          style={styles.programPreviewImage}
+                          testID={`planner-program-detail-${programDetail.id}-${plannerDiet}-${meal.id}`}
+                        />
+                      ))}
+                    </View>
                     <View style={styles.programPreviewCopy}>
-                      <Text style={[styles.programPreviewLabel, { color: colors.primary }]}>REPRESENTATIVE PROGRAM PREVIEW</Text>
-                      <Text style={[styles.programPreviewName, { color: colors.foreground }]}>{programHeroMeal(programDetail.id)!.name}</Text>
-                      <Text style={[styles.programPreviewDisclosure, { color: colors.mutedForeground }]}>An eligible example meal, not a guarantee for your generated week.</Text>
+                      <Text style={[styles.programPreviewLabel, { color: colors.primary }]}>4-MEAL PROGRAM PREVIEW</Text>
+                      <Text style={[styles.programPreviewName, { color: colors.foreground }]}>{detailPreview.hero.name}</Text>
+                      <Text style={[styles.programPreviewDisclosure, { color: colors.mutedForeground }]}>Compatible with your {plannerDiet} preference. Representative examples, not guaranteed generated meals.</Text>
                     </View>
                   </View>
-                )}
+                ) : detailPreview ? (
+                  <View
+                    accessible
+                    accessibilityLabel={`Program unavailable for ${plannerDiet}. This Program cannot provide every required meal role for the current dietary preference.`}
+                    style={[styles.programUnavailableCard, { backgroundColor: colors.card, borderColor: colors.warning }]}
+                    testID={`planner-program-detail-${programDetail.id}-${plannerDiet}-unavailable`}
+                  >
+                    <Feather name="alert-circle" size={18} color={colors.warning} />
+                    <View style={styles.programPreviewCopy}>
+                      <Text style={[styles.programPreviewLabel, { color: colors.warning }]}>PROGRAM UNAVAILABLE</Text>
+                      <Text style={[styles.programPreviewDisclosure, { color: colors.foreground }]}>Your {plannerDiet} preference cannot fill every meal role for this Program. Change your dietary preference or choose another Program.</Text>
+                    </View>
+                  </View>
+                ) : null}
                 <View style={[styles.programDetailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Text style={[styles.programDetailLabel, { color: colors.primary }]}>HOW IT SHAPES YOUR PLAN</Text>
                   <Text style={[styles.programDetailText, { color: colors.foreground }]}>Shapes generated meals, nutrition guidance, and this week’s generated meals.</Text>
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Recipes and custom meals you add remain yours.</Text>
                   <Text style={[styles.programDetailText, { color: colors.mutedForeground }]}>Your calorie target and dietary preferences stay in control.</Text>
                 </View>
-                <ScalePressable accessibilityLabel={`Apply ${programDetail.label} to this week`} onPress={() => { const program = programDetail; setProgramModal(applyProgram(programModal)); void generate(program.id); }} scale={0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10 }]}>
+                <ScalePressable accessibilityLabel={detailPreview?.status === 'unavailable' ? `Apply ${programDetail.label} unavailable for ${plannerDiet}` : `Apply ${programDetail.label} to this week`} accessibilityState={{ disabled: detailPreview?.status === 'unavailable' }} disabled={detailPreview?.status === 'unavailable'} onPress={() => { const program = programDetail; setProgramModal(applyProgram(programModal)); void generate(program.id); }} scale={detailPreview?.status === 'unavailable' ? 1 : 0.97} haptic="light" style={[styles.formSaveButton, { backgroundColor: colors.primary, marginTop: 10, opacity: detailPreview?.status === 'unavailable' ? 0.5 : 1 }]}>
                   <Feather name="zap" size={16} color={colors.primaryForeground} /><Text style={[styles.formSaveText, { color: colors.primaryForeground }]}>Apply to this week</Text>
                 </ScalePressable>
               </ScrollView>
@@ -1308,11 +1326,12 @@ export default function PlannerScreen() {
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planTypeList}>
                 {PLAN_TYPES.map((pt) => {
                   const isSelected = plannerPreferences?.primary === pt.id;
-                  const heroMeal = programHeroMeal(pt.id);
+                  const preview = plannerProgramPreview(pt.id, plannerDiet);
+                  const heroMeal = preview.status === 'available' ? preview.hero : null;
                   return (
                     <Pressable
                       key={pt.id}
-                      accessibilityLabel={`Choose ${pt.label} Program${heroMeal ? `. Representative preview: ${heroMeal.name}; eligible example meal, not a guaranteed generated meal.` : ''}`}
+                      accessibilityLabel={`Choose ${pt.label} Program${heroMeal ? `. Representative preview for ${plannerDiet}: ${heroMeal.name}; compatible example meal, not a guaranteed generated meal.` : `. Unavailable for ${plannerDiet}: cannot fill every meal role.`}`}
                       onPress={() => setProgramModal(selectProgram(programModal, pt))}
                       style={[styles.planTypeOptionRow, {
                         backgroundColor: isSelected ? colors.accent : colors.card,
@@ -1327,14 +1346,15 @@ export default function PlannerScreen() {
                         <Text style={[styles.planTypeOptionSubtitle, { color: colors.mutedForeground }]}>{pt.subtitle}</Text>
                         {heroMeal && (
                           <View style={styles.programOptionPreview}>
-                            <PlannerMealImage meal={heroMeal} style={styles.programOptionPreviewImage} />
+                            <PlannerMealImage accessibilityContext={`Program ${pt.id}; dietary preference ${plannerDiet}; canonical meal ${heroMeal.id}`} meal={heroMeal} style={styles.programOptionPreviewImage} testID={`planner-program-selector-${pt.id}-${plannerDiet}-${heroMeal.id}`} />
                             <View style={styles.programOptionPreviewCopy}>
                               <Text style={[styles.programOptionPreviewLabel, { color: colors.primary }]}>REPRESENTATIVE PREVIEW</Text>
                               <Text numberOfLines={1} style={[styles.programOptionPreviewName, { color: colors.foreground }]}>{heroMeal.name}</Text>
-                              <Text style={[styles.programOptionPreviewDisclosure, { color: colors.mutedForeground }]}>Eligible example · not guaranteed</Text>
+                              <Text style={[styles.programOptionPreviewDisclosure, { color: colors.mutedForeground }]}>Compatible example · not guaranteed</Text>
                             </View>
                           </View>
                         )}
+                        {preview.status === 'unavailable' && <Text accessibilityLabel={`${pt.label} unavailable for ${plannerDiet}; no complete week`} style={[styles.programOptionPreviewDisclosure, { color: colors.warning }]}>Unavailable for your {plannerDiet} preference</Text>}
                         {isSelected && <Text style={[styles.planTypeOptionDesc, { color: colors.primary }]}>{pt.description}</Text>}
                       </View>
                       {isSelected && (
@@ -1462,12 +1482,14 @@ function makeStyles(f: number) {
    programDetailCard: { borderRadius: 15, borderWidth: 1, padding: 13, marginTop: 16, gap: 7 },
    programDetailLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 0.9 },
    programDetailText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f },
-   programPreviewCard: { borderRadius: 15, borderWidth: 1, flexDirection: 'row', marginTop: 16, minHeight: 100, overflow: 'hidden' },
-   programPreviewImage: { minHeight: 100, width: 108 },
+   programPreviewCard: { borderRadius: 15, borderWidth: 1, marginTop: 16, overflow: 'hidden' },
+   programPreviewGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+   programPreviewImage: { height: 96, width: '50%' },
    programPreviewCopy: { flex: 1, justifyContent: 'center', padding: 12 },
    programPreviewLabel: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.8 },
    programPreviewName: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, lineHeight: 18 * f, marginTop: 4 },
    programPreviewDisclosure: { fontFamily: 'Inter_400Regular', fontSize: 9.5 * f, lineHeight: 13 * f, marginTop: 4 },
+   programUnavailableCard: { alignItems: 'flex-start', borderRadius: 15, borderWidth: 1, flexDirection: 'row', gap: 10, marginTop: 16, padding: 13 },
   generationStatus: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 14 },
   generationStatusText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 },
   dayDivider: { paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },

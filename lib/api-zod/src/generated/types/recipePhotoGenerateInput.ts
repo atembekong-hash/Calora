@@ -6,12 +6,46 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.
+ */
 export interface RecipePhotoGenerateInput {
   /**
      * @minLength 1
-     * @maxLength 100
+     * @maxLength 128
+     */
+  clientRecipeId?: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
      */
   title: string;
-  /** @maxLength 300 */
+  /** @maxLength 600 */
   description?: string;
+  /**
+     * @minItems 1
+     * @maxItems 30
+     * @items.minLength 1
+     * @items.maxLength 160
+     */
+  ingredients?: string[];
+  /**
+     * @minItems 1
+     * @maxItems 20
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  instructions?: string[];
+  /** @maxLength 80 */
+  cuisine?: string;
+  /** @maxLength 80 */
+  category?: string;
+  /** @maxLength 40 */
+  mealType?: string;
+  /**
+     * @maxItems 16
+     * @items.minLength 1
+     * @items.maxLength 80
+     */
+  dietaryContext?: string[];
 }

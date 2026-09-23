@@ -157,8 +157,17 @@ export type CaloraRecipe = {
   image?: string | null;
   /** Private generated-photo reference. The signed display URL can be renewed safely. */
   imageId?: string | null;
+  /** Server-owned media row. Unlike a signed URL, this remains stable across devices. */
+  imageMediaId?: string | null;
+  imageContentHash?: string | null;
+  imageModelVersion?: string | null;
+  imagePromptVersion?: string | null;
   imageUrlExpiresAt?: string | null;
-  imageStatus?: 'pending' | 'ready' | 'failed';
+  imageStatus?: import('@/lib/generatedRecipeImageLifecycle').GeneratedRecipeClientState | 'pending' | 'ready' | 'failed';
+  imageReviewState?: import('@/lib/recipeGeneration').RecipeMediaReviewState;
+  imageErrorCode?: string | null;
+  imageAttempts?: number;
+  imageLastRenderedAt?: string | null;
   /** Durable classification for a generated/private recipe photo. */
   imageProvenance?: 'generated' | 'provider' | 'fallback';
   category?: string | null;
@@ -440,6 +449,8 @@ type CaloraContextValue = {
   updateProfile: (patch: Partial<Profile>) => void;
   setHealthConnected: (connected: boolean) => void;
   connectHealth: () => Promise<HealthConnection>;
+  /** Opens the provider's OS settings when the native platform supports it. */
+  openHealthSettings: () => Promise<void>;
   syncHealth: () => Promise<HealthSyncOutcome>;
   disconnectHealth: () => void;
   clearOutbox: () => void;
@@ -483,6 +494,7 @@ type CaloraContextValue = {
   createRecipeDraft: (recipe: { id: string; name: string; calories?: number | null; proteinG?: number | null; carbsG?: number | null; fatG?: number | null; source: string; isLocal?: boolean; image?: string | null }, date?: string, meal?: MealType) => FoodMemoryDraft;
   createPlannerDraft: (meal: PlannerMeal) => FoodMemoryDraft;
   updateFoodMemoryDraft: (draftId: string, components: FoodMemoryComponent[]) => void;
+  updateFoodMemoryDraftMeal: (draftId: string, meal: MealType) => void;
   acceptFoodMemory: (draftId: string, draftOverride?: FoodMemoryDraft) => Promise<FoodLog | null>;
   rejectFoodMemory: (draftId: string) => void;
   teachRepeatMemory: (memoryId: string) => void;
@@ -1372,7 +1384,23 @@ export function CaloraProvider({
       if (clearingRef.current || connectEpoch !== healthSyncEpochRef.current) {
         return healthConnectionRef.current;
       }
-      const next = await healthService.requestConnection();
+      let next: HealthConnection;
+      try {
+        next = await healthService.requestConnection();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Health access could not be requested.';
+        if (!clearingRef.current && connectEpoch === healthSyncEpochRef.current) {
+          const failedConnection: HealthConnection = {
+            ...healthConnectionRef.current,
+            authorization: 'error',
+            syncError: message,
+          };
+          healthConnectionRef.current = failedConnection;
+          patchExportSnapshot({ healthConnected: false, healthConnection: failedConnection });
+          setHealthConnection(failedConnection);
+        }
+        throw error;
+      }
       // Do not let a disconnect or account-state change during permission
       // approval get overwritten by this older connection result.
       if (clearingRef.current || connectEpoch !== healthSyncEpochRef.current) {
@@ -1387,6 +1415,11 @@ export function CaloraProvider({
       return !clearingRef.current && connectEpoch === healthSyncEpochRef.current
         ? next
         : healthConnectionRef.current;
+    },
+    openHealthSettings: async () => {
+      if (clearingRef.current) throw new Error('Health settings are temporarily unavailable while data is being cleared.');
+      if (!healthService.openSettings) throw new Error('Open your device Health settings to change Calora access.');
+      await healthService.openSettings();
     },
     syncHealth,
     disconnectHealth: () => {
@@ -1539,7 +1572,7 @@ export function CaloraProvider({
       return draft;
     },
     createPlannerDraft: (meal) => {
-      const draft = plannerMealToDraft(meal);
+      const draft = plannerMealToDraft(meal, new Date().toISOString(), accountId);
       foodDraftsRef.current = [...foodDraftsRef.current.filter((item) => item.id !== draft.id), draft];
       updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);
@@ -1549,6 +1582,15 @@ export function CaloraProvider({
       foodDraftsRef.current = foodDraftsRef.current.map((draft) => draft.id === draftId ? updateDraftComponents(draft, components) : draft);
       updateExportField('foodDrafts', (current) => (current as FoodMemoryDraft[]).map((draft) => draft.id === draftId ? updateDraftComponents(draft, components) : draft));
       setFoodDrafts((current) => current.map((draft) => draft.id === draftId ? updateDraftComponents(draft, components) : draft));
+    },
+    updateFoodMemoryDraftMeal: (draftId, meal) => {
+      const updatedAt = new Date().toISOString();
+      const updateMeal = (draft: FoodMemoryDraft) => draft.id === draftId
+        ? { ...draft, meal, updatedAt }
+        : draft;
+      foodDraftsRef.current = foodDraftsRef.current.map(updateMeal);
+      updateExportField('foodDrafts', (current) => (current as FoodMemoryDraft[]).map(updateMeal));
+      setFoodDrafts((current) => current.map(updateMeal));
     },
     acceptFoodMemory: (draftId, draftOverride) => {
       if (acceptedFoodDraftIdsRef.current.has(draftId)) return Promise.resolve(null);
@@ -2152,7 +2194,7 @@ export function CaloraProvider({
        patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
        setGoalCelebrationSeenTargetKg(null);
      },
-       }), [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, diarySyncState, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
+       }), [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, diarySyncState, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, healthConnection, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

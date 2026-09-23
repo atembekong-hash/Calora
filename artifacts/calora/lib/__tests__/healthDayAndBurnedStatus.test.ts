@@ -51,15 +51,31 @@ describe('currentLocalDayRange', () => {
 
   it('maps only Health Connect active-calorie totals to Burned', () => {
     expect(healthConnectActiveEnergyKcal({
+      dataOrigins: ['com.example.fitness'],
       ACTIVE_CALORIES_TOTAL: { inKilocalories: 347.5 },
       ENERGY_TOTAL: { inKilocalories: 9999 },
     })).toBe(347.5);
+    // The installed bridge serializes an absent total as zero. An empty origin
+    // list is the evidence that no ActiveCaloriesBurned record contributed.
+    expect(healthConnectActiveEnergyKcal({
+      dataOrigins: [],
+      ACTIVE_CALORIES_TOTAL: { inKilocalories: 0 },
+    })).toBeNull();
+    expect(healthConnectActiveEnergyKcal({
+      dataOrigins: ['com.example.fitness'],
+      ACTIVE_CALORIES_TOTAL: { inKilocalories: 0 },
+    })).toBe(0);
     expect(() => healthConnectActiveEnergyKcal({
+      dataOrigins: ['com.example.fitness'],
       ENERGY_TOTAL: { inKilocalories: 9999 },
     })).toThrow('invalid active calorie total');
     expect(() => healthConnectActiveEnergyKcal({
+      dataOrigins: ['com.example.fitness'],
       ACTIVE_CALORIES_TOTAL: { inKilocalories: -1 },
     })).toThrow('invalid active calorie total');
+    expect(() => healthConnectActiveEnergyKcal({
+      ACTIVE_CALORIES_TOTAL: { inKilocalories: 0 },
+    })).toThrow('invalid active calorie evidence');
   });
 
   it('keeps HealthKit request completion distinct from confirmed read access', () => {
@@ -143,5 +159,16 @@ describe('burnedStatusForDay', () => {
       .toEqual({ kind: 'permission', actionLabel: 'Review Apple Health access' });
     expect(burnedStatusForDay({ isToday: true, now, connection: apple(0) }))
       .toEqual({ kind: 'ready', calories: 0 });
+  });
+
+  it('shows Android no-record results as unavailable rather than a fabricated zero', () => {
+    const now = new Date(2026, 7, 30, 15, 42, 11);
+    expect(burnedStatusForDay({
+      isToday: true,
+      now,
+      connection: connected({
+        snapshot: { syncedAt: '2026-08-30T10:00:00.000Z', steps: 0, activeEnergyKcal: null, workouts: [], weights: [] },
+      }),
+    })).toEqual({ kind: 'no-data', actionLabel: 'No active calories recorded today' });
   });
 });

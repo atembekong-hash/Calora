@@ -17,6 +17,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import {
+  getWorkspacePagerRestingOffset,
   getWorkspaceSwipeOffset,
   getWorkspaceSwipeTargetIndex,
   isWorkspaceSwipeIntent,
@@ -191,10 +192,31 @@ export function SwipeableSectionPager<T extends string>({
   renderItemRef.current = renderItem;
 
   React.useEffect(() => {
-    if (!renderItemRef.current) return;
+    if (!renderItemRef.current) {
+      if (reduceMotionRef.current || disableAnimationRef.current) {
+        translateX.value = 0;
+        opacity.value = 1;
+        return;
+      }
+      translateX.value = withTiming(0, {
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        reduceMotion: ReduceMotion.System,
+      });
+      opacity.value = withTiming(1, {
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+        reduceMotion: ReduceMotion.System,
+      });
+      return;
+    }
     const currentIndex = itemsRef.current.indexOf(activeItemRef.current);
     if (currentIndex < 0) return;
-    const targetOffset = -currentIndex * surfaceWidthRef.current;
+    const targetOffset = getWorkspacePagerRestingOffset(
+      currentIndex,
+      surfaceWidthRef.current,
+      true,
+    );
     if (reduceMotionRef.current || disableAnimationRef.current) {
       translateX.value = targetOffset;
       return;
@@ -207,9 +229,12 @@ export function SwipeableSectionPager<T extends string>({
   }, [activeItem, surfaceWidth, translateX]);
 
   const restingOffset = () => {
-    if (!renderItemRef.current) return 0;
     const currentIndex = itemsRef.current.indexOf(activeItemRef.current);
-    return currentIndex >= 0 ? -currentIndex * widthRef.current : 0;
+    return getWorkspacePagerRestingOffset(
+      currentIndex,
+      widthRef.current,
+      Boolean(renderItemRef.current),
+    );
   };
 
   const settleAtRest = () => {
@@ -350,7 +375,11 @@ export function SwipeableSectionPager<T extends string>({
             setSurfaceWidth(nextWidth);
             const currentIndex = itemsRef.current.indexOf(activeItemRef.current);
             if (renderItemRef.current && currentIndex >= 0) {
-              translateX.value = -currentIndex * nextWidth;
+              translateX.value = getWorkspacePagerRestingOffset(
+                currentIndex,
+                nextWidth,
+                true,
+              );
             }
           }
         }}

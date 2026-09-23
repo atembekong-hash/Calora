@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -13,7 +13,7 @@ import {
   Inter_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/inter';
-import { Stack, useGlobalSearchParams, useRouter } from 'expo-router';
+import { Stack, useGlobalSearchParams, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { CaloraProvider, useCalora } from '@/context/CaloraContext';
@@ -29,6 +29,10 @@ import { useDiarySync } from '@/hooks/useDiarySync';
 import { isNotificationOwnedByScope, recordReceivedNotification } from '@/lib/notificationInbox';
 import { BRAND } from '@/lib/brand';
 import { getRootAccessGateState } from '@/lib/rootAccessGate';
+import {
+  createPostAuthNavigationCoordinator,
+  getPostAuthNavigationPlan,
+} from '@/lib/postAuthNavigation';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -242,19 +246,49 @@ function AuthRestoreBootstrap() {
   );
 }
 
+/** A secure-session read failure must never silently become a guest scope. */
+function AuthRestoreFailure() {
+  const { retrySessionRestore } = useAuth();
+  return (
+    <View
+      testID="auth-restore-failure"
+      accessibilityRole="alert"
+      accessibilityLabel="Your saved session could not be restored"
+      style={styles.bootstrapPage}
+    >
+      <View style={styles.bootstrapMark}>
+        <Text style={styles.bootstrapMarkText}>C</Text>
+      </View>
+      <Text style={styles.restoreFailureTitle}>We couldn’t restore your session</Text>
+      <Text style={styles.restoreFailureMessage}>
+        Your encrypted sign-in data could not be read. Try again before continuing.
+      </Text>
+      <Text
+        accessibilityRole="button"
+        accessibilityLabel="Retry restoring session"
+        onPress={() => { void retrySessionRestore(); }}
+        style={styles.restoreRetryButton}
+      >
+        Try again
+      </Text>
+    </View>
+  );
+}
+
 /**
  * Auth changes are a hard privacy boundary. Keying the state and query
  * providers unmounts old in-memory data before the next identity hydrates.
  */
 function AccountScopedProviders({ children }: { children: React.ReactNode }) {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, restoreStatus } = useAuth();
   const accountId = user?.id ?? null;
   const scopeKey = accountId ?? 'guest';
   const scopedQueryClient = useMemo(() => createQueryClient(), [scopeKey]);
   // Do not hydrate the guest namespace while Supabase is still restoring a
   // persisted session. Mounting guest first can show onboarding and autosave
   // against the wrong account before the authenticated scope is known.
-  if (authLoading) return <AuthRestoreBootstrap />;
+  if (restoreStatus === 'loading') return <AuthRestoreBootstrap />;
+  if (restoreStatus === 'failed') return <AuthRestoreFailure />;
 
   return (
     <CaloraProvider key={scopeKey} accountId={accountId}>
@@ -283,6 +317,10 @@ function RootLayoutNav() {
     profileSyncReady,
   } = useCalora();
   const { mode } = useGlobalSearchParams<{ mode?: string | string[] }>();
+  const router = useRouter();
+  const segments = useSegments();
+  const { user, restoreStatus, postAuthIntent } = useAuth();
+  const postAuthCoordinator = useRef(createPostAuthNavigationCoordinator(router));
   const reviewRequested = mode === 'review';
   const { allowApplication, allowOnboarding } = getRootAccessGateState({
     hydrated,
@@ -291,6 +329,30 @@ function RootLayoutNav() {
     onboardingComplete,
     reviewRequested,
   });
+  const callbackRouteIsActive = segments.includes('callback');
+  // This closes the listener-before-effect gap on cold associated-link
+  // delivery. The callback screen subsequently supplies its validated intent.
+  const effectivePostAuthIntent = callbackRouteIsActive && postAuthIntent === 'none'
+    ? 'pending'
+    : postAuthIntent;
+  const postAuthPlan = getPostAuthNavigationPlan({
+    restoreStatus,
+    hasSession: !!user,
+    intent: effectivePostAuthIntent,
+    applicationReady: allowApplication,
+  });
+
+  useEffect(() => {
+    if (!user) {
+      postAuthCoordinator.current.reset();
+      return;
+    }
+    postAuthCoordinator.current.transition({
+      sessionId: user.id,
+      intent: effectivePostAuthIntent,
+      plan: postAuthPlan,
+    });
+  }, [effectivePostAuthIntent, postAuthPlan, user?.id]);
 
   return (
     <>
@@ -313,7 +375,12 @@ function RootLayoutNav() {
           <Stack.Screen name="restaurants" options={{ headerShown: false }} />
           <Stack.Screen name="meal-image-preview" options={{ headerShown: false }} />
         </Stack.Protected>
-        {/* Invite/auth/recovery routes remain available to capture narrow transient state. */}
+        {/*
+          Keep the callback route registered for a later recovery link on an
+          already signed-in device. Completed auth is removed from Back history
+          by the root coordinator's dismissAll/replace transition above; the
+          route registration itself is not retained history.
+        */}
         <Stack.Screen name="invite/[code]" options={{ headerShown: false }} />
         <Stack.Screen name="encrypted-recovery-preview" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
@@ -372,6 +439,9 @@ const styles = StyleSheet.create({
   bootstrapBrand: { color: '#17251f', fontFamily: 'Inter_800ExtraBold', fontSize: 22, marginTop: 12 },
   bootstrapSpinner: { marginTop: 20 },
   bootstrapMessage: { color: '#68756e', fontFamily: 'Inter_500Medium', fontSize: 13, marginTop: 12 },
+  restoreFailureTitle: { color: '#17251f', fontFamily: 'Inter_700Bold', fontSize: 20, marginTop: 20, textAlign: 'center' },
+  restoreFailureMessage: { color: '#68756e', fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 21, marginTop: 10, maxWidth: 310, textAlign: 'center' },
+  restoreRetryButton: { color: '#ffffff', backgroundColor: '#20624f', borderRadius: 14, fontFamily: 'Inter_700Bold', fontSize: 14, marginTop: 22, overflow: 'hidden', paddingHorizontal: 22, paddingVertical: 13 },
   postLogWrap: {
     position: 'absolute',
     left: 16,

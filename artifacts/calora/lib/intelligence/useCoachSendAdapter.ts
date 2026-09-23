@@ -5,9 +5,9 @@
  * Responsibilities:
  *  - Maintains a stable CoachFactActivationCoordinator instance per component mount.
  *  - Maintains a stable CoachLifecycleEpoch that tracks account/hydration/consent axes.
- *  - Exposes `sendWithArchitecture`: exactly one architecture is selected per send.
- *    Any selection outside Fact Context is terminally unavailable. The retired
- *    Legacy Coach endpoint cannot be selected as a fallback provider path.
+ *  - Exposes `sendWithArchitecture`: the consented Fact Context architecture
+ *    is the only personalized Coach path. Missing prerequisites are terminally
+ *    unavailable; the retired Legacy Coach endpoint is never a fallback.
  *  - Exposes `invalidateEpoch` as a public rollback hook callable from outside the hook.
  */
 
@@ -117,18 +117,17 @@ export function createCoachSendAdapter(): CoachSendAdapterWithCleanup {
       return { kind: 'stale', reason: 'epoch_advanced' };
     }
 
-    if (selection.kind === 'legacy') {
-      // Legacy Coach is retired as an execution architecture. Keep this branch
-      // explicit so a future feature-flag or coordinator fallback cannot
-      // silently restore a second provider route.
-      void legacySend;
-      return { kind: 'unavailable', reason: 'legacy_coach_retired' };
-    }
-
     if (selection.kind === 'unavailable') {
       // Fact Context was selected but could not be safely prepared. Never
       // downgrade this send to the legacy provider route.
       return { kind: 'unavailable', reason: selection.reason };
+    }
+
+    // The typed coordinator no longer returns a legacy selection, but retain a
+    // runtime fence so a stale bundle or future incompatible implementation
+    // can never revive the retired broad-context endpoint.
+    if ((selection as { kind: string }).kind !== 'fact_context') {
+      return { kind: 'unavailable', reason: 'legacy_coach_retired' };
     }
 
     // Fact Context path: never retries with legacy context, never double-requests.
@@ -146,11 +145,6 @@ export function createCoachSendAdapter(): CoachSendAdapterWithCleanup {
 
     if (result.kind === 'response') {
       return { kind: 'fact_context_response', response: result.response };
-    }
-    if (result.kind === 'legacy') {
-      // This branch is unreachable: coordinator.request with a fact_context
-      // selection cannot return { kind: 'legacy' }. Guard for type safety.
-      return { kind: 'unavailable', reason: 'unexpected_legacy' };
     }
     if (result.kind === 'failure') {
       return result;
