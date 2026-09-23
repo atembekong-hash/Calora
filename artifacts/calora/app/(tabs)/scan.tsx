@@ -1,4 +1,4 @@
-import { approveCapture, useAnalyzeCapture, type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
+import { useAnalyzeCapture, type CaptureAnalysis, type CaptureAnalyzeInput } from '@workspace/api-client-react';
 import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, useMicrophonePermissions, type BarcodeScanningResult, type CameraMode } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -9,11 +9,13 @@ import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, StyleSheet
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCalora } from '@/context/CaloraContext';
+import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/AppChrome';
 import { BRAND } from '@/lib/brand';
 import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { router, useLocalSearchParams } from 'expo-router';
 import { dateKey } from '@/lib/dates';
+import { syncCaptureApprovals } from '@/lib/captureApprovalSync';
 import { formatGrams, formatPercent, formatWhole } from '@/lib/formatters';
 import { Surface } from '@/components/Surface';
 import { enterMotion } from '@/lib/motion';
@@ -135,6 +137,7 @@ function isSafeCaptureImageUri(uri: string): boolean {
 }
 export default function ScanScreen() {
   const { colors, foodDrafts, createFoodMemoryDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory } = useCalora();
+  const { session } = useAuth();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ date?: string; draftId?: string; capture?: string }>();
   const entryDate = typeof params.date === 'string' ? params.date : dateKey();
@@ -463,15 +466,11 @@ export default function ScanScreen() {
       Alert.alert('Meal not saved', error instanceof Error ? error.message : 'Your meal could not be saved. Please try again.');
       return;
     }
-    // The durable diary outbox is the retry path. Approval is only a
-    // best-effort accelerator and must never block local navigation.
+    // Local acceptance is durable before this non-blocking server acknowledgement.
+    // The coordinator derives retries from the persisted captureSessionId, so
+    // closing this screen can never abandon an accepted review.
     if (accepted?.captureSessionId) {
-      void Promise.race([
-        approveCapture(accepted.captureSessionId),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Capture approval timed out.')), 3_000)),
-      ]).catch((error) => {
-        console.warn('[capture] background approval failed; diary sync will retry the durable capture session', error);
-      });
+      void syncCaptureApprovals([accepted], session?.access_token ?? '');
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setAnalysis(null);
@@ -569,7 +568,7 @@ export default function ScanScreen() {
               )}
             </View>
             <View style={[styles.modePicker, { backgroundColor: colors.muted }]}>
-              {(['auto', 'barcode', 'food', 'label'] as ScanMode[]).map((item) => <Pressable key={item} accessibilityLabel={`Scan mode ${item}`} onPress={() => { setMode(item); resetBarcodeCapture(); }} style={[styles.modeButton, mode === item && { backgroundColor: colors.card }]}>{item === 'barcode' ? <CaloraFeatureIcon name="barcode" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : item === 'food' ? <CaloraFeatureIcon name="food" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : <Feather name={item === 'auto' ? 'zap' : 'file-text'} size={14} color={mode === item ? colors.primary : colors.mutedForeground} />}<Text style={[styles.modeText, { color: mode === item ? colors.foreground : colors.mutedForeground }]}>{item === 'auto' ? 'Auto' : item === 'barcode' ? 'Barcode' : item === 'food' ? 'Food' : 'Label'}</Text></Pressable>)}
+              {(['auto', 'barcode', 'food', 'label'] as ScanMode[]).map((item) => <Pressable key={item} accessibilityLabel={`Scan mode ${item}`} onPress={() => { setMode(item); setReceiptCapture(false); resetBarcodeCapture(); }} style={[styles.modeButton, mode === item && { backgroundColor: colors.card }]}>{item === 'barcode' ? <CaloraFeatureIcon name="barcode" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : item === 'food' ? <CaloraFeatureIcon name="food" size={21} primaryColor={mode === item ? colors.primary : colors.mutedForeground} accentColor={colors.accent} foregroundColor={colors.foreground} highlightColor={colors.card} /> : <Feather name={item === 'auto' ? 'zap' : 'file-text'} size={14} color={mode === item ? colors.primary : colors.mutedForeground} />}<Text style={[styles.modeText, { color: mode === item ? colors.foreground : colors.mutedForeground }]}>{item === 'auto' ? 'Auto' : item === 'barcode' ? 'Barcode' : item === 'food' ? 'Food' : 'Label'}</Text></Pressable>)}
             </View>
             <View style={styles.captureActions}>
               <Pressable accessibilityLabel="Choose food photo from library" onPress={() => void choosePhoto()} style={[styles.secondaryButton, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="image" size={17} color={colors.foreground} /><Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Library</Text></Pressable>

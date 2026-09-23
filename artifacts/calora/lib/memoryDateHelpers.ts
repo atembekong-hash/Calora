@@ -13,6 +13,16 @@ export function parseDateLocal(dateStr: string): Date {
   return new Date(`${dateStr}T12:00:00`);
 }
 
+/** Returns true only for a real Gregorian calendar date in YYYY-MM-DD form. */
+export function isValidCalendarDate(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+}
+
 /**
  * Returns true when the observation date is more than 30 days before `now`.
  * An invalid dateStr always returns false.

@@ -7,6 +7,10 @@ const apiSpec = readFileSync(resolve(root, "lib/api-spec/openapi.yaml"), "utf8")
 const generatedClient = readFileSync(resolve(root, "lib/api-client-react/src/generated/api.ts"), "utf8");
 const generatedZod = readFileSync(resolve(root, "lib/api-zod/src/generated/api.ts"), "utf8");
 const mobileScan = readFileSync(resolve(root, "artifacts/calora/app/(tabs)/scan.tsx"), "utf8");
+const captureApprovalSync = readFileSync(
+  resolve(root, "artifacts/calora/lib/captureApprovalSync.ts"),
+  "utf8",
+);
 const mobileRecipes = readFileSync(resolve(root, "artifacts/calora/app/(tabs)/recipes.tsx"), "utf8");
 const referralActivator = readFileSync(
   resolve(root, "artifacts/calora/components/ReferralActivator.tsx"),
@@ -24,6 +28,7 @@ const mobileSources = [
   resolve(root, "artifacts/calora/components/ReferralActivator.tsx"),
   resolve(root, "artifacts/calora/components/ReferralCard.tsx"),
   resolve(root, "artifacts/calora/lib/diarySync.ts"),
+  resolve(root, "artifacts/calora/lib/captureApprovalSync.ts"),
   resolve(root, "artifacts/calora/lib/intelligence/coachFactActivationCoordinator.ts"),
   resolve(root, "artifacts/calora/lib/intelligence/coachFactContextClient.ts"),
 ].map((file) => readFileSync(file, "utf8")).join("\n");
@@ -38,7 +43,9 @@ describe("released mobile API compatibility contract", () => {
     expect(apiSpec).toContain("operationId: approveCapture");
     expect(generatedClient).toContain("getApproveCaptureUrl");
     expect(generatedClient).toContain("/api/v1/capture/${sessionId}/approve");
-    expect(mobileScan).toContain("approveCapture(accepted.captureSessionId)");
+    expect(mobileScan).toContain("syncCaptureApprovals");
+    expect(captureApprovalSync).toContain("approveCapture(sessionId, { headers:");
+    expect(captureApprovalSync).toContain("setCaptureApprovalAccountScope");
   });
 
   it("keeps open-source and Premium recipe pagination fields in every contract layer", () => {

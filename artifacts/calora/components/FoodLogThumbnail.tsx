@@ -26,18 +26,6 @@ export function FoodLogThumbnail({
   const isRestaurantItem = log.source === 'Restaurant verified'
     || log.imageSource === 'restaurant_representative'
     || log.imageAssetKey?.startsWith('restaurant:');
-
-  if (isRestaurantItem) {
-    return (
-      <View
-        accessibilityLabel={`${log.name} restaurant item`}
-        style={[styles.restaurantMarker, { width: size, height: size, borderRadius }]}
-      >
-        <Feather name="map-pin" size={Math.max(14, Math.round(size * 0.38))} color="#426052" />
-      </View>
-    );
-  }
-
   const remoteUrl = normalizeFoodImageUrl(log.imageUrl);
   const canonicalImageKey = foodImageKeyForName(log.name);
   const resolvedImageKey = canonicalImageKey ?? log.imageAssetKey;
@@ -59,6 +47,19 @@ export function FoodLogThumbnail({
       : localImage ?? (remoteUrl && !remoteFailed ? { uri: remoteUrl } : fallback),
     [fallback, localImage, preferRemote, remoteFailed, remoteUrl],
   );
+
+  // Hooks must run in the same order if a synced entry changes provenance
+  // between restaurant and image-backed forms while retaining its React key.
+  if (isRestaurantItem) {
+    return (
+      <View
+        accessibilityLabel={`${log.name} restaurant item`}
+        style={[styles.restaurantMarker, { width: size, height: size, borderRadius }]}
+      >
+        <Feather name="map-pin" size={Math.max(14, Math.round(size * 0.38))} color="#426052" />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.frame, { width: size, height: size, borderRadius }]}>

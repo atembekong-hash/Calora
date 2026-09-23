@@ -33,6 +33,7 @@ import {
 } from '@/lib/intelligence';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 import { displayTargetWeight, validateTargetWeight } from '@/lib/profileTargets';
+import { displayWeight, formatWeight, validateWeightInput, weightUnitLabel, type WeightUnit } from '@/lib/weightInput';
 
 type ProgressView = 'overview' | 'trends' | 'weight';
 const PROGRESS_VIEWS = ['overview', 'trends', 'weight'] as const;
@@ -297,6 +298,7 @@ const DOT_HIT = 36;
 function WeightLineChart({
   entries,
   colors,
+  unit = 'metric',
   chartHeight = SPARK_H,
   expanded = false,
   onRequestDelete,
@@ -305,6 +307,7 @@ function WeightLineChart({
 }: {
   entries: { id?: string; date: string; kg: number }[];
   colors: ReturnType<typeof useCalora>['colors'];
+  unit?: WeightUnit;
   chartHeight?: number;
   expanded?: boolean;
   /** Called when the user taps the trash icon. Owner is responsible for the undo window and actual removal. */
@@ -533,7 +536,7 @@ function WeightLineChart({
             width: DOT_HIT,
             height: DOT_HIT,
           }}
-          accessibilityLabel={`Weigh-in ${entries[i]?.date ? formatDate(entries[i].date) : ''}: ${entries[i]?.kg.toFixed(1)} kg`}
+          accessibilityLabel={`Weigh-in ${entries[i]?.date ? formatDate(entries[i].date) : ''}: ${formatWeight(entries[i]?.kg ?? 0, unit)}`}
           accessibilityRole="button"
         />
       ))}
@@ -575,7 +578,7 @@ function WeightLineChart({
                         {formatDate(entries[selectedIdx].date)}
                       </Text>
                       <Text style={[styles.weightTooltipKg, { color: colors.background }]}>
-                        {entries[selectedIdx].kg.toFixed(1)} kg
+                        {formatWeight(entries[selectedIdx].kg, unit)}
                       </Text>
                     </>
                   )}
@@ -748,7 +751,7 @@ function WeightLineChart({
               ]}
               numberOfLines={1}
             >
-              {entry.kg.toFixed(1)}
+              {displayWeight(entry.kg, unit).toFixed(1)}
             </Text>
           ))}
         </View>
@@ -783,6 +786,7 @@ function WeightLineChart({
 function WeightChartModal({
   entries,
   colors,
+  unit,
   visible,
   onClose,
   onRequestDelete,
@@ -793,6 +797,7 @@ function WeightChartModal({
 }: {
   entries: { id?: string; date: string; kg: number }[];
   colors: ReturnType<typeof useCalora>['colors'];
+  unit: WeightUnit;
   visible: boolean;
   onClose: () => void;
   onRequestDelete?: (entry: { id: string; kg: number; date: string }) => void;
@@ -896,7 +901,7 @@ function WeightChartModal({
 
           {/* Expanded chart — only rendered when there are enough points */}
           {safeEntries.length >= 2 && (
-            <WeightLineChart entries={safeEntries} colors={colors} chartHeight={200} expanded onRequestDelete={onRequestDelete} onRequestEdit={onRequestEdit} pendingDeleteId={pendingDeleteId} />
+            <WeightLineChart entries={safeEntries} colors={colors} unit={unit} chartHeight={200} expanded onRequestDelete={onRequestDelete} onRequestEdit={onRequestEdit} pendingDeleteId={pendingDeleteId} />
           )}
 
           {/* Summary stats row — guarded so undefined entries never crash while animating closed.
@@ -905,19 +910,19 @@ function WeightChartModal({
           {statsEntries.length >= 2 && minEntry && maxEntry && (
             <View style={[styles.chartModalStats, { borderTopColor: colors.border }]}>
               <View style={styles.chartModalStat}>
-                <Text style={[styles.chartModalStatValue, { color: colors.success }]}>{min.toFixed(1)} kg</Text>
+                <Text style={[styles.chartModalStatValue, { color: colors.success }]}>{formatWeight(min, unit)}</Text>
                 <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>low · {formatDate(minEntry.date)}</Text>
               </View>
               <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
               <View style={styles.chartModalStat}>
                 <Text style={[styles.chartModalStatValue, { color: delta <= 0 ? colors.success : colors.warning }]}>
-                  {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg
+                  {delta > 0 ? '+' : delta < 0 ? '−' : ''}{formatWeight(Math.abs(delta), unit)}
                 </Text>
                 <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>overall change</Text>
               </View>
               <View style={[styles.chartModalStatDivider, { backgroundColor: colors.border }]} />
               <View style={styles.chartModalStat}>
-                <Text style={[styles.chartModalStatValue, { color: colors.warning }]}>{max.toFixed(1)} kg</Text>
+                <Text style={[styles.chartModalStatValue, { color: colors.warning }]}>{formatWeight(max, unit)}</Text>
                 <Text style={[styles.chartModalStatLabel, { color: colors.mutedForeground }]}>high · {formatDate(maxEntry.date)}</Text>
               </View>
             </View>
@@ -930,7 +935,7 @@ function WeightChartModal({
           {pendingDeleteEntry != null && onUndo && (
             <View style={[styles.chartModalUndoRow, { backgroundColor: colors.foreground }]}>
               <Text style={[styles.chartModalUndoText, { color: colors.background }]}>
-                {pendingDeleteEntry.kg.toFixed(1)} kg removed
+                {formatWeight(pendingDeleteEntry.kg, unit)} removed
               </Text>
               <Pressable
                 onPress={onUndo}
@@ -1282,6 +1287,8 @@ export default function InsightsScreen() {
   );
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(fontScale), [fontScale]);
+  const weightUnit: WeightUnit = profile?.units === 'imperial' ? 'imperial' : 'metric';
+  const useImperial = weightUnit === 'imperial';
   const [showWeight, setShowWeight] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [weightError, setWeightError] = useState('');
@@ -1302,7 +1309,7 @@ export default function InsightsScreen() {
     // silently discarded when the undo window expires and the entry is removed.
     if (pendingDeleteRef.current?.id === entry.id) return;
     setEditError(null);
-    setEditInput(String(entry.kg));
+    setEditInput(displayWeight(entry.kg, weightUnit).toFixed(1));
     setEditEntry(entry);
   };
 
@@ -1465,7 +1472,6 @@ export default function InsightsScreen() {
   // Nudge: 90–99% progress, goal not yet reached
   const showGoalNudge = showGoalProgress && !goalReached && goalProgressPct >= 90;
   const goalRemainingKg = Math.max(0, goalTotalDistance - goalProgressKg);
-  const useImperial = profile?.units === 'imperial';
   const weightUnits = useImperial ? 'lb' : 'kg';
   const targetWeightDisplay = useImperial ? targetWeight * 2.20462 : targetWeight;
   const openWeightGoalEdit = () => {
@@ -2042,19 +2048,19 @@ export default function InsightsScreen() {
         <View style={[styles.weightCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.weightTopRow}>
             <View>
-              <Text style={[styles.weightValue, { color: colors.foreground }]}>{latestWeight.toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>kg</Text></Text>
+              <Text style={[styles.weightValue, { color: colors.foreground }]}>{displayWeight(latestWeight, weightUnit).toFixed(1)} <Text style={[styles.weightUnit, { color: colors.mutedForeground }]}>{weightUnitLabel(weightUnit)}</Text></Text>
               <Text style={[styles.weightHint, { color: colors.mutedForeground }]}>{weights.length - (pendingDelete ? 1 : 0) > 1 ? `${weights.length - (pendingDelete ? 1 : 0)} weigh-ins recorded locally` : 'Optional · add weigh-ins to see a trend'}</Text>
             </View>
             {weights.length - (pendingDelete ? 1 : 0) >= 3 && (
               <View style={[styles.weightDeltaBadge, { backgroundColor: weightDelta <= 0 ? '#e6f6ec' : '#fff3e0' }]}>
                 <Feather name={weightDelta <= 0 ? 'trending-down' : 'trending-up'} size={13} color={weightDelta <= 0 ? colors.success : colors.warning} />
-                <Text style={[styles.weightDeltaText, { color: weightDelta <= 0 ? colors.success : colors.warning }]}>{weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)} kg</Text>
+                <Text style={[styles.weightDeltaText, { color: weightDelta <= 0 ? colors.success : colors.warning }]}>{weightDelta > 0 ? '+' : weightDelta < 0 ? '−' : ''}{formatWeight(Math.abs(weightDelta), weightUnit)}</Text>
               </View>
             )}
           </View>
           {weights.length - (pendingDelete ? 1 : 0) >= 3 ? (
             <View style={{ position: 'relative' }}>
-              <WeightLineChart entries={weights.filter((w) => w.id !== pendingDelete?.id).slice(-7)} colors={colors} onRequestDelete={handleRequestDelete} onRequestEdit={handleRequestEdit} pendingDeleteId={pendingDelete?.id} />
+              <WeightLineChart entries={weights.filter((w) => w.id !== pendingDelete?.id).slice(-7)} colors={colors} unit={weightUnit} onRequestDelete={handleRequestDelete} onRequestEdit={handleRequestEdit} pendingDeleteId={pendingDelete?.id} />
               <Pressable
                 onPress={() => { Haptics.selectionAsync(); setShowExpandedChart(true); }}
                 accessibilityLabel="Expand weight chart"
@@ -2083,7 +2089,7 @@ export default function InsightsScreen() {
                   return (
                     <View key={entry.id ?? `${entry.date}-${entry.kg}`} style={styles.weightEntryRow}>
                       <View style={styles.weightEntrySummary}>
-                        <Text style={[styles.weightEntryValue, { color: colors.foreground }]}>{entry.kg.toFixed(1)} kg</Text>
+                        <Text style={[styles.weightEntryValue, { color: colors.foreground }]}>{formatWeight(entry.kg, weightUnit)}</Text>
                         <Text style={[styles.weightEntryDate, { color: colors.mutedForeground }]}>{dateLabel}</Text>
                       </View>
                       {entry.id ? (
@@ -2197,22 +2203,22 @@ export default function InsightsScreen() {
               value={weightInput}
               onChangeText={(value) => { setWeightInput(value); if (weightError) setWeightError(''); }}
               keyboardType="decimal-pad"
-              placeholder={`${latestWeight.toFixed(1)} kg`}
+              placeholder={formatWeight(latestWeight, weightUnit)}
               placeholderTextColor={colors.mutedForeground}
-              accessibilityLabel="Weight in kilograms"
-              accessibilityHint="Enter a positive number before saving your weigh-in"
+              accessibilityLabel={`Weight in ${weightUnitLabel(weightUnit)}`}
+              accessibilityHint={`Enter a valid ${weightUnitLabel(weightUnit)} measurement before saving your weigh-in`}
               style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: weightError ? colors.destructive : colors.input }]}
               onFocus={() => { isEditingWeight.current = true; }}
               onEndEditing={() => { isEditingWeight.current = false; }}
             />
             {!!weightError && <Text accessibilityRole="alert" style={[styles.weightError, { color: colors.destructive }]}>{weightError}</Text>}
             <ScalePressable accessibilityLabel="Save weight" onPress={() => {
-              const value = Number(weightInput);
-              if (!Number.isFinite(value) || value <= 0) {
-                setWeightError('Enter a positive weight to save your check-in.');
+              const result = validateWeightInput(weightInput, weightUnit);
+              if (!result.ok) {
+                setWeightError(result.message);
                 return;
               }
-              addWeight(value);
+              addWeight(result.kg);
               setWeightInput('');
               setWeightError('');
               setShowWeight(false);
@@ -2275,7 +2281,7 @@ export default function InsightsScreen() {
                 if (editError) setEditError(null);
               }}
               keyboardType="decimal-pad"
-              placeholder="e.g. 76.6 kg"
+              placeholder={weightUnit === 'imperial' ? 'e.g. 169 lb' : 'e.g. 76.6 kg'}
               placeholderTextColor={colors.mutedForeground}
               style={[styles.weightInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: editError ? colors.destructive : colors.input }]}
               autoFocus
@@ -2291,18 +2297,13 @@ export default function InsightsScreen() {
             <ScalePressable
               accessibilityLabel="Save edited weigh-in"
               onPress={() => {
-                const trimmed = editInput.trim();
-                const value = Number(trimmed);
-                if (trimmed === '' || !Number.isFinite(value)) {
-                  setEditError('Enter a weight as a number, e.g. 76.6');
-                  return;
-                }
-                if (value <= 0) {
-                  setEditError('Weight must be greater than zero.');
+                const result = validateWeightInput(editInput, weightUnit);
+                if (!result.ok) {
+                  setEditError(result.message);
                   return;
                 }
                 if (editEntry) {
-                  updateWeight(editEntry.id, value);
+                  updateWeight(editEntry.id, result.kg);
                   setEditEntry(null);
                   setEditInput('');
                   setEditError(null);
@@ -2325,6 +2326,7 @@ export default function InsightsScreen() {
       <WeightChartModal
         entries={weights.length >= 1 ? weights : []}
         colors={colors}
+        unit={weightUnit}
         visible={showExpandedChart && weights.length >= 3}
         onClose={() => setShowExpandedChart(false)}
         onRequestDelete={handleRequestDelete}

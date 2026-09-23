@@ -21,6 +21,10 @@ vi.mock("../lib/revenuecat.js", () => ({
   deleteRevenueCatSubscriber: vi.fn(),
 }));
 
+vi.mock("../lib/recipe-photo-storage.js", () => ({
+  eraseRecipePhotoObjects: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("../lib/logger.js", () => ({
   logger: { info, warn },
   noteSuppressedRecoveryWarning: vi.fn(),

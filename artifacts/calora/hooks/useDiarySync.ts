@@ -25,10 +25,14 @@ import {
   reconcileDiaryState,
   setDiarySyncAccountScope,
 } from '@/lib/diarySync';
+import {
+  setCaptureApprovalAccountScope,
+  syncCaptureApprovals,
+} from '@/lib/captureApprovalSync';
 
 export function useDiarySync() {
   const { user, session } = useAuth();
-  const { logs, hydrated, applySyncedDiaryLogs } = useCalora();
+  const { logs, hydrated, applySyncedDiaryLogs, setDiarySyncState } = useCalora();
   const initializedRef = useRef(false);
 
   // Load the persisted synced-ID set and content signatures once per account.
@@ -37,6 +41,7 @@ export function useDiarySync() {
   // avoiding a full re-batch of hundreds of historical entries.
   useEffect(() => {
     setDiarySyncAccountScope(user?.id);
+    setCaptureApprovalAccountScope(user?.id);
     initializedRef.current = true;
   }, [user?.id]);
 
@@ -62,7 +67,10 @@ export function useDiarySync() {
   const [syncGeneration, setSyncGeneration] = useState(0);
 
   useEffect(() => {
-    if (!user || !session?.access_token || !hydrated || !initializedRef.current) return;
+    if (!user || !session?.access_token || !hydrated || !initializedRef.current) {
+      if (hydrated && !user) setDiarySyncState('local');
+      return;
+    }
     if (syncInProgressRef.current) return;
 
     // Snapshot the key this run was started with so we can detect drift later.
@@ -73,6 +81,7 @@ export function useDiarySync() {
     let active = true;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     const run = async () => {
+      setDiarySyncState('local');
       try {
         const mergedLogs = await reconcileDiaryState(logs, accessTokenAtStart);
         if (!active) return;
@@ -81,8 +90,15 @@ export function useDiarySync() {
           .map((l) => `${l.id}:${diaryLogSignature(l)}`)
           .join('|');
         if (mergedKey !== logsKeyAtStart) applySyncedDiaryLogs(mergedLogs);
+        // Capture review approval is deliberately separate from diary backup.
+        // The coordinator persists completed acknowledgements and retries only
+        // unsettled session IDs on a later sync or app launch.
+        await syncCaptureApprovals(mergedLogs, accessTokenAtStart);
+        if (!active) return;
+        setDiarySyncState('synced');
       } catch (err) {
         console.warn('[diary-sync] background sync failed', err);
+        setDiarySyncState('needs-connection');
         // Connectivity can return without any diary state change. Schedule a
         // bounded retry so offline mutations and fresh-install restores resume
         // automatically instead of waiting for another user edit.
@@ -114,5 +130,5 @@ export function useDiarySync() {
   // Re-run when auth state changes, the diary content changes (add/edit/delete),
   // or a follow-up sync was queued because a change arrived mid-flight.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, session?.access_token, hydrated, logsKey, syncGeneration]);
+  }, [user, session?.access_token, hydrated, logsKey, syncGeneration, setDiarySyncState]);
 }
