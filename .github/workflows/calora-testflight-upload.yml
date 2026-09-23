@@ -5,9 +5,7 @@ on:
 
 permissions:
   actions: read
-  attestations: write
   contents: read
-  id-token: write
 
 concurrency:
   group: calora-testflight-production
@@ -15,6 +13,7 @@ concurrency:
 
 jobs:
   testflight:
+    name: Build and submit verified TestFlight release
     runs-on: ubuntu-latest
     timeout-minutes: 90
     defaults:
@@ -24,7 +23,7 @@ jobs:
     steps:
       - name: Require protected current main source and successful validation
         id: release-gate
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const expectedSha = context.sha;
@@ -67,19 +66,12 @@ jobs:
             core.setOutput('validation-run-attempt', String(selected.run_attempt));
 
       - name: Download same-SHA validation gate
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: calora-release-validation-gate
           run-id: ${{ steps.release-gate.outputs.validation-run-id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/release-validation-gate
-
-      - name: Verify validation gate content
-        working-directory: .
-        run: >-
-          node scripts/release-workflow-provenance.mjs validate-validation-gate
-          "$RUNNER_TEMP/release-validation-gate/calora-release-validation-gate.json"
-          "$RUNNER_TEMP/selected-release-validation-run.json"
 
       - name: Verify validation gate attestation
         env:
@@ -94,16 +86,26 @@ jobs:
           --source-ref "$GITHUB_REF"
           --deny-self-hosted-runners
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout exact dispatch source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Verify validation gate content
+        working-directory: .
+        run: >-
+          node scripts/release-workflow-provenance.mjs validate-validation-gate
+          "$RUNNER_TEMP/release-validation-gate/calora-release-validation-gate.json"
+          "$RUNNER_TEMP/selected-release-validation-run.json"
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 10.26.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20.19.4
           cache: pnpm
@@ -112,7 +114,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Setup Expo and EAS
-        uses: expo/expo-github-action@v8
+        uses: expo/expo-github-action@c7b66a9c327a43a8fa7c0158e7f30d6040d2481e # v8
         with:
           eas-version: 16.17.4
           token: ${{ secrets.EXPO_TOKEN }}
@@ -143,39 +145,31 @@ jobs:
           eas build --platform ios --profile production --non-interactive --wait --json \
             > "$RUNNER_TEMP/eas-build.json"
           node --input-type=module <<'NODE'
-          import { readFile } from "node:fs/promises";
+          import { readFile, appendFile } from "node:fs/promises";
           const payload = JSON.parse(await readFile(`${process.env.RUNNER_TEMP}/eas-build.json`, "utf8"));
           const build = Array.isArray(payload) ? payload.at(-1) : payload?.build ?? payload;
           if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(build?.id ?? "")) {
             throw new Error("EAS did not return an immutable build id.");
           }
-          await import("node:fs/promises").then(({ appendFile }) =>
-            appendFile(process.env.GITHUB_ENV, `EAS_BUILD_ID=${build.id}\n`),
-          );
+          await appendFile(process.env.GITHUB_ENV, `EAS_BUILD_ID=${build.id}\n`);
           NODE
 
-      - name: Create immutable EAS build provenance
+      - name: Retrieve provider build record by immutable ID
+        run: >-
+          eas build:view "$EAS_BUILD_ID" --json
+          > "$RUNNER_TEMP/eas-build-view.json"
+
+      - name: Create strict EAS build provenance
         working-directory: .
         run: >-
           node scripts/release-workflow-provenance.mjs create-eas-build-provenance
-          "$RUNNER_TEMP/eas-build.json"
+          "$RUNNER_TEMP/eas-build-view.json"
           "$RUNNER_TEMP/release-validation-gate/calora-release-validation-gate.json"
+          artifacts/calora/app.json
+          artifacts/calora/eas.json
           "$RUNNER_TEMP/calora-eas-build-provenance.json"
 
-      - name: Upload EAS build provenance
-        uses: actions/upload-artifact@v4
-        with:
-          name: calora-eas-build-provenance-${{ github.run_id }}
-          path: ${{ runner.temp }}/calora-eas-build-provenance.json
-          if-no-files-found: error
-          retention-days: 90
-
-      - name: Attest EAS build provenance
-        uses: actions/attest@v4
-        with:
-          subject-path: ${{ runner.temp }}/calora-eas-build-provenance.json
-
-      - name: Submit the exact iOS build to TestFlight
+      - name: Submit the exact verified iOS build to TestFlight
         env:
           EXPO_ASC_API_KEY_PATH: ${{ runner.temp }}/AuthKey_${{ secrets.EXPO_ASC_KEY_ID }}.p8
           EXPO_ASC_KEY_ID: ${{ secrets.EXPO_ASC_KEY_ID }}
@@ -186,7 +180,7 @@ jobs:
           eas submit --platform ios --id "$EAS_BUILD_ID" --non-interactive --wait \
             | tee "$RUNNER_TEMP/eas-submit.log"
 
-      - name: Create immutable TestFlight submission provenance
+      - name: Create TestFlight submission provenance
         working-directory: .
         run: >-
           node scripts/release-workflow-provenance.mjs create-eas-submission-provenance
@@ -194,15 +188,40 @@ jobs:
           "$RUNNER_TEMP/calora-eas-build-provenance.json"
           "$RUNNER_TEMP/calora-testflight-submission-provenance.json"
 
-      - name: Upload TestFlight submission provenance
-        uses: actions/upload-artifact@v4
+      - name: Upload immutable release evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: calora-testflight-submission-provenance-${{ github.run_id }}
-          path: ${{ runner.temp }}/calora-testflight-submission-provenance.json
+          name: calora-testflight-release-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/calora-eas-build-provenance.json
+            ${{ runner.temp }}/calora-testflight-submission-provenance.json
           if-no-files-found: error
           retention-days: 90
 
-      - name: Attest TestFlight submission provenance
-        uses: actions/attest@v4
+  attest-testflight-evidence:
+    name: Attest TestFlight release evidence
+    needs: testflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Download immutable release evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          subject-path: ${{ runner.temp }}/calora-testflight-submission-provenance.json
+          name: calora-testflight-release-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/testflight-release-evidence
+
+      - name: Attest EAS build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ runner.temp }}/testflight-release-evidence/calora-eas-build-provenance.json
+
+      - name: Attest TestFlight submission provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ runner.temp }}/testflight-release-evidence/calora-testflight-submission-provenance.json

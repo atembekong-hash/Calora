@@ -7,6 +7,9 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const release = readFileSync(path.join(root, ".github/workflows/release-validation.yml"), "utf8");
 const testflight = readFileSync(path.join(root, ".github/workflows/calora-testflight-upload.yml"), "utf8");
+const testflightBuildJob = testflight.slice(0, testflight.indexOf("  attest-testflight-evidence:"));
+const attestationJob = testflight.slice(testflight.indexOf("  attest-testflight-evidence:"));
+const sha = "[0-9a-f]{40}";
 
 test("release validation preserves the required job and emits an attested same-SHA gate", () => {
   assert.match(release, /name: Run release validation suite/);
@@ -18,10 +21,10 @@ test("release validation preserves the required job and emits an attested same-S
   assert.match(release, /id-token: write/);
   assert.match(release, /attestations: write/);
   assert.match(release, /name: calora-release-validation-gate/);
-  assert.match(release, /uses: actions\/attest@v4/);
+  assert.match(release, new RegExp(`uses: actions/attest@${sha}`));
 });
 
-test("TestFlight fails closed on an attested same-SHA push validation before credentials", () => {
+test("TestFlight gate checks out source before repository code and before EAS credentials", () => {
   assert.match(testflight, /workflow_dispatch:/);
   assert.match(testflight, /workflow_id: 'release-validation\.yml'/);
   assert.match(testflight, /head_sha: expectedSha/);
@@ -31,15 +34,36 @@ test("TestFlight fails closed on an attested same-SHA push validation before cre
   assert.match(testflight, /--signer-workflow/);
   assert.match(testflight, /--source-digest/);
   assert.match(testflight, /--source-ref/);
-  assert.match(testflight, /eas build --platform ios --profile production --non-interactive --wait --json/);
-  assert.match(testflight, /eas submit --platform ios --id "\$EAS_BUILD_ID" --non-interactive --wait/);
-  assert.match(testflight, /calora-eas-build-provenance-\$\{\{ github\.run_id \}\}/);
-  assert.match(testflight, /calora-testflight-submission-provenance-\$\{\{ github\.run_id \}\}/);
 
-  const gateIndex = testflight.indexOf("Require protected current main source and successful validation");
-  const expoIndex = testflight.indexOf("Setup Expo and EAS");
-  const submitIndex = testflight.indexOf("Submit the exact iOS build to TestFlight");
-  const buildAttestationIndex = testflight.indexOf("Attest EAS build provenance");
-  assert.ok(gateIndex >= 0 && expoIndex > gateIndex, "gate must run before Expo credentials");
-  assert.ok(buildAttestationIndex >= 0 && submitIndex > buildAttestationIndex, "build provenance must be attested before submit");
+  const checkoutIndex = testflightBuildJob.indexOf("Checkout exact dispatch source");
+  const gateScriptIndex = testflightBuildJob.indexOf("scripts/release-workflow-provenance.mjs validate-validation-gate");
+  const expoIndex = testflightBuildJob.indexOf("Setup Expo and EAS");
+  assert.ok(checkoutIndex >= 0 && gateScriptIndex > checkoutIndex, "checkout must precede repository gate code");
+  assert.ok(gateScriptIndex >= 0 && expoIndex > gateScriptIndex, "gate must precede Expo credential setup");
+});
+
+test("TestFlight verifies provider source identity before submit and isolates attestation privileges", () => {
+  assert.match(testflightBuildJob, /eas build --platform ios --profile production --non-interactive --wait --json/);
+  assert.match(testflightBuildJob, /eas build:view "\$EAS_BUILD_ID" --json/);
+  assert.match(testflightBuildJob, /create-eas-build-provenance/);
+  assert.match(testflightBuildJob, /artifacts\/calora\/app\.json/);
+  assert.match(testflightBuildJob, /artifacts\/calora\/eas\.json/);
+  assert.match(testflightBuildJob, /eas submit --platform ios --id "\$EAS_BUILD_ID" --non-interactive --wait/);
+  assert.match(testflightBuildJob, /calora-testflight-release-evidence-\$\{\{ github\.run_id \}\}/);
+  assert.doesNotMatch(testflightBuildJob, /id-token: write/);
+  assert.doesNotMatch(testflightBuildJob, /attestations: write/);
+  assert.match(attestationJob, /needs: testflight/);
+  assert.match(attestationJob, /id-token: write/);
+  assert.match(attestationJob, /attestations: write/);
+  assert.match(attestationJob, new RegExp(`uses: actions/attest@${sha}`));
+
+  const verifiedBuildIndex = testflightBuildJob.indexOf("Create strict EAS build provenance");
+  const submitIndex = testflightBuildJob.indexOf("Submit the exact verified iOS build to TestFlight");
+  assert.ok(verifiedBuildIndex >= 0 && submitIndex > verifiedBuildIndex, "provider build identity must be verified before submit");
+});
+
+test("all TestFlight workflow actions are immutable full-SHA pins", () => {
+  for (const match of testflight.matchAll(/^\s*uses:\s+([^\s#]+)/gm)) {
+    assert.match(match[1], /@[0-9a-f]{40}$/i, `mutable action reference: ${match[1]}`);
+  }
 });

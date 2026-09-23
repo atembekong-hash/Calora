@@ -13,6 +13,8 @@ import {
   createEasBuildProvenance,
   createEasSubmissionProvenance,
   createValidationGate,
+  extractEasBuildId,
+  readExpectedEasIdentity,
   selectSuccessfulValidationRun,
   validateValidationGate,
 } from "./release-workflow-provenance.mjs";
@@ -20,6 +22,8 @@ import {
 const sha = "a".repeat(40);
 const tree = "b".repeat(40);
 const repository = "atembekong-hash/Calora";
+const projectId = "1f202325-5b9a-4260-978f-abbd3252b9ee";
+const buildId = "9f1e5407-1111-2222-3333-444444444444";
 const env = {
   GITHUB_REPOSITORY: repository,
   GITHUB_REF: "refs/heads/main",
@@ -56,6 +60,38 @@ function run(overrides = {}) {
   };
 }
 
+const expected = readExpectedEasIdentity(
+  {
+    expo: {
+      version: "1.0.0",
+      ios: { bundleIdentifier: "com.etiendem.caloraapp", buildNumber: "8" },
+      extra: { eas: { projectId } },
+    },
+  },
+  {
+    build: { production: { ios: { distribution: "store" } } },
+    submit: { production: { ios: { ascAppId: "6800321660" } } },
+  },
+);
+
+function easBuild(overrides = {}) {
+  return {
+    id: buildId,
+    project: { id: projectId },
+    platform: "IOS",
+    status: "FINISHED",
+    buildProfile: "production",
+    gitCommitHash: sha,
+    appVersion: "1.0.0",
+    appBuildVersion: "8",
+    distribution: "STORE",
+    isForIosSimulator: false,
+    artifacts: { applicationArchiveUrl: "https://expo.example.test/archive.ipa?temporary=opaque" },
+    accessToken: "must-not-serialize",
+    ...overrides,
+  };
+}
+
 test("creates a same-SHA validation gate with the fixed schema", () => {
   const value = createValidationGate({
     env,
@@ -79,14 +115,7 @@ test("rejects a validation gate when a binding or schema field is altered", () =
     { ...gate(), unexpected: true },
   ]) {
     assert.throws(
-      () =>
-        validateValidationGate(altered, {
-          repository,
-          ref: "refs/heads/main",
-          commitSha: sha,
-          workflowRunId: "1234",
-          runAttempt: "2",
-        }),
+      () => validateValidationGate(altered, { repository, ref: "refs/heads/main", commitSha: sha, workflowRunId: "1234", runAttempt: "2" }),
       /validation gate/i,
     );
   }
@@ -94,31 +123,38 @@ test("rejects a validation gate when a binding or schema field is altered", () =
 
 test("selects one successful same-SHA push validation run and rejects ambiguity", () => {
   assert.deepEqual(selectSuccessfulValidationRun([run(), run({ id: 999, event: "pull_request" })], sha), run());
-  for (const candidate of [
-    run({ conclusion: "failure" }),
-    run({ event: "workflow_dispatch" }),
-    run({ head_branch: "feature" }),
-    run({ head_sha: "c".repeat(40) }),
-  ]) {
+  for (const candidate of [run({ conclusion: "failure" }), run({ event: "workflow_dispatch" }), run({ head_branch: "feature" }), run({ head_sha: "c".repeat(40) })]) {
     assert.throws(() => selectSuccessfulValidationRun([candidate], sha), /exactly one/i);
   }
   assert.throws(() => selectSuccessfulValidationRun([run(), run({ id: 999 })], sha), /exactly one/i);
 });
 
-test("creates only sanitized EAS build and submission provenance bindings", () => {
-  const build = createEasBuildProvenance({
-    rawBuild: { id: "9f1e5407-1111-2222-3333-444444444444", platform: "ios", accessToken: "must-not-serialize" },
-    gate: gate(),
-    env,
-  });
+test("binds EAS build provenance to project, profile, source, release identity, and archive", () => {
+  assert.equal(extractEasBuildId([easBuild()]), buildId);
+  const build = createEasBuildProvenance({ rawBuild: easBuild(), gate: gate(), expected, env });
   assert.equal(build.schemaVersion, EAS_BUILD_PROVENANCE_SCHEMA);
-  assert.equal(build.easBuildId, "9f1e5407-1111-2222-3333-444444444444");
+  assert.equal(build.easBuildId, buildId);
+  assert.equal(build.easProjectId, projectId);
+  assert.equal(build.gitCommitHash, sha);
+  assert.equal(build.applicationArchiveUrlSha256.length, 64);
   assert.equal(JSON.stringify(build).includes("must-not-serialize"), false);
-  assert.throws(
-    () => createEasBuildProvenance({ rawBuild: { id: "not-an-id", platform: "ios" }, gate: gate(), env }),
-    /immutable build id/i,
-  );
+  assert.equal(JSON.stringify(build).includes("archive.ipa"), false);
 
+  for (const [label, altered] of [
+    ["wrong project", easBuild({ project: { id: "2".repeat(8) + "-1111-2222-3333-444444444444" } })],
+    ["wrong profile", easBuild({ buildProfile: "preview" })],
+    ["wrong source", easBuild({ gitCommitHash: "c".repeat(40) })],
+    ["unfinished", easBuild({ status: "ERRORED" })],
+    ["wrong version", easBuild({ appBuildVersion: "7" })],
+    ["internal distribution", easBuild({ distribution: "INTERNAL" })],
+    ["missing archive", easBuild({ artifacts: {} })],
+  ]) {
+    assert.throws(() => createEasBuildProvenance({ rawBuild: altered, gate: gate(), expected, env }), /EAS build|archive|version/i, label);
+  }
+});
+
+test("binds TestFlight submission provenance to a fully verified EAS build", () => {
+  const build = createEasBuildProvenance({ rawBuild: easBuild(), gate: gate(), expected, env });
   const submission = createEasSubmissionProvenance({
     rawSubmitText: "Submission details: https://expo.dev/accounts/example/projects/calora/submissions/4e591d1f-aaaa-bbbb-cccc-111111111111",
     buildProvenance: build,
@@ -127,9 +163,14 @@ test("creates only sanitized EAS build and submission provenance bindings", () =
   assert.equal(submission.schemaVersion, EAS_SUBMISSION_PROVENANCE_SCHEMA);
   assert.equal(submission.easSubmissionId, "4e591d1f-aaaa-bbbb-cccc-111111111111");
   assert.equal(submission.easBuildId, build.easBuildId);
+  assert.equal(submission.ascAppId, "6800321660");
   assert.throws(
     () => createEasSubmissionProvenance({ rawSubmitText: "no immutable ID", buildProvenance: build, env }),
     /submission id/i,
+  );
+  assert.throws(
+    () => createEasSubmissionProvenance({ rawSubmitText: "submissions/4e591d1f-aaaa-bbbb-cccc-111111111111", buildProvenance: { ...build, gitCommitHash: "c".repeat(40) }, env }),
+    /submission context/i,
   );
 });
 

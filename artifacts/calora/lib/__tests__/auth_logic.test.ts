@@ -182,13 +182,15 @@ describe('Auth Logic Verification', () => {
   });
 
   it('should handle provider errors correctly', async () => {
-    const errorUrl = 'https://mycaloraapp.com/auth/callback?error=access_denied';
+    const errorUrl = 'https://mycaloraapp.com/auth/callback?error=access_denied&error_description=raw-provider-detail-token-should-not-render';
     
     const result = await handleOAuthCallbackUrl(errorUrl);
 
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.code).toBe('provider');
+      expect(result.error.message).toBe('Unable to connect to the sign-in provider. Please try again.');
+      expect(result.error.message).not.toContain('raw-provider-detail-token-should-not-render');
     }
     expect(mockExchange).not.toHaveBeenCalled();
   });

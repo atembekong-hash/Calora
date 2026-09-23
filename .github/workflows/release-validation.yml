@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
@@ -29,12 +29,12 @@ jobs:
           "$RUNNER_TEMP/calora-database-source-provenance.json"
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 10.26.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: pnpm
@@ -107,7 +107,7 @@ jobs:
 
     steps:
       - name: Check out validated source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
@@ -116,15 +116,27 @@ jobs:
           node scripts/release-workflow-provenance.mjs create-validation-gate
           "$RUNNER_TEMP/calora-release-validation-gate.json"
 
+      - name: Create source-only database provenance manifest
+        run: >-
+          node scripts/verify-db-source-provenance.mjs
+          "$RUNNER_TEMP/calora-database-source-provenance.json"
+
       - name: Upload validation gate
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: calora-release-validation-gate
-          path: ${{ runner.temp }}/calora-release-validation-gate.json
+          path: |
+            ${{ runner.temp }}/calora-release-validation-gate.json
+            ${{ runner.temp }}/calora-database-source-provenance.json
           if-no-files-found: error
           retention-days: 90
 
       - name: Attest validation gate
-        uses: actions/attest@v4
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: ${{ runner.temp }}/calora-release-validation-gate.json
+
+      - name: Attest source-only database provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: ${{ runner.temp }}/calora-database-source-provenance.json

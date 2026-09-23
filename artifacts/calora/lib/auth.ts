@@ -251,7 +251,13 @@ export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusC
     const errorDescription = urlObj.searchParams.get('error_description');
 
     if (error) {
-      return { success: false, error: { code: 'provider', message: errorDescription || error } };
+      return {
+        success: false,
+        error: {
+          code: 'provider',
+          message: resolveUserMessage('provider', errorDescription || error),
+        },
+      };
     }
 
     onStatus?.('Finalizing sign-in\u2026');
@@ -270,7 +276,15 @@ export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusC
         access_token: accessToken,
         refresh_token: refreshToken || '',
       });
-      if (sessionError) return { success: false, error: { code: 'token', message: sessionError.message } };
+      if (sessionError) {
+        return {
+          success: false,
+          error: {
+            code: 'token',
+            message: resolveUserMessage('token', sessionError.message),
+          },
+        };
+      }
       if (data?.session) return { success: true, session: data.session };
     }
 

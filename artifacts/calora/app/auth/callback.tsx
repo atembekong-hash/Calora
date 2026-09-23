@@ -7,7 +7,10 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useURL } from 'expo-linking';
 import { handleOAuthCallbackUrl, OAUTH_REDIRECT_URI } from '@/lib/auth';
-import { routeForOAuthCallbackError } from '@/lib/auth-callback-routing';
+import {
+  getSafeAuthErrorMessage,
+  routeForOAuthCallbackError,
+} from '@/lib/auth-callback-routing';
 import { useAuth } from '@/context/AuthContext';
 
 const REDIRECT_DELAY_MS = 3000; // Increased to let users read the error message
@@ -64,9 +67,9 @@ export default function AuthCallbackScreen() {
         } else if (result.error.code === 'cancelled') {
           router.replace('/auth/sign-in' as any);
         } else {
-          // The callback screen may show the normalized message briefly, but
-          // navigation carries only an allowlisted category to its consumer.
-          setStatusMessage(result.error.message);
+          // Never render provider/deep-link error content. Both the temporary
+          // screen state and navigation use only fixed local categories.
+          setStatusMessage(getSafeAuthErrorMessage(result.error.code));
           setTimeout(() => {
             router.replace(routeForOAuthCallbackError(result.error.code) as any);
           }, REDIRECT_DELAY_MS);
