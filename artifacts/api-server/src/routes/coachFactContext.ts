@@ -161,14 +161,15 @@ function serverGateEnabled() {
   if (process.env.COACH_FACT_CONTEXT_ENABLED !== "true") return false;
   if (process.env.NODE_ENV !== "production") return true;
 
-  // Railway supplies this immutable deployment variable. The build command
-  // checks out this exact revision before bundling; requiring the runtime value
-  // to match the compiled revision prevents a configuration-only restart from
-  // activating Coach on a different source revision.
+  // Railway does not expose a source-commit variable inside all production
+  // runtimes. The release operator therefore records the reviewed deployment
+  // commit in this dedicated server-only variable after verifying the Railway
+  // deployment metadata. Requiring it to match the compiled revision prevents
+  // a configuration-only restart from activating Coach on another source tree.
   const compiledCommit = typeof __RELEASE_GIT_COMMIT__ === "string"
     ? __RELEASE_GIT_COMMIT__.toLowerCase()
     : "";
-  const runtimeCommit = String(process.env.RAILWAY_GIT_COMMIT_SHA ?? "").toLowerCase();
+  const runtimeCommit = String(process.env.CALORA_RELEASE_COMMIT ?? "").toLowerCase();
   return /^[a-f0-9]{40}$/.test(compiledCommit) && runtimeCommit === compiledCommit;
 }
 
