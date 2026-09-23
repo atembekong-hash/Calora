@@ -109,6 +109,10 @@ test("serves the Calora SPA at the root with no-store HTML caching and security 
   assert.match(response.headers["cache-control"], /no-store/);
   assert.equal(response.headers["x-content-type-options"], "nosniff");
   assert.equal(response.headers["x-frame-options"], "DENY");
+  assert.equal(
+    response.headers["strict-transport-security"],
+    "max-age=31536000",
+  );
   assert.match(
     response.headers["content-security-policy"],
     /frame-ancestors 'none'/,
@@ -153,6 +157,10 @@ test("exposes a distinct no-store Railway health endpoint", async () => {
   const response = await request("/health");
   assert.equal(response.status, 200);
   assert.equal(response.headers["cache-control"], "no-store");
+  assert.equal(
+    response.headers["strict-transport-security"],
+    "max-age=31536000",
+  );
   assert.deepEqual(JSON.parse(response.body), {
     status: "ok",
     service: "calora-web",
@@ -172,6 +180,10 @@ test("proxies API methods, query, authorization, and body to the apex API", asyn
   });
   assert.equal(response.status, 201);
   assert.equal(response.headers["set-cookie"], undefined);
+  assert.equal(
+    response.headers["strict-transport-security"],
+    "max-age=31536000",
+  );
   assert.deepEqual(JSON.parse(response.body), { proxied: true });
   assert.deepEqual(lastUpstreamRequest, {
     method: "POST",

@@ -35,6 +35,7 @@ const HOP_BY_HOP_HEADERS = new Set([
   "transfer-encoding",
   "upgrade",
 ]);
+const STRICT_TRANSPORT_SECURITY = "max-age=31536000";
 
 function isPathInside(rootPath, candidatePath) {
   const relativePath = path.relative(rootPath, candidatePath);
@@ -135,6 +136,7 @@ function setSecurityHeaders(res) {
     "camera=(self), microphone=(self), geolocation=(), payment=(self)",
   );
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Strict-Transport-Security", STRICT_TRANSPORT_SECURITY);
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
 }
