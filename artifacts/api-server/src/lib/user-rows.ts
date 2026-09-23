@@ -8,14 +8,24 @@ import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { assertAccountWritable } from "./account-deletion-state.js";
 
-export async function ensureUserRow(externalId: string, email: string | null): Promise<string> {
-  await assertAccountWritable(externalId);
+/**
+ * Resolves an existing internal user row without creating an account/email
+ * linkage. Read-only authorization and consent-status paths must use this
+ * helper so merely checking Coach sharing never persists personal data.
+ */
+export async function findUserRow(externalId: string): Promise<string | null> {
   const existing = await db
     .select({ id: usersTable.id })
     .from(usersTable)
     .where(eq(usersTable.externalId, externalId))
     .limit(1);
-  if (existing.length > 0) return existing[0].id;
+  return existing[0]?.id ?? null;
+}
+
+export async function ensureUserRow(externalId: string, email: string | null): Promise<string> {
+  await assertAccountWritable(externalId);
+  const existing = await findUserRow(externalId);
+  if (existing) return existing;
 
   const inserted = await db
     .insert(usersTable)
@@ -25,11 +35,7 @@ export async function ensureUserRow(externalId: string, email: string | null): P
   if (inserted.length > 0) return inserted[0].id;
 
   // Concurrent insert won the unique index — reuse it.
-  const again = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(eq(usersTable.externalId, externalId))
-    .limit(1);
-  if (again.length === 0) throw new Error("Failed to resolve user row");
-  return again[0].id;
+  const again = await findUserRow(externalId);
+  if (!again) throw new Error("Failed to resolve user row");
+  return again;
 }

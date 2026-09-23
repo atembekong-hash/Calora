@@ -20,14 +20,9 @@ export default function AuthCallbackScreen() {
   const router = useRouter();
   const linkingUrl = useURL();
   const params = useLocalSearchParams();
-  const { isPasswordRecovery } = useAuth();
-   const [statusMessage, setStatusMessage] = useState('Signing you in…');
+  const { beginAuthCallback, completeAuthCallback } = useAuth();
+  const [statusMessage, setStatusMessage] = useState('Signing you in…');
   const processed = useRef(false);
-  const recoveryRef = useRef(isPasswordRecovery);
-
-  useEffect(() => {
-    recoveryRef.current = isPasswordRecovery;
-  }, [isPasswordRecovery]);
 
   // Determine the effective callback URL.
   const effectiveUrl = React.useMemo(() => {
@@ -52,18 +47,17 @@ export default function AuthCallbackScreen() {
   useEffect(() => {
     if (!effectiveUrl || processed.current) return;
     processed.current = true;
+    beginAuthCallback();
 
     async function process() {
       try {
         const result = await handleOAuthCallbackUrl(effectiveUrl!, setStatusMessage);
+        completeAuthCallback(result);
 
         if (result.success) {
-          await new Promise<void>((r) => setTimeout(r, 150));
-          if (recoveryRef.current) {
-            router.replace('/auth/reset-password' as any);
-          } else {
-            router.replace('/(tabs)' as any);
-          }
+          // RootLayoutNav is the sole navigation owner. Its validated intent
+          // determines recovery vs ordinary auth without a listener timer.
+          return;
         } else if (result.error.code === 'cancelled') {
           router.replace('/auth/sign-in' as any);
         } else {
@@ -75,13 +69,17 @@ export default function AuthCallbackScreen() {
           }, REDIRECT_DELAY_MS);
         }
       } catch (err) {
+        completeAuthCallback({
+          success: false,
+          error: { code: 'unknown', message: 'Sign-in failed.' },
+        });
         setStatusMessage('Sign-in failed. Please try again.');
         setTimeout(() => router.replace('/auth/sign-in' as any), REDIRECT_DELAY_MS);
       }
     }
 
     process();
-  }, [effectiveUrl, router]);
+  }, [beginAuthCallback, completeAuthCallback, effectiveUrl, router]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

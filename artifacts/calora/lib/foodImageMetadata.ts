@@ -94,7 +94,6 @@ export type FoodImageResolution =
   | (FoodImageResolutionBase & {
     state: 'fallback';
     accessibilityLabel: string;
-    visibleDisclosure: 'Image unavailable';
   });
 
 /** Only trusted HTTPS image locations may leave capture review. */
@@ -358,7 +357,6 @@ export function resolveFoodImage(input: FoodImageResolutionInput): FoodImageReso
     state: 'fallback',
     category,
     recyclingKey: withKey('fallback', category),
-    accessibilityLabel: `${input.name} image unavailable; ${category} fallback image`,
-    visibleDisclosure: 'Image unavailable',
+    accessibilityLabel: `${input.name}, representative Calora ${category} meal illustration`,
   };
 }

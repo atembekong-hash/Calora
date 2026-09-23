@@ -4,6 +4,7 @@ import {
   KeyboardAwareScrollView,
   KeyboardAwareScrollViewProps,
 } from 'react-native-keyboard-controller';
+import { defaultKeyboardDismissMode } from '@/lib/keyboardDismissPolicy';
 
 type Props = KeyboardAwareScrollViewProps & ScrollViewProps;
 
@@ -12,7 +13,7 @@ export const KeyboardAwareScrollViewCompat = React.forwardRef<ScrollView, Props>
     {
       children,
       keyboardShouldPersistTaps = 'handled',
-      keyboardDismissMode = 'interactive',
+      keyboardDismissMode = defaultKeyboardDismissMode(Platform.OS),
       ...props
     },
     ref,

@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS,
+  GENERATED_RECIPE_STALE_GENERATION_MS,
   clearGeneratedRecipeImageRefreshes,
   decideGeneratedRecipeImageRefresh,
+  isStaleGeneratedRecipeMedia,
   refreshGeneratedRecipeImage,
   type GeneratedRecipeImageCandidate,
 } from '../generatedRecipeImageLifecycle';
@@ -34,6 +36,21 @@ afterEach(() => {
 });
 
 describe('generated recipe image renewal decision', () => {
+  it('reclaims only server generations that have exceeded the interrupted-request window', () => {
+    expect(isStaleGeneratedRecipeMedia({
+      status: 'generating',
+      updatedAt: new Date(NOW - GENERATED_RECIPE_STALE_GENERATION_MS - 1).toISOString(),
+    }, NOW)).toBe(true);
+    expect(isStaleGeneratedRecipeMedia({
+      status: 'generating',
+      updatedAt: new Date(NOW - GENERATED_RECIPE_STALE_GENERATION_MS + 1).toISOString(),
+    }, NOW)).toBe(false);
+    expect(isStaleGeneratedRecipeMedia({
+      status: 'url_ready',
+      updatedAt: new Date(NOW - GENERATED_RECIPE_STALE_GENERATION_MS - 1).toISOString(),
+    }, NOW)).toBe(false);
+  });
+
   it('renews a generated locator inside the one-hour expiry window', () => {
     const recipe = generatedRecipe({ imageUrlExpiresAt: new Date(NOW + GENERATED_RECIPE_IMAGE_RENEWAL_WINDOW_MS - 1).toISOString() });
 
@@ -68,7 +85,7 @@ describe('generated recipe image renewal decision', () => {
   it('does not automatically retry an explicit refresh failure but permits a user-initiated retry', () => {
     const failed = generatedRecipe({ imageStatus: 'failed', imageUrlExpiresAt: new Date(NOW - 1).toISOString() });
 
-    expect(decideGeneratedRecipeImageRefresh(failed, { now: NOW })).toEqual({ action: 'skip', reason: 'failed' });
+    expect(decideGeneratedRecipeImageRefresh(failed, { now: NOW })).toEqual({ action: 'skip', reason: 'retryable-error' });
     expect(decideGeneratedRecipeImageRefresh(failed, { now: NOW, force: true })).toEqual({ action: 'refresh', imageId: IMAGE_ID });
   });
 });
@@ -94,11 +111,11 @@ describe('generated recipe image renewal service', () => {
     expect(requestPhotoUrl).toHaveBeenCalledTimes(1);
     expect(requestPhotoUrl).toHaveBeenCalledWith({ imageId: IMAGE_ID });
     expect(updateRecipe.mock.calls).toEqual([
-      ['recipe-7', { imageStatus: 'pending' }],
+      ['recipe-7', { imageStatus: 'url_refreshing', imageErrorCode: null }],
       ['recipe-7', {
         image: 'https://storage.example/signed-new.png',
         imageUrlExpiresAt: '2026-09-24T12:00:00.000Z',
-        imageStatus: 'ready',
+        imageStatus: 'url_ready',
         imageProvenance: 'generated',
       }],
     ]);
@@ -167,8 +184,8 @@ describe('generated recipe image renewal service', () => {
     })).resolves.toEqual({ state: 'failed', recipeId: 'recipe-7', imageId: IMAGE_ID, error: 'Photo service unavailable' });
 
     expect(updateRecipe.mock.calls).toEqual([
-      ['recipe-7', { imageStatus: 'pending' }],
-      ['recipe-7', { imageStatus: 'failed' }],
+      ['recipe-7', { imageStatus: 'url_refreshing', imageErrorCode: null }],
+      ['recipe-7', { imageStatus: 'retryable_error', imageErrorCode: 'refresh_failed' }],
     ]);
   });
 
@@ -186,7 +203,7 @@ describe('generated recipe image renewal service', () => {
       requestPhotoUrl,
       now: NOW,
     });
-    expect(updateRecipe).toHaveBeenCalledWith('recipe-7', { imageStatus: 'pending' });
+    expect(updateRecipe).toHaveBeenCalledWith('recipe-7', { imageStatus: 'url_refreshing', imageErrorCode: null });
 
     activeAccountId = 'account-b';
     resolveRequest?.({ imageUrl: 'https://storage.example/signed-new.png', imageUrlExpiresAt: '2026-09-24T12:00:00.000Z' });

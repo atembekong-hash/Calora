@@ -7,5 +7,6 @@
  */
 
 export interface RecipePhotoUrlInput {
-  imageId: string;
+  mediaId?: string;
+  imageId?: string;
 }

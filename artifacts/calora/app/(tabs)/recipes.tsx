@@ -26,7 +26,7 @@ import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
-import { requestGeneratedRecipe, requestGeneratedRecipePhoto, requestRecipeConcepts } from '@/lib/recipeGeneration';
+import { requestGeneratedRecipe, requestRecipeConcepts } from '@/lib/recipeGeneration';
 import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
@@ -40,7 +40,7 @@ import { recipeImageRole } from '@/lib/recipeImagePresentation';
 import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
 import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
 import { utcFreshnessDay } from '@/lib/premiumCatalogueState';
-import { refreshGeneratedRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
+import { handleGeneratedRecipeImageError, markGeneratedRecipeImageRendered, retryOrRegenerateRecipeImage, reviewRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
 import { normalizeFoodImageUrl, normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
@@ -113,15 +113,25 @@ function recipeFallbackImage(recipe: BrowseRecipe) {
 
 function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: number }) {
   const { user } = useAuth();
-  const photoPending = isLocalRecipe(recipe) && recipe.imageStatus === 'pending';
-  const generatedImage = isLocalRecipe(recipe) && recipe.imageProvenance === 'generated';
+  const { updateRecipe } = useCalora();
+  const activeAccountIdRef = useRef(user?.id ?? null);
+  activeAccountIdRef.current = user?.id ?? null;
+  const localRecipe = isLocalRecipe(recipe) ? recipe : null;
+  const generatedImage = Boolean(localRecipe && localRecipe.imageProvenance === 'generated');
+  const state = localRecipe?.imageStatus === 'pending' ? 'generating'
+    : localRecipe?.imageStatus === 'ready' ? 'url_ready'
+      : localRecipe?.imageStatus === 'failed' ? 'retryable_error'
+        : localRecipe?.imageStatus ?? 'not_requested';
+  const photoPending = generatedImage && ['generating', 'stored'].includes(state);
   const recipeImageUrl = generatedImage
-    ? normalizeGeneratedRecipeImageUrl(recipe.image, recipe.imageId, user?.id)
+    ? normalizeGeneratedRecipeImageUrl(localRecipe?.image, localRecipe?.imageId, user?.id)
     : normalizeFoodImageUrl(recipe.image);
   const [imageFailed, setImageFailed] = useState(false);
-  useEffect(() => {
-    setImageFailed(false);
-  }, [recipe.id, recipe.image]);
+  useEffect(() => { setImageFailed(false); }, [recipe.id, recipe.image]);
+  const retry = localRecipe ? () => { setImageFailed(false); void retryOrRegenerateRecipeImage({
+    accountId: user?.id, recipe: localRecipe, updateRecipe,
+    isAccountActive: (id) => activeAccountIdRef.current === id,
+  }).catch(() => undefined); } : undefined;
   return <View style={{ height }}>
     {recipeImageUrl && !imageFailed ? (
       <Image
@@ -130,7 +140,12 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
         contentFit="cover"
         transition={180}
         cachePolicy="memory-disk"
-        onError={() => setImageFailed(true)}
+        onLoad={() => { setImageFailed(false); if (localRecipe) markGeneratedRecipeImageRendered(localRecipe, updateRecipe); }}
+        onError={() => {
+          if (!localRecipe || !generatedImage) { setImageFailed(true); return; }
+          void handleGeneratedRecipeImageError({ accountId: user?.id, recipe: localRecipe, updateRecipe, isAccountActive: (id) => activeAccountIdRef.current === id })
+            .then((renewed) => { if (!renewed) setImageFailed(true); });
+        }}
         placeholder={require('../../assets/images/calora-recipes-header.jpg')}
         recyclingKey={`${recipe.id}:${recipeImageUrl}`}
         style={[styles.recipeImage, { height }]}
@@ -139,17 +154,16 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
     <View style={[styles.recipeImage, styles.imageFallback, { height }]}>
        <Image source={recipeFallbackImage(recipe)} accessibilityLabel={`${recipe.name} food photo fallback`} contentFit="cover" style={StyleSheet.absoluteFillObject} />
       <LinearGradient colors={['rgba(18,34,24,0.18)', 'rgba(18,34,24,0.82)']} style={StyleSheet.absoluteFillObject} />
-      <View style={styles.imageFallbackCopy}>
-         <Feather name="image" size={22} color="#d4eadc" />
-         <Text style={styles.imageFallbackText}>Food photo unavailable</Text>
-      </View>
+      {generatedImage && state === 'retryable_error' ? <Pressable accessibilityLabel={`Retry ${recipe.name} recipe photo`} onPress={retry} style={styles.imageFallbackCopy}>
+         <Feather name="refresh-cw" size={22} color="#d4eadc" /><Text style={styles.imageFallbackText}>Retry photo</Text>
+      </Pressable> : null}
     </View>)}
     {generatedImage && recipeImageUrl && !imageFailed && !photoPending && (
-      <View accessible accessibilityLabel={`${recipe.name} uses an AI-generated image`} pointerEvents="none" style={styles.generatedImageBadge}>
-        <Text style={styles.generatedImageBadgeText}>AI-generated image</Text>
+      <View accessible accessibilityLabel={`${recipe.name} uses an AI-generated image${localRecipe?.imageReviewState === 'needs_review' ? ' that needs review' : ''}`} pointerEvents="none" style={styles.generatedImageBadge}>
+        <Text style={styles.generatedImageBadgeText}>{localRecipe?.imageReviewState === 'needs_review' ? 'AI-generated · needs review' : 'AI-generated image'}</Text>
       </View>
     )}
-    {photoPending && <View style={styles.photoPendingOverlay}><ActivityIndicator size="small" color="#ffffff" /><Text style={styles.photoPendingText}>Creating recipe photo…</Text></View>}
+    {photoPending && !recipeImageUrl && <View style={styles.photoPendingOverlay}><ActivityIndicator size="small" color="#ffffff" /><Text style={styles.photoPendingText}>Creating recipe photo…</Text></View>}
   </View>;
 }
 
@@ -169,16 +183,7 @@ function RecipeMeta({ recipe, colors, compact = false }: { recipe: BrowseRecipe;
   );
 }
 
-export function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160, remainingCalories, fixedHeight, compact = false }: { recipe: BrowseRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void; imageHeight?: number; remainingCalories?: number; fixedHeight?: number; compact?: boolean }) {
-  const local = isLocalRecipe(recipe);
-  const provenance = recipeProvenance(recipe);
-  const localLabel = provenance.sourceType === 'calora_ai' ? 'CALORA AI' : 'MY RECIPE';
-  const sourceBadge = provenance.sourceType === 'calora_catalog'
-    ? 'CALORA ORIGINAL'
-    : local
-      ? localLabel
-      : null;
-  const fitsGoal = remainingCalories !== undefined && remainingCalories > 0 && recipe.calories != null && recipe.calories > 0 && recipe.calories <= remainingCalories;
+export function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight = 160, fixedHeight, compact = false }: { recipe: BrowseRecipe; colors: ReturnType<typeof useCalora>['colors']; saved: boolean; onPress: () => void; onSave: () => void; imageHeight?: number; fixedHeight?: number; compact?: boolean }) {
   return (
     <Surface tier="flat" radius="lg" style={[styles.recipeCard, fixedHeight ? { height: fixedHeight } : null]}>
       <View style={fixedHeight ? styles.recipeCardInner : undefined}>
@@ -190,8 +195,6 @@ export function RecipeCard({ recipe, colors, saved, onPress, onSave, imageHeight
         >
           <View style={styles.cardImageFrame}>
             <RecipeImage recipe={recipe} height={imageHeight} />
-            {fitsGoal && <View style={[styles.fitsBadge, { backgroundColor: colors.primary }]}><Feather name="check-circle" size={8} color={colors.primaryForeground} /><Text style={[styles.fitsBadgeText, { color: colors.primaryForeground }]}>FITS YOUR GOAL</Text></View>}
-            {sourceBadge && <View style={[styles.localBadge, { backgroundColor: colors.primary }]}><Text style={[styles.localBadgeText, { color: colors.primaryForeground }]}>{sourceBadge}</Text></View>}
           </View>
           <View style={[styles.cardContent, compact && styles.compactCardContent]}>
             <Text numberOfLines={2} style={[styles.recipeName, { color: colors.foreground }]}>{recipe.name}</Text>
@@ -490,9 +493,8 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
 
 function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes, onLoadMoreRef, onLoadedRecipesChange }: { colors: ReturnType<typeof useCalora>['colors']; visible: boolean; onOpen: (recipe: PremiumRecipe) => void; onSave: (recipe: PremiumRecipe) => void; savedPremiumRecipes: PremiumRecipe[]; onLoadMoreRef: React.MutableRefObject<(() => void) | null>; onLoadedRecipesChange: (recipes: PremiumRecipe[]) => void }) {
   const { savedRecipeIds, toggleSavedRecipe } = useCalora();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const queryClient = useQueryClient();
-  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [offset, setOffset] = useState(0);
@@ -508,7 +510,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const userId = session?.user.id ?? null;
   const freshnessSession = useMemo(() => getRecipeFreshnessSession(`plus:${userId ?? 'signed-out'}:${search}:${category}:${unfilteredFreshnessDay ?? 'filtered'}`), [category, search, unfilteredFreshnessDay, userId]);
   const premiumQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(premiumParams));
-  // Plus access is revalidated when this section mounts and when the app
+  // The signed-in account and provider response are revalidated when this section mounts and when the app
   // returns to the foreground. Do not refetch on every browser focus or on a
   // timer while the user is browsing: those background transitions can briefly
   // replace the verified response and make the catalogue appear to disappear.
@@ -521,12 +523,10 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     },
   });
   const queryErrorStatus = httpStatus(query.error);
-  const accessDeniedStatus = queryErrorStatus === 401 || queryErrorStatus === 403
-    ? queryErrorStatus
-    : null;
+  const accessDeniedStatus = queryErrorStatus === 401 ? queryErrorStatus : null;
   const accessDenied = accessDeniedStatus !== null;
-  // A cached response only describes a past entitlement. Never render it until
-  // a request mounted for this screen has verified current server access.
+  // A cached response belongs to a prior request. Never render it until a
+  // request mounted for this screen has verified the current signed-in account.
   const currentAccess = hasCurrentPremiumAccess({ ...query, isStale: query.isStale });
   const hasVerifiedCurrentAccount = loadedForUserId === userId;
   const canDisplayCatalogue = canDisplayPremiumCatalogue({
@@ -550,7 +550,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
       appStateRef.current = state;
       // The initial active event can arrive while the mount request is
       // already in flight. Only refresh after a real background -> active
-      // transition, and never restart an existing entitlement/provider call.
+      // transition, and never restart an existing account/provider call.
       if (state === 'active' && previousState !== 'active' && !queryFetchingRef.current) {
         const today = utcFreshnessDay();
         if (!search && !category && today !== freshnessDay) {
@@ -593,7 +593,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
     const nextQueryKey = premiumRecipeListQueryKey(userId, getListPremiumRecipesQueryKey(nextParams));
     void queryClient.prefetchQuery({
       queryKey: nextQueryKey,
-      queryFn: ({ signal }) => listPremiumRecipes(nextParams, { signal }),
+      queryFn: ({ signal }: { signal: AbortSignal }) => listPremiumRecipes(nextParams, { signal }),
       staleTime: PREMIUM_RECIPE_REFRESH_POLICY.staleTime,
       retry: false,
     }).catch(() => undefined);
@@ -639,22 +639,6 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   const fetchedSavedRecipes = missingSavedQueries
     .filter((savedQuery) => savedQuery.isSuccess && !savedQuery.error && savedQuery.data)
     .map((savedQuery) => savedQuery.data as PremiumRecipe);
-  const premiumScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
-  const loadMorePremiumRecipesIfAtEnd = () => {
-    const { offsetY, viewportHeight, contentHeight } = premiumScrollMetricsRef.current;
-    if (viewportHeight > 0 && offsetY + viewportHeight >= contentHeight - PREMIUM_RECIPE_PREFETCH_DISTANCE) {
-      onLoadMoreRef.current?.();
-    }
-  };
-  const handlePremiumScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
-    premiumScrollMetricsRef.current = {
-      offsetY: contentOffset.y,
-      viewportHeight: layoutMeasurement.height,
-      contentHeight: contentSize.height,
-    };
-    loadMorePremiumRecipesIfAtEnd();
-  };
   const recipes = useMemo(() => freshnessSession.order(loadedRecipes, freshnessVisit), [freshnessSession, freshnessVisit, loadedRecipes]);
   const displayRecipes = useMemo(() => clearDuplicatePremiumRecipeImages(recipes), [recipes]);
   useEffect(() => {
@@ -663,35 +647,18 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
   }, [displayRecipes, freshnessSession, freshnessVisit, recipes.length, userId, visible]);
   if (!visible) return null;
   if (!session) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Plus sources require sign-in.</Text><Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text></Pressable></View>;
-  if (accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="award" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{accessDeniedStatus === 401 ? 'Sign in for Plus recipes' : 'Plus required'}</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{accessDeniedStatus === 401 ? 'Your session ended. Sign in again.' : 'An active Calora Plus membership is required.'}</Text><Pressable accessibilityLabel={accessDeniedStatus === 401 ? 'Sign in to access Plus recipes' : 'View Plus membership options'} onPress={() => accessDeniedStatus === 401 ? router.push('/auth/sign-in') : router.push({ pathname: '/(tabs)/profile', params: { tab: 'membership' } })} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>{accessDeniedStatus === 401 ? 'Sign in' : 'View membership'}</Text></Pressable></View>;
+  if (accessDenied) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="log-in" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Sign in for Plus recipes</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Your session ended. Sign in again.</Text><Pressable accessibilityLabel="Sign in to access Plus recipes" onPress={() => router.push('/auth/sign-in')} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Sign in</Text></Pressable></View>;
   // A new offset has its own React Query key. Do not replace an existing grid
   // with the initial loader/error state while that page is resolving: collapsing
   // the parent ScrollView content makes React Native clamp its scroll offset.
   if (query.isError && !accessDenied && !hasLoadedRecipes) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus is unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Try again. Discover is still available.</Text><Pressable accessibilityLabel="Retry loading Plus recipes" onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
-  if (!canDisplayCatalogue && !hasLoadedRecipes) return <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Checking Plus access…</Text></View>;
+  if (!canDisplayCatalogue && !hasLoadedRecipes) return <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading Plus recipes…</Text></View>;
   if (data?.status === 'error' && !hasLoadedRecipes) return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus is unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'Try again. Discover is still available.'}</Text><Pressable accessibilityLabel="Retry loading Plus recipes" onPress={() => query.refetch()} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Retry</Text></Pressable></View>;
-   if (data?.status === 'restricted') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="lock" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus recipes are not available</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'This recipe provider is not enabled for this account yet. Discover remains available.'}</Text></View>;
+   if (data?.status === 'restricted') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={22} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus recipe source unavailable</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message ?? 'The connected recipe provider cannot serve this catalogue right now. Discover remains available.'}</Text></View>;
    if (data?.status === 'unavailable') return <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="link-2" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Plus source not connected</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{data.message}</Text></View>;
   const savedRecipes = mergeSavedPremiumRecipes(savedRecipeIds, knownSavedRecipes, fetchedSavedRecipes);
   return (
-    <ScrollView
-      testID="plus-recipe-scroll"
-      style={{ flex: 1 }}
-      contentContainerStyle={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 104 }}
-      showsVerticalScrollIndicator={false}
-      onLayout={(event) => {
-        premiumScrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
-        loadMorePremiumRecipesIfAtEnd();
-      }}
-      onContentSizeChange={(_, contentHeight) => {
-        premiumScrollMetricsRef.current.contentHeight = contentHeight;
-        loadMorePremiumRecipesIfAtEnd();
-      }}
-      onScroll={handlePremiumScroll}
-      onMomentumScrollEnd={handlePremiumScroll}
-      scrollEventThrottle={16}
-      decelerationRate="normal"
-    >
+    <View testID="plus-recipe-content">
       <View testID="plus-recipe-catalogue">
         <View style={styles.premiumToolbar}>
           <View style={[styles.searchBox, { flex: 1, backgroundColor: colors.card, borderColor: colors.input }]}>
@@ -824,7 +791,7 @@ function PremiumCatalogue({ colors, visible, onOpen, onSave, savedPremiumRecipes
           </Pressable>
         </BottomSheet>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -880,7 +847,7 @@ function scaleIngredient(ingredient: string, multiplier: number): string {
 }
 
 export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, suggestedRecipes = [], onSelectSuggestion }: { recipe: Recipe | CaloraRecipe | null; onClose: () => void; onPlanned: (message: string) => void; onRetryPhoto: (recipe: CaloraRecipe) => void; suggestedRecipes?: BrowseRecipe[]; onSelectSuggestion?: (recipe: BrowseRecipe) => void }) {
-  const { colors, profile, savedRecipeIds, toggleSavedRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
+  const { colors, profile, savedRecipeIds, toggleSavedRecipe, updateRecipe, createRecipeDraft, updateFoodMemoryDraft, acceptFoodMemory, rejectFoodMemory, foodDrafts, plannerMeals, updatePlannerMeals, plannerViewedDay, recipeSlotTarget, setRecipeSlotTarget, setPendingUndoSwap, setPendingPlannerAck, addIngredientsToShopping } = useCalora();
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const local = recipe ? isLocalRecipe(recipe) : false;
@@ -950,26 +917,28 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
               <Feather name={premiumDetailErrorStatus === 401 ? 'log-in' : 'award'} size={20} color={colors.primary} />
             </View>
             <Text style={[styles.detailTitle, { color: colors.foreground }]}>
-                {premiumDetailErrorStatus === 401 ? 'Sign in again' : 'Plus access required'}
+                {premiumDetailErrorStatus === 401 ? 'Sign in again' : 'Plus recipe unavailable'}
             </Text>
             <Text style={[styles.accessMessageBody, { color: colors.mutedForeground }]}>
               {premiumDetailErrorStatus === 401
                 ? 'Your session ended while this recipe was open.'
-                : 'This recipe requires an active Calora Plus membership.'}
+                : 'The connected recipe provider cannot serve this recipe right now.'}
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={premiumDetailErrorStatus === 401 ? 'Sign in again' : 'View Plus membership options'}
+              accessibilityLabel={premiumDetailErrorStatus === 401 ? 'Sign in again' : 'Retry Plus recipe'}
               onPress={() => {
-                onClose();
-                premiumDetailErrorStatus === 401
-                  ? router.push('/auth/sign-in')
-                  : router.push({ pathname: '/(tabs)/profile', params: { tab: 'membership' } });
+                if (premiumDetailErrorStatus === 401) {
+                  onClose();
+                  router.push('/auth/sign-in');
+                  return;
+                }
+                void premiumDetailQuery.refetch();
               }}
               style={[styles.primaryAction, { backgroundColor: colors.primary }]}
             >
               <Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>
-                {premiumDetailErrorStatus === 401 ? 'Sign in' : 'View membership'}
+                {premiumDetailErrorStatus === 401 ? 'Sign in' : 'Retry'}
               </Text>
             </Pressable>
             <Pressable
@@ -1095,7 +1064,7 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
     }
     const recipeSource: PlannerRecipeSource = premium ? 'plus' : caloraOriginal ? 'calora' : local ? 'create' : 'discover';
     const linkedRecipeId = premium ? recipeProvenance(detail).sourceId : detail.id;
-    const plannedMeal: PlannerMeal & { recipeId: string; recipeSource: PlannerRecipeSource } = {
+    const plannedMeal: PlannerMeal = {
       id: `recipe-plan-${Date.now()}-${detail.id}`,
       day: planDay,
       meal: planMealType,
@@ -1103,6 +1072,12 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
       recipeSource,
       name: detail.name,
       image: detail.image ?? '',
+      ...(isLocalRecipe(detail) && detail.imageProvenance === 'generated' ? {
+        generatedMediaId: detail.imageMediaId ?? undefined,
+        generatedImageId: detail.imageId ?? undefined,
+        generatedImageUrlExpiresAt: detail.imageUrlExpiresAt ?? undefined,
+        generatedImageReviewState: detail.imageReviewState,
+      } : {}),
       serving: '1 serving',
       calories, proteinG, carbsG, fatG,
       ingredients: detail.ingredients ?? [],
@@ -1223,7 +1198,8 @@ export function RecipeDetailModal({ recipe, onClose, onPlanned, onRetryPhoto, su
                 {premium && recipeProvenance(detail).nutritionConfidence === 'verified' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="check-circle" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Verified nutrition: {recipeProvenance(detail).nutritionSource}</Text></View>}
                 {nutritionUnavailable && !isFetchingDetail && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="alert-circle" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Nutrition estimate failed. Retry above or check back later.</Text></View>}
                 {nutritionIncomplete && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="info" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.mutedForeground }]}>Some nutrition values are unavailable from this recipe source.</Text></View>}
-                 {isLocalRecipe(detail) && ['calora_ai', 'user_created'].includes(recipeProvenance(detail).sourceType) && detail.imageStatus === 'failed' && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="image" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Recipe photo unavailable.</Text><Pressable accessibilityLabel="Retry recipe photo" onPress={() => onRetryPhoto(detail)}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}
+                 {isLocalRecipe(detail) && ['calora_ai', 'user_created'].includes(recipeProvenance(detail).sourceType) && ['failed', 'retryable_error'].includes(detail.imageStatus ?? '') && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="image" size={14} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>Recipe photo is temporarily unavailable.</Text><Pressable accessibilityLabel="Retry recipe photo" onPress={() => onRetryPhoto(detail)}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}
+                 {isLocalRecipe(detail) && detail.imageProvenance === 'generated' && detail.imageReviewState === 'needs_review' && <View style={[styles.notice, { backgroundColor: colors.muted }]}><Feather name="eye" size={14} color={colors.mutedForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>AI-generated preview. Check that it matches your recipe.</Text><Pressable accessibilityLabel="Recipe photo matches" onPress={() => void reviewRecipeImage(detail, 'accepted', updateRecipe)}><Text style={[styles.shopActionText, { color: colors.primary }]}>Looks right</Text></Pressable><Pressable accessibilityLabel="Regenerate mismatched recipe photo" onPress={() => { void reviewRecipeImage(detail, 'rejected', updateRecipe).then(() => onRetryPhoto(detail)); }}><Text style={[styles.shopActionText, { color: colors.warning }]}>Regenerate</Text></Pressable></View>}
                 {!canLog && !nutritionUnavailable && !local && !detailQuery.isLoading && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Feather name="info" size={16} color={colors.accentForeground} /><Text style={[styles.noticeText, { color: colors.foreground }]}>No verified nutrition. Save it, then add nutrition before logging.</Text></View>}
                 {premiumFields && ((premiumFields.dietary?.length ?? 0) || (premiumFields.allergens?.length ?? 0) || (premiumFields.equipment?.length ?? 0) || premiumFields.fiberG || premiumFields.sodiumMg) ? <View style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{premiumFields.dietary?.length ? `Dietary: ${premiumFields.dietary.join(', ')}. ` : ''}{premiumFields.allergens?.length ? `Allergens: ${premiumFields.allergens.join(', ')}. ` : ''}{premiumFields.equipment?.length ? `Equipment: ${premiumFields.equipment.join(', ')}. ` : ''}{premiumFields.fiberG ? `Fiber ${premiumFields.fiberG}g. ` : ''}{premiumFields.sodiumMg ? `Sodium ${premiumFields.sodiumMg}mg.` : ''}</Text></View> : null}
 
@@ -1510,7 +1486,7 @@ function CreateRecipeModal({ visible, onClose, onCreated }: { visible: boolean; 
 }
 
 export default function RecipesScreen() {
-  const { colors, profile, logs, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe, fontScale } = useCalora();
+  const { colors, localRecipes, savedRecipeIds, toggleSavedRecipe, updateRecipe, fontScale } = useCalora();
   const recipesHeaderImage = useHourlyHeaderImage('recipes');
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -1546,12 +1522,12 @@ export default function RecipesScreen() {
   const [hasMoreRemote, setHasMoreRemote] = useState(true);
   const loadingMoreRef = useRef(false);
   const premiumLoadMoreRef = useRef<(() => void) | null>(null);
-  const photoRequestsRef = useRef(new Set<string>());
   const activeAccountIdRef = useRef<string | null>(user?.id ?? null);
   activeAccountIdRef.current = user?.id ?? null;
   const isAccountActive = (accountId: string) => activeAccountIdRef.current === accountId;
   const recipesScrollRef = useRef<ScrollView | null>(null);
   const discoverScrollYRef = useRef(0);
+  const premiumScrollYRef = useRef(0);
   const recipeScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
   const { recipeId: routeRecipeId, recipeSource: routeRecipeSource, recipeName: routeRecipeName } = useLocalSearchParams<{ recipeId?: string; recipeSource?: PlannerRecipeSource; recipeName?: string }>();
   const recipeId = Array.isArray(routeRecipeId) ? routeRecipeId[0] : routeRecipeId;
@@ -1575,7 +1551,6 @@ export default function RecipesScreen() {
   useEffect(() => {
     setSelected((current) => current && recipeProvenance(current).sourceType === 'premium' ? null : current);
   }, [user?.id]);
-  const remainingCalories = Math.max((profile?.calorieTarget ?? 2000) - logs.filter((log) => log.date === dateKey()).reduce((sum, log) => sum + log.calories, 0), 0);
   const localMatches = useMemo(() => category !== 'My recipes' ? [] : localRecipes.filter((recipe) => {
     const haystack = `${recipe.name} ${recipe.category ?? ''} ${recipe.tags.join(' ')} ${recipe.ingredients.join(' ')}`.toLowerCase();
     const matchesSearch = haystack.includes(search.toLowerCase());
@@ -1691,37 +1666,6 @@ export default function RecipesScreen() {
     setSelected(exactRecipe);
     router.setParams({ recipeName: undefined });
   }, [recipeId, recipeName, remoteRecipes]);
-  const createRecipePhoto = async (recipe: CaloraRecipe) => {
-    const accountId = user?.id;
-    const sourceType = recipeProvenance(recipe).sourceType;
-    if (!accountId || !['calora_ai', 'user_created'].includes(sourceType) || recipe.imageStatus === 'ready' || !isAccountActive(accountId)) return;
-    const requestKey = `${accountId}:${recipe.id}`;
-    if (photoRequestsRef.current.has(requestKey)) return;
-    photoRequestsRef.current.add(requestKey);
-    updateRecipe(recipe.id, { imageStatus: 'pending' });
-    try {
-      const photo = await requestGeneratedRecipePhoto({ title: recipe.name, description: recipe.description ?? '' });
-      if (!isAccountActive(accountId)) return;
-      updateRecipe(recipe.id, { image: photo.imageUrl, imageId: photo.imageId, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready', imageProvenance: 'generated' });
-    } catch {
-      if (!isAccountActive(accountId)) return;
-      updateRecipe(recipe.id, { imageStatus: 'failed' });
-    } finally {
-      photoRequestsRef.current.delete(requestKey);
-    }
-  };
-  const retryRecipePhoto = async (recipe: CaloraRecipe) => {
-    if (recipe.imageId) {
-      await refreshGeneratedRecipeImage({ accountId: user?.id, recipe, updateRecipe, isAccountActive, force: true });
-      return;
-    }
-    await createRecipePhoto(recipe);
-  };
-  useEffect(() => {
-    localRecipes
-      .filter((recipe) => ['calora_ai', 'user_created'].includes(recipeProvenance(recipe).sourceType) && !recipe.image && recipe.imageStatus !== 'failed')
-      .forEach((recipe) => { void createRecipePhoto(recipe); });
-  }, [localRecipes, user?.id]);
   useGeneratedRecipeImageRefresh({ accountId: user?.id, recipes: localRecipes, updateRecipe });
   const selectedRecipe = selected && isLocalRecipe(selected) ? localRecipes.find((recipe) => recipe.id === selected.id) ?? selected : selected;
   const visibleLocal = category === 'My recipes' ? localMatches : [];
@@ -1760,6 +1704,7 @@ export default function RecipesScreen() {
   const handleRecipeScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     if (activeSection === 'premium') {
+      premiumScrollYRef.current = contentOffset.y;
       recipeScrollMetricsRef.current = {
         offsetY: contentOffset.y,
         viewportHeight: layoutMeasurement.height,
@@ -1775,7 +1720,14 @@ export default function RecipesScreen() {
   const changeSection = (section: RecipeSection) => {
     if (section === activeSection) return;
     setActiveSection(section);
-    requestAnimationFrame(() => recipesScrollRef.current?.scrollTo({ y: section === 'discover' ? discoverScrollYRef.current : 0, animated: false }));
+    requestAnimationFrame(() => recipesScrollRef.current?.scrollTo({
+      y: section === 'discover'
+        ? discoverScrollYRef.current
+        : section === 'premium'
+          ? premiumScrollYRef.current
+          : 0,
+      animated: false,
+    }));
   };
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
@@ -1868,18 +1820,18 @@ export default function RecipesScreen() {
         <Text style={[styles.sectionCaption, { color: colors.mutedForeground, marginTop: 7 }]}>For ingredient matches, separate up to four ingredients with commas.</Text>
         <SwipeGestureExclusion><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>{categories.map((item) => <Pressable key={item} accessibilityLabel={`Recipe category ${item}`} onPress={() => setCategory(item)} style={[styles.categoryChip, { backgroundColor: category === item ? colors.primary : colors.card, borderColor: category === item ? colors.primary : colors.border }]}><Text style={[styles.categoryText, { color: category === item ? colors.primaryForeground : colors.mutedForeground }]}>{item}</Text></Pressable>)}<Pressable accessibilityLabel="Recipe category My recipes" onPress={() => setCategory('My recipes')} style={[styles.categoryChip, { backgroundColor: category === 'My recipes' ? colors.primary : colors.card, borderColor: category === 'My recipes' ? colors.primary : colors.border }]}><Text style={[styles.categoryText, { color: category === 'My recipes' ? colors.primaryForeground : colors.mutedForeground }]}>My recipes</Text></Pressable></ScrollView></SwipeGestureExclusion>
 
-         {savedDiscoverRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your saved recipes.</Text></View></View><SwipeGestureExclusion><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedDiscoverRecipes.slice(0, 6).map((recipe) => <View key={recipeKey(recipe)} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} /></View>)}</ScrollView></SwipeGestureExclusion></>}
+         {savedDiscoverRecipes.length > 0 && <><View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Saved recipes</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>Your saved recipes.</Text></View></View><SwipeGestureExclusion><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalCards}>{savedDiscoverRecipes.slice(0, 6).map((recipe) => <View key={recipeKey(recipe)} style={{ width: 220 }}><RecipeCard recipe={recipe} colors={colors} saved onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipeKey(recipe))} /></View>)}</ScrollView></SwipeGestureExclusion></>}
 
          <View style={styles.sectionHeader}><View><Text style={[styles.sectionTitle, { color: colors.foreground }]}>{category === 'For you' ? 'Explore open recipes' : category === 'My recipes' ? 'Your recipes' : category}</Text><Text style={[styles.sectionCaption, { color: colors.mutedForeground }]}>{recipesQuery.isFetching && remoteRecipes.length > 0 ? 'Loading more recipes…' : category === 'Quick' ? `${visibleRemote.length} curated quick recipes with known preparation times` : `${visibleRemote.length + visibleLocal.length} recipes to explore`}</Text></View><Feather name="book-open" size={18} color={colors.mutedForeground} /></View>
-         {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recipes are offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Saved and personal recipes are still available. Try again when connected.</Text></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Create a recipe to see it here.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create recipe</Text></Pressable></View>}<Animated.View entering={FadeInDown.springify().damping(20).delay(80)} style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact remainingCalories={remainingCalories} onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</Animated.View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Offline—showing loaded recipes.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text></View>}</>}
+         {recipesQuery.isLoading && remoteRecipes.length === 0 ? <View style={styles.loadingState}><ActivityIndicator color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Finding recipes…</Text></View> : recipesQuery.isError && remoteRecipes.length === 0 ? <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={20} color={colors.warning} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recipes are offline</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Saved and personal recipes are still available. Try again when connected.</Text></View> : <>{category === 'My recipes' && localMatches.length === 0 && <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="book-open" size={22} color={colors.primary} /><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No recipes yet</Text><Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Create a recipe to see it here.</Text><Pressable accessibilityLabel="Create your first recipe" onPress={() => setShowCreate(true)} style={[styles.emptyAction, { backgroundColor: colors.primary }]}><Feather name="plus" size={14} color={colors.primaryForeground} /><Text style={[styles.emptyActionText, { color: colors.primaryForeground }]}>Create recipe</Text></Pressable></View>}<Animated.View entering={FadeInDown.springify().damping(20).delay(80)} style={styles.recipeGrid}>{localMatches.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}{visibleRemote.map((recipe) => <View key={recipe.id} style={styles.recipeGridCard}><RecipeCard recipe={recipe} colors={colors} saved={savedRecipeIds.includes(recipe.id)} imageHeight={GRID_RECIPE_IMAGE_HEIGHT} fixedHeight={GRID_RECIPE_CARD_HEIGHT} compact onPress={() => handleCardPress(recipe)} onSave={() => toggleSavedRecipe(recipe.id)} /></View>)}</Animated.View>{recipesQuery.isError && remoteRecipes.length > 0 && <View style={[styles.offlineRetryRow, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="wifi-off" size={14} color={colors.warning} /><Text style={[styles.offlineRetryText, { color: colors.mutedForeground }]}>Offline—showing loaded recipes.</Text><Pressable accessibilityLabel="Retry loading recipes" onPress={() => recipesQuery.refetch()} style={[styles.offlineRetryButton, { backgroundColor: colors.muted }]}><Text style={[styles.offlineRetryButtonText, { color: colors.foreground }]}>Retry</Text></Pressable></View>}{recipesQuery.isFetching && remoteRecipes.length > 0 && <View style={styles.loadMoreState}><ActivityIndicator size="small" color={colors.primary} /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading more recipes…</Text></View>}</>}
         <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>Open recipe discovery is curated for your collection. Recipes remain attributed to their source when opened; {BRAND.name}'s nutrition confidence is shown separately.</Text>
-          </> : activeSection === 'create' ? <CreateConcepts colors={colors} onOpenRecipe={(recipe) => { setSelected(recipe); void createRecipePhoto(recipe); }} /> : null}
+          </> : activeSection === 'create' ? <CreateConcepts colors={colors} onOpenRecipe={(recipe) => { setSelected(recipe); }} /> : null}
       </ScrollView>
       </SwipeableSectionPager>
       <RecipeDetailModal
         recipe={selectedRecipe}
         onClose={() => setSelected(null)}
-        onRetryPhoto={retryRecipePhoto}
+        onRetryPhoto={(recipe) => retryOrRegenerateRecipeImage({ accountId: user?.id, recipe, updateRecipe, isAccountActive }).then(() => undefined)}
         suggestedRecipes={recipeSuggestions}
         onSelectSuggestion={handleCardPress}
         onPlanned={(message) => {
@@ -1908,10 +1860,9 @@ export default function RecipesScreen() {
       <CreateRecipeModal
         visible={showCreate}
         onClose={() => setShowCreate(false)}
-        onCreated={(recipe) => {
+        onCreated={() => {
           setSearch('');
           setCategory('My recipes');
-           void createRecipePhoto(recipe);
         }}
       />
     </View>
@@ -1985,8 +1936,6 @@ function makeStyles(f: number) {
   generatedImageBadge: { position: 'absolute', bottom: 8, left: 8, borderRadius: 999, backgroundColor: 'rgba(18,34,24,0.78)', paddingHorizontal: 9, paddingVertical: 5 },
   generatedImageBadgeText: { color: '#ffffff', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
   saveButton: { position: 'absolute', right: 10, top: 10, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  localBadge: { position: 'absolute', left: 10, bottom: 10, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 4 },
-  localBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.7 },
   cardContent: { padding: 10, flex: 1, justifyContent: 'space-between' },
    compactCardContent: { paddingHorizontal: 8, paddingTop: 7, paddingBottom: 6 },
    compactRecipeMeta: { marginTop: 4 },
@@ -2120,8 +2069,6 @@ function makeStyles(f: number) {
   createConstraintRow: { flexDirection: 'row', gap: 8, marginTop: 11 },
   createInput: { height: 45, borderWidth: 1, borderRadius: 12, paddingHorizontal: 11, fontFamily: 'Inter_400Regular', fontSize: 12 * f },
   ingredientsInput: { height: 100, borderWidth: 1, borderRadius: 12, padding: 11, textAlignVertical: 'top', fontFamily: 'Inter_400Regular', fontSize: 12 * f, marginTop: 11 },
-  fitsBadge: { position: 'absolute', left: 10, top: 10, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 3 },
-  fitsBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.5 },
   nutritionCell: { alignItems: 'center' },
   nutritionLoading: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 4 },
   nutritionLoadingText: { fontFamily: 'Inter_400Regular', fontSize: 12 * f },

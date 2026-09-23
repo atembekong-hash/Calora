@@ -2,13 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import { eq } from "drizzle-orm";
-import {
-  coachFactContextIdempotencyTable,
-  db,
-  pool,
-  serverConfigTable,
-  usersTable,
-} from "@workspace/db";
+import { coachFactContextIdempotencyTable, db, pool, usersTable } from "@workspace/db";
 
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
   openai: { chat: { completions: { create: vi.fn() } } },
@@ -24,26 +18,18 @@ vi.mock("../lib/rate-limit.js", () => ({
 
 import { openai } from "@workspace/integrations-openai-ai-server";
 import coachFactContextRouter from "../routes/coachFactContext.js";
-import {
-  acceptCoachFactConsent,
-  revokeCoachFactConsent,
-} from "../lib/coach-fact-consent.js";
+import { acceptCoachFactConsent, revokeCoachFactConsent } from "../lib/coach-fact-consent.js";
 
 const SYNTHETIC_REHEARSAL_OPT_IN = process.env.COACH_FACT_CONTEXT_SYNTHETIC_REHEARSAL === "development-only";
-const SAFE_REHEARSAL_ENVIRONMENT = process.env.NODE_ENV === "test" && SYNTHETIC_REHEARSAL_OPT_IN;
-const HAS_SAFE_DB = Boolean(process.env.DATABASE_URL) && SAFE_REHEARSAL_ENVIRONMENT;
+const HAS_SAFE_DB = Boolean(process.env.DATABASE_URL) && process.env.NODE_ENV === "test" && SYNTHETIC_REHEARSAL_OPT_IN;
 const VERIFIED_DEVELOPMENT_TARGET = {
   databaseName: "heliumdb",
   postgresSystemIdentifier: "7670770438921318420",
 } as const;
-const CONFIG_KEY = "coach_fact_context_rollout_enabled";
 const createdExternalIds: string[] = [];
-let priorConfig: { exists: boolean; value?: unknown } | undefined;
-let priorServerGate: string | undefined;
-let gateSnapshotCaptured = false;
 
 function syntheticId(label: string) {
-  const value = `synthetic-pending-rollback-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const value = `synthetic-coach-consent-${label}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   createdExternalIds.push(value);
   return value;
 }
@@ -72,7 +58,7 @@ function body(nonce: string) {
         key: "daily.calorie_status",
         status: "available",
         statement: "Today's logged calories are 400 kcal against a 2000 kcal app target.",
-        values: { consumedKcal: 400, targetKcal: 2000, remainingKcal: 1600 },
+        values: { consumedKcal: 400, targetKcal: 2000 },
         unit: "kcal",
         timeWindow: "today",
         confidence: "high",
@@ -104,19 +90,8 @@ function validProviderCompletion(requestNonce: string) {
   };
 }
 
-async function prepareEligibleIdentity(externalId: string) {
-  const [existingConfig] = await db.select({ value: serverConfigTable.value })
-    .from(serverConfigTable)
-    .where(eq(serverConfigTable.key, CONFIG_KEY))
-    .limit(1);
-  priorConfig = existingConfig
-    ? { exists: true, value: existingConfig.value }
-    : { exists: false };
-  priorServerGate = process.env.COACH_FACT_CONTEXT_ENABLED;
-  gateSnapshotCaptured = true;
+async function prepareConsentedIdentity(externalId: string) {
   await acceptCoachFactConsent(externalId, null);
-  await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: true })
-    .onConflictDoUpdate({ target: serverConfigTable.key, set: { value: true, updatedAt: new Date() } });
 }
 
 async function cleanupSyntheticState() {
@@ -126,26 +101,13 @@ async function cleanupSyntheticState() {
       .where(eq(coachFactContextIdempotencyTable.externalUserId, externalId));
     await db.delete(usersTable).where(eq(usersTable.externalId, externalId));
   }
-  if (priorConfig !== undefined) {
-    await db.delete(serverConfigTable).where(eq(serverConfigTable.key, CONFIG_KEY));
-    if (priorConfig.exists) {
-      await db.insert(serverConfigTable).values({ key: CONFIG_KEY, value: priorConfig.value });
-    }
-  }
-  priorConfig = undefined;
 }
 
 afterEach(async () => {
-  if (gateSnapshotCaptured) {
-    if (priorServerGate === undefined) delete process.env.COACH_FACT_CONTEXT_ENABLED;
-    else process.env.COACH_FACT_CONTEXT_ENABLED = priorServerGate;
-  }
-  priorServerGate = undefined;
-  gateSnapshotCaptured = false;
   await cleanupSyntheticState();
 });
 
-describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context pending rollback rehearsal (real development state)", () => {
+describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context consent/account completion fences (real development state)", () => {
   beforeEach(async () => {
     const result = await pool.query<{ database_name: string; system_identifier: string }>(
       "SELECT current_database() AS database_name, system_identifier::text AS system_identifier FROM pg_control_system()",
@@ -159,20 +121,19 @@ describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context pending rollback re
     }
   });
 
+  function prepareRequest(externalId: string) {
+    verifyBearerToken.mockResolvedValue({ id: externalId, email: null });
+    checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+  }
+
   async function runPendingCase(
     label: string,
-    rollback: (externalId: string) => Promise<void>,
+    invalidate: (externalId: string) => Promise<void>,
   ) {
     vi.clearAllMocks();
     const externalId = syntheticId(label);
-    await prepareEligibleIdentity(externalId);
-    process.env.COACH_FACT_CONTEXT_ENABLED = "true";
-    verifyBearerToken.mockResolvedValue({
-      id: externalId,
-      email: null,
-      coachFactAccount: { eligible: true, reason: "eligible" },
-    });
-    checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+    await prepareConsentedIdentity(externalId);
+    prepareRequest(externalId);
 
     let releaseProvider: ((value: ReturnType<typeof validProviderCompletion>) => void) | undefined;
     let providerEntered: (() => void) | undefined;
@@ -183,12 +144,12 @@ describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context pending rollback re
     }) as never);
 
     const requestNonce = Math.random().toString(16).slice(2).padEnd(24, "a").slice(0, 24);
-    const pendingResponse = request(app()).post("/v1/coach/fact-context/respond")
-      .send(body(requestNonce));
-    const responsePromise = pendingResponse.then((response) => response);
+    const responsePromise = request(app()).post("/v1/coach/fact-context/respond")
+      .send(body(requestNonce))
+      .then((response) => response);
     await providerEnteredPromise;
 
-    await rollback(externalId);
+    await invalidate(externalId);
     releaseProvider?.(validProviderCompletion(requestNonce));
     const response = await responsePromise;
 
@@ -197,17 +158,11 @@ describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context pending rollback re
     expect(vi.mocked(openai.chat.completions.create)).toHaveBeenCalledTimes(1);
   }
 
-  it("allows an ordinary consented account without a cohort membership", async () => {
+  it("allows an ordinary authenticated, consented account without membership, cohort, or rollout state", async () => {
     vi.clearAllMocks();
     const externalId = syntheticId("ordinary");
-    await prepareEligibleIdentity(externalId);
-    process.env.COACH_FACT_CONTEXT_ENABLED = "true";
-    verifyBearerToken.mockResolvedValue({
-      id: externalId,
-      email: null,
-      coachFactAccount: { eligible: true, reason: "eligible" },
-    });
-    checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
+    await prepareConsentedIdentity(externalId);
+    prepareRequest(externalId);
     const requestNonce = "f".repeat(24);
     vi.mocked(openai.chat.completions.create).mockResolvedValueOnce(validProviderCompletion(requestNonce) as never);
 
@@ -220,22 +175,15 @@ describe.skipIf(!HAS_SAFE_DB).sequential("Coach Fact Context pending rollback re
     expect(vi.mocked(openai.chat.completions.create)).toHaveBeenCalledTimes(1);
   });
 
-  it("discards a pending completion after global rollout disablement", async () => {
-    await runPendingCase("global", async () => {
-      await db.update(serverConfigTable).set({ value: false, updatedAt: new Date() })
-        .where(eq(serverConfigTable.key, CONFIG_KEY));
-    });
-  });
-
-  it("discards a pending completion after consent revocation", async () => {
+  it("discards a pending completion after explicit consent revocation", async () => {
     await runPendingCase("consent", async (externalId) => {
       await revokeCoachFactConsent(externalId, null);
     });
   });
 
-  it("discards a pending completion after the process-local server gate is disabled", async () => {
-    await runPendingCase("server-gate", async () => {
-      delete process.env.COACH_FACT_CONTEXT_ENABLED;
+  it("discards a pending completion after account deletion", async () => {
+    await runPendingCase("account", async (externalId) => {
+      await db.delete(usersTable).where(eq(usersTable.externalId, externalId));
     });
   });
 });

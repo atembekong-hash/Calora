@@ -2,6 +2,7 @@ import type { PlannerMeal } from '@workspace/api-client-react';
 import { normalizeTrustedFoodImageUrl } from '@workspace/api-zod/image-source-policy';
 import { plannerImageKeyForMeal, type PlannerImageKey } from '@/lib/mealImageIdentity';
 import { getPlannerMealRecipeLink } from '@/lib/plannerRecipeLink';
+import { normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata';
 
 /**
  * Planner images have two deliberately separate concerns:
@@ -17,25 +18,38 @@ export type PlannerImageRenderDecision = {
   canonicalImageKey?: PlannerImageKey;
   recipeOwned: boolean;
   remoteImageUrl?: string;
+  generated: boolean;
 };
 
 export type PlannerImageRecord = Pick<PlannerMeal, 'id' | 'name' | 'image' | 'imageAssetKey'> & {
   recipeId?: string;
   recipeSource?: string;
+  generatedMediaId?: string;
+  generatedImageId?: string;
+  generatedImageUrlExpiresAt?: string;
+  generatedImageReviewState?: 'needs_review' | 'accepted' | 'rejected';
 };
 
-export function plannerImageRenderDecision(meal: PlannerImageRecord): PlannerImageRenderDecision {
+export function plannerImageRenderDecision(meal: PlannerImageRecord, accountScope?: string | null): PlannerImageRenderDecision {
   const canonicalImageKey = plannerImageKeyForMeal(meal.id, meal.name);
   const recipeOwned = Boolean(getPlannerMealRecipeLink(meal as PlannerMeal & { recipeId?: string; recipeSource?: string }));
 
   // Canonical assets always win. A legacy catalog URL cannot become relevant
   // merely because it survived a persistence round-trip.
-  if (canonicalImageKey) return { canonicalImageKey, recipeOwned };
+  if (canonicalImageKey) return { canonicalImageKey, recipeOwned, generated: false };
+
+  // Generated media never enters the generic provider URL allowlist. It must
+  // carry a recipe link plus its durable media/image IDs, and the signed object
+  // path must validate against the currently authenticated account.
+  const generatedImageUrl = recipeOwned && meal.generatedMediaId && meal.generatedImageId
+    ? normalizeGeneratedRecipeImageUrl(meal.image, meal.generatedImageId, accountScope)
+    : undefined;
+  if (generatedImageUrl) return { recipeOwned, remoteImageUrl: generatedImageUrl, generated: true };
 
   // A custom or renamed Planner record has no remote-image ownership evidence.
   // Recipe-linked records retain their own image only after URL validation.
   const remoteImageUrl = recipeOwned ? normalizeTrustedFoodImageUrl(meal.image) : undefined;
-  return { recipeOwned, remoteImageUrl };
+  return { recipeOwned, remoteImageUrl, generated: false };
 }
 
 export type PlannerImageProvenance = 'canonical-curated' | 'recipe-owned' | 'fallback';

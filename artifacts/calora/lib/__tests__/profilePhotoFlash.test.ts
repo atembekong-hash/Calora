@@ -827,6 +827,38 @@ describe('real CaloraProvider — transactional notifications and live export', 
     }
   });
 
+  it('persists a rejected native health permission request as a durable retry state', async () => {
+    const requestedBeforeFailure = {
+      provider: 'health-connect' as const,
+      authorization: 'notConnected' as const,
+      granted: [],
+    };
+    _healthRequestConnection.mockRejectedValueOnce(new Error('Health Connect permission request was cancelled.'));
+    _asyncStore[STORAGE_KEY] = JSON.stringify({
+      schemaVersion: STORAGE_SCHEMA_VERSION,
+      healthConnection: requestedBeforeFailure,
+    });
+
+    const { result } = await renderAndAwaitHydration();
+    await act(async () => {
+      await expect(result.current.connectHealth()).rejects.toThrow('permission request was cancelled');
+    });
+
+    await waitFor(() => {
+      expect(result.current.healthConnection).toMatchObject({
+        provider: 'health-connect',
+        authorization: 'error',
+        syncError: 'Health Connect permission request was cancelled.',
+      });
+    });
+    expect(result.current.healthConnected).toBe(false);
+    const exported = JSON.parse(await result.current.exportData());
+    expect(exported.healthConnection).toMatchObject({
+      authorization: 'error',
+      syncError: 'Health Connect permission request was cancelled.',
+    });
+  });
+
   it('blocks brand-new manual and foreground health syncs during auxiliary clear cleanup', async () => {
     const connected = {
       provider: 'healthkit',

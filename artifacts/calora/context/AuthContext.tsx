@@ -8,10 +8,11 @@
  *  • Mounted at the root in _layout.tsx, wrapping CaloraProvider and all screens.
  *  • Manages identity state only.  Nutrition/diary/profile state stays in CaloraContext.
  *  • onAuthStateChange is the single source of truth for session updates.
- *  • isLoading: true only during the initial session-restore on app launch.
+ *  • restoreStatus makes encrypted session-read failures explicit; only a
+ *    successful null read may mount the guest account scope.
  *  • isPasswordRecovery: true when Supabase fires PASSWORD_RECOVERY (after the
- *    user taps a reset-password email link).  The callback screen reads this to
- *    redirect to /auth/reset-password instead of the main app.
+ *    user taps a reset-password email link). It enables the reset form, while
+ *    routing is decided from validated callback intent rather than listener timing.
  *  • Identity separation: this context exposes the Supabase session/user
  *    (external identity).  The internal calora_users.id is resolved server-side.
  */
@@ -38,16 +39,29 @@ import {
   clearSettledOAuthCodeExchanges,
 } from '@/lib/auth';
 import type { AuthError, AuthResult } from '@/lib/auth';
+import {
+  getSafeSessionStorageErrorCategory,
+} from '@/lib/supabaseSessionStorage';
+import type { PostAuthIntent } from '@/lib/postAuthNavigation';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+export type AuthRestoreStatus = 'loading' | 'ready' | 'failed';
+export type AuthRestoreError = 'secure_storage' | 'session_restore';
+
 interface AuthState {
   session: Session | null;
   user: User | null;
-  /** True while the initial session restore is in flight on app launch. */
+  /** Maintained for existing consumers; use restoreStatus for failure-aware UI. */
   isLoading: boolean;
+  /** `failed` is a visible recovery state, never an implicit guest session. */
+  restoreStatus: AuthRestoreStatus;
+  /** A safe category only; no token, email, URL, or native-provider detail. */
+  restoreError: AuthRestoreError | null;
+  /** Callback navigation state consumed by the root-level navigation owner. */
+  postAuthIntent: PostAuthIntent;
   /**
    * True after Supabase fires PASSWORD_RECOVERY.  The auth/callback screen
    * reads this to route to /auth/reset-password instead of the main tabs.
@@ -64,6 +78,9 @@ interface AuthActions {
   updatePassword: typeof doUpdatePassword;
   resendVerificationEmail: typeof doResendVerification;
   signOut: typeof doSignOut;
+  retrySessionRestore: () => Promise<void>;
+  beginAuthCallback: () => void;
+  completeAuthCallback: (result: AuthResult) => void;
 }
 
 export type AuthContextValue = AuthState & AuthActions;
@@ -81,39 +98,46 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [restoreStatus, setRestoreStatus] = useState<AuthRestoreStatus>('loading');
+  const [restoreError, setRestoreError] = useState<AuthRestoreError | null>(null);
+  const [postAuthIntent, setPostAuthIntent] = useState<PostAuthIntent>('none');
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   const signingIn = useRef(false);
   const activeUserId = useRef<string | null>(null);
+  const authStateChangeGeneration = useRef(0);
+
+  const retrySessionRestore = useCallback(async () => {
+    const bootstrapGeneration = authStateChangeGeneration.current;
+    setRestoreStatus('loading');
+    setRestoreError(null);
+
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      // Auth events win over an older read (for example while a callback or
+      // refresh completes), preserving the existing stale-bootstrap protection.
+      if (bootstrapGeneration !== authStateChangeGeneration.current) return;
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      setRestoreStatus('ready');
+    } catch (error) {
+      if (bootstrapGeneration !== authStateChangeGeneration.current) return;
+      setRestoreError(getSafeSessionStorageErrorCategory(error));
+      setRestoreStatus('failed');
+    }
+  }, []);
 
   // -------------------------------------------------------------------------
   // Session bootstrap
   // -------------------------------------------------------------------------
   useEffect(() => {
     let active = true;
-    // Auth events are authoritative once observed.  getSession() can resolve
-    // after an event (for example, while an OAuth callback is being finalized),
-    // so keep a local generation to prevent that stale bootstrap result from
-    // overwriting the newer session.
-    let authStateChangeGeneration = 0;
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      if (authStateChangeGeneration > 0) {
-        setIsLoading(false);
-        return;
-      }
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setIsLoading(false);
-    }).catch(() => {
-      if (active) setIsLoading(false);
-    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, newSession: Session | null) => {
-        authStateChangeGeneration += 1;
+        if (!active) return;
+        authStateChangeGeneration.current += 1;
         const nextUserId = newSession?.user?.id ?? null;
         if (
           event === 'SIGNED_OUT'
@@ -124,15 +148,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         activeUserId.current = nextUserId;
         setSession(newSession);
         setUser(newSession?.user ?? null);
-        setIsLoading(false);
+        // A null INITIAL_SESSION callback has no error channel. Only our
+        // explicit getSession read may decide that null means guest; otherwise
+        // a SecureStore failure could again be misrepresented as signed out.
+        if (newSession || event === 'SIGNED_OUT') {
+          setRestoreError(null);
+          setRestoreStatus('ready');
+        }
 
         if (event === 'PASSWORD_RECOVERY') {
           setIsPasswordRecovery(true);
         } else if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
           setIsPasswordRecovery(false);
         }
+        if (event === 'SIGNED_OUT') {
+          setPostAuthIntent('none');
+        }
       },
     );
+
+    void retrySessionRestore();
 
     return () => {
       active = false;
@@ -149,22 +184,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: { code: 'unknown', message: 'A sign-in is already in progress.' } };
     }
     signingIn.current = true;
+    setPostAuthIntent('pending');
     try {
-      return await doGoogleSignIn();
+      const result = await doGoogleSignIn();
+      setPostAuthIntent(result.success ? (result.callbackIntent ?? 'ordinary') : 'none');
+      return result;
     } finally {
       signingIn.current = false;
     }
   }, []);
 
-  const signInWithEmail = useCallback(
-    (email: string, password: string) => doEmailSignIn(email, password),
-    [],
-  );
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    const result = await doEmailSignIn(email, password);
+    if (result.success) setPostAuthIntent('ordinary');
+    return result;
+  }, []);
 
-  const signUpWithEmail = useCallback(
-    (email: string, password: string) => doEmailSignUp(email, password),
-    [],
-  );
+  const signUpWithEmail = useCallback(async (email: string, password: string) => {
+    const result = await doEmailSignUp(email, password);
+    if (result.success) setPostAuthIntent('ordinary');
+    return result;
+  }, []);
 
   const sendPasswordReset = useCallback(
     (email: string) => doPasswordReset(email),
@@ -174,9 +214,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updatePassword = useCallback(
     (newPassword: string) => {
       const result = doUpdatePassword(newPassword);
-      // Clear recovery state after the password is updated
+      // Root navigation owns the successful recovery completion as well.
       void result.then(
-        ({ error }) => { if (!error) setIsPasswordRecovery(false); },
+        ({ error }) => {
+          if (!error) {
+            setIsPasswordRecovery(false);
+            setPostAuthIntent('ordinary');
+          }
+        },
         () => undefined,
       );
       return result;
@@ -190,6 +235,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOutAction = useCallback(async () => doSignOut(), []);
+  const beginAuthCallback = useCallback(() => setPostAuthIntent('pending'), []);
+  const completeAuthCallback = useCallback((result: AuthResult) => {
+    setPostAuthIntent(result.success ? (result.callbackIntent ?? 'ordinary') : 'none');
+  }, []);
 
   // -------------------------------------------------------------------------
   // Value
@@ -199,7 +248,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       session,
       user,
-      isLoading,
+      isLoading: restoreStatus === 'loading',
+      restoreStatus,
+      restoreError,
+      postAuthIntent,
       isPasswordRecovery,
       signInWithGoogle,
       signInWithEmail,
@@ -208,11 +260,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       updatePassword,
       resendVerificationEmail,
       signOut: signOutAction,
+      retrySessionRestore,
+      beginAuthCallback,
+      completeAuthCallback,
     }),
     [
-      session, user, isLoading, isPasswordRecovery,
+      session, user, restoreStatus, restoreError, postAuthIntent, isPasswordRecovery,
       signInWithGoogle, signInWithEmail, signUpWithEmail,
       sendPasswordReset, updatePassword, resendVerificationEmail, signOutAction,
+      retrySessionRestore, beginAuthCallback, completeAuthCallback,
     ],
   );
 

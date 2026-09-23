@@ -283,12 +283,13 @@ describe('buildAcceptResult — review approval', () => {
     expect(log.serving).toBe('100 g');
   });
 
-  it('log.serving defaults to "1 serving" when all components are excluded', () => {
+  it('rejects approval when all components are excluded', () => {
     const draft = makeDraft({
       components: [makeComponent({ included: false })],
     });
-    const { log } = buildAcceptResult(draft, nextId('log'), LATER);
-    expect(log.serving).toBe('1 serving');
+    expect(() => buildAcceptResult(draft, nextId('log'), LATER)).toThrow(
+      'Include at least one food before adding this meal to your diary.',
+    );
   });
 
   it('maps verified_barcode provenance to "Barcode verified" on the log', () => {
@@ -551,6 +552,8 @@ describe('no silent diary insertion', () => {
   it('captureAnalysisToDraft creates a draft with status="draft", not a log', () => {
     const analysis = {
       sessionId: 'sess-1',
+      clientCorrelationId: 'sess-1',
+      captureSessionId: null,
       mode: 'text' as const,
       status: 'review' as const,
       title: 'Oatmeal',
@@ -669,21 +672,22 @@ describe('accessibility labels — static invariants', () => {
     expect(scanSource).toContain('requestPermission()');
     expect(scanSource).toContain('onBarcodeScanned={');
     expect(scanSource).toContain('barcodeLockRef.current = { barcode, sequence };');
-    expect(scanSource).toContain('void analyze({ mode, barcode }, sequence);');
+    expect(scanSource).toContain('void submitAnalysis({ mode, barcode }, undefined, sequence);');
   });
 
   it('pauses barcode scanning while the camera is recording video', () => {
-    expect(scanSource).toContain("cameraMode === 'video' || mode === 'food' || mode === 'label' || hasScanned || barcodeLockRef.current ? undefined : onBarcodeScanned");
+    expect(scanSource).toContain("cameraMode === 'video' || mode === 'food' || mode === 'label' || hasScanned || barcodeLockRef.current || !cameraReady ? undefined : onBarcodeScanned");
   });
 
   it('recovers cleanly when native photo capture throws', () => {
     expect(scanSource).toMatch(/try \{\s*const photo = await cameraRef\.current\.takePictureAsync/);
-    expect(scanSource).toMatch(/catch \(error\) \{[\s\S]*setHasScanned\(false\);[\s\S]*Photo unavailable/);
+    expect(scanSource).toMatch(/catch \(error\) \{[\s\S]*failCaptureOperation\(operationId, error\);/);
+    expect(scanSource).toContain("error.name = 'CaptureCameraError'");
   });
 
   it('recovers cleanly when the image library fails and preserves explicit capture intent', () => {
     expect(scanSource).toMatch(/const choosePhoto = async \(requestedMode\?: 'receipt' \| 'food' \| 'nutrition_label'\)/);
-    expect(scanSource).toMatch(/catch \(error\) \{[\s\S]*setHasScanned\(false\);[\s\S]*could not open that image/);
+    expect(scanSource).toMatch(/const choosePhoto = async[\s\S]*catch \(error\) \{[\s\S]*failCaptureOperation\(operationId, error\);/);
     expect(scanSource).toContain("void choosePhoto('receipt')");
   });
 

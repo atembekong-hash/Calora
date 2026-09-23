@@ -30,6 +30,17 @@ afterEach(async () => {
 });
 
 describe.skipIf(!HAS_DB)("Coach Fact Context consent ledger (real schema)", () => {
+  it("does not create an internal user row when an unknown account only reads consent status", async () => {
+    const account = externalId("read-only");
+
+    expect((await getCoachFactConsent(account, "read-only@example.com")).state).toBe("not_consented");
+    expect(await hasCurrentCoachFactConsent(account, "read-only@example.com")).toBe(false);
+
+    const rows = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(eq(usersTable.externalId, account));
+    expect(rows).toEqual([]);
+  });
+
   it("keeps consent isolated by account and removes it with account-owned data", async () => {
     const accountA = externalId("a");
     const accountB = externalId("b");

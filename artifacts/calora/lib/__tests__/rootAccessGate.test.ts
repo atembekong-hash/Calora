@@ -90,10 +90,10 @@ describe('barcode duplicate-capture contract', () => {
     const { resolve } = await import('node:path');
     const source = await readFile(resolve(__dirname, '../../app/(tabs)/scan.tsx'), 'utf8');
 
-    expect(source).toContain('if (barcodeLockRef.current || hasScanned || analyzeCapture.isPending');
+    expect(source).toContain('if (barcodeLockRef.current || hasScanned || captureBusy');
     expect(source).toContain('barcodeLockRef.current = { barcode, sequence };');
-    expect(source).toContain('setHasScanned(true);\n    void analyze({ mode, barcode }, sequence);');
+    expect(source).toContain('setHasScanned(true);\n    void submitAnalysis({ mode, barcode }, undefined, sequence);');
     expect(source).toContain("barcodeLockRef.current?.sequence !== barcodeSequence");
-    expect(source).toContain('onBarcodeScanned={cameraMode === \'video\' || mode === \'food\' || mode === \'label\' || hasScanned || barcodeLockRef.current ? undefined : onBarcodeScanned}');
+    expect(source).toContain("onBarcodeScanned={cameraMode === 'video' || mode === 'food' || mode === 'label' || hasScanned || barcodeLockRef.current || !cameraReady ? undefined : onBarcodeScanned}");
   });
 });

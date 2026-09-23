@@ -85,6 +85,60 @@ describe('Auth Logic Verification', () => {
     expect(fromRouter).toEqual(fromBrowser);
   });
 
+  it('returns explicit recovery intent from an exact trusted callback without listener timing', async () => {
+    mockExchange.mockResolvedValue({ data: { session: { user: { id: 'recovering-user' } } }, error: null });
+
+    const result = await handleOAuthCallbackUrl(
+      'https://mycaloraapp.com/auth/callback?code=recovery-code&type=recovery',
+    );
+
+    expect(result).toMatchObject({ success: true, callbackIntent: 'recovery' });
+  });
+
+  it('coalesces duplicate recovery callback delivery into the same explicit intent', async () => {
+    let resolveExchange!: (value: unknown) => void;
+    mockExchange.mockReturnValue(new Promise((resolve) => {
+      resolveExchange = resolve;
+    }));
+
+    const browserResult = handleOAuthCallbackUrl(
+      'https://mycaloraapp.com/auth/callback?code=shared-recovery-code&type=recovery',
+    );
+    const routerResult = handleOAuthCallbackUrl(
+      'https://mycaloraapp.com/auth/callback?code=shared-recovery-code&type=recovery&source=router',
+    );
+
+    await vi.waitFor(() => expect(mockExchange).toHaveBeenCalledTimes(1));
+    resolveExchange({ data: { session: { user: { id: 'recovering-user' } } }, error: null });
+
+    await expect(Promise.all([browserResult, routerResult])).resolves.toEqual([
+      expect.objectContaining({ success: true, callbackIntent: 'recovery' }),
+      expect.objectContaining({ success: true, callbackIntent: 'recovery' }),
+    ]);
+  });
+
+  it('does not let mixed duplicate delivery race recovery to Home', async () => {
+    let resolveExchange!: (value: unknown) => void;
+    mockExchange.mockReturnValue(new Promise((resolve) => {
+      resolveExchange = resolve;
+    }));
+
+    const browserResult = handleOAuthCallbackUrl(
+      'https://mycaloraapp.com/auth/callback?code=mixed-intent-code',
+    );
+    const routerResult = handleOAuthCallbackUrl(
+      'https://mycaloraapp.com/auth/callback?code=mixed-intent-code&type=recovery',
+    );
+
+    await vi.waitFor(() => expect(mockExchange).toHaveBeenCalledTimes(1));
+    resolveExchange({ data: { session: { user: { id: 'recovering-user' } } }, error: null });
+
+    await expect(Promise.all([browserResult, routerResult])).resolves.toEqual([
+      expect.objectContaining({ success: true, callbackIntent: 'recovery' }),
+      expect.objectContaining({ success: true, callbackIntent: 'recovery' }),
+    ]);
+  });
+
   it('reuses a settled PKCE result for a duplicate callback within the safety window', async () => {
     const session = { user: { id: 'qa-user' } };
     mockExchange.mockResolvedValue({ data: { session }, error: null });

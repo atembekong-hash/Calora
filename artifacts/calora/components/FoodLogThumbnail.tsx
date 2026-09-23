@@ -49,12 +49,12 @@ export function FoodLogThumbnail({
   }, [fallback, remoteFailed, resolution]);
 
   const visibleDisclosure = remoteFailed
-    ? 'Image unavailable'
-    : resolution.state === 'representative' || resolution.state === 'fallback' || resolution.state === 'unverified'
+    ? undefined
+    : resolution.state === 'representative' || resolution.state === 'unverified'
       ? resolution.visibleDisclosure
       : undefined;
   const accessibilityLabel = remoteFailed
-    ? `${log.name} image unavailable; ${resolution.category} fallback image`
+    ? `${log.name}, representative Calora ${resolution.category} meal illustration`
     : resolution.accessibilityLabel;
 
   // Hooks run before this branch so a recycled row can safely change between a

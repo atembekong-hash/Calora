@@ -160,6 +160,17 @@ describe("POST /v1/planner/generate", () => {
     expect(openai.chat.completions.create).not.toHaveBeenCalled();
   });
 
+  it("returns a controlled 400 for an unknown Program without calling the model", async () => {
+    const response = await request(app).post("/v1/planner/generate").send({
+      ...validBody(),
+      planType: "not-a-real-program",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toMatch(/invalid enum value|unknown planner program/i);
+    expect(openai.chat.completions.create).not.toHaveBeenCalled();
+  });
+
   it("filters model selections and fallback meals to Plant-Based Week", async () => {
     const days = Array.from({ length: 7 }, () => ({
       breakfast: "avo-toast-egg",

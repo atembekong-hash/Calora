@@ -15,9 +15,24 @@ const metricFor = (recordType: string): HealthMetric | null => ({
   Weight: 'bodyWeight',
 }[recordType] as HealthMetric | undefined) ?? null;
 
-export function healthConnectActiveEnergyKcal(result: unknown): number {
-  const value = (result as { ACTIVE_CALORIES_TOTAL?: { inKilocalories?: unknown } } | null | undefined)
-    ?.ACTIVE_CALORIES_TOTAL?.inKilocalories;
+/**
+ * Health Connect's native bridge serializes a missing aggregate metric as 0.
+ * `dataOrigins` remains the provider evidence for whether an active-calorie
+ * record contributed to that aggregate. Do not infer absence from zero: a
+ * contributing source can legitimately measure zero active calories.
+ */
+export function healthConnectActiveEnergyKcal(result: unknown): number | null {
+  const aggregate = result as {
+    dataOrigins?: unknown;
+    ACTIVE_CALORIES_TOTAL?: { inKilocalories?: unknown };
+  } | null | undefined;
+  const origins = aggregate?.dataOrigins;
+  if (!Array.isArray(origins) || !origins.every((origin) => typeof origin === 'string')) {
+    throw new Error('Health Connect returned invalid active calorie evidence.');
+  }
+  if (origins.length === 0) return null;
+
+  const value = aggregate?.ACTIVE_CALORIES_TOTAL?.inKilocalories;
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
     throw new Error('Health Connect returned an invalid active calorie total.');
   }
@@ -56,6 +71,13 @@ export const healthConnectDayRange = (now = new Date()) => {
 
 export const healthService: HealthService = {
   getConnection: permissions,
+  async openSettings() {
+    const hc = await native();
+    if (typeof hc.openHealthConnectSettings !== 'function') {
+      throw new Error('Health Connect settings are unavailable on this device.');
+    }
+    hc.openHealthConnectSettings();
+  },
   async requestConnection() {
     const hc = await native();
     if (!await hc.initialize()) return { provider: 'health-connect', authorization: 'unavailable', granted: [] };

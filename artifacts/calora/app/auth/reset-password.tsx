@@ -8,7 +8,7 @@
  *   4. AuthContext sets isPasswordRecovery = true
  *   5. callback.tsx routes here instead of to /(tabs)
  *
- * On success: signs in (session is already active) and navigates to /(tabs).
+ * On success: the root post-auth coordinator replaces recovery with Home.
  * If the session has expired: shows an error and links back to forgot-password.
  */
 
@@ -61,11 +61,8 @@ export default function ResetPasswordScreen() {
         return;
       }
       setSuccess(true);
-      // Brief pause to show success message, then navigate to main app
-      setTimeout(() => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.replace('/(tabs)' as any);
-      }, 1600);
+      // updatePassword clears recovery intent in AuthProvider. RootLayoutNav
+      // then prunes this auth stack and replaces it with Home.
     } finally {
       setLoading(false);
     }

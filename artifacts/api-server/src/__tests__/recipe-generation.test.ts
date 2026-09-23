@@ -3,13 +3,14 @@ import request from "supertest";
 
 const {
   mockOpenAiCreate, mockOpenAiImageGenerate, verifyBearerToken, checkRateLimit,
-  photoLockQuery, assertAccountWritable,
+  photoLockQuery, photoMediaQuery, assertAccountWritable,
 } = vi.hoisted(() => ({
   mockOpenAiCreate: vi.fn(),
   mockOpenAiImageGenerate: vi.fn(),
   verifyBearerToken: vi.fn(),
   checkRateLimit: vi.fn(),
   photoLockQuery: vi.fn().mockResolvedValue({ rows: [] }),
+  photoMediaQuery: vi.fn(),
   assertAccountWritable: vi.fn().mockResolvedValue(undefined),
 }));
 const loggerWarn = vi.hoisted(() => vi.fn());
@@ -20,7 +21,10 @@ vi.mock("@workspace/integrations-openai-ai-server", () => ({
 
 vi.mock("@workspace/db", () => ({
   db: { select: vi.fn(), insert: vi.fn() },
-  pool: { connect: vi.fn(async () => ({ query: photoLockQuery, release: vi.fn() })) },
+  pool: {
+    connect: vi.fn(async () => ({ query: photoLockQuery, release: vi.fn() })),
+    query: (...args: unknown[]) => photoMediaQuery(...args),
+  },
   recipeNutritionTable: { mealId: "meal_id" },
 }));
 
@@ -72,6 +76,43 @@ describe("AI recipe creation endpoints", () => {
     verifyBearerToken.mockResolvedValue(USER);
     checkRateLimit.mockResolvedValue({ allowed: true, retryAfterSecs: 0 });
     photoLockQuery.mockResolvedValue({ rows: [] });
+    photoMediaQuery.mockImplementation(async (query: unknown) => {
+      const sql = String(query);
+      const status = sql.includes("status = 'stored'")
+        ? "stored"
+        : sql.includes("status = 'url_ready'")
+          ? "url_ready"
+          : "generating";
+      if (sql.includes("status = 'superseded'") || sql.includes("status = 'retryable_error'")) return { rows: [] };
+      return {
+        rows: [{
+          id: "11111111-1111-4111-8111-111111111111",
+          owner_external_id: USER.id,
+          client_recipe_id: "legacy-test-recipe",
+          content_hash: "a".repeat(64),
+          recipe_payload: {
+            clientRecipeId: "legacy-test-recipe",
+            title: "Lemony lentil bowl",
+            description: "A bright, hearty dinner.",
+            ingredients: ["A bright, hearty dinner."],
+            instructions: ["Prepare and plate the saved recipe consistently with its title and description."],
+            dietaryContext: [],
+          },
+          image_id: "22222222-2222-4222-8222-222222222222",
+          object_key: `private/recipe-photos/${USER.id}/22222222-2222-4222-8222-222222222222.png`,
+          model_version: "gpt-image-1:low:1024:v1",
+          prompt_version: "recipe-photo-semantic-v2",
+          status,
+          semantic_review_state: "needs_review",
+          attempts: 1,
+          last_error_code: null,
+          last_attempt_at: new Date("2026-09-23T00:00:00.000Z"),
+          url_last_issued_at: null,
+          created_at: new Date("2026-09-23T00:00:00.000Z"),
+          updated_at: new Date("2026-09-23T00:00:00.000Z"),
+        }],
+      };
+    });
     assertAccountWritable.mockResolvedValue(undefined);
     // The production route must keep requiring object storage configuration.
     // Provide deterministic S3 settings so the private-photo flow stays local.

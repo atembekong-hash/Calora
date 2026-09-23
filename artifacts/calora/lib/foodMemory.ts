@@ -145,6 +145,11 @@ export function nutritionForComponents(components: FoodMemoryComponent[], captur
   return { ...total, capturedAt };
 }
 
+/** A reviewed capture must contain at least one user-included component. */
+export function includedComponentCount(components: FoodMemoryComponent[]): number {
+  return components.reduce((count, component) => count + (component.included ? 1 : 0), 0);
+}
+
 export function confidenceForComponents(components: FoodMemoryComponent[]): { confidence: number; dimensions: ConfidenceDimensions } {
   const included = components.filter((component) => component.included);
   if (!included.length) return { confidence: 0, dimensions: { identity: 0, portion: 0, nutritionSource: 0, preparation: 0 } };
@@ -205,7 +210,8 @@ function captureImageRetention(inputType: FoodMemoryInputType): ImageRetentionSt
 }
 
 export function captureAnalysisToDraft(
-  analysis: CaptureAnalysis,
+  analysis: Pick<CaptureAnalysis, 'sessionId' | 'mode' | 'status' | 'title' | 'reviewMessage' | 'provider' | 'candidates'>
+    & Partial<Pick<CaptureAnalysis, 'components' | 'assumptions' | 'reviewQuestions' | 'captureSessionId'>>,
   date: string,
   meal: FoodMemoryDraft['meal'],
   now = new Date().toISOString(),
@@ -231,12 +237,13 @@ export function captureAnalysisToDraft(
   const nutrition = nutritionForComponents(components, now);
   const confidence = confidenceForComponents(components);
   const provenance = components[0]?.provenance ?? 'photo_estimate';
-  // Only a server-issued session id (UUID) marks capture provenance; local
-  // fallback/client session ids never qualify a referral.
+  // The API explicitly distinguishes the server-persisted session from its
+  // client correlation id. Never infer provenance from a UUID-shaped generic
+  // sessionId: persistence may have failed after analysis completed.
   const captureSessionId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    analysis.sessionId,
+    analysis.captureSessionId ?? '',
   )
-    ? analysis.sessionId
+    ? analysis.captureSessionId ?? undefined
     : undefined;
   return {
     id: `memory-draft-${analysis.sessionId}`,
@@ -487,8 +494,9 @@ export function migrateFoodMemories(saved: Partial<{
 }
 
 export function plannerMealToDraft(
-  meal: { id: string; name: string; calories: number; proteinG: number; carbsG: number; fatG: number; meal: FoodMemoryDraft['meal']; day: string; image?: string | null; imageAssetKey?: string | null; recipeId?: string; recipeSource?: string },
+  meal: { id: string; name: string; calories: number; proteinG: number; carbsG: number; fatG: number; meal: FoodMemoryDraft['meal']; day: string; image?: string | null; imageAssetKey?: string | null; recipeId?: string; recipeSource?: string; generatedMediaId?: string; generatedImageId?: string; generatedImageUrlExpiresAt?: string; generatedImageReviewState?: 'needs_review' | 'accepted' | 'rejected' },
   now = new Date().toISOString(),
+  accountScope?: string | null,
 ): FoodMemoryDraft {
   const inputType: FoodMemoryInputType = 'planner';
   const provenance: FoodMemoryProvenance = 'planner_estimate';
@@ -500,7 +508,11 @@ export function plannerMealToDraft(
     imageAssetKey: meal.imageAssetKey ?? undefined,
     recipeId: meal.recipeId,
     recipeSource: meal.recipeSource,
-  });
+    generatedMediaId: meal.generatedMediaId,
+    generatedImageId: meal.generatedImageId,
+    generatedImageUrlExpiresAt: meal.generatedImageUrlExpiresAt,
+    generatedImageReviewState: meal.generatedImageReviewState,
+  }, accountScope);
   const imageUrl = imageDecision.remoteImageUrl;
   const imageEvidence = imageDecision.canonicalImageKey
     ? normalizeFoodImageEvidence({
@@ -511,6 +523,19 @@ export function plannerMealToDraft(
         assetKey: imageDecision.canonicalImageKey,
         rightsReviewState: 'approved',
       })
+    : imageDecision.generated && imageUrl && meal.generatedMediaId && meal.generatedImageId
+      ? normalizeFoodImageEvidence({
+          version: 1,
+          semanticRole: 'generated',
+          contentId: `recipe:${meal.recipeId ?? meal.id}`,
+          source: 'calora-recipe-generation',
+          providerItemId: meal.generatedMediaId,
+          imageId: meal.generatedImageId,
+          accountScope,
+          locator: imageUrl,
+          expiresAt: meal.generatedImageUrlExpiresAt,
+          rightsReviewState: 'approved',
+        })
     : undefined;
   const component: FoodMemoryComponent = {
     id: `${meal.id}-component`,
@@ -554,7 +579,7 @@ export function plannerMealToDraft(
     plannerMealId: meal.id,
     imageAssetKey: imageDecision.canonicalImageKey,
     imageUrl,
-    imageSource: imageUrl ? 'planner' : undefined,
+    imageSource: imageUrl ? (imageDecision.generated ? 'generated' : 'planner') : undefined,
     imageEvidence,
   };
 }

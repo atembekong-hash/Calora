@@ -31,7 +31,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { copyProfilePhoto, deleteProfilePhoto, verifyProfilePhotoExists } from '../profilePhotoStorage';
+import { copyProfilePhoto, deleteProfilePhoto, isManagedProfilePhotoUri, verifyProfilePhotoExists } from '../profilePhotoStorage';
 import type { FileSystemAdapter } from '../profilePhotoStorage';
 
 // ---------------------------------------------------------------------------
@@ -128,25 +128,42 @@ describe('copyProfilePhoto — happy path', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('dest is documentDirectory + canonical filename', async () => {
+  it('dest is an immutable revisioned file in the document directory', async () => {
     const fs = makeFs({ documentDirectory: '/data/user/0/com.calora/files/' });
-    const result = await copyProfilePhoto(SOURCE_URI, fs);
+    const result = await copyProfilePhoto(SOURCE_URI, fs, null, 'revision-a');
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.dest).toBe('/data/user/0/com.calora/files/calora-profile-photo.jpg');
+      expect(result.dest).toBe('/data/user/0/com.calora/files/calora-profile-photo-revision-a.jpg');
+      expect(result.revision).toBe('revision-a');
     }
   });
 
   it('copyAsync receives the source URI and the constructed dest path', async () => {
     const dir = '/var/mobile/Containers/Data/Application/ABCD/Documents/';
     const fs = makeFs({ documentDirectory: dir });
-    await copyProfilePhoto(SOURCE_URI, fs);
+    await copyProfilePhoto(SOURCE_URI, fs, 'account-a', 'revision-b');
 
     expect(fs.copyAsync).toHaveBeenCalledOnce();
     expect(fs.copyAsync).toHaveBeenCalledWith({
       from: SOURCE_URI,
-      to: `${dir}calora-profile-photo.jpg`,
+      to: `${dir}calora-profile-photo-account-a-revision-b.jpg`,
+    });
+  });
+
+  it('creates a different cache identity for consecutive successful replacements', async () => {
+    const fs = makeFs();
+    const first = await copyProfilePhoto(SOURCE_URI, fs, 'account-a', 'revision-1');
+    const second = await copyProfilePhoto(SOURCE_URI, fs, 'account-a', 'revision-2');
+
+    expect(first.ok && first.dest).not.toBe(second.ok && second.dest);
+    expect(fs.copyAsync).toHaveBeenNthCalledWith(1, {
+      from: SOURCE_URI,
+      to: '/data/user/0/com.calora/files/calora-profile-photo-account-a-revision-1.jpg',
+    });
+    expect(fs.copyAsync).toHaveBeenNthCalledWith(2, {
+      from: SOURCE_URI,
+      to: '/data/user/0/com.calora/files/calora-profile-photo-account-a-revision-2.jpg',
     });
   });
 
@@ -259,6 +276,42 @@ describe('deleteProfilePhoto — happy path', () => {
 
     const [, opts] = (fs.deleteAsync as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(opts).toEqual({ idempotent: true });
+  });
+
+  it('deletes a specific managed revision but rejects an arbitrary local file', async () => {
+    const fs = makeFs();
+    const managed = '/data/user/0/com.calora/files/calora-profile-photo-account-a-revision-2.jpg';
+
+    await expect(deleteProfilePhoto(fs, 'account-a', managed)).resolves.toEqual({
+      ok: true,
+      deleted: [managed],
+    });
+    await expect(deleteProfilePhoto(fs, 'account-a', '/data/user/0/com.calora/files/private.db')).resolves.toEqual({
+      ok: false,
+      reason: 'invalid-path',
+    });
+    expect(isManagedProfilePhotoUri(managed, fs, 'account-a')).toBe(true);
+  });
+
+  it('enumerates and removes all account revisions during sign-out cleanup', async () => {
+    const fs = makeFs({
+      readDirectoryAsync: vi.fn().mockResolvedValue([
+        'calora-profile-photo-account-a-revision-1.jpg',
+        'calora-profile-photo-account-a-revision-2.jpg',
+        'calora-profile-photo-account-b-revision-1.jpg',
+      ]),
+    });
+
+    const result = await deleteProfilePhoto(fs, 'account-a');
+
+    expect(result).toEqual({
+      ok: true,
+      deleted: [
+        '/data/user/0/com.calora/files/calora-profile-photo-account-a-revision-1.jpg',
+        '/data/user/0/com.calora/files/calora-profile-photo-account-a-revision-2.jpg',
+      ],
+    });
+    expect(fs.deleteAsync).toHaveBeenCalledTimes(2);
   });
 });
 

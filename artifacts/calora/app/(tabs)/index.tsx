@@ -98,6 +98,7 @@ import {
   selectVisibleTodayInsight,
 } from '@/lib/intelligence';
 import { burnedStatusForDay } from '@/lib/health/burnedStatus';
+import { burnedPresentationForStatus } from '@/lib/health/burnedPresentation';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -412,12 +413,16 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
   const carouselRef = React.useRef<FlatList<Recipe>>(null);
   const autoScrollFrameRef = React.useRef<number | null>(null);
   const [activeRecipe, setActiveRecipe] = useState(0);
+  const [carouselInteractionActive, setCarouselInteractionActive] = useState(false);
   const pageWidth = 322;
-  const snapToRecipe = (nextIndex: number) => {
+  const stopCarouselAnimation = () => {
     if (autoScrollFrameRef.current !== null) {
       cancelAnimationFrame(autoScrollFrameRef.current);
       autoScrollFrameRef.current = null;
     }
+  };
+  const snapToRecipe = (nextIndex: number) => {
+    stopCarouselAnimation();
     const next = Math.max(0, Math.min(nextIndex, recipes.length - 1));
     setActiveRecipe(next);
     carouselRef.current?.scrollToIndex({ index: next, animated: true });
@@ -457,12 +462,12 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
     }
   }, []);
   useEffect(() => {
-    if (recipes.length <= 1) return;
+    if (recipes.length <= 1 || carouselInteractionActive) return;
     const timer = setTimeout(() => {
       smoothlyAdvanceToRecipe(activeRecipe >= recipes.length - 1 ? 0 : activeRecipe + 1);
     }, 5000);
     return () => clearTimeout(timer);
-  }, [activeRecipe, recipes.length]);
+  }, [activeRecipe, carouselInteractionActive, recipes.length]);
 
   if (isError || (!isLoading && recipes.length === 0)) return null;
 
@@ -495,9 +500,22 @@ function RecipeSwipeWidget({ colors, onOpen }: { colors: ReturnType<typeof useCa
           snapToAlignment="start"
           keyExtractor={(recipe) => recipe.id}
           getItemLayout={(_, index) => ({ length: pageWidth, offset: pageWidth * index, index })}
+          onScrollBeginDrag={() => {
+            stopCarouselAnimation();
+            setCarouselInteractionActive(true);
+          }}
+          onMomentumScrollBegin={() => setCarouselInteractionActive(true)}
           onMomentumScrollEnd={(event) => {
             const next = Math.max(0, Math.min(Math.round(event.nativeEvent.contentOffset.x / pageWidth), recipes.length - 1));
             setActiveRecipe(next);
+            setCarouselInteractionActive(false);
+          }}
+          onScrollEndDrag={(event) => {
+            if (Math.abs(event.nativeEvent.velocity?.x ?? 0) < 0.05) {
+              const next = Math.max(0, Math.min(Math.round(event.nativeEvent.contentOffset.x / pageWidth), recipes.length - 1));
+              setActiveRecipe(next);
+              setCarouselInteractionActive(false);
+            }
           }}
           renderItem={({ item: recipe }) => (
             <View style={[styles.recipeWidgetCard, { backgroundColor: colors.hero }]}>
@@ -1227,13 +1245,14 @@ function CalorieGauge({
           accessibilityLabel={burnedActionLabel ?? `Burned ${burned?.toLocaleString() ?? 'unavailable'} calories`}
           disabled={!onBurnedPress}
           onPress={onBurnedPress}
+          testID="dashboard-burned-stat"
           style={gaugeStyles.statItem}
         >
-          <Text style={[gaugeStyles.statNumber, { color: colors.foreground }]}>
+          <Text testID="dashboard-burned-value" style={[gaugeStyles.statNumber, { color: colors.foreground }]}>
             {burned === null ? '—' : burned.toLocaleString()}
           </Text>
           <Text style={[gaugeStyles.statLabel, { color: colors.mutedForeground }]}>Burned</Text>
-          {burnedActionLabel ? <Text style={[gaugeStyles.burnedAction, { color: colors.primary }]} numberOfLines={1}>{burnedActionLabel}</Text> : null}
+          {burnedActionLabel ? <Text testID="dashboard-burned-status" style={[gaugeStyles.burnedAction, { color: colors.primary }]} numberOfLines={1}>{burnedActionLabel}</Text> : null}
         </Pressable>
       </View>
     </View>
@@ -1311,6 +1330,7 @@ export default function HomeScreen() {
   const mealsLogged = new Set(selectedLogs.map((log) => log.meal)).size;
   const mealNames = Array.from(new Set(selectedLogs.map((log) => log.meal)));
   const burnedStatus = burnedStatusForDay({ isToday: isToday(selectedDate), connection: healthConnection, now: new Date() });
+  const burnedPresentation = burnedPresentationForStatus(burnedStatus);
   const activeEnergy = burnedStatus.kind === 'ready' ? burnedStatus.calories : 0;
   const remaining = Math.max(target - selectedTotals.calories + activeEnergy, 0);
   const progress = Math.min(selectedTotals.calories / (target + activeEnergy), 1);
@@ -1549,9 +1569,9 @@ export default function HomeScreen() {
           {/* Dominant calorie gauge */}
           <CalorieGauge
             consumed={selectedTotals.calories}
-            burned={burnedStatus.kind === 'ready' ? burnedStatus.calories : null}
-            burnedActionLabel={burnedStatus.kind === 'ready' ? undefined : burnedStatus.actionLabel}
-            onBurnedPress={burnedStatus.kind === 'connect' || burnedStatus.kind === 'permission' || burnedStatus.kind === 'failed' || burnedStatus.kind === 'syncing'
+            burned={burnedPresentation.calories}
+            burnedActionLabel={burnedPresentation.statusLabel}
+            onBurnedPress={burnedPresentation.canOpenHealthRecovery
               ? () => router.push('/profile?tab=account&open=health')
               : undefined}
             target={target}

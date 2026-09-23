@@ -90,11 +90,9 @@ const fatSecretTransportEnabled = configuredFatSecretGatewayUrl ? fatSecretGatew
 const fatSecretApi = "https://platform.fatsecret.com/rest";
 const fatSecretTokenUrl = "https://oauth.fatsecret.com/connect/token";
 const PROVIDER_TIMEOUT_MS = Number(process.env.PREMIUM_RECIPE_PROVIDER_TIMEOUT_MS ?? 8_000);
-const accessMode = process.env.PREMIUM_RECIPE_ACCESS_MODE?.trim() || "allow";
 let fatSecretToken: { value: string; expiresAt: number } | null = null;
 
 export function premiumProviderStatus() {
-  if (accessMode === "deny") return { status: "restricted" as const, provider: providerName, message: "Premium recipes are not available for this account." };
   return configuredUrl || fatSecretTransportEnabled
     ? { status: "available" as const, provider: fatSecretTransportEnabled ? "FatSecret" : providerName, message: null }
     : { status: "unavailable" as const, provider: providerName, message: "A Premium recipe provider is not connected yet." };

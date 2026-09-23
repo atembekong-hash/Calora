@@ -133,6 +133,8 @@ const TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
 export const CAPTURE_PROVIDER_TIMEOUT_MS = 15_000;
 const MAX_AUDIO_BYTES = 6 * 1024 * 1024;
 const CAPTURE_SESSION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MAX_CAPTURE_IMAGE_BYTES = 9 * 1024 * 1024;
+type CaptureImageMimeType = "image/jpeg" | "image/png";
 
 type Nutrition = {
   calories: number;
@@ -172,6 +174,33 @@ type CaptureComponent = CaptureCandidate & {
   nutritionRange: { caloriesLow: number; caloriesHigh: number };
   reviewQuestions: string[];
 };
+
+function captureResponseIds(
+  body: { clientCorrelationId?: string; clientSessionId?: string },
+  captureSessionId: string | null = null,
+) {
+  const clientCorrelationId = body.clientCorrelationId || body.clientSessionId || randomUUID();
+  // sessionId is retained for older clients only. It must never be mistaken for
+  // a server-issued capture session after a persistence failure.
+  return { sessionId: clientCorrelationId, clientCorrelationId, captureSessionId };
+}
+
+function detectedImageMimeType(bytes: Buffer): CaptureImageMimeType | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  return null;
+}
+
+function validateCaptureImage(imageBase64: string, declaredMimeType?: string): CaptureImageMimeType {
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(imageBase64) || imageBase64.length % 4 === 1) {
+    throw new Error("INVALID_CAPTURE_IMAGE");
+  }
+  const bytes = Buffer.from(imageBase64, "base64");
+  if (bytes.length === 0 || bytes.length > MAX_CAPTURE_IMAGE_BYTES) throw new Error("INVALID_CAPTURE_IMAGE");
+  const detected = detectedImageMimeType(bytes);
+  if (!detected || (declaredMimeType && declaredMimeType !== detected)) throw new Error("INVALID_CAPTURE_IMAGE");
+  return detected;
+}
 
 function numberOrZero(value: unknown) {
   const number = typeof value === "number" ? value : Number(value);
@@ -375,7 +404,7 @@ async function analyzeTextInput(textInput: string) {
   return parseVisionResponse(content);
 }
 
-async function analyzeNutritionLabel(imageBase64: string) {
+async function analyzeNutritionLabel(imageBase64: string, imageMimeType: CaptureImageMimeType) {
   const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
     model: VISION_MODEL,
     max_completion_tokens: 2048,
@@ -402,7 +431,7 @@ async function analyzeNutritionLabel(imageBase64: string) {
           },
           {
             type: "image_url",
-            image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: "high" },
+            image_url: { url: `data:${imageMimeType};base64,${imageBase64}`, detail: "high" },
           },
         ],
       },
@@ -413,7 +442,7 @@ async function analyzeNutritionLabel(imageBase64: string) {
   return parseVisionResponse(content);
 }
 
-async function analyzeFoodPhoto(imageBase64: string) {
+async function analyzeFoodPhoto(imageBase64: string, imageMimeType: CaptureImageMimeType) {
   const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
     model: VISION_MODEL,
     max_completion_tokens: 4096,
@@ -440,7 +469,7 @@ async function analyzeFoodPhoto(imageBase64: string) {
           },
           {
             type: "image_url",
-            image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: "high" },
+            image_url: { url: `data:${imageMimeType};base64,${imageBase64}`, detail: "high" },
           },
         ],
       },
@@ -451,7 +480,7 @@ async function analyzeFoodPhoto(imageBase64: string) {
   return parseVisionResponse(content);
 }
 
-async function analyzeReceipt(imageBase64: string) {
+async function analyzeReceipt(imageBase64: string, imageMimeType: CaptureImageMimeType) {
   const completion = await withAiProviderDeadline((signal) => openai.chat.completions.create({
     model: VISION_MODEL,
     max_completion_tokens: 4096,
@@ -472,7 +501,7 @@ async function analyzeReceipt(imageBase64: string) {
         role: "user",
         content: [
           { type: "text", text: "Extract food and drink items from this receipt into editable nutrition candidates. Exclude non-food lines rather than guessing." },
-          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: "high" } },
+          { type: "image_url", image_url: { url: `data:${imageMimeType};base64,${imageBase64}`, detail: "high" } },
         ],
       },
     ],
@@ -653,11 +682,21 @@ router.post("/v1/capture/analyze", async (req, res) => {
   const hasBarcode = barcode.length >= 8;
   const hasImage = Boolean(body.imageBase64);
   const hasText = Boolean(body.textInput?.trim());
+  let imageMimeType: CaptureImageMimeType | undefined;
+
+  if (body.imageBase64) {
+    try {
+      imageMimeType = validateCaptureImage(body.imageBase64, body.imageMimeType);
+    } catch {
+      res.status(400).json({ message: "The image bytes are invalid, unsupported, or do not match the declared format." });
+      return;
+    }
+  }
 
   if (body.mode === "voice") {
     if (!body.audioBase64) {
       res.json({
-        sessionId: body.clientSessionId || randomUUID(),
+        ...captureResponseIds(body),
         mode: "voice",
         status: "unavailable",
         title: "Record a meal description",
@@ -701,7 +740,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
       const result = await analyzeTextInput(body.textInput!.trim());
       const serverSessionId = await persistCaptureSession(verifiedUser, "text", result.candidates);
       res.json({
-        sessionId: serverSessionId || body.clientSessionId || randomUUID(),
+        ...captureResponseIds(body, serverSessionId),
         mode: "text",
         status: result.candidates.length ? "review" : "unavailable",
         title: result.title,
@@ -732,7 +771,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
       const transcript = await transcribeVoice(body.audioBase64, body.audioFormat);
       if (!transcript) {
         res.json({
-          sessionId: body.clientSessionId || randomUUID(),
+          ...captureResponseIds(body),
           mode: "voice",
           status: "unavailable",
           title: "We could not hear a meal description",
@@ -744,7 +783,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
         return;
       }
       res.json({
-        sessionId: body.clientSessionId || randomUUID(),
+        ...captureResponseIds(body),
         mode: "voice",
         status: "transcript",
         title: "Check what we heard",
@@ -758,10 +797,10 @@ router.post("/v1/capture/analyze", async (req, res) => {
     }
 
     if (body.mode === "receipt" && body.imageBase64) {
-      const result = await analyzeReceipt(body.imageBase64);
+      const result = await analyzeReceipt(body.imageBase64, imageMimeType!);
       const serverSessionId = await persistCaptureSession(verifiedUser, "receipt", result.candidates);
       res.json({
-        sessionId: serverSessionId || body.clientSessionId || randomUUID(),
+        ...captureResponseIds(body, serverSessionId),
         mode: "receipt",
         status: result.candidates.length ? "review" : "unavailable",
         title: result.title || "Receipt food review",
@@ -791,10 +830,10 @@ router.post("/v1/capture/analyze", async (req, res) => {
 
     // Nutrition label mode — extract structured values from a label image.
     if (body.mode === "nutrition_label" && body.imageBase64) {
-      const result = await analyzeNutritionLabel(body.imageBase64);
+      const result = await analyzeNutritionLabel(body.imageBase64, imageMimeType!);
       const serverSessionId = await persistCaptureSession(verifiedUser, "nutrition_label", result.candidates);
       res.json({
-        sessionId: serverSessionId || body.clientSessionId || randomUUID(),
+        ...captureResponseIds(body, serverSessionId),
         mode: "nutrition_label",
         status: result.candidates.length ? "review" : "unavailable",
         title: result.title,
@@ -824,7 +863,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
       if (result) {
         const serverSessionId = await persistCaptureSession(verifiedUser, "barcode", [result.candidate]);
         res.json({
-          sessionId: serverSessionId || body.clientSessionId || randomUUID(),
+          ...captureResponseIds(body, serverSessionId),
           mode: "barcode",
           status: "review",
           title: result.candidate.name,
@@ -840,7 +879,7 @@ router.post("/v1/capture/analyze", async (req, res) => {
       }
       if (body.mode === "barcode") {
         res.json({
-          sessionId: body.clientSessionId || randomUUID(),
+          ...captureResponseIds(body),
           mode: "barcode",
           status: "unavailable",
           title: "Barcode not found",
@@ -853,13 +892,13 @@ router.post("/v1/capture/analyze", async (req, res) => {
     }
 
     if (!body.imageBase64) {
-      res.status(502).json({ message: "No usable capture input remained" });
+      res.status(400).json({ message: "No usable capture input remained" });
       return;
     }
-    const result = await analyzeFoodPhoto(body.imageBase64);
+    const result = await analyzeFoodPhoto(body.imageBase64, imageMimeType!);
     const serverSessionId = await persistCaptureSession(verifiedUser, "food", result.candidates);
     res.json({
-      sessionId: serverSessionId || body.clientSessionId || randomUUID(),
+      ...captureResponseIds(body, serverSessionId),
       mode: "food",
       status: result.candidates.length ? "review" : "unavailable",
       title: result.title,
@@ -887,6 +926,14 @@ router.post("/v1/capture/analyze", async (req, res) => {
       return;
     }
     logger.error({ err: error }, "Capture provider request failed");
+    if (error instanceof Error && /deadline exceeded/i.test(error.message)) {
+      res.status(504).json({ message: "Capture analysis timed out. Please retry; your photo was not retained." });
+      return;
+    }
+    if (error instanceof SyntaxError) {
+      res.status(502).json({ message: "Capture provider returned an invalid analysis. Please retry." });
+      return;
+    }
     res.status(502).json({ message: "Capture provider unavailable. Please try again shortly." });
   }
 });

@@ -36,6 +36,8 @@ async function applySupportObjects(client: SupportObjectClient): Promise<void> {
         PERFORM calora_assert_deletion_writable(NEW.referred_user_id);
       ELSIF TG_TABLE_NAME = 'calora_referral_qualifications' THEN
         PERFORM calora_assert_deletion_writable(NEW.external_user_id);
+      ELSIF TG_TABLE_NAME = 'calora_recipe_media' THEN
+        PERFORM calora_assert_deletion_writable(NEW.owner_external_id);
       ELSIF TG_TABLE_NAME = 'calora_capture_rate_limits' THEN
         rate_limit_user_id := substring(NEW.key FROM '(?:^|:)user:(.+)$');
         IF rate_limit_user_id IS NOT NULL THEN
@@ -52,6 +54,7 @@ async function applySupportObjects(client: SupportObjectClient): Promise<void> {
     "calora_referral_codes",
     "calora_referral_redemptions",
     "calora_referral_qualifications",
+    "calora_recipe_media",
     "calora_capture_rate_limits",
   ];
   for (const table of fencedTables) {

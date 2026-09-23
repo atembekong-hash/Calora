@@ -1,7 +1,7 @@
 /**
  * Premium recipe responses remain displayable only while the most recent
- * entitlement-verifying request has succeeded and no replacement validation is
- * in flight. Cached/provider data is never itself proof of current access.
+ * authenticated account request has succeeded and no replacement validation is
+ * in flight. Cached/provider data is never itself proof of the active account.
  */
 export function hasCurrentPremiumAccess(input: {
   isSuccess: boolean;

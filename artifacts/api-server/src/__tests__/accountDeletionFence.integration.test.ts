@@ -43,6 +43,7 @@ if (DATABASE_REQUIRED && !HAS_DB) {
 }
 const EXPECTED_FENCED_TABLES = [
   "calora_capture_rate_limits",
+  "calora_recipe_media",
   "calora_referral_codes",
   "calora_referral_qualifications",
   "calora_referral_redemptions",
@@ -202,6 +203,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
     const referralCode = `DELFENCE${run.toUpperCase()}`;
     const qualificationSessionId = `deletion-fence-capture-${run}`;
     const rateLimitKey = `user:${externalUserId}`;
+    const recipeMediaId = randomUUID();
 
     async function expectDeletionFence(write: Promise<unknown>) {
       await expect(write).rejects.toMatchObject({
@@ -242,6 +244,13 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
         `INSERT INTO calora_capture_rate_limits (key, count, reset_at)
        VALUES ($1, 1, now() + interval '1 minute')`,
         [rateLimitKey],
+      );
+      await pool.query(
+        `INSERT INTO calora_recipe_media
+           (id, owner_external_id, client_recipe_id, content_hash, recipe_payload,
+            model_version, prompt_version)
+         VALUES ($1, $2, $3, $4, '{}'::jsonb, 'test-model', 'test-prompt')`,
+        [recipeMediaId, externalUserId, `recipe-${run}`, "a".repeat(64)],
       );
       await pool.query(
         `UPDATE calora_account_deletion_states
@@ -285,6 +294,15 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
           [rateLimitKey],
         ),
       );
+      await expectDeletionFence(
+        pool.query(
+          `INSERT INTO calora_recipe_media
+             (owner_external_id, client_recipe_id, content_hash, recipe_payload,
+              model_version, prompt_version)
+           VALUES ($1, $2, $3, '{}'::jsonb, 'test-model', 'test-prompt')`,
+          [externalUserId, `blocked-recipe-${run}`, "b".repeat(64)],
+        ),
+      );
 
       await expectDeletionFence(
         pool.query(
@@ -322,6 +340,14 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
           [rateLimitKey],
         ),
       );
+      await expectDeletionFence(
+        pool.query(
+          `UPDATE calora_recipe_media
+           SET attempts = attempts + 1
+           WHERE id = $1`,
+          [recipeMediaId],
+        ),
+      );
     });
 
     afterAll(async () => {
@@ -346,6 +372,10 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
         await cleanupClient.query(
           `DELETE FROM calora_capture_rate_limits WHERE key = $1`,
           [rateLimitKey],
+        );
+        await cleanupClient.query(
+          `DELETE FROM calora_recipe_media WHERE owner_external_id = $1`,
+          [externalUserId],
         );
         await cleanupClient.query(
           `DELETE FROM calora_users WHERE external_id = $1`,
@@ -393,6 +423,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
           referred_user_id text
         );
         CREATE TABLE calora_referral_qualifications (external_user_id text);
+        CREATE TABLE calora_recipe_media (owner_external_id text);
         CREATE TABLE calora_capture_rate_limits (key text);
       `);
 
@@ -471,6 +502,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
           referred_user_id text
         );
         CREATE TABLE calora_referral_qualifications (external_user_id text);
+        CREATE TABLE calora_recipe_media (owner_external_id text);
         CREATE TABLE calora_capture_rate_limits (key text);
       `);
 
@@ -610,6 +642,7 @@ describe.skipIf(!HAS_DB && !DATABASE_REQUIRED)(
           referred_user_id text
         );
         CREATE TABLE calora_referral_qualifications (external_user_id text);
+        CREATE TABLE calora_recipe_media (owner_external_id text);
         CREATE TABLE calora_capture_rate_limits (key text);
       `);
 

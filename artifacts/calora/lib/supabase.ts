@@ -5,6 +5,10 @@
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import {
+  createMemorySessionStorage,
+  createSupabaseSessionStorage,
+} from './supabaseSessionStorage';
 
 // ---------------------------------------------------------------------------
 // Configuration — sourced from EAS environment variables
@@ -35,17 +39,12 @@ const supabaseConfig = requireSupabaseConfig();
 // Secure storage adapter
 // ---------------------------------------------------------------------------
 
-const nativeSecureStorage =
+const secureSessionStorage =
   Platform.OS !== 'web'
-    ? {
-        getItem: (key: string): Promise<string | null> =>
-          SecureStore.getItemAsync(key),
-        setItem: (key: string, value: string): Promise<void> =>
-          SecureStore.setItemAsync(key, value),
-        removeItem: (key: string): Promise<void> =>
-          SecureStore.deleteItemAsync(key),
-      }
-    : undefined;
+    ? createSupabaseSessionStorage(SecureStore)
+    // Do not allow Supabase to fall back to plaintext browser localStorage.
+    // Web-preview sessions are intentionally process-local and non-durable.
+    : createMemorySessionStorage();
 
 // ---------------------------------------------------------------------------
 // Client
@@ -55,7 +54,7 @@ export const SUPABASE_STORAGE_KEY = 'calora-auth-storage';
 
 export const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey, {
   auth: {
-    storage: nativeSecureStorage,
+    storage: secureSessionStorage,
     storageKey: SUPABASE_STORAGE_KEY,
     autoRefreshToken: true,
     persistSession: true,

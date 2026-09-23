@@ -1,6 +1,5 @@
 import { respondCoachFactContext, type CoachMessage } from '@workspace/api-client-react';
 import { RespondCoachFactContextResponse } from '@workspace/api-zod';
-import { isIntelligenceFeatureEnabled } from './featureFlags';
 import type { CoachFactContextV1 } from './coachFactContext';
 import { CoachFactRequestLifecycle, type CoachFactRequestScope } from './coachFactRequestLifecycle';
 
@@ -14,7 +13,7 @@ export type CoachFactRequestError =
   | { kind: 'transport'; retryable: true };
 
 export type DarkCoachRequestResult =
-  | { kind: 'unavailable'; reason: 'client_gate_off' | 'invalid_scope' | 'expired_or_discarded' | 'transport_failure' }
+  | { kind: 'unavailable'; reason: 'invalid_scope' | 'expired_or_discarded' | 'transport_failure' }
   | { kind: 'failure'; error: CoachFactRequestError }
   | { kind: 'response'; response: Awaited<ReturnType<typeof respondCoachFactContext>> };
 
@@ -40,8 +39,8 @@ export function classifyCoachFactRequestError(error: unknown, timedOut = false):
 }
 
 /**
- * Dark-only request coordinator. It has no AsyncStorage, no retries, and no
- * legacy context parameter, making mixed legacy/new payloads impossible here.
+ * Bounded Coach request coordinator. It has no AsyncStorage, no retries, and
+ * no legacy context parameter, making mixed legacy/new payloads impossible.
  */
 export async function requestDarkCoachFactContext(input: {
   context: CoachFactContextV1;
@@ -56,7 +55,6 @@ export async function requestDarkCoachFactContext(input: {
     options?: { signal?: AbortSignal },
   ) => Promise<Awaited<ReturnType<typeof respondCoachFactContext>>>;
 }): Promise<DarkCoachRequestResult> {
-  if (!isIntelligenceFeatureEnabled('intelligence.coach.fact_context')) return { kind: 'unavailable', reason: 'client_gate_off' };
   if (!input.accountId) return { kind: 'unavailable', reason: 'invalid_scope' };
   const scope: CoachFactRequestScope = input.lifecycle.begin(input.context, input.accountId, input.hydrationGeneration);
   const controller = new AbortController();

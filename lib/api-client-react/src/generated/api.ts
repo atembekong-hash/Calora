@@ -32,11 +32,11 @@ import type {
   DiaryEntryPatch,
   DiaryFirstLogInput,
   DiaryFirstLogResult,
-  GenerateRecipePhoto200,
   HealthStatus,
   ListDiaryEntries200,
   ListDiaryEntriesParams,
   ListPremiumRecipesParams,
+  ListRecipeMedia200,
   ListRecipesParams,
   ListRestaurantFoodsParams,
   PlannerGenerateInput,
@@ -47,13 +47,15 @@ import type {
   ProfileInput,
   Recipe,
   RecipeList,
+  RecipeMedia,
+  RecipeMediaError,
+  RecipeMediaReviewInput,
   RecipePhotoGenerateInput,
   RecipePhotoUrlInput,
   ReferralActivateResult,
   ReferralRedeemInput,
   ReferralRedeemResult,
   ReferralSummary,
-  RefreshRecipePhotoUrl200,
   RestaurantFood,
   RestaurantFoodList,
   SearchFoods200,
@@ -932,11 +934,11 @@ export const getGenerateRecipePhotoUrl = () => {
 }
 
 /**
- * @summary Generate a private photo for a completed Calora AI recipe
+ * @summary Idempotently create or recover generated media for one recipe-content version
  */
-export const generateRecipePhoto = async (recipePhotoGenerateInput: RecipePhotoGenerateInput, options?: Parameters<typeof customFetch>[1]): Promise<GenerateRecipePhoto200> => {
+export const generateRecipePhoto = async (recipePhotoGenerateInput: RecipePhotoGenerateInput, options?: Parameters<typeof customFetch>[1]): Promise<RecipeMedia> => {
 
-  return customFetch<GenerateRecipePhoto200>(getGenerateRecipePhotoUrl(),
+  return customFetch<RecipeMedia>(getGenerateRecipePhotoUrl(),
   {
     ...options,
     method: 'POST',
@@ -949,7 +951,7 @@ export const generateRecipePhoto = async (recipePhotoGenerateInput: RecipePhotoG
 
 
 
-export const getGenerateRecipePhotoMutationOptions = <TError = ErrorType<void>,
+export const getGenerateRecipePhotoMutationOptions = <TError = ErrorType<void | RecipeMediaError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipePhoto>>, TError,{data: BodyType<RecipePhotoGenerateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof generateRecipePhoto>>, TError,{data: BodyType<RecipePhotoGenerateInput>}, TContext> => {
 
@@ -978,12 +980,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type GenerateRecipePhotoMutationResult = NonNullable<Awaited<ReturnType<typeof generateRecipePhoto>>>
     export type GenerateRecipePhotoMutationBody = BodyType<RecipePhotoGenerateInput>
-    export type GenerateRecipePhotoMutationError = ErrorType<void>
+    export type GenerateRecipePhotoMutationError = ErrorType<void | RecipeMediaError>
 
     /**
- * @summary Generate a private photo for a completed Calora AI recipe
+ * @summary Idempotently create or recover generated media for one recipe-content version
  */
-export const useGenerateRecipePhoto = <TError = ErrorType<void>,
+export const useGenerateRecipePhoto = <TError = ErrorType<void | RecipeMediaError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateRecipePhoto>>, TError,{data: BodyType<RecipePhotoGenerateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof generateRecipePhoto>>,
@@ -1003,11 +1005,11 @@ export const getRefreshRecipePhotoUrlUrl = () => {
 }
 
 /**
- * @summary Refresh a signed display URL for a private recipe photo
+ * @summary Refresh a signed locator after owner and persisted-media validation
  */
-export const refreshRecipePhotoUrl = async (recipePhotoUrlInput: RecipePhotoUrlInput, options?: Parameters<typeof customFetch>[1]): Promise<RefreshRecipePhotoUrl200> => {
+export const refreshRecipePhotoUrl = async (recipePhotoUrlInput: RecipePhotoUrlInput, options?: Parameters<typeof customFetch>[1]): Promise<RecipeMedia> => {
 
-  return customFetch<RefreshRecipePhotoUrl200>(getRefreshRecipePhotoUrlUrl(),
+  return customFetch<RecipeMedia>(getRefreshRecipePhotoUrlUrl(),
   {
     ...options,
     method: 'POST',
@@ -1052,7 +1054,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RefreshRecipePhotoUrlMutationError = ErrorType<void>
 
     /**
- * @summary Refresh a signed display URL for a private recipe photo
+ * @summary Refresh a signed locator after owner and persisted-media validation
  */
 export const useRefreshRecipePhotoUrl = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshRecipePhotoUrl>>, TError,{data: BodyType<RecipePhotoUrlInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1063,6 +1065,374 @@ export const useRefreshRecipePhotoUrl = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRefreshRecipePhotoUrlMutationOptions(options));
+    }
+
+export const getListRecipeMediaUrl = () => {
+
+
+
+
+  return `/api/v1/recipes/media`
+}
+
+/**
+ * @summary Recover the current account's active generated recipe media
+ */
+export const listRecipeMedia = async ( options?: Parameters<typeof customFetch>[1]): Promise<ListRecipeMedia200> => {
+
+  return customFetch<ListRecipeMedia200>(getListRecipeMediaUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRecipeMediaQueryKey = () => {
+    return [
+    `/api/v1/recipes/media`
+    ] as const;
+    }
+
+
+export const getListRecipeMediaQueryOptions = <TData = Awaited<ReturnType<typeof listRecipeMedia>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipeMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRecipeMediaQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRecipeMedia>>> = ({ signal }) => listRecipeMedia({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRecipeMedia>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRecipeMediaQueryResult = NonNullable<Awaited<ReturnType<typeof listRecipeMedia>>>
+export type ListRecipeMediaQueryError = ErrorType<void>
+
+
+/**
+ * @summary Recover the current account's active generated recipe media
+ */
+
+export function useListRecipeMedia<TData = Awaited<ReturnType<typeof listRecipeMedia>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRecipeMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRecipeMediaQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRecipeMediaUrl = (mediaId: string,) => {
+
+
+
+
+  return `/api/v1/recipes/media/${mediaId}`
+}
+
+/**
+ * @summary Get owner-scoped generated recipe media status and a fresh locator when available
+ */
+export const getRecipeMedia = async (mediaId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecipeMedia> => {
+
+  return customFetch<RecipeMedia>(getGetRecipeMediaUrl(mediaId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRecipeMediaQueryKey = (mediaId: string,) => {
+    return [
+    `/api/v1/recipes/media/${mediaId}`
+    ] as const;
+    }
+
+
+export const getGetRecipeMediaQueryOptions = <TData = Awaited<ReturnType<typeof getRecipeMedia>>, TError = ErrorType<void>>(mediaId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecipeMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRecipeMediaQueryKey(mediaId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecipeMedia>>> = ({ signal }) => getRecipeMedia(mediaId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: mediaId !== null && mediaId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRecipeMedia>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRecipeMediaQueryResult = NonNullable<Awaited<ReturnType<typeof getRecipeMedia>>>
+export type GetRecipeMediaQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get owner-scoped generated recipe media status and a fresh locator when available
+ */
+
+export function useGetRecipeMedia<TData = Awaited<ReturnType<typeof getRecipeMedia>>, TError = ErrorType<void>>(
+ mediaId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRecipeMedia>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRecipeMediaQueryOptions(mediaId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRetryRecipeMediaUrl = (mediaId: string,) => {
+
+
+
+
+  return `/api/v1/recipes/media/${mediaId}/retry`
+}
+
+/**
+ * @summary Retry generation for an owner-scoped retryable media record
+ */
+export const retryRecipeMedia = async (mediaId: string, options?: Parameters<typeof customFetch>[1]): Promise<RecipeMedia> => {
+
+  return customFetch<RecipeMedia>(getRetryRecipeMediaUrl(mediaId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryRecipeMediaMutationOptions = <TError = ErrorType<void | RecipeMediaError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryRecipeMedia>>, TError,{mediaId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryRecipeMedia>>, TError,{mediaId: string}, TContext> => {
+
+const mutationKey = ['retryRecipeMedia'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryRecipeMedia>>, {mediaId: string}> = (props) => {
+          const {mediaId} = props ?? {};
+
+          return  retryRecipeMedia(mediaId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryRecipeMediaMutationResult = NonNullable<Awaited<ReturnType<typeof retryRecipeMedia>>>
+
+    export type RetryRecipeMediaMutationError = ErrorType<void | RecipeMediaError>
+
+    /**
+ * @summary Retry generation for an owner-scoped retryable media record
+ */
+export const useRetryRecipeMedia = <TError = ErrorType<void | RecipeMediaError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryRecipeMedia>>, TError,{mediaId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryRecipeMedia>>,
+        TError,
+        {mediaId: string},
+        TContext
+      > => {
+      return useMutation(getRetryRecipeMediaMutationOptions(options));
+    }
+
+export const getReviewRecipeMediaUrl = (mediaId: string,) => {
+
+
+
+
+  return `/api/v1/recipes/media/${mediaId}/review`
+}
+
+/**
+ * @summary Record whether generated pixels appear to match the recipe
+ */
+export const reviewRecipeMedia = async (mediaId: string,
+    recipeMediaReviewInput: RecipeMediaReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<RecipeMedia> => {
+
+  return customFetch<RecipeMedia>(getReviewRecipeMediaUrl(mediaId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recipeMediaReviewInput)
+  }
+);}
+
+
+
+
+
+export const getReviewRecipeMediaMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewRecipeMedia>>, TError,{mediaId: string;data: BodyType<RecipeMediaReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewRecipeMedia>>, TError,{mediaId: string;data: BodyType<RecipeMediaReviewInput>}, TContext> => {
+
+const mutationKey = ['reviewRecipeMedia'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewRecipeMedia>>, {mediaId: string;data: BodyType<RecipeMediaReviewInput>}> = (props) => {
+          const {mediaId,data} = props ?? {};
+
+          return  reviewRecipeMedia(mediaId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewRecipeMediaMutationResult = NonNullable<Awaited<ReturnType<typeof reviewRecipeMedia>>>
+    export type ReviewRecipeMediaMutationBody = BodyType<RecipeMediaReviewInput>
+    export type ReviewRecipeMediaMutationError = ErrorType<void>
+
+    /**
+ * @summary Record whether generated pixels appear to match the recipe
+ */
+export const useReviewRecipeMedia = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewRecipeMedia>>, TError,{mediaId: string;data: BodyType<RecipeMediaReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewRecipeMedia>>,
+        TError,
+        {mediaId: string;data: BodyType<RecipeMediaReviewInput>},
+        TContext
+      > => {
+      return useMutation(getReviewRecipeMediaMutationOptions(options));
+    }
+
+export const getAcknowledgeRecipeMediaRenderedUrl = (mediaId: string,) => {
+
+
+
+
+  return `/api/v1/recipes/media/${mediaId}/rendered`
+}
+
+/**
+ * @summary Acknowledge successful native image rendering for diagnostics
+ */
+export const acknowledgeRecipeMediaRendered = async (mediaId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getAcknowledgeRecipeMediaRenderedUrl(mediaId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcknowledgeRecipeMediaRenderedMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeRecipeMediaRendered>>, TError,{mediaId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acknowledgeRecipeMediaRendered>>, TError,{mediaId: string}, TContext> => {
+
+const mutationKey = ['acknowledgeRecipeMediaRendered'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acknowledgeRecipeMediaRendered>>, {mediaId: string}> = (props) => {
+          const {mediaId} = props ?? {};
+
+          return  acknowledgeRecipeMediaRendered(mediaId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcknowledgeRecipeMediaRenderedMutationResult = NonNullable<Awaited<ReturnType<typeof acknowledgeRecipeMediaRendered>>>
+
+    export type AcknowledgeRecipeMediaRenderedMutationError = ErrorType<void>
+
+    /**
+ * @summary Acknowledge successful native image rendering for diagnostics
+ */
+export const useAcknowledgeRecipeMediaRendered = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeRecipeMediaRendered>>, TError,{mediaId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acknowledgeRecipeMediaRendered>>,
+        TError,
+        {mediaId: string},
+        TContext
+      > => {
+      return useMutation(getAcknowledgeRecipeMediaRenderedMutationOptions(options));
     }
 
 export const getGetRecipeUrl = (recipeId: string,) => {
@@ -1696,10 +2066,11 @@ export const getRespondCoachFactContextUrl = () => {
 }
 
 /**
- * An intentionally disabled replacement path for future Coach rollout.
- * It accepts only a short-lived, allowlisted Fact Context and never
- * accepts the legacy broad CoachContext.
- * @summary Dark, sanitized Coach Fact Context response path
+ * Available to every authenticated account that has current explicit
+ * consent. It accepts only a short-lived, bounded Fact Context and never
+ * accepts a legacy broad CoachContext, membership, rollout, or approval
+ * credential.
+ * @summary Consented, bounded Coach Fact Context response path
  */
 export const respondCoachFactContext = async (coachFactContextRequest: CoachFactContextRequest, options?: Parameters<typeof customFetch>[1]): Promise<CoachFactContextResponse> => {
 
@@ -1748,7 +2119,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RespondCoachFactContextMutationError = ErrorType<void>
 
     /**
- * @summary Dark, sanitized Coach Fact Context response path
+ * @summary Consented, bounded Coach Fact Context response path
  */
 export const useRespondCoachFactContext = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof respondCoachFactContext>>, TError,{data: BodyType<CoachFactContextRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}

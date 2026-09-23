@@ -517,18 +517,114 @@ export interface RecipeList {
   terminalReason?: string | null;
 }
 
+/**
+ * Current clients send the complete stable recipe identity and semantic fields. The title-only shape remains accepted for installed-client compatibility and is converted server-side to a deterministic, review-required media resource.
+ */
 export interface RecipePhotoGenerateInput {
   /**
      * @minLength 1
-     * @maxLength 100
+     * @maxLength 128
+     */
+  clientRecipeId?: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
      */
   title: string;
-  /** @maxLength 300 */
+  /** @maxLength 600 */
   description?: string;
+  /**
+     * @minItems 1
+     * @maxItems 30
+     * @items.minLength 1
+     * @items.maxLength 160
+     */
+  ingredients?: string[];
+  /**
+     * @minItems 1
+     * @maxItems 20
+     * @items.minLength 1
+     * @items.maxLength 500
+     */
+  instructions?: string[];
+  /** @maxLength 80 */
+  cuisine?: string;
+  /** @maxLength 80 */
+  category?: string;
+  /** @maxLength 40 */
+  mealType?: string;
+  /**
+     * @maxItems 16
+     * @items.minLength 1
+     * @items.maxLength 80
+     */
+  dietaryContext?: string[];
 }
 
 export interface RecipePhotoUrlInput {
-  imageId: string;
+  mediaId?: string;
+  imageId?: string;
+}
+
+export type RecipeMediaStatus = typeof RecipeMediaStatus[keyof typeof RecipeMediaStatus];
+
+
+export const RecipeMediaStatus = {
+  generating: 'generating',
+  stored: 'stored',
+  url_ready: 'url_ready',
+  retryable_error: 'retryable_error',
+  superseded: 'superseded',
+} as const;
+
+export type RecipeMediaSemanticReviewState = typeof RecipeMediaSemanticReviewState[keyof typeof RecipeMediaSemanticReviewState];
+
+
+export const RecipeMediaSemanticReviewState = {
+  needs_review: 'needs_review',
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
+export interface RecipeMedia {
+  mediaId: string;
+  clientRecipeId: string;
+  /** @pattern ^[0-9a-f]{64}$ */
+  contentHash: string;
+  /** @nullable */
+  imageId: string | null;
+  imageUrl?: string;
+  imageUrlExpiresAt?: string;
+  modelVersion: string;
+  promptVersion: string;
+  status: RecipeMediaStatus;
+  semanticReviewState: RecipeMediaSemanticReviewState;
+  /** @minimum 1 */
+  attempts: number;
+  lastErrorCode?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecipeMediaError {
+  code?: string;
+  message: string;
+  retryable?: boolean;
+  /** @minimum 0 */
+  retryAfterSecs?: number;
+}
+
+export type RecipeMediaReviewInputReviewState = typeof RecipeMediaReviewInputReviewState[keyof typeof RecipeMediaReviewInputReviewState];
+
+
+export const RecipeMediaReviewInputReviewState = {
+  needs_review: 'needs_review',
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
+export interface RecipeMediaReviewInput {
+  reviewState: RecipeMediaReviewInputReviewState;
 }
 
 export type PremiumRecipeListStatus = typeof PremiumRecipeListStatus[keyof typeof PremiumRecipeListStatus];
@@ -724,6 +820,17 @@ export const CaptureAnalyzeInputMode = {
 } as const;
 
 /**
+ * Declared MIME type for imageBase64. The server verifies this against decoded image bytes before provider submission.
+ */
+export type CaptureAnalyzeInputImageMimeType = typeof CaptureAnalyzeInputImageMimeType[keyof typeof CaptureAnalyzeInputImageMimeType];
+
+
+export const CaptureAnalyzeInputImageMimeType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+} as const;
+
+/**
  * File container for audioBase64
  */
 export type CaptureAnalyzeInputAudioFormat = typeof CaptureAnalyzeInputAudioFormat[keyof typeof CaptureAnalyzeInputAudioFormat];
@@ -748,6 +855,8 @@ export interface CaptureAnalyzeInput {
      * @maxLength 12000000
      */
   imageBase64?: string;
+  /** Declared MIME type for imageBase64. The server verifies this against decoded image bytes before provider submission. */
+  imageMimeType?: CaptureAnalyzeInputImageMimeType;
   /**
      * Natural-language food description (text and voice modes) or any supplementary description
      * @maxLength 2000
@@ -760,8 +869,17 @@ export interface CaptureAnalyzeInput {
   audioBase64?: string;
   /** File container for audioBase64 */
   audioFormat?: CaptureAnalyzeInputAudioFormat;
-  /** @maxLength 120 */
+  /**
+     * Legacy client correlation field. New clients use clientCorrelationId.
+     * @deprecated
+     * @maxLength 120
+     */
   clientSessionId?: string;
+  /**
+     * Opaque client-only correlation id. It is never treated as server capture provenance.
+     * @maxLength 120
+     */
+  clientCorrelationId?: string;
 }
 
 export interface CaptureCandidate {
@@ -876,7 +994,15 @@ export const CaptureAnalysisImageRetention = {
 } as const;
 
 export interface CaptureAnalysis {
+  /**
+     * Legacy alias of clientCorrelationId. It is never server-issued capture provenance.
+     * @deprecated
+     */
   sessionId: string;
+  /** Opaque client correlation id echoed for stale-response handling and local draft identity. */
+  clientCorrelationId: string;
+  /** Server-issued session id only when candidate persistence succeeded. Null means no server capture proof exists. */
+  captureSessionId: string | null;
   mode: CaptureAnalysisMode;
   status: CaptureAnalysisStatus;
   title: string;
@@ -930,11 +1056,32 @@ export interface PlannerProfile {
   calorieTarget: number;
 }
 
+/**
+ * Optional plan style identifier guiding AI generation
+ */
+export type PlannerGenerateInputPlanType = typeof PlannerGenerateInputPlanType[keyof typeof PlannerGenerateInputPlanType];
+
+
+export const PlannerGenerateInputPlanType = {
+  'balanced-nutrition': 'balanced-nutrition',
+  'high-protein-power': 'high-protein-power',
+  'low-carb-living': 'low-carb-living',
+  'mediterranean-diet': 'mediterranean-diet',
+  'plant-based-week': 'plant-based-week',
+  'keto-kickstart': 'keto-kickstart',
+  'intermittent-fasting': 'intermittent-fasting',
+  'budget-friendly': 'budget-friendly',
+  'quick-and-easy': 'quick-and-easy',
+  'athletic-performance': 'athletic-performance',
+  'anti-inflammatory': 'anti-inflammatory',
+  'healthy-habits-week': 'healthy-habits-week',
+} as const;
+
 export interface PlannerGenerateInput {
   weekStart: string;
   profile: PlannerProfile;
   /** Optional plan style identifier guiding AI generation */
-  planType?: string;
+  planType?: PlannerGenerateInputPlanType;
 }
 
 export type PlannerMealMeal = typeof PlannerMealMeal[keyof typeof PlannerMealMeal];
@@ -947,6 +1094,25 @@ export const PlannerMealMeal = {
   Snack: 'Snack',
 } as const;
 
+export type PlannerMealRecipeSource = typeof PlannerMealRecipeSource[keyof typeof PlannerMealRecipeSource];
+
+
+export const PlannerMealRecipeSource = {
+  discover: 'discover',
+  plus: 'plus',
+  create: 'create',
+  calora: 'calora',
+} as const;
+
+export type PlannerMealGeneratedImageReviewState = typeof PlannerMealGeneratedImageReviewState[keyof typeof PlannerMealGeneratedImageReviewState];
+
+
+export const PlannerMealGeneratedImageReviewState = {
+  needs_review: 'needs_review',
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
 export interface PlannerMeal {
   id: string;
   day: string;
@@ -955,6 +1121,13 @@ export interface PlannerMeal {
   image: string;
   /** Stable client asset identity for curated planner imagery. Optional for generated or custom meals. */
   imageAssetKey?: string;
+  /** @maxLength 128 */
+  recipeId?: string;
+  recipeSource?: PlannerMealRecipeSource;
+  generatedMediaId?: string;
+  generatedImageId?: string;
+  generatedImageUrlExpiresAt?: string;
+  generatedImageReviewState?: PlannerMealGeneratedImageReviewState;
   serving: string;
   /** @minimum 0 */
   calories: number;
@@ -1896,15 +2069,8 @@ limit?: number;
 offset?: number;
 };
 
-export type GenerateRecipePhoto200 = {
-  imageId: string;
-  imageUrl: string;
-  imageUrlExpiresAt: string;
-};
-
-export type RefreshRecipePhotoUrl200 = {
-  imageUrl: string;
-  imageUrlExpiresAt: string;
+export type ListRecipeMedia200 = {
+  media: RecipeMedia[];
 };
 
 export type ListPremiumRecipesParams = {

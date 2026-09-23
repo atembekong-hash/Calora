@@ -35,8 +35,10 @@ export interface AuthError {
   message: string;
 }
 
+export type AuthCallbackIntent = 'ordinary' | 'recovery';
+
 export type AuthResult =
-  | { success: true; session: Session }
+  | { success: true; session: Session; callbackIntent?: AuthCallbackIntent }
   | { success: false; error: AuthError };
 
 export type AuthStatusCallback = (message: string) => void;
@@ -53,18 +55,27 @@ function isTrustedOAuthCallbackUrl(url: URL): boolean {
   );
 }
 
+function getValidatedCallbackIntent(url: URL): AuthCallbackIntent {
+  // Recovery intent comes from the already exact-origin/path validated callback
+  // data. It is not inferred from the asynchronous auth listener.
+  return url.searchParams.get('type') === 'recovery' ? 'recovery' : 'ordinary';
+}
+
 const OAUTH_CODE_SUCCESS_TTL_MS = 60_000;
 const MAX_OAUTH_CODE_EXCHANGES = 8;
 
 type PendingOAuthCodeExchange = {
   kind: 'pending';
   startedAt: number;
+  /** Shared terminal routing intent for every delivery of one PKCE code. */
+  callbackIntent: AuthCallbackIntent;
   result: Promise<AuthResult>;
 };
 
 type SettledOAuthCodeExchange = {
   kind: 'success';
   userId: string;
+  callbackIntent: AuthCallbackIntent;
   settledAt: number;
   expiresAt: number;
   evictionTimer: ReturnType<typeof setTimeout>;
@@ -117,7 +128,7 @@ async function replaySettledOAuthSuccess(
     const { data, error } = await supabase.auth.getSession();
     const session = data.session;
     if (!error && session?.user?.id === exchange.userId) {
-      return { success: true, session };
+      return { success: true, session, callbackIntent: exchange.callbackIntent };
     }
   } catch {
     // A stale replay must fail closed without changing the current session.
@@ -130,13 +141,24 @@ async function replaySettledOAuthSuccess(
   };
 }
 
-async function exchangeOAuthCodeOnce(code: string, onStatus?: AuthStatusCallback): Promise<AuthResult> {
+async function exchangeOAuthCodeOnce(
+  code: string,
+  callbackIntent: AuthCallbackIntent,
+  onStatus?: AuthStatusCallback,
+): Promise<AuthResult> {
   const key = await getOAuthCodeKey(code);
   const now = Date.now();
   pruneExpiredOAuthCodeExchanges(now);
 
   const existing = oauthCodeExchanges.get(key);
-  if (existing?.kind === 'pending') return existing.result;
+  if (existing?.kind === 'pending') {
+    // Prefer recovery if two trusted deliveries disagree. Reset-password is the
+    // conservative terminal route; most importantly both callers now observe
+    // the same intent instead of racing independent navigation decisions.
+    if (callbackIntent === 'recovery') existing.callbackIntent = 'recovery';
+    const result = await existing.result;
+    return result.success ? { ...result, callbackIntent: existing.callbackIntent } : result;
+  }
   if (existing?.kind === 'success') return replaySettledOAuthSuccess(key, existing);
 
   if (!reserveOAuthCodeExchangeSlot()) {
@@ -161,6 +183,7 @@ async function exchangeOAuthCodeOnce(code: string, onStatus?: AuthStatusCallback
   const pending: PendingOAuthCodeExchange = {
     kind: 'pending',
     startedAt: now,
+    callbackIntent,
     result,
   };
   oauthCodeExchanges.set(key, pending);
@@ -177,6 +200,7 @@ async function exchangeOAuthCodeOnce(code: string, onStatus?: AuthStatusCallback
     const settled: SettledOAuthCodeExchange = {
       kind: 'success',
       userId,
+      callbackIntent: pending.callbackIntent,
       settledAt,
       expiresAt: settledAt + OAUTH_CODE_SUCCESS_TTL_MS,
       evictionTimer: setTimeout(() => {
@@ -188,7 +212,8 @@ async function exchangeOAuthCodeOnce(code: string, onStatus?: AuthStatusCallback
     removeOAuthCodeExchange(key, pending);
   });
 
-  return result;
+  const authResult = await result;
+  return authResult.success ? { ...authResult, callbackIntent: pending.callbackIntent } : authResult;
 }
 
 /**
@@ -239,7 +264,7 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
  * Processes the deep-link callback URL and exchanges the code for a session.
  */
 export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusCallback): Promise<AuthResult> {
-  onStatus?.('Verifying credentials\u2026');
+  onStatus?.('Verifying credentials…');
 
   try {
     const urlObj = new URL(url.replace('#', '?'));
@@ -249,6 +274,7 @@ export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusC
         error: { code: 'token', message: 'This sign-in callback is not trusted.' },
       };
     }
+    const callbackIntent = getValidatedCallbackIntent(urlObj);
     const code = urlObj.searchParams.get('code');
     const accessToken = urlObj.searchParams.get('access_token');
     const refreshToken = urlObj.searchParams.get('refresh_token');
@@ -270,7 +296,7 @@ export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusC
     // Case 1: PKCE Flow (Authorization Code)
     // Used by Google OAuth and modern email links.
     if (code) {
-      return exchangeOAuthCodeOnce(code, onStatus);
+      return exchangeOAuthCodeOnce(code, callbackIntent, onStatus);
     }
 
     // Case 2: Implicit Flow Fallback (Access Token)
@@ -290,7 +316,7 @@ export async function handleOAuthCallbackUrl(url: string, onStatus?: AuthStatusC
           },
         };
       }
-      if (data?.session) return { success: true, session: data.session };
+      if (data?.session) return { success: true, session: data.session, callbackIntent };
     }
 
     return { success: false, error: { code: 'unknown', message: 'No valid authentication data found.' } };

@@ -19,7 +19,11 @@ test("creates separate non-secret API database and Supabase Auth source provenan
   );
   assert.deepEqual(
     manifest.apiDatabase.journal.map((entry) => entry.idx),
-    [0, 1, 2, 3],
+    [0, 1, 2, 3, 4],
+  );
+  assert.equal(
+    manifest.apiDatabase.files.some((file) => file.path.endsWith("/0005_recipe_media.sql")),
+    true,
   );
   assert.equal(manifest.apiDatabase.files.some((file) => file.path.includes("DATABASE_URL")), false);
   assert.equal(JSON.stringify(manifest).includes("postgresql://"), false);

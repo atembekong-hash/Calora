@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CaptureAnalyzeInputAudioFormat } from './captureAnalyzeInputAudioFormat';
+import type { CaptureAnalyzeInputImageMimeType } from './captureAnalyzeInputImageMimeType';
 import type { CaptureAnalyzeInputMode } from './captureAnalyzeInputMode';
 
 export interface CaptureAnalyzeInput {
@@ -20,6 +21,8 @@ export interface CaptureAnalyzeInput {
      * @maxLength 12000000
      */
   imageBase64?: string;
+  /** Declared MIME type for imageBase64. The server verifies this against decoded image bytes before provider submission. */
+  imageMimeType?: CaptureAnalyzeInputImageMimeType;
   /**
      * Natural-language food description (text and voice modes) or any supplementary description
      * @maxLength 2000
@@ -32,6 +35,15 @@ export interface CaptureAnalyzeInput {
   audioBase64?: string;
   /** File container for audioBase64 */
   audioFormat?: CaptureAnalyzeInputAudioFormat;
-  /** @maxLength 120 */
+  /**
+     * Legacy client correlation field. New clients use clientCorrelationId.
+     * @deprecated
+     * @maxLength 120
+     */
   clientSessionId?: string;
+  /**
+     * Opaque client-only correlation id. It is never treated as server capture provenance.
+     * @maxLength 120
+     */
+  clientCorrelationId?: string;
 }

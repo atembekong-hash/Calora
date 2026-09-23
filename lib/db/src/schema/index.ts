@@ -195,6 +195,55 @@ export const recipesTable = pgTable("calora_recipes", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * Server-authoritative relation between an authenticated owner, a stable
+ * client recipe, one canonical recipe-content version, and its private image.
+ * The JSON payload is the bounded semantic recipe snapshot used for generation
+ * and cross-device recovery; signed URLs are deliberately not persisted.
+ */
+export const recipeMediaTable = pgTable("calora_recipe_media", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  ownerExternalId: text("owner_external_id").notNull(),
+  clientRecipeId: text("client_recipe_id").notNull(),
+  contentHash: text("content_hash").notNull(),
+  recipePayload: jsonb("recipe_payload").$type<{
+    clientRecipeId: string;
+    title: string;
+    description: string;
+    ingredients: string[];
+    instructions: string[];
+    cuisine?: string;
+    category?: string;
+    mealType?: string;
+    dietaryContext: string[];
+  }>().notNull(),
+  imageId: uuid("image_id"),
+  objectKey: text("object_key"),
+  modelVersion: text("model_version").notNull(),
+  promptVersion: text("prompt_version").notNull(),
+  status: text("status").default("generating").notNull(),
+  semanticReviewState: text("semantic_review_state").default("needs_review").notNull(),
+  attempts: integer("attempts").default(1).notNull(),
+  lastErrorCode: text("last_error_code"),
+  lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+  urlLastIssuedAt: timestamp("url_last_issued_at", { withTimezone: true }),
+  lastRenderedAt: timestamp("last_rendered_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  ownerRecipeHashIndex: uniqueIndex("calora_recipe_media_owner_recipe_hash_idx")
+    .on(table.ownerExternalId, table.clientRecipeId, table.contentHash),
+  ownerImageIndex: uniqueIndex("calora_recipe_media_owner_image_idx")
+    .on(table.ownerExternalId, table.imageId)
+    .where(sql`${table.imageId} IS NOT NULL`),
+  ownerUpdatedIndex: index("calora_recipe_media_owner_updated_idx").on(table.ownerExternalId, table.updatedAt),
+  hashCheck: check("calora_recipe_media_content_hash_chk", sql`${table.contentHash} ~ '^[0-9a-f]{64}$'`),
+  statusCheck: check("calora_recipe_media_status_chk", sql`${table.status} IN ('generating', 'stored', 'url_ready', 'retryable_error', 'superseded')`),
+  reviewCheck: check("calora_recipe_media_review_chk", sql`${table.semanticReviewState} IN ('needs_review', 'accepted', 'rejected')`),
+  attemptsCheck: check("calora_recipe_media_attempts_chk", sql`${table.attempts} >= 1`),
+  objectPairCheck: check("calora_recipe_media_object_pair_chk", sql`(${table.imageId} IS NULL) = (${table.objectKey} IS NULL)`),
+}));
+
 export const recipeItemsTable = pgTable("calora_recipe_items", {
   recipeId: uuid("recipe_id").notNull().references(() => recipesTable.id, { onDelete: "cascade" }),
   foodItemId: uuid("food_item_id").notNull().references(() => foodItemsTable.id, { onDelete: "restrict" }),
@@ -491,6 +540,7 @@ export const insertDiaryEntrySchema = createInsertSchema(diaryEntriesTable);
 export const insertWeightEntrySchema = createInsertSchema(weightEntriesTable);
 export const insertSavedMealSchema = createInsertSchema(savedMealsTable);
 export const insertRecipeSchema = createInsertSchema(recipesTable);
+export const insertRecipeMediaSchema = createInsertSchema(recipeMediaTable);
 export const insertRecipeItemSchema = createInsertSchema(recipeItemsTable);
 export const insertAiCaptureSessionSchema = createInsertSchema(aiCaptureSessionsTable);
 export const insertAiCaptureCandidateSchema = createInsertSchema(aiCaptureCandidatesTable);
@@ -509,6 +559,7 @@ export type DiaryEntry = typeof diaryEntriesTable.$inferSelect;
 export type WeightEntry = typeof weightEntriesTable.$inferSelect;
 export type SavedMeal = typeof savedMealsTable.$inferSelect;
 export type Recipe = typeof recipesTable.$inferSelect;
+export type RecipeMedia = typeof recipeMediaTable.$inferSelect;
 export type RecipeItem = typeof recipeItemsTable.$inferSelect;
 export type AiCaptureSession = typeof aiCaptureSessionsTable.$inferSelect;
 export type AiCaptureCandidate = typeof aiCaptureCandidatesTable.$inferSelect;

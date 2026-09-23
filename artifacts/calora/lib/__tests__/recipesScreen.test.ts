@@ -41,7 +41,7 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('paddingBottom: 14, justifyContent: \'flex-end\'');
   });
 
-  it('labels the premium section as Plus without changing its internal section key', () => {
+  it('labels the premium section as Plus and never presents a paid recipe gate', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
       'utf8',
@@ -50,7 +50,17 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain("section === 'premium' ? 'Plus'");
     expect(source).toContain('Search Plus recipes');
     expect(source).toContain('Plus filters');
-    expect(source).toContain('Calora Plus membership');
+    expect(source).not.toContain('Plus required');
+    expect(source).not.toContain('active Calora Plus membership');
+    expect(source).not.toContain('View membership');
+  });
+
+  it('removes goal-fit and Calora-original badges without leaving badge containers', () => {
+    expect(source).not.toContain('FITS YOUR GOAL');
+    expect(source).not.toContain('CALORA ORIGINAL');
+    expect(source).not.toContain('fitsBadge');
+    expect(source).not.toContain('localBadge');
+    expect(source).not.toContain('remainingCalories');
   });
 
   it('exposes a dedicated saved-recipes header action', () => {
@@ -72,22 +82,25 @@ describe('Recipes Discover layout contracts', () => {
     );
 
     expect(source).toContain('const [imageFailed, setImageFailed] = useState(false)');
-    expect(source).toContain('onError={() => setImageFailed(true)}');
+    expect(source).toContain('onError={() => {');
+    expect(source).toContain('if (!localRecipe || !generatedImage) { setImageFailed(true); return; }');
+    expect(source).toContain('handleGeneratedRecipeImageError({');
     expect(source).toContain("import { normalizeFoodImageUrl, normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata'");
-    expect(source).toContain('normalizeGeneratedRecipeImageUrl(recipe.image, recipe.imageId, user?.id)');
+    expect(source).toContain('normalizeGeneratedRecipeImageUrl(localRecipe?.image, localRecipe?.imageId, user?.id)');
     expect(source).toContain(': normalizeFoodImageUrl(recipe.image)');
     expect(source).toContain('recyclingKey={`${recipe.id}:${recipeImageUrl}`}');
     expect(source).toContain('setImageFailed(false)');
   });
 
-  it('keeps source attribution inside opened recipe details and prevents AI card labels from overlapping', () => {
+  it('keeps third-party source attribution inside opened recipe details without card badges', () => {
     const source = readFileSync(
       resolve(__dirname, '../../app/(tabs)/recipes.tsx'),
       'utf8',
     );
 
     expect(source).toContain('cardImageFrame');
-    expect(source).toContain('const localLabel = provenance.sourceType === \'calora_ai\' ? \'CALORA AI\' : \'MY RECIPE\'');
+    expect(source).not.toContain('const localLabel');
+    expect(source).not.toContain('const sourceBadge');
     expect(source).not.toContain('{recipeSourceLabel(recipe)}</Text>');
     expect(source).not.toContain('Open recipe discovery is provided by TheMealDB');
     expect(source).toContain('Source: {sourceName}');
@@ -129,7 +142,13 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('mergeRecipePages(current, data.recipes)');
     expect(source).toContain('clearDuplicatePremiumRecipeImages(recipes)');
     expect(source).toContain('testID="plus-recipe-grid"');
-    expect(source).toContain('testID="plus-recipe-scroll"');
+    expect(source).toContain('testID="plus-recipe-content"');
+    const premiumCatalogue = source.slice(
+      source.indexOf('function PremiumCatalogue'),
+      source.indexOf('function ReviewComponent'),
+    );
+    expect(premiumCatalogue).not.toContain('testID="plus-recipe-scroll"');
+    expect(premiumCatalogue).not.toContain('handlePremiumScroll');
     expect(source).toContain('testID="plus-recipe-pagination-loading"');
     expect(source).toContain('testID="plus-recipe-pagination-error"');
     expect(source).toContain('testID="plus-recipe-pagination-retry"');
@@ -141,7 +160,10 @@ describe('Recipes Discover layout contracts', () => {
     expect(source).toContain('loadMorePremiumRecipesIfAtEnd();');
     expect(source).toContain("activeSection === 'premium'");
     expect(source).toContain('onMomentumScrollEnd={handleRecipeScroll}');
-    expect(source).toContain('recipesScrollRef.current?.scrollTo({ y: section === \'discover\' ? discoverScrollYRef.current : 0, animated: false })');
+    expect(source).toContain('const premiumScrollYRef = useRef(0)');
+    expect(source).toContain('premiumScrollYRef.current = contentOffset.y');
+    expect(source).toContain("section === 'premium'");
+    expect(source).toContain('? premiumScrollYRef.current');
   });
 
   it('keeps blank user-entered macros unknown and renders partial nutrition explicitly', () => {

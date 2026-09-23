@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildShoppingItems, createStarterPlannerMeals, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalog, plannerCatalogForProgram, plannerDate, plannerMealTypes, shoppingChecksByName } from '@/data/planner';
+import { buildShoppingItems, createStarterPlannerMeals, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalog, plannerCatalogForProgram, plannerDate, plannerMealTypes, plannerProgramPreview, shoppingChecksByName } from '@/data/planner';
 import { plannerImageKeyForMeal } from '@/lib/mealImageIdentity';
 import { PLANNER_CATALOG, type PlannerDiet } from '@workspace/api-zod/planner-catalog';
-import { PROGRAM_HERO_MEAL_IDS } from '@workspace/api-zod/planner-program-pools';
+import { PROGRAM_HERO_MEAL_IDS, PLANNER_PROGRAM_IDS } from '@workspace/api-zod/planner-program-pools';
 import type { PlannerMeal } from '@workspace/api-client-react';
 
 const meal = (id: string, ingredients: string[], day = '2026-08-06'): PlannerMeal => ({
@@ -237,39 +237,48 @@ describe('planner identity', () => {
     expect(new Set(signatures).size).toBe(programs.length);
   });
 
-  it('gives every Program chooser hero a different canonical image', () => {
-    const programs = [
-      'balanced-nutrition',
-      'high-protein-power',
-      'low-carb-living',
-      'mediterranean-diet',
-      'plant-based-week',
-      'keto-kickstart',
-      'intermittent-fasting',
-      'budget-friendly',
-      'quick-and-easy',
-      'athletic-performance',
-      'anti-inflammatory',
-      'healthy-habits-week',
-    ] as const;
-    const heroImages = programs.map((programId) => {
-      const heroMeal = plannerCatalogForProgram(programId).find((meal) => meal.id === PROGRAM_HERO_MEAL_IDS[programId]);
-      expect(heroMeal, `${programId} hero must satisfy its eligibility contract`).toBeDefined();
-      return heroMeal ? plannerImageKeyForMeal(heroMeal.id, heroMeal.name) : null;
-    });
+  it.each(PLANNER_PROGRAM_IDS.flatMap((programId) =>
+    (['Everything', 'Vegetarian', 'Vegan', 'High protein'] as PlannerDiet[]).map((diet) => [programId, diet] as const),
+  ))('gives %s / %s a truthful deterministic four-image Program preview', (programId, diet) => {
+    const preview = plannerProgramPreview(programId, diet);
+    const eligible = plannerCatalogForProgram(programId, diet);
+    const hasEveryRole = plannerMealTypes.every((role) => eligible.some((meal) => meal.meal === role));
 
-    expect(heroImages.every(Boolean)).toBe(true);
-    expect(new Set(heroImages).size).toBe(programs.length);
+    if (!hasEveryRole) {
+      expect(preview).toMatchObject({ status: 'unavailable', programId, diet, reason: 'missing-meal-role' });
+      return;
+    }
+
+    expect(preview.status).toBe('available');
+    if (preview.status !== 'available') return;
+    expect(preview.meals).toHaveLength(4);
+    expect(preview.meals.map((meal) => meal.meal).sort()).toEqual([...plannerMealTypes].sort());
+    expect(new Set(preview.meals.map((meal) => meal.id)).size).toBe(4);
+    expect(new Set(preview.meals.map((meal) => plannerImageKeyForMeal(meal.id, meal.name))).size).toBe(4);
+    expect(preview.meals.every((meal) => eligible.some((candidate) => candidate.id === meal.id))).toBe(true);
+    expect(preview.meals.every((meal) => diet === 'Everything' || plannerCatalog.find((candidate) => candidate.id === meal.id)?.diets.includes(diet))).toBe(true);
   });
 
-  it('renders every declared Program hero as a disclosed representative pre-activation preview', () => {
+  it('uses the preferred hero only while compatible and otherwise chooses a stable eligible fallback', () => {
+    const everything = plannerProgramPreview('high-protein-power', 'Everything');
+    expect(everything.status).toBe('available');
+    if (everything.status === 'available') expect(everything.hero.id).toBe(PROGRAM_HERO_MEAL_IDS['high-protein-power']);
+
+    const vegetarian = plannerProgramPreview('quick-and-easy', 'Vegetarian');
+    if (vegetarian.status === 'available') {
+      expect(vegetarian.hero.id).not.toBe(PROGRAM_HERO_MEAL_IDS['quick-and-easy']);
+      expect(plannerProgramPreview('quick-and-easy', 'Vegetarian')).toEqual(vegetarian);
+    }
+  });
+
+  it('uses shared diet-aware preview state and stable detail identifiers in the actual Planner UI', () => {
     const source = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../app/(tabs)/planner.tsx'), 'utf8');
-    expect(source).toContain('PROGRAM_HERO_MEAL_IDS');
-    expect(source).toContain('function programHeroMeal');
-    expect(source).toContain('REPRESENTATIVE PROGRAM PREVIEW');
-    expect(source).toContain('Eligible example · not guaranteed');
-    expect(source).toContain('not a guaranteed generated meal');
-    expect(source.match(/<PlannerMealImage meal={heroMeal}/g)).toHaveLength(1);
+    expect(source).toContain('plannerProgramPreview(programDetail.id, plannerDiet)');
+    expect(source).toContain('4-MEAL PROGRAM PREVIEW');
+    expect(source).toContain('PROGRAM UNAVAILABLE');
+    expect(source).toContain('planner-program-detail-${programDetail.id}-${plannerDiet}-${meal.id}');
+    expect(source).toContain('planner-program-selector-${pt.id}-${plannerDiet}-${heroMeal.id}');
+    expect(source).toContain("disabled={detailPreview?.status === 'unavailable'}");
   });
 
   it('preserves local calendar week dates', () => {

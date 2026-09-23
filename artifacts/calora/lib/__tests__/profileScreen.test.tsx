@@ -42,6 +42,7 @@ const harness = vi.hoisted(() => {
      colors, themePreference: 'system', setThemePreference: vi.fn(), setOnboardingStep: vi.fn(), profile, onboardingComplete: true, onboardingStep: 0, updateProfile: vi.fn(),
     healthConnected: true, healthConnection: { provider: 'health-connect', authorization: 'partial', granted: ['steps'] },
     connectHealth: vi.fn(async () => undefined),
+    openHealthSettings: vi.fn(async () => undefined),
     syncHealth: vi.fn(async (): Promise<HealthSyncOutcome> => ({ status: 'synced', syncedAt: '2026-09-04T05:00:00.000Z' })),
     disconnectHealth: vi.fn(),
     exportData: vi.fn(async () => '{}'), clearAllData: vi.fn(async () => undefined), isClearing: false, syncState: 'local',
@@ -180,9 +181,31 @@ describe('Profile rendered interactions', () => {
     const view = render(<ProfileScreen />);
     harness.state.open = 'health';
     view.rerender(<ProfileScreen />);
-    await waitFor(() => expect(screen.getByText(/Some requested categories are not available/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Active calories are not allowed yet/)).toBeTruthy());
+    expect(screen.getByRole('button', { name: 'Update Health Connect access' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Open Health Connect settings' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sync health data now' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Disconnect health data' })).toBeTruthy();
+  });
+
+  it('re-requests missing Active Calories access from a partial Health Connect grant', async () => {
+    const view = render(<ProfileScreen />);
+    harness.state.open = 'health';
+    view.rerender(<ProfileScreen />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Update Health Connect access' })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Update Health Connect access' }));
+    await waitFor(() => expect(harness.calora.connectHealth).toHaveBeenCalledTimes(1));
+  });
+
+  it('opens native Health Connect settings from the partial-access recovery path', async () => {
+    const view = render(<ProfileScreen />);
+    harness.state.open = 'health';
+    view.rerender(<ProfileScreen />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Open Health Connect settings' })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Health Connect settings' }));
+    await waitFor(() => expect(harness.calora.openHealthSettings).toHaveBeenCalledTimes(1));
   });
 
   it('runs health sync and confirms success or failure in the health sheet', async () => {

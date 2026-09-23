@@ -9,9 +9,8 @@ import { useAuth } from '@/context/AuthContext';
 import { coachFactConsentCache, CoachFactRequestLifecycle } from '@/lib/intelligence';
 
 /**
- * This component is rendered only while this sharing option is disabled.
- * It is intentionally separate from the existing Coach disclosure and sends no
- * nutrition context, messages, or routing instructions.
+ * Controls explicit sharing consent. It never sends nutrition context,
+ * messages, or routing instructions by itself.
  */
 export function CoachFactContextConsentPanel({ colors }: { colors: {
   card: string; border: string; foreground: string; mutedForeground: string;
@@ -36,7 +35,7 @@ export function CoachFactContextConsentPanel({ colors }: { colors: {
     try {
       const status = await accept.mutateAsync({ data: { purpose: 'coach_fact_context_v1', documentVersion: '2026-08-21' } });
       await coachFactConsentCache.write(accountId, status);
-       setMessage('Your choice was saved. This option is not available yet.');
+      setMessage('Your choice was saved. You can now ask Coach about your bounded nutrition summary.');
       await statusQuery.refetch();
     } catch {
        setMessage('Your choice could not be saved. Sharing stays off.');
@@ -50,7 +49,7 @@ export function CoachFactContextConsentPanel({ colors }: { colors: {
       const status = await revoke.mutateAsync();
       CoachFactRequestLifecycle.invalidateAll();
       await coachFactConsentCache.write(accountId, status);
-       setMessage('Summarized sharing is off for future requests.');
+      setMessage('Sharing is off for future Coach requests.');
       await statusQuery.refetch();
     } catch {
        setMessage('Your choice could not be changed. Sharing remains unavailable.');
@@ -88,7 +87,11 @@ export function CoachFactContextConsentPanel({ colors }: { colors: {
         </Pressable>
       )}
       <Text accessibilityLiveRegion="polite" style={[styles.status, { color: colors.mutedForeground }]}>
-         {message ?? (statusQuery.isError ? 'Unable to confirm status. Sharing stays off.' : 'This option is unavailable until it is approved.')}
+         {message ?? (statusQuery.isError
+           ? 'Unable to confirm your sharing status. Please try again before sending personal nutrition data.'
+           : status === 'consented_current'
+             ? 'Sharing is on for future Coach requests.'
+             : 'Choose Allow daily summary before Coach can use your personal nutrition data.')}
       </Text>
     </View>
   );
