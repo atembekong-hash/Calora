@@ -8,7 +8,12 @@ import { BRAND_NAME } from "../lib/brand.js";
 import { verifyBearerToken, type VerifiedUser } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
 import { checkRateLimit } from "../lib/rate-limit.js";
-import { safeImageUrl, safeImageSource } from "../lib/image-metadata.js";
+import {
+  normalizeImageEvidence,
+  safeImageUrl,
+  safeImageSource,
+  type ImageEvidence,
+} from "../lib/image-metadata.js";
 import { logger } from "../lib/logger.js";
 import { withAiProviderDeadline } from "../lib/ai-provider.js";
 import {
@@ -66,7 +71,7 @@ function rateLimitKey(verifiedUser: VerifiedUser): string {
 async function persistCaptureSession(
   user: VerifiedUser,
   mode: string,
-  candidates: Array<Pick<CaptureCandidate, "name" | "calories" | "proteinG" | "carbsG" | "fatG" | "confidence" | "serving" | "provenance" | "sourceLabel">>,
+  candidates: CaptureCandidate[],
 ): Promise<string | null> {
   if (candidates.length === 0) return null;
   try {
@@ -78,7 +83,21 @@ async function persistCaptureSession(
     await db.transaction(async (tx) => {
       await tx.insert(aiCaptureSessionsTable).values({ id: sessionId, userId, mode, status: "review" });
       await tx.insert(aiCaptureCandidatesTable).values(
-        candidates.map((candidate) => ({
+        candidates.map((candidate) => {
+          const imageEvidence = normalizeImageEvidence(
+            candidate.imageEvidence,
+            user.id,
+            {
+              imageUrl: candidate.imageUrl,
+              imageSource: candidate.imageSource,
+            },
+            { allowExact: true },
+          );
+          // Return exactly the evidence persisted for this authenticated
+          // caller. The account scope is server-issued and cannot be selected
+          // by a client or inferred from a URL.
+          candidate.imageEvidence = imageEvidence ?? undefined;
+          return {
           sessionId,
           name: candidate.name,
           calories: String(candidate.calories),
@@ -90,8 +109,10 @@ async function persistCaptureSession(
             serving: candidate.serving,
             provenance: candidate.provenance,
             sourceLabel: candidate.sourceLabel,
+            ...(imageEvidence ? { imageEvidence } : {}),
           },
-        })),
+          };
+        }),
       );
     });
     return sessionId;
@@ -131,6 +152,7 @@ type CaptureCandidate = Nutrition & {
   editable: boolean;
   imageUrl: string | null;
   imageSource: string | null;
+  imageEvidence?: Omit<ImageEvidence, "accountScope"> | ImageEvidence;
 };
 
 type ConfidenceDimensions = {
@@ -180,6 +202,7 @@ function ensureCandidate(candidate: Partial<CaptureCandidate>, index: number): C
     // URLs survive, and a source label without a valid URL is dropped.
     imageUrl,
     imageSource: imageUrl ? safeImageSource(candidate.imageSource) : null,
+    imageEvidence: candidate.imageEvidence,
   };
 }
 
@@ -214,7 +237,7 @@ async function fetchJson(url: string, init?: RequestInit) {
   return response.json() as Promise<Record<string, any>>;
 }
 
-function offCandidate(product: Record<string, any>, barcode: string): CaptureCandidate | null {
+export function offCandidate(product: Record<string, any>, barcode: string): CaptureCandidate | null {
   const nutriments = product.nutriments ?? {};
   const calories = numberOrZero(nutriments["energy-kcal_serving"] ?? nutriments["energy-kcal_100g"]);
   const proteinG = numberOrZero(nutriments["proteins_serving"] ?? nutriments["proteins_100g"]);
@@ -245,12 +268,28 @@ function offCandidate(product: Record<string, any>, barcode: string): CaptureCan
     sourceLabel: "Open Food Facts",
     imageUrl: typeof offImageUrl === "string" ? offImageUrl : null,
     imageSource: typeof offImageUrl === "string" ? "Open Food Facts" : null,
+    imageEvidence: typeof offImageUrl === "string"
+      ? {
+          version: 1,
+          semanticRole: "exact",
+          contentId: `food-product:open-food-facts:${barcode}`,
+          source: "open-food-facts-product-record",
+          provider: "Open Food Facts",
+          providerItemId: barcode,
+          imageId: product.image_front_url ? "front" : "product",
+          ...(product.last_modified_t ? { imageVersion: String(product.last_modified_t) } : {}),
+          locator: offImageUrl,
+          retrievedAt: new Date().toISOString(),
+          attribution: "Open Food Facts contributors · product image CC BY-SA · https://openfoodfacts.org",
+          rightsReviewState: "approved",
+        }
+      : undefined,
   }, 0);
 }
 
 async function lookupBarcode(barcode: string) {
   try {
-    const data = await fetchJson(`${OPEN_FOOD_FACTS_ROOT}/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,serving_size,nutriments,image_url,image_front_url,image_front_small_url`);
+    const data = await fetchJson(`${OPEN_FOOD_FACTS_ROOT}/product/${encodeURIComponent(barcode)}.json?fields=code,product_name,product_name_en,brands,serving_size,nutriments,image_url,image_front_url,image_front_small_url,last_modified_t`);
     if (data.status === 1 && data.product) {
       const candidate = offCandidate(data.product, barcode);
       if (candidate) return { candidate, provider: "Open Food Facts" };

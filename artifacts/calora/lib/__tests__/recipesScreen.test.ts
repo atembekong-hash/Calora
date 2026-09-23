@@ -73,7 +73,10 @@ describe('Recipes Discover layout contracts', () => {
 
     expect(source).toContain('const [imageFailed, setImageFailed] = useState(false)');
     expect(source).toContain('onError={() => setImageFailed(true)}');
-    expect(source).toContain('recyclingKey={`${recipe.id}:${recipe.image}`}');
+    expect(source).toContain("import { normalizeFoodImageUrl, normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata'");
+    expect(source).toContain('normalizeGeneratedRecipeImageUrl(recipe.image, recipe.imageId, user?.id)');
+    expect(source).toContain(': normalizeFoodImageUrl(recipe.image)');
+    expect(source).toContain('recyclingKey={`${recipe.id}:${recipeImageUrl}`}');
     expect(source).toContain('setImageFailed(false)');
   });
 

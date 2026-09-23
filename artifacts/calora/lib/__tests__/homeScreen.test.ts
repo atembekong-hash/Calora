@@ -95,6 +95,25 @@ describe('living-state-action button — static render guarantee', () => {
   });
 });
 
+describe('Home profile avatar renderer', () => {
+  it('routes the header avatar through ProfilePhoto rather than directly rendering profilePhotoUri', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../app/(tabs)/index.tsx'),
+      'utf8',
+    );
+    const avatarStart = source.indexOf('accessibilityLabel="Profile shortcut"');
+    const avatarEnd = source.indexOf('</Pressable>', avatarStart);
+    const avatarSection = source.slice(avatarStart, avatarEnd);
+
+    expect(source).toContain("import { ProfilePhoto } from '@/components/ProfilePhoto'");
+    expect(avatarSection).toContain('<ProfilePhoto');
+    expect(avatarSection).toContain('uri={profilePhotoUri}');
+    expect(avatarSection).not.toContain('<Image source={{ uri: profilePhotoUri }}');
+  });
+});
+
 // ---------------------------------------------------------------------------
 // 2. First-launch → log_meal → opens Add Food modal
 // ---------------------------------------------------------------------------

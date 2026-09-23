@@ -163,10 +163,29 @@ describe('buildAcceptResult — review approval', () => {
     const draft = makeDraft({
       imageUrl: 'https://images.openfoodfacts.org/eggs.jpg',
       imageSource: 'provider',
+      imageEvidence: {
+        version: 1,
+        semanticRole: 'exact',
+        accountScope: 'capture-test-user',
+        contentId: 'food-product:open-food-facts:eggs',
+        provider: 'Open Food Facts',
+        providerItemId: 'eggs',
+        imageId: 'front',
+        locator: 'https://images.openfoodfacts.org/eggs.jpg',
+        retrievedAt: '2026-09-23T12:00:00.000Z',
+        rightsReviewState: 'approved',
+      },
     });
-    const { log } = buildAcceptResult(draft, nextId('log'), LATER);
+    const { log, memory } = buildAcceptResult(draft, nextId('log'), LATER);
     expect(log.imageUrl).toBe('https://images.openfoodfacts.org/eggs.jpg');
     expect(log.imageSource).toBe('provider');
+    expect(log.imageEvidence).toMatchObject({
+      semanticRole: 'exact',
+      accountScope: 'capture-test-user',
+      providerItemId: 'eggs',
+      imageId: 'front',
+    });
+    expect(memory.imageEvidence).toEqual(log.imageEvidence);
   });
 
   it('drops temporary image data before producing a persisted diary log', () => {

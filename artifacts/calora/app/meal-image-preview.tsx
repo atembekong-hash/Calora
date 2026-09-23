@@ -7,8 +7,6 @@ import { getMealImageAuditCases, findDuplicateImageAssignments, IMAGE_SURFACE_AU
 import { plannerCatalog } from '@/data/planner';
 import { verifiedFoods } from '@/data/foods';
 
-const QA_MISSING_IMAGE_KEY = 'qa-missing-planner-image';
-
 export default function MealImagePreviewScreen() {
   const insets = useSafeAreaInsets();
   const { scenario } = useLocalSearchParams<{ scenario?: string }>();
@@ -36,17 +34,25 @@ export default function MealImagePreviewScreen() {
     if (auditCase.meal.meal === 'Breakfast') {
       return {
         ...auditCase,
-        // Deliberately use an unknown key and empty remote URL. This must
-        // exercise the component's unavailable-image fallback state.
+        // A user-created, noncanonical name plus no source exercises the
+        // unavailable-image fallback without fabricating a stale-key swap.
         expectedImageKey: undefined,
-        meal: { ...auditCase.meal, image: '', imageAssetKey: QA_MISSING_IMAGE_KEY },
+        meal: {
+          ...auditCase.meal,
+          id: 'custom-qa-breakfast-without-photo',
+          name: 'QA breakfast without photo',
+          image: '',
+          imageAssetKey: undefined,
+        },
       };
     }
 
     if (auditCase.meal.meal === 'Lunch') {
       return {
         ...auditCase,
-        // A valid but wrong bundled key must be rejected as an identity swap.
+        // A valid but wrong stored key must be diagnosed as an identity swap.
+        // PlannerMealImage still derives rendering from the visible meal name
+        // and never trusts this field for source selection.
         meal: { ...auditCase.meal, imageAssetKey: 'berry-oats' },
       };
     }

@@ -57,3 +57,33 @@ test('mobile environment template cannot document server-only credentials', () =
   }
   assert.equal(mobileTemplate.includes('SUPABASE_JWT_SECRET'), false);
 });
+
+test('static Expo packaging is provider-neutral and publishes configuration images', () => {
+  const buildSource = fs.readFileSync(path.join(appRoot, 'scripts', 'build.js'), 'utf8');
+
+  const forbiddenProviderHooks = [
+    ['RE', 'PL_ID'].join(''),
+    ['EXPO_PUBLIC_RE', 'PL_ID'].join(''),
+    ['re', 'plit'].join(''),
+  ];
+  for (const forbidden of forbiddenProviderHooks) {
+    assert.equal(
+      buildSource.toLowerCase().includes(forbidden.toLowerCase()),
+      false,
+      `static packaging must not depend on ${forbidden}`,
+    );
+  }
+
+  for (const required of [
+    'copyConfigImage(',
+    'expoClient.iconUrl = iconUrl',
+    'expoClient.splash.imageUrl = splashUrl',
+    'expoClient.web.favicon = faviconUrl',
+  ]) {
+    assert.equal(
+      buildSource.includes(required),
+      true,
+      `static packaging is missing configuration-image contract: ${required}`,
+    );
+  }
+});

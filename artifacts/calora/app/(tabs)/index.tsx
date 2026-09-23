@@ -21,6 +21,7 @@ import { ScalePressable } from '@/components/ScalePressable';
 import { Surface } from '@/components/Surface';
 import { CaloraFeatureIcon, type CaloraFeatureIconName } from '@/components/CaloraFeatureIcon';
 import { AppHeader } from '@/components/AppChrome';
+import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -1499,11 +1500,15 @@ export default function HomeScreen() {
             <Pressable
               accessibilityLabel="Profile shortcut"
               onPress={() => router.navigate('/(tabs)/profile')}
-              style={[styles.homeHeaderAvatar, { backgroundColor: colors.muted, borderColor: colors.border }, profilePhotoUri ? { padding: 0, overflow: 'hidden' } : {}]}
+              style={[styles.homeHeaderAvatar, { backgroundColor: colors.muted, borderColor: colors.border, overflow: 'hidden' }]}
             >
-              {profilePhotoUri
-                ? <Image source={{ uri: profilePhotoUri }} style={{ width: 38, height: 38 }} contentFit="cover" />
-                : <Text style={[styles.homeHeaderAvatarText, { color: colors.foreground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
+              <ProfilePhoto
+                uri={profilePhotoUri}
+                size={38}
+                accessibilityLabel="Profile photo"
+                style={{ borderRadius: 14 }}
+                fallback={<Text style={[styles.homeHeaderAvatarText, { color: colors.foreground }]}>{profile?.name?.charAt(0) ?? 'A'}</Text>}
+              />
             </Pressable>
           </View>
         }

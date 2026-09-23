@@ -74,6 +74,7 @@ import { coachFactConsentCache, CoachFactRequestLifecycle, invalidateAllCoachLif
 import {
   normalizeFoodImageMetadata,
   normalizeFoodImageUrl,
+  type FoodImageEvidence,
   type FoodImageSource,
 } from '@/lib/foodImageMetadata';
 import { clearDiarySyncState, recordDiaryDelete } from '@/lib/diarySync';
@@ -138,6 +139,7 @@ export type FoodLog = {
   imageAssetKey?: string;
   imageUrl?: string;
   imageSource?: FoodImageSource;
+  imageEvidence?: FoodImageEvidence;
   nutritionSnapshot?: { calories: number; proteinG: number; carbsG: number; fatG: number; capturedAt: string };
 };
 
@@ -287,7 +289,7 @@ function normalizeLogImageMetadata(log: FoodLog): FoodLog {
     time: log.time === 'Just now' && recordedAt
       ? formatLogTime(new Date(recordedAt))
       : log.time,
-    ...normalizeFoodImageMetadata(log.imageUrl, log.imageSource),
+    ...normalizeFoodImageMetadata(log.imageUrl, log.imageSource, log.imageEvidence),
   };
 }
 
@@ -320,10 +322,11 @@ function normalizeOnboardingDraft(value: unknown): OnboardingDraft | null {
 function normalizeMemoryImageMetadata<T extends FoodMemoryDraft>(memory: T): T {
   return {
     ...memory,
-    ...normalizeFoodImageMetadata(memory.imageUrl, memory.imageSource),
+    ...normalizeFoodImageMetadata(memory.imageUrl, memory.imageSource, memory.imageEvidence),
     components: memory.components.map((component) => ({
       ...component,
       imageUrl: normalizeFoodImageUrl(component.imageUrl),
+      imageEvidence: normalizeFoodImageMetadata(component.imageUrl, undefined, component.imageEvidence).imageEvidence,
     })),
   };
 }
@@ -1529,7 +1532,7 @@ export function CaloraProvider({
       return draft;
     },
     createRecipeDraft: (recipe, date = dateKey(), meal = 'Dinner') => {
-      const draft = recipeToDraft(recipe, date, meal);
+      const draft = recipeToDraft(recipe, date, meal, new Date().toISOString(), accountId);
       foodDraftsRef.current = [...foodDraftsRef.current.filter((item) => item.id !== draft.id), draft];
       updateExportField('foodDrafts', (current) => [...(current as FoodMemoryDraft[]).filter((item) => item.id !== draft.id), draft]);
       setFoodDrafts((current) => [...current.filter((item) => item.id !== draft.id), draft]);

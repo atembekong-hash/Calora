@@ -12,6 +12,8 @@ import { describe, it, expect } from 'vitest';
 import {
   safeImageUrl,
   safeImageSource,
+  matchesCaptureImageEvidence,
+  normalizeImageEvidence,
   normalizeImageMetadata,
 } from '../lib/image-metadata.js';
 
@@ -103,6 +105,98 @@ describe('normalizeImageMetadata', () => {
     expect(normalizeImageMetadata('https://images.openfoodfacts.org/a.png', undefined)).toEqual({
       imageUrl: 'https://images.openfoodfacts.org/a.png',
       imageSource: null,
+    });
+  });
+});
+
+describe('normalizeImageEvidence', () => {
+  const exact = {
+    version: 1,
+    semanticRole: 'exact',
+    contentId: 'food-product:open-food-facts:12345678',
+    provider: 'Open Food Facts',
+    providerItemId: '12345678',
+    imageId: 'front',
+    locator: 'https://images.openfoodfacts.org/products/123/front.jpg',
+    retrievedAt: '2026-09-23T12:00:00.000Z',
+    rightsReviewState: 'approved',
+  };
+  const generatedImageId = '123e4567-e89b-42d3-a456-426614174000';
+  const generatedLocator = `https://storage.example/private/recipe-photos/authenticated-account/${generatedImageId}.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=test%2F20260923%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260923T120000Z&X-Amz-Expires=518400&X-Amz-SignedHeaders=host&X-Amz-Signature=${'a'.repeat(64)}`;
+
+  it('derives account scope and downgrades client exact assertions by default', () => {
+    expect(normalizeImageEvidence({ ...exact, accountScope: 'forged' }, 'authenticated-account')).toMatchObject({
+      accountScope: 'authenticated-account',
+      semanticRole: 'unverified',
+    });
+  });
+
+  it('retains an exact assertion only at a server-verified capture boundary', () => {
+    expect(normalizeImageEvidence(exact, 'authenticated-account', undefined, { allowExact: true })).toMatchObject({
+      accountScope: 'authenticated-account',
+      semanticRole: 'exact',
+      providerItemId: '12345678',
+    });
+  });
+
+  it('retains exact evidence after request schemas coerce observation times to Date', () => {
+    expect(normalizeImageEvidence(
+      { ...exact, retrievedAt: new Date(exact.retrievedAt) },
+      'authenticated-account',
+      undefined,
+      { allowExact: true },
+    )).toMatchObject({
+      semanticRole: 'exact',
+      retrievedAt: exact.retrievedAt,
+    });
+  });
+
+  it('retains only a valid signed private generated-photo capability for generated evidence', () => {
+    expect(normalizeImageEvidence({
+      version: 1,
+      semanticRole: 'generated',
+      contentId: 'recipe:local-1',
+      imageId: generatedImageId,
+      locator: generatedLocator,
+      expiresAt: '2026-09-29T12:00:00.000Z',
+      rightsReviewState: 'approved',
+    }, 'authenticated-account')).toMatchObject({
+      semanticRole: 'generated',
+      imageId: generatedImageId,
+      locator: generatedLocator,
+    });
+
+    expect(normalizeImageEvidence({
+      version: 1,
+      semanticRole: 'generated',
+      contentId: 'recipe:local-1',
+      imageId: generatedImageId,
+      locator: 'https://untrusted.example/arbitrary.png',
+    }, 'authenticated-account')).not.toHaveProperty('locator');
+  });
+
+  it('downgrades exact evidence whose image rights were not approved', () => {
+    expect(normalizeImageEvidence(
+      { ...exact, rightsReviewState: 'reviewed' },
+      'authenticated-account',
+      undefined,
+      { allowExact: true },
+    )).toMatchObject({ semanticRole: 'unverified' });
+  });
+
+  it('matches exact evidence only on durable provider and image identity', () => {
+    expect(matchesCaptureImageEvidence(exact, exact, 'authenticated-account')).toBe(true);
+    expect(matchesCaptureImageEvidence(exact, { ...exact, imageId: 'nutrition' }, 'authenticated-account')).toBe(false);
+    expect(matchesCaptureImageEvidence(exact, { ...exact, providerItemId: 'other-product' }, 'authenticated-account')).toBe(false);
+  });
+
+  it('falls back conservatively for legacy image fields', () => {
+    expect(normalizeImageEvidence(undefined, 'authenticated-account', {
+      imageUrl: 'https://images.openfoodfacts.org/legacy.jpg',
+      imageSource: 'Open Food Facts',
+    })).toMatchObject({
+      accountScope: 'authenticated-account',
+      semanticRole: 'unverified',
     });
   });
 });

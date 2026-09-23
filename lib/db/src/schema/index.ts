@@ -126,6 +126,29 @@ export const diaryEntriesTable = pgTable("calora_diary_entries", {
     plannerMealId?: string;
     sourceRecipeId?: string;
     imageAssetKey?: string;
+    /**
+     * Versioned, account-bound image evidence. This remains JSONB because
+     * diary sync already owns this backwards-compatible metadata envelope;
+     * existing rows safely remain readable without a destructive migration.
+     */
+    imageEvidence?: {
+      version: 1;
+      semanticRole: "exact" | "canonical" | "generated" | "user_local" | "representative" | "no_image" | "fallback" | "unverified";
+      accountScope: string;
+      contentId?: string;
+      source?: string;
+      provider?: string;
+      providerItemId?: string;
+      imageId?: string;
+      imageVersion?: string;
+      assetKey?: string;
+      locator?: string;
+      verifiedAt?: string;
+      retrievedAt?: string;
+      expiresAt?: string;
+      attribution?: string;
+      rightsReviewState?: "unreviewed" | "reviewed" | "approved" | "restricted";
+    };
   }>().default({}).notNull(),
   clientUpdatedAt: timestamp("client_updated_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

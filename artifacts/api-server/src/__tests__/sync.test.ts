@@ -15,6 +15,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { randomUUID } from 'node:crypto';
+import { inspect } from 'node:util';
 
 // ── DB mock ───────────────────────────────────────────────────────────────────
 // execute() resolves immediately with empty rows so we can assert on the
@@ -30,6 +31,7 @@ const {
   dbMock,
   loggerWarn,
   loggerError,
+  selectResults,
 } = vi.hoisted(() => {
   const executeCalls: unknown[] = [];
   const transactions: Array<{ statements: unknown[]; committed: boolean }> = [];
@@ -41,6 +43,7 @@ const {
   };
   const loggerWarn = vi.fn();
   const loggerError = vi.fn();
+  const selectResults: unknown[][] = [];
 
   function makeSelectChain(rows: unknown[] = []) {
     const chain: Record<string, unknown> = {};
@@ -93,7 +96,7 @@ const {
         throw error;
       }
     },
-    select: () => makeSelectChain([]),
+    select: () => makeSelectChain(selectResults.shift() ?? []),
     insert: () => {
       const chain: Record<string, unknown> = {};
       const noop = () => chain;
@@ -116,6 +119,7 @@ const {
     dbMock,
     loggerWarn,
     loggerError,
+    selectResults,
   };
 });
 
@@ -130,6 +134,15 @@ vi.mock('@workspace/db', () => ({
     id: 'id',
     userId: 'user_id',
     clientId: 'client_id',
+  },
+  aiCaptureSessionsTable: {
+    id: 'capture_session_id',
+    userId: 'capture_user_id',
+    mode: 'capture_mode',
+  },
+  aiCaptureCandidatesTable: {
+    sessionId: 'candidate_session_id',
+    evidence: 'candidate_evidence',
   },
 }));
 
@@ -227,6 +240,20 @@ function body(mutations: unknown[]) {
   return { deviceId: 'calora-mobile', mutations };
 }
 
+const exactCaptureImageEvidence = {
+  version: 1,
+  semanticRole: 'exact',
+  contentId: 'food-product:open-food-facts:12345678',
+  source: 'barcode-provider',
+  provider: 'Open Food Facts',
+  providerItemId: '12345678',
+  imageId: 'front',
+  locator: 'https://images.openfoodfacts.org/products/12345678/front.jpg',
+  retrievedAt: '2026-09-23T12:00:00.000Z',
+  attribution: 'Open Food Facts · CC BY-SA',
+  rightsReviewState: 'approved',
+};
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('POST /v1/sync', () => {
@@ -237,6 +264,7 @@ describe('POST /v1/sync', () => {
     verifyBearerToken.mockReset();
     executeCalls.length = 0;
     transactions.length = 0;
+    selectResults.length = 0;
     failNextTransactionLedgerWrite.value = false;
     fenceNextTransactionWrites.value = 0;
     assertAccountWritable.mockResolvedValue(undefined);
@@ -446,6 +474,71 @@ describe('POST /v1/sync', () => {
     expect(res.body.conflicts).toHaveLength(0);
     // diary upsert + sync_mutations insert.
     expect(executeCalls).toHaveLength(2);
+  });
+
+  it('preserves only owner-session-matched exact image evidence in the diary write', async () => {
+    verifyBearerToken.mockResolvedValue(USER);
+    const captureSessionId = randomUUID();
+    selectResults.push(
+      [],
+      [{ id: captureSessionId, mode: 'barcode' }],
+      [{ evidence: { imageEvidence: exactCaptureImageEvidence } }],
+    );
+    const mutation = validUpsert({
+      captureSessionId,
+      imageUrl: exactCaptureImageEvidence.locator,
+      imageSource: 'Open Food Facts',
+      imageEvidence: { ...exactCaptureImageEvidence, source: 'client-supplied-source' },
+    }, randomUUID());
+
+    const res = await request(app).post('/v1/sync').send(body([mutation]));
+
+    expect(res.status).toBe(200);
+    expect(res.body.accepted).toContain(mutation.mutationId);
+    const transactionText = inspect(transactions[0].statements, { depth: null });
+    expect(transactionText).toContain('"semanticRole":"exact"');
+    expect(transactionText).toContain('"source":"barcode-provider"');
+    expect(transactionText).toContain(`"accountScope":"${USER.id}"`);
+  });
+
+  it('downgrades mismatched exact image identity before sync persistence', async () => {
+    verifyBearerToken.mockResolvedValue(USER);
+    const captureSessionId = randomUUID();
+    selectResults.push(
+      [],
+      [{ id: captureSessionId, mode: 'barcode' }],
+      [{ evidence: { imageEvidence: exactCaptureImageEvidence } }],
+    );
+    const mutation = validUpsert({
+      captureSessionId,
+      imageUrl: exactCaptureImageEvidence.locator,
+      imageSource: 'Open Food Facts',
+      imageEvidence: { ...exactCaptureImageEvidence, imageId: 'different-image' },
+    }, randomUUID());
+
+    const res = await request(app).post('/v1/sync').send(body([mutation]));
+
+    expect(res.status).toBe(200);
+    const transactionText = inspect(transactions[0].statements, { depth: null });
+    expect(transactionText).toContain('"semanticRole":"unverified"');
+  });
+
+  it('cannot promote exact image evidence through a capture session unavailable to this account', async () => {
+    verifyBearerToken.mockResolvedValue(USER);
+    const captureSessionId = randomUUID();
+    selectResults.push([], []);
+    const mutation = validUpsert({
+      captureSessionId,
+      imageUrl: exactCaptureImageEvidence.locator,
+      imageSource: 'Open Food Facts',
+      imageEvidence: exactCaptureImageEvidence,
+    }, randomUUID());
+
+    const res = await request(app).post('/v1/sync').send(body([mutation]));
+
+    expect(res.status).toBe(200);
+    const transactionText = inspect(transactions[0].statements, { depth: null });
+    expect(transactionText).toContain('"semanticRole":"unverified"');
   });
 
   it('accepts an upsert with an unsafe image URL, dropping it rather than failing', async () => {

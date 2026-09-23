@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ImageEvidenceInput } from './imageEvidenceInput';
 
 export interface DiaryFirstLogInput {
   /**
@@ -74,4 +75,10 @@ export interface DiaryFirstLogInput {
      * @maxLength 80
      */
   imageSource?: string | null;
+  /**
+     * Stable local asset identity; never a remote URL.
+     * @maxLength 160
+     */
+  imageAssetKey?: string;
+  imageEvidence?: ImageEvidenceInput;
 }

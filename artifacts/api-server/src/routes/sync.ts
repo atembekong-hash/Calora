@@ -21,10 +21,15 @@
 import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { db, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
+import { db, aiCaptureCandidatesTable, aiCaptureSessionsTable, diaryEntriesTable, usersTable } from "@workspace/db";
 import { verifyBearerToken } from "../lib/supabase-auth.js";
 import { ensureUserRow } from "../lib/user-rows.js";
-import { normalizeImageMetadata } from "../lib/image-metadata.js";
+import {
+  matchesCaptureImageEvidence,
+  normalizeImageEvidence,
+  normalizeImageMetadata,
+  type ImageEvidence,
+} from "../lib/image-metadata.js";
 import { logger } from "../lib/logger.js";
 import {
   ACCOUNT_DELETION_FENCE_ERROR_CLASS,
@@ -99,6 +104,7 @@ type DiaryUpsertPayload = {
     plannerMealId?: string;
     sourceRecipeId?: string;
     imageAssetKey?: string;
+    imageEvidence?: ImageEvidence;
   };
 };
 
@@ -111,7 +117,10 @@ const SYNC_METADATA_STRING_LIMITS = {
   imageAssetKey: 160,
 } as const;
 
-function parseSyncMetadata(payload: Record<string, unknown>): DiaryUpsertPayload["syncMetadata"] {
+function parseSyncMetadata(
+  payload: Record<string, unknown>,
+  accountScope: string,
+): DiaryUpsertPayload["syncMetadata"] {
   const metadata: DiaryUpsertPayload["syncMetadata"] = {};
   for (const [key, limit] of Object.entries(SYNC_METADATA_STRING_LIMITS)) {
     const value = payload[key];
@@ -123,11 +132,18 @@ function parseSyncMetadata(payload: Record<string, unknown>): DiaryUpsertPayload
     const value = nonNeg(payload[key]);
     if (value !== null) metadata[key] = value;
   }
+  const imageEvidence = normalizeImageEvidence(payload.imageEvidence, accountScope, {
+    imageUrl: payload.imageUrl,
+    imageSource: payload.imageSource,
+    imageAssetKey: metadata.imageAssetKey,
+  }, { allowExact: true });
+  if (imageEvidence) metadata.imageEvidence = imageEvidence;
   return metadata;
 }
 
 function parseDiaryUpsert(
   payload: Record<string, unknown>,
+  accountScope: string,
 ): { ok: true; value: DiaryUpsertPayload } | { ok: false; message: string } {
   if (
     typeof payload.clientId !== "string" ||
@@ -222,7 +238,7 @@ function parseDiaryUpsert(
       notes,
       imageUrl,
       imageSource,
-      syncMetadata: parseSyncMetadata(payload),
+      syncMetadata: parseSyncMetadata(payload, accountScope),
     },
   };
 }
@@ -452,7 +468,7 @@ router.post("/v1/sync", async (req, res) => {
 
       try {
         if (mutation.operation === "upsert") {
-          const p = parseDiaryUpsert(mutation.payload);
+          const p = parseDiaryUpsert(mutation.payload, user.id);
           if (!p.ok) {
             conflicts.push({
               mutationId: mutation.mutationId,
@@ -494,6 +510,33 @@ router.post("/v1/sync", async (req, res) => {
             // not an approved image/barcode mode (text, voice, receipt, etc.),
             // verifiedCaptureSessionId stays null and the row is written
             // without a provenance anchor.
+          }
+
+          // `exact` is the only evidence state a client is not allowed to
+          // self-assert. Bind it to a server-recorded candidate from this
+          // caller's verified capture session, or downgrade it to unverified.
+          if (v.syncMetadata.imageEvidence?.semanticRole === "exact") {
+            let verifiedEvidence: ImageEvidence | null = null;
+            if (verifiedCaptureSessionId) {
+              const candidates = await db
+                .select({ evidence: aiCaptureCandidatesTable.evidence })
+                .from(aiCaptureCandidatesTable)
+                .where(eq(aiCaptureCandidatesTable.sessionId, verifiedCaptureSessionId));
+              for (const candidate of candidates) {
+                const candidateEvidence = candidate.evidence?.imageEvidence;
+                if (matchesCaptureImageEvidence(candidateEvidence, v.syncMetadata.imageEvidence, user.id)) {
+                  verifiedEvidence = normalizeImageEvidence(candidateEvidence, user.id, undefined, { allowExact: true });
+                  break;
+                }
+              }
+            }
+            v.syncMetadata.imageEvidence = verifiedEvidence
+              ?? normalizeImageEvidence(v.syncMetadata.imageEvidence, user.id, {
+                imageUrl: v.imageUrl,
+                imageSource: v.imageSource,
+                imageAssetKey: v.syncMetadata.imageAssetKey,
+              })
+              ?? undefined;
           }
 
           // Upsert on (user_id, client_id): re-sending the same clientId

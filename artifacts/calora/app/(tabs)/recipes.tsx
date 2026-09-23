@@ -26,7 +26,7 @@ import { SwipeGestureExclusion, SwipeableSectionPager, SwipeableTabList } from '
 import { dateKey } from '@/lib/dates';
 import { recipeNutritionLabel, recipeProvenance } from '@/lib/recipeModel';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
-import { requestGeneratedRecipe, requestGeneratedRecipePhoto, requestGeneratedRecipePhotoUrl, requestRecipeConcepts } from '@/lib/recipeGeneration';
+import { requestGeneratedRecipe, requestGeneratedRecipePhoto, requestRecipeConcepts } from '@/lib/recipeGeneration';
 import { requestGuestRecipeConcepts } from '@/lib/recipeGeneration';
 import { useAuth } from '@/context/AuthContext';
 import { premiumRecipeDetailQueryKey, premiumRecipeListQueryKey } from '@/lib/premiumRecipeQueryKeys';
@@ -40,6 +40,8 @@ import { recipeImageRole } from '@/lib/recipeImagePresentation';
 import type { PlannerRecipeSource } from '@/lib/plannerRecipeLink';
 import { caloraOriginalRecipes } from '@/lib/caloraOriginalRecipes';
 import { utcFreshnessDay } from '@/lib/premiumCatalogueState';
+import { refreshGeneratedRecipeImage, useGeneratedRecipeImageRefresh } from '@/lib/generatedRecipeImageLifecycle';
+import { normalizeFoodImageUrl, normalizeGeneratedRecipeImageUrl } from '@/lib/foodImageMetadata';
 
 const categories = ['For you', 'Breakfast', 'Lunch', 'Dinner', 'Supper', 'Vegetarian', 'Chicken', 'Seafood', 'Dessert', 'Quick'];
 const RECIPE_PAGE_SIZE = 18;
@@ -110,22 +112,27 @@ function recipeFallbackImage(recipe: BrowseRecipe) {
 }
 
 function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: number }) {
+  const { user } = useAuth();
   const photoPending = isLocalRecipe(recipe) && recipe.imageStatus === 'pending';
+  const generatedImage = isLocalRecipe(recipe) && recipe.imageProvenance === 'generated';
+  const recipeImageUrl = generatedImage
+    ? normalizeGeneratedRecipeImageUrl(recipe.image, recipe.imageId, user?.id)
+    : normalizeFoodImageUrl(recipe.image);
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => {
     setImageFailed(false);
   }, [recipe.id, recipe.image]);
   return <View style={{ height }}>
-    {recipe.image && !imageFailed ? (
+    {recipeImageUrl && !imageFailed ? (
       <Image
-        source={{ uri: recipe.image }}
+        source={{ uri: recipeImageUrl }}
         accessibilityLabel={`${recipe.name} recipe image`}
         contentFit="cover"
         transition={180}
         cachePolicy="memory-disk"
         onError={() => setImageFailed(true)}
         placeholder={require('../../assets/images/calora-recipes-header.jpg')}
-        recyclingKey={`${recipe.id}:${recipe.image}`}
+        recyclingKey={`${recipe.id}:${recipeImageUrl}`}
         style={[styles.recipeImage, { height }]}
       />
     ) : (
@@ -137,6 +144,11 @@ function RecipeImage({ recipe, height = 160 }: { recipe: BrowseRecipe; height?: 
          <Text style={styles.imageFallbackText}>Food photo unavailable</Text>
       </View>
     </View>)}
+    {generatedImage && recipeImageUrl && !imageFailed && !photoPending && (
+      <View accessible accessibilityLabel={`${recipe.name} uses an AI-generated image`} pointerEvents="none" style={styles.generatedImageBadge}>
+        <Text style={styles.generatedImageBadgeText}>AI-generated image</Text>
+      </View>
+    )}
     {photoPending && <View style={styles.photoPendingOverlay}><ActivityIndicator size="small" color="#ffffff" /><Text style={styles.photoPendingText}>Creating recipe photo…</Text></View>}
   </View>;
 }
@@ -1535,7 +1547,9 @@ export default function RecipesScreen() {
   const loadingMoreRef = useRef(false);
   const premiumLoadMoreRef = useRef<(() => void) | null>(null);
   const photoRequestsRef = useRef(new Set<string>());
-  const photoRefreshesRef = useRef(new Set<string>());
+  const activeAccountIdRef = useRef<string | null>(user?.id ?? null);
+  activeAccountIdRef.current = user?.id ?? null;
+  const isAccountActive = (accountId: string) => activeAccountIdRef.current === accountId;
   const recipesScrollRef = useRef<ScrollView | null>(null);
   const discoverScrollYRef = useRef(0);
   const recipeScrollMetricsRef = useRef({ offsetY: 0, viewportHeight: 0, contentHeight: 0 });
@@ -1678,35 +1692,37 @@ export default function RecipesScreen() {
     router.setParams({ recipeName: undefined });
   }, [recipeId, recipeName, remoteRecipes]);
   const createRecipePhoto = async (recipe: CaloraRecipe) => {
+    const accountId = user?.id;
     const sourceType = recipeProvenance(recipe).sourceType;
-    if (!['calora_ai', 'user_created'].includes(sourceType) || recipe.imageStatus === 'ready' || photoRequestsRef.current.has(recipe.id)) return;
-    photoRequestsRef.current.add(recipe.id);
+    if (!accountId || !['calora_ai', 'user_created'].includes(sourceType) || recipe.imageStatus === 'ready' || !isAccountActive(accountId)) return;
+    const requestKey = `${accountId}:${recipe.id}`;
+    if (photoRequestsRef.current.has(requestKey)) return;
+    photoRequestsRef.current.add(requestKey);
     updateRecipe(recipe.id, { imageStatus: 'pending' });
     try {
       const photo = await requestGeneratedRecipePhoto({ title: recipe.name, description: recipe.description ?? '' });
+      if (!isAccountActive(accountId)) return;
       updateRecipe(recipe.id, { image: photo.imageUrl, imageId: photo.imageId, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready', imageProvenance: 'generated' });
     } catch {
+      if (!isAccountActive(accountId)) return;
       updateRecipe(recipe.id, { imageStatus: 'failed' });
     } finally {
-      photoRequestsRef.current.delete(recipe.id);
+      photoRequestsRef.current.delete(requestKey);
     }
+  };
+  const retryRecipePhoto = async (recipe: CaloraRecipe) => {
+    if (recipe.imageId) {
+      await refreshGeneratedRecipeImage({ accountId: user?.id, recipe, updateRecipe, isAccountActive, force: true });
+      return;
+    }
+    await createRecipePhoto(recipe);
   };
   useEffect(() => {
     localRecipes
       .filter((recipe) => ['calora_ai', 'user_created'].includes(recipeProvenance(recipe).sourceType) && !recipe.image && recipe.imageStatus !== 'failed')
       .forEach((recipe) => { void createRecipePhoto(recipe); });
-  }, [localRecipes]);
-  useEffect(() => {
-    const refreshBefore = Date.now() + 60 * 60 * 1000;
-    localRecipes.filter((recipe) => recipe.imageId && recipe.imageStatus === 'ready' && (!recipe.imageUrlExpiresAt || Date.parse(recipe.imageUrlExpiresAt) <= refreshBefore)).forEach((recipe) => {
-      if (!recipe.imageId || photoRefreshesRef.current.has(recipe.id)) return;
-      photoRefreshesRef.current.add(recipe.id);
-      void requestGeneratedRecipePhotoUrl({ imageId: recipe.imageId })
-        .then((photo) => updateRecipe(recipe.id, { image: photo.imageUrl, imageUrlExpiresAt: photo.imageUrlExpiresAt, imageStatus: 'ready', imageProvenance: 'generated' }))
-        .catch(() => updateRecipe(recipe.id, { imageStatus: 'failed' }))
-        .finally(() => photoRefreshesRef.current.delete(recipe.id));
-    });
-  }, [localRecipes, updateRecipe]);
+  }, [localRecipes, user?.id]);
+  useGeneratedRecipeImageRefresh({ accountId: user?.id, recipes: localRecipes, updateRecipe });
   const selectedRecipe = selected && isLocalRecipe(selected) ? localRecipes.find((recipe) => recipe.id === selected.id) ?? selected : selected;
   const visibleLocal = category === 'My recipes' ? localMatches : [];
   const freshRemoteRecipes = useMemo(() => discoverFreshnessSession.order(remoteRecipes, discoverFreshnessVisit), [discoverFreshnessSession, discoverFreshnessVisit, remoteRecipes]);
@@ -1863,7 +1879,7 @@ export default function RecipesScreen() {
       <RecipeDetailModal
         recipe={selectedRecipe}
         onClose={() => setSelected(null)}
-        onRetryPhoto={createRecipePhoto}
+        onRetryPhoto={retryRecipePhoto}
         suggestedRecipes={recipeSuggestions}
         onSelectSuggestion={handleCardPress}
         onPlanned={(message) => {
@@ -1966,6 +1982,8 @@ function makeStyles(f: number) {
   imageFallbackText: { color: '#9dd7bd', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f, marginTop: 6 },
   photoPendingOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(18,34,24,0.58)', gap: 7 },
   photoPendingText: { color: '#ffffff', fontFamily: 'Inter_600SemiBold', fontSize: 11 * f },
+  generatedImageBadge: { position: 'absolute', bottom: 8, left: 8, borderRadius: 999, backgroundColor: 'rgba(18,34,24,0.78)', paddingHorizontal: 9, paddingVertical: 5 },
+  generatedImageBadgeText: { color: '#ffffff', fontFamily: 'Inter_600SemiBold', fontSize: 10 * f },
   saveButton: { position: 'absolute', right: 10, top: 10, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   localBadge: { position: 'absolute', left: 10, bottom: 10, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 4 },
   localBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.7 },

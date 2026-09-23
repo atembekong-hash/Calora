@@ -23,9 +23,11 @@ import { SwipeableSectionPager } from '@/components/SwipeableTabList';
 import { router, useFocusEffect } from 'expo-router';
 import { dateKey } from '@/lib/dates';
 import { parseNutritionInput } from '@/lib/recipeNutrition';
+import { plannerImageProvenanceForMeal } from '@/lib/plannerImageRendering';
 import { useAuth } from '@/context/AuthContext';
 import { applyIdentityReplace, applySlotReplace, buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, isProgramGeneratedMeal, mergeGeneratedWeek, plannerCatalogForProgram, plannerDate, plannerMealTypes, shoppingChecksByName, shoppingNameKey } from '@/data/planner';
 import { ProgramAppliedCelebration } from '@/components/ProgramAppliedCelebration';
+import { PROGRAM_HERO_MEAL_IDS, type PlannerProgramId } from '@workspace/api-zod/planner-program-pools';
 
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
@@ -84,6 +86,13 @@ function programEncouragement(programId: PlanTypeId): string {
       return 'A clear plan makes the next good choice easier.';
   }
 }
+
+/** A fixed eligible meal preview, not a promise about the generated week. */
+function programHeroMeal(programId: PlanTypeId): PlannerMeal | undefined {
+  const heroId = PROGRAM_HERO_MEAL_IDS[programId as PlannerProgramId];
+  return plannerCatalogForProgram(programId).find((meal) => meal.id === heroId);
+}
+
 function MealCard({
   meal,
   colors,
@@ -1075,11 +1084,11 @@ export default function PlannerScreen() {
                     auditId="planner-detail"
                   />
                   <Text style={[styles.detailImageProvenance, { color: colors.mutedForeground }]}>
-                    {detail.imageAssetKey
-                      ? 'Canonical meal image · identity checked against meal name'
-                      : detail.image
-                        ? 'Provider meal image'
-                        : 'Fallback image · no meal photo available'}
+                    {plannerImageProvenanceForMeal(detail) === 'canonical-curated'
+                      ? 'Canonical curated meal image · identity checked against meal name'
+                      : plannerImageProvenanceForMeal(detail) === 'recipe-owned'
+                        ? 'Recipe-owned image · source link retained'
+                        : 'Fallback image · no source-evidenced meal photo available'}
                   </Text>
                   <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.detailBody, { paddingBottom: 34 }]}>
                     <View style={styles.detailTitleRow}>
@@ -1258,6 +1267,20 @@ export default function PlannerScreen() {
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planDetailContent}>
                 <SheetHeader eyebrow="PROGRAM DETAILS" title={programDetail.label} onClose={() => setProgramModal(closeProgramModal(programModal))} colors={colors} />
                 <Text style={[styles.planTypeSheetSubtitle, { color: colors.mutedForeground }]}>{programDetail.description}</Text>
+                {programHeroMeal(programDetail.id) && (
+                  <View
+                    accessible
+                    accessibilityLabel={`Representative ${programDetail.label} Program preview: ${programHeroMeal(programDetail.id)!.name}. This is an eligible example meal, not a guaranteed generated meal.`}
+                    style={[styles.programPreviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  >
+                    <PlannerMealImage meal={programHeroMeal(programDetail.id)!} style={styles.programPreviewImage} />
+                    <View style={styles.programPreviewCopy}>
+                      <Text style={[styles.programPreviewLabel, { color: colors.primary }]}>REPRESENTATIVE PROGRAM PREVIEW</Text>
+                      <Text style={[styles.programPreviewName, { color: colors.foreground }]}>{programHeroMeal(programDetail.id)!.name}</Text>
+                      <Text style={[styles.programPreviewDisclosure, { color: colors.mutedForeground }]}>An eligible example meal, not a guarantee for your generated week.</Text>
+                    </View>
+                  </View>
+                )}
                 <View style={[styles.programDetailCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Text style={[styles.programDetailLabel, { color: colors.primary }]}>HOW IT SHAPES YOUR PLAN</Text>
                   <Text style={[styles.programDetailText, { color: colors.foreground }]}>Shapes generated meals, nutrition guidance, and this week’s generated meals.</Text>
@@ -1285,10 +1308,11 @@ export default function PlannerScreen() {
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.planTypeList}>
                 {PLAN_TYPES.map((pt) => {
                   const isSelected = plannerPreferences?.primary === pt.id;
+                  const heroMeal = programHeroMeal(pt.id);
                   return (
                     <Pressable
                       key={pt.id}
-                      accessibilityLabel={`Choose ${pt.label} Program`}
+                      accessibilityLabel={`Choose ${pt.label} Program${heroMeal ? `. Representative preview: ${heroMeal.name}; eligible example meal, not a guaranteed generated meal.` : ''}`}
                       onPress={() => setProgramModal(selectProgram(programModal, pt))}
                       style={[styles.planTypeOptionRow, {
                         backgroundColor: isSelected ? colors.accent : colors.card,
@@ -1301,6 +1325,16 @@ export default function PlannerScreen() {
                       <View style={styles.planTypeOptionCopy}>
                         <Text style={[styles.planTypeOptionLabel, { color: colors.foreground }]}>{pt.label}</Text>
                         <Text style={[styles.planTypeOptionSubtitle, { color: colors.mutedForeground }]}>{pt.subtitle}</Text>
+                        {heroMeal && (
+                          <View style={styles.programOptionPreview}>
+                            <PlannerMealImage meal={heroMeal} style={styles.programOptionPreviewImage} />
+                            <View style={styles.programOptionPreviewCopy}>
+                              <Text style={[styles.programOptionPreviewLabel, { color: colors.primary }]}>REPRESENTATIVE PREVIEW</Text>
+                              <Text numberOfLines={1} style={[styles.programOptionPreviewName, { color: colors.foreground }]}>{heroMeal.name}</Text>
+                              <Text style={[styles.programOptionPreviewDisclosure, { color: colors.mutedForeground }]}>Eligible example · not guaranteed</Text>
+                            </View>
+                          </View>
+                        )}
                         {isSelected && <Text style={[styles.planTypeOptionDesc, { color: colors.primary }]}>{pt.description}</Text>}
                       </View>
                       {isSelected && (
@@ -1428,6 +1462,12 @@ function makeStyles(f: number) {
    programDetailCard: { borderRadius: 15, borderWidth: 1, padding: 13, marginTop: 16, gap: 7 },
    programDetailLabel: { fontFamily: 'Inter_700Bold', fontSize: 9 * f, letterSpacing: 0.9 },
    programDetailText: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 16 * f },
+   programPreviewCard: { borderRadius: 15, borderWidth: 1, flexDirection: 'row', marginTop: 16, minHeight: 100, overflow: 'hidden' },
+   programPreviewImage: { minHeight: 100, width: 108 },
+   programPreviewCopy: { flex: 1, justifyContent: 'center', padding: 12 },
+   programPreviewLabel: { fontFamily: 'Inter_700Bold', fontSize: 8 * f, letterSpacing: 0.8 },
+   programPreviewName: { fontFamily: 'Inter_700Bold', fontSize: 14 * f, lineHeight: 18 * f, marginTop: 4 },
+   programPreviewDisclosure: { fontFamily: 'Inter_400Regular', fontSize: 9.5 * f, lineHeight: 13 * f, marginTop: 4 },
   generationStatus: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 14 },
   generationStatusText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 10 * f, lineHeight: 15 },
   dayDivider: { paddingBottom: 11, borderBottomWidth: 1, marginBottom: 13 },
@@ -1607,6 +1647,12 @@ function makeStyles(f: number) {
   planTypeOptionCopy: { flex: 1 },
   planTypeOptionLabel: { fontFamily: 'Inter_700Bold', fontSize: 14 * f },
   planTypeOptionSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 * f, lineHeight: 15, marginTop: 2 },
+  programOptionPreview: { alignItems: 'center', flexDirection: 'row', gap: 8, marginTop: 9 },
+  programOptionPreviewImage: { borderRadius: 9, height: 46, overflow: 'hidden', width: 52 },
+  programOptionPreviewCopy: { flex: 1 },
+  programOptionPreviewLabel: { fontFamily: 'Inter_700Bold', fontSize: 7.5 * f, letterSpacing: 0.65 },
+  programOptionPreviewName: { fontFamily: 'Inter_600SemiBold', fontSize: 10.5 * f, marginTop: 2 },
+  programOptionPreviewDisclosure: { fontFamily: 'Inter_400Regular', fontSize: 8.5 * f, marginTop: 2 },
   planTypeOptionDesc: { fontFamily: 'Inter_400Regular', fontSize: 10 * f, lineHeight: 14, marginTop: 5 },
   planTypeCheck: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   });

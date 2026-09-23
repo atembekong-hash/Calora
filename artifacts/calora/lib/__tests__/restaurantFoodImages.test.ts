@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { restaurantFoodImageAssetKey, restaurantFoodImageKey, restaurantFoodImageLabel } from '../restaurantFoodImageSelection';
+import {
+  restaurantFoodImageAssetKey,
+  restaurantFoodImageKey,
+  restaurantFoodImageLabel,
+  RESTAURANT_REPRESENTATIVE_ILLUSTRATION_LABEL,
+} from '../restaurantFoodImageSelection';
+import { restaurantFoodIllustration, restaurantFoodIllustrationForAssetKey } from '../restaurantFoodImages';
 
 describe('restaurantFoodImageKey', () => {
-  it('assigns representative photos to branded menu items', () => {
+  it('assigns representative category illustrations to branded menu items', () => {
     expect(restaurantFoodImageKey({ brandName: 'Chipotle', name: 'Chicken Burrito Bowl' })).toBe('bowl');
     expect(restaurantFoodImageKey({ brandName: "Wendy's", name: 'Dave’s Single' })).toBe('main');
     expect(restaurantFoodImageKey({ brandName: 'Burger King', name: 'Whopper' })).toBe('main');
@@ -16,7 +22,7 @@ describe('restaurantFoodImageKey', () => {
     expect(drink).toBe('drink');
   });
 
-  it('does not let restaurant brand names misclassify the menu item photo', () => {
+  it('does not let restaurant brand names misclassify the menu item illustration', () => {
     expect(restaurantFoodImageKey({ brandName: 'Coffee Bean & Tea Leaf', name: 'Turkey Sandwich' }))
       .toBe('wrap');
     expect(restaurantFoodImageKey({ brandName: 'Taco Bell', name: 'Cheeseburger' }))
@@ -36,8 +42,21 @@ describe('restaurantFoodImageKey', () => {
     expect(assetKey).toBe('restaurant:salad');
   });
 
-  it('labels local category imagery as representative instead of exact dish photography', () => {
+  it('labels local category imagery as a non-photo representative illustration', () => {
     expect(restaurantFoodImageLabel({ brandName: 'Local Restaurant', name: 'Garden Salad' }))
-      .toBe('Representative salad image for Garden Salad');
+      .toBe('Representative category illustration — no verified menu photo. salad category for Garden Salad.');
+  });
+
+  it('uses deterministic local icon and gradient metadata instead of photo assets', () => {
+    expect(restaurantFoodIllustration({ name: 'Garden Salad' })).toMatchObject({
+      title: 'Salad',
+      icon: 'feather',
+      gradient: ['#3f794f', '#78a96e'],
+    });
+    expect(restaurantFoodIllustrationForAssetKey('restaurant:salad'))
+      .toEqual(restaurantFoodIllustration({ name: 'Garden Salad' }));
+    expect(restaurantFoodIllustrationForAssetKey('restaurant:not-a-category')).toBeUndefined();
+    expect(RESTAURANT_REPRESENTATIVE_ILLUSTRATION_LABEL)
+      .toBe('Representative category illustration — no verified menu photo.');
   });
 });

@@ -66,7 +66,7 @@ vi.mock('@workspace/db', () => ({
     createdAt: 'created_at',
   },
   aiCaptureSessionsTable: { id: 'id', userId: 'user_id', reviewedAt: 'reviewed_at' },
-  aiCaptureCandidatesTable: { sessionId: 'session_id', calories: 'calories' },
+  aiCaptureCandidatesTable: { sessionId: 'session_id', calories: 'calories', evidence: 'evidence' },
 }));
 
 const verifyBearerToken = vi.fn();
@@ -155,6 +155,9 @@ function diaryRow(overrides: Record<string, unknown> = {}) {
     provenance: 'Photo estimate',
     confidence: 82,
     notes: null,
+    imageUrl: null,
+    imageSource: null,
+    syncMetadata: {},
     clientUpdatedAt: new Date('2026-08-11T08:15:00.000Z'),
     updatedAt: new Date('2026-08-11T08:15:00.000Z'),
     ...overrides,
@@ -429,6 +432,20 @@ const validEntry = {
   clientUpdatedAt: '2026-08-11T08:15:00.000Z',
 };
 
+const exactCaptureImageEvidence = {
+  version: 1,
+  semanticRole: 'exact',
+  contentId: 'food-product:open-food-facts:12345678',
+  source: 'barcode-provider',
+  provider: 'Open Food Facts',
+  providerItemId: '12345678',
+  imageId: 'front',
+  locator: 'https://images.openfoodfacts.org/products/12345678/front.jpg',
+  retrievedAt: '2026-09-23T12:00:00.000Z',
+  attribution: 'Open Food Facts · CC BY-SA',
+  rightsReviewState: 'approved',
+};
+
 describe('POST /v1/diary/first-log', () => {
   it('persists the first entry when it matches a server-recorded capture session', async () => {
     queueResults([
@@ -445,6 +462,64 @@ describe('POST /v1/diary/first-log', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ synced: true, alreadyExisted: false });
     expect(insertCalls.length).toBe(1);
+  });
+
+  it('persists only the canonical server envelope for matching exact capture evidence', async () => {
+    queueResults([
+      [{ id: USER_A_UUID }],
+      [],
+      [sessionRow({ mode: 'barcode' })],
+      [{ calories: '310', evidence: { imageEvidence: exactCaptureImageEvidence } }],
+      [{ id: SESSION_ID }],
+      [],
+    ]);
+
+    const res = await request(buildApp()).post('/v1/diary/first-log').send({
+      ...validEntry,
+      imageUrl: exactCaptureImageEvidence.locator,
+      imageSource: 'client-supplied-label',
+      imageEvidence: { ...exactCaptureImageEvidence, source: 'client-supplied-source' },
+    });
+
+    expect(res.status).toBe(200);
+    expect(insertCalls[0]).toMatchObject({
+      imageUrl: exactCaptureImageEvidence.locator,
+      imageSource: 'Open Food Facts',
+      syncMetadata: {
+        imageEvidence: {
+          ...exactCaptureImageEvidence,
+          accountScope: USER_A.id,
+        },
+      },
+    });
+  });
+
+  it('downgrades an unmatched client exact image assertion before first-log persistence', async () => {
+    queueResults([
+      [{ id: USER_A_UUID }],
+      [],
+      [sessionRow({ mode: 'barcode' })],
+      [{ calories: '310', evidence: { imageEvidence: exactCaptureImageEvidence } }],
+      [{ id: SESSION_ID }],
+      [],
+    ]);
+
+    const res = await request(buildApp()).post('/v1/diary/first-log').send({
+      ...validEntry,
+      imageUrl: exactCaptureImageEvidence.locator,
+      imageSource: 'Open Food Facts',
+      imageEvidence: { ...exactCaptureImageEvidence, imageId: 'different-image' },
+    });
+
+    expect(res.status).toBe(200);
+    expect(insertCalls[0]).toMatchObject({
+      syncMetadata: {
+        imageEvidence: {
+          semanticRole: 'unverified',
+          accountScope: USER_A.id,
+        },
+      },
+    });
   });
 
   it('ADVERSARIAL: a fabricated payload with no real capture session creates no diary record', async () => {

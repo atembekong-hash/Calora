@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ImageEvidence } from './imageEvidence';
 
 export interface CaptureCandidate {
   id: string;
@@ -39,4 +40,5 @@ export interface CaptureCandidate {
      * @maxLength 80
      */
   imageSource?: string | null;
+  imageEvidence?: ImageEvidence;
 }
