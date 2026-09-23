@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { AppState, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, StyleSheet, Text, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -13,7 +13,7 @@ import {
   Inter_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/inter';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useGlobalSearchParams, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { CaloraProvider, useCalora } from '@/context/CaloraContext';
@@ -27,6 +27,8 @@ import { initializeRevenueCat, SubscriptionProvider } from '@/lib/revenuecat';
 import { ReferralActivator } from '@/components/ReferralActivator';
 import { useDiarySync } from '@/hooks/useDiarySync';
 import { isNotificationOwnedByScope, recordReceivedNotification } from '@/lib/notificationInbox';
+import { BRAND } from '@/lib/brand';
+import { getRootAccessGateState } from '@/lib/rootAccessGate';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -219,19 +221,40 @@ function PostLogIntelligenceHost() {
   );
 }
 
+/** Visible launch state while Supabase determines the account storage scope. */
+function AuthRestoreBootstrap() {
+  return (
+    <View
+      testID="auth-restore-bootstrap"
+      accessibilityRole="progressbar"
+      accessibilityLabel="Restoring your session"
+      accessibilityLiveRegion="polite"
+      accessibilityValue={{ text: 'Restoring your session' }}
+      style={styles.bootstrapPage}
+    >
+      <View style={styles.bootstrapMark}>
+        <Text style={styles.bootstrapMarkText}>C</Text>
+      </View>
+      <Text style={styles.bootstrapBrand}>{BRAND.name}</Text>
+      <ActivityIndicator accessible={false} color="#20624f" style={styles.bootstrapSpinner} />
+      <Text style={styles.bootstrapMessage}>Restoring your session…</Text>
+    </View>
+  );
+}
+
 /**
  * Auth changes are a hard privacy boundary. Keying the state and query
  * providers unmounts old in-memory data before the next identity hydrates.
  */
 function AccountScopedProviders({ children }: { children: React.ReactNode }) {
   const { user, isLoading: authLoading } = useAuth();
-  // Do not hydrate the guest namespace while Supabase is still restoring a
-  // persisted session. Mounting guest first can show onboarding and autosave
-  // against the wrong account before the authenticated scope is known.
-  if (authLoading) return null;
   const accountId = user?.id ?? null;
   const scopeKey = accountId ?? 'guest';
   const scopedQueryClient = useMemo(() => createQueryClient(), [scopeKey]);
+  // Do not hydrate the guest namespace while Supabase is still restoring a
+  // persisted session. Mounting guest first can show onboarding and autosave
+  // against the wrong account before the authenticated scope is known.
+  if (authLoading) return <AuthRestoreBootstrap />;
 
   return (
     <CaloraProvider key={scopeKey} accountId={accountId}>
@@ -253,19 +276,46 @@ function AccountScopedProviders({ children }: { children: React.ReactNode }) {
 }
 
 function RootLayoutNav() {
+  const {
+    hydrated,
+    hydrationError,
+    onboardingComplete,
+    profileSyncReady,
+  } = useCalora();
+  const { mode } = useGlobalSearchParams<{ mode?: string | string[] }>();
+  const reviewRequested = mode === 'review';
+  const { allowApplication, allowOnboarding } = getRootAccessGateState({
+    hydrated,
+    hydrationError,
+    profileSyncReady,
+    onboardingComplete,
+    reviewRequested,
+  });
+
   return (
     <>
       <NotificationHandler />
       <Stack screenOptions={{ headerBackTitle: 'Back', contentStyle: { backgroundColor: 'transparent' } }}>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="saved-recipes" options={{ headerShown: false }} />
-        <Stack.Screen name="coach" options={{ headerShown: false }} />
-        <Stack.Screen name="memory" options={{ headerShown: false }} />
-        <Stack.Screen name="restaurants" options={{ headerShown: false }} />
-        <Stack.Screen name="meal-image-preview" options={{ headerShown: false }} />
+        {/*
+          This is the single route/access boundary for onboarding. During
+          hydration (including recoverable errors), only the root onboarding
+          route is registered. Completed scopes gain application routes only
+          after local hydration and account-profile reconciliation both pass.
+        */}
+        <Stack.Protected guard={allowOnboarding}>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={allowApplication}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="saved-recipes" options={{ headerShown: false }} />
+          <Stack.Screen name="coach" options={{ headerShown: false }} />
+          <Stack.Screen name="memory" options={{ headerShown: false }} />
+          <Stack.Screen name="restaurants" options={{ headerShown: false }} />
+          <Stack.Screen name="meal-image-preview" options={{ headerShown: false }} />
+        </Stack.Protected>
+        {/* Invite/auth/recovery routes remain available to capture narrow transient state. */}
+        <Stack.Screen name="invite/[code]" options={{ headerShown: false }} />
         <Stack.Screen name="encrypted-recovery-preview" options={{ headerShown: false }} />
-        {/* Auth screens group — sign-in, sign-up, forgot/reset password, callback */}
         <Stack.Screen name="auth" options={{ headerShown: false }} />
       </Stack>
     </>
@@ -303,6 +353,25 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  bootstrapPage: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f7f8f3',
+    paddingHorizontal: 28,
+  },
+  bootstrapMark: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#20624f',
+  },
+  bootstrapMarkText: { color: '#ffffff', fontFamily: 'Inter_800ExtraBold', fontSize: 20 },
+  bootstrapBrand: { color: '#17251f', fontFamily: 'Inter_800ExtraBold', fontSize: 22, marginTop: 12 },
+  bootstrapSpinner: { marginTop: 20 },
+  bootstrapMessage: { color: '#68756e', fontFamily: 'Inter_500Medium', fontSize: 13, marginTop: 12 },
   postLogWrap: {
     position: 'absolute',
     left: 16,

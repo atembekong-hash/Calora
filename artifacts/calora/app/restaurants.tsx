@@ -11,6 +11,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,6 +27,7 @@ import type { FoodMemoryComponent } from '@/lib/foodMemory';
 import { restaurantFoodReviewState } from '@/lib/restaurantFoodReview';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { BottomSheet } from '@/components/BottomSheet';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 
 const popularChains = ["McDonald's", 'Burger King', "Wendy's", 'Chipotle'];
 const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -166,8 +168,11 @@ export default function RestaurantsScreen() {
         </View>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollViewCompat
+        testID="restaurants-keyboard-safe-scroll"
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        bottomOffset={insets.bottom + 72}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 28 }]}
       >
@@ -279,12 +284,19 @@ export default function RestaurantsScreen() {
           <Feather name="shield" size={13} color={colors.mutedForeground} />
           <Text style={[styles.attributionText, { color: colors.mutedForeground }]}>Nutrition data supplied by FatSecret. Results may not include a restaurant’s complete official menu.</Text>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
 
       <BottomSheet visible={selectedFood !== null} onRequestClose={() => setSelectedFood(null)} sheetStyle={[styles.detailSheet, { backgroundColor: colors.background }]}>
             <View style={styles.sheetHandle} />
             {detail ? (
-              <ScrollView style={styles.detailScroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.detailScrollContent}>
+              <KeyboardAwareScrollViewCompat
+                style={styles.detailScroll}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+                bottomOffset={insets.bottom + 72}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.detailScrollContent}
+              >
                 <View style={styles.detailHeader}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.detailBrand, { color: colors.primary }]}>{detail.brandName ?? 'BRANDED FOOD'}</Text>
@@ -359,7 +371,7 @@ export default function RestaurantsScreen() {
                   <Feather name="check-circle" size={17} color={reviewState === 'ready' ? colors.primaryForeground : colors.mutedForeground} />
                   <Text style={[styles.logButtonText, { color: reviewState === 'ready' ? colors.primaryForeground : colors.mutedForeground }]}>Review for {meal.toLowerCase()}</Text>
                 </Pressable>
-              </ScrollView>
+              </KeyboardAwareScrollViewCompat>
             ) : (
               <View style={styles.centerState}><ActivityIndicator color={colors.primary} /></View>
             )}
