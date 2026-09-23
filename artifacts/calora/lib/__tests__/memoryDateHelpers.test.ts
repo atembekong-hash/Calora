@@ -13,7 +13,7 @@
  *   - today / yesterday / a few days / a few weeks
  */
 import { describe, expect, it } from 'vitest';
-import { isStaleDate, relativeTime, THIRTY_DAYS_MS, parseDateLocal } from '../memoryDateHelpers';
+import { isStaleDate, isValidCalendarDate, relativeTime, THIRTY_DAYS_MS, parseDateLocal } from '../memoryDateHelpers';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -201,5 +201,13 @@ describe('staleness boundary crossing', () => {
 
     expect(before).toMatch(/week/);
     expect(after).toMatch(/month/);
+  });
+});
+
+describe('isValidCalendarDate', () => {
+  it('accepts a leap-day date and rejects impossible calendar days', () => {
+    expect(isValidCalendarDate('2028-02-29')).toBe(true);
+    expect(isValidCalendarDate('2026-02-30')).toBe(false);
+    expect(isValidCalendarDate('2026-13-01')).toBe(false);
   });
 });

@@ -869,6 +869,7 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
   const [calories, setCalories] = useState(log ? `${log.calories}` : '');
   const [meal, setMeal] = useState<MealType>(log?.meal ?? 'Snack');
   const [serving, setServing] = useState(log?.serving ?? '1 serving');
+  const [error, setError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (!log) return;
@@ -876,11 +877,21 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
     setCalories(`${log.calories}`);
     setMeal(log.meal);
     setServing(log.serving);
+    setError(null);
   }, [log]);
 
   const save = () => {
-    if (!log || !name.trim() || !Number(calories) || Number(calories) < 0) return;
-    updateLog(log.id, { name: name.trim(), calories: Number(calories), meal, serving });
+    if (!log) return;
+    const nextCalories = Number(calories);
+    if (!name.trim()) {
+      setError('Add a food name before saving.');
+      return;
+    }
+    if (!Number.isFinite(nextCalories) || nextCalories < 0) {
+      setError('Enter calories as zero or a positive number.');
+      return;
+    }
+    updateLog(log.id, { name: name.trim(), calories: nextCalories, meal, serving });
     onClose();
   };
 
@@ -898,11 +909,12 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
             <ScalePressable accessibilityLabel="Close edit entry" onPress={onClose} scale={0.92} haptic="none" style={[styles.closeButton, { backgroundColor: colors.muted }]}><Feather name="x" size={18} color={colors.foreground} /></ScalePressable>
           </View>
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Food name</Text>
-          <TextInput value={name} onChangeText={setName} style={[styles.editInput, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground }]} />
+          <TextInput accessibilityLabel="Edited food name" value={name} onChangeText={(value) => { setName(value); if (error) setError(null); }} style={[styles.editInput, { backgroundColor: colors.card, borderColor: error ? colors.destructive : colors.input, color: colors.foreground }]} />
           <View style={styles.editFields}>
-            <View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Calories</Text><TextInput value={calories} onChangeText={setCalories} keyboardType="number-pad" style={[styles.editInput, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground }]} /></View>
+            <View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Calories</Text><TextInput accessibilityLabel="Edited calories" value={calories} onChangeText={(value) => { setCalories(value); if (error) setError(null); }} keyboardType="number-pad" style={[styles.editInput, { backgroundColor: colors.card, borderColor: error ? colors.destructive : colors.input, color: colors.foreground }]} /></View>
             <View style={{ flex: 1 }}><Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Serving</Text><TextInput value={serving} onChangeText={setServing} style={[styles.editInput, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground }]} /></View>
           </View>
+          {error ? <Text accessibilityRole="alert" style={[styles.editError, { color: colors.destructive }]}>{error}</Text> : null}
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 14 }]}>Meal</Text>
           <View style={styles.mealPicker}>{mealOrder.map((item) => <ScalePressable key={item} onPress={() => setMeal(item)} scale={0.95} haptic="none" style={[styles.mealChoice, { backgroundColor: meal === item ? colors.primary : colors.card, borderColor: meal === item ? colors.primary : colors.border }]}><Text style={[styles.mealChoiceText, { color: meal === item ? colors.primaryForeground : colors.mutedForeground }]}>{item}</Text></ScalePressable>)}</View>
           <ScalePressable accessibilityLabel="Save edited entry" onPress={save} scale={0.96} haptic="light" style={[styles.saveEntry, { backgroundColor: colors.primary }]}><Text style={[styles.saveEntryText, { color: colors.primaryForeground }]}>Save changes</Text></ScalePressable>
@@ -1946,6 +1958,7 @@ function makeStyles(f: number) {
   editCard: { borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 24, paddingTop: 12 },
   fieldLabel: { fontFamily: 'Inter_700Bold', fontSize: 11 * f, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.8 },
   editInput: { height: 48, borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, paddingHorizontal: 12, fontFamily: 'Inter_500Medium', fontSize: 14 * f, marginBottom: 14 },
+  editError: { fontFamily: 'Inter_500Medium', fontSize: 12 * f, lineHeight: 17 * f, marginTop: -6, marginBottom: 10 },
   editFields: { flexDirection: 'row', gap: 10 },
   mealPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
   mealChoice: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 13, paddingHorizontal: 12, paddingVertical: 10 },

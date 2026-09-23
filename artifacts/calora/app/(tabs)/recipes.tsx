@@ -232,6 +232,19 @@ function UpcomingRecipeSection({
 type RecipeConcept = { title: string; summary: string; whyItFits: string; keyIngredients: string[]; estimatedMinutes: number | null };
 type CreatorMode = 'pantry' | 'goals' | 'tell' | 'surprise';
 
+/** A local, clearly labeled fallback so temporary recipe-service failures do not dead-end creation. */
+function createOfflineRecipeConcepts(ingredients: string[], mealType: string, request: string, minutes: number): RecipeConcept[] {
+  const selected = ingredients.length ? ingredients.slice(0, 4) : ['seasonal vegetables', 'a protein', 'a whole grain'];
+  const main = selected[0] ?? 'everyday ingredients';
+  const detail = selected.slice(1).join(', ');
+  const prefix = request.trim() ? request.trim().split(/\s+/).slice(0, 5).join(' ') : `${mealType} idea`;
+  return [
+    { title: `${main} skillet`, summary: `${prefix} with ${selected.join(', ')}.`, whyItFits: 'Built locally while recipe suggestions reconnect.', keyIngredients: selected, estimatedMinutes: minutes },
+    { title: `${main} bowl`, summary: `A flexible ${mealType.toLowerCase()} bowl with ${detail || main}.`, whyItFits: 'Easy to adapt to what is already available.', keyIngredients: selected, estimatedMinutes: Math.max(10, minutes - 5) },
+    { title: `Quick ${main} plate`, summary: `A simple, balanced plate centered on ${main}.`, whyItFits: 'Keeps the next step useful even without a recipe connection.', keyIngredients: selected, estimatedMinutes: Math.min(45, minutes + 5) },
+  ];
+}
+
 const CREATOR_STYLE_OPTIONS = ['Balanced', 'High protein', 'Vegetarian', 'Vegan', 'Quick & light'];
 const CREATOR_SURPRISE_OPTIONS = ['Fresh & light', 'Comforting', 'High protein', 'Pantry-friendly'];
 const GUEST_INGREDIENT_OPTIONS = ['Eggs', 'Chicken', 'Lentils', 'Spinach', 'Rice', 'Pasta', 'Tomatoes', 'Lemon'];
@@ -319,8 +332,14 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
         setStatus('idle');
         abortRef.current = null;
       } else {
-        setStatus('error');
-        setError((cause as Error).message);
+        const fallbackIngredients = [ingredients, ingredientDraft]
+          .join(',')
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+        setConcepts(createOfflineRecipeConcepts(fallbackIngredients, mealType, generatedRequest, Number(minutes)));
+        setStatus('idle');
+        setError('Recipe suggestions are temporarily unavailable. Showing local, editable starter ideas instead.');
       }
     }
   };
@@ -336,7 +355,28 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
     try {
       const generated = await requestGeneratedRecipe<{ name: string; description: string; ingredients: string[]; instructions: string[]; prepMinutes: number | null; servings: number; allergens?: string[]; nutrition?: { calories?: number; proteinG?: number; carbsG?: number; fatG?: number } }>({ title: concept.title, summary: concept.summary, servings: Number(servings) });
       onOpenRecipe(saveRecipe({ name: generated.name, description: generated.description, ingredients: generated.ingredients, instructions: generated.instructions.join('\n'), tags: ['Calora AI', ...(generated.allergens ?? [])], prepMinutes: generated.prepMinutes, servings: generated.servings, calories: generated.nutrition?.calories, proteinG: generated.nutrition?.proteinG, carbsG: generated.nutrition?.carbsG, fatG: generated.nutrition?.fatG, source: 'Calora AI', sourceUrl: '', isLocal: true, sourceType: 'calora_ai', sourceProvider: 'Calora AI', nutritionConfidence: 'estimated', nutritionSource: 'AI estimate', createdAt: new Date().toISOString() }));
-    } catch (cause) { setError((cause as Error).message); } finally { finishingRef.current = false; setFinishingTitle(null); }
+    } catch {
+      // Creating a local draft preserves the user's chosen concept without
+      // pretending that unavailable AI output was received.
+      onOpenRecipe(saveRecipe({
+        name: concept.title,
+        description: concept.summary,
+        ingredients: concept.keyIngredients,
+        instructions: `Prepare ${concept.keyIngredients.join(', ')}. Cook until done and season to taste. Review quantities before logging.`,
+        tags: ['Calora local draft'],
+        prepMinutes: concept.estimatedMinutes,
+        servings: Number(servings),
+        source: 'Calora local draft',
+        sourceUrl: '',
+        isLocal: true,
+        sourceType: 'user_created',
+        sourceProvider: 'Calora',
+        nutritionConfidence: 'user_entered',
+        nutritionSource: 'User review required',
+        createdAt: new Date().toISOString(),
+      }));
+      setError('Recipe details are temporarily unavailable. A local draft was saved for you to review and edit.');
+    } finally { finishingRef.current = false; setFinishingTitle(null); }
   };
   return <View>
     <View style={[styles.createHero, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -386,7 +426,7 @@ function CreateConcepts({ colors, onOpenRecipe }: { colors: ReturnType<typeof us
       {!session && <Text style={[styles.guestBoundary, { color: colors.mutedForeground }]}>Guest ideas are generic. Sign in to use your pantry and turn an idea into a saved recipe.</Text>}
       <ScalePressable accessibilityLabel="Generate five recipe ideas" onPress={generate} disabled={status === 'loading' || Boolean(finishingTitle)} style={[styles.primaryAction, { backgroundColor: colors.primary }]}><Feather name="star" size={16} color={colors.primaryForeground} /><Text style={[styles.primaryActionText, { color: colors.primaryForeground }]}>{status === 'loading' ? 'Generating ideas…' : 'Generate 5 ideas'}</Text></ScalePressable>
       {status === 'loading' && <Pressable onPress={() => abortRef.current?.abort()}><Text style={[styles.sourceActionText, { color: colors.mutedForeground }]}>Cancel</Text></Pressable>}
-      {status === 'error' && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{error}</Text><Pressable onPress={generate}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}
+      {error && status !== 'loading' && <View style={[styles.notice, { backgroundColor: colors.accent }]}><Text style={[styles.noticeText, { color: colors.foreground }]}>{error}</Text><Pressable onPress={generate}><Text style={[styles.shopActionText, { color: colors.primary }]}>Retry</Text></Pressable></View>}
     </View>
      {concepts.length > 0 && <View style={styles.conceptsSection}>
        <View style={styles.conceptsHeader}>

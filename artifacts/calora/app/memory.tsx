@@ -8,7 +8,7 @@ import { useCalora, type DailyActivity, type FoodLog, type MealType, type Mood }
 import { BRAND } from '@/lib/brand';
 import type { LivingMemoryKind } from '@/lib/livingMemory';
 import { buildDiaryRows, buildWellnessRows, buildPlannerRows } from '@/lib/memorySections';
-import { isStaleDate, relativeTime as computeRelativeTime } from '@/lib/memoryDateHelpers';
+import { isStaleDate, isValidCalendarDate, relativeTime as computeRelativeTime } from '@/lib/memoryDateHelpers';
 import { AppHeader } from '@/components/AppChrome';
 import { FoodLogThumbnail } from '@/components/FoodLogThumbnail';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -110,6 +110,7 @@ export default function LivingMemoryScreen() {
   const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
   const [editDate, setEditDate] = useState('');
   const [editMeal, setEditMeal] = useState<MealType>('Breakfast');
+  const [editError, setEditError] = useState<string | null>(null);
   const [forgetTarget, setForgetTarget] = useState<{ kind: LivingMemoryKind; id: string; label: string } | null>(null);
   const [showForgetAllStale, setShowForgetAllStale] = useState(false);
   const [pendingForget, setPendingForget] = useState<{ kind: LivingMemoryKind; id: string; label: string } | null>(null);
@@ -245,12 +246,18 @@ export default function LivingMemoryScreen() {
     setEditingLog(log);
     setEditDate(log.date);
     setEditMeal(log.meal);
+    setEditError(null);
   };
 
   const saveEdit = () => {
-    if (!editingLog || !/^\d{4}-\d{2}-\d{2}$/.test(editDate)) return;
+    if (!editingLog) return;
+    if (!isValidCalendarDate(editDate)) {
+      setEditError('Enter a real calendar date in YYYY-MM-DD format.');
+      return;
+    }
     updateLog(editingLog.id, { date: editDate, meal: editMeal });
     setEditingLog(null);
+    setEditError(null);
   };
 
   return (
@@ -399,12 +406,13 @@ export default function LivingMemoryScreen() {
         </View>
       )}
 
-      <BottomSheet visible={editingLog !== null} onRequestClose={() => setEditingLog(null)} sheetStyle={{ backgroundColor: colors.background }}>
+      <BottomSheet visible={editingLog !== null} onRequestClose={() => { setEditingLog(null); setEditError(null); }} sheetStyle={{ backgroundColor: colors.background }}>
           <KeyboardAwareScrollViewCompat style={styles.editSheetScroll} contentContainerStyle={styles.editSheetContent} bottomOffset={72}>
             <Text style={[styles.editTitle, { color: colors.foreground }]}>Correct this signal</Text>
               <Text style={[styles.editBody, { color: colors.mutedForeground }]}>Updates the original diary entry; its nutrition snapshot stays unchanged.</Text>
             <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>DATE · YYYY-MM-DD</Text>
-            <TextInput accessibilityLabel="Memory date" value={editDate} onChangeText={setEditDate} placeholder="2026-08-06" placeholderTextColor={colors.mutedForeground} style={[styles.dateInput, { backgroundColor: colors.card, borderColor: colors.input, color: colors.foreground }]} />
+            <TextInput accessibilityLabel="Memory date" value={editDate} onChangeText={(value) => { setEditDate(value); if (editError) setEditError(null); }} placeholder="2026-08-06" placeholderTextColor={colors.mutedForeground} style={[styles.dateInput, { backgroundColor: colors.card, borderColor: editError ? colors.destructive : colors.input, color: colors.foreground }]} />
+            {editError ? <Text accessibilityRole="alert" style={[styles.dateError, { color: colors.destructive }]}>{editError}</Text> : null}
             <Text style={[styles.inputLabel, { color: colors.mutedForeground }]}>MEAL TYPE</Text>
             <View style={styles.mealChoices}>
               {mealTypes.map((meal) => (
@@ -416,7 +424,7 @@ export default function LivingMemoryScreen() {
             <Pressable accessibilityLabel="Save memory correction" onPress={saveEdit} style={[styles.saveButton, { backgroundColor: colors.primary }]}>
               <Text style={[styles.saveButtonText, { color: colors.primaryForeground }]}>Save correction</Text>
             </Pressable>
-            <Pressable accessibilityLabel="Cancel memory correction" onPress={() => setEditingLog(null)} style={styles.cancelButton}>
+            <Pressable accessibilityLabel="Cancel memory correction" onPress={() => { setEditingLog(null); setEditError(null); }} style={styles.cancelButton}>
               <Text style={[styles.cancelButtonText, { color: colors.mutedForeground }]}>Cancel</Text>
             </Pressable>
           </KeyboardAwareScrollViewCompat>
@@ -524,6 +532,7 @@ const styles = StyleSheet.create({
   editBody: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18, marginTop: 7, marginBottom: 17 },
   inputLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1, marginTop: 8, marginBottom: 7 },
   dateInput: { height: 44, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, fontFamily: 'Inter_400Regular', fontSize: 12 },
+  dateError: { fontFamily: 'Inter_500Medium', fontSize: 12, lineHeight: 17, marginTop: 7 },
   mealChoices: { flexDirection: 'row', gap: 6 },
   mealChoice: { flex: 1, borderWidth: 1, borderRadius: 10, alignItems: 'center', paddingVertical: 9 },
   mealChoiceText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },

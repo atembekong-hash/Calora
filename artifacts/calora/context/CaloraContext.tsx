@@ -77,6 +77,8 @@ import {
   type FoodImageSource,
 } from '@/lib/foodImageMetadata';
 import { clearDiarySyncState, recordDiaryDelete } from '@/lib/diarySync';
+import { clearCaptureApprovalState } from '@/lib/captureApprovalSync';
+import { isValidCanonicalWeightKg } from '@/lib/weightInput';
 import {
   DEFAULT_LOCAL_NOTIFICATION_PREFERENCES,
   legacyReminderMirrors,
@@ -350,6 +352,8 @@ type CaloraContextValue = {
   mode: 'light' | 'dark';
   colors: typeof colors.light;
   syncState: SyncState;
+  /** Session-only diary backup status, set only by the authenticated sync worker. */
+  setDiarySyncState: (state: Exclude<SyncState, 'offline'>) => void;
   pendingMutations: OutboxMutation[];
   applySyncedDiaryLogs: (logs: FoodLog[]) => void;
   healthConnected: boolean;
@@ -511,6 +515,7 @@ function makeId(prefix: string) {
 
 function mergeHealthWeights(current: WeightEntry[], snapshot: HealthSnapshot): WeightEntry[] {
   return snapshot.weights.reduce<WeightEntry[]>((next, healthWeight) => {
+    if (!isValidCanonicalWeightKg(healthWeight.kg) || !/^\d{4}-\d{2}-\d{2}T/.test(healthWeight.recordedAt)) return next;
     const date = healthWeight.recordedAt.slice(0, 10);
     // Manual entries always win for a day; repeated syncs reuse the provider record id.
     if (next.some((entry) => entry.date === date && entry.source === 'manual')) return next;
@@ -560,6 +565,7 @@ export function CaloraProvider({
   }, [healthConnection]);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [outbox, setOutbox] = useState<OutboxMutation[]>([]);
+  const [diarySyncState, setDiarySyncState] = useState<Exclude<SyncState, 'offline'>>('local');
   const outboxRef = useRef<OutboxMutation[]>([]);
   const [plannerWeekStart, setPlannerWeekStart] = useState(getPlannerWeekStart());
   const [plannerMeals, setPlannerMealsState] = useState<PlannerMeal[]>(() => createStarterPlannerMeals());
@@ -1333,7 +1339,8 @@ export function CaloraProvider({
     themePreference,
     mode,
     colors: mode === 'dark' ? colors.dark : colors.light,
-    syncState: hydrated ? (outbox.length > 0 ? 'needs-connection' : 'local') : 'offline',
+    syncState: hydrated ? diarySyncState : 'offline',
+    setDiarySyncState,
     pendingMutations: outbox,
     plannerWeekStart,
     plannerMeals,
@@ -1651,6 +1658,7 @@ export function CaloraProvider({
       setRepeatPatterns(next);
     },
     addWeight: (kg, source = 'manual') => {
+      if (!isValidCanonicalWeightKg(kg)) return;
       const entry = { id: makeId('weight'), date: dateKey(), kg, source };
       updateExportField('weights', (current) => [...current as WeightEntry[], entry]);
       setWeights((current) => [...current, entry]);
@@ -1662,6 +1670,7 @@ export function CaloraProvider({
       queueMutation('weight', 'delete');
     },
     updateWeight: (id, kg) => {
+      if (!isValidCanonicalWeightKg(kg)) return;
       updateExportField('weights', (current) => (current as WeightEntry[]).map((w) => w.id === id ? { ...w, kg } : w));
       setWeights((current) => current.map((w) => w.id === id ? { ...w, kg } : w));
       queueMutation('weight', 'upsert');
@@ -1965,6 +1974,7 @@ export function CaloraProvider({
           clearNotificationInbox(accountId ?? null),
           coachFactConsentCache.clear(accountId ?? null),
           clearDiarySyncState(accountId ?? undefined),
+          clearCaptureApprovalState(accountId ?? undefined),
           deleteProfilePhoto(FileSystem, accountId).then((result) => {
             if (!result.ok) throw new Error('profile-photo');
           }),
@@ -2139,7 +2149,7 @@ export function CaloraProvider({
        patchExportSnapshot({ goalCelebrationSeenTargetKg: null });
        setGoalCelebrationSeenTargetKg(null);
      },
-       }), [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
+       }), [accountId, activityLogs, activityMinutesLogs, coachConsentAccepted, coachMessages, consentAccepted, diarySyncState, fontScale, fontSizeScale, foodDrafts, foodMemories, goalCelebrationSeenTargetKg, goalReminder, healthConnected, hydrated, hydrationError, hydrationErrorKind, hydrationReminders, invalidateProfileSync, isClearing, isRetrying, livingMemory, livingState, localRecipes, logs, mealReminders, memoryCorrections, mode, moodLogs, notificationPreferences, notificationScopeReady, onboardingComplete, onboardingDraft, onboardingStep, outbox, pendingPlannerAck, pendingUndoSwap, plannerMeals, plannerPreferences, plannerRevision, plannerWeekStart, plannerViewedDay, persistCompletedProfile, postLogInsight, profile, profilePhotoUri, recipeSlotTarget, rememberedFoodMemories, repeatPatterns, retryProfileSync, savedMeals, savedRecipeIds, shoppingItems, themePreference, waterLogs, weights, profileSyncError, profileSyncReady]);
 
   return <CaloraContext.Provider value={value}>{children}</CaloraContext.Provider>;
 }

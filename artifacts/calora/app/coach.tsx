@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import {
+  useAcceptCoachFactContextConsent,
   CoachAction,
   CoachFactContextResponse,
   CoachMessage,
@@ -26,6 +27,7 @@ import { AppHeader } from '@/components/AppChrome';
 import { CaloraFeatureIcon } from '@/components/CaloraFeatureIcon';
 import { CoachFactContextConsentPanel } from '@/components/CoachFactContextConsentPanel';
 import {
+  coachFactConsentCache,
   isIntelligenceFeatureEnabled,
   useCoachSendAdapter,
   buildDailyIntelligenceFacts,
@@ -163,6 +165,7 @@ export default function CoachScreen() {
   const { user, isLoading: authLoading } = useAuth();
   const insets = useSafeAreaInsets();
   const coachSendAdapter = useCoachSendAdapter();
+  const acceptCoachFactContextConsent = useAcceptCoachFactContextConsent();
   const guestMode = !authLoading && !user?.id;
   const chatReady = guestMode || coachConsentAccepted;
   // Track hydration generation: bumps whenever hydrated goes false→true or
@@ -188,6 +191,7 @@ export default function CoachScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [resetConfirm, setResetConfirm] = useState<'new' | 'history' | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [coachConsentError, setCoachConsentError] = useState<string | null>(null);
   const [turns, setTurns] = useState<DisplayTurn[]>(() => coachMessages.map((message, index) => ({
     id: `saved-${index}`,
     role: message.role,
@@ -340,9 +344,19 @@ export default function CoachScreen() {
     }
   };
 
-  const startCoach = () => {
-    setCoachConsentAccepted(true);
-    void sendMessage('Give me a calm, useful read on my nutrition and wellness this week.', true);
+  const startCoach = async () => {
+    if (acceptCoachFactContextConsent.isPending || !user?.id) return;
+    setCoachConsentError(null);
+    try {
+      const status = await acceptCoachFactContextConsent.mutateAsync({
+        data: { purpose: 'coach_fact_context_v1', documentVersion: '2026-08-21' },
+      });
+      await coachFactConsentCache.write(user.id, status);
+      setCoachConsentAccepted(true);
+      await sendMessage('Give me a calm, useful read on my nutrition and wellness this week.', true);
+    } catch {
+      setCoachConsentError('Your choice could not be saved. Coach stays off until it is confirmed. Please try again.');
+    }
   };
 
   const clearConversation = () => {
@@ -398,10 +412,10 @@ export default function CoachScreen() {
               ))}
             </View>
             <Text style={[styles.consentNote, { color: colors.heroMuted }]}>Your request goes to {BRAND.name}'s AI service. It does not include food names, notes, photos, recipes, raw timelines, account IDs, or your full history. Coach is not medical care and never changes data without your confirmation.</Text>
-            <Pressable accessibilityLabel={`Continue to ${BRAND.name} Coach`} testID="coach-consent-continue" onPress={startCoach} style={[styles.primaryButton, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>See my weekly read</Text>
-              <Feather name="arrow-right" size={16} color={colors.primaryForeground} />
+            <Pressable accessibilityLabel={`Continue to ${BRAND.name} Coach`} testID="coach-consent-continue" disabled={acceptCoachFactContextConsent.isPending} onPress={() => void startCoach()} style={[styles.primaryButton, { backgroundColor: colors.primary, opacity: acceptCoachFactContextConsent.isPending ? 0.6 : 1 }]}>
+              {acceptCoachFactContextConsent.isPending ? <ActivityIndicator color={colors.primaryForeground} /> : <><Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>See my weekly read</Text><Feather name="arrow-right" size={16} color={colors.primaryForeground} /></>}
             </Pressable>
+            {coachConsentError ? <Text accessibilityRole="alert" style={[styles.consentError, { color: colors.heroMuted }]}>{coachConsentError}</Text> : null}
           </View>
         ) : (
           <>
@@ -644,6 +658,7 @@ const styles = StyleSheet.create({
   scopePill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 6 },
   scopeText: { fontFamily: 'Inter_600SemiBold', fontSize: 9 },
   consentNote: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, marginTop: 18 },
+  consentError: { fontFamily: 'Inter_500Medium', fontSize: 12, lineHeight: 17, marginTop: 10 },
   primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 13, paddingVertical: 13, marginTop: 20 },
   primaryButtonText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
   briefCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 17, marginBottom: 20 },
