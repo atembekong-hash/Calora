@@ -13,6 +13,19 @@ const REQUIRED_PUBLIC_VARIABLES = [
   "EXPO_PUBLIC_SUPABASE_ANON_KEY",
   "EXPO_PUBLIC_REVENUECAT_TEST_API_KEY",
 ];
+const FIRST_PAINT_MARKER = 'id="calora-first-paint"';
+const FIRST_PAINT_SHELL = `<div id="calora-first-paint" role="status" aria-label="Loading Calora">
+  <style>
+    #calora-first-paint { box-sizing: border-box; display: grid; min-height: 100%; width: 100%; place-items: center; padding: 24px; background: #f7f8f3; color: #14281f; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    #calora-first-paint * { box-sizing: border-box; }
+    #calora-first-paint > div { display: grid; justify-items: center; gap: 14px; text-align: center; }
+    #calora-first-paint .mark { display: grid; height: 52px; width: 52px; place-items: center; border-radius: 16px; background: #f56c4f; color: white; font-size: 28px; box-shadow: 0 10px 24px rgba(245, 108, 79, 0.24); }
+    #calora-first-paint strong { font-size: 28px; letter-spacing: -0.6px; }
+    #calora-first-paint p { margin: 0; color: #66736d; font-size: 15px; }
+    @media (prefers-reduced-motion: no-preference) { #calora-first-paint .mark { animation: calora-pulse 1.4s ease-in-out infinite alternate; } @keyframes calora-pulse { to { transform: scale(1.04); opacity: 0.82; } } }
+  </style>
+  <div><span class="mark" aria-hidden="true">☼</span><strong>Calora</strong><p>Preparing your day…</p></div>
+</div>`;
 
 function requireNonEmpty(env, key) {
   const value = env[key]?.trim();
@@ -104,6 +117,22 @@ function walkFiles(root) {
   return files;
 }
 
+export function injectFirstPaintShell(outputDir) {
+  const indexPath = path.join(outputDir, "index.html");
+  const html = fs.readFileSync(indexPath, "utf8");
+  if (html.includes(FIRST_PAINT_MARKER)) return;
+  if (!html.includes('<div id="root"></div>')) {
+    throw new Error("Web export root is not empty or has an unexpected shape.");
+  }
+  fs.writeFileSync(
+    indexPath,
+    html.replace(
+      '<div id="root"></div>',
+      `<div id="root">${FIRST_PAINT_SHELL}</div>`,
+    ),
+  );
+}
+
 export function validateWebOutput(outputDir, config) {
   const indexPath = path.join(outputDir, "index.html");
   const faviconPath = path.join(outputDir, "favicon.ico");
@@ -111,6 +140,11 @@ export function validateWebOutput(outputDir, config) {
     throw new Error("Web export is missing dist/index.html.");
   if (!fs.existsSync(faviconPath))
     throw new Error("Web export is missing dist/favicon.ico.");
+
+  const indexText = fs.readFileSync(indexPath, "utf8");
+  if (!indexText.includes(FIRST_PAINT_MARKER)) {
+    throw new Error("Web export is missing the Calora first-paint shell.");
+  }
 
   const files = walkFiles(outputDir);
   const javascriptFiles = files.filter((filePath) =>
@@ -189,6 +223,7 @@ export function buildWeb({
   if (command.status !== 0)
     throw new Error(`Expo web export failed with exit code ${command.status}.`);
 
+  injectFirstPaintShell(outputDir);
   const summary = validateWebOutput(outputDir, config);
   const metadata = {
     schemaVersion: 1,

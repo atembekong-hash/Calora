@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, test } from "node:test";
 import {
+  injectFirstPaintShell,
   validateWebBuildEnvironment,
   validateWebOutput,
 } from "./build-web.mjs";
@@ -25,7 +26,10 @@ function makeOutput(overrides = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "calora-web-build-"));
   tempRoots.push(root);
   fs.mkdirSync(path.join(root, "_expo"), { recursive: true });
-  fs.writeFileSync(path.join(root, "index.html"), "<html></html>");
+  fs.writeFileSync(
+    path.join(root, "index.html"),
+    '<html><body><div id="root"></div></body></html>',
+  );
   fs.writeFileSync(path.join(root, "favicon.ico"), "ico");
   const bundle = [
     validEnv.EXPO_PUBLIC_API_URL,
@@ -35,6 +39,7 @@ function makeOutput(overrides = {}) {
     overrides.extra || "",
   ].join("|");
   fs.writeFileSync(path.join(root, "_expo", "entry.js"), bundle);
+  if (!overrides.blankRoot) injectFirstPaintShell(root);
   return root;
 }
 
@@ -83,6 +88,21 @@ test("rejects an incomplete or misconfigured web export", () => {
   const root = makeOutput();
   fs.unlinkSync(path.join(root, "favicon.ico"));
   assert.throws(() => validateWebOutput(root, config), /favicon/);
+});
+
+test("injects a visible first-paint shell and rejects a blank exported root", () => {
+  const config = validateWebBuildEnvironment(validEnv);
+  const blankRoot = makeOutput({ blankRoot: true });
+  assert.throws(
+    () => validateWebOutput(blankRoot, config),
+    /first-paint shell/,
+  );
+
+  injectFirstPaintShell(blankRoot);
+  const html = fs.readFileSync(path.join(blankRoot, "index.html"), "utf8");
+  assert.match(html, /id="calora-first-paint"/);
+  assert.match(html, /Preparing your day/);
+  assert.doesNotThrow(() => validateWebOutput(blankRoot, config));
 });
 
 test("rejects server-only secret markers in browser bundles", () => {
