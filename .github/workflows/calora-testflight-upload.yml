@@ -4,7 +4,10 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
+  attestations: write
   contents: read
+  id-token: write
 
 concurrency:
   group: calora-testflight-production
@@ -19,11 +22,77 @@ jobs:
         working-directory: artifacts/calora
 
     steps:
-      - name: Require protected main source
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "${GITHUB_REF:-}" = "refs/heads/main"
+      - name: Require protected current main source and successful validation
+        id: release-gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const expectedSha = context.sha;
+            const { data: mainRef } = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'heads/main',
+            });
+            if (context.ref !== 'refs/heads/main' || mainRef.object.sha !== expectedSha) {
+              core.setFailed('TestFlight releases require the current refs/heads/main commit.');
+              return;
+            }
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'release-validation.yml',
+              head_sha: expectedSha,
+              event: 'push',
+              status: 'completed',
+              per_page: 100,
+            });
+            const matches = data.workflow_runs.filter((run) =>
+              run.event === 'push' &&
+              run.status === 'completed' &&
+              run.conclusion === 'success' &&
+              run.head_branch === 'main' &&
+              run.head_sha === expectedSha,
+            );
+            if (matches.length !== 1) {
+              core.setFailed('Exactly one successful same-SHA push Release validation run is required.');
+              return;
+            }
+            const selected = matches[0];
+            await require('node:fs/promises').writeFile(
+              `${process.env.RUNNER_TEMP}/selected-release-validation-run.json`,
+              `${JSON.stringify(selected)}\n`,
+              { mode: 0o600 },
+            );
+            core.setOutput('validation-run-id', String(selected.id));
+            core.setOutput('validation-run-attempt', String(selected.run_attempt));
+
+      - name: Download same-SHA validation gate
+        uses: actions/download-artifact@v4
+        with:
+          name: calora-release-validation-gate
+          run-id: ${{ steps.release-gate.outputs.validation-run-id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/release-validation-gate
+
+      - name: Verify validation gate content
+        working-directory: .
+        run: >-
+          node scripts/release-workflow-provenance.mjs validate-validation-gate
+          "$RUNNER_TEMP/release-validation-gate/calora-release-validation-gate.json"
+          "$RUNNER_TEMP/selected-release-validation-run.json"
+
+      - name: Verify validation gate attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: .
+        run: >-
+          gh attestation verify
+          "$RUNNER_TEMP/release-validation-gate/calora-release-validation-gate.json"
+          --repo "$GITHUB_REPOSITORY"
+          --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release-validation.yml"
+          --source-digest "$GITHUB_SHA"
+          --source-ref "$GITHUB_REF"
+          --deny-self-hosted-runners
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -72,19 +141,39 @@ jobs:
         run: |
           set -euo pipefail
           eas build --platform ios --profile production --non-interactive --wait --json \
-            | tee "$RUNNER_TEMP/eas-build.json"
+            > "$RUNNER_TEMP/eas-build.json"
           node --input-type=module <<'NODE'
-          import { readFileSync } from "node:fs";
-          const payload = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/eas-build.json`, "utf8"));
+          import { readFile } from "node:fs/promises";
+          const payload = JSON.parse(await readFile(`${process.env.RUNNER_TEMP}/eas-build.json`, "utf8"));
           const build = Array.isArray(payload) ? payload.at(-1) : payload?.build ?? payload;
-          if (!build?.id || typeof build.id !== "string") {
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(build?.id ?? "")) {
             throw new Error("EAS did not return an immutable build id.");
           }
           await import("node:fs/promises").then(({ appendFile }) =>
             appendFile(process.env.GITHUB_ENV, `EAS_BUILD_ID=${build.id}\n`),
           );
-          console.log(`Captured EAS build ${build.id}`);
           NODE
+
+      - name: Create immutable EAS build provenance
+        working-directory: .
+        run: >-
+          node scripts/release-workflow-provenance.mjs create-eas-build-provenance
+          "$RUNNER_TEMP/eas-build.json"
+          "$RUNNER_TEMP/release-validation-gate/calora-release-validation-gate.json"
+          "$RUNNER_TEMP/calora-eas-build-provenance.json"
+
+      - name: Upload EAS build provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: calora-eas-build-provenance-${{ github.run_id }}
+          path: ${{ runner.temp }}/calora-eas-build-provenance.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Attest EAS build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/calora-eas-build-provenance.json
 
       - name: Submit the exact iOS build to TestFlight
         env:
@@ -92,5 +181,28 @@ jobs:
           EXPO_ASC_KEY_ID: ${{ secrets.EXPO_ASC_KEY_ID }}
           EXPO_ASC_ISSUER_ID: ${{ secrets.EXPO_ASC_ISSUER_ID }}
         run: |
+          set -euo pipefail
           test -n "${EAS_BUILD_ID:-}"
-          eas submit --platform ios --id "$EAS_BUILD_ID" --non-interactive
+          eas submit --platform ios --id "$EAS_BUILD_ID" --non-interactive --wait \
+            | tee "$RUNNER_TEMP/eas-submit.log"
+
+      - name: Create immutable TestFlight submission provenance
+        working-directory: .
+        run: >-
+          node scripts/release-workflow-provenance.mjs create-eas-submission-provenance
+          "$RUNNER_TEMP/eas-submit.log"
+          "$RUNNER_TEMP/calora-eas-build-provenance.json"
+          "$RUNNER_TEMP/calora-testflight-submission-provenance.json"
+
+      - name: Upload TestFlight submission provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: calora-testflight-submission-provenance-${{ github.run_id }}
+          path: ${{ runner.temp }}/calora-testflight-submission-provenance.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Attest TestFlight submission provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/calora-testflight-submission-provenance.json

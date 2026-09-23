@@ -23,6 +23,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify database source provenance boundary
+        run: >-
+          node scripts/verify-db-source-provenance.mjs
+          "$RUNNER_TEMP/calora-database-source-provenance.json"
+
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -41,6 +46,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Validate authoritative Expo configuration
+        run: node scripts/ci/validate-expo-config.mjs artifacts/calora/app.json
 
       - name: Audit workspace dependencies
         run: pnpm run audit:release
@@ -85,3 +93,38 @@ jobs:
           EXPO_PUBLIC_DOMAIN: calorie-coach-pie35449.replit.app
           EXPO_PUBLIC_API_URL: https://calorie-coach-pie35449.replit.app
         run: pnpm --filter @workspace/calora run build
+
+  release-validation-gate:
+    name: Attest release validation gate
+    needs: release-validation
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Check out validated source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create same-SHA validation gate
+        run: >-
+          node scripts/release-workflow-provenance.mjs create-validation-gate
+          "$RUNNER_TEMP/calora-release-validation-gate.json"
+
+      - name: Upload validation gate
+        uses: actions/upload-artifact@v4
+        with:
+          name: calora-release-validation-gate
+          path: ${{ runner.temp }}/calora-release-validation-gate.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Attest validation gate
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ runner.temp }}/calora-release-validation-gate.json
