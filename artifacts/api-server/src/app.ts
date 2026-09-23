@@ -13,7 +13,7 @@ import { isCorsOriginAllowed } from "./lib/cors-policy";
 
 const app: Express = express();
 
-// Trust one proxy hop (the Replit edge / ingress) so that req.ip resolves to
+// Trust one proxy hop (the managed edge / ingress) so that req.ip resolves to
 // the real client address from the X-Forwarded-For chain rather than the proxy
 // socket address.  Setting this to 1 prevents clients from injecting arbitrary
 // X-Forwarded-For headers — Express peels exactly one hop from the right of

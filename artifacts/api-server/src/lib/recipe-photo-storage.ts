@@ -1,29 +1,64 @@
+import { createHmac, createHash } from "node:crypto";
 import { logger } from "./logger.js";
 
-const OBJECT_STORAGE_SIDECAR = "http://127.0.0.1:1106/object-storage";
-const SIGNED_OBJECT_URL = `${OBJECT_STORAGE_SIDECAR}/signed-object-url`;
-const SIDECAR_TOKEN_URL = "http://127.0.0.1:1106/credential";
-const GOOGLE_TOKEN_EXCHANGE_URL = "http://127.0.0.1:1106/token";
-const GOOGLE_STORAGE_API = "https://storage.googleapis.com/storage/v1";
 const STORAGE_TIMEOUT_MS = 10_000;
 const DELETE_CONCURRENCY = 4;
 const MAX_RECIPE_PHOTO_OBJECTS = 1_000;
+const DEFAULT_SIGNED_URL_TTL_SECS = 15 * 60;
 
-type ListedObject = { name?: unknown; object_name?: unknown };
+type ListedObject = { name?: unknown; object_name?: unknown; Key?: unknown };
 
-function recipePhotoPrefix(userId: string): string {
+type StorageConfig = {
+  bucket: string;
+  endpoint: URL;
+  accessKeyId: string;
+  secretAccessKey: string;
+  region: string;
+  forcePathStyle: boolean;
+};
+
+function requiredEnv(...names: string[]): string {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  throw new Error(`Object storage is not configured (${names.join(" or ")})`);
+}
+
+function storageConfig(): StorageConfig {
+  const endpoint = requiredEnv("RECIPE_PHOTO_STORAGE_ENDPOINT", "S3_ENDPOINT", "AWS_ENDPOINT_URL_S3", "ENDPOINT");
+  return {
+    bucket: requiredEnv("RECIPE_PHOTO_BUCKET", "DEFAULT_OBJECT_STORAGE_BUCKET_ID", "S3_BUCKET", "BUCKET"),
+    endpoint: new URL(endpoint),
+    accessKeyId: requiredEnv("RECIPE_PHOTO_ACCESS_KEY_ID", "S3_ACCESS_KEY_ID", "AWS_ACCESS_KEY_ID", "ACCESS_KEY_ID"),
+    secretAccessKey: requiredEnv("RECIPE_PHOTO_SECRET_ACCESS_KEY", "S3_SECRET_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY", "SECRET_ACCESS_KEY"),
+    region: process.env.RECIPE_PHOTO_STORAGE_REGION?.trim()
+      || process.env.S3_REGION?.trim()
+      || process.env.AWS_REGION?.trim()
+      || process.env.REGION?.trim()
+      || "auto",
+    forcePathStyle: process.env.RECIPE_PHOTO_STORAGE_FORCE_PATH_STYLE === "true"
+      || process.env.S3_FORCE_PATH_STYLE === "true",
+  };
+}
+
+export function recipePhotoPrefix(userId: string): string {
   return `private/recipe-photos/${userId}/`;
+}
+
+export function recipePhotoObjectName(userId: string, imageId: string): string {
+  return `${recipePhotoPrefix(userId)}${imageId}.png`;
 }
 
 function objectNames(payload: unknown, prefix: string): string[] {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new Error("Object storage returned an invalid listing");
   }
-  const value = payload as { items?: unknown };
-  // Google Storage omits `items` when a prefix is empty. Any explicit value,
-  // including null, must be a list so an ambiguous response cannot erase
-  // application data without proving the prefix is empty.
-  const candidates = value.items === undefined ? [] : value.items;
+  const value = payload as { items?: unknown; Contents?: unknown };
+  const candidates = value.items === undefined ? value.Contents : value.items;
+  // S3 omits Contents/items when a prefix is empty. Any explicit value,
+  // including null, must be a list so an ambiguous response cannot erase data.
+  if (candidates === undefined) return [];
   if (!Array.isArray(candidates)) throw new Error("Object storage returned an invalid listing");
   const names: string[] = [];
   for (const candidate of candidates) {
@@ -32,90 +67,143 @@ function objectNames(payload: unknown, prefix: string): string[] {
       continue;
     }
     if (!candidate || typeof candidate !== "object") continue;
-    const value = candidate as ListedObject;
-    if (typeof value.name === "string") {
-      names.push(value.name);
-    } else if (typeof value.object_name === "string") {
-      names.push(value.object_name);
+    const item = candidate as ListedObject;
+    if (typeof item.name === "string") {
+      names.push(item.name);
+    } else if (typeof item.object_name === "string") {
+      names.push(item.object_name);
+    } else if (typeof item.Key === "string") {
+      names.push(item.Key);
     }
   }
   return names.filter((name) => name.startsWith(prefix));
 }
 
-async function listRecipePhotoObjects(bucket: string, prefix: string): Promise<string[]> {
-  const tokenResponse = await fetch(SIDECAR_TOKEN_URL, {
-    signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
-  });
-  const tokenPayload = await tokenResponse.json().catch(() => null) as { access_token?: unknown } | null;
-  if (!tokenResponse.ok || typeof tokenPayload?.access_token !== "string") {
-    throw new Error("Unable to authorize recipe photo object listing");
+function decodeXml(value: string): string {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'");
+}
+
+function objectNamesFromS3List(xml: string, prefix: string): string[] {
+  if (!/^\s*<\?xml|^\s*<ListBucketResult[\s>]/.test(xml)) {
+    throw new Error("Object storage returned an invalid listing");
   }
-  const exchangeResponse = await fetch(GOOGLE_TOKEN_EXCHANGE_URL, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      audience: "replit",
-      grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
-      requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
-      scope: "https://www.googleapis.com/auth/cloud-platform",
-      subject_token: tokenPayload.access_token,
-      subject_token_type: "access_token",
-    }),
-    signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
-  });
-  const exchangePayload = await exchangeResponse.json().catch(() => null) as { access_token?: unknown } | null;
-  if (!exchangeResponse.ok || typeof exchangePayload?.access_token !== "string") {
-    throw new Error("Unable to authorize recipe photo object listing");
-  }
-  const params = new URLSearchParams({
-    prefix,
-    maxResults: String(MAX_RECIPE_PHOTO_OBJECTS + 1),
-  });
-  const response = await fetch(
-    `${GOOGLE_STORAGE_API}/b/${encodeURIComponent(bucket)}/o?${params}`,
-    {
-      headers: { authorization: `Bearer ${exchangePayload.access_token}` },
-      signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
-    },
-  );
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(`Unable to list recipe photo objects (${response.status})`);
-  if (
-    payload
-    && typeof payload === "object"
-    && (
-      Boolean((payload as { has_more?: unknown }).has_more)
-      || Boolean((payload as { hasMore?: unknown }).hasMore)
-      || typeof (payload as { nextPageToken?: unknown }).nextPageToken === "string"
-    )
-  ) {
+  if (/<IsTruncated>\s*true\s*<\/IsTruncated>/i.test(xml)) {
     throw new Error("Recipe photo object listing is paginated beyond the deletion safety bound");
   }
-  const names = objectNames(payload, prefix);
+  const names = [...xml.matchAll(/<Key>([\s\S]*?)<\/Key>/g)].map((match) => decodeXml(match[1] ?? ""));
   if (names.length > MAX_RECIPE_PHOTO_OBJECTS) {
     throw new Error("Recipe photo object count exceeds the deletion safety bound");
   }
-  return names;
+  return names.filter((name) => name.startsWith(prefix));
 }
 
-async function deleteRecipePhotoObject(bucket: string, objectName: string): Promise<void> {
-  const response = await fetch(SIGNED_OBJECT_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      bucket_name: bucket,
-      object_name: objectName,
-      method: "DELETE",
-      expires_at: new Date(Date.now() + 60_000).toISOString(),
-    }),
-    signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
-  });
-  const payload = await response.json().catch(() => ({})) as { signed_url?: unknown };
-  if (!response.ok || typeof payload.signed_url !== "string") {
-    throw new Error("Unable to sign recipe photo deletion request");
+function hmac(key: Buffer | string, value: string): Buffer {
+  return createHmac("sha256", key).update(value).digest();
+}
+
+function signingKey(secretAccessKey: string, date: string, region: string): Buffer {
+  return hmac(hmac(hmac(hmac(`AWS4${secretAccessKey}`, date), region), "s3"), "aws4_request");
+}
+
+function iso8601Basic(date: Date): { dateStamp: string; amzDate: string } {
+  const iso = date.toISOString().replace(/[:-]|\.\d{3}/g, "");
+  return { dateStamp: iso.slice(0, 8), amzDate: iso };
+}
+
+function encodePathSegment(segment: string): string {
+  return encodeURIComponent(segment).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+function encodedObjectPath(objectName: string): string {
+  return objectName.split("/").map(encodePathSegment).join("/");
+}
+
+function signedStorageUrl(
+  method: "GET" | "PUT" | "DELETE",
+  objectName: string,
+  expiresSecs = DEFAULT_SIGNED_URL_TTL_SECS,
+  extraQuery: Record<string, string> = {},
+): string {
+  const config = storageConfig();
+  const now = new Date();
+  const { dateStamp, amzDate } = iso8601Basic(now);
+  const credentialScope = `${dateStamp}/${config.region}/s3/aws4_request`;
+  const credential = `${config.accessKeyId}/${credentialScope}`;
+  const endpoint = new URL(config.endpoint.toString());
+  let host: string;
+  let canonicalUri: string;
+
+  if (config.forcePathStyle) {
+    host = endpoint.host;
+    canonicalUri = `/${encodePathSegment(config.bucket)}${objectName ? `/${encodedObjectPath(objectName)}` : ""}`;
+  } else {
+    host = `${config.bucket}.${endpoint.host}`;
+    canonicalUri = objectName ? `/${encodedObjectPath(objectName)}` : "/";
   }
 
-  const deletion = await fetch(payload.signed_url, {
+  const query = new URLSearchParams(extraQuery);
+  query.set("X-Amz-Algorithm", "AWS4-HMAC-SHA256");
+  query.set("X-Amz-Credential", credential);
+  query.set("X-Amz-Date", amzDate);
+  query.set("X-Amz-Expires", String(expiresSecs));
+  query.set("X-Amz-SignedHeaders", "host");
+
+  const sortedQuery = [...query.entries()]
+    .sort(([aKey, aValue], [bKey, bValue]) => aKey === bKey ? aValue.localeCompare(bValue) : aKey.localeCompare(bKey))
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join("&");
+  const canonicalHeaders = `host:${host}\n`;
+  const canonicalRequest = [
+    method,
+    canonicalUri,
+    sortedQuery,
+    canonicalHeaders,
+    "host",
+    "UNSIGNED-PAYLOAD",
+  ].join("\n");
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    createHash("sha256").update(canonicalRequest).digest("hex"),
+  ].join("\n");
+  const signature = createHmac("sha256", signingKey(config.secretAccessKey, dateStamp, config.region))
+    .update(stringToSign)
+    .digest("hex");
+
+  const signedQuery = `${sortedQuery}&X-Amz-Signature=${signature}`;
+  return `${endpoint.protocol}//${host}${canonicalUri}?${signedQuery}`;
+}
+
+export function createRecipePhotoSignedUrl(
+  userId: string,
+  imageId: string,
+  method: "GET" | "PUT" | "DELETE",
+  ttlSecs: number,
+): string {
+  return signedStorageUrl(method, recipePhotoObjectName(userId, imageId), ttlSecs);
+}
+
+async function listRecipePhotoObjects(prefix: string): Promise<string[]> {
+  const params = {
+    "list-type": "2",
+    prefix,
+    "max-keys": String(MAX_RECIPE_PHOTO_OBJECTS + 1),
+  };
+  const response = await fetch(signedStorageUrl("GET", "", DEFAULT_SIGNED_URL_TTL_SECS, params), {
+    signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`Unable to list recipe photo objects (${response.status})`);
+  return objectNamesFromS3List(await response.text(), prefix);
+}
+
+async function deleteRecipePhotoObject(objectName: string): Promise<void> {
+  const deletion = await fetch(signedStorageUrl("DELETE", objectName), {
     method: "DELETE",
     signal: AbortSignal.timeout(STORAGE_TIMEOUT_MS),
   });
@@ -127,21 +215,18 @@ async function deleteRecipePhotoObject(bucket: string, objectName: string): Prom
 
 /**
  * Erases every generated recipe photo below the account-owned prefix.
- *
  * Listing is performed on every invocation, so a partial failure is safe to
  * retry. Completion is deliberately fail-closed: an unavailable listing or
  * delete operation prevents the account-deletion saga from advancing.
  */
 export async function eraseRecipePhotoObjects(externalUserId: string): Promise<void> {
-  const bucket = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-  if (!bucket) throw new Error("Object storage is not configured");
   const prefix = recipePhotoPrefix(externalUserId);
-  const names = await listRecipePhotoObjects(bucket, prefix);
+  const names = await listRecipePhotoObjects(prefix);
   for (let index = 0; index < names.length; index += DELETE_CONCURRENCY) {
     const batch = names.slice(index, index + DELETE_CONCURRENCY);
-    await Promise.all(batch.map((name) => deleteRecipePhotoObject(bucket, name)));
+    await Promise.all(batch.map((name) => deleteRecipePhotoObject(name)));
   }
-  const remainingNames = await listRecipePhotoObjects(bucket, prefix);
+  const remainingNames = await listRecipePhotoObjects(prefix);
   if (remainingNames.length > 0) {
     throw new Error("Recipe photo objects remain after account erasure");
   }
@@ -153,5 +238,8 @@ export async function eraseRecipePhotoObjects(externalUserId: string): Promise<v
 
 export const recipePhotoStorageForTests = {
   recipePhotoPrefix,
+  recipePhotoObjectName,
   objectNames,
+  objectNamesFromS3List,
+  signedStorageUrl,
 };

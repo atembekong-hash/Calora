@@ -1,6 +1,4 @@
-# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
-
-# compiled output
+# Compiled output
 dist
 # Disposable mockup preview discovery output. The preview app uses Vite's
 # tracked import.meta.glob source, but older/local preview tooling may still
@@ -15,7 +13,7 @@ out-tsc
 .expo
 .expo-shared
 
-# dependencies
+# Dependencies
 node_modules
 
 # IDEs and editors
@@ -26,15 +24,13 @@ node_modules
 *.launch
 .settings/
 *.sublime-workspace
-
-# IDE - VSCode
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# misc
+# Miscellaneous local output
 /.sass-cache
 /connect.lock
 /coverage
@@ -43,19 +39,16 @@ npm-debug.log
 yarn-error.log
 testem.log
 /typings
-
-# System Files
-.DS_Store
-Thumbs.db
-
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
-
-# Replit
 .cache/
 .local/
 
-# Local environment files — keep real values in Replit Secrets or deployment environments.
+# System files
+.DS_Store
+Thumbs.db
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+# Local environment files — store real values only in approved secret managers.
 .env
 .env.*
 !.env.example

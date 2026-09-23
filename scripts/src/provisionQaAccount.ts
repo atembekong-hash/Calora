@@ -8,7 +8,7 @@
  *
  * ── Prerequisites ─────────────────────────────────────────────────────────
  *   EXPO_PUBLIC_SUPABASE_URL      — Supabase project URL
- *   SUPABASE_SERVICE_ROLE_KEY     — Admin/service-role key (add as Replit secret)
+ *   SUPABASE_SERVICE_ROLE_KEY     — Admin/service-role key (store in the approved secret manager)
  *   CALORA_SIGNUP_TEST_PASSWORD   — Password for the QA account
  *
  * ── Usage ─────────────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ const password = process.env.CALORA_SIGNUP_TEST_PASSWORD;
 if (!url || !serviceRoleKey || !password) {
   console.error("Missing required environment variables:");
   if (!url) console.error("  EXPO_PUBLIC_SUPABASE_URL");
-  if (!serviceRoleKey) console.error("  SUPABASE_SERVICE_ROLE_KEY  ← add this as a Replit secret");
+  if (!serviceRoleKey) console.error("  SUPABASE_SERVICE_ROLE_KEY  ← configure in the approved secret manager");
   if (!password) console.error("  CALORA_SIGNUP_TEST_PASSWORD");
   process.exit(1);
 }
@@ -100,7 +100,7 @@ if (existing) {
 }
 
 console.log("\nNext steps:");
-console.log("  • For automated integration tests, ensure SUPABASE_SERVICE_ROLE_KEY is set as a Replit secret,");
+console.log("  • For automated integration tests, ensure SUPABASE_SERVICE_ROLE_KEY is configured securely,");
 console.log("    then run: pnpm --filter @workspace/api-server test recipe-generation.integration");
 console.log("  • For manual QA, sign in to the Calora preview as qa@calora.dev and follow the flow");
 console.log("    documented at the top of scripts/src/provisionQaAccount.ts.");

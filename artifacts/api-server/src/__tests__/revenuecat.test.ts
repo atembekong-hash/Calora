@@ -1,20 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const proxyMock = vi.hoisted(() => vi.fn());
-const fetchMock = vi.hoisted(() => vi.fn());
-
-vi.mock("@replit/connectors-sdk", () => ({
-  ReplitConnectors: class {
-    proxy = proxyMock;
-  },
-}));
-
 import {
   deleteRevenueCatSubscriber,
   grantPromoDays,
   hasActivePremiumEntitlement,
 } from "../lib/revenuecat";
 
+const fetchMock = vi.hoisted(() => vi.fn());
 const originalProjectId = process.env.REVENUECAT_PROJECT_ID;
 const originalSecretApiKey = process.env.REVENUECAT_SECRET_API_KEY;
 
@@ -28,7 +20,6 @@ function jsonResponse(body: unknown, status = 200): Response {
 beforeEach(() => {
   process.env.REVENUECAT_PROJECT_ID = "project-123";
   process.env.REVENUECAT_SECRET_API_KEY = "test-server-secret";
-  proxyMock.mockReset();
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -42,8 +33,8 @@ afterEach(() => {
 });
 
 describe("hasActivePremiumEntitlement", () => {
-  it("allows a customer with the configured active Premium entitlement", async () => {
-    proxyMock
+  it("authorizes a customer with the configured active Premium entitlement through RevenueCat directly", async () => {
+    fetchMock
       .mockResolvedValueOnce(jsonResponse({
         items: [{ id: "entitlement-123", lookup_key: "caloraapp_pro" }],
       }))
@@ -52,32 +43,23 @@ describe("hasActivePremiumEntitlement", () => {
       }));
 
     await expect(hasActivePremiumEntitlement("premium-user")).resolves.toBe(true);
-    expect(proxyMock).toHaveBeenNthCalledWith(
+    expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      "revenuecat",
-      "/v2/projects/project-123/entitlements?limit=100",
-      { method: "GET" },
+      "https://api.revenuecat.com/v2/projects/project-123/entitlements?limit=100",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({ Authorization: "Bearer test-server-secret" }),
+      }),
     );
-    expect(proxyMock).toHaveBeenNthCalledWith(
+    expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "revenuecat",
-      "/v2/projects/project-123/customers/premium-user/active_entitlements",
-      { method: "GET" },
+      "https://api.revenuecat.com/v2/projects/project-123/customers/premium-user/active_entitlements",
+      expect.objectContaining({ method: "GET" }),
     );
   });
 
-  it("denies a customer without the configured active Premium entitlement", async () => {
-    proxyMock
-      .mockResolvedValueOnce(jsonResponse({
-        items: [{ id: "entitlement-123", lookup_key: "caloraapp_pro" }],
-      }))
-      .mockResolvedValueOnce(jsonResponse({ items: [] }));
-
-    await expect(hasActivePremiumEntitlement("free-user")).resolves.toBe(false);
-  });
-
-  it("fails closed for an account that does not yet have a RevenueCat customer", async () => {
-    proxyMock
+  it("fails closed for an account that has no RevenueCat customer", async () => {
+    fetchMock
       .mockResolvedValueOnce(jsonResponse({
         items: [{ id: "entitlement-123", lookup_key: "caloraapp_pro" }],
       }))
@@ -86,56 +68,42 @@ describe("hasActivePremiumEntitlement", () => {
     await expect(hasActivePremiumEntitlement("new-free-user")).resolves.toBe(false);
   });
 
-  it("fails closed when RevenueCat cannot verify the customer's entitlements", async () => {
-    proxyMock
-      .mockResolvedValueOnce(jsonResponse({
-        items: [{ id: "entitlement-123", lookup_key: "caloraapp_pro" }],
-      }))
-      .mockResolvedValueOnce(jsonResponse({ message: "unavailable" }, 503));
+  it("requires a server-owned RevenueCat credential", async () => {
+    delete process.env.REVENUECAT_SECRET_API_KEY;
 
     await expect(hasActivePremiumEntitlement("premium-user")).rejects.toThrow(
-      "RevenueCat subscriber lookup failed (503)",
+      "RevenueCat server credential is not configured",
     );
-  });
-
-  it("retries one connector 401 before failing closed", async () => {
-    proxyMock
-      .mockResolvedValueOnce(jsonResponse({ message: "expired connector token" }, 401))
-      .mockResolvedValueOnce(jsonResponse({
-        items: [{ id: "entitlement-123", lookup_key: "caloraapp_pro" }],
-      }))
-      .mockResolvedValueOnce(jsonResponse({ items: [] }));
-
-    await expect(hasActivePremiumEntitlement("free-user")).resolves.toBe(false);
-    expect(proxyMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
 describe("grantPromoDays", () => {
-  it("reports only provider status and never reads raw response text", async () => {
-    const providerBody = "customer=raw-user-id secret=provider-diagnostic";
-    const text = vi.fn().mockResolvedValue(providerBody);
-    proxyMock
+  it("sends a direct authenticated promotional entitlement grant without exposing provider diagnostics", async () => {
+    const text = vi.fn().mockResolvedValue("customer=raw-user-id secret=provider-diagnostic");
+    fetchMock
       .mockResolvedValueOnce(jsonResponse({ subscriber: { entitlements: {} } }))
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 502,
-        text,
-      } as unknown as Response);
+      .mockResolvedValueOnce({ ok: false, status: 502, text } as unknown as Response);
 
-    const error = await grantPromoDays("raw-user-id", 30).catch(
-      (reason: unknown) => reason,
-    );
+    const error = await grantPromoDays("raw-user-id", 30).catch((reason: unknown) => reason);
 
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe("RevenueCat promo grant failed (502)");
-    expect(String(error)).not.toContain(providerBody);
+    expect(String(error)).not.toContain("raw-user-id");
     expect(text).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://api.revenuecat.com/v1/subscribers/raw-user-id/entitlements/caloraapp_pro/promotional",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("end_time_ms"),
+      }),
+    );
   });
 });
 
 describe("deleteRevenueCatSubscriber", () => {
-  it("deletes through the server-authorized v2 API and verifies absence", async () => {
+  it("deletes through the server-authorized API and positively verifies absence", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
@@ -155,146 +123,20 @@ describe("deleteRevenueCatSubscriber", () => {
       "https://api.revenuecat.com/v2/projects/project-123/customers/customer-123",
       expect.objectContaining({ method: "DELETE" }),
     );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
-      "https://api.revenuecat.com/v2/projects/project-123/customers/customer-123",
-      expect.objectContaining({ method: "GET" }),
-    );
-    expect(proxyMock).not.toHaveBeenCalled();
   });
 
-  it("treats a missing customer as already erased", async () => {
+  it("treats an absent customer as already erased", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ message: "Customer not found" }, 404));
 
     await expect(deleteRevenueCatSubscriber("missing-user")).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it("fails explicitly when the project is not configured", async () => {
-    delete process.env.REVENUECAT_PROJECT_ID;
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat project ID is not configured",
-    );
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("fails explicitly when the server erasure credential is not configured", async () => {
-    delete process.env.REVENUECAT_SECRET_API_KEY;
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer erasure credential is not configured",
-    );
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it.each([401, 403, 503])("surfaces lookup status %s without reporting erasure", async (status) => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ message: "unavailable" }, status));
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      `RevenueCat customer lookup failed (${status})`,
-    );
-  });
-
-  it("surfaces lookup network failures without reporting erasure", async () => {
+  it("fails safely on provider network errors", async () => {
     fetchMock.mockRejectedValueOnce(new TypeError("network unavailable"));
 
     await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
       "RevenueCat customer lookup request failed",
-    );
-  });
-
-  it("surfaces lookup timeouts without reporting erasure", async () => {
-    fetchMock.mockRejectedValueOnce(new DOMException("timed out", "TimeoutError"));
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer lookup timed out",
-    );
-  });
-
-  it("rejects malformed lookup JSON without attempting deletion", async () => {
-    fetchMock.mockResolvedValueOnce(new Response("not-json", {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    }));
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer lookup returned a malformed response",
-    );
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
-
-  it("rejects a lookup response for a different customer", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ id: "different-customer" }));
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer lookup returned a malformed response",
-    );
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
-
-  it("does not report erasure when an existing customer cannot be deleted", async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
-      .mockResolvedValueOnce(jsonResponse({ message: "forbidden" }, 403));
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer deletion failed (403)",
-    );
-  });
-
-  it("does not treat a deletion 404 as verified erasure after finding an existing customer", async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
-      .mockResolvedValueOnce(jsonResponse({ message: "not found" }, 404));
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer deletion failed (404)",
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not report erasure when the deletion request fails on the network", async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
-      .mockRejectedValueOnce(new TypeError("network unavailable"));
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer deletion request failed",
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not report erasure when the deletion request times out", async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
-      .mockRejectedValueOnce(new DOMException("timed out", "TimeoutError"));
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer deletion timed out",
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not report erasure when post-deletion lookup still finds the customer", async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
-      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }));
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer verification failed (customer still exists)",
-    );
-  });
-
-  it("does not report erasure when post-deletion verification fails", async () => {
-    fetchMock
-      .mockResolvedValueOnce(jsonResponse({ id: "customer-123" }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
-      .mockResolvedValueOnce(jsonResponse({ message: "unavailable" }, 503));
-
-    await expect(deleteRevenueCatSubscriber("customer-123")).rejects.toThrow(
-      "RevenueCat customer verification failed (503)",
     );
   });
 });

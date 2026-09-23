@@ -1,31 +1,12 @@
 /**
- * RevenueCat server-side helpers — promotional entitlement grants.
- *
- * Uses the Replit RevenueCat connection (authenticated proxy) so no secret
- * key lives in this repo. Grants EXTEND existing access: the new end time is
- * computed from the later of "now" and the current entitlement expiry.
- *
- * The v1 subscribers API is used because promotional entitlements are only
- * exposed there. app_user_id is the Supabase Auth user id — the mobile client
- * calls Purchases.logIn(<supabase user id>) so identities line up.
+ * RevenueCat server-side helpers — premium authorization, promotional grants,
+ * and verified customer erasure. All provider requests use a deployment-owned
+ * server credential; no hosting-provider connector is part of the runtime.
  */
-
-import { ReplitConnectors } from "@replit/connectors-sdk";
 
 const ENTITLEMENT_ID = "caloraapp_pro";
 const REVENUECAT_V2_ORIGIN = "https://api.revenuecat.com";
-const REVENUECAT_ERASURE_TIMEOUT_MS = 10_000;
-
-const connectors = new ReplitConnectors();
-
-async function revenueCatProxy(path: string): Promise<Response> {
-  const response = await connectors.proxy("revenuecat", path, { method: "GET" });
-  // A connector token can expire between its cached identity state and the
-  // provider request. Retry one 401 through the SDK's refresh boundary, but
-  // still fail closed if RevenueCat rejects the refreshed request.
-  if (response.status !== 401) return response;
-  return connectors.proxy("revenuecat", path, { method: "GET" });
-}
+const REVENUECAT_REQUEST_TIMEOUT_MS = 10_000;
 
 type SubscriberEntitlement = { expires_date: string | null };
 type SubscriberResponse = {
@@ -37,6 +18,43 @@ type EntitlementListResponse = {
 type ActiveEntitlementsResponse = {
   items?: { entitlement_id?: string }[];
 };
+type RevenueCatCustomerResponse = {
+  id?: unknown;
+};
+
+function revenueCatConfig() {
+  const projectId = process.env.REVENUECAT_PROJECT_ID;
+  const secretApiKey = process.env.REVENUECAT_SECRET_API_KEY;
+  if (!projectId) throw new Error("RevenueCat project ID is not configured");
+  if (!secretApiKey) throw new Error("RevenueCat server credential is not configured");
+  return { projectId, secretApiKey };
+}
+
+async function revenueCatRequest(
+  path: string,
+  method: "GET" | "POST" | "DELETE",
+  operation: string,
+  body?: unknown,
+): Promise<Response> {
+  const { secretApiKey } = revenueCatConfig();
+
+  try {
+    return await fetch(`${REVENUECAT_V2_ORIGIN}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${secretApiKey}`,
+        Accept: "application/json",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      signal: AbortSignal.timeout(REVENUECAT_REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    const timedOut = error instanceof Error
+      && (error.name === "AbortError" || error.name === "TimeoutError");
+    throw new Error(`RevenueCat ${operation} ${timedOut ? "timed out" : "request failed"}`);
+  }
+}
 
 /**
  * Reads the current RevenueCat entitlement for a Calora account. This is the
@@ -44,16 +62,12 @@ type ActiveEntitlementsResponse = {
  * accepted as an authorization signal.
  */
 export async function hasActivePremiumEntitlement(appUserId: string): Promise<boolean> {
-  const projectId = process.env.REVENUECAT_PROJECT_ID;
-  if (!projectId) {
-    throw new Error("RevenueCat project ID is not configured");
-  }
+  const { projectId } = revenueCatConfig();
 
-  // The connected RevenueCat credential authorizes the v2 REST API. Resolve
-  // the opaque entitlement ID from its stable lookup key before checking the
-  // customer's currently active entitlement records.
-  const entitlementsResponse = await revenueCatProxy(
+  const entitlementsResponse = await revenueCatRequest(
     `/v2/projects/${encodeURIComponent(projectId)}/entitlements?limit=100`,
+    "GET",
+    "entitlement lookup",
   );
   if (!entitlementsResponse.ok) {
     throw new Error(`RevenueCat entitlement lookup failed (${entitlementsResponse.status})`);
@@ -67,16 +81,14 @@ export async function hasActivePremiumEntitlement(appUserId: string): Promise<bo
     throw new Error("RevenueCat Premium entitlement is not configured");
   }
 
-  const activeResponse = await revenueCatProxy(
+  const activeResponse = await revenueCatRequest(
     `/v2/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(appUserId)}/active_entitlements`,
+    "GET",
+    "subscriber lookup",
   );
-  // RevenueCat has no customer record until an account first reaches its
-  // billing system. That is a normal non-Premium state, not an availability
-  // failure. Treat it as an explicit fail-closed denial while preserving
-  // errors for every other provider failure.
-  if (activeResponse.status === 404) {
-    return false;
-  }
+  // A customer is absent until an account first reaches billing. Treat that as
+  // an explicit fail-closed non-Premium state, not provider unavailability.
+  if (activeResponse.status === 404) return false;
   if (!activeResponse.ok) {
     throw new Error(`RevenueCat subscriber lookup failed (${activeResponse.status})`);
   }
@@ -90,15 +102,16 @@ export async function hasActivePremiumEntitlement(appUserId: string): Promise<bo
 /**
  * Grants `days` of the Pro promotional entitlement to `appUserId`, extending
  * (never truncating) any existing access. Returns the new end time.
- * Throws on any RevenueCat API failure — callers must not silently swallow.
  */
 export async function grantPromoDays(appUserId: string, days: number): Promise<Date> {
+  revenueCatConfig();
   const encodedId = encodeURIComponent(appUserId);
 
-  // 1. Read current entitlement expiry (creates the subscriber if unseen).
-  const subRes = await connectors.proxy("revenuecat", `/v1/subscribers/${encodedId}`, {
-    method: "GET",
-  });
+  const subRes = await revenueCatRequest(
+    `/v1/subscribers/${encodedId}`,
+    "GET",
+    "subscriber lookup",
+  );
   if (!subRes.ok) {
     throw new Error(`RevenueCat subscriber lookup failed (${subRes.status})`);
   }
@@ -109,49 +122,19 @@ export async function grantPromoDays(appUserId: string, days: number): Promise<D
   const base = currentExpiry ? Math.max(now, Date.parse(currentExpiry)) : now;
   const endTimeMs = base + days * 24 * 60 * 60 * 1000;
 
-  // 2. Grant the promotional entitlement up to the extended end time.
-  const grantRes = await connectors.proxy(
-    "revenuecat",
+  const grantRes = await revenueCatRequest(
     `/v1/subscribers/${encodedId}/entitlements/${ENTITLEMENT_ID}/promotional`,
-    { method: "POST", body: { end_time_ms: endTimeMs } },
+    "POST",
+    "promo grant",
+    { end_time_ms: endTimeMs },
   );
   if (!grantRes.ok) {
-    // Provider bodies can contain customer identifiers or other diagnostics
-    // that must not be promoted into application errors and request logs.
+    // Provider bodies can contain customer identifiers or other diagnostics;
+    // never promote them into application errors or request logs.
     throw new Error(`RevenueCat promo grant failed (${grantRes.status})`);
   }
 
   return new Date(endTimeMs);
-}
-
-type RevenueCatCustomerResponse = {
-  id?: unknown;
-};
-
-async function revenueCatErasureRequest(
-  path: string,
-  method: "GET" | "DELETE",
-  operation: string,
-): Promise<Response> {
-  const secretApiKey = process.env.REVENUECAT_SECRET_API_KEY;
-  if (!secretApiKey) {
-    throw new Error("RevenueCat customer erasure credential is not configured");
-  }
-
-  try {
-    return await fetch(`${REVENUECAT_V2_ORIGIN}${path}`, {
-      method,
-      headers: {
-        Authorization: `Bearer ${secretApiKey}`,
-        Accept: "application/json",
-      },
-      signal: AbortSignal.timeout(REVENUECAT_ERASURE_TIMEOUT_MS),
-    });
-  } catch (error) {
-    const timedOut = error instanceof Error
-      && (error.name === "AbortError" || error.name === "TimeoutError");
-    throw new Error(`RevenueCat customer ${operation} ${timedOut ? "timed out" : "request failed"}`);
-  }
 }
 
 async function verifyExistingRevenueCatCustomer(
@@ -171,34 +154,23 @@ async function verifyExistingRevenueCatCustomer(
 
 /** Removes and positively verifies absence of the RevenueCat customer for a deleted account. */
 export async function deleteRevenueCatSubscriber(appUserId: string): Promise<void> {
-  const projectId = process.env.REVENUECAT_PROJECT_ID;
-  if (!projectId) {
-    throw new Error("RevenueCat project ID is not configured");
-  }
-
+  const { projectId } = revenueCatConfig();
   const customerPath = `/v2/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(appUserId)}`;
-  const lookupResponse = await revenueCatErasureRequest(customerPath, "GET", "lookup");
-  // RevenueCat does not create a customer until an account reaches billing.
-  // A verified absence means there is no provider record to erase.
-  if (lookupResponse.status === 404) {
-    return;
-  }
+
+  const lookupResponse = await revenueCatRequest(customerPath, "GET", "customer lookup");
+  if (lookupResponse.status === 404) return;
   if (!lookupResponse.ok) {
     throw new Error(`RevenueCat customer lookup failed (${lookupResponse.status})`);
   }
   await verifyExistingRevenueCatCustomer(lookupResponse, appUserId);
 
-  const deletionResponse = await revenueCatErasureRequest(customerPath, "DELETE", "deletion");
+  const deletionResponse = await revenueCatRequest(customerPath, "DELETE", "customer deletion");
   if (!deletionResponse.ok) {
     throw new Error(`RevenueCat customer deletion failed (${deletionResponse.status})`);
   }
 
-  // Never advance the deletion saga from provider erasure on DELETE alone.
-  // A second lookup must positively verify that the customer is now absent.
-  const verificationResponse = await revenueCatErasureRequest(customerPath, "GET", "verification");
-  if (verificationResponse.status === 404) {
-    return;
-  }
+  const verificationResponse = await revenueCatRequest(customerPath, "GET", "customer verification");
+  if (verificationResponse.status === 404) return;
   if (!verificationResponse.ok) {
     throw new Error(`RevenueCat customer verification failed (${verificationResponse.status})`);
   }
