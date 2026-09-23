@@ -142,7 +142,7 @@ The Calora package also owns the Expo, Expo Router, React Native, Metro, and app
 
 `artifacts/calora/app.json` contains the Calora-specific Expo identity and Router configuration, including:
 
-- Expo name: `CaloraApp`
+- Expo name: `Calora`
 - Slug: `calora`
 - Owner: `vvault07`
 - EAS project ID: `1f202325-5b9a-4260-978f-abbd3252b9ee`
@@ -152,7 +152,12 @@ The Calora package also owns the Expo, Expo Router, React Native, Metro, and app
 - Typed routes
 - React Compiler
 
-The repository-root `app.json` is not the Calora application configuration.
+`artifacts/calora/app.json` and `artifacts/calora/eas.json` are the only
+authoritative Expo/EAS configuration files for Calora. The repository root
+intentionally has no `app.json`: a direct Expo or EAS command must run from
+`artifacts/calora`, while monorepo commands must use `pnpm --filter
+@workspace/calora …`. This fails closed rather than silently selecting an
+incomplete duplicate configuration.
 
 ---
 
