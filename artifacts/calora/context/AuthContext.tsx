@@ -137,7 +137,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, newSession: Session | null) => {
         if (!active) return;
-        authStateChangeGeneration.current += 1;
+        // A null INITIAL_SESSION has no storage-error channel, so it cannot
+        // supersede the explicit getSession read below. Invalidating that read
+        // here leaves restoreStatus at "loading" forever when it later settles.
+        // Authenticated sessions and every conclusive later event still win.
+        const isInconclusiveInitialSession = event === 'INITIAL_SESSION' && !newSession;
+        if (!isInconclusiveInitialSession) {
+          authStateChangeGeneration.current += 1;
+        }
         const nextUserId = newSession?.user?.id ?? null;
         if (
           event === 'SIGNED_OUT'
