@@ -10,6 +10,7 @@ import universalLinksRouter from "./routes/universal-links";
 import publicPagesRouter from "./routes/public-pages";
 import { logger } from "./lib/logger";
 import { isCorsOriginAllowed } from "./lib/cors-policy";
+import { HealthCheckResponse } from "@workspace/api-zod";
 
 const app: Express = express();
 
@@ -59,6 +60,14 @@ app.use(
 );
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true }));
+
+// The canonical production origin points directly at this service. Keep a
+// dependency-free root liveness endpoint alongside the database-backed
+// /api/healthz readiness endpoint so infrastructure and operators can
+// distinguish process reachability from dependency readiness.
+app.get("/health", (_req, res) => {
+  res.json(HealthCheckResponse.parse({ status: "ok" }));
+});
 
 // Universal / App Links verification and invite fallback — must be at root
 // (not under /api) so the OS can reach /.well-known/* without a redirect.

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -433,6 +433,18 @@ test("scheduled monitor CLI uses the freshness threshold from its process enviro
     /Google Digital Asset Links statements maxAge \(7201s\) exceeds the 7200s freshness policy\./,
   );
   assert.doesNotMatch(combinedOutput, new RegExp(fingerprint));
+});
+
+test("production release verification writes its report outside the checkout", async () => {
+  const workflow = await readFile(
+    join(workspaceRoot, ".github/workflows/monitor-native-associations.yml"),
+    "utf8",
+  );
+  const reportName = "production-release-verification.txt";
+
+  assert.ok(workflow.includes(`tee \"\${RUNNER_TEMP}/${reportName}\"`));
+  assert.ok(workflow.includes(`path: \${{ runner.temp }}/${reportName}`));
+  assert.equal(workflow.includes(`tee ${reportName}`), false);
 });
 
 test("public release verifier prints safe default fallback for invalid and out-of-range environment values", async () => {

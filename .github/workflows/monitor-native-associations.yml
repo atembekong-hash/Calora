@@ -161,13 +161,13 @@ jobs:
       - name: Verify published API release
         run: |
           set -o pipefail
-          pnpm --filter @workspace/api-server run verify:public-release 2>&1 | tee production-release-verification.txt
+          pnpm --filter @workspace/api-server run verify:public-release 2>&1 | tee "${RUNNER_TEMP}/production-release-verification.txt"
 
       - name: Upload release verification report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: production-release-verification
-          path: production-release-verification.txt
+          path: ${{ runner.temp }}/production-release-verification.txt
           if-no-files-found: error
           retention-days: 30
