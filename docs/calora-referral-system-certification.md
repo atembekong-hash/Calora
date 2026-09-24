@@ -1,13 +1,16 @@
 # Calora referral system certification
 
 **Assessment date:** August 13, 2026  
+**Qualification semantics reconciled:** September 24, 2026
 **Scope:** Invite links, pending-code persistence, signed-out safety, referral activation safeguards, and the boundary between preview evidence and real reward delivery.
+
+> **Current qualification source of truth:** a reward can qualify only after the referred account saves a **server-anchored capture and confirms the meal**. An arbitrary local/manual diary save, a saved-meal template, or a direct activation request does not qualify. Earlier “first saved meal” wording in this report is superseded.
 
 ## Verdict
 
 **Implementation and safe preview journeys: certified. Real referral reward delivery: not certified.**
 
-The invite and persistence surfaces behave safely, and automated server coverage proves the designed first-saved-meal qualification, idempotency, concurrency, uncapped reward, and rollback rules. A genuine signed-in referral journey could not be started because account creation failed while sending the confirmation email. Therefore no real inviter/referred pair, qualifying meal save, promotional entitlement extension, or RevenueCat customer state was observed.
+The invite and persistence surfaces behave safely, and automated server coverage proves capture-backed qualification, idempotency, concurrency, uncapped reward, and rollback rules. A genuine signed-in referral journey could not be started because account creation failed while sending the confirmation email. Therefore no real inviter/referred pair, qualifying capture confirmation, promotional entitlement extension, or RevenueCat customer state was observed.
 
 ## Live evidence
 
@@ -18,7 +21,7 @@ The invite and persistence surfaces behave safely, and automated server coverage
 | Pending code persistence | Passed | A normalized pending invite code remained visible on sign-up after reload. This is local/browser evidence only. |
 | Sign-up validation | Passed | Empty email receives visible local feedback. |
 | Signed-in summary and redemption | Blocked | A controlled synthetic sign-up failed with `Error sending confirmation email.` and HTTP 500. |
-| Two-account reward activation | Blocked | Requires the above account creation, a distinct inviter, a valid saved meal, and a live RevenueCat promotional grant. |
+| Two-account reward activation | Blocked | Requires the above account creation, a distinct inviter, a server-anchored capture that is confirmed as a meal, and a live RevenueCat promotional grant. |
 
 ## Automated integrity evidence
 
@@ -30,7 +33,7 @@ pnpm --filter @workspace/calora exec vitest run \
   lib/__tests__/referralPersistence.test.ts
 ```
 
-- Focused API and client referral tests cover first-saved-meal qualification, concurrent claims, uncapped grants, duplicate prevention, provider-failure rollback, retry behavior, and durable invite state.
+- Focused API and client referral tests cover capture-backed qualification, rejection of unanchored/manual diary saves, concurrent claims, uncapped grants, duplicate prevention, provider-failure rollback, retry behavior, and durable invite state.
 
 The simulated RevenueCat 503 messages in the API test output are deliberate failure-path assertions, not live-provider outages.
 
@@ -38,7 +41,7 @@ The simulated RevenueCat 503 messages in the API test output are deliberate fail
 
 1. Resolve the confirmation-email delivery failure so controlled test accounts can be verified.
 2. Use two distinct, authenticated test accounts: an inviter and a referred user.
-3. Redeem the inviter’s code on the referred account, then save one valid meal through a normal logging flow.
+3. Redeem the inviter’s code on the referred account, then complete a supported Scan capture and explicitly confirm the reviewed meal so the server can verify its capture anchor.
 4. Observe both 30-day promotional extensions in RevenueCat under the correct customer identities, including an already-entitled customer extension.
 5. Repeat the activation/retry path once and verify no duplicate promotion is issued.
 

@@ -16,6 +16,7 @@
 import type { PersistenceManager } from './persistenceManager';
 import type { LivingMemory } from './livingMemory';
 import type { HydrationReminderPrefs } from './hydrationReminders';
+import { EMPTY_HEALTH_CONNECTION } from './health/types';
 
 export type ClearAllDataFailureKind = 'core-clear-failed' | 'partial-cleanup';
 
@@ -82,6 +83,7 @@ export interface ClearAllDataCtx {
   setSavedMeals: Setter;
   setLocalRecipes: Setter;
   setSavedRecipeIds: Setter;
+  setHealthConnection: Setter;
   setConsentAccepted: Setter;
   setOutbox: Setter;
   setPlannerWeekStart: Setter;
@@ -128,6 +130,11 @@ export async function performClearAllData(ctx: ClearAllDataCtx): Promise<void> {
   ctx.setSavedMeals([]);
   ctx.setLocalRecipes([]);
   ctx.setSavedRecipeIds([]);
+  // Clear Calora's persisted authorization/snapshot mirror. The operating
+  // system permission itself remains owned by HealthKit/Health Connect and can
+  // only be changed from native settings; Calora must not retain or redisplay
+  // the prior account's health snapshot after a local-data deletion.
+  ctx.setHealthConnection(EMPTY_HEALTH_CONNECTION);
   ctx.setProfile(null);
   ctx.setOnboardingComplete(false);
   ctx.setOnboardingStep?.(0);

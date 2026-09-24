@@ -57,6 +57,39 @@ export interface CaloraExportState {
   profilePhotoUri: string | null;
 }
 
+export type PortableProfilePhoto =
+  | {
+      included: true;
+      mimeType: 'image/jpeg';
+      encoding: 'base64';
+      data: string;
+    }
+  | {
+      included: false;
+      reason: 'not-set' | 'unavailable' | 'unmanaged-path';
+    };
+
+export async function readPortableProfilePhoto(
+  profilePhotoUri: string | null,
+  dependencies: {
+    isManagedUri: (uri: string) => boolean;
+    readBase64: (uri: string) => Promise<string>;
+  },
+): Promise<PortableProfilePhoto> {
+  if (!profilePhotoUri) return { included: false, reason: 'not-set' };
+  if (!dependencies.isManagedUri(profilePhotoUri)) {
+    return { included: false, reason: 'unmanaged-path' };
+  }
+  try {
+    const data = await dependencies.readBase64(profilePhotoUri);
+    return data
+      ? { included: true, mimeType: 'image/jpeg', encoding: 'base64', data }
+      : { included: false, reason: 'unavailable' };
+  } catch {
+    return { included: false, reason: 'unavailable' };
+  }
+}
+
 /**
  * Serialise the current in-memory state to a JSON string suitable for export /
  * sharing.
@@ -68,8 +101,19 @@ export interface CaloraExportState {
  * This is the exact body of CaloraContext.exportData — extracted here so tests
  * can call it directly without mounting React.
  */
-export function buildExportPayload(schemaVersion: number, state: CaloraExportState): string {
-  return JSON.stringify({ schemaVersion, ...state }, null, 2);
+export function buildExportPayload(
+  schemaVersion: number,
+  state: CaloraExportState,
+  profilePhoto: PortableProfilePhoto = state.profilePhotoUri
+    ? { included: false, reason: 'unavailable' }
+    : { included: false, reason: 'not-set' },
+): string {
+  // profilePhotoUri is a device-local implementation detail, not portable data.
+  // Exports contain the owned JPEG bytes when they can be read, or an explicit
+  // reason when they cannot, and never disclose a sandbox/filesystem path.
+  const { profilePhotoUri: _profilePhotoUri, ...portableState } = state;
+  void _profilePhotoUri;
+  return JSON.stringify({ schemaVersion, ...portableState, profilePhoto }, null, 2);
 }
 
 /**

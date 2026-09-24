@@ -558,7 +558,7 @@ export default function ProfileScreen() {
     if (!hasExportData || isExporting) return;
     Alert.alert(
       'Export sensitive wellness data?',
-      'This file may include your profile, diary, weight, mood, hydration, health connection, saved memories, and Coach history. Only share it with someone you trust.',
+      'This file may include your profile, profile photo contents, diary, weight, mood, hydration, health connection, saved memories, and Coach history. Device-local photo paths are never shared. Only share this file with someone you trust.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Share export', onPress: () => { void handleExport(); } },
@@ -1365,8 +1365,8 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
         {[
-          { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Portable JSON · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExportRequest, disabled: !hasExportData || isExporting, isLoading: isExporting },
-           { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove diary and profile from this device.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
+          { icon: 'download' as const, title: 'Export your data', testID: 'export-data-row', body: `Portable JSON · managed profile photo embedded when available · ${syncState === 'needs-connection' ? 'waiting for connection' : syncState === 'local' ? 'stored locally' : syncState === 'offline' ? 'loading locally' : 'synced'}`, onPress: handleExportRequest, disabled: !hasExportData || isExporting, isLoading: isExporting },
+           { icon: 'trash-2' as const, title: 'Delete local data', testID: 'delete-local-data-row', body: 'Remove local diary, profile, wellness, health snapshot, and saved data.', onPress: handleDelete, disabled: isClearing, isLoading: isClearing },
           { icon: 'shield' as const, title: 'Your food data', body: 'Export and delete controls.', onPress: () => setInfoModal('food-data'), disabled: false },
           { icon: 'eye-off' as const, title: 'No ad tracking', body: 'Meals are not used for ads.', onPress: () => setInfoModal('no-ads'), disabled: false },
            { icon: 'help-circle' as const, title: 'Help', body: 'Support and answers.', onPress: () => setInfoModal('help'), disabled: false },
@@ -1479,7 +1479,7 @@ export default function ProfileScreen() {
               <Feather name="trash-2" size={20} color={colors.foreground} />
             </View>
             <Text style={[styles.dialogTitle, { color: colors.foreground }]}>Delete local data?</Text>
-            <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>This removes your diary, profile, weights, and saved meals from this device. This cannot be undone.</Text>
+            <Text style={[styles.dialogBody, { color: colors.mutedForeground }]}>This removes your local diary, profile and photo, weights, wellness records, health connection snapshot, reminders, saved meals, Planner data, memories, and Coach history from this device. Your HealthKit or Health Connect permission remains controlled in device settings. This cannot be undone.</Text>
             <View style={[styles.dialogStatus, { backgroundColor: colors.muted }]}>
               <Feather name="alert-triangle" size={15} color={colors.warning} />
               <Text style={[styles.dialogStatusText, { color: colors.foreground }]}>This action is permanent.</Text>
