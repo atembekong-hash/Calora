@@ -49,6 +49,18 @@ describe("public Calora pages", () => {
     }
   });
 
+  it("publishes the approved US subscription reference without retired annual prices", async () => {
+    const response = await request(app).get("/subscriptions");
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("Updated September 24, 2026");
+    expect(response.text).toContain("7-day free trial when eligible");
+    expect(response.text).toContain("$4.99/month");
+    expect(response.text).toContain("$34.99/year");
+    expect(response.text).toContain("approximately $2.92/month billed annually");
+    expect(response.text).not.toContain("$35.99/year");
+    expect(response.text).not.toContain("$3.00/month");
+  });
+
   it("publishes branded SEO and social assets", async () => {
     const privacy = await request(app).get("/privacy");
     expect(privacy.text).toContain('rel="canonical" href="https://mycaloraapp.com/privacy"');

@@ -1,5 +1,7 @@
 # Calora subscription verification (2026-08-15)
 
+> **Historical record — superseded September 24, 2026.** The current approved U.S. offer is a 7-day eligible trial, then $4.99/month or $34.99/year (approximately $2.92/month billed annually). The values below are retained unchanged as evidence of the provider state observed on August 15 and must not be used as the current billing specification.
+
 Target identity: Google Play app `caloraapp`, Android package `com.etiendem.caloraapp`; RevenueCat project `CaloraApp`, project ID `9890aae2`.
 
 ## Google Play Console

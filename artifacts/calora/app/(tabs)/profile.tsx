@@ -4,7 +4,7 @@ import * as Notifications from 'expo-notifications';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Constants from 'expo-constants';
-import { BRAND, EMAILS, URLS } from '@/lib/brand';
+import { BRAND, EMAILS, SUBSCRIPTION, URLS } from '@/lib/brand';
 import { formatQuantity } from '@/lib/formatters';
 import { formatGrams, formatWhole } from '@/lib/formatters';
 import { needsActiveEnergyAuthorization } from '@/lib/healthConnection';
@@ -37,6 +37,7 @@ import { AppHeader } from '@/components/AppChrome';
 import { SwipeableSectionPager, SwipeableTabList } from '@/components/SwipeableTabList';
 import { ReferralCard } from '@/components/ReferralCard';
 import { REVENUECAT_ENTITLEMENT_IDENTIFIER, useSubscription } from '@/lib/revenuecat';
+import { formatStoreMonthlyEquivalent, getSubscriptionManagementUrl, hasActiveRevenueCatEntitlement } from '@/lib/revenuecatBilling';
 import { enterMotion } from '@/lib/motion';
 import { BottomSheet } from '@/components/BottomSheet';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
@@ -111,16 +112,55 @@ export default function ProfileScreen() {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [billingModal, setBillingModal] = useState<'purchase' | 'confirm' | null>(null);
   const [billingNotice, setBillingNotice] = useState<string | null>(null);
-  const { offerings, isSubscribed, purchase, restore, isPurchasing, isRestoring } = useSubscription();
-  const currentOffering = offerings?.current ?? null;
+  const {
+    customerInfo,
+    offerings,
+    isSubscribed,
+    isIdentityReady,
+    identitySyncFailed,
+    purchase,
+    restore,
+    isPurchasing,
+    isRestoring,
+    refreshCustomerInfo,
+    retryIdentitySync,
+  } = useSubscription();
+  const reportedOffering = offerings?.current ?? null;
+  const currentOffering = reportedOffering?.identifier === SUBSCRIPTION.offeringId ? reportedOffering : null;
   const monthlyPkg = currentOffering?.availablePackages.find((p) => p.identifier === '$rc_monthly') ?? currentOffering?.monthly ?? null;
   const annualPkg = currentOffering?.availablePackages.find((p) => p.identifier === '$rc_annual') ?? currentOffering?.annual ?? null;
   const monthlyPriceString = monthlyPkg?.product.priceString ?? null;
   const annualPriceString = annualPkg?.product.priceString ?? null;
+  const annualMonthlyEquivalent = formatStoreMonthlyEquivalent(annualPkg?.product);
   const selectedPrice = selectedPlan === 'annual' ? annualPriceString : monthlyPriceString;
   const selectedPeriod = selectedPlan === 'annual' ? 'year' : 'month';
   const selectedPackage = selectedPlan === 'annual' ? annualPkg : monthlyPkg;
-  const isSelectedPlanAvailable = isSubscribed || !!selectedPackage;
+  const isBillingIdentityReady = !!user?.id && isIdentityReady;
+  const isSelectedPlanAvailable = isSubscribed || (!!selectedPackage && isBillingIdentityReady);
+  const offeringMismatch = reportedOffering !== null && currentOffering === null;
+  const billingIdentityNotice = !user?.id
+    ? 'Sign in to your Calora account before purchasing or restoring a subscription.'
+    : identitySyncFailed
+      ? 'Billing account setup could not be completed. Retry the secure account connection before purchasing or restoring.'
+      : 'Billing account setup is still finishing. Please wait a moment before purchasing or restoring.';
+  const billingActionLabel = isSubscribed
+    ? `${BRAND.premiumName} is active`
+    : !user?.id
+      ? 'Sign in to continue'
+      : !isIdentityReady
+        ? identitySyncFailed ? 'Retry billing account setup' : 'Preparing billing account'
+        : !selectedPackage
+          ? 'Store plan unavailable'
+          : `Continue with ${selectedPrice} / ${selectedPeriod}`;
+  const billingActionAccessibilityLabel = isSubscribed
+    ? `${BRAND.premiumName} is active`
+    : !user?.id
+      ? 'Sign in required before billing'
+      : !isIdentityReady
+        ? 'Billing account setup is not ready'
+        : selectedPackage
+          ? 'Continue to billing'
+          : 'Selected store plan is unavailable';
 
   // Privacy / delete
   const [privacyModal, setPrivacyModal] = useState<'delete' | null>(null);
@@ -420,11 +460,18 @@ export default function ProfileScreen() {
     });
 
   /** Billing */
+  const requireBillingIdentity = (): boolean => {
+    if (isBillingIdentityReady) return true;
+    setBillingNotice(billingIdentityNotice);
+    return false;
+  };
+
   const handlePurchase = () => {
     if (isSubscribed) {
       setBillingNotice(`${BRAND.premiumName} is already active on this account.`);
       return;
     }
+    if (!requireBillingIdentity()) return;
     if (!selectedPackage) {
       // Offerings unavailable (offline / not yet loaded) — informational fallback.
       setBillingModal('purchase');
@@ -435,10 +482,19 @@ export default function ProfileScreen() {
 
   const confirmPurchase = async () => {
     if (!selectedPackage || isPurchasing) return;
-    try {
-      await purchase(selectedPackage);
+    if (!requireBillingIdentity()) {
       setBillingModal(null);
-      setBillingNotice(`Welcome to ${BRAND.premiumName}! Your subscription is active.`);
+      return;
+    }
+    try {
+      const info = await purchase(selectedPackage);
+      setBillingModal(null);
+      if (hasActiveRevenueCatEntitlement(info, REVENUECAT_ENTITLEMENT_IDENTIFIER)) {
+        setBillingNotice(`Welcome to ${BRAND.premiumName}! Your subscription is active.`);
+      } else {
+        await refreshCustomerInfo();
+        setBillingNotice('Your purchase was received, but Calora is still confirming access with the store. No active Pro entitlement is available yet. Try Restore purchases in a moment or contact support if this continues.');
+      }
     } catch (err) {
       setBillingModal(null);
       const cancelled = !!(err && typeof err === 'object' && 'userCancelled' in err && (err as { userCancelled?: boolean }).userCancelled);
@@ -450,9 +506,10 @@ export default function ProfileScreen() {
 
   const handleRestore = async () => {
     if (isRestoring) return;
+    if (!requireBillingIdentity()) return;
     try {
       const info = await restore();
-      const active = info?.entitlements.active?.[REVENUECAT_ENTITLEMENT_IDENTIFIER];
+      const active = hasActiveRevenueCatEntitlement(info, REVENUECAT_ENTITLEMENT_IDENTIFIER);
       setBillingNotice(
         active
           ? `${BRAND.premiumName} has been restored on this device.`
@@ -464,12 +521,10 @@ export default function ProfileScreen() {
   };
 
   const handleManage = async () => {
-    const managementUrl =
-      Platform.OS === 'ios'
-        ? 'itms-apps://apps.apple.com/account/subscriptions'
-        : Platform.OS === 'android'
-          ? 'https://play.google.com/store/account/subscriptions'
-          : null;
+    const managementUrl = getSubscriptionManagementUrl(
+      Platform.OS,
+      customerInfo?.managementURL,
+    );
 
     if (!managementUrl) {
       setBillingNotice('Open Calora on your iPhone or Android device to manage App Store or Google Play subscriptions.');
@@ -1133,7 +1188,9 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.planChoiceCopy}>
                 <Text style={[styles.planName, { color: colors.foreground }]}>Annual</Text>
-                <Text style={[styles.planHint, { color: colors.mutedForeground }]}>Billed annually</Text>
+                <Text style={[styles.planHint, { color: colors.mutedForeground }]}>
+                  {annualMonthlyEquivalent ? `Approx. ${annualMonthlyEquivalent} / mo · billed annually` : 'Billed annually'}
+                </Text>
               </View>
               <Text style={[styles.planPrice, { color: colors.foreground }]}>{annualPriceString ?? 'Store price unavailable'}{annualPriceString && <Text style={[styles.planPeriod, { color: colors.mutedForeground }]}> / yr</Text>}</Text>
             </Pressable>
@@ -1142,10 +1199,24 @@ export default function ProfileScreen() {
             <Feather name="check-circle" size={15} color={colors.success} />
             <Text style={[styles.valueLineText, { color: colors.foreground }]}>7-day free trial. Store eligibility and localized prices apply.</Text>
           </View>
-          {!selectedPackage && !isSubscribed && (
+          {offeringMismatch && !isSubscribed && (
+            <Text accessibilityRole="alert" style={[styles.billingNote, { color: colors.destructive }]}>The current store offering does not match Calora&apos;s approved billing configuration, so purchasing is disabled.</Text>
+          )}
+          {!selectedPackage && !offeringMismatch && !isSubscribed && (
             <Text style={[styles.billingNote, { color: colors.mutedForeground }]}>
               Store pricing is unavailable, so this plan cannot be purchased yet.
             </Text>
+          )}
+          {!isBillingIdentityReady && !isSubscribed && (
+            <View style={[styles.valueLine, { backgroundColor: colors.muted }]}>
+              <Feather name={identitySyncFailed ? 'alert-circle' : 'clock'} size={15} color={identitySyncFailed ? colors.destructive : colors.primary} />
+              <Text style={[styles.valueLineText, { color: colors.foreground }]}>{billingIdentityNotice}</Text>
+            </View>
+          )}
+          {identitySyncFailed && !!user?.id && !isSubscribed && (
+            <Pressable accessibilityRole="button" accessibilityLabel="Retry billing account setup" onPress={retryIdentitySync} style={styles.dialogSecondaryButton}>
+              <Text style={[styles.dialogSecondaryText, { color: colors.primary }]}>Retry billing account setup</Text>
+            </Pressable>
           )}
           <View style={styles.featureList}>
             {['Photo and voice logging', 'Food sources and confidence', 'Calorie targets and insights', 'Ad-free offline diary'].map((feature) => (
@@ -1155,15 +1226,15 @@ export default function ProfileScreen() {
               </View>
             ))}
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel={isSelectedPlanAvailable ? 'Continue to billing' : 'Selected store plan is unavailable'} accessibilityState={{ disabled: !isSelectedPlanAvailable }} testID="billing-continue" disabled={!isSelectedPlanAvailable} onPress={handlePurchase} style={({ pressed }) => [styles.planButton, { backgroundColor: colors.primary, opacity: !isSelectedPlanAvailable ? 0.55 : pressed ? 0.8 : 1 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={billingActionAccessibilityLabel} accessibilityState={{ disabled: !isSelectedPlanAvailable }} testID="billing-continue" disabled={!isSelectedPlanAvailable} onPress={handlePurchase} style={({ pressed }) => [styles.planButton, { backgroundColor: colors.primary, opacity: !isSelectedPlanAvailable ? 0.55 : pressed ? 0.8 : 1 }]}>
             <Text style={[styles.planButtonText, { color: colors.primaryForeground }]}>
-              {isSubscribed ? `${BRAND.premiumName} is active` : isSelectedPlanAvailable ? `Continue with ${selectedPrice} / ${selectedPeriod}` : 'Store plan unavailable'}
+              {billingActionLabel}
             </Text>
             {!isSubscribed && isSelectedPlanAvailable && <Feather name="arrow-right" size={16} color={colors.primaryForeground} />}
           </Pressable>
           <Text style={[styles.billingNote, { color: colors.mutedForeground }]}>After the 7-day trial, your plan renews at its plan price unless changed or canceled in the store. Local taxes and currency may affect the store display.</Text>
           <View style={styles.billingLinks}>
-            <Pressable accessibilityLabel="Restore purchases" onPress={handleRestore}><Text style={[styles.billingLink, { color: colors.primary }]}>Restore purchases</Text></Pressable>
+            <Pressable accessibilityLabel="Restore purchases" accessibilityState={{ disabled: !isBillingIdentityReady || isRestoring }} disabled={!isBillingIdentityReady || isRestoring} onPress={handleRestore} style={{ opacity: !isBillingIdentityReady || isRestoring ? 0.5 : 1 }}><Text style={[styles.billingLink, { color: colors.primary }]}>{isRestoring ? 'Restoring…' : 'Restore purchases'}</Text></Pressable>
             <View style={[styles.linkDot, { backgroundColor: colors.border }]} />
             <Pressable accessibilityLabel="Manage subscription" onPress={handleManage}><Text style={[styles.billingLink, { color: colors.primary }]}>Manage subscription</Text></Pressable>
           </View>

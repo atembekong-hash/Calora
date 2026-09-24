@@ -13,6 +13,7 @@ const router: IRouter = Router();
 const ORIGIN = (process.env["PUBLIC_WEB_ORIGIN"] ?? "https://mycaloraapp.com").replace(/\/+$/, "");
 const SUPPORT_EMAIL = "support@mycaloraapp.com";
 const EFFECTIVE_DATE = "August 27, 2026";
+const SUBSCRIPTION_UPDATED_DATE = "September 24, 2026";
 
 const escapeHtml = (value: string): string =>
   value.replace(/[&<>"']/g, (character) => ({
@@ -163,9 +164,9 @@ router.get("/terms", (_req: Request, res: Response) => sendPage("Calora Terms of
 `, res));
 
 router.get("/subscriptions", (_req: Request, res: Response) => sendPage("Calora Pro Subscription Information", "Calora Pro pricing, trials, renewals, and cancellation information.", `
-  <div class="eyebrow">Calora Pro</div><h1>Subscription Information</h1><p class="meta">Updated ${EFFECTIVE_DATE}</p>
+  <div class="eyebrow">Calora Pro</div><h1>Subscription Information</h1><p class="meta">Updated ${SUBSCRIPTION_UPDATED_DATE}</p>
   <p>Calora Pro unlocks paid features shown in the app. The applicable store listing and purchase sheet are the final authority for your local price, currency, taxes, eligibility, and terms.</p>
-  <div class="card"><h2>Current US reference plans</h2><ul><li><strong>Monthly:</strong> 7-day free trial when eligible, then $4.99/month.</li><li><strong>Annual:</strong> 7-day free trial when eligible, then $35.99/year (a $3.00/month equivalent billed annually).</li></ul><p>After a trial, the selected plan renews at the same plan price unless changed or canceled through the relevant app store. Trial eligibility is determined by the store and may vary.</p></div>
+  <div class="card"><h2>Current US reference plans</h2><ul><li><strong>Monthly:</strong> 7-day free trial when eligible, then $4.99/month.</li><li><strong>Annual:</strong> 7-day free trial when eligible, then $34.99/year (approximately $2.92/month billed annually).</li></ul><p>After a trial, the selected plan renews at the same plan price unless changed or canceled through the relevant app store. Trial eligibility is determined by the store and may vary.</p></div>
   <h2>How billing works</h2><p>Subscriptions are purchased through Apple App Store or Google Play and charged to the payment method on your store account. Calora does not directly receive or store your full payment card details.</p>
   <h2>Cancel or manage a subscription</h2><p>Manage or cancel on the same store where you subscribed: <a href="https://support.apple.com/en-us/118428">Apple subscription settings</a> or <a href="https://support.google.com/googleplay/answer/7018481">Google Play subscription settings</a>. Canceling prevents the next renewal; access generally continues through the current paid period.</p>
   <h2>Refunds and billing questions</h2><p>Refund decisions are made by Apple or Google under their policies. For a Calora billing issue, include your store, transaction date, and order identifier (but never send payment card details) when contacting <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>.</p>
