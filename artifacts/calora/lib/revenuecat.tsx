@@ -5,13 +5,23 @@
  * RevenueCat Test Store, so the full purchase flow is testable without a
  * native build. Never hardcode prices — always read them from `offerings`.
  */
-import React, { createContext, useContext, useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
-import Purchases, { type PurchasesPackage } from 'react-native-purchases';
+import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react';
+import { AppState, Platform } from 'react-native';
+import Purchases, {
+  type CustomerInfo,
+  type CustomerInfoUpdateListener,
+  type PurchasesPackage,
+} from 'react-native-purchases';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import { SUBSCRIPTION } from '@/lib/brand';
 import { useAuth } from '@/context/AuthContext';
+import {
+  hasActiveRevenueCatEntitlement,
+  isRevenueCatBillingIdentityReady,
+  purchaseForSynchronizedRevenueCatIdentity,
+  restoreForSynchronizedRevenueCatIdentity,
+} from '@/lib/revenuecatBilling';
 import { synchronizeRevenueCatIdentity } from '@/lib/revenuecatIdentity';
 
 const REVENUECAT_TEST_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_TEST_API_KEY;
@@ -54,21 +64,20 @@ export function initializeRevenueCat() {
 function useSubscriptionContext() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const lastIdentityRef = useRef<string | null>(null);
+  const userId = user?.id ?? null;
   const identityGenerationRef = useRef(0);
+  const [identitySyncAttempt, setIdentitySyncAttempt] = React.useState(0);
+  const [identitySyncFailed, setIdentitySyncFailed] = React.useState(false);
   // Identity the SDK is currently synced to ('anon' or a user id); undefined
-  // until the first sync settles. Customer-info queries wait for it so state
-  // is never read for the wrong (e.g. still-anonymous) subscriber.
+  // until the first sync settles. Customer-info reads and financial actions
+  // wait for it so state is never read or written for the wrong subscriber.
   const [syncedIdentity, setSyncedIdentity] = React.useState<string | undefined>(undefined);
 
-  // Keep the RevenueCat identity aligned with the Supabase user so
-  // server-side referral rewards land on the right subscriber.
   useEffect(() => {
-    const targetId = user?.id ?? null;
-    if (targetId === lastIdentityRef.current) return;
-    lastIdentityRef.current = targetId;
+    const targetId = userId;
     const generation = ++identityGenerationRef.current;
     setSyncedIdentity(undefined);
+    setIdentitySyncFailed(false);
 
     (async () => {
       try {
@@ -77,10 +86,16 @@ function useSubscriptionContext() {
         setSyncedIdentity(targetId ?? 'anon');
         queryClient.invalidateQueries({ queryKey: ['revenuecat'] });
       } catch (err) {
+        if (generation !== identityGenerationRef.current) return;
         console.warn('[revenuecat] identity sync failed', err);
+        setIdentitySyncFailed(true);
       }
     })();
-  }, [user?.id, queryClient]);
+  }, [userId, identitySyncAttempt, queryClient]);
+
+  const isIdentityReady = isRevenueCatBillingIdentityReady(userId, syncedIdentity);
+  const readyIdentityRef = useRef<string | null>(null);
+  readyIdentityRef.current = isIdentityReady ? userId : null;
 
   const customerInfoQuery = useQuery({
     queryKey: ['revenuecat', 'customer-info', syncedIdentity ?? 'pending'],
@@ -95,32 +110,79 @@ function useSubscriptionContext() {
     staleTime: 300 * 1000,
   });
 
+  useEffect(() => {
+    const listener: CustomerInfoUpdateListener = (customerInfo: CustomerInfo) => {
+      const readyIdentity = readyIdentityRef.current;
+      if (!readyIdentity) return;
+      queryClient.setQueryData(
+        ['revenuecat', 'customer-info', readyIdentity],
+        customerInfo,
+      );
+    };
+    Purchases.addCustomerInfoUpdateListener(listener);
+    return () => {
+      Purchases.removeCustomerInfoUpdateListener(listener);
+    };
+  }, [queryClient]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && readyIdentityRef.current) {
+        void customerInfoQuery.refetch();
+      }
+    });
+    return () => subscription.remove();
+  }, [customerInfoQuery.refetch]);
+
   const purchaseMutation = useMutation({
     mutationFn: async (packageToPurchase: PurchasesPackage) => {
-      const { customerInfo } = await Purchases.purchasePackage(packageToPurchase);
+      const readyIdentity = userId as string;
+      const customerInfo = await purchaseForSynchronizedRevenueCatIdentity(
+        userId,
+        syncedIdentity,
+        packageToPurchase,
+        Purchases,
+      );
+      queryClient.setQueryData(['revenuecat', 'customer-info', readyIdentity], customerInfo);
       return customerInfo;
     },
-    onSuccess: () => customerInfoQuery.refetch(),
   });
 
   const restoreMutation = useMutation({
-    mutationFn: () => Purchases.restorePurchases(),
-    onSuccess: () => customerInfoQuery.refetch(),
+    mutationFn: async () => {
+      const readyIdentity = userId as string;
+      const customerInfo = await restoreForSynchronizedRevenueCatIdentity(
+        userId,
+        syncedIdentity,
+        Purchases,
+      );
+      queryClient.setQueryData(['revenuecat', 'customer-info', readyIdentity], customerInfo);
+      return customerInfo;
+    },
   });
 
-  const isSubscribed =
-    customerInfoQuery.data?.entitlements.active?.[REVENUECAT_ENTITLEMENT_IDENTIFIER] !== undefined;
+  const isSubscribed = isIdentityReady && hasActiveRevenueCatEntitlement(
+    customerInfoQuery.data,
+    REVENUECAT_ENTITLEMENT_IDENTIFIER,
+  );
+
+  const retryIdentitySync = useCallback(() => {
+    setIdentitySyncAttempt((attempt) => attempt + 1);
+  }, []);
 
   return {
     customerInfo: customerInfoQuery.data,
     offerings: offeringsQuery.data,
     isSubscribed,
-    isLoading: customerInfoQuery.isLoading || offeringsQuery.isLoading,
+    isIdentityReady,
+    identitySyncFailed,
+    isLoading: customerInfoQuery.isLoading || offeringsQuery.isLoading || (userId !== null && !isIdentityReady && !identitySyncFailed),
     purchase: purchaseMutation.mutateAsync,
     restore: restoreMutation.mutateAsync,
     isPurchasing: purchaseMutation.isPending,
     isRestoring: restoreMutation.isPending,
     refreshCustomerInfo: () => customerInfoQuery.refetch(),
+    retryIdentitySync,
   };
 }
 

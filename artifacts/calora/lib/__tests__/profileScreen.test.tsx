@@ -34,6 +34,7 @@ const harness = vi.hoisted(() => {
   const state = {
     tab: undefined as string | undefined,
     open: undefined as string | undefined,
+    user: { id: 'profile-test-account' } as { id: string } | null,
     notifications: [] as Array<{ id: string; category: string; title: string; body: string; receivedAt: string; read: boolean }>,
     savedMeals: [] as Array<{ id: string; name: string; kind: 'meal' | 'recipe'; calories: number; protein: number; carbs: number; fat: number }>,
   };
@@ -58,9 +59,9 @@ vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ tab: harness.state.tab, open: harness.state.open }),
 }));
 vi.mock('@/context/CaloraContext', () => ({ useCalora: () => harness.calora }));
-vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'profile-test-account' } }) }));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: harness.state.user }) }));
 vi.mock('@/lib/revenuecat', () => ({
-  REVENUECAT_ENTITLEMENT_IDENTIFIER: 'calora_pro',
+  REVENUECAT_ENTITLEMENT_IDENTIFIER: 'caloraapp_pro',
   useSubscription: () => harness.useSubscription(),
 }));
 vi.mock('@/lib/notificationLifecycle', () => ({
@@ -110,9 +111,35 @@ vi.mock('@/components/SwipeableTabList', () => ({
 
 import ProfileScreen from '@/app/(tabs)/profile';
 
+function makeSubscription(overrides: Record<string, unknown> = {}) {
+  return {
+    customerInfo: { entitlements: { active: {} }, managementURL: null },
+    offerings: {
+      current: {
+        identifier: 'default',
+        availablePackages: [
+          { identifier: '$rc_monthly', product: { priceString: '$4.99', price: 4.99, currencyCode: 'USD' } },
+          { identifier: '$rc_annual', product: { priceString: '$34.99', price: 34.99, currencyCode: 'USD' } },
+        ],
+      },
+    },
+    isSubscribed: false,
+    isIdentityReady: true,
+    identitySyncFailed: false,
+    purchase: vi.fn(async () => ({ entitlements: { active: { caloraapp_pro: {} } } })),
+    restore: vi.fn(async () => ({ entitlements: { active: {} } })),
+    isPurchasing: false,
+    isRestoring: false,
+    refreshCustomerInfo: vi.fn(async () => undefined),
+    retryIdentitySync: vi.fn(),
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   harness.state.tab = undefined;
   harness.state.open = undefined;
+  harness.state.user = { id: 'profile-test-account' };
   harness.state.notifications = [];
   harness.state.savedMeals = [{
     id: 'saved-1', name: 'Test oats', kind: 'meal', calories: 320, protein: 12, carbs: 44, fat: 9,
@@ -122,21 +149,7 @@ beforeEach(() => {
   harness.calora.healthConnection = { provider: 'health-connect', authorization: 'partial', granted: ['steps'] };
   harness.calora.onboardingComplete = true;
   harness.calora.onboardingStep = 0;
-  harness.useSubscription.mockReturnValue({
-    offerings: {
-      current: {
-        availablePackages: [
-          { identifier: '$rc_monthly', product: { priceString: '$4.99' } },
-          { identifier: '$rc_annual', product: { priceString: '$39.99' } },
-        ],
-      },
-    },
-    isSubscribed: false,
-    purchase: vi.fn(async () => undefined),
-    restore: vi.fn(async () => ({ entitlements: { active: {} } })),
-    isPurchasing: false,
-    isRestoring: false,
-  });
+  harness.useSubscription.mockReturnValue(makeSubscription());
   vi.clearAllMocks();
 });
 
@@ -168,13 +181,144 @@ describe('Profile rendered interactions', () => {
     expect(screen.getByText('Your plan').closest('[class*="r-display"]')).toBeTruthy();
   });
 
-  it('uses the store purchase flow and labels plan choices as radio controls', () => {
+  it('uses the approved store prices and only reports purchase success with the expected entitlement', async () => {
+    const subscription = makeSubscription();
+    harness.useSubscription.mockReturnValue(subscription);
     render(<ProfileScreen />);
     fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
     expect(screen.getByRole('radio', { name: 'Choose monthly plan' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Choose annual plan' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Choose annual plan' }).textContent).toContain('$34.99');
+    expect(screen.getByText(/\$4\.99/)).toBeTruthy();
+    expect(screen.getByText(/Approx\. \$2\.92 \/ mo · billed annually/)).toBeTruthy();
+    expect(screen.getByText(/7-day free trial/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Continue to billing' }));
     expect(screen.getByText('Confirm your purchase')).toBeTruthy();
+    expect(screen.getByText(/at \$34\.99 per year/)).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Confirm purchase'));
+    await waitFor(() => expect(subscription.purchase).toHaveBeenCalledOnce());
+    expect(screen.getByText(/Your subscription is active/)).toBeTruthy();
+  });
+
+  it('does not claim active access when a completed purchase lacks the expected entitlement', async () => {
+    const subscription = makeSubscription({
+      purchase: vi.fn(async () => ({ entitlements: { active: {} } })),
+    });
+    harness.useSubscription.mockReturnValue(subscription);
+    render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to billing' }));
+    fireEvent.click(screen.getByLabelText('Confirm purchase'));
+
+    await waitFor(() => expect(subscription.refreshCustomerInfo).toHaveBeenCalledOnce());
+    expect(screen.getByText(/still confirming access with the store/)).toBeTruthy();
+    expect(screen.queryByText(/Your subscription is active/)).toBeNull();
+  });
+
+  it('reports an active restore only when the expected Calora Pro entitlement is returned', async () => {
+    const subscription = makeSubscription({
+      restore: vi.fn(async () => ({ entitlements: { active: { caloraapp_pro: {} } } })),
+    });
+    harness.useSubscription.mockReturnValue(subscription);
+    render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+    fireEvent.click(screen.getByLabelText('Restore purchases'));
+
+    await waitFor(() => expect(subscription.restore).toHaveBeenCalledOnce());
+    expect(screen.getByText(/Calora Pro has been restored on this device/)).toBeTruthy();
+  });
+
+  it('reports an empty restore honestly instead of granting access', async () => {
+    const subscription = makeSubscription();
+    harness.useSubscription.mockReturnValue(subscription);
+    render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+    fireEvent.click(screen.getByLabelText('Restore purchases'));
+
+    await waitFor(() => expect(subscription.restore).toHaveBeenCalledOnce());
+    expect(screen.getByText(/No previous purchases were found for this account/)).toBeTruthy();
+  });
+
+  it('closes a user-cancelled purchase without displaying a false failure or success', async () => {
+    const subscription = makeSubscription({
+      purchase: vi.fn(async () => { throw { userCancelled: true }; }),
+    });
+    harness.useSubscription.mockReturnValue(subscription);
+    render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to billing' }));
+    fireEvent.click(screen.getByLabelText('Confirm purchase'));
+
+    await waitFor(() => expect(subscription.purchase).toHaveBeenCalledOnce());
+    expect(screen.queryByText('Confirm your purchase')).toBeNull();
+    expect(screen.queryByText(/Your subscription is active/)).toBeNull();
+    expect(screen.queryByText(/could not be completed/)).toBeNull();
+  });
+
+  it('reports a provider purchase failure and confirms that no charge was claimed', async () => {
+    const subscription = makeSubscription({
+      purchase: vi.fn(async () => { throw new Error('provider unavailable'); }),
+    });
+    harness.useSubscription.mockReturnValue(subscription);
+    render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to billing' }));
+    fireEvent.click(screen.getByLabelText('Confirm purchase'));
+
+    await waitFor(() => expect(subscription.purchase).toHaveBeenCalledOnce());
+    expect(screen.getByText(/could not be completed. You have not been charged/)).toBeTruthy();
+  });
+
+  it('keeps subscription management native-only on web instead of opening an unrelated destination', async () => {
+    render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+    fireEvent.click(screen.getByLabelText('Manage subscription'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Open Calora on your iPhone or Android device to manage/)).toBeTruthy();
+    });
+  });
+
+  it('blocks purchase and restore until the current signed-in identity is synchronized', () => {
+    harness.useSubscription.mockReturnValue(makeSubscription({ isIdentityReady: false }));
+    render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+
+    const purchase = screen.getByRole('button', { name: 'Billing account setup is not ready' });
+    const restore = screen.getByLabelText('Restore purchases');
+    expect(purchase.getAttribute('aria-disabled')).toBe('true');
+    expect(restore.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByText(/Billing account setup is still finishing/)).toBeTruthy();
+  });
+
+  it('offers an explicit retry after billing identity synchronization fails', () => {
+    const subscription = makeSubscription({ isIdentityReady: false, identitySyncFailed: true });
+    harness.useSubscription.mockReturnValue(subscription);
+    render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry billing account setup' }));
+    expect(subscription.retryIdentitySync).toHaveBeenCalledOnce();
+  });
+
+  it('requires sign-in before financial actions', () => {
+    harness.state.user = null;
+    harness.useSubscription.mockReturnValue(makeSubscription({ isIdentityReady: false }));
+    render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+
+    expect(screen.getByText(/Sign in to your Calora account before purchasing or restoring/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sign in required before billing' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByLabelText('Restore purchases').getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('rejects an unexpected current RevenueCat offering instead of silently selling it', () => {
+    const subscription = makeSubscription();
+    subscription.offerings.current.identifier = 'unexpected-offering';
+    harness.useSubscription.mockReturnValue(subscription);
+    render(<ProfileScreen />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Membership profile tab' }));
+
+    expect(screen.getByText(/does not match Calora's approved billing configuration/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Selected store plan is unavailable' }).getAttribute('aria-disabled')).toBe('true');
   });
 
   it('shows recovery controls for partial Health Connect and reacts to a health deep link after mount', async () => {
