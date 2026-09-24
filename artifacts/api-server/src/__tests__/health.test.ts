@@ -8,6 +8,12 @@ describe("API health routes", () => {
     vi.restoreAllMocks();
   });
 
+  it("returns a dependency-free liveness status from the canonical root health route", async () => {
+    const response = await request(app).get("/health");
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ status: "ok" });
+  });
+
   it("returns a dependency-free liveness status from /api", async () => {
     const response = await request(app).get("/api");
     expect(response.status).toBe(200);
