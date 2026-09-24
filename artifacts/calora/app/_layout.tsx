@@ -329,7 +329,7 @@ function RootLayoutNav() {
     onboardingComplete,
     reviewRequested,
   });
-  const callbackRouteIsActive = segments.includes('callback');
+  const callbackRouteIsActive = segments.some((segment) => String(segment) === 'callback');
   // This closes the listener-before-effect gap on cold associated-link
   // delivery. The callback screen subsequently supplies its validated intent.
   const effectivePostAuthIntent = callbackRouteIsActive && postAuthIntent === 'none'

@@ -13,7 +13,7 @@ function functionBody(startMarker: string, endMarker: string): string {
 
 describe('Coach screen clear-history lifecycle', () => {
   it('invalidates pending Coach work before clearing visible and persisted history', () => {
-    const body = functionBody('const clearConversation = () => {', 'const requestClearConversation');
+    const body = functionBody('const clearConversation = () => {', 'const requestClearConversation =');
     const invalidation = body.indexOf("coachSendAdapter.invalidateEpoch('client_rollback')");
     const clearPersisted = body.indexOf('clearCoachHistory()');
     const clearVisible = body.indexOf('setTurns([])');

@@ -6,8 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import {
-  createMemorySessionStorage,
   createSupabaseSessionStorage,
+  createWebSessionStorage,
 } from './supabaseSessionStorage';
 
 // ---------------------------------------------------------------------------
@@ -39,12 +39,22 @@ const supabaseConfig = requireSupabaseConfig();
 // Secure storage adapter
 // ---------------------------------------------------------------------------
 
+function getBrowserPkceStore() {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 const secureSessionStorage =
   Platform.OS !== 'web'
     ? createSupabaseSessionStorage(SecureStore)
-    // Do not allow Supabase to fall back to plaintext browser localStorage.
-    // Web-preview sessions are intentionally process-local and non-durable.
-    : createMemorySessionStorage();
+    // Do not allow Supabase to fall back to plaintext localStorage for auth
+    // sessions. Only random PKCE verifier keys cross a browser redirect; access
+    // and refresh tokens remain process-local and non-durable.
+    : createWebSessionStorage(getBrowserPkceStore());
 
 // ---------------------------------------------------------------------------
 // Client
