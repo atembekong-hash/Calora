@@ -89,6 +89,31 @@ describe('AuthProvider bootstrap ordering', () => {
     expect(screen.getByTestId('identity-state').textContent).toBe('current-user');
   });
 
+  it('finishes an explicit guest restore after Supabase emits an inconclusive null INITIAL_SESSION', async () => {
+    render(
+      <AuthProvider>
+        <AuthState />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(onAuthStateChangeMock).toHaveBeenCalled());
+
+    act(() => {
+      authStateChangeCallback('INITIAL_SESSION', null);
+    });
+    // Null INITIAL_SESSION has no storage-error channel, so the explicit read
+    // remains authoritative and the guest scope must not mount prematurely.
+    expect(screen.getByTestId('restore-state').textContent).toBe('loading:none');
+
+    await act(async () => {
+      resolveInitialSession({ data: { session: null } });
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId('restore-state').textContent).toBe('ready:none');
+    expect(screen.getByTestId('identity-state').textContent).toBe('signed-out');
+  });
+
   it('exposes a failed restore instead of silently mounting a guest identity, then recovers on retry', async () => {
     getSessionMock
       .mockRejectedValueOnce(new Error('SecureStore unavailable'))
