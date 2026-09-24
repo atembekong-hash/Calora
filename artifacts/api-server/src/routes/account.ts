@@ -25,7 +25,10 @@ import {
 } from "../lib/account-deletion-state.js";
 import { deleteRevenueCatSubscriber } from "../lib/revenuecat.js";
 import { logger, noteSuppressedRecoveryWarning } from "../lib/logger.js";
-import { eraseRecipePhotoObjects } from "../lib/recipe-photo-storage.js";
+import {
+  eraseRecipePhotoObjects,
+  isRecipePhotoStorageConfigured,
+} from "../lib/recipe-photo-storage.js";
 
 const router: IRouter = Router();
 const RECOVERY_STUCK_AFTER_MS = 15 * 60 * 1000;
@@ -138,6 +141,24 @@ async function deleteApplicationData(externalUserId: string): Promise<void> {
   });
 }
 
+/**
+ * A missing object-storage configuration may only be bypassed for an account
+ * that has no object-backed generated media recorded in the server-owned
+ * ledger. If a record exists, the erasure stays fail-closed so the account
+ * cannot be finalized while private media might remain at an unreachable
+ * provider.
+ */
+async function hasTrackedRecipePhotoObjects(externalUserId: string): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT 1
+    FROM calora_recipe_media
+    WHERE owner_external_id = ${externalUserId}
+      AND object_key IS NOT NULL
+    LIMIT 1
+  `);
+  return result.rows.length > 0;
+}
+
 export async function runAccountDeletion(externalUserId: string): Promise<"completed" | "in_progress"> {
   // A session-scoped advisory lock remains held throughout external provider
   // calls. Unlike a time lease alone, a slow worker cannot lose ownership and
@@ -161,8 +182,12 @@ export async function runAccountDeletion(externalUserId: string): Promise<"compl
     // This runs for every non-terminal claim, including legacy operations that
     // already checkpointed past application cleanup before object erasure was
     // introduced. It is idempotent and therefore safe on every recovery retry.
-    // The saga cannot reach Auth completion while this fail-closed stage fails.
-    await eraseRecipePhotoObjects(externalUserId);
+    // A deployment without configured object storage may proceed only when the
+    // server-owned media ledger proves this account owns no storage objects.
+    // Any tracked media remains fail-closed until its provider can be reached.
+    if (isRecipePhotoStorageConfigured() || await hasTrackedRecipePhotoObjects(externalUserId)) {
+      await eraseRecipePhotoObjects(externalUserId);
+    }
     if (claim.stage === "object_storage") {
       if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "application")) {
         throw new Error("Account deletion ownership was lost after object-storage erasure.");

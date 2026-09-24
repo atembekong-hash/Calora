@@ -8,6 +8,7 @@ vi.mock("../lib/logger.js", () => ({
 
 import {
   eraseRecipePhotoObjects,
+  isRecipePhotoStorageConfigured,
   recipePhotoStorageForTests,
 } from "../lib/recipe-photo-storage.js";
 
@@ -28,6 +29,18 @@ describe("recipe photo object erasure", () => {
     vi.stubEnv("RECIPE_PHOTO_SECRET_ACCESS_KEY", "test-secret-key");
     vi.stubEnv("RECIPE_PHOTO_STORAGE_REGION", "auto");
     vi.stubGlobal("fetch", fetchMock);
+  });
+
+  it("reports configuration only when every required storage setting is present", () => {
+    expect(isRecipePhotoStorageConfigured()).toBe(true);
+
+    vi.stubEnv("RECIPE_PHOTO_SECRET_ACCESS_KEY", "");
+    expect(isRecipePhotoStorageConfigured()).toBe(false);
+
+    vi.stubEnv("RECIPE_PHOTO_SECRET_ACCESS_KEY", "test-secret-key");
+    vi.stubEnv("RECIPE_PHOTO_ACCESS_KEY_ID", "");
+    vi.stubEnv("AWS_ACCESS_KEY_ID", "fallback-access-key");
+    expect(isRecipePhotoStorageConfigured()).toBe(true);
   });
 
   it("lists the account prefix and deletes every listed object idempotently", async () => {

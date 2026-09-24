@@ -6,7 +6,7 @@ const {
   transaction, execute, deleteWhere, deleteUser, getUser, advisoryQuery,
   claimDeletion, checkpointDeletion, completeDeletion, failedDeletion, deleteRevenueCatSubscriber,
   listRecoverableDeletions, claimRecoveryWarningSuppression, noteSuppressedRecoveryWarning, warn,
-  eraseRecipePhotoObjects,
+  eraseRecipePhotoObjects, isRecipePhotoStorageConfigured,
 } = vi.hoisted(() => {
   const execute = vi.fn();
   const deleteWhere = vi.fn();
@@ -33,11 +33,12 @@ const {
     noteSuppressedRecoveryWarning: vi.fn(),
     warn,
     eraseRecipePhotoObjects: vi.fn(),
+    isRecipePhotoStorageConfigured: vi.fn(),
   };
 });
 
 vi.mock("@workspace/db", () => ({
-  db: { transaction },
+  db: { transaction, execute },
   pool: { connect: vi.fn(async () => ({ query: advisoryQuery, release: vi.fn() })) },
   usersTable: { externalId: "external_id" },
 }));
@@ -66,6 +67,7 @@ vi.mock("../lib/revenuecat.js", () => ({
 
 vi.mock("../lib/recipe-photo-storage.js", () => ({
   eraseRecipePhotoObjects: (...args: unknown[]) => eraseRecipePhotoObjects(...args),
+  isRecipePhotoStorageConfigured: (...args: unknown[]) => isRecipePhotoStorageConfigured(...args),
 }));
 
 vi.mock("../lib/logger.js", () => ({
@@ -96,6 +98,8 @@ describe("DELETE /v1/account", () => {
     failedDeletion.mockResolvedValue(undefined);
     deleteRevenueCatSubscriber.mockResolvedValue(undefined);
     eraseRecipePhotoObjects.mockResolvedValue(undefined);
+    isRecipePhotoStorageConfigured.mockReturnValue(true);
+    execute.mockResolvedValue({ rows: [] });
     listRecoverableDeletions.mockResolvedValue([]);
     claimRecoveryWarningSuppression.mockResolvedValue(true);
   });
@@ -125,6 +129,34 @@ describe("DELETE /v1/account", () => {
     expect(res.status).toBe(202);
     expect(deleteUser).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("does not block an account with no tracked recipe-media objects when storage is unconfigured", async () => {
+    isRecipePhotoStorageConfigured.mockReturnValue(false);
+    execute.mockResolvedValue({ rows: [] });
+
+    const res = await request(buildApp())
+      .delete("/v1/account")
+      .set("Authorization", "Bearer valid-token");
+
+    expect(res.status).toBe(200);
+    expect(eraseRecipePhotoObjects).not.toHaveBeenCalled();
+    expect(deleteUser).toHaveBeenCalledOnce();
+  });
+
+  it("fails closed when storage is unconfigured but tracked recipe-media objects exist", async () => {
+    isRecipePhotoStorageConfigured.mockReturnValue(false);
+    execute.mockResolvedValue({ rows: [{ exists: 1 }] });
+    eraseRecipePhotoObjects.mockRejectedValueOnce(new Error("Object storage is not configured"));
+
+    const res = await request(buildApp())
+      .delete("/v1/account")
+      .set("Authorization", "Bearer valid-token");
+
+    expect(res.status).toBe(502);
+    expect(eraseRecipePhotoObjects).toHaveBeenCalledOnce();
+    expect(deleteUser).not.toHaveBeenCalled();
+    expect(completeDeletion).not.toHaveBeenCalled();
   });
 
   it("retries a RevenueCat failure and only completes deletion after the retry succeeds", async () => {
