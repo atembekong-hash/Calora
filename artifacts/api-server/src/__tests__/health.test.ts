@@ -12,12 +12,18 @@ describe("API health routes", () => {
     const response = await request(app).get("/health");
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: "ok" });
+    expect(response.headers["strict-transport-security"]).toBe(
+      "max-age=31536000",
+    );
   });
 
   it("returns a dependency-free liveness status from /api", async () => {
     const response = await request(app).get("/api");
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: "ok" });
+    expect(response.headers["strict-transport-security"]).toBe(
+      "max-age=31536000",
+    );
   });
 
   it("returns a readiness status when the database is reachable", async () => {

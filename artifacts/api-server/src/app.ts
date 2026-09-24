@@ -13,6 +13,7 @@ import { isCorsOriginAllowed } from "./lib/cors-policy";
 import { HealthCheckResponse } from "@workspace/api-zod";
 
 const app: Express = express();
+const STRICT_TRANSPORT_SECURITY = "max-age=31536000";
 
 // Trust one proxy hop (the managed edge / ingress) so that req.ip resolves to
 // the real client address from the X-Forwarded-For chain rather than the proxy
@@ -40,6 +41,15 @@ app.use(
     },
   }),
 );
+
+// mycaloraapp.com is the canonical HTTPS API origin. Keep its transport policy
+// aligned with app.mycaloraapp.com; browsers ignore this header on plain HTTP,
+// while the managed production edge delivers it over trusted HTTPS.
+app.use((_req, res, next) => {
+  res.setHeader("Strict-Transport-Security", STRICT_TRANSPORT_SECURITY);
+  next();
+});
+
 const rejectDisallowedBrowserOrigin: RequestHandler = (req, res, next) => {
   const origin = req.get("origin");
   if (!isCorsOriginAllowed(origin)) {

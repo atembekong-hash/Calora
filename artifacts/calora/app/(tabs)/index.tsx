@@ -100,6 +100,7 @@ import {
 import { burnedStatusForDay } from '@/lib/health/burnedStatus';
 import { burnedPresentationForStatus } from '@/lib/health/burnedPresentation';
 import { useHourlyHeaderImage } from '@/lib/hourlyHeaderImages';
+import { ConfirmedDeletionControl } from '@/components/ConfirmedDeletionControl';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -937,7 +938,20 @@ function EditLogModal({ log, onClose }: { log: FoodLog | null; onClose: () => vo
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 14 }]}>Meal</Text>
           <View style={styles.mealPicker}>{mealOrder.map((item) => <ScalePressable key={item} onPress={() => setMeal(item)} scale={0.95} haptic="none" style={[styles.mealChoice, { backgroundColor: meal === item ? colors.primary : colors.card, borderColor: meal === item ? colors.primary : colors.border }]}><Text style={[styles.mealChoiceText, { color: meal === item ? colors.primaryForeground : colors.mutedForeground }]}>{item}</Text></ScalePressable>)}</View>
           <ScalePressable accessibilityLabel="Save edited entry" onPress={save} scale={0.96} haptic="light" style={[styles.saveEntry, { backgroundColor: colors.primary }]}><Text style={[styles.saveEntryText, { color: colors.primaryForeground }]}>Save changes</Text></ScalePressable>
-          <ScalePressable accessibilityLabel="Delete edited entry" onPress={() => { if (log) { removeLog(log.id); onClose(); } }} scale={0.98} haptic="none" style={styles.deleteEntry}><Feather name="trash-2" size={15} color={colors.destructive} /><Text style={[styles.deleteEntryText, { color: colors.destructive }]}>Delete this entry</Text></ScalePressable>
+          <ConfirmedDeletionControl
+            key={log?.id ?? 'no-log'}
+            itemName={name.trim() || log?.name || 'this entry'}
+            onConfirm={() => {
+              if (!log) return;
+              removeLog(log.id);
+              onClose();
+            }}
+            destructiveColor={colors.destructive}
+            foregroundColor={colors.foreground}
+            mutedForegroundColor={colors.mutedForeground}
+            surfaceColor={colors.card}
+            borderColor={colors.border}
+          />
       </KeyboardAwareScrollViewCompat>
     </BottomSheet>
   );
@@ -1990,8 +2004,6 @@ function makeStyles(f: number) {
   mealChoiceText: { fontFamily: 'Inter_700Bold', fontSize: 11 * f },
   saveEntry: { alignItems: 'center', borderRadius: 15, paddingVertical: 14, marginTop: 16 },
   saveEntryText: { fontFamily: 'Inter_800ExtraBold', fontSize: 13 * f },
-  deleteEntry: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 16 },
-  deleteEntryText: { fontFamily: 'Inter_700Bold', fontSize: 12 * f },
   });
 }
 const styles = makeStyles(1.0);
