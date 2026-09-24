@@ -131,6 +131,14 @@ describe('burnedStatusForDay', () => {
     })).toEqual({ kind: 'past-date', actionLabel: 'Burned unavailable for past dates' });
   });
 
+  it('does not mislabel a future date as a past date', () => {
+    expect(burnedStatusForDay({
+      isToday: false,
+      isFuture: true,
+      connection: connected({ snapshot: { syncedAt: '2026-08-30T10:00:00.000Z', steps: 1200, activeEnergyKcal: 345, workouts: [], weights: [] } }),
+    })).toEqual({ kind: 'future-date', actionLabel: 'Burned unavailable for future dates' });
+  });
+
   it('does not reuse a snapshot from a prior local day', () => {
     expect(burnedStatusForDay({
       isToday: true,

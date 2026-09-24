@@ -166,6 +166,7 @@ export default function CoachScreen() {
   const coachSendAdapter = useCoachSendAdapter();
   const acceptCoachFactContextConsent = useAcceptCoachFactContextConsent();
   const transcriptRef = useRef<ScrollView>(null);
+  const sendRequestIdRef = useRef(0);
   const guestMode = !authLoading && !user?.id;
   const chatReady = guestMode || coachConsentAccepted;
   // Track hydration generation: bumps whenever hydrated goes false→true or
@@ -290,6 +291,7 @@ export default function CoachScreen() {
       facts: frozenFacts,
     };
 
+    const requestId = ++sendRequestIdRef.current;
     setIsSending(true);
     try {
       const result = await coachSendAdapter.sendWithArchitecture(
@@ -348,7 +350,10 @@ export default function CoachScreen() {
         announce: true,
       }]);
     } finally {
-      setIsSending(false);
+      // A clear-history action can invalidate this request and immediately
+      // start a new conversation. An older request must not clear the newer
+      // request's loading state when its own promise eventually settles.
+      if (requestId === sendRequestIdRef.current) setIsSending(false);
     }
   };
 
@@ -368,6 +373,12 @@ export default function CoachScreen() {
   };
 
   const clearConversation = () => {
+    // Fence the request synchronously before clearing visible/persisted turns.
+    // The adapter will classify its eventual result as stale, while the local
+    // request id prevents its finally block from owning a newer conversation.
+    coachSendAdapter.invalidateEpoch('client_rollback');
+    sendRequestIdRef.current += 1;
+    setIsSending(false);
     clearCoachHistory();
     setTurns([]);
     setComposer('');

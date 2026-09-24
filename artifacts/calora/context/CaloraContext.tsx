@@ -6,8 +6,8 @@ import { STORAGE_SCHEMA_VERSION, enqueueAutosave } from '@/lib/storageSchema';
 import { useHydrationEffect } from '@/lib/useHydrationEffect';
 import { PersistenceManager } from '@/lib/persistenceManager';
 import { performClearAllData, DEFAULT_HYDRATION_PREFS, ClearAllDataError } from '@/lib/clearAllData';
-import { verifyProfilePhotoExists, deleteProfilePhoto } from '@/lib/profilePhotoStorage';
-import { buildExportPayload, readRawStorageData, type CaloraExportState } from '@/lib/exportPayload';
+import { verifyProfilePhotoExists, deleteProfilePhoto, isManagedProfilePhotoUri } from '@/lib/profilePhotoStorage';
+import { buildExportPayload, readPortableProfilePhoto, readRawStorageData, type CaloraExportState } from '@/lib/exportPayload';
 import { makeClearedExportSnapshot } from '@/lib/exportGap';
 import { normalizeHealthConnection } from '@/lib/healthConnection';
 import { healthService } from '@/lib/health/healthService';
@@ -1919,10 +1919,17 @@ export function CaloraProvider({
     },
       exportRawStorageData: () => readRawStorageData(encryptedStorage.getRawItem.bind(encryptedStorage), storageKey),
       exportData: async () => {
-        if (!exportSnapshotRef.current) {
+        const snapshot = exportSnapshotRef.current;
+        if (!snapshot) {
           throw new Error('Export state is not initialized.');
         }
-        return buildExportPayload(STORAGE_SCHEMA_VERSION, exportSnapshotRef.current);
+        const portableProfilePhoto = await readPortableProfilePhoto(snapshot.profilePhotoUri, {
+          isManagedUri: (uri) => isManagedProfilePhotoUri(uri, FileSystem, accountId),
+          readBase64: (uri) => FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          }),
+        });
+        return buildExportPayload(STORAGE_SCHEMA_VERSION, snapshot, portableProfilePhoto);
       },
     clearAllData: async () => {
       if (clearingRef.current) return;
@@ -1958,10 +1965,11 @@ export function CaloraProvider({
         setMoodLogs,
         setActivityLogs,
         setActivityMinutesLogs,
-        setSavedMeals,
-        setLocalRecipes,
-        setSavedRecipeIds,
-        setConsentAccepted,
+	        setSavedMeals,
+	        setLocalRecipes,
+	        setSavedRecipeIds,
+	        setHealthConnection,
+	        setConsentAccepted,
         setOutbox,
         setPlannerWeekStart,
         setPlannerViewedDay,
@@ -2000,15 +2008,16 @@ export function CaloraProvider({
            foodDraftsRef.current = [];
            acceptedFoodDraftIdsRef.current.clear();
           shoppingItemsRef.current = [];
-          setThemePreference('system');
-          setFontSizeScaleState('default');
-          setProfilePhotoUriState(null);
-          exportSnapshotRef.current = makeClearedExportSnapshot({
-            getPlannerWeekStart,
-            healthConnected: canSyncHealthConnection(healthConnectionRef.current),
-            healthConnection: healthConnectionRef.current,
-            notificationPreferences: clearedNotificationPreferences,
-          });
+	          setThemePreference('system');
+	          setFontSizeScaleState('default');
+	          setProfilePhotoUriState(null);
+	          healthConnectionRef.current = EMPTY_HEALTH_CONNECTION;
+	          exportSnapshotRef.current = makeClearedExportSnapshot({
+	            getPlannerWeekStart,
+	            healthConnected: false,
+	            healthConnection: EMPTY_HEALTH_CONNECTION,
+	            notificationPreferences: clearedNotificationPreferences,
+	          });
         }
 
         // Attempt every independent cleanup even when another cleanup fails.

@@ -26,6 +26,7 @@ import {
 } from '../exportPayload';
 import { makeClearedExportSnapshot, resolveExportData } from '../exportGap';
 import { storageKeyForAccount } from '../accountStorage';
+import { EMPTY_HEALTH_CONNECTION } from '../health/types';
 
 // ---------------------------------------------------------------------------
 // In-memory StorageAdapter — mirrors the AsyncStorage surface used in
@@ -413,6 +414,7 @@ function makeSpyCtx(pm: PersistenceManager): {
     setSavedMeals:                spy('savedMeals'),
     setLocalRecipes:              spy('localRecipes'),
     setSavedRecipeIds:            spy('savedRecipeIds'),
+    setHealthConnection:          spy('healthConnection'),
     setConsentAccepted:           spy('consentAccepted'),
     setOutbox:                    spy('outbox'),
     setPlannerWeekStart:          spy('plannerWeekStart'),
@@ -565,6 +567,7 @@ describe('CaloraContext.clearAllData lifecycle: mid-clear mutation cannot become
     expect(captured.savedMeals).toEqual([]);
     expect(captured.localRecipes).toEqual([]);
     expect(captured.savedRecipeIds).toEqual([]);
+    expect(captured.healthConnection).toEqual(EMPTY_HEALTH_CONNECTION);
     expect(captured.consentAccepted).toBe(false);
     expect(captured.outbox).toEqual([]);
     // plannerWeekStart resets to the current Monday — not the week the user had browsed to.
