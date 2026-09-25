@@ -6,12 +6,13 @@ const {
   transaction, execute, deleteWhere, deleteUser, getUser, advisoryQuery,
   claimDeletion, checkpointDeletion, completeDeletion, failedDeletion, deleteRevenueCatSubscriber,
   listRecoverableDeletions, claimRecoveryWarningSuppression, noteSuppressedRecoveryWarning, warn,
-  eraseRecipePhotoObjects, isRecipePhotoStorageConfigured,
+  info, eraseRecipePhotoObjects, isRecipePhotoStorageConfigured,
 } = vi.hoisted(() => {
   const execute = vi.fn();
   const deleteWhere = vi.fn();
   const advisoryQuery = vi.fn().mockResolvedValue({ rows: [{ locked: true }] });
   const warn = vi.fn();
+  const info = vi.fn();
   const tx = {
     execute,
     delete: () => ({ where: deleteWhere }),
@@ -32,6 +33,7 @@ const {
     claimRecoveryWarningSuppression: vi.fn(),
     noteSuppressedRecoveryWarning: vi.fn(),
     warn,
+    info,
     eraseRecipePhotoObjects: vi.fn(),
     isRecipePhotoStorageConfigured: vi.fn(),
   };
@@ -71,7 +73,7 @@ vi.mock("../lib/recipe-photo-storage.js", () => ({
 }));
 
 vi.mock("../lib/logger.js", () => ({
-  logger: { warn },
+  logger: { warn, info },
   noteSuppressedRecoveryWarning: (...args: unknown[]) => noteSuppressedRecoveryWarning(...args),
 }));
 
@@ -179,6 +181,26 @@ describe("DELETE /v1/account", () => {
     expect(completeDeletion).toHaveBeenCalledOnce();
   });
 
+  it("reruns idempotent application cleanup before final Auth erasure from a late recovery checkpoint", async () => {
+    claimDeletion.mockResolvedValueOnce({ kind: "claimed", operationId: "11111111-1111-4111-8111-111111111111", stage: "auth" });
+
+    const res = await request(buildApp())
+      .delete("/v1/account")
+      .set("Authorization", "Bearer valid-token");
+
+    expect(res.status).toBe(200);
+    expect(execute).toHaveBeenCalled();
+    expect(
+      execute.mock.calls.some(([query]) =>
+        JSON.stringify(query).includes("calora_recipe_media"),
+      ),
+    ).toBe(true);
+    expect(checkpointDeletion).toHaveBeenNthCalledWith(1, "auth-user-1", "11111111-1111-4111-8111-111111111111", "revenuecat");
+    expect(checkpointDeletion).toHaveBeenNthCalledWith(2, "auth-user-1", "11111111-1111-4111-8111-111111111111", "auth");
+    expect(deleteRevenueCatSubscriber).toHaveBeenCalledOnce();
+    expect(deleteUser).toHaveBeenCalledOnce();
+  });
+
   it("is idempotent after a completed deletion", async () => {
     claimDeletion.mockResolvedValueOnce({ kind: "completed" });
 
@@ -229,6 +251,72 @@ describe("account deletion recovery signals", () => {
     await recoverPendingAccountDeletions();
 
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("erases terminally orphaned private media before removing its retained ledger row", async () => {
+    listRecoverableDeletions.mockResolvedValueOnce([]);
+    execute.mockResolvedValueOnce({
+      rows: [{ external_user_id: "terminal-orphan-owner", has_object_backed_media: true }],
+    });
+
+    await recoverPendingAccountDeletions();
+
+    expect(eraseRecipePhotoObjects).toHaveBeenCalledWith("terminal-orphan-owner");
+    expect(deleteWhere).toHaveBeenCalled();
+    expect(deleteUser).not.toHaveBeenCalled();
+    expect(info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "account_deletion_terminal_media_recovery",
+        recoveredCount: 1,
+        failedCount: 0,
+      }),
+      "Terminal account-deletion media recovery completed",
+    );
+  });
+
+  it("retains a terminal orphan ledger row when object erasure cannot be verified", async () => {
+    listRecoverableDeletions.mockResolvedValueOnce([]);
+    execute.mockResolvedValueOnce({
+      rows: [{ external_user_id: "terminal-orphan-owner", has_object_backed_media: true }],
+    });
+    eraseRecipePhotoObjects.mockRejectedValueOnce(new Error("storage unavailable"));
+
+    await recoverPendingAccountDeletions();
+
+    expect(deleteWhere).not.toHaveBeenCalled();
+    expect(deleteUser).not.toHaveBeenCalled();
+    expect(info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "account_deletion_terminal_media_recovery",
+        recoveredCount: 0,
+        failedCount: 1,
+      }),
+      "Terminal account-deletion media recovery completed",
+    );
+  });
+
+  it("continues terminal orphan cleanup when a pending-recovery warning is suppressed", async () => {
+    const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+    listRecoverableDeletions.mockResolvedValueOnce([
+      {
+        externalUserId: "pending-owner",
+        identityFingerprint: "a".repeat(64),
+        stage: "object_storage",
+        requestedAt,
+        updatedAt: requestedAt,
+      },
+    ]);
+    claimDeletion.mockRejectedValueOnce(new Error("storage unavailable"));
+    claimRecoveryWarningSuppression.mockResolvedValueOnce(false);
+    execute.mockResolvedValueOnce({
+      rows: [{ external_user_id: "terminal-orphan-owner", has_object_backed_media: true }],
+    });
+
+    await recoverPendingAccountDeletions();
+
+    expect(noteSuppressedRecoveryWarning).toHaveBeenCalledOnce();
+    expect(eraseRecipePhotoObjects).toHaveBeenCalledWith("terminal-orphan-owner");
+    expect(deleteWhere).toHaveBeenCalled();
   });
 
   it("emits an aggregate redacted signal for a failed, overdue recovery", async () => {

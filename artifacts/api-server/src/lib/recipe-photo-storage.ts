@@ -135,6 +135,14 @@ function encodePathSegment(segment: string): string {
   return encodeURIComponent(segment).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
+function encodeQueryComponent(value: string): string {
+  return encodeURIComponent(value).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+function compareBytewise(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function encodedObjectPath(objectName: string): string {
   return objectName.split("/").map(encodePathSegment).join("/");
 }
@@ -169,9 +177,13 @@ function signedStorageUrl(
   query.set("X-Amz-Expires", String(expiresSecs));
   query.set("X-Amz-SignedHeaders", "host");
 
+  // Signature V4 requires bytewise ordering after RFC 3986 encoding. Locale
+  // sorting can put lower-case ListObjectsV2 keys before X-Amz-* keys, which
+  // changes the canonical request and yields SignatureDoesNotMatch.
   const sortedQuery = [...query.entries()]
-    .sort(([aKey, aValue], [bKey, bValue]) => aKey === bKey ? aValue.localeCompare(bValue) : aKey.localeCompare(bKey))
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .map(([key, value]) => [encodeQueryComponent(key), encodeQueryComponent(value)] as const)
+    .sort(([aKey, aValue], [bKey, bValue]) => compareBytewise(aKey, bKey) || compareBytewise(aValue, bValue))
+    .map(([key, value]) => `${key}=${value}`)
     .join("&");
   const canonicalHeaders = `host:${host}\n`;
   const canonicalRequest = [
