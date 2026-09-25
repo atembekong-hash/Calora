@@ -43,6 +43,27 @@ describe("recipe photo object erasure", () => {
     expect(isRecipePhotoStorageConfigured()).toBe(true);
   });
 
+  it("uses bytewise RFC 3986 query ordering for signed ListObjectsV2 requests", () => {
+    const url = recipePhotoStorageForTests.signedStorageUrl("GET", "", 60, {
+      "list-type": "2",
+      "max-keys": "1001",
+      prefix: "private/recipe-photos/user-1/",
+    });
+    const parameterNames = url.slice(url.indexOf("?") + 1).split("&").map((part) => part.split("=", 1)[0]);
+
+    expect(parameterNames).toEqual([
+      "X-Amz-Algorithm",
+      "X-Amz-Credential",
+      "X-Amz-Date",
+      "X-Amz-Expires",
+      "X-Amz-SignedHeaders",
+      "list-type",
+      "max-keys",
+      "prefix",
+      "X-Amz-Signature",
+    ]);
+  });
+
   it("lists the account prefix and deletes every listed object idempotently", async () => {
     fetchMock
       .mockResolvedValueOnce(new Response(listXml([
