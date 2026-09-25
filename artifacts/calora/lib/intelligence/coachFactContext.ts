@@ -21,6 +21,12 @@ export const COACH_FACT_KEYS = [
   'weight.short_trend',
 ] as const;
 
+/**
+ * Must remain aligned with the Fact Context request schema. The broader
+ * allowlist above is intentionally prioritized for one bounded request.
+ */
+export const COACH_FACT_CONTEXT_MAX_FACTS = 4;
+
 export type CoachFactKey = typeof COACH_FACT_KEYS[number];
 export type CoachFactStatus = 'available' | 'limited' | 'unknown';
 export type CoachFactMissingData = 'no_profile' | 'no_logged_food_today' | 'incomplete_logging' | 'unknown_provenance' | 'insufficient_history';
@@ -290,7 +296,11 @@ export function buildCoachFactContext(input: {
 }): CoachFactContextV1 | null {
   if (!input.hydrated || input.consent.state !== 'consented_current') return null;
   const now = input.now ?? new Date();
-  const facts = buildFacts(input.facts);
+  // The server accepts at most four facts. Build the full approved projection
+  // first so eligibility remains unchanged, then retain its stable priority
+  // order: current-day calorie, protein, carbohydrate, and fat summaries
+  // precede optional and historical summaries.
+  const facts = buildFacts(input.facts).slice(0, COACH_FACT_CONTEXT_MAX_FACTS);
   const missingData = [...new Set(input.facts.flatMap((fact) => fact.missingData.map((missing) => missingMap[missing]).filter(Boolean) as CoachFactMissingData[]))];
   if (!facts.length && !missingData.includes('no_logged_food_today')) missingData.push('no_logged_food_today');
   return {

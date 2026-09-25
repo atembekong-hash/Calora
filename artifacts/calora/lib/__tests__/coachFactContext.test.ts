@@ -4,6 +4,7 @@ import {
   buildCoachFactContext,
   CoachFactConsentRegistry,
   COACH_FACT_CONTEXT_PURPOSE,
+  COACH_FACT_CONTEXT_MAX_FACTS,
   COACH_FACT_KEYS,
 } from '../intelligence/coachFactContext';
 import { CoachFactRequestLifecycle } from '../intelligence/coachFactRequestLifecycle';
@@ -31,7 +32,7 @@ describe('CoachFactContextV1', () => {
     expect(factContext?.expiresAt).toBe('2026-08-21T12:01:00.000Z');
   });
 
-  it('exports the approved broader summaries without raw meal or account data', () => {
+  it('retains the approved broader allowlist while bounding one request to the deployed payload limit', () => {
     const facts = buildDailyIntelligenceFacts(context, { generatedAt: '2026-08-21T12:00:00.000Z' });
     const factContext = buildCoachFactContext({
       hydrated: true, consent: { state: 'consented_current', purpose: COACH_FACT_CONTEXT_PURPOSE },
@@ -40,9 +41,13 @@ describe('CoachFactContextV1', () => {
     expect(COACH_FACT_KEYS).toContain('daily.meal_distribution');
     expect(COACH_FACT_KEYS).toContain('daily.water_status');
     expect(COACH_FACT_KEYS).toContain('weekly.nutrition_coverage');
-    expect(factContext?.facts.map((fact) => fact.key)).toContain('daily.meal_distribution');
-    expect(factContext?.facts.map((fact) => fact.key)).toContain('daily.water_status');
-    expect(factContext?.facts.map((fact) => fact.key)).toContain('daily.logging_completeness');
+    expect(factContext?.facts).toHaveLength(COACH_FACT_CONTEXT_MAX_FACTS);
+    expect(factContext?.facts.map((fact) => fact.key)).toEqual([
+      'daily.calorie_status',
+      'daily.protein_status',
+      'daily.carbohydrate_status',
+      'daily.fat_status',
+    ]);
   });
 
   it('fails closed without hydration or current purpose-scoped consent', () => {
