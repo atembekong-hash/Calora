@@ -19,11 +19,11 @@ const SAFE_ERROR_CODES: readonly SafeAuthErrorCode[] = [
 const ERROR_MESSAGES: Record<SafeAuthErrorCode, string> = {
   network: 'We could not reach the sign-in service. Check your connection and try again.',
   provider: 'Sign-in could not be completed. Please try again.',
-  token: 'This sign-in link is no longer valid. Please try again.',
+  token: 'This sign-in link is no longer valid. Start Google sign-in again. If you opened it from an older Calora app, update the app first.',
   unknown: 'Sign-in could not be completed. Please try again.',
   invalid_credentials: 'Your sign-in details were not accepted. Please try again.',
   verify_email: 'Please verify your email before signing in.',
-  expired: 'This sign-in link has expired. Please request a new one.',
+  expired: 'This sign-in link has expired. Start Google sign-in again.',
 };
 
 export function normalizeAuthErrorCode(value: unknown): SafeAuthErrorCode {

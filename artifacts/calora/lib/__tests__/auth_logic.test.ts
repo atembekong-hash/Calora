@@ -1,17 +1,27 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { clearSettledOAuthCodeExchanges, handleOAuthCallbackUrl, isValidEmail } from '../auth';
+import {
+  clearSettledOAuthCodeExchanges,
+  getGoogleOAuthRedirectUri,
+  handleOAuthCallbackUrl,
+  isValidEmail,
+  OAUTH_REDIRECT_URI,
+  signInWithGoogle,
+  WEB_OAUTH_CALLBACK_URI,
+} from '../auth';
 
 // Mock Supabase
 const mockExchange = vi.fn();
 const mockSetSession = vi.fn();
 const mockGetSession = vi.fn();
+const mockSignInWithOAuth = vi.fn();
 vi.mock('../supabase', () => ({
   supabase: {
     auth: {
       exchangeCodeForSession: (url: string) => mockExchange(url),
       setSession: (session: { access_token: string; refresh_token: string }) => mockSetSession(session),
       getSession: () => mockGetSession(),
+      signInWithOAuth: (options: unknown) => mockSignInWithOAuth(options),
       storage: {
         setItem: vi.fn(),
         getItem: vi.fn(),
@@ -22,10 +32,11 @@ vi.mock('../supabase', () => ({
 }));
 
 // Mock Expo modules
+const mockOpenAuthSessionAsync = vi.fn();
 vi.mock('expo-web-browser', () => ({
   warmUpAsync: vi.fn(),
   coolDownAsync: vi.fn(),
-  openAuthSessionAsync: vi.fn(),
+  openAuthSessionAsync: (...args: unknown[]) => mockOpenAuthSessionAsync(...args),
 }));
 
 vi.mock('expo-crypto', () => ({
@@ -47,6 +58,37 @@ describe('Auth Logic Verification', () => {
     vi.clearAllMocks();
   });
 
+  it('selects the dedicated web callback without changing the native HTTPS app-link callback', () => {
+    expect(getGoogleOAuthRedirectUri('web')).toBe(WEB_OAUTH_CALLBACK_URI);
+    expect(getGoogleOAuthRedirectUri('ios')).toBe(OAUTH_REDIRECT_URI);
+    expect(getGoogleOAuthRedirectUri('android')).toBe(OAUTH_REDIRECT_URI);
+  });
+
+  it('requests and completes Google OAuth on the matching platform callback', async () => {
+    mockSignInWithOAuth.mockResolvedValue({ data: { url: 'https://provider.example/authorize' }, error: null });
+    mockOpenAuthSessionAsync.mockResolvedValue({ type: 'cancel' });
+
+    await signInWithGoogle(undefined, 'web');
+    expect(mockSignInWithOAuth).toHaveBeenLastCalledWith({
+      provider: 'google',
+      options: { redirectTo: WEB_OAUTH_CALLBACK_URI, skipBrowserRedirect: true },
+    });
+    expect(mockOpenAuthSessionAsync).toHaveBeenLastCalledWith(
+      'https://provider.example/authorize',
+      WEB_OAUTH_CALLBACK_URI,
+    );
+
+    await signInWithGoogle(undefined, 'android');
+    expect(mockSignInWithOAuth).toHaveBeenLastCalledWith({
+      provider: 'google',
+      options: { redirectTo: OAUTH_REDIRECT_URI, skipBrowserRedirect: true },
+    });
+    expect(mockOpenAuthSessionAsync).toHaveBeenLastCalledWith(
+      'https://provider.example/authorize',
+      OAUTH_REDIRECT_URI,
+    );
+  });
+
   it('should handle PKCE flow (Google) correctly', async () => {
     const pkceUrl = 'https://mycaloraapp.com/auth/callback?code=test-code';
     mockExchange.mockResolvedValue({ data: { session: { user: {} } }, error: null });
@@ -57,7 +99,7 @@ describe('Auth Logic Verification', () => {
     expect(mockExchange).toHaveBeenCalledWith('test-code');
   });
 
-  it('accepts the exact production web callback after the apex handoff', async () => {
+  it('accepts the exact dedicated production web callback', async () => {
     mockExchange.mockResolvedValue({ data: { session: { user: {} } }, error: null });
 
     const result = await handleOAuthCallbackUrl(

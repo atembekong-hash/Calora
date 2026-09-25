@@ -4,6 +4,7 @@
 
 import * as WebBrowser from 'expo-web-browser';
 import * as Crypto from 'expo-crypto';
+import { Platform } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
@@ -19,6 +20,17 @@ const TRUSTED_OAUTH_CALLBACK_URLS = [
   new URL(OAUTH_REDIRECT_URI),
   new URL(WEB_OAUTH_CALLBACK_URI),
 ];
+
+/**
+ * Native builds keep the OS-claimed HTTPS app-link callback. Browser OAuth
+ * starts and finishes on its own origin so its PKCE verifier never crosses
+ * into the native fallback route.
+ */
+type OAuthPlatform = typeof Platform.OS;
+
+export function getGoogleOAuthRedirectUri(platform: OAuthPlatform = Platform.OS): string {
+  return platform === 'web' ? WEB_OAUTH_CALLBACK_URI : OAUTH_REDIRECT_URI;
+}
 
 export type AuthErrorCode =
   | 'cancelled'
@@ -229,13 +241,17 @@ export function isValidEmail(value: string): boolean {
 // Google OAuth Flow (PKCE)
 // ---------------------------------------------------------------------------
 
-export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<AuthResult> {
+export async function signInWithGoogle(
+  onStatus?: AuthStatusCallback,
+  platform: OAuthPlatform = Platform.OS,
+): Promise<AuthResult> {
   try {
     onStatus?.('Connecting to Google\u2026');
+    const redirectTo = getGoogleOAuthRedirectUri(platform);
     const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: OAUTH_REDIRECT_URI,
+        redirectTo,
         skipBrowserRedirect: true,
       },
     });
@@ -248,7 +264,7 @@ export async function signInWithGoogle(onStatus?: AuthStatusCallback): Promise<A
     }
 
     onStatus?.('Opening browser\u2026');
-    const browserResult = await WebBrowser.openAuthSessionAsync(data.url, OAUTH_REDIRECT_URI);
+    const browserResult = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
 
     if (browserResult.type !== 'success' || !browserResult.url) {
       return { success: false, error: { code: 'cancelled', message: 'Sign-in was cancelled.' } };

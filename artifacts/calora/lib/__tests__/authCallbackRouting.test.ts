@@ -36,7 +36,7 @@ describe('OAuth callback routing policy', () => {
 
   it('uses fixed local messages rather than rendering a deep-link parameter', () => {
     expect(getSafeAuthErrorMessage('token')).toBe(
-      'This sign-in link is no longer valid. Please try again.',
+      'This sign-in link is no longer valid. Start Google sign-in again. If you opened it from an older Calora app, update the app first.',
     );
     expect(getSafeAuthErrorMessage('https://attacker.example/?error=raw')).toBe(
       'Sign-in could not be completed. Please try again.',
