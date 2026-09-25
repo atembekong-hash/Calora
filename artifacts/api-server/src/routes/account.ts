@@ -194,17 +194,17 @@ export async function runAccountDeletion(externalUserId: string): Promise<"compl
       }
       claim = { ...claim, stage: "application" };
     }
-    if (claim.stage === "application") {
-      await deleteApplicationData(externalUserId);
-      if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "revenuecat")) {
-        throw new Error("Account deletion ownership was lost before RevenueCat erasure.");
-      }
+    // Application cleanup is intentionally rerun after every successful
+    // storage erasure. It is idempotent, and this preserves fail-closed
+    // recovery even if a previous worker recorded a late checkpoint before
+    // crashing or if an incomplete legacy operation is resumed.
+    await deleteApplicationData(externalUserId);
+    if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "revenuecat")) {
+      throw new Error("Account deletion ownership was lost before RevenueCat erasure.");
     }
-    if (claim.stage === "application" || claim.stage === "revenuecat") {
-      await deleteRevenueCatSubscriber(externalUserId);
-      if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "auth")) {
-        throw new Error("Account deletion ownership was lost before Auth erasure.");
-      }
+    await deleteRevenueCatSubscriber(externalUserId);
+    if (!await checkpointAccountDeletion(externalUserId, claim.operationId, "auth")) {
+      throw new Error("Account deletion ownership was lost before Auth erasure.");
     }
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) throw new Error("Supabase Admin is unavailable");

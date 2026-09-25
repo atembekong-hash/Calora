@@ -179,6 +179,26 @@ describe("DELETE /v1/account", () => {
     expect(completeDeletion).toHaveBeenCalledOnce();
   });
 
+  it("reruns idempotent application cleanup before final Auth erasure from a late recovery checkpoint", async () => {
+    claimDeletion.mockResolvedValueOnce({ kind: "claimed", operationId: "11111111-1111-4111-8111-111111111111", stage: "auth" });
+
+    const res = await request(buildApp())
+      .delete("/v1/account")
+      .set("Authorization", "Bearer valid-token");
+
+    expect(res.status).toBe(200);
+    expect(execute).toHaveBeenCalled();
+    expect(
+      execute.mock.calls.some(([query]) =>
+        JSON.stringify(query).includes("calora_recipe_media"),
+      ),
+    ).toBe(true);
+    expect(checkpointDeletion).toHaveBeenNthCalledWith(1, "auth-user-1", "11111111-1111-4111-8111-111111111111", "revenuecat");
+    expect(checkpointDeletion).toHaveBeenNthCalledWith(2, "auth-user-1", "11111111-1111-4111-8111-111111111111", "auth");
+    expect(deleteRevenueCatSubscriber).toHaveBeenCalledOnce();
+    expect(deleteUser).toHaveBeenCalledOnce();
+  });
+
   it("is idempotent after a completed deletion", async () => {
     claimDeletion.mockResolvedValueOnce({ kind: "completed" });
 
