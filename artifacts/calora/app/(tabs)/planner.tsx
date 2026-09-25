@@ -378,7 +378,7 @@ export default function PlannerScreen() {
   const plannedWeek = plannerMeals.filter((meal) => weekDays.includes(meal.day));
   const visibleShoppingItems = useMemo(
     () => {
-      const checkedByName = shoppingChecksByName(shoppingItems);
+      const checkedByName = shoppingChecksByName(shoppingItems, viewWeekStart);
       const plannerItems = buildShoppingItems(plannedWeek, checkedByName);
       const plannerKeys = new Set(plannerItems.map((item) => shoppingNameKey(item.name)));
       const recipeItems = shoppingItems
@@ -1117,7 +1117,7 @@ export default function PlannerScreen() {
           weekDays={weekDays}
           initialDayFilter={shoppingDayFilter}
           onClose={() => setShoppingVisible(false)}
-          onToggleItem={toggleShoppingItemByName}
+          onToggleItem={(name) => toggleShoppingItemByName(name, viewWeekStart)}
         />
        <BottomSheet visible={actionMeal !== null} onRequestClose={() => { setActionMeal(null); setActionMode(null); }} sheetStyle={[styles.actionSheet, { backgroundColor: colors.background }]}>
              <View style={styles.sheetHandle} />

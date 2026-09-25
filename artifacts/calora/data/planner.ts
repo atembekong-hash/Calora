@@ -249,10 +249,26 @@ export function shoppingNameKey(name: string): string {
 export function shoppingChecksByName(items: readonly ShoppingItem[], weekStart?: string): Map<string, boolean> {
   return new Map(items.map((item) => [
     shoppingNameKey(item.name),
-    weekStart && item.checkedByWeek?.[weekStart] !== undefined
-      ? item.checkedByWeek[weekStart]
-      : item.checked,
+    weekStart ? item.checkedByWeek?.[weekStart] ?? false : item.checked,
   ]));
+}
+
+export function toggleShoppingCheckByName(
+  items: readonly ShoppingItem[],
+  name: string,
+  weekStart?: string,
+): ShoppingItem[] {
+  const key = shoppingNameKey(name);
+  const scopedWeek = weekStart ? normalizePlannerWeekStart(weekStart) : undefined;
+  return items.map((item) => {
+    if (shoppingNameKey(item.name) !== key) return item;
+    if (!scopedWeek || item.recipeSource) return { ...item, checked: !item.checked };
+    const current = item.checkedByWeek?.[scopedWeek] ?? false;
+    return {
+      ...item,
+      checkedByWeek: { ...(item.checkedByWeek ?? {}), [scopedWeek]: !current },
+    };
+  });
 }
 
 export function shoppingWeekChecksByName(items: readonly ShoppingItem[]): Map<string, Record<string, boolean>> {

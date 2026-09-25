@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildShoppingItems, createStarterPlannerMeals, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalog, plannerCatalogForProgram, plannerDate, plannerMealTypes, plannerProgramPreview, shoppingChecksByName } from '@/data/planner';
+import { buildShoppingItems, createStarterPlannerMeals, isProgramGeneratedMeal, mergeGeneratedWeek, normalizePlannerWeekStart, plannerCatalog, plannerCatalogForProgram, plannerDate, plannerMealTypes, plannerProgramPreview, shoppingChecksByName, toggleShoppingCheckByName } from '@/data/planner';
 import { plannerImageKeyForMeal } from '@/lib/mealImageIdentity';
 import { PLANNER_CATALOG, type PlannerDiet } from '@workspace/api-zod/planner-catalog';
 import { PROGRAM_HERO_MEAL_IDS, PLANNER_PROGRAM_IDS } from '@workspace/api-zod/planner-program-pools';
 import type { PlannerMeal } from '@workspace/api-client-react';
+import type { ShoppingItem } from '@/context/CaloraContext';
 
 const meal = (id: string, ingredients: string[], day = '2026-08-06'): PlannerMeal => ({
   id,
@@ -386,14 +387,60 @@ describe('buildShoppingItems — day attribution', () => {
 });
 
 describe('shopping checks — viewed-week scope', () => {
-  it('keeps the same ingredient independent across planner weeks', () => {
-    const items = buildShoppingItems(
-      [meal('m1', ['oats'], '2026-08-03'), meal('m2', ['oats'], '2026-08-10')],
-      new Map([['oats', false]]),
-      new Map([['oats', { '2026-08-03': true }]]),
+  const weekA = '2026-08-03';
+  const weekB = '2026-08-10';
+
+  it('keeps a case-and-whitespace-normalized ingredient isolated through week A → B → A and uncheck persistence', () => {
+    const initial = buildShoppingItems([
+      meal('week-a-meal', ['  Cedar   Seed  '], weekA),
+      meal('week-b-meal', ['cedar seed'], weekB),
+    ]);
+
+    const checkedInWeekA = toggleShoppingCheckByName(initial, 'CEDAR SEED', weekA);
+    expect(shoppingChecksByName(checkedInWeekA, weekA).get('cedar seed')).toBe(true);
+    expect(shoppingChecksByName(checkedInWeekA, weekB).get('cedar seed')).toBe(false);
+
+    const returnedToWeekA = shoppingChecksByName(checkedInWeekA, weekA);
+    expect(returnedToWeekA.get('cedar seed')).toBe(true);
+
+    const uncheckedInWeekA = toggleShoppingCheckByName(checkedInWeekA, ' cedar seed ', weekA);
+    expect(shoppingChecksByName(uncheckedInWeekA, weekA).get('cedar seed')).toBe(false);
+    expect(shoppingChecksByName(uncheckedInWeekA, weekB).get('cedar seed')).toBe(false);
+    expect(uncheckedInWeekA[0]?.checked).toBe(false);
+    expect(uncheckedInWeekA[0]?.checkedByWeek).toEqual({ [weekA]: false });
+  });
+
+  it('does not allow a legacy global check to leak into a viewed week without a scoped state', () => {
+    const legacyChecked = buildShoppingItems(
+      [meal('week-a-meal', ['oats'], weekA), meal('week-b-meal', [' oats '], weekB)],
+      new Map([['oats', true]]),
     );
 
-    expect(shoppingChecksByName(items, '2026-08-03').get('oats')).toBe(true);
-    expect(shoppingChecksByName(items, '2026-08-10').get('oats')).toBe(false);
+    expect(shoppingChecksByName(legacyChecked).get('oats')).toBe(true);
+    expect(shoppingChecksByName(legacyChecked, weekA).get('oats')).toBe(false);
+    expect(shoppingChecksByName(legacyChecked, weekB).get('oats')).toBe(false);
+  });
+
+  it('retains global toggling for recipe-origin Shopping items', () => {
+    const recipeItem: ShoppingItem[] = [{
+      id: 'recipe-item',
+      name: 'Recipe item',
+      quantity: 1,
+      checked: false,
+      recipeSource: true,
+    }];
+
+    const toggled = toggleShoppingCheckByName(recipeItem, ' recipe item ', weekA);
+    expect(toggled[0]?.checked).toBe(true);
+    expect(toggled[0]).not.toHaveProperty('checkedByWeek');
+  });
+
+  it('binds the Planner Shopping display and toggle to the viewed week', () => {
+    const source = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../app/(tabs)/planner.tsx'), 'utf8');
+    const contextSource = require('node:fs').readFileSync(require('node:path').resolve(__dirname, '../../context/CaloraContext.tsx'), 'utf8');
+    expect(source).toContain('shoppingChecksByName(shoppingItems, viewWeekStart)');
+    expect(source).toContain('onToggleItem={(name) => toggleShoppingItemByName(name, viewWeekStart)}');
+    expect(contextSource).toContain('toggleShoppingCheckByName(current as ShoppingItem[], name, weekStart)');
+    expect(contextSource).toContain('toggleShoppingCheckByName(shoppingItemsRef.current, name, weekStart)');
   });
 });
