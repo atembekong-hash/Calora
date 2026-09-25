@@ -489,7 +489,7 @@ export const accountDeletionStatesTable = pgTable("calora_account_deletion_state
   identityFingerprint: text("identity_fingerprint").primaryKey(),
   state: text("state").notNull(),
   operationId: uuid("operation_id"),
-  stage: text("stage").notNull().default("application"),
+  stage: text("stage").notNull().default("object_storage"),
   leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
   /** Retained only while a server-owned erasure operation remains incomplete. */
   recoveryExternalUserId: text("recovery_external_user_id"),

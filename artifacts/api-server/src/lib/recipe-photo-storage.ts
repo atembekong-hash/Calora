@@ -25,6 +25,22 @@ function requiredEnv(...names: string[]): string {
   throw new Error(`Object storage is not configured (${names.join(" or ")})`);
 }
 
+/**
+ * Reports only whether every required storage setting is present. It never
+ * returns a credential, endpoint, bucket, or other configuration value.
+ *
+ * Account deletion uses this to distinguish an account with no object-backed
+ * recipe media from an account whose media cannot safely be erased because a
+ * configured storage provider is unavailable.
+ */
+export function isRecipePhotoStorageConfigured(): boolean {
+  const hasAny = (...names: string[]) => names.some((name) => Boolean(process.env[name]?.trim()));
+  return hasAny("RECIPE_PHOTO_STORAGE_ENDPOINT", "S3_ENDPOINT", "AWS_ENDPOINT_URL_S3", "ENDPOINT")
+    && hasAny("RECIPE_PHOTO_BUCKET", "DEFAULT_OBJECT_STORAGE_BUCKET_ID", "S3_BUCKET", "BUCKET")
+    && hasAny("RECIPE_PHOTO_ACCESS_KEY_ID", "S3_ACCESS_KEY_ID", "AWS_ACCESS_KEY_ID", "ACCESS_KEY_ID")
+    && hasAny("RECIPE_PHOTO_SECRET_ACCESS_KEY", "S3_SECRET_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY", "SECRET_ACCESS_KEY");
+}
+
 function storageConfig(): StorageConfig {
   const endpoint = requiredEnv("RECIPE_PHOTO_STORAGE_ENDPOINT", "S3_ENDPOINT", "AWS_ENDPOINT_URL_S3", "ENDPOINT");
   return {
