@@ -27,25 +27,49 @@ const router: IRouter = Router();
 
 const BUNDLE_ID = "com.etiendem.caloraapp";
 const PACKAGE_NAME = "com.etiendem.caloraapp";
-const WEB_AUTH_CALLBACK_URL = "https://app.mycaloraapp.com/auth/callback";
 
 // ── /auth/callback — browser fallback for the native associated link ──────────
 // Installed native builds claim this exact HTTPS path through Universal/App
-// Links. Browsers without the app continue on the dedicated web origin. The
-// destination is fixed and only the provider query is preserved, so this route
-// cannot become an open redirect and Supabase can keep its existing apex URL.
-router.get("/auth/callback", (req: Request, res: Response) => {
-  const incomingUrl = new URL(req.originalUrl, "https://mycaloraapp.com");
-  const webCallbackUrl = new URL(WEB_AUTH_CALLBACK_URL);
-  webCallbackUrl.search = incomingUrl.search;
-
+// Links. A browser fallback may not own the native PKCE verifier, so it must
+// never forward one-time callback material to a different app origin. Current
+// web OAuth uses its dedicated callback origin directly; this page is solely a
+// safe recovery path for obsolete/native-fallback deliveries.
+router.get("/auth/callback", (_req: Request, res: Response) => {
   res
-    .status(302)
-    .set("Location", webCallbackUrl.toString())
+    .status(200)
+    .set("Content-Type", "text/html; charset=utf-8")
     .set("Cache-Control", "no-store")
     .set("X-Robots-Tag", "noindex")
     .set("Referrer-Policy", "no-referrer")
-    .end();
+    .send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Update Calora to sign in</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #f7f8f3; color: #17251f; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { width: 100%; max-width: 420px; padding: 36px 28px; border: 1px solid #e4e7df; border-radius: 20px; background: #fff; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+    h1 { margin: 0 0 12px; font-size: 24px; line-height: 1.2; }
+    p { margin: 0 0 24px; color: #68756e; line-height: 1.5; }
+    .actions { display: grid; gap: 12px; }
+    a { display: block; padding: 14px 20px; border-radius: 12px; background: #ef6b4f; color: #fff; font-size: 16px; font-weight: 700; text-decoration: none; }
+    a.secondary { background: #f1f3ed; color: #17251f; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Update Calora to finish signing in</h1>
+    <p>This sign-in attempt came from an older Calora app flow. Update Calora, open the app, and start Google sign-in again.</p>
+    <div class="actions">
+      <a href="https://play.google.com/store/apps/details?id=com.etiendem.caloraapp">Update on Google Play</a>
+      <a class="secondary" href="https://apps.apple.com/search?term=calora">Update on the App Store</a>
+    </div>
+  </main>
+</body>
+</html>`);
 });
 
 // ── /.well-known/apple-app-site-association ──────────────────────────────────

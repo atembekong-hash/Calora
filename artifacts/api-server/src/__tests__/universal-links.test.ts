@@ -26,32 +26,26 @@ function makeApp() {
   return app;
 }
 
-describe('GET /auth/callback — production browser handoff', () => {
+describe('GET /auth/callback — obsolete native-flow recovery', () => {
   const app = makeApp();
 
-  it('redirects a browser to the fixed production web callback', async () => {
+  it('serves a fixed recovery page without forwarding callback parameters', async () => {
     const res = await request(app)
-      .get('/auth/callback?error=access_denied&error_description=cancelled');
+      .get('/auth/callback?code=one-time-code&access_token=secret-token');
 
-    expect(res.status).toBe(302);
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.headers['x-robots-tag']).toBe('noindex');
     expect(res.headers['referrer-policy']).toBe('no-referrer');
-    expect(res.headers.location).toBe(
-      'https://app.mycaloraapp.com/auth/callback?error=access_denied&error_description=cancelled',
-    );
-  });
-
-  it('preserves callback parameters only in the fixed Location and emits no body', async () => {
-    const res = await request(app).get(
-      '/auth/callback?code=one-time-code&access_token=secret-token',
-    );
-
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(
-      'https://app.mycaloraapp.com/auth/callback?code=one-time-code&access_token=secret-token',
-    );
-    expect(res.text).toBe('');
+    expect(res.headers.location).toBeUndefined();
+    expect(res.text).toContain('Update Calora to finish signing in');
+    expect(res.text).toContain('Update on Google Play');
+    expect(res.text).toContain('Update on the App Store');
+    expect(res.text).not.toContain('one-time-code');
+    expect(res.text).not.toContain('secret-token');
+    expect(res.text).not.toContain('caloraapp://');
+    expect(res.text).not.toContain('app.mycaloraapp.com/auth/callback');
   });
 });
 
