@@ -18,7 +18,7 @@ import type { CoachMessage, PlannerMeal } from '@workspace/api-client-react';
 import type { HydrationReminderPrefs } from '@/lib/hydrationReminders';
 import { type MealReminderPrefs, DEFAULT_MEAL_REMINDER_PREFS } from '@/lib/mealReminders';
 import { type GoalReminderPrefs, DEFAULT_GOAL_REMINDER_PREFS } from '@/lib/goalReminder';
-import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, normalizePlannerMealImageIdentities, normalizePlannerWeekStart, shoppingChecksByName, shoppingNameKey, shoppingWeekChecksByName } from '@/data/planner';
+import { buildShoppingItems, createStarterPlannerMeals, getPlannerWeekStart, normalizePlannerMealImageIdentities, normalizePlannerWeekStart, shoppingChecksByName, shoppingNameKey, shoppingWeekChecksByName, toggleShoppingCheckByName } from '@/data/planner';
 import {
   type AcceptedFoodMemory,
   type FoodMemoryCorrection,
@@ -2129,20 +2129,9 @@ export function CaloraProvider({
       queueMutation('settings', 'upsert');
     },
     toggleShoppingItemByName: (name, weekStart) => {
-       const key = shoppingNameKey(name);
-       const scopedWeek = weekStart ? normalizePlannerWeekStart(weekStart) : undefined;
-       const toggle = (item: ShoppingItem): ShoppingItem => {
-         if (shoppingNameKey(item.name) !== key) return item;
-         if (!scopedWeek || item.recipeSource) return { ...item, checked: !item.checked };
-         const current = item.checkedByWeek?.[scopedWeek] ?? item.checked;
-         return {
-           ...item,
-           checkedByWeek: { ...(item.checkedByWeek ?? {}), [scopedWeek]: !current },
-         };
-       };
-       updateExportField('shoppingItems', (current) => (current as ShoppingItem[]).map(toggle));
-       shoppingItemsRef.current = shoppingItemsRef.current.map(toggle);
-       setShoppingItems((items) => items.map(toggle));
+       updateExportField('shoppingItems', (current) => toggleShoppingCheckByName(current as ShoppingItem[], name, weekStart));
+       shoppingItemsRef.current = toggleShoppingCheckByName(shoppingItemsRef.current, name, weekStart);
+       setShoppingItems((items) => toggleShoppingCheckByName(items, name, weekStart));
       queueMutation('settings', 'upsert');
     },
     addIngredientsToShopping: (ingredients, sourceId) => {
