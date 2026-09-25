@@ -1,0 +1,210 @@
+name: Calora Android internal signed build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: calora-android-internal-build
+  cancel-in-progress: false
+
+jobs:
+  android-internal:
+    name: Build signed Android APK from protected main
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: artifacts/calora
+
+    steps:
+      - name: Require reviewed protected main and successful validation
+        id: release-gate
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const expectedSha = 'b1fcf98c27dae79d72a680a547a21863a9082425';
+            const { data: mainRef } = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'heads/main',
+            });
+            if (mainRef.object.sha !== expectedSha) {
+              core.setFailed(`Protected main changed: expected ${expectedSha}, received ${mainRef.object.sha}.`);
+              return;
+            }
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'release-validation.yml',
+              head_sha: expectedSha,
+              event: 'push',
+              status: 'completed',
+              per_page: 100,
+            });
+            const matches = data.workflow_runs.filter((run) =>
+              run.event === 'push' &&
+              run.status === 'completed' &&
+              run.conclusion === 'success' &&
+              run.head_branch === 'main' &&
+              run.head_sha === expectedSha,
+            );
+            if (matches.length !== 1) {
+              core.setFailed('Exactly one successful same-SHA push Release validation run is required.');
+              return;
+            }
+            await require('node:fs/promises').writeFile(
+              `${process.env.RUNNER_TEMP}/selected-release-validation-run.json`,
+              `${JSON.stringify(matches[0])}\n`,
+              { mode: 0o600 },
+            );
+            core.setOutput('validation-run-id', String(matches[0].id));
+
+      - name: Download same-SHA validation gate
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: calora-release-validation-gate
+          run-id: ${{ steps.release-gate.outputs.validation-run-id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/release-validation-gate
+
+      - name: Verify validation gate attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: .
+        run: >-
+          gh attestation verify
+          "$RUNNER_TEMP/release-validation-gate/calora-release-validation-gate.json"
+          --repo "$GITHUB_REPOSITORY"
+          --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release-validation.yml"
+          --source-digest b1fcf98c27dae79d72a680a547a21863a9082425
+          --source-ref refs/heads/main
+          --deny-self-hosted-runners
+
+      - name: Check out exact protected source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: b1fcf98c27dae79d72a680a547a21863a9082425
+          fetch-depth: 1
+
+      - name: Verify checked-out source
+        working-directory: .
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "b1fcf98c27dae79d72a680a547a21863a9082425"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 10.26.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20.19.4
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set up Expo and EAS
+        uses: expo/expo-github-action@c7b66a9c327a43a8fa7c0158e7f30d6040d2481e # v8
+        with:
+          eas-version: 16.17.4
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Verify EAS project and build profile
+        run: |
+          set -euo pipefail
+          eas project:info --non-interactive
+          node -e 'const p=require("./eas.json"); if (p.build?.["production-apk"]?.android?.buildType !== "apk") throw new Error("production-apk must be an APK profile"); if (p.build?.production?.credentialsSource !== "remote") throw new Error("production credentials must remain remote");'
+
+      - name: Build signed Android internal APK
+        run: |
+          set -euo pipefail
+          eas build --platform android --profile production-apk --non-interactive --wait --json > "$RUNNER_TEMP/eas-build.json"
+          node --input-type=module <<'NODE'
+          import { readFile, appendFile } from "node:fs/promises";
+          const payload = JSON.parse(await readFile(`${process.env.RUNNER_TEMP}/eas-build.json`, "utf8"));
+          const build = Array.isArray(payload) ? payload.at(-1) : payload?.build ?? payload;
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(build?.id ?? "")) {
+            throw new Error("EAS did not return an immutable Android build id.");
+          }
+          await appendFile(process.env.GITHUB_ENV, `EAS_BUILD_ID=${build.id}\n`);
+          NODE
+
+      - name: Retrieve immutable Android build record
+        run: >-
+          eas build:view "$EAS_BUILD_ID" --json
+          > "$RUNNER_TEMP/eas-build-view.json"
+
+      - name: Validate Android build provenance
+        working-directory: .
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { createHash } from "node:crypto";
+          import { readFile, writeFile } from "node:fs/promises";
+
+          const expectedCommit = "b1fcf98c27dae79d72a680a547a21863a9082425";
+          const root = process.cwd();
+          const temp = process.env.RUNNER_TEMP;
+          const [rawBuild, appConfig, easConfig, gate] = await Promise.all([
+            readFile(`${temp}/eas-build-view.json`, "utf8").then(JSON.parse),
+            readFile(`${root}/artifacts/calora/app.json`, "utf8").then(JSON.parse),
+            readFile(`${root}/artifacts/calora/eas.json`, "utf8").then(JSON.parse),
+            readFile(`${temp}/release-validation-gate/calora-release-validation-gate.json`, "utf8").then(JSON.parse),
+          ]);
+          const build = Array.isArray(rawBuild) ? rawBuild.at(-1) : rawBuild?.build ?? rawBuild;
+          const projectId = appConfig?.expo?.extra?.eas?.projectId;
+          const packageName = appConfig?.expo?.android?.package;
+          const archiveUrl = String(build?.artifacts?.applicationArchiveUrl ?? "");
+          const expected = {
+            projectId,
+            packageName,
+            commit: expectedCommit,
+            profile: "production-apk",
+            distribution: "internal",
+          };
+          if (
+            String(gate?.commitSha ?? "").toLowerCase() !== expectedCommit ||
+            String(build?.project?.id ?? "").toLowerCase() !== String(projectId ?? "").toLowerCase() ||
+            String(build?.platform ?? "").toLowerCase() !== "android" ||
+            String(build?.status ?? "").toUpperCase() !== "FINISHED" ||
+            String(build?.buildProfile ?? "") !== expected.profile ||
+            String(build?.gitCommitHash ?? "").toLowerCase() !== expectedCommit ||
+            String(build?.distribution ?? "").toLowerCase() !== expected.distribution ||
+            easConfig?.build?.[expected.profile]?.android?.buildType !== "apk" ||
+            !archiveUrl.startsWith("https://")
+          ) {
+            throw new Error("Android build provenance does not match the reviewed protected release.");
+          }
+          const evidence = {
+            schemaVersion: "calora.android-internal-build-provenance.v1",
+            commitSha: expectedCommit,
+            easBuildId: String(build.id),
+            easProjectId: String(projectId),
+            androidPackage: String(packageName),
+            platform: "android",
+            profile: expected.profile,
+            distribution: expected.distribution,
+            status: "FINISHED",
+            gitCommitHash: expectedCommit,
+            applicationArchiveUrlSha256: createHash("sha256").update(archiveUrl).digest("hex"),
+            validationGateSha256: createHash("sha256").update(`${JSON.stringify(gate)}\n`).digest("hex"),
+          };
+          await writeFile(`${temp}/calora-android-eas-build-provenance.json`, `${JSON.stringify(evidence)}\n`, { mode: 0o600 });
+          NODE
+
+      - name: Upload immutable Android build evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: calora-android-internal-build-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/eas-build-view.json
+            ${{ runner.temp }}/calora-android-eas-build-provenance.json
+          if-no-files-found: error
+          retention-days: 90
