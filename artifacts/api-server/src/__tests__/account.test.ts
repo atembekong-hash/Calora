@@ -6,12 +6,13 @@ const {
   transaction, execute, deleteWhere, deleteUser, getUser, advisoryQuery,
   claimDeletion, checkpointDeletion, completeDeletion, failedDeletion, deleteRevenueCatSubscriber,
   listRecoverableDeletions, claimRecoveryWarningSuppression, noteSuppressedRecoveryWarning, warn,
-  eraseRecipePhotoObjects, isRecipePhotoStorageConfigured,
+  info, eraseRecipePhotoObjects, isRecipePhotoStorageConfigured,
 } = vi.hoisted(() => {
   const execute = vi.fn();
   const deleteWhere = vi.fn();
   const advisoryQuery = vi.fn().mockResolvedValue({ rows: [{ locked: true }] });
   const warn = vi.fn();
+  const info = vi.fn();
   const tx = {
     execute,
     delete: () => ({ where: deleteWhere }),
@@ -32,6 +33,7 @@ const {
     claimRecoveryWarningSuppression: vi.fn(),
     noteSuppressedRecoveryWarning: vi.fn(),
     warn,
+    info,
     eraseRecipePhotoObjects: vi.fn(),
     isRecipePhotoStorageConfigured: vi.fn(),
   };
@@ -71,7 +73,7 @@ vi.mock("../lib/recipe-photo-storage.js", () => ({
 }));
 
 vi.mock("../lib/logger.js", () => ({
-  logger: { warn },
+  logger: { warn, info },
   noteSuppressedRecoveryWarning: (...args: unknown[]) => noteSuppressedRecoveryWarning(...args),
 }));
 
@@ -249,6 +251,72 @@ describe("account deletion recovery signals", () => {
     await recoverPendingAccountDeletions();
 
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("erases terminally orphaned private media before removing its retained ledger row", async () => {
+    listRecoverableDeletions.mockResolvedValueOnce([]);
+    execute.mockResolvedValueOnce({
+      rows: [{ external_user_id: "terminal-orphan-owner", has_object_backed_media: true }],
+    });
+
+    await recoverPendingAccountDeletions();
+
+    expect(eraseRecipePhotoObjects).toHaveBeenCalledWith("terminal-orphan-owner");
+    expect(deleteWhere).toHaveBeenCalled();
+    expect(deleteUser).not.toHaveBeenCalled();
+    expect(info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "account_deletion_terminal_media_recovery",
+        recoveredCount: 1,
+        failedCount: 0,
+      }),
+      "Terminal account-deletion media recovery completed",
+    );
+  });
+
+  it("retains a terminal orphan ledger row when object erasure cannot be verified", async () => {
+    listRecoverableDeletions.mockResolvedValueOnce([]);
+    execute.mockResolvedValueOnce({
+      rows: [{ external_user_id: "terminal-orphan-owner", has_object_backed_media: true }],
+    });
+    eraseRecipePhotoObjects.mockRejectedValueOnce(new Error("storage unavailable"));
+
+    await recoverPendingAccountDeletions();
+
+    expect(deleteWhere).not.toHaveBeenCalled();
+    expect(deleteUser).not.toHaveBeenCalled();
+    expect(info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "account_deletion_terminal_media_recovery",
+        recoveredCount: 0,
+        failedCount: 1,
+      }),
+      "Terminal account-deletion media recovery completed",
+    );
+  });
+
+  it("continues terminal orphan cleanup when a pending-recovery warning is suppressed", async () => {
+    const requestedAt = new Date(Date.now() - 20 * 60 * 1000);
+    listRecoverableDeletions.mockResolvedValueOnce([
+      {
+        externalUserId: "pending-owner",
+        identityFingerprint: "a".repeat(64),
+        stage: "object_storage",
+        requestedAt,
+        updatedAt: requestedAt,
+      },
+    ]);
+    claimDeletion.mockRejectedValueOnce(new Error("storage unavailable"));
+    claimRecoveryWarningSuppression.mockResolvedValueOnce(false);
+    execute.mockResolvedValueOnce({
+      rows: [{ external_user_id: "terminal-orphan-owner", has_object_backed_media: true }],
+    });
+
+    await recoverPendingAccountDeletions();
+
+    expect(noteSuppressedRecoveryWarning).toHaveBeenCalledOnce();
+    expect(eraseRecipePhotoObjects).toHaveBeenCalledWith("terminal-orphan-owner");
+    expect(deleteWhere).toHaveBeenCalled();
   });
 
   it("emits an aggregate redacted signal for a failed, overdue recovery", async () => {

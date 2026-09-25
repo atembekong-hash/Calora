@@ -229,6 +229,76 @@ export async function runAccountDeletion(externalUserId: string): Promise<"compl
   }
 }
 
+type TerminalDeletionMediaOrphan = {
+  externalUserId: string;
+  hasObjectBackedMedia: boolean;
+};
+
+/**
+ * Lists only media records whose owner hash belongs to a terminal tombstone.
+ * The raw owner identifier remains in process memory solely long enough to
+ * call the existing account-scoped erasure routine; it is never logged or
+ * returned from an HTTP route.
+ */
+async function listTerminalDeletionMediaOrphans(): Promise<TerminalDeletionMediaOrphan[]> {
+  const result = await db.execute<{
+    external_user_id: string;
+    has_object_backed_media: boolean;
+  }>(sql`
+    SELECT
+      media.owner_external_id AS external_user_id,
+      BOOL_OR(media.object_key IS NOT NULL) AS has_object_backed_media
+    FROM calora_recipe_media AS media
+    INNER JOIN calora_account_deletion_states AS deletion
+      ON deletion.identity_fingerprint = encode(digest(media.owner_external_id, 'sha256'), 'hex')
+    WHERE deletion.state = 'deleted'
+    GROUP BY media.owner_external_id
+    ORDER BY media.owner_external_id
+    LIMIT 25
+  `);
+  return result.rows.map((row) => ({
+    externalUserId: row.external_user_id,
+    hasObjectBackedMedia: row.has_object_backed_media,
+  }));
+}
+
+/**
+ * A process crash must not turn an already-terminal tombstone into permanent
+ * private-object retention. This recovery path is intentionally narrower than
+ * a deletion claim: it operates only on media joined to a `deleted` tombstone,
+ * never recreates an Auth identity, and retains the media ledger whenever the
+ * provider cannot prove prefix erasure.
+ */
+async function recoverTerminalDeletionMediaOrphans(): Promise<void> {
+  const orphans = await listTerminalDeletionMediaOrphans();
+  let recoveredCount = 0;
+  let failedCount = 0;
+
+  for (const orphan of orphans) {
+    try {
+      if (orphan.hasObjectBackedMedia) {
+        await eraseRecipePhotoObjects(orphan.externalUserId);
+      }
+      await deleteApplicationData(orphan.externalUserId);
+      recoveredCount += 1;
+    } catch {
+      // Preserve the ledger for a future retry if storage cannot prove erasure.
+      failedCount += 1;
+    }
+  }
+
+  if (recoveredCount > 0 || failedCount > 0) {
+    logger.info(
+      {
+        event: "account_deletion_terminal_media_recovery",
+        recoveredCount,
+        failedCount,
+      },
+      "Terminal account-deletion media recovery completed",
+    );
+  }
+}
+
 /**
  * Server-owned recovery for interrupted deletions. The temporary external id
  * exists only until the terminal state is recorded, so this can safely finish
@@ -263,27 +333,31 @@ export async function recoverPendingAccountDeletions(): Promise<void> {
         cohortKey: warningKey,
         correlationKeys: correlationKeys([...failed, ...overdue]),
       });
-      return;
+    } else {
+      logger.warn(
+        {
+          event: "account_deletion_recovery",
+          recoveryCycleId: randomUUID(),
+          attemptedCount: pending.length,
+          failureCount: failed.length,
+          failureStages: countStages(failed),
+          unresolvedCount: unresolved.length,
+          overdueCount: overdue.length,
+          overdueStages: countStages(overdue),
+          oldestAgeSeconds: unresolved.length
+            ? Math.max(...unresolved.map((deletion) => ageSeconds(deletion, now)))
+            : 0,
+          correlationKeys: correlationKeys([...failed, ...overdue]),
+        },
+        "Account deletion recovery needs attention",
+      );
     }
-
-    logger.warn(
-      {
-        event: "account_deletion_recovery",
-        recoveryCycleId: randomUUID(),
-        attemptedCount: pending.length,
-        failureCount: failed.length,
-        failureStages: countStages(failed),
-        unresolvedCount: unresolved.length,
-        overdueCount: overdue.length,
-        overdueStages: countStages(overdue),
-        oldestAgeSeconds: unresolved.length
-          ? Math.max(...unresolved.map((deletion) => ageSeconds(deletion, now)))
-          : 0,
-        correlationKeys: correlationKeys([...failed, ...overdue]),
-      },
-      "Account deletion recovery needs attention",
-    );
   }
+
+  // This intentionally runs after pending claims so normal deletion work keeps
+  // priority. Terminal-orphan cleanup has no Auth or provider stage left; its
+  // storage verifier remains mandatory before the media ledger may be removed.
+  await recoverTerminalDeletionMediaOrphans();
 }
 
 router.delete("/v1/account", async (req, res): Promise<void> => {
