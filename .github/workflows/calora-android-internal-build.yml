@@ -26,7 +26,7 @@ jobs:
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
-            const expectedSha = 'b1fcf98c27dae79d72a680a547a21863a9082425';
+            const expectedSha = '8152fde448eebcbf185fb35a83431df2795c1c69';
             const { data: mainRef } = await github.rest.git.getRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -80,21 +80,21 @@ jobs:
           "$RUNNER_TEMP/release-validation-gate/calora-release-validation-gate.json"
           --repo "$GITHUB_REPOSITORY"
           --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release-validation.yml"
-          --source-digest b1fcf98c27dae79d72a680a547a21863a9082425
+          --source-digest 8152fde448eebcbf185fb35a83431df2795c1c69
           --source-ref refs/heads/main
           --deny-self-hosted-runners
 
       - name: Check out exact protected source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: b1fcf98c27dae79d72a680a547a21863a9082425
+          ref: 8152fde448eebcbf185fb35a83431df2795c1c69
           fetch-depth: 1
 
       - name: Verify checked-out source
         working-directory: .
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "b1fcf98c27dae79d72a680a547a21863a9082425"
+          test "$(git rev-parse HEAD)" = "8152fde448eebcbf185fb35a83431df2795c1c69"
 
       - name: Set up pnpm
         uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
@@ -149,7 +149,7 @@ jobs:
           import { createHash } from "node:crypto";
           import { readFile, writeFile } from "node:fs/promises";
 
-          const expectedCommit = "b1fcf98c27dae79d72a680a547a21863a9082425";
+          const expectedCommit = "8152fde448eebcbf185fb35a83431df2795c1c69";
           const root = process.cwd();
           const temp = process.env.RUNNER_TEMP;
           const [rawBuild, appConfig, easConfig, gate] = await Promise.all([
