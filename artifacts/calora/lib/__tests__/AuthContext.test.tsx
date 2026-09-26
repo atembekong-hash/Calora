@@ -239,4 +239,28 @@ describe('AuthProvider bootstrap ordering', () => {
     expect(screen.getByTestId('identity-state').textContent).toBe('refreshed-user');
     expect(screen.getByTestId('restore-state').textContent).toBe('ready:none');
   });
+
+  it('exposes the trusted Supabase password-recovery event for root navigation', async () => {
+    getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+
+    function RecoveryState() {
+      const { isPasswordRecovery, user } = useAuth();
+      return (
+        <>
+          <output data-testid="recovery-state">{String(isPasswordRecovery)}</output>
+          <output data-testid="recovery-user">{user?.id ?? 'signed-out'}</output>
+        </>
+      );
+    }
+
+    render(<AuthProvider><RecoveryState /></AuthProvider>);
+    await waitFor(() => expect(onAuthStateChangeMock).toHaveBeenCalled());
+
+    act(() => {
+      authStateChangeCallback('PASSWORD_RECOVERY', { user: { id: 'recovery-user' } });
+    });
+
+    expect(screen.getByTestId('recovery-state').textContent).toBe('true');
+    expect(screen.getByTestId('recovery-user').textContent).toBe('recovery-user');
+  });
 });

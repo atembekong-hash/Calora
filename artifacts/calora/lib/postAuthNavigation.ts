@@ -26,6 +26,27 @@ export type PostAuthRouter = {
 };
 
 /**
+ * Resolve the terminal post-auth intent from sources that are already trusted
+ * by the client. Supabase does not preserve `type=recovery` on the final PKCE
+ * redirect, but emits PASSWORD_RECOVERY only after validating the recovery
+ * link. That event must take precedence over an otherwise ordinary code
+ * exchange so the user reaches the password-update form.
+ */
+export function resolvePostAuthIntent({
+  callbackRouteIsActive,
+  isPasswordRecovery,
+  postAuthIntent,
+}: {
+  callbackRouteIsActive: boolean;
+  isPasswordRecovery: boolean;
+  postAuthIntent: PostAuthIntent;
+}): PostAuthIntent {
+  if (isPasswordRecovery) return 'recovery';
+  if (callbackRouteIsActive && postAuthIntent === 'none') return 'pending';
+  return postAuthIntent;
+}
+
+/**
  * Suppresses repeated terminal navigation from browser and Router deliveries
  * of one logical callback. The key intentionally contains no callback URL,
  * OAuth code, token, email, or provider detail.
@@ -94,8 +115,8 @@ export function getPostAuthNavigationPlan({
     return { authRoutesEnabled: true, destination: null };
   }
 
-  // Recovery comes only from the validated callback intent, never an arbitrary
-  // listener delay. Auth must remain registered long enough to set the password.
+  // Recovery comes only from an exact callback intent or Supabase's validated
+  // PASSWORD_RECOVERY event. Auth remains registered long enough to set a password.
   if (intent === 'recovery') {
     return { authRoutesEnabled: true, destination: '/auth/reset-password' };
   }

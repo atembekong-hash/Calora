@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createPostAuthNavigationCoordinator,
   getPostAuthNavigationPlan,
+  resolvePostAuthIntent,
 } from '../postAuthNavigation';
 
 describe('post-auth navigation policy', () => {
@@ -39,6 +40,25 @@ describe('post-auth navigation policy', () => {
       authRoutesEnabled: true,
       destination: '/auth/reset-password',
     });
+  });
+
+  it('routes an ordinary-looking PKCE callback to password reset when Supabase confirms recovery', () => {
+    // Supabase emits PASSWORD_RECOVERY but does not retain type=recovery in
+    // the final code redirect. The event is therefore the trusted recovery
+    // signal and must override the ordinary callback classification.
+    expect(resolvePostAuthIntent({
+      callbackRouteIsActive: true,
+      isPasswordRecovery: true,
+      postAuthIntent: 'ordinary',
+    })).toBe('recovery');
+  });
+
+  it('holds a callback with no terminal signal pending instead of navigating early', () => {
+    expect(resolvePostAuthIntent({
+      callbackRouteIsActive: true,
+      isPasswordRecovery: false,
+      postAuthIntent: 'none',
+    })).toBe('pending');
   });
 
   it('does not turn a failed encrypted restore into guest navigation', () => {
